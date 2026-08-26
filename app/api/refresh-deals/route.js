@@ -71,14 +71,15 @@ function listingMatchesCard(listing, row) {
 }
 
 // The extended tier now covers ~5,000 cards ($15+, per the pokedealfinder.uk
-// competitive check) - too many to scan in one country in one day, and
-// budget is tighter now that a fast priority lane exists too (see
-// GET below). Splitting it into EXTENDED_CHUNKS stable pieces, one scanned
-// per country-day, keeps genuine coverage of the whole tier in every
-// country without busting eBay's ~5,000/day cap. Hash-based on watchlist id
-// rather than a stored column - deterministic and needs no migration; a
-// card's chunk only changes if its id changes.
-const EXTENDED_CHUNKS = 4;
+// competitive check) - too many to scan in one country in one day.
+// Splitting it into EXTENDED_CHUNKS stable pieces, one scanned per
+// country-day, keeps genuine coverage of the whole tier in every country
+// without busting eBay's ~5,000/day cap - sweep mode (see runSweep below)
+// now handles fast new-deal discovery cheaply, so this budget only needs
+// to cover confirming/expiring existing deals, not speed. Hash-based on
+// watchlist id rather than a stored column - deterministic and needs no
+// migration; a card's chunk only changes if its id changes.
+const EXTENDED_CHUNKS = 2;
 
 function chunkOf(row, totalChunks) {
   let hash = 0;
@@ -388,18 +389,16 @@ export async function GET(request) {
     return Response.json({ mode: "sweep", marketplace: marketplaceId, ...result, scannedAt: new Date().toISOString() });
   }
 
-  // ?chunk=1..4 - only meaningful for tier=extended (see EXTENDED_CHUNKS
+  // ?chunk=1..2 - only meaningful for tier=extended (see EXTENDED_CHUNKS
   // above). vercel.json runs each chunk/country combination on its own
-  // days so the full tier gets covered in every country roughly every 20
-  // days - slower than before, but that budget now funds the 15-min
-  // priority hot lane below instead.
+  // days so the full tier gets covered in every country roughly every 10
+  // days.
   const chunk = url.searchParams.get("chunk");
   // ?country=EBAY_GB - a single marketplace, used both by tier=extended
-  // and by the priority hot lane (see marketplaceIds below).
+  // and by sweep mode above.
   const countryParam = url.searchParams.get("country");
   // ?countries=EBAY_GB,EBAY_AU,EBAY_CA,EBAY_DE - an explicit list,
-  // overrides everything else. Used for the priority tier's slower,
-  // broader "every other country" sweep.
+  // overrides everything else.
   const countriesParam = url.searchParams.get("countries");
 
   let watchlistQuery = db.from("watchlist").select("*").eq("active", true);
@@ -410,16 +409,14 @@ export async function GET(request) {
     ? (watchlistRowsRaw ?? []).filter((row) => chunkOf(row, EXTENDED_CHUNKS) === chunk)
     : watchlistRowsRaw;
 
-  // eBay's ~5,000/day request cap, split three ways:
-  // - Priority hot lane (?country=EBAY_US): the ~30 hand-picked cards,
-  //   US only, every 15 min (~2,880/day) - this is where "check often"
-  //   actually matters, since these are the cards you're watching closely.
-  // - Priority broad sweep (?countries=...): the same cards in the other
-  //   4 countries, once a day (~120/day) - still covered, just not as
-  //   urgently.
+  // eBay's ~5,000/day request cap, split two ways now that sweep mode (see
+  // above) handles fast new-deal discovery cheaply and separately:
+  // - Priority (~30 hand-picked cards, all 5 countries, every 4h via
+  //   vercel.json): confirms/expires their existing deals.
   // - Extended (~5,000 auto-synced cards): one country at a time, split
-  //   into EXTENDED_CHUNKS pieces per country (~1,300/day), rotating
-  //   through all 5 countries over ~20 days.
+  //   into EXTENDED_CHUNKS pieces per country (~2,500/day), rotating
+  //   through all 5 countries every ~10 days - also just confirm/expiry
+  //   duty now, since sweep already finds new ones fast.
   const marketplaceIds = countriesParam
     ? countriesParam.split(",").filter((id) => MARKETPLACES[id])
     : countryParam && MARKETPLACES[countryParam]

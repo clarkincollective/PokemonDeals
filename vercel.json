@@ -1,92 +1,68 @@
 {
   "crons": [
     {
-      "path": "/api/refresh-deals?tier=priority&country=EBAY_US",
+      "path": "/api/refresh-deals?mode=sweep&country=EBAY_US&pages=5",
       "schedule": "*/15 * * * *"
     },
     {
-      "path": "/api/refresh-deals?tier=priority&countries=EBAY_GB,EBAY_AU,EBAY_CA,EBAY_DE",
-      "schedule": "0 5 * * *"
+      "path": "/api/refresh-deals?mode=sweep&country=EBAY_GB&pages=5",
+      "schedule": "5 * * * *"
+    },
+    {
+      "path": "/api/refresh-deals?mode=sweep&country=EBAY_AU&pages=5",
+      "schedule": "20 * * * *"
+    },
+    {
+      "path": "/api/refresh-deals?mode=sweep&country=EBAY_CA&pages=5",
+      "schedule": "35 * * * *"
+    },
+    {
+      "path": "/api/refresh-deals?mode=sweep&country=EBAY_DE&pages=5",
+      "schedule": "50 * * * *"
+    },
+    {
+      "path": "/api/refresh-deals?tier=priority",
+      "schedule": "0 */4 * * *"
     },
     {
       "path": "/api/refresh-deals?tier=extended&country=EBAY_US&chunk=1",
-      "schedule": "0 4 1 * *"
+      "schedule": "0 4 1,11,21,31 * *"
     },
     {
       "path": "/api/refresh-deals?tier=extended&country=EBAY_US&chunk=2",
-      "schedule": "0 4 2 * *"
-    },
-    {
-      "path": "/api/refresh-deals?tier=extended&country=EBAY_US&chunk=3",
-      "schedule": "0 4 3 * *"
-    },
-    {
-      "path": "/api/refresh-deals?tier=extended&country=EBAY_US&chunk=4",
-      "schedule": "0 4 4 * *"
+      "schedule": "0 4 2,12,22 * *"
     },
     {
       "path": "/api/refresh-deals?tier=extended&country=EBAY_GB&chunk=1",
-      "schedule": "0 4 5 * *"
+      "schedule": "0 4 3,13,23 * *"
     },
     {
       "path": "/api/refresh-deals?tier=extended&country=EBAY_GB&chunk=2",
-      "schedule": "0 4 6 * *"
-    },
-    {
-      "path": "/api/refresh-deals?tier=extended&country=EBAY_GB&chunk=3",
-      "schedule": "0 4 7 * *"
-    },
-    {
-      "path": "/api/refresh-deals?tier=extended&country=EBAY_GB&chunk=4",
-      "schedule": "0 4 8 * *"
+      "schedule": "0 4 4,14,24 * *"
     },
     {
       "path": "/api/refresh-deals?tier=extended&country=EBAY_AU&chunk=1",
-      "schedule": "0 4 9 * *"
+      "schedule": "0 4 5,15,25 * *"
     },
     {
       "path": "/api/refresh-deals?tier=extended&country=EBAY_AU&chunk=2",
-      "schedule": "0 4 10 * *"
-    },
-    {
-      "path": "/api/refresh-deals?tier=extended&country=EBAY_AU&chunk=3",
-      "schedule": "0 4 11 * *"
-    },
-    {
-      "path": "/api/refresh-deals?tier=extended&country=EBAY_AU&chunk=4",
-      "schedule": "0 4 12 * *"
+      "schedule": "0 4 6,16,26 * *"
     },
     {
       "path": "/api/refresh-deals?tier=extended&country=EBAY_CA&chunk=1",
-      "schedule": "0 4 13 * *"
+      "schedule": "0 4 7,17,27 * *"
     },
     {
       "path": "/api/refresh-deals?tier=extended&country=EBAY_CA&chunk=2",
-      "schedule": "0 4 14 * *"
-    },
-    {
-      "path": "/api/refresh-deals?tier=extended&country=EBAY_CA&chunk=3",
-      "schedule": "0 4 15 * *"
-    },
-    {
-      "path": "/api/refresh-deals?tier=extended&country=EBAY_CA&chunk=4",
-      "schedule": "0 4 16 * *"
+      "schedule": "0 4 8,18,28 * *"
     },
     {
       "path": "/api/refresh-deals?tier=extended&country=EBAY_DE&chunk=1",
-      "schedule": "0 4 17 * *"
+      "schedule": "0 4 9,19,29 * *"
     },
     {
       "path": "/api/refresh-deals?tier=extended&country=EBAY_DE&chunk=2",
-      "schedule": "0 4 18 * *"
-    },
-    {
-      "path": "/api/refresh-deals?tier=extended&country=EBAY_DE&chunk=3",
-      "schedule": "0 4 19 * *"
-    },
-    {
-      "path": "/api/refresh-deals?tier=extended&country=EBAY_DE&chunk=4",
-      "schedule": "0 4 20 * *"
+      "schedule": "0 4 10,20,30 * *"
     },
     {
       "path": "/api/sync-watchlist",
