@@ -1,9 +1,11 @@
 import Image from "next/image";
+import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES } from "@/lib/ebay";
 import Logo from "@/components/Logo";
 import AffiliateLink from "@/components/AffiliateLink";
+import NavMenu from "@/components/NavMenu";
 
 // Re-check for new deals at most once a minute, so the page reflects the
 // latest scan quickly without hitting the database on every single visit.
@@ -35,7 +37,7 @@ export default async function Home({ searchParams }) {
   const cardType = typeof params.type === "string" ? params.type : null; // "raw" | "graded"
   const listingType = typeof params.listing === "string" ? params.listing : null; // FIXED_PRICE | AUCTION
 
-  const PAGE_SIZE = 60;
+  const PAGE_SIZE = 24;
 
   // Fetch a much bigger pool than we display, then keep only the single
   // best (highest-discount) listing per card - otherwise one card with
@@ -70,19 +72,26 @@ export default async function Home({ searchParams }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
+      <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/90 backdrop-blur dark:border-zinc-800 dark:bg-black/90">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
+          <Link href="/">
+            <h1>
+              <Logo size="small" />
+            </h1>
+          </Link>
+          <NavMenu />
+        </div>
+      </div>
+
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-12">
-          <h1>
-            <Logo />
-          </h1>
-          <p className="mt-4 max-w-xl text-zinc-600 dark:text-zinc-400">
+        <div className="mx-auto max-w-7xl px-6 py-6">
+          <p className="max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
             Live below-market Pokémon card listings from eBay US and
             Australia, checked automatically around the clock against real
             market pricing and real eBay sold-listing data - not estimates.
-            Only cards genuinely priced below market make this list.
           </p>
           {lastRefreshed && (
-            <p className="mt-4 inline-flex items-center gap-2 text-sm text-zinc-500">
+            <p className="mt-3 inline-flex items-center gap-2 text-sm text-zinc-500">
               <span className="h-2 w-2 rounded-full bg-red-500" />
               Last refreshed {timeAgo(lastRefreshed)}
             </p>
@@ -114,6 +123,64 @@ export default async function Home({ searchParams }) {
           ))}
         </div>
       </main>
+
+      <section id="how-it-works" className="border-t border-zinc-200 dark:border-zinc-800">
+        <div className="mx-auto max-w-7xl px-6 py-12">
+          <h2 className="text-lg font-bold text-black dark:text-zinc-50">How it works</h2>
+          <ol className="mt-5 grid gap-6 sm:grid-cols-3">
+            <li>
+              <p className="font-semibold text-black dark:text-zinc-50">1. We scan eBay</p>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                Every watched card is checked against live eBay listings, several times a day.
+              </p>
+            </li>
+            <li>
+              <p className="font-semibold text-black dark:text-zinc-50">2. We check real pricing</p>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                Each listing is compared against real market pricing and recent eBay sold listings - not
+                guesses.
+              </p>
+            </li>
+            <li>
+              <p className="font-semibold text-black dark:text-zinc-50">3. We only show genuine deals</p>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                A listing only makes the list if it&apos;s meaningfully below market and the seller passes
+                our trust checks.
+              </p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section id="faq" className="border-t border-zinc-200 dark:border-zinc-800">
+        <div className="mx-auto max-w-7xl px-6 py-12">
+          <h2 className="text-lg font-bold text-black dark:text-zinc-50">FAQ</h2>
+          <div className="mt-5 flex flex-col gap-5 sm:max-w-2xl">
+            <div>
+              <p className="font-semibold text-black dark:text-zinc-50">Is this free to use?</p>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                Yes, always. We earn a small commission if you buy through one of our links - it
+                doesn&apos;t change the price you pay.
+              </p>
+            </div>
+            <div>
+              <p className="font-semibold text-black dark:text-zinc-50">How often do listings update?</p>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                Actively watched cards are checked every few hours; the wider catalog is checked daily.
+              </p>
+            </div>
+            <div>
+              <p className="font-semibold text-black dark:text-zinc-50">
+                Is the card-to-listing match always right?
+              </p>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                Matching is automated. We filter out obviously wrong matches, but always double-check a
+                listing&apos;s photos and description before buying.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <footer className="border-t border-zinc-200 px-6 py-8 text-center text-xs text-zinc-500 dark:border-zinc-800">
         As an eBay and TCGPlayer affiliate, we earn a commission on qualifying
@@ -153,7 +220,7 @@ function TrustBadges() {
   };
 
   return (
-    <div className="mt-6 flex flex-wrap items-center gap-x-8 gap-y-3">
+    <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
       <Badge
         icon={
           <svg {...iconProps}>
