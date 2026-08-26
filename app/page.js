@@ -57,10 +57,19 @@ export default async function Home({ searchParams }) {
     if (deals.length >= PAGE_SIZE) break;
   }
 
-  const lastRefreshed = deals?.reduce(
-    (latest, deal) => (deal.last_seen_at > latest ? deal.last_seen_at : latest),
-    deals?.[0]?.last_seen_at ?? null
-  );
+  // The true "when did we last scan anything" time, not just the newest
+  // timestamp among the currently-displayed top discounts - those are
+  // dominated by cards from the broad catalog sweep that only gets
+  // rescanned every ~20 days, so using only the displayed page made the
+  // indicator look stale even while the 15-min priority scan was actively
+  // running in the background.
+  const { data: lastScan } = await supabase
+    .from("deals")
+    .select("last_seen_at")
+    .order("last_seen_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const lastRefreshed = lastScan?.last_seen_at ?? null;
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
