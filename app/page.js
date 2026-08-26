@@ -2,11 +2,11 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { MARKETPLACES } from "@/lib/ebay";
 import { fetchBestFinds } from "@/lib/deals";
-import { dealScore } from "@/lib/dealScore";
 import { timeAgo } from "@/lib/time";
 import Logo from "@/components/Logo";
 import NavMenu from "@/components/NavMenu";
 import DealCard from "@/components/DealCard";
+import BestFindsBanner from "@/components/BestFindsBanner";
 
 // Re-check for new deals at most once a minute, so the page reflects the
 // latest scan quickly without hitting the database on every single visit.
@@ -108,34 +108,7 @@ export default async function Home({ searchParams }) {
         </div>
       </header>
 
-      {bestFinds.length > 0 && (
-        <section className="border-b border-zinc-200 bg-gradient-to-b from-red-50 to-transparent dark:border-zinc-800 dark:from-red-950/20">
-          <div className="mx-auto max-w-7xl px-6 py-8">
-            <div className="flex flex-wrap items-end justify-between gap-2">
-              <div>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white">
-                  🔥 Today&apos;s Best Finds
-                </span>
-                <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                  The biggest discounts on higher-value cards right now.
-                </p>
-              </div>
-              <Link
-                href="/best-finds"
-                className="text-sm font-semibold text-red-600 hover:underline dark:text-red-400"
-              >
-                See full list →
-              </Link>
-            </div>
-
-            <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
-              {bestFinds.map((deal, i) => (
-                <DealCard key={deal.id} deal={deal} rank={i + 1} scoreBadge={dealScore(deal.discount_pct)} pageName="home_best_finds" />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      <BestFindsBanner bestFinds={bestFinds} />
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
         <FilterBar params={params} country={country} cardType={cardType} listingType={listingType} />
