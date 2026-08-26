@@ -39,6 +39,10 @@ export const metadata = {
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
   },
+  // Google Search Console site-ownership verification (HTML tag method).
+  verification: {
+    google: "4aLIdWXL2x1foNlBWXXHUr_vdNRJNdU32c3uGAC-FaM",
+  },
 };
 
 export default function RootLayout({ children }) {
