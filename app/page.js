@@ -35,19 +35,33 @@ export default async function Home({ searchParams }) {
   const cardType = typeof params.type === "string" ? params.type : null; // "raw" | "graded"
   const listingType = typeof params.listing === "string" ? params.listing : null; // FIXED_PRICE | AUCTION
 
+  const PAGE_SIZE = 60;
+
+  // Fetch a much bigger pool than we display, then keep only the single
+  // best (highest-discount) listing per card - otherwise one card with
+  // ten sellers can fill the whole page and crowd out everything else.
   let query = supabase
     .from("deals")
     .select("*, watchlist:watchlist_id (name, set)")
     .eq("is_active", true)
     .order("discount_pct", { ascending: false })
-    .limit(60);
+    .limit(500);
 
   if (country) query = query.eq("marketplace", country);
   if (cardType === "raw") query = query.eq("is_graded", false);
   if (cardType === "graded") query = query.eq("is_graded", true);
   if (listingType) query = query.eq("listing_type", listingType);
 
-  const { data: deals, error } = await query;
+  const { data: pool, error } = await query;
+
+  const seenCards = new Set();
+  const deals = [];
+  for (const deal of pool ?? []) {
+    if (seenCards.has(deal.watchlist_id)) continue;
+    seenCards.add(deal.watchlist_id);
+    deals.push(deal);
+    if (deals.length >= PAGE_SIZE) break;
+  }
 
   const lastRefreshed = deals?.reduce(
     (latest, deal) => (deal.last_seen_at > latest ? deal.last_seen_at : latest),
@@ -272,7 +286,7 @@ function DealRow({ deal }) {
       {/* Details */}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-semibold text-white">
+          <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">
             {discountLabel}
           </span>
           {deal.is_graded ? (
@@ -346,7 +360,7 @@ function DealRow({ deal }) {
             }}
             className="whitespace-nowrap rounded-lg bg-black px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
           >
-            {isAuction ? "Bid on eBay →" : "View Deal on eBay →"}
+            {isAuction ? "Bid Now →" : "View Deal →"}
           </AffiliateLink>
           <AffiliateLink
             href={tcgplayerLink}

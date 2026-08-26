@@ -27,7 +27,7 @@ const MIN_SELLER_FEEDBACK_SCORE = 10;
 // cases, hand-drawn "sketch cards") that aren't the actual TCG card but
 // still legitimately mention the card's name in their title.
 const EXCLUDED_TITLE_PATTERN =
-  /\b(lot|bundle|playset|proxy|custom|repack|digital|code|acrylic|sketch|coa)\b|choose your|pick your|fan ?art|original art|case card|display case/i;
+  /\b(lot|bundle|playset|proxy|custom|repack|digital|code|acrylic|sketch|coa)\b|choose your|pick your|fan ?art|original art|case card|display case|trading service|pokemon ?go\b|account trade/i;
 
 // eBay's search is relevance-based, not a strict title match - a search
 // for one card can return a completely different card that just ranks in

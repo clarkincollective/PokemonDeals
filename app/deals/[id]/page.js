@@ -86,7 +86,7 @@ export default async function DealDetailPage({ params }) {
 
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-semibold text-white">
+              <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">
                 {Math.round(deal.discount_pct * 100)}% off
               </span>
               {deal.is_graded ? (
@@ -138,7 +138,7 @@ export default async function DealDetailPage({ params }) {
                 }}
                 className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
               >
-                {isAuction ? "Bid on eBay →" : "View Deal on eBay →"}
+                {isAuction ? "Bid Now →" : "View Deal →"}
               </AffiliateLink>
               <AffiliateLink
                 href={tcgplayerLink}
