@@ -79,7 +79,10 @@ export default async function Home({ searchParams }) {
   if (listingType) query = query.eq("listing_type", listingType);
 
   const { data: pool, error } = await query;
-  const { deals: bestFinds } = await fetchBestFinds({ limit: 3 });
+  const [{ deals: bestFindsRaw }, { deals: bestFindsGraded }] = await Promise.all([
+    fetchBestFinds({ limit: 3, graded: false }),
+    fetchBestFinds({ limit: 3, graded: true }),
+  ]);
 
   const seenCards = new Set();
   const deals = [];
@@ -181,7 +184,7 @@ export default async function Home({ searchParams }) {
         </div>
       </main>
 
-      <BestFindsBanner bestFinds={bestFinds} />
+      <BestFindsBanner rawFinds={bestFindsRaw} gradedFinds={bestFindsGraded} />
 
       <section id="how-it-works" className="border-t border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-12">

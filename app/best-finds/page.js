@@ -13,8 +13,29 @@ export const metadata = {
   alternates: { canonical: "/best-finds" },
 };
 
-export default async function BestFindsPage() {
-  const { deals, error } = await fetchBestFinds({ limit: 10 });
+function TypePill({ href, active, children }) {
+  return (
+    <a
+      href={href}
+      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+        active
+          ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+          : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
+      }`}
+    >
+      {children}
+    </a>
+  );
+}
+
+export default async function BestFindsPage({ searchParams }) {
+  const params = await searchParams;
+  // Raw and graded are ranked as two separate lists (graded is a much
+  // smaller pool - mixing them would let raw deals crowd out every
+  // graded one) - default to raw since it's the far larger, more
+  // frequently-updated list.
+  const type = params.type === "graded" ? "graded" : "raw";
+  const { deals, error } = await fetchBestFinds({ limit: 10, graded: type === "graded" });
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
@@ -39,12 +60,21 @@ export default async function BestFindsPage() {
             🔥 Today&apos;s Best Finds
           </span>
           <h1 className="mt-3 text-2xl font-bold text-black dark:text-zinc-50">
-            The best deals right now
+            Top 10 {type === "graded" ? "graded" : "raw"} deals right now
           </h1>
           <p className="mt-2 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
             Higher-value cards with the biggest real discounts below market price, ranked highest
             discount first. Each stays on this list until a better deal replaces it.
           </p>
+
+          <div className="mt-4 flex gap-2">
+            <TypePill href="/best-finds?type=raw" active={type === "raw"}>
+              Raw
+            </TypePill>
+            <TypePill href="/best-finds?type=graded" active={type === "graded"}>
+              Graded
+            </TypePill>
+          </div>
         </div>
       </header>
 
@@ -55,7 +85,7 @@ export default async function BestFindsPage() {
 
         {!error && deals.length === 0 && (
           <p className="text-zinc-500">
-            No standout deals right now - check back after the next scheduled scan, or browse{" "}
+            No standout {type} deals right now - check back after the next scheduled scan, or browse{" "}
             <Link href="/" className="underline">
               all deals
             </Link>

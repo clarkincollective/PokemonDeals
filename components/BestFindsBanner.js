@@ -16,7 +16,29 @@ function readStoredCollapsed() {
   }
 }
 
-export default function BestFindsBanner({ bestFinds }) {
+function FindsRow({ title, seeAllHref, deals }) {
+  if (deals.length === 0) return null;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+          {title}
+        </h3>
+        <Link href={seeAllHref} className="text-sm font-semibold text-red-600 hover:underline dark:text-red-400">
+          See top 10 →
+        </Link>
+      </div>
+      <div className="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-3">
+        {deals.map((deal, i) => (
+          <DealCard key={deal.id} deal={deal} rank={i + 1} scoreBadge={dealScore(deal.discount_pct)} pageName="home_best_finds" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function BestFindsBanner({ rawFinds, gradedFinds }) {
   // Remember the viewer's choice across visits - falls back to always
   // expanded if storage is unavailable (private browsing, etc.). Lazy
   // initializer rather than an effect, so there's no flash of the
@@ -35,7 +57,7 @@ export default function BestFindsBanner({ bestFinds }) {
     });
   }
 
-  if (bestFinds.length === 0) return null;
+  if (rawFinds.length === 0 && gradedFinds.length === 0) return null;
 
   return (
     <section className="border-y border-zinc-200 bg-gradient-to-b from-red-50 to-transparent dark:border-zinc-800 dark:from-red-950/20">
@@ -47,38 +69,24 @@ export default function BestFindsBanner({ bestFinds }) {
             </span>
             {!collapsed && (
               <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                The biggest discounts on higher-value cards right now.
+                The biggest discounts on higher-value cards right now - raw and graded, ranked
+                separately.
               </p>
             )}
           </div>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/best-finds"
-              className="text-sm font-semibold text-red-600 hover:underline dark:text-red-400"
-            >
-              See full list →
-            </Link>
-            <button
-              onClick={toggle}
-              className="text-sm font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-              aria-expanded={!collapsed}
-            >
-              {collapsed ? "Show ▾" : "Minimize ▴"}
-            </button>
-          </div>
+          <button
+            onClick={toggle}
+            className="text-sm font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+            aria-expanded={!collapsed}
+          >
+            {collapsed ? "Show ▾" : "Minimize ▴"}
+          </button>
         </div>
 
         {!collapsed && (
-          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
-            {bestFinds.map((deal, i) => (
-              <DealCard
-                key={deal.id}
-                deal={deal}
-                rank={i + 1}
-                scoreBadge={dealScore(deal.discount_pct)}
-                pageName="home_best_finds"
-              />
-            ))}
+          <div className="mt-6 flex flex-col gap-8">
+            <FindsRow title="Top Raw" seeAllHref="/best-finds?type=raw" deals={rawFinds} />
+            <FindsRow title="Top Graded" seeAllHref="/best-finds?type=graded" deals={gradedFinds} />
           </div>
         )}
       </div>
