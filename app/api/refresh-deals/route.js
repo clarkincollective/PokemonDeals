@@ -13,8 +13,10 @@ export const maxDuration = 800;
 // actual cause of the 6.5 min runtime, not a rate limit.
 const CONCURRENCY = 8;
 
-// How far under market a listing has to be to count as a "deal".
-const DISCOUNT_THRESHOLD = 0.15;
+// How far under market a listing has to be to count as a "deal". Lowered
+// from 15% so more genuine below-market listings qualify and new finds
+// show up more often, not just the rarer bigger discounts.
+const DISCOUNT_THRESHOLD = 0.1;
 // Filters out obviously-wrong/scam-tier listings (e.g. a $2 "Charizard"
 // that's actually a proxy or the wrong item) rather than genuine deals.
 const SANITY_FLOOR_PCT = 0.25;
@@ -224,9 +226,9 @@ export async function GET(request) {
   const url = new URL(request.url);
   const tier = url.searchParams.get("tier");
 
-  // ?minDiscount=0.03 overrides the real 15% threshold for a one-off test
+  // ?minDiscount=0.03 overrides the real 10% threshold for a one-off test
   // scan (e.g. to see real UI with real listings without waiting for a
-  // genuine 15%+ deal). Never used by the scheduled cron calls, so
+  // genuine 10%+ deal). Never used by the scheduled cron calls, so
   // production behavior is unaffected unless this is passed explicitly.
   const minDiscountParam = url.searchParams.get("minDiscount");
   const discountThreshold = minDiscountParam != null ? Number(minDiscountParam) : DISCOUNT_THRESHOLD;
