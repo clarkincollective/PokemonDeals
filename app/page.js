@@ -33,11 +33,17 @@ export default async function Home({ searchParams }) {
   // Fetch a much bigger pool than we display, then keep only the single
   // best (highest-discount) listing per card - otherwise one card with
   // ten sellers can fill the whole page and crowd out everything else.
+  // Sorted by freshness, not discount_pct: the sanity floor caps any
+  // discount at 75%, and there are always enough deals sitting right at
+  // that ceiling to permanently fill a discount-sorted top 24 - genuinely
+  // new finds never surfaced, and the page looked stuck at "75% off"
+  // forever even though scans were actively running. Freshest-first
+  // actually shows what's new.
   let query = supabase
     .from("deals")
     .select("*, watchlist:watchlist_id (name, set)")
     .eq("is_active", true)
-    .order("discount_pct", { ascending: false })
+    .order("first_seen_at", { ascending: false })
     .limit(500);
 
   if (country) query = query.eq("marketplace", country);
