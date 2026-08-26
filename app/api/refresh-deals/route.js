@@ -230,8 +230,12 @@ export async function GET(request) {
 
   // ?half=1 or ?half=2 - only meaningful for tier=extended, which is too
   // large to scan in one day (see halfOf() above). vercel.json runs each
-  // half on alternating days so the full tier gets covered every 2 days.
+  // half/country combination on its own days so the full tier gets
+  // covered in every country roughly every 10 days.
   const half = url.searchParams.get("half");
+  // ?country=EBAY_GB - only meaningful for tier=extended. Defaults to US
+  // so an unparameterized/manual run still does something sensible.
+  const countryParam = url.searchParams.get("country");
 
   let watchlistQuery = db.from("watchlist").select("*").eq("active", true);
   if (tier) watchlistQuery = watchlistQuery.eq("tier", tier);
@@ -239,12 +243,16 @@ export async function GET(request) {
   const { data: watchlistRowsRaw, error: watchlistError } = await watchlistQuery;
   const watchlistRows = half ? (watchlistRowsRaw ?? []).filter((row) => halfOf(row) === half) : watchlistRowsRaw;
 
-  // eBay's ~5,000/day request cap: the ~30 hand-picked priority cards get
-  // a fast lane across US + Australia (your own market); the much larger
-  // extended tier (the real $15-$200 "sweet spot" catalog) is scanned
-  // single-country (US) and split across two days via ?half.
+  // eBay's ~5,000/day request cap: the ~30 hand-picked priority cards are
+  // cheap enough to scan across all 5 countries every 4 hours (900/day).
+  // The much larger extended tier (~5,000 cards) can't afford that
+  // breadth at any real frequency, so it scans one country at a time,
+  // split across two days per country (~2,500/day) - vercel.json rotates
+  // through all 5 countries over roughly a 10-day cycle.
   const marketplaceIds =
-    tier === "extended" ? ["EBAY_US"] : tier === "priority" ? ["EBAY_US", "EBAY_AU"] : Object.keys(MARKETPLACES);
+    tier === "extended"
+      ? [countryParam && MARKETPLACES[countryParam] ? countryParam : "EBAY_US"]
+      : Object.keys(MARKETPLACES);
 
   if (watchlistError) {
     return Response.json({ error: watchlistError.message }, { status: 500 });
