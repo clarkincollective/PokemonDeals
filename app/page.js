@@ -270,7 +270,7 @@ function FilterPill({ href, active, children }) {
   return (
     <a
       href={href}
-      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+      className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
         active
           ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
           : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
@@ -281,43 +281,54 @@ function FilterPill({ href, active, children }) {
   );
 }
 
+// A horizontally scrolling strip instead of wrapping pills onto a second
+// line - bleeds past the page's own side padding (-mx-6/px-6) so it can
+// scroll edge-to-edge, and hides the scrollbar for a cleaner look.
+function ScrollRow({ children }) {
+  return (
+    <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {children}
+    </div>
+  );
+}
+
 function FilterBar({ params, country, cardType, listingType }) {
   return (
-    <div className="mb-8 flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+    <div className="mb-8 flex flex-col gap-4">
+      <div>
+        <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
           Country
         </span>
-        {Object.entries(MARKETPLACES).map(([id, info]) => (
-          <FilterPill key={id} href={filterHref(params, "country", id)} active={country === id}>
-            {info.flag} {info.label}
-          </FilterPill>
-        ))}
+        <ScrollRow>
+          {Object.entries(MARKETPLACES).map(([id, info]) => (
+            <FilterPill key={id} href={filterHref(params, "country", id)} active={country === id}>
+              {info.flag} {info.label}
+            </FilterPill>
+          ))}
+        </ScrollRow>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
-          Card
+      <div>
+        <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+          Card &amp; listing
         </span>
-        <FilterPill href={filterHref(params, "type", "raw")} active={cardType === "raw"}>
-          Raw
-        </FilterPill>
-        <FilterPill href={filterHref(params, "type", "graded")} active={cardType === "graded"}>
-          Graded
-        </FilterPill>
-
-        <span className="ml-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-          Listing
-        </span>
-        <FilterPill
-          href={filterHref(params, "listing", "FIXED_PRICE")}
-          active={listingType === "FIXED_PRICE"}
-        >
-          Buy It Now
-        </FilterPill>
-        <FilterPill href={filterHref(params, "listing", "AUCTION")} active={listingType === "AUCTION"}>
-          Auction
-        </FilterPill>
+        <ScrollRow>
+          <FilterPill href={filterHref(params, "type", "raw")} active={cardType === "raw"}>
+            Raw
+          </FilterPill>
+          <FilterPill href={filterHref(params, "type", "graded")} active={cardType === "graded"}>
+            Graded
+          </FilterPill>
+          <FilterPill
+            href={filterHref(params, "listing", "FIXED_PRICE")}
+            active={listingType === "FIXED_PRICE"}
+          >
+            Buy It Now
+          </FilterPill>
+          <FilterPill href={filterHref(params, "listing", "AUCTION")} active={listingType === "AUCTION"}>
+            Auction
+          </FilterPill>
+        </ScrollRow>
       </div>
     </div>
   );
