@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { MARKETPLACES, searchListings, getGradingDetails } from "@/lib/ebay";
+import { MARKETPLACES, searchListings, searchNewlyListed, getGradingDetails } from "@/lib/ebay";
 import { getRawPrice, getGradedPrice } from "@/lib/pokemonPriceTracker";
 
 // This route does real work (API calls + database writes) and must never
@@ -212,6 +212,128 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
   return dealsFound;
 }
 
+// Inverted index: token -> watchlist rows containing it. Lets sweep mode
+// (below) find candidate cards for a listing without checking it against
+// every one of ~5,000 watchlist rows individually.
+function buildWatchlistIndex(rows) {
+  const index = new Map();
+  for (const row of rows) {
+    for (const token of coreTokens(row.name)) {
+      if (!index.has(token)) index.set(token, []);
+      index.get(token).push(row);
+    }
+  }
+  return index;
+}
+
+function candidateRowsForListing(listing, index) {
+  const words = listing.title.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+  const candidates = new Map();
+  for (const word of words) {
+    for (const row of index.get(word) ?? []) {
+      if (!candidates.has(row.id)) candidates.set(row.id, row);
+    }
+  }
+  return [...candidates.values()];
+}
+
+// Sweeps the newest listings across the whole category (see
+// searchNewlyListed in lib/ebay.js) and matches each one against every
+// active watchlist card client-side, instead of searching per card. This
+// is dramatically cheaper - a handful of requests can cover the same
+// ground as thousands of per-card searches - which is what makes running
+// this often, in every country, affordable. Unlike scanCardInMarketplace,
+// a sweep only ever sees a recent slice of new listings, never a card's
+// full current listing set, so it never expires anything - that stays the
+// tiered per-card scans' job.
+async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pages) {
+  const index = buildWatchlistIndex(watchlistRows);
+  const listings = await searchNewlyListed(marketplaceId, { pages });
+
+  const marketPriceCache = new Map();
+  async function cachedRawPrice(row) {
+    const key = `${row.justtcg_tcgplayer_id}|${row.justtcg_condition}`;
+    if (marketPriceCache.has(key)) return marketPriceCache.get(key);
+    let marketData = null;
+    try {
+      const raw = await getRawPrice(row.justtcg_tcgplayer_id, row.justtcg_condition);
+      if (raw) marketData = { marketPrice: raw.price, priceChange24hr: null };
+    } catch {
+      marketData = null;
+    }
+    marketPriceCache.set(key, marketData);
+    return marketData;
+  }
+
+  let dealsFound = 0;
+  let matched = 0;
+  let gradedLookups = 0;
+  // Bounds worst-case extra eBay getItem + PokemonPriceTracker calls if an
+  // unusually large number of graded matches show up in one sweep.
+  const GRADED_LOOKUP_CAP = 30;
+  const errors = [];
+
+  const tryUpsert = async (row_) => {
+    const { error } = await db.from("deals").upsert(row_, { onConflict: "source,marketplace,listing_id" });
+    if (error) console.error(`Failed to upsert deal ${row_.listing_id}:`, error.message);
+    else dealsFound++;
+  };
+
+  for (const listing of listings) {
+    if (!isTrustworthyListing(listing)) continue;
+
+    for (const row of candidateRowsForListing(listing, index)) {
+      if (!listingMatchesCard(listing, row)) continue;
+      matched++;
+
+      if (listing.isGraded) {
+        if (gradedLookups >= GRADED_LOOKUP_CAP) continue;
+        gradedLookups++;
+        try {
+          const grading = await getGradingDetails(listing.listingId, marketplaceId);
+          const gradedPrice = grading.grader
+            ? await getGradedPrice(row.justtcg_tcgplayer_id, grading.grader, grading.grade)
+            : null;
+          if (!gradedPrice) continue;
+
+          const totalPrice = listing.price + listing.shipping;
+          const discountPct = (gradedPrice.price - totalPrice) / gradedPrice.price;
+          if (discountPct < discountThreshold) continue;
+          if (totalPrice < gradedPrice.price * SANITY_FLOOR_PCT) continue;
+
+          await tryUpsert(
+            dealRow({ watchlistId: row.id, listing, totalPrice, marketPrice: gradedPrice.price, discountPct, grading })
+          );
+        } catch (err) {
+          errors.push(`Graded lookup failed for ${row.name} (${marketplaceId}): ${err.message}`);
+        }
+        continue;
+      }
+
+      const marketData = await cachedRawPrice(row);
+      if (!marketData) continue;
+
+      const totalPrice = listing.price + listing.shipping;
+      const discountPct = (marketData.marketPrice - totalPrice) / marketData.marketPrice;
+      if (discountPct < discountThreshold) continue;
+      if (totalPrice < marketData.marketPrice * SANITY_FLOOR_PCT) continue;
+
+      await tryUpsert(
+        dealRow({
+          watchlistId: row.id,
+          listing,
+          totalPrice,
+          marketPrice: marketData.marketPrice,
+          discountPct,
+          priceChange24hr: marketData.priceChange24hr,
+        })
+      );
+    }
+  }
+
+  return { swept: listings.length, matched, dealsFound, errors };
+}
+
 export async function GET(request) {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -232,6 +354,27 @@ export async function GET(request) {
   // production behavior is unaffected unless this is passed explicitly.
   const minDiscountParam = url.searchParams.get("minDiscount");
   const discountThreshold = minDiscountParam != null ? Number(minDiscountParam) : DISCOUNT_THRESHOLD;
+
+  // ?mode=sweep&country=EBAY_US - fast, cheap discovery of brand-new
+  // listings across the WHOLE category (see runSweep above), matched
+  // against every active watchlist card regardless of tier. This is what
+  // makes true 15-min freshness affordable; it never expires deals, so
+  // the tiered per-card scans below still run on their own schedule to
+  // keep confirming/retiring existing ones.
+  const mode = url.searchParams.get("mode");
+  if (mode === "sweep") {
+    const marketplaceId =
+      url.searchParams.get("country") && MARKETPLACES[url.searchParams.get("country")]
+        ? url.searchParams.get("country")
+        : "EBAY_US";
+    const pages = Number(url.searchParams.get("pages")) || 5;
+
+    const { data: allActiveRows, error: activeError } = await db.from("watchlist").select("*").eq("active", true);
+    if (activeError) return Response.json({ error: activeError.message }, { status: 500 });
+
+    const result = await runSweep(marketplaceId, allActiveRows ?? [], db, discountThreshold, pages);
+    return Response.json({ mode: "sweep", marketplace: marketplaceId, ...result, scannedAt: new Date().toISOString() });
+  }
 
   // ?chunk=1..4 - only meaningful for tier=extended (see EXTENDED_CHUNKS
   // above). vercel.json runs each chunk/country combination on its own
