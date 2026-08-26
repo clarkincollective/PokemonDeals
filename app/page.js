@@ -71,7 +71,7 @@ export default async function Home({ searchParams }) {
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-6xl px-6 py-12">
+        <div className="mx-auto max-w-7xl px-6 py-12">
           <h1>
             <Logo />
           </h1>
@@ -92,7 +92,7 @@ export default async function Home({ searchParams }) {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
         <FilterBar params={params} country={country} cardType={cardType} listingType={listingType} />
 
         {error && (
@@ -108,9 +108,9 @@ export default async function Home({ searchParams }) {
           </p>
         )}
 
-        <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {deals?.map((deal) => (
-            <DealRow key={deal.id} deal={deal} />
+            <DealCard key={deal.id} deal={deal} />
           ))}
         </div>
       </main>
@@ -256,7 +256,7 @@ function FilterBar({ params, country, cardType, listingType }) {
   );
 }
 
-function DealRow({ deal }) {
+function DealCard({ deal }) {
   const cardName = deal.watchlist?.name ?? deal.title;
   const cardSet = deal.watchlist?.set;
   const discountLabel = `${Math.round(deal.discount_pct * 100)}% off`;
@@ -265,88 +265,77 @@ function DealRow({ deal }) {
   const marketInfo = MARKETPLACES[deal.marketplace];
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:flex-row sm:items-center dark:border-zinc-800 dark:bg-zinc-950">
-      {/* Thumbnail */}
-      <div className="relative h-28 w-28 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-100 sm:self-auto dark:bg-zinc-900">
+    <div className="group flex h-full flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-950">
+      {/* Image */}
+      <a href={`/deals/${deal.id}`} className="relative block aspect-square w-full bg-zinc-100 dark:bg-zinc-900">
         {deal.image_url ? (
           <Image
             src={deal.image_url}
             alt={deal.title}
             fill
-            sizes="112px"
-            className="object-contain p-2"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            className="object-contain p-5 transition-transform duration-200 group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-xs text-zinc-400">
-            No image
-          </div>
+          <div className="flex h-full items-center justify-center text-xs text-zinc-400">No image</div>
         )}
-      </div>
+        <span className="absolute right-2 top-2 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white shadow-sm">
+          {discountLabel}
+        </span>
+        {marketInfo && (
+          <span
+            className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs shadow-sm dark:bg-zinc-950/90"
+            title={marketInfo.label}
+          >
+            {marketInfo.flag}
+          </span>
+        )}
+      </a>
 
       {/* Details */}
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">
-            {discountLabel}
-          </span>
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        <div className="flex flex-wrap items-center gap-1.5">
           {deal.is_graded ? (
-            <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+            <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
               {deal.grader} {deal.grade}
             </span>
           ) : (
             deal.condition && (
-              <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                 {deal.condition}
               </span>
             )
           )}
-          <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             {isAuction ? "Auction" : "Buy It Now"}
           </span>
-          {marketInfo && (
-            <span className="text-sm" title={marketInfo.label}>
-              {marketInfo.flag}
-            </span>
-          )}
         </div>
 
         <a
           href={`/deals/${deal.id}`}
-          className="mt-2 line-clamp-1 block font-semibold text-black hover:underline dark:text-zinc-50"
+          className="line-clamp-2 font-semibold leading-snug text-black hover:underline dark:text-zinc-50"
         >
           {cardName}
         </a>
-        {cardSet && <p className="line-clamp-1 text-sm text-zinc-500">{cardSet}</p>}
+        {cardSet && <p className="line-clamp-1 text-xs text-zinc-500">{cardSet}</p>}
 
-        <p className="mt-1 text-xs text-zinc-400">
-          Found {timeAgo(deal.first_seen_at)}
-          {isAuction && deal.bid_count != null && <> &middot; {deal.bid_count} bids</>}
-          {!deal.is_graded && deal.price_change_24hr != null && (
-            <>
-              {" "}
-              &middot; market {deal.price_change_24hr >= 0 ? "+" : ""}
-              {Number(deal.price_change_24hr).toFixed(1)}% (24h)
-            </>
-          )}
-        </p>
-      </div>
-
-      {/* Price + CTA */}
-      <div className="flex shrink-0 flex-row items-center justify-between gap-4 border-t border-zinc-100 pt-3 sm:flex-col sm:items-end sm:border-t-0 sm:pt-0 sm:text-right dark:border-zinc-900">
-        <div>
-          {isAuction && (
-            <div className="text-xs font-medium text-amber-600 dark:text-amber-400">
-              Current bid
-            </div>
-          )}
-          <div className="text-xl font-bold text-black dark:text-zinc-50">
+        <div className="mt-1 flex items-baseline gap-2">
+          <span className="text-lg font-bold text-black dark:text-zinc-50">
             ${Number(deal.total_price).toFixed(2)}
-          </div>
-          <div className="text-sm text-zinc-400 line-through">
+          </span>
+          <span className="text-sm text-zinc-400 line-through">
             ${Number(deal.market_price).toFixed(2)}
-          </div>
+          </span>
         </div>
-        <div className="flex flex-col items-end gap-1">
+        {isAuction && (
+          <div className="-mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+            Current bid{deal.bid_count != null ? ` · ${deal.bid_count} bids` : ""}
+          </div>
+        )}
+
+        <p className="text-[11px] text-zinc-400">Found {timeAgo(deal.first_seen_at)}</p>
+
+        <div className="mt-auto flex flex-col gap-1.5 pt-2">
           <AffiliateLink
             href={deal.affiliate_url}
             eventName="eBay Click"
@@ -358,7 +347,7 @@ function DealRow({ deal }) {
               isGraded: deal.is_graded,
               page: "home",
             }}
-            className="whitespace-nowrap rounded-lg bg-black px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+            className="block rounded-lg bg-black px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
           >
             {isAuction ? "Bid Now →" : "View Deal →"}
           </AffiliateLink>
@@ -366,7 +355,7 @@ function DealRow({ deal }) {
             href={tcgplayerLink}
             eventName="TCGPlayer Click"
             eventData={{ card: cardName, page: "home" }}
-            className="text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+            className="text-center text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
           >
             Check on TCGPlayer
           </AffiliateLink>
