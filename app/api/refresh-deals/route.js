@@ -52,10 +52,22 @@ function coreTokens(name) {
 }
 
 function listingMatchesCard(listing, row) {
-  const tokens = coreTokens(row.name);
-  if (tokens.length === 0) return true;
   const normalizedTitle = listing.title.toLowerCase();
-  return tokens.every((token) => normalizedTitle.includes(token));
+
+  const nameTokens = coreTokens(row.name);
+  if (nameTokens.length > 0 && !nameTokens.every((token) => normalizedTitle.includes(token))) return false;
+
+  // The card name alone is often just the Pokemon's name ("Charizard",
+  // "Gengar", "Pikachu"...), which is shared across dozens of sets worth
+  // wildly different amounts - verified a sweep matched "Charizard" (SM -
+  // Team Up) to a listing for a completely different, much more recent
+  // "Charizard ex... Paldean Fates" print before this check existed.
+  // Requiring the set to match too is what actually disambiguates which
+  // specific print a listing is.
+  const setTokens = coreTokens(row.set ?? "");
+  if (setTokens.length > 0 && !setTokens.every((token) => normalizedTitle.includes(token))) return false;
+
+  return true;
 }
 
 // The extended tier now covers ~5,000 cards ($15+, per the pokedealfinder.uk
