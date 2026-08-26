@@ -19,30 +19,42 @@ export async function GET(request) {
   return cardSearch(url);
 }
 
+// sort: "discount" (default, best deal first), "price_asc", "price_desc".
+function sortDeals(query, sort) {
+  if (sort === "price_asc") return query.order("total_price", { ascending: true });
+  if (sort === "price_desc") return query.order("total_price", { ascending: false });
+  return query.order("discount_pct", { ascending: false });
+}
+
 // Deals we've already found matching this query - shown first, ahead of
 // the catalog browse below, since "did we already find something" is
 // what a visitor searching a name actually wants to know first.
-async function findExistingDeals(db, q) {
+// country ("card location") and sort (price low/high or best discount)
+// are visitor-controlled filters, not fixed defaults.
+async function findExistingDeals(db, q, { country, sort }) {
   const { data: matchingRows } = await db.from("watchlist").select("id").ilike("name", `%${q}%`).limit(500);
   if (!matchingRows || matchingRows.length === 0) return [];
 
-  const { data } = await db
+  let dealsQuery = db
     .from("deals")
     .select("*, watchlist:watchlist_id (name, set)")
     .in(
       "watchlist_id",
       matchingRows.map((r) => r.id)
     )
-    .eq("is_active", true)
-    .order("discount_pct", { ascending: false })
-    .limit(60);
+    .eq("is_active", true);
+  if (country && MARKETPLACES[country]) dealsQuery = dealsQuery.eq("marketplace", country);
+
+  const { data } = await sortDeals(dealsQuery, sort).limit(60);
   return data ?? [];
 }
 
 // For one page of catalog results, finds which (if any) already have an
 // active deal, so the catalog list can show a "Buy It Now"/"Bid Now"
 // link inline without a click-through. Keyed by tcgPlayerId (string).
-async function findDealsForCatalogPage(db, tcgPlayerIds) {
+// Respects the same country filter as findExistingDeals, so "card
+// location" narrows both sections consistently.
+async function findDealsForCatalogPage(db, tcgPlayerIds, { country }) {
   const dealByTcgId = new Map();
   if (tcgPlayerIds.length === 0) return dealByTcgId;
 
@@ -53,15 +65,17 @@ async function findDealsForCatalogPage(db, tcgPlayerIds) {
   if (!watchlistRows || watchlistRows.length === 0) return dealByTcgId;
 
   const tcgIdByWatchlistId = new Map(watchlistRows.map((r) => [r.id, r.justtcg_tcgplayer_id]));
-  const { data: dealRows } = await db
+  let dealsQuery = db
     .from("deals")
-    .select("id, watchlist_id, total_price, discount_pct, listing_type, affiliate_url")
+    .select("id, watchlist_id, total_price, discount_pct, listing_type, affiliate_url, marketplace")
     .in(
       "watchlist_id",
       watchlistRows.map((r) => r.id)
     )
-    .eq("is_active", true)
-    .order("discount_pct", { ascending: false });
+    .eq("is_active", true);
+  if (country && MARKETPLACES[country]) dealsQuery = dealsQuery.eq("marketplace", country);
+
+  const { data: dealRows } = await dealsQuery.order("discount_pct", { ascending: false });
 
   // Sorted best-discount-first, so the first deal seen per card is its best.
   for (const deal of dealRows ?? []) {
@@ -80,17 +94,20 @@ async function cardSearch(url) {
 
   const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
   const offset = (page - 1) * CATALOG_PAGE_SIZE;
+  // "Card location" - which country's listings to show, and price sort.
+  const country = url.searchParams.get("country");
+  const sort = url.searchParams.get("sort"); // "discount" | "price_asc" | "price_desc"
 
   const db = supabaseAdmin();
 
   try {
     const [deals, catalogPage] = await Promise.all([
-      findExistingDeals(db, q),
+      findExistingDeals(db, q, { country, sort }),
       searchCards(q, { limit: CATALOG_PAGE_SIZE, offset }),
     ]);
 
     const tcgPlayerIds = catalogPage.results.map((c) => String(c.tcgPlayerId)).filter(Boolean);
-    const dealByTcgId = await findDealsForCatalogPage(db, tcgPlayerIds);
+    const dealByTcgId = await findDealsForCatalogPage(db, tcgPlayerIds, { country });
 
     return Response.json({
       deals,

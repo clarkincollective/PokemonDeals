@@ -26,6 +26,11 @@ export default function SearchPage() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState(null);
 
+  // Top-level search filters (deals section + catalog inline deals).
+  const [searchCountry, setSearchCountry] = useState("");
+  const [searchSort, setSearchSort] = useState("discount"); // "discount" | "price_asc" | "price_desc"
+
+  // Per-card detail-view filters (unchanged, separate from the above).
   const [country, setCountry] = useState("");
   const [condition, setCondition] = useState("Near Mint");
   const [graded, setGraded] = useState(""); // "" | "true" | "false"
@@ -33,11 +38,15 @@ export default function SearchPage() {
   const [maxPrice, setMaxPrice] = useState("");
   const [minDiscount, setMinDiscount] = useState("");
 
-  async function loadSearch(q, page) {
+  async function loadSearch(q, page, overrides = {}) {
     setSearching(true);
     setSearchError(null);
+    const sc = overrides.country ?? searchCountry;
+    const ss = overrides.sort ?? searchSort;
     try {
-      const res = await fetch(`/api/card-search?q=${encodeURIComponent(q)}&page=${page}`);
+      const params = new URLSearchParams({ q, page: String(page), sort: ss });
+      if (sc) params.set("country", sc);
+      const res = await fetch(`/api/card-search?${params.toString()}`);
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Search failed");
       setDeals(body.deals);
@@ -64,6 +73,11 @@ export default function SearchPage() {
   function goToPage(page) {
     if (!lastQuery) return;
     loadSearch(lastQuery, page);
+  }
+
+  function applyTopFilters(e) {
+    e.preventDefault();
+    if (lastQuery) loadSearch(lastQuery, 1);
   }
 
   async function pickCard(card, overrides = {}) {
@@ -145,6 +159,46 @@ export default function SearchPage() {
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
         {searchError && <p className="rounded-lg bg-red-50 p-4 text-red-700">{searchError}</p>}
+
+        {!selected && (deals || catalog) && (
+          <form onSubmit={applyTopFilters} className="mb-6 flex flex-wrap items-end gap-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                Card location
+              </label>
+              <select
+                value={searchCountry}
+                onChange={(e) => setSearchCountry(e.target.value)}
+                className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              >
+                <option value="">Any</option>
+                {Object.entries(MARKETPLACES).map(([id, info]) => (
+                  <option key={id} value={id}>
+                    {info.flag} {info.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-400">Sort by</label>
+              <select
+                value={searchSort}
+                onChange={(e) => setSearchSort(e.target.value)}
+                className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              >
+                <option value="discount">Best discount</option>
+                <option value="price_asc">Price: Low to High</option>
+                <option value="price_desc">Price: High to Low</option>
+              </select>
+            </div>
+            <button
+              type="submit"
+              className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+            >
+              Apply
+            </button>
+          </form>
+        )}
 
         {!selected && deals && (
           <div className="mb-10">
