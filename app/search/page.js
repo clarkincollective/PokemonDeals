@@ -6,6 +6,7 @@ import Image from "next/image";
 import Logo from "@/components/Logo";
 import NavMenu from "@/components/NavMenu";
 import DealCard from "@/components/DealCard";
+import AffiliateLink from "@/components/AffiliateLink";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import { dealScore } from "@/lib/dealScore";
 import { MARKETPLACES } from "@/lib/ebay";
@@ -14,7 +15,9 @@ const CONDITIONS = ["Near Mint", "Lightly Played", "Moderately Played", "Heavily
 
 export default function SearchPage() {
   const [query, setQuery] = useState("");
-  const [candidates, setCandidates] = useState(null);
+  const [lastQuery, setLastQuery] = useState(null);
+  const [deals, setDeals] = useState(null); // deals matching the query, shown first
+  const [catalog, setCatalog] = useState(null); // {page, pageSize, total, hasMore, results}
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState(null);
 
@@ -30,24 +33,37 @@ export default function SearchPage() {
   const [maxPrice, setMaxPrice] = useState("");
   const [minDiscount, setMinDiscount] = useState("");
 
-  async function runSearch(e) {
-    e?.preventDefault();
-    if (query.trim().length < 2) return;
+  async function loadSearch(q, page) {
     setSearching(true);
     setSearchError(null);
-    setSelected(null);
-    setDetail(null);
     try {
-      const res = await fetch(`/api/card-search?q=${encodeURIComponent(query.trim())}`);
+      const res = await fetch(`/api/card-search?q=${encodeURIComponent(q)}&page=${page}`);
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Search failed");
-      setCandidates(body.results);
+      setDeals(body.deals);
+      setCatalog(body.catalog);
     } catch (err) {
       setSearchError(err.message);
-      setCandidates(null);
+      setDeals(null);
+      setCatalog(null);
     } finally {
       setSearching(false);
     }
+  }
+
+  function runSearch(e) {
+    e?.preventDefault();
+    const q = query.trim();
+    if (q.length < 2) return;
+    setSelected(null);
+    setDetail(null);
+    setLastQuery(q);
+    loadSearch(q, 1);
+  }
+
+  function goToPage(page) {
+    if (!lastQuery) return;
+    loadSearch(lastQuery, page);
   }
 
   async function pickCard(card, overrides = {}) {
@@ -87,6 +103,8 @@ export default function SearchPage() {
     if (selected) pickCard(selected);
   }
 
+  const totalPages = catalog?.total ? Math.ceil(catalog.total / catalog.pageSize) : null;
+
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
       <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/90 backdrop-blur dark:border-zinc-800 dark:bg-black/90">
@@ -102,8 +120,8 @@ export default function SearchPage() {
         <div className="mx-auto max-w-7xl px-6 py-8">
           <h1 className="text-2xl font-bold text-black dark:text-zinc-50">Search any card</h1>
           <p className="mt-2 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
-            Instant pricing and sales history for any Pokémon card, plus any below-market deals
-            we&apos;ve already found for it.
+            See any deals we&apos;ve already found first, then browse the full catalog for instant
+            pricing and sales history.
           </p>
 
           <form onSubmit={runSearch} className="mt-5 flex max-w-lg gap-2">
@@ -111,7 +129,7 @@ export default function SearchPage() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="e.g. Charizard ex 151"
+              placeholder="e.g. Pikachu"
               className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
             />
             <button
@@ -128,37 +146,102 @@ export default function SearchPage() {
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
         {searchError && <p className="rounded-lg bg-red-50 p-4 text-red-700">{searchError}</p>}
 
-        {candidates && !selected && (
+        {!selected && deals && (
+          <div className="mb-10">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+              Deals found for &quot;{lastQuery}&quot; ({deals.length})
+            </h2>
+            {deals.length === 0 ? (
+              <p className="mt-3 text-sm text-zinc-500">
+                Nothing below market matching that name right now - browse the catalog below to check
+                pricing, or search again later.
+              </p>
+            ) : (
+              <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {deals.map((deal) => (
+                  <DealCard key={deal.id} deal={deal} scoreBadge={dealScore(deal.discount_pct)} pageName="search" />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!selected && catalog && (
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-              {candidates.length > 0 ? "Pick the exact print" : "No results"}
+              Browse the catalog {catalog.total != null && `(${catalog.total.toLocaleString()} cards)`}
             </h2>
-            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {candidates.map((c) => (
-                <button
-                  key={c.tcgplayerId}
-                  onClick={() => pickCard(c)}
-                  className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white text-left shadow-sm transition-shadow hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-950"
-                >
-                  <div className="relative aspect-square w-full bg-zinc-100 dark:bg-zinc-900">
-                    {c.imageUrl ? (
-                      <Image src={c.imageUrl} alt={c.name} fill sizes="200px" className="object-contain p-3" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-zinc-400">No image</div>
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <p className="line-clamp-2 text-sm font-semibold text-black dark:text-zinc-50">{c.name}</p>
-                    {c.set && <p className="line-clamp-1 text-xs text-zinc-500">{c.set}</p>}
-                    {c.marketPrice != null && (
-                      <p className="mt-1 text-sm font-bold text-black dark:text-zinc-50">
-                        ${Number(c.marketPrice).toFixed(2)}
-                      </p>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
+            {catalog.results.length === 0 ? (
+              <p className="mt-3 text-sm text-zinc-500">No cards found for that search.</p>
+            ) : (
+              <>
+                <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                  {catalog.results.map((c) => (
+                    <div
+                      key={c.tcgplayerId}
+                      className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-950"
+                    >
+                      <button onClick={() => pickCard(c)} className="relative aspect-square w-full bg-zinc-100 text-left dark:bg-zinc-900">
+                        {c.imageUrl ? (
+                          <Image src={c.imageUrl} alt={c.name} fill sizes="200px" className="object-contain p-3" />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-xs text-zinc-400">No image</div>
+                        )}
+                        {c.deal && (
+                          <span className="absolute right-2 top-2 rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white shadow-sm">
+                            {Math.round(c.deal.discountPct * 100)}% off
+                          </span>
+                        )}
+                      </button>
+                      <button onClick={() => pickCard(c)} className="p-3 text-left">
+                        <p className="line-clamp-2 text-sm font-semibold text-black dark:text-zinc-50">{c.name}</p>
+                        {c.set && <p className="line-clamp-1 text-xs text-zinc-500">{c.set}</p>}
+                        {c.marketPrice != null && (
+                          <p className="mt-1 text-sm font-bold text-black dark:text-zinc-50">
+                            ${Number(c.marketPrice).toFixed(2)}
+                          </p>
+                        )}
+                      </button>
+                      {c.deal && (
+                        <div className="px-3 pb-3">
+                          <AffiliateLink
+                            href={c.deal.affiliateUrl}
+                            eventName="eBay Click"
+                            eventData={{ card: c.name, page: "search_catalog" }}
+                            className="block rounded-lg bg-black px-3 py-1.5 text-center text-xs font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                          >
+                            {c.deal.listingType === "AUCTION"
+                              ? "Bid Now →"
+                              : `Buy It Now $${Number(c.deal.totalPrice).toFixed(2)} →`}
+                          </AffiliateLink>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 flex items-center justify-center gap-3">
+                  <button
+                    onClick={() => goToPage(catalog.page - 1)}
+                    disabled={catalog.page <= 1 || searching}
+                    className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-600 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300"
+                  >
+                    ← Previous
+                  </button>
+                  <span className="text-sm text-zinc-500">
+                    Page {catalog.page}
+                    {totalPages ? ` of ${totalPages.toLocaleString()}` : ""}
+                  </span>
+                  <button
+                    onClick={() => goToPage(catalog.page + 1)}
+                    disabled={!catalog.hasMore || searching}
+                    className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-600 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300"
+                  >
+                    Next →
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -326,7 +409,7 @@ export default function SearchPage() {
           </div>
         )}
 
-        {!candidates && !selected && (
+        {!deals && !catalog && !selected && (
           <p className="text-zinc-500">Search for a card above to get started.</p>
         )}
       </main>
