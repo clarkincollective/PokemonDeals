@@ -23,8 +23,38 @@ const MIN_SELLER_FEEDBACK_SCORE = 10;
 // "Choose your card" / "pick your card" listings sell a pool of cards at
 // one price - the listing's price isn't actually for the specific card
 // we matched it to, so it can't be trusted for a discount calculation.
+// acrylic/sketch/coa/fan art/original art catch novelty items (display
+// cases, hand-drawn "sketch cards") that aren't the actual TCG card but
+// still legitimately mention the card's name in their title.
 const EXCLUDED_TITLE_PATTERN =
-  /\b(lot|bundle|playset|proxy|custom|repack|digital|code)\b|choose your|pick your/i;
+  /\b(lot|bundle|playset|proxy|custom|repack|digital|code|acrylic|sketch|coa)\b|choose your|pick your|fan ?art|original art|case card|display case/i;
+
+// eBay's search is relevance-based, not a strict title match - a search
+// for one card can return a completely different card that just ranks in
+// the same category (verified: a "Pikachu" search returned a Darkrai
+// promo and a Rayquaza promo, both priced against Pikachu's market
+// value). Requires every meaningful word from the watchlist card's name
+// to actually appear in the listing title before trusting the price
+// comparison. Cards whose watchlist name has no distinctive token left
+// after filtering (rare) skip the check rather than reject everything.
+const MATCH_STOPWORDS = new Set([
+  "ex", "gx", "v", "vmax", "vstar", "promo", "promos", "full", "art",
+  "holo", "holofoil", "near", "mint", "nm", "the", "a", "an", "of",
+  "star", "black", "prerelease",
+]);
+
+function coreTokens(name) {
+  return (name.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter(
+    (word) => word.length >= 2 && !MATCH_STOPWORDS.has(word)
+  );
+}
+
+function listingMatchesCard(listing, row) {
+  const tokens = coreTokens(row.name);
+  if (tokens.length === 0) return true;
+  const normalizedTitle = listing.title.toLowerCase();
+  return tokens.every((token) => normalizedTitle.includes(token));
+}
 
 // The extended tier now covers ~5,000 cards ($15+, per the pokedealfinder.uk
 // competitive check) - too many to scan in one country in one day alongside
@@ -109,6 +139,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
 
   for (const listing of rawListings) {
     if (!isTrustworthyListing(listing)) continue;
+    if (!listingMatchesCard(listing, row)) continue;
 
     const totalPrice = listing.price + listing.shipping;
     const discountPct = (marketData.marketPrice - totalPrice) / marketData.marketPrice;
@@ -128,7 +159,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     );
   }
 
-  if (cheapestGraded && isTrustworthyListing(cheapestGraded)) {
+  if (cheapestGraded && isTrustworthyListing(cheapestGraded) && listingMatchesCard(cheapestGraded, row)) {
     try {
       const grading = await getGradingDetails(cheapestGraded.listingId, marketplaceId);
       const gradedPrice = grading.grader
