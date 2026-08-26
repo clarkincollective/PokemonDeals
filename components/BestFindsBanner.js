@@ -38,7 +38,7 @@ export default function BestFindsBanner({ bestFinds }) {
   if (bestFinds.length === 0) return null;
 
   return (
-    <section className="border-b border-zinc-200 bg-gradient-to-b from-red-50 to-transparent dark:border-zinc-800 dark:from-red-950/20">
+    <section className="border-y border-zinc-200 bg-gradient-to-b from-red-50 to-transparent dark:border-zinc-800 dark:from-red-950/20">
       <div className="mx-auto max-w-7xl px-6 py-8">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>

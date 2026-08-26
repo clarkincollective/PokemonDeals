@@ -146,13 +146,20 @@ export default async function Home({ searchParams }) {
           )}
 
           <TrustBadges />
+
+          {/* Filters sit directly below the trust badges, right next to
+              the "All Deals" grid they control, rather than having Today's
+              Best Finds (a separate, unrelated promo section) sandwiched
+              in between - that was making the two sections feel jammed
+              together and confusing to tell apart. */}
+          <div className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+            <FilterBar params={params} country={country} cardType={cardType} listingType={listingType} />
+          </div>
         </div>
       </header>
 
-      <BestFindsBanner bestFinds={bestFinds} />
-
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
-        <FilterBar params={params} country={country} cardType={cardType} listingType={listingType} />
+        <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-zinc-400">All Deals</h2>
 
         {error && (
           <p className="rounded-lg bg-red-50 p-4 text-red-700">
@@ -173,6 +180,8 @@ export default async function Home({ searchParams }) {
           ))}
         </div>
       </main>
+
+      <BestFindsBanner bestFinds={bestFinds} />
 
       <section id="how-it-works" className="border-t border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-12">
