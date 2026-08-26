@@ -1,6 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
-import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -25,15 +24,22 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <head>
         {/* Impact.com (TCGPlayer affiliate program) site-verification tag.
-            beforeInteractive makes Next.js inject it into the
-            server-rendered <head> itself, same as pasting it in
-            directly - verification crawlers read the raw HTML rather
-            than waiting for hydration. */}
-        <Script id="impact-verification" strategy="beforeInteractive">
-          {`(function(i,m,p,a,c,t){c.ire_o=p;c[p]=c[p]||function(){(c[p].a=c[p].a||[]).push(arguments)};t=a.createElement(m);var z=a.getElementsByTagName(m)[0];t.async=1;t.src=i;z.parentNode.insertBefore(t,z)})('https://utt.impactcdn.com/P-A7555826-7fdc-4df9-b34b-dccd926953fe1.js','script','impactStat',document,window);impactStat('transformLinks');impactStat('trackImpression');`}
-        </Script>
+            A genuine <script> element (not next/script - that gets
+            wrapped in Next's internal loading payload rather than
+            rendered as literal HTML, which a verification crawler
+            reading raw page source won't recognize as the tag it's
+            looking for). */}
+        <script
+          id="impact-verification"
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(i,m,p,a,c,t){c.ire_o=p;c[p]=c[p]||function(){(c[p].a=c[p].a||[]).push(arguments)};t=a.createElement(m);var z=a.getElementsByTagName(m)[0];t.async=1;t.src=i;z.parentNode.insertBefore(t,z)})('https://utt.impactcdn.com/P-A7555826-7fdc-4df9-b34b-dccd926953fe1.js','script','impactStat',document,window);impactStat('transformLinks');impactStat('trackImpression');",
+          }}
+        />
+      </head>
+      <body className="min-h-full flex flex-col">
         {children}
         <Analytics />
       </body>
