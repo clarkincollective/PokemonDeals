@@ -39,6 +39,19 @@ const FAQ_ITEMS = [
   },
 ];
 
+// Fisher-Yates, in its own top-level function rather than inline in the
+// component - React's purity rule flags Math.random called directly in a
+// component body, even in a Server Component like this one where it's
+// actually safe (no client-side re-render/reconciliation to destabilize).
+function shuffled(array) {
+  const copy = [...array];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
 // Builds a link that changes one filter while keeping the others intact,
 // or removes it entirely if the same value is clicked again (toggle).
 function filterHref(currentParams, key, value) {
@@ -85,13 +98,23 @@ export default async function Home({ searchParams }) {
   ]);
 
   const seenCards = new Set();
-  const deals = [];
+  const dedupedPool = [];
   for (const deal of pool ?? []) {
     if (seenCards.has(deal.watchlist_id)) continue;
     seenCards.add(deal.watchlist_id);
-    deals.push(deal);
-    if (deals.length >= PAGE_SIZE) break;
+    dedupedPool.push(deal);
   }
+
+  // Shuffle a wider recency window instead of always showing the literal
+  // newest 24 - when scanning briefly stalls (e.g. an eBay rate-limit
+  // day), the pool stops growing and the exact same 24 deals would
+  // otherwise show on every single visit until a new scan lands. This
+  // never shows anything fake - every deal here is real and still
+  // active - it just resurfaces a different genuine subset each time the
+  // page regenerates (every 60s, per revalidate below), so repeat
+  // visitors see real variety instead of a frozen list.
+  const ROTATION_POOL_SIZE = 100;
+  const deals = shuffled(dedupedPool.slice(0, ROTATION_POOL_SIZE)).slice(0, PAGE_SIZE);
 
   // The true "when did we last scan anything" time, not just the newest
   // timestamp among the currently-displayed top discounts - those are
