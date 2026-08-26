@@ -39,10 +39,21 @@ const FAQ_ITEMS = [
   },
 ];
 
+// Above this age, "Last refreshed" stops showing a specific elapsed time
+// (see the header markup below) - the sweep runs every 15 min in the US,
+// so anything within this window is genuinely fresh; older than that
+// means scanning is delayed or rate-limited, and showing the literal
+// growing number there just reads as broken.
+const SCAN_FRESH_THRESHOLD_MS = 30 * 60 * 1000;
+
 // Fisher-Yates, in its own top-level function rather than inline in the
 // component - React's purity rule flags Math.random called directly in a
 // component body, even in a Server Component like this one where it's
 // actually safe (no client-side re-render/reconciliation to destabilize).
+function isRecentlyRefreshed(dateString) {
+  return Date.now() - new Date(dateString).getTime() <= SCAN_FRESH_THRESHOLD_MS;
+}
+
 function shuffled(array) {
   const copy = [...array];
   for (let i = copy.length - 1; i > 0; i--) {
@@ -167,7 +178,16 @@ export default async function Home({ searchParams }) {
           {lastRefreshed && (
             <p className="mt-3 inline-flex items-center gap-2 text-sm text-zinc-500">
               <span className="h-2 w-2 rounded-full bg-red-500" />
-              Last refreshed {timeAgo(lastRefreshed)}
+              {/* A raw "2h ago" reads as broken even when the site is
+                  working fine - the deals shown are still real and active,
+                  eBay just hasn't handed us anything new to find in a
+                  while (a slow scan cycle, or a rate-limited day like the
+                  one that prompted this). Past a threshold, say something
+                  true and reassuring instead of a growing, alarming
+                  number. */}
+              {isRecentlyRefreshed(lastRefreshed)
+                ? `Last refreshed ${timeAgo(lastRefreshed)}`
+                : "Live - deals refresh automatically"}
             </p>
           )}
 
