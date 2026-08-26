@@ -1,8 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    // eBay listing photos (used on deal cards) are served from this domain.
-    remotePatterns: [{ protocol: "https", hostname: "i.ebayimg.com" }],
+    remotePatterns: [
+      // eBay listing photos (used on deal cards).
+      { protocol: "https", hostname: "i.ebayimg.com" },
+      // PokemonPriceTracker/TCGPlayer catalog images (used on the search page).
+      { protocol: "https", hostname: "tcgplayer-cdn.tcgplayer.com" },
+    ],
   },
 };
 

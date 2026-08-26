@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { MARKETPLACES, searchListings, searchNewlyListed, getGradingDetails } from "@/lib/ebay";
 import { getRawPrice, getGradedPrice } from "@/lib/pokemonPriceTracker";
+import { SANITY_FLOOR_PCT, coreTokens, listingMatchesCard, isTrustworthyListing } from "@/lib/dealMatching";
 
 // This route does real work (API calls + database writes) and must never
 // be cached by Next.js. A full priority-tier run measured at ~6.5 min
@@ -17,58 +18,6 @@ const CONCURRENCY = 8;
 // from 15% so more genuine below-market listings qualify and new finds
 // show up more often, not just the rarer bigger discounts.
 const DISCOUNT_THRESHOLD = 0.1;
-// Filters out obviously-wrong/scam-tier listings (e.g. a $2 "Charizard"
-// that's actually a proxy or the wrong item) rather than genuine deals.
-const SANITY_FLOOR_PCT = 0.25;
-const MIN_SELLER_FEEDBACK_PCT = 95;
-const MIN_SELLER_FEEDBACK_SCORE = 10;
-// "Choose your card" / "pick your card" listings sell a pool of cards at
-// one price - the listing's price isn't actually for the specific card
-// we matched it to, so it can't be trusted for a discount calculation.
-// acrylic/sketch/coa/fan art/original art catch novelty items (display
-// cases, hand-drawn "sketch cards") that aren't the actual TCG card but
-// still legitimately mention the card's name in their title.
-const EXCLUDED_TITLE_PATTERN =
-  /\b(lot|bundle|playset|proxy|custom|repack|digital|code|acrylic|sketch|coa)\b|choose your|pick your|fan ?art|original art|case card|display case|trading service|pokemon ?go\b|account trade/i;
-
-// eBay's search is relevance-based, not a strict title match - a search
-// for one card can return a completely different card that just ranks in
-// the same category (verified: a "Pikachu" search returned a Darkrai
-// promo and a Rayquaza promo, both priced against Pikachu's market
-// value). Requires every meaningful word from the watchlist card's name
-// to actually appear in the listing title before trusting the price
-// comparison. Cards whose watchlist name has no distinctive token left
-// after filtering (rare) skip the check rather than reject everything.
-const MATCH_STOPWORDS = new Set([
-  "ex", "gx", "v", "vmax", "vstar", "promo", "promos", "full", "art",
-  "holo", "holofoil", "near", "mint", "nm", "the", "a", "an", "of",
-  "star", "black", "prerelease",
-]);
-
-function coreTokens(name) {
-  return (name.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter(
-    (word) => word.length >= 2 && !MATCH_STOPWORDS.has(word)
-  );
-}
-
-function listingMatchesCard(listing, row) {
-  const normalizedTitle = listing.title.toLowerCase();
-
-  const nameTokens = coreTokens(row.name);
-  if (nameTokens.length > 0 && !nameTokens.every((token) => normalizedTitle.includes(token))) return false;
-
-  // The card name alone is often just the Pokemon's name ("Charizard",
-  // "Gengar", "Pikachu"...), which is shared across dozens of sets worth
-  // wildly different amounts - verified a sweep matched "Charizard" (SM -
-  // Team Up) to a listing for a completely different, much more recent
-  // "Charizard ex... Paldean Fates" print before this check existed.
-  // Requiring the set to match too is what actually disambiguates which
-  // specific print a listing is.
-  const setTokens = coreTokens(row.set ?? "");
-  if (setTokens.length > 0 && !setTokens.every((token) => normalizedTitle.includes(token))) return false;
-
-  return true;
-}
 
 // The extended tier now covers ~5,000 cards ($15+, per the pokedealfinder.uk
 // competitive check) - too many to scan in one country in one day.
@@ -86,15 +35,6 @@ function chunkOf(row, totalChunks) {
   const key = String(row.id);
   for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
   return String((hash % totalChunks) + 1);
-}
-
-function isTrustworthyListing(listing) {
-  if (EXCLUDED_TITLE_PATTERN.test(listing.title)) return false;
-  if (listing.sellerFeedbackScore != null && listing.sellerFeedbackScore < MIN_SELLER_FEEDBACK_SCORE)
-    return false;
-  if (listing.sellerFeedbackPct != null && listing.sellerFeedbackPct < MIN_SELLER_FEEDBACK_PCT)
-    return false;
-  return true;
 }
 
 function dealRow({ watchlistId, listing, totalPrice, marketPrice, discountPct, priceChange24hr, grading }) {
