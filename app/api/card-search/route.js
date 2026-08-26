@@ -49,6 +49,7 @@ async function cardDetail(url, tcgplayerId) {
   const condition = url.searchParams.get("condition") || "Near Mint";
   const country = url.searchParams.get("country");
   const graded = url.searchParams.get("graded"); // "true" | "false" | absent (either)
+  const listingType = url.searchParams.get("listingType"); // "FIXED_PRICE" | "AUCTION" | absent (either)
   const minDiscount = url.searchParams.get("minDiscount");
   const maxPrice = url.searchParams.get("maxPrice");
 
@@ -85,6 +86,8 @@ async function cardDetail(url, tcgplayerId) {
     if (country && MARKETPLACES[country]) dealsQuery = dealsQuery.eq("marketplace", country);
     if (graded === "true") dealsQuery = dealsQuery.eq("is_graded", true);
     if (graded === "false") dealsQuery = dealsQuery.eq("is_graded", false);
+    if (listingType === "FIXED_PRICE" || listingType === "AUCTION")
+      dealsQuery = dealsQuery.eq("listing_type", listingType);
     if (minDiscount) dealsQuery = dealsQuery.gte("discount_pct", Number(minDiscount));
     if (maxPrice) dealsQuery = dealsQuery.lte("total_price", Number(maxPrice));
 

@@ -26,6 +26,7 @@ export default function SearchPage() {
   const [country, setCountry] = useState("");
   const [condition, setCondition] = useState("Near Mint");
   const [graded, setGraded] = useState(""); // "" | "true" | "false"
+  const [listingType, setListingType] = useState(""); // "" | "FIXED_PRICE" | "AUCTION"
   const [maxPrice, setMaxPrice] = useState("");
   const [minDiscount, setMinDiscount] = useState("");
 
@@ -59,11 +60,13 @@ export default function SearchPage() {
     const c = overrides.condition ?? condition;
     const co = overrides.country ?? country;
     const g = overrides.graded ?? graded;
+    const lt = overrides.listingType ?? listingType;
     const mp = overrides.maxPrice ?? maxPrice;
     const md = overrides.minDiscount ?? minDiscount;
     params.set("condition", c);
     if (co) params.set("country", co);
     if (g) params.set("graded", g);
+    if (lt) params.set("listingType", lt);
     if (mp) params.set("maxPrice", mp);
     if (md) params.set("minDiscount", md);
 
@@ -238,6 +241,18 @@ export default function SearchPage() {
                   <option value="">Any</option>
                   <option value="false">Raw</option>
                   <option value="true">Graded</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-400">Listing</label>
+                <select
+                  value={listingType}
+                  onChange={(e) => setListingType(e.target.value)}
+                  className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                >
+                  <option value="">Any</option>
+                  <option value="FIXED_PRICE">Buy It Now</option>
+                  <option value="AUCTION">Auction</option>
                 </select>
               </div>
               <div>
