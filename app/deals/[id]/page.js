@@ -130,11 +130,24 @@ export default async function DealDetailPage({ params }) {
     },
   };
 
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Deals", item: "https://pokemondealfinder.com/" },
+      { "@type": "ListItem", position: 2, name: cardName, item: `https://pokemondealfinder.com/deals/${deal.id}` },
+    ],
+  };
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <div className="mx-auto max-w-3xl px-6 py-10">
         <Link href="/" className="inline-block">

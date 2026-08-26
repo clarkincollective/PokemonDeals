@@ -16,6 +16,29 @@ export const metadata = {
   alternates: { canonical: "/" },
 };
 
+// Single source of truth for the FAQ section below AND its FAQPage
+// structured data - rendering both from one array means they can't drift
+// out of sync the way the old hardcoded JSX + (nonexistent) schema would
+// have. Google requires FAQ schema to match visible on-page content, so
+// this isn't optional if the JSON-LD is going to stay honest.
+const FAQ_ITEMS = [
+  {
+    question: "Is this free to use?",
+    answer:
+      "Yes, always. We earn a small commission if you buy through one of our links - it doesn't change the price you pay.",
+  },
+  {
+    question: "How often do listings update?",
+    answer:
+      "New listings are discovered continuously - every 15 minutes in the US, hourly in other countries. Existing deals are reconfirmed on a tiered schedule: hand-picked cards every 4 hours across all countries, the wider catalog roughly every 10 days per country.",
+  },
+  {
+    question: "Is the card-to-listing match always right?",
+    answer:
+      "Matching is automated. We filter out obviously wrong matches, but always double-check a listing's photos and description before buying.",
+  },
+];
+
 // Builds a link that changes one filter while keeping the others intact,
 // or removes it entirely if the same value is clicked again (toggle).
 function filterHref(currentParams, key, value) {
@@ -81,14 +104,23 @@ export default async function Home({ searchParams }) {
     .maybeSingle();
   const lastRefreshed = lastScan?.last_seen_at ?? null;
 
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQ_ITEMS.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: { "@type": "Answer", text: item.answer },
+    })),
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/90 backdrop-blur dark:border-zinc-800 dark:bg-black/90">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
           <Link href="/">
-            <h1>
-              <Logo size="small" />
-            </h1>
+            <Logo size="small" />
           </Link>
           <NavMenu />
         </div>
@@ -96,10 +128,15 @@ export default async function Home({ searchParams }) {
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-6">
-          <p className="max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
-            Live below-market Pokémon card listings from eBay US and
-            Australia, checked automatically around the clock against real
-            market pricing and real eBay sold-listing data - not estimates.
+          {/* A real, page-describing H1 - the logo above is branding, not
+              a heading for this page's actual content, which is what H1
+              should describe. */}
+          <h1 className="text-xl font-bold text-black dark:text-zinc-50 sm:text-2xl">
+            Live Pokémon Card Deals on eBay
+          </h1>
+          <p className="mt-2 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
+            Below-market listings from eBay US and Australia, checked automatically around the clock
+            against real market pricing and real eBay sold-listing data - not estimates.
           </p>
           {lastRefreshed && (
             <p className="mt-3 inline-flex items-center gap-2 text-sm text-zinc-500">
@@ -169,29 +206,12 @@ export default async function Home({ searchParams }) {
         <div className="mx-auto max-w-7xl px-6 py-12">
           <h2 className="text-lg font-bold text-black dark:text-zinc-50">FAQ</h2>
           <div className="mt-5 flex flex-col gap-5 sm:max-w-2xl">
-            <div>
-              <p className="font-semibold text-black dark:text-zinc-50">Is this free to use?</p>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                Yes, always. We earn a small commission if you buy through one of our links - it
-                doesn&apos;t change the price you pay.
-              </p>
-            </div>
-            <div>
-              <p className="font-semibold text-black dark:text-zinc-50">How often do listings update?</p>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                Actively watched cards are checked every 15 minutes in the US and daily elsewhere; the
-                wider catalog rotates through each country roughly every 20 days.
-              </p>
-            </div>
-            <div>
-              <p className="font-semibold text-black dark:text-zinc-50">
-                Is the card-to-listing match always right?
-              </p>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                Matching is automated. We filter out obviously wrong matches, but always double-check a
-                listing&apos;s photos and description before buying.
-              </p>
-            </div>
+            {FAQ_ITEMS.map((item) => (
+              <div key={item.question}>
+                <p className="font-semibold text-black dark:text-zinc-50">{item.question}</p>
+                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{item.answer}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
