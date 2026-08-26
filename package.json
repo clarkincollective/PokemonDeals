@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "fetch-card": "node scripts/fetchCardPrice.js"
+    "fetch-card": "node scripts/fetchCardPrice.js",
+    "seed-watchlist": "node scripts/seedWatchlist.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",
