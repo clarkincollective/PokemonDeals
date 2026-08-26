@@ -1,25 +1,16 @@
-import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES } from "@/lib/ebay";
+import { fetchBestFinds } from "@/lib/deals";
+import { dealScore } from "@/lib/dealScore";
+import { timeAgo } from "@/lib/time";
 import Logo from "@/components/Logo";
-import AffiliateLink from "@/components/AffiliateLink";
 import NavMenu from "@/components/NavMenu";
+import DealCard from "@/components/DealCard";
 
 // Re-check for new deals at most once a minute, so the page reflects the
 // latest scan quickly without hitting the database on every single visit.
 export const revalidate = 60;
-
-function timeAgo(dateString) {
-  const seconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
-  if (seconds < 90) return "just now";
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 48) return `${hours}h ago`;
-  return `${Math.round(hours / 24)}d ago`;
-}
 
 // Builds a link that changes one filter while keeping the others intact,
 // or removes it entirely if the same value is clicked again (toggle).
@@ -55,6 +46,7 @@ export default async function Home({ searchParams }) {
   if (listingType) query = query.eq("listing_type", listingType);
 
   const { data: pool, error } = await query;
+  const { deals: bestFinds } = await fetchBestFinds({ limit: 3 });
 
   const seenCards = new Set();
   const deals = [];
@@ -100,6 +92,35 @@ export default async function Home({ searchParams }) {
           <TrustBadges />
         </div>
       </header>
+
+      {bestFinds.length > 0 && (
+        <section className="border-b border-zinc-200 bg-gradient-to-b from-red-50 to-transparent dark:border-zinc-800 dark:from-red-950/20">
+          <div className="mx-auto max-w-7xl px-6 py-8">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white">
+                  🔥 Today&apos;s Best Finds
+                </span>
+                <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                  The biggest discounts on higher-value cards right now.
+                </p>
+              </div>
+              <Link
+                href="/best-finds"
+                className="text-sm font-semibold text-red-600 hover:underline dark:text-red-400"
+              >
+                See full list →
+              </Link>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
+              {bestFinds.map((deal, i) => (
+                <DealCard key={deal.id} deal={deal} rank={i + 1} scoreBadge={dealScore(deal.discount_pct)} pageName="home_best_finds" />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
         <FilterBar params={params} country={country} cardType={cardType} listingType={listingType} />
@@ -166,7 +187,8 @@ export default async function Home({ searchParams }) {
             <div>
               <p className="font-semibold text-black dark:text-zinc-50">How often do listings update?</p>
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                Actively watched cards are checked every few hours; the wider catalog is checked daily.
+                Actively watched cards are checked every 15 minutes in the US and daily elsewhere; the
+                wider catalog rotates through each country roughly every 20 days.
               </p>
             </div>
             <div>
@@ -329,115 +351,6 @@ function FilterBar({ params, country, cardType, listingType }) {
             Auction
           </FilterPill>
         </ScrollRow>
-      </div>
-    </div>
-  );
-}
-
-function DealCard({ deal }) {
-  const cardName = deal.watchlist?.name ?? deal.title;
-  const cardSet = deal.watchlist?.set;
-  const discountLabel = `${Math.round(deal.discount_pct * 100)}% off`;
-  const tcgplayerLink = buildTcgplayerLink(cardName);
-  const isAuction = deal.listing_type === "AUCTION";
-  const marketInfo = MARKETPLACES[deal.marketplace];
-
-  return (
-    <div className="group flex h-full flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-950">
-      {/* Image */}
-      <a href={`/deals/${deal.id}`} className="relative block aspect-square w-full bg-zinc-100 dark:bg-zinc-900">
-        {deal.image_url ? (
-          <Image
-            src={deal.image_url}
-            alt={deal.title}
-            fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            className="object-contain p-5 transition-transform duration-200 group-hover:scale-105"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-xs text-zinc-400">No image</div>
-        )}
-        <span className="absolute right-2 top-2 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white shadow-sm">
-          {discountLabel}
-        </span>
-        {marketInfo && (
-          <span
-            className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs shadow-sm dark:bg-zinc-950/90"
-            title={marketInfo.label}
-          >
-            {marketInfo.flag}
-          </span>
-        )}
-      </a>
-
-      {/* Details */}
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {deal.is_graded ? (
-            <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-              {deal.grader} {deal.grade}
-            </span>
-          ) : (
-            deal.condition && (
-              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                {deal.condition}
-              </span>
-            )
-          )}
-          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-            {isAuction ? "Auction" : "Buy It Now"}
-          </span>
-        </div>
-
-        <a
-          href={`/deals/${deal.id}`}
-          className="line-clamp-2 font-semibold leading-snug text-black hover:underline dark:text-zinc-50"
-        >
-          {cardName}
-        </a>
-        {cardSet && <p className="line-clamp-1 text-xs text-zinc-500">{cardSet}</p>}
-
-        <div className="mt-1 flex items-baseline gap-2">
-          <span className="text-lg font-bold text-black dark:text-zinc-50">
-            ${Number(deal.total_price).toFixed(2)}
-          </span>
-          <span className="text-sm text-zinc-400 line-through">
-            ${Number(deal.market_price).toFixed(2)}
-          </span>
-        </div>
-        {isAuction && (
-          <div className="-mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-            Current bid{deal.bid_count != null ? ` · ${deal.bid_count} bids` : ""}
-          </div>
-        )}
-
-        <p className="text-[11px] text-zinc-400">Found {timeAgo(deal.first_seen_at)}</p>
-
-        <div className="mt-auto flex flex-col gap-1.5 pt-2">
-          <AffiliateLink
-            href={deal.affiliate_url}
-            eventName="eBay Click"
-            eventData={{
-              card: cardName,
-              marketplace: deal.marketplace,
-              discountPct: Math.round(deal.discount_pct * 100),
-              listingType: deal.listing_type,
-              isGraded: deal.is_graded,
-              page: "home",
-            }}
-            className="block rounded-lg bg-black px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-          >
-            {isAuction ? "Bid Now →" : "View Deal →"}
-          </AffiliateLink>
-          <AffiliateLink
-            href={tcgplayerLink}
-            eventName="TCGPlayer Click"
-            eventData={{ card: cardName, page: "home" }}
-            className="text-center text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-          >
-            Check on TCGPlayer
-          </AffiliateLink>
-        </div>
       </div>
     </div>
   );
