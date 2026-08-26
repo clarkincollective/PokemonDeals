@@ -1,3 +1,4 @@
+import { cache } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -15,6 +16,56 @@ export const dynamic = "force-dynamic";
 
 function formatSaleDate(dateString) {
   return new Date(dateString).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+// cache() dedupes this within a single request - generateMetadata and the
+// page component below both need the same deal, and without this it'd be
+// two round-trips to the database per page view instead of one.
+const loadDeal = cache(async (id) => {
+  const { data } = await supabase
+    .from("deals")
+    .select("*, watchlist:watchlist_id (name, set, justtcg_tcgplayer_id)")
+    .eq("id", id)
+    .single();
+  return data;
+});
+
+export async function generateMetadata({ params }) {
+  const { id } = await params;
+  const deal = await loadDeal(id);
+  if (!deal) return { title: "Deal not found" };
+
+  const cardName = deal.watchlist?.name ?? deal.title;
+  const cardSet = deal.watchlist?.set;
+  const discountPct = Math.round(deal.discount_pct * 100);
+  const title = `${cardName}${cardSet ? ` (${cardSet})` : ""} - ${discountPct}% off`;
+  const description = `$${Number(deal.total_price).toFixed(2)} vs a $${Number(deal.market_price).toFixed(
+    2
+  )} market price - ${discountPct}% below market on eBay.`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/deals/${id}` },
+    openGraph: {
+      title,
+      description,
+      images: deal.image_url ? [deal.image_url] : undefined,
+    },
+    // Next.js doesn't derive twitter:* from openGraph automatically - set
+    // explicitly, or a shared deal link shows the generic site title/desc
+    // on Twitter/X instead of this specific card's.
+    twitter: {
+      card: deal.image_url ? "summary_large_image" : "summary",
+      title,
+      description,
+      images: deal.image_url ? [deal.image_url] : undefined,
+    },
+    // A deal that's sold/expired shouldn't rank for searches about a live
+    // discount that no longer exists - only actively-listed deals are
+    // worth indexing.
+    robots: deal.is_active ? undefined : { index: false, follow: true },
+  };
 }
 
 async function loadHistory(deal, watchlist) {
@@ -37,13 +88,9 @@ async function loadHistory(deal, watchlist) {
 export default async function DealDetailPage({ params }) {
   const { id } = await params;
 
-  const { data: deal, error } = await supabase
-    .from("deals")
-    .select("*, watchlist:watchlist_id (name, set, justtcg_tcgplayer_id)")
-    .eq("id", id)
-    .single();
+  const deal = await loadDeal(id);
 
-  if (error || !deal) {
+  if (!deal) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-16 text-center">
         <p className="text-zinc-500">Couldn&apos;t find that deal - it may have expired.</p>
@@ -62,8 +109,33 @@ export default async function DealDetailPage({ params }) {
   const marketInfo = MARKETPLACES[deal.marketplace];
   const tcgplayerLink = buildTcgplayerLink(cardName);
 
+  // Structured data so a search result can show price/availability
+  // directly (Google's Product rich result). Auctions report the current
+  // bid as the price with an UsedCondition note in the description above,
+  // not a special schema.org auction type - Offer doesn't model
+  // "current bid, may rise" cleanly, and this stays accurate either way.
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: `${cardName}${cardSet ? ` - ${cardSet}` : ""}`,
+    image: deal.image_url ?? undefined,
+    description: deal.title,
+    offers: {
+      "@type": "Offer",
+      url: deal.listing_url,
+      priceCurrency: marketInfo?.currency ?? "USD",
+      price: Number(deal.total_price).toFixed(2),
+      availability: deal.is_active ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      itemCondition: "https://schema.org/UsedCondition",
+    },
+  };
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
       <div className="mx-auto max-w-3xl px-6 py-10">
         <Link href="/" className="inline-block">
           <Logo size="small" />

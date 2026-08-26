@@ -8,8 +8,9 @@ import DealCard from "@/components/DealCard";
 export const revalidate = 60;
 
 export const metadata = {
-  title: "Today's Best Finds | Pokémon Deal Finder",
+  title: "Today's Best Finds",
   description: "The biggest real discounts on higher-value Pokémon cards, found on eBay right now.",
+  alternates: { canonical: "/best-finds" },
 };
 
 export default async function BestFindsPage() {

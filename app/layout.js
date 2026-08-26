@@ -12,10 +12,33 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = "https://pokemondealfinder.com";
+const SITE_TITLE = "Pokémon Deal Finder";
+const SITE_DESCRIPTION =
+  "Live below-market Pokémon card listings from eBay, checked automatically against real market pricing and real sold-listing data.";
+
 export const metadata = {
-  title: "Pokémon Deal Finder",
-  description:
-    "Live below-market Pokémon card listings from eBay, checked automatically against real market pricing.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: SITE_TITLE,
+    // %s lets child pages set their own title while keeping the site name
+    // suffixed consistently (e.g. "Search Any Card | Pokémon Deal Finder").
+    template: `%s | ${SITE_TITLE}`,
+  },
+  description: SITE_DESCRIPTION,
+  keywords: ["Pokemon card deals", "Pokemon TCG", "eBay Pokemon cards", "cheap Pokemon cards", "Pokemon card prices"],
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: SITE_TITLE,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
 };
 
 export default function RootLayout({ children }) {

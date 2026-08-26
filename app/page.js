@@ -12,6 +12,10 @@ import BestFindsBanner from "@/components/BestFindsBanner";
 // latest scan quickly without hitting the database on every single visit.
 export const revalidate = 60;
 
+export const metadata = {
+  alternates: { canonical: "/" },
+};
+
 // Builds a link that changes one filter while keeping the others intact,
 // or removes it entirely if the same value is clicked again (toggle).
 function filterHref(currentParams, key, value) {
