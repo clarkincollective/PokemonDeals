@@ -78,7 +78,7 @@ export default function PriceHistoryChart({ points }) {
       <svg
         ref={svgRef}
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        className="w-full text-emerald-600 dark:text-emerald-400"
+        className="w-full text-red-600 dark:text-red-500"
         onPointerMove={handlePointerMove}
         onPointerLeave={() => setHoverIndex(null)}
       >

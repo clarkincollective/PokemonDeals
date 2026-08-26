@@ -1,19 +1,19 @@
 // Run with: node scripts/seedWatchlist.js
 //
 // Resolves a starter list of popular/high-value Pokémon cards against
-// JustTCG (once) and adds them to the "watchlist" table, so the scheduled
-// refresh job knows what to scan. Safe to re-run - existing rows are
-// updated in place rather than duplicated.
+// PokemonPriceTracker (once) and adds them to the "watchlist" table, so
+// the scheduled refresh job knows what to scan. Safe to re-run - existing
+// rows are updated in place rather than duplicated.
 //
 // This list is a reasonable starting point, not gospel: each name search
-// returns JustTCG's top match, which may not be the exact print you'd
-// pick by hand. After running this, feel free to review/edit rows
-// directly in the Supabase Table Editor (table: watchlist) - remove ones
-// you don't want tracked, or add more by inserting rows with a
-// justtcg_tcgplayer_id you look up the same way.
+// returns the top match, which may not be the exact print you'd pick by
+// hand. After running this, feel free to review/edit rows directly in the
+// Supabase Table Editor (table: watchlist) - remove ones you don't want
+// tracked, or add more by inserting rows with a justtcg_tcgplayer_id you
+// look up the same way.
 
 require("dotenv").config({ path: ".env.local" });
-const { searchCard } = require("../lib/justtcg");
+const { searchCard } = require("../lib/pokemonPriceTracker");
 const { supabaseAdmin } = require("../lib/supabaseAdmin");
 
 const STARTER_WATCHLIST = [
@@ -51,9 +51,9 @@ const STARTER_WATCHLIST = [
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// JustTCG's free tier caps requests at 10/minute - space these out so a
-// full run of the starter list doesn't get rate-limited partway through.
-const DELAY_BETWEEN_REQUESTS_MS = 6500;
+// PokemonPriceTracker's Business tier allows 500 req/min - this is a
+// generous safety margin, not a real constraint at this list size.
+const DELAY_BETWEEN_REQUESTS_MS = 150;
 
 async function main() {
   const db = supabaseAdmin();
@@ -66,16 +66,21 @@ async function main() {
       const { error } = await db.from("watchlist").upsert(
         {
           name: card.name,
-          set: card.set_name ?? card.set,
-          justtcg_tcgplayer_id: String(card.tcgplayerId),
+          set: card.setName,
+          justtcg_tcgplayer_id: String(card.tcgPlayerId),
           justtcg_condition: "Near Mint",
           active: true,
+          // Explicit even on conflict/update - upsert only touches columns
+          // you list, so omitting these would silently leave a
+          // previously-auto-added row as source='auto' forever.
+          source: "manual",
+          tier: "priority",
         },
         { onConflict: "name,set" }
       );
 
       if (error) throw error;
-      console.log(`Added: ${card.name} (${card.set_name ?? card.set})`);
+      console.log(`Added: ${card.name} (${card.setName})`);
       added++;
     } catch (err) {
       console.error(`Failed "${name}": ${err.message}`);

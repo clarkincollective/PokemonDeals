@@ -2,6 +2,8 @@ import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES } from "@/lib/ebay";
+import Logo from "@/components/Logo";
+import AffiliateLink from "@/components/AffiliateLink";
 
 // Re-check for new deals at most once a minute, so the page reflects the
 // latest scan quickly without hitting the database on every single visit.
@@ -56,20 +58,23 @@ export default async function Home({ searchParams }) {
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
       <header className="border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-6xl px-6 py-12">
-          <h1 className="text-3xl font-bold tracking-tight text-black sm:text-4xl dark:text-zinc-50">
-            Pokémon Card Deals
+          <h1>
+            <Logo />
           </h1>
-          <p className="mt-3 max-w-xl text-zinc-600 dark:text-zinc-400">
-            Live eBay listings across five countries, checked against real
-            market pricing, automatically, around the clock. Only cards
-            genuinely priced below market make this list.
+          <p className="mt-4 max-w-xl text-zinc-600 dark:text-zinc-400">
+            Live below-market Pokémon card listings from eBay US and
+            Australia, checked automatically around the clock against real
+            market pricing and real eBay sold-listing data - not estimates.
+            Only cards genuinely priced below market make this list.
           </p>
           {lastRefreshed && (
             <p className="mt-4 inline-flex items-center gap-2 text-sm text-zinc-500">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="h-2 w-2 rounded-full bg-red-500" />
               Last refreshed {timeAgo(lastRefreshed)}
             </p>
           )}
+
+          <TrustBadges />
         </div>
       </header>
 
@@ -103,6 +108,79 @@ export default async function Home({ searchParams }) {
         Card-to-listing matching is automated and not perfect - always
         double-check a listing&apos;s photos and description before buying.
       </footer>
+    </div>
+  );
+}
+
+function Badge({ icon, bold, label }) {
+  return (
+    <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+      <span className="text-zinc-400 dark:text-zinc-500">{icon}</span>
+      <span>
+        <span className="font-semibold text-black dark:text-zinc-50">{bold}</span> {label}
+      </span>
+    </div>
+  );
+}
+
+// Deliberately real, verifiable claims only - see conversation with the
+// user about why "AI-Powered" / "40K+ tracked" / "6M+ sales records"
+// (numbers from a reference site) don't hold up for this project's actual
+// scope and were replaced with what's actually true.
+function TrustBadges() {
+  const iconProps = {
+    viewBox: "0 0 20 20",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    className: "h-5 w-5",
+  };
+
+  return (
+    <div className="mt-6 flex flex-wrap items-center gap-x-8 gap-y-3">
+      <Badge
+        icon={
+          <svg {...iconProps}>
+            <circle cx="8.5" cy="8.5" r="5.5" />
+            <line x1="16" y1="16" x2="12.5" y2="12.5" />
+          </svg>
+        }
+        bold="Automated"
+        label="market matching"
+      />
+      <Badge
+        icon={
+          <svg {...iconProps}>
+            <rect x="2.5" y="6.5" width="12" height="9" rx="1.5" />
+            <path d="M6 6.5V4.5A1.5 1.5 0 0 1 7.5 3H16A1.5 1.5 0 0 1 17.5 4.5V12A1.5 1.5 0 0 1 16 13.5H15" />
+          </svg>
+        }
+        bold="50,000+"
+        label="card pricing database"
+      />
+      <Badge
+        icon={
+          <svg {...iconProps}>
+            <path d="M5 3h10a1 1 0 0 1 1 1v12l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3V4a1 1 0 0 1 1-1Z" />
+            <line x1="7" y1="7" x2="13" y2="7" />
+            <line x1="7" y1="10" x2="13" y2="10" />
+          </svg>
+        }
+        bold="Real"
+        label="eBay sold-listing data"
+      />
+      <Badge
+        icon={
+          <svg {...iconProps}>
+            <path d="M11 3.5 17 9.5a1.4 1.4 0 0 1 0 2L11.5 17a1.4 1.4 0 0 1-2 0L3 10.5V4.5A1 1 0 0 1 4 3.5h7Z" />
+            <circle cx="7.5" cy="7.5" r="1" />
+          </svg>
+        }
+        bold="Free"
+        label="to browse, always"
+      />
     </div>
   );
 }
@@ -194,7 +272,7 @@ function DealRow({ deal }) {
       {/* Details */}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">
+          <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-semibold text-white">
             {discountLabel}
           </span>
           {deal.is_graded ? (
@@ -255,22 +333,29 @@ function DealRow({ deal }) {
           </div>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <a
+          <AffiliateLink
             href={deal.affiliate_url}
-            target="_blank"
-            rel="sponsored noopener noreferrer"
+            eventName="eBay Click"
+            eventData={{
+              card: cardName,
+              marketplace: deal.marketplace,
+              discountPct: Math.round(deal.discount_pct * 100),
+              listingType: deal.listing_type,
+              isGraded: deal.is_graded,
+              page: "home",
+            }}
             className="whitespace-nowrap rounded-lg bg-black px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
           >
             {isAuction ? "Bid on eBay →" : "View Deal on eBay →"}
-          </a>
-          <a
+          </AffiliateLink>
+          <AffiliateLink
             href={tcgplayerLink}
-            target="_blank"
-            rel="sponsored noopener noreferrer"
+            eventName="TCGPlayer Click"
+            eventData={{ card: cardName, page: "home" }}
             className="text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
           >
             Check on TCGPlayer
-          </a>
+          </AffiliateLink>
         </div>
       </div>
     </div>

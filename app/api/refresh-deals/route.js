@@ -1,11 +1,17 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { batchPrices } from "@/lib/justtcg";
 import { MARKETPLACES, searchListings, getGradingDetails } from "@/lib/ebay";
-import { getGradedPrice } from "@/lib/pokemonPriceTracker";
+import { getRawPrice, getGradedPrice } from "@/lib/pokemonPriceTracker";
 
 // This route does real work (API calls + database writes) and must never
-// be cached by Next.js.
+// be cached by Next.js. A full priority-tier run measured at ~6.5 min
+// sequential - give it real headroom rather than get killed mid-scan.
 export const dynamic = "force-dynamic";
+export const maxDuration = 800;
+
+// Both PokemonPriceTracker (500 req/min) and eBay comfortably support this
+// many requests in flight at once - running cards sequentially was the
+// actual cause of the 6.5 min runtime, not a rate limit.
+const CONCURRENCY = 8;
 
 // How far under market a listing has to be to count as a "deal".
 const DISCOUNT_THRESHOLD = 0.15;
@@ -14,7 +20,25 @@ const DISCOUNT_THRESHOLD = 0.15;
 const SANITY_FLOOR_PCT = 0.25;
 const MIN_SELLER_FEEDBACK_PCT = 95;
 const MIN_SELLER_FEEDBACK_SCORE = 10;
-const EXCLUDED_TITLE_PATTERN = /\b(lot|bundle|playset|proxy|custom|repack|digital|code)\b/i;
+// "Choose your card" / "pick your card" listings sell a pool of cards at
+// one price - the listing's price isn't actually for the specific card
+// we matched it to, so it can't be trusted for a discount calculation.
+const EXCLUDED_TITLE_PATTERN =
+  /\b(lot|bundle|playset|proxy|custom|repack|digital|code)\b|choose your|pick your/i;
+
+// The extended tier now covers ~5,000 cards ($15+, per the pokedealfinder.uk
+// competitive check) - too many to scan in one country in one day alongside
+// the priority tier without busting eBay's ~5,000/day cap. Splitting it into
+// two stable halves, each scanned every other day, keeps genuine daily
+// coverage of the whole tier while roughly halving the daily request count.
+// Hash-based on watchlist id rather than a stored column - deterministic and
+// needs no migration; a card's half only changes if its id changes.
+function halfOf(row) {
+  let hash = 0;
+  const key = String(row.id);
+  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  return hash % 2 === 0 ? "1" : "2";
+}
 
 function isTrustworthyListing(listing) {
   if (EXCLUDED_TITLE_PATTERN.test(listing.title)) return false;
@@ -56,13 +80,18 @@ function dealRow({ watchlistId, listing, totalPrice, marketPrice, discountPct, p
 }
 
 // Scans one watchlist card in one country. Raw listings are priced against
-// JustTCG's market price (cheap, already batch-fetched). At most the
-// single cheapest graded listing gets the extra getGradingDetails() +
-// PokemonPriceTracker lookup, to keep both eBay's per-item budget and
-// PokemonPriceTracker's metered credits bounded per scan cycle.
-async function scanCardInMarketplace(row, marketplaceId, marketData, db) {
+// PokemonPriceTracker's raw market price. At most the single cheapest
+// graded listing gets the extra getGradingDetails() + graded-price lookup,
+// to keep both eBay's per-item budget and PokemonPriceTracker's metered
+// credits bounded per scan cycle.
+async function scanCardInMarketplace(row, marketplaceId, marketData, db, discountThreshold) {
   const query = row.set ? `${row.name} ${row.set}` : row.name;
-  const listings = await searchListings(query, marketplaceId);
+  // Push the sanity floor into the eBay query itself, so a full page of
+  // results is actually viable candidates instead of getting drowned out
+  // by near-$0 junk that happens to loosely match the card's name.
+  const listings = await searchListings(query, marketplaceId, {
+    minPrice: marketData.marketPrice * SANITY_FLOOR_PCT,
+  });
 
   const rawListings = listings.filter((l) => !l.isGraded);
   const cheapestGraded = listings.find((l) => l.isGraded) ?? null;
@@ -83,7 +112,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db) {
 
     const totalPrice = listing.price + listing.shipping;
     const discountPct = (marketData.marketPrice - totalPrice) / marketData.marketPrice;
-    if (discountPct < DISCOUNT_THRESHOLD) continue;
+    if (discountPct < discountThreshold) continue;
     if (totalPrice < marketData.marketPrice * SANITY_FLOOR_PCT) continue;
 
     seenListingIds.push(listing.listingId);
@@ -110,7 +139,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db) {
         const totalPrice = cheapestGraded.price + cheapestGraded.shipping;
         const discountPct = (gradedPrice.price - totalPrice) / gradedPrice.price;
 
-        if (discountPct >= DISCOUNT_THRESHOLD && totalPrice >= gradedPrice.price * SANITY_FLOOR_PCT) {
+        if (discountPct >= discountThreshold && totalPrice >= gradedPrice.price * SANITY_FLOOR_PCT) {
           seenListingIds.push(cheapestGraded.listingId);
           await tryUpsert(
             dealRow({
@@ -158,12 +187,33 @@ export async function GET(request) {
   // ?tier=priority (frequent, high-value cards) or ?tier=extended (broader
   // $5+ catalog, scanned less often) - vercel.json's two cron entries pass
   // this. No param = scan everything (useful for manual/test runs).
-  const tier = new URL(request.url).searchParams.get("tier");
+  const url = new URL(request.url);
+  const tier = url.searchParams.get("tier");
+
+  // ?minDiscount=0.03 overrides the real 15% threshold for a one-off test
+  // scan (e.g. to see real UI with real listings without waiting for a
+  // genuine 15%+ deal). Never used by the scheduled cron calls, so
+  // production behavior is unaffected unless this is passed explicitly.
+  const minDiscountParam = url.searchParams.get("minDiscount");
+  const discountThreshold = minDiscountParam != null ? Number(minDiscountParam) : DISCOUNT_THRESHOLD;
+
+  // ?half=1 or ?half=2 - only meaningful for tier=extended, which is too
+  // large to scan in one day (see halfOf() above). vercel.json runs each
+  // half on alternating days so the full tier gets covered every 2 days.
+  const half = url.searchParams.get("half");
 
   let watchlistQuery = db.from("watchlist").select("*").eq("active", true);
   if (tier) watchlistQuery = watchlistQuery.eq("tier", tier);
 
-  const { data: watchlistRows, error: watchlistError } = await watchlistQuery;
+  const { data: watchlistRowsRaw, error: watchlistError } = await watchlistQuery;
+  const watchlistRows = half ? (watchlistRowsRaw ?? []).filter((row) => halfOf(row) === half) : watchlistRowsRaw;
+
+  // eBay's ~5,000/day request cap: the ~30 hand-picked priority cards get
+  // a fast lane across US + Australia (your own market); the much larger
+  // extended tier (the real $15-$200 "sweet spot" catalog) is scanned
+  // single-country (US) and split across two days via ?half.
+  const marketplaceIds =
+    tier === "extended" ? ["EBAY_US"] : tier === "priority" ? ["EBAY_US", "EBAY_AU"] : Object.keys(MARKETPLACES);
 
   if (watchlistError) {
     return Response.json({ error: watchlistError.message }, { status: 500 });
@@ -173,28 +223,49 @@ export async function GET(request) {
     return Response.json({ scanned: 0, dealsFound: 0, message: "Watchlist is empty" });
   }
 
-  const marketPricesByWatchlistId = await batchPrices(watchlistRows);
-
   let dealsFound = 0;
   let scanned = 0;
   const errors = [];
 
-  for (const row of watchlistRows) {
-    const marketData = marketPricesByWatchlistId.get(row.id);
-    if (!marketData) {
-      errors.push(`No JustTCG price for watchlist item "${row.name}" (id ${row.id})`);
-      continue;
+  async function scanOneCard(row) {
+    let marketData;
+    try {
+      const raw = await getRawPrice(row.justtcg_tcgplayer_id, row.justtcg_condition);
+      if (!raw) {
+        errors.push(`No price for watchlist item "${row.name}" (id ${row.id})`);
+        return;
+      }
+      marketData = { marketPrice: raw.price, priceChange24hr: null };
+    } catch (err) {
+      errors.push(`Price lookup failed for "${row.name}": ${err.message}`);
+      return;
     }
 
-    for (const marketplaceId of Object.keys(MARKETPLACES)) {
-      scanned++;
-      try {
-        dealsFound += await scanCardInMarketplace(row, marketplaceId, marketData, db);
-      } catch (err) {
-        errors.push(`${row.name} (${marketplaceId}): ${err.message}`);
-      }
+    // At most 2 marketplaces per card, so running those in parallel too
+    // is cheap and doesn't need its own concurrency cap.
+    await Promise.all(
+      marketplaceIds.map(async (marketplaceId) => {
+        scanned++;
+        try {
+          dealsFound += await scanCardInMarketplace(row, marketplaceId, marketData, db, discountThreshold);
+        } catch (err) {
+          errors.push(`${row.name} (${marketplaceId}): ${err.message}`);
+        }
+      })
+    );
+  }
+
+  // PokemonPriceTracker has no multi-card batch endpoint, and running
+  // cards fully sequentially took ~6.5 min for 76 cards - both APIs
+  // comfortably support CONCURRENCY cards in flight at once.
+  const queue = [...watchlistRows];
+  async function worker() {
+    let row;
+    while ((row = queue.shift())) {
+      await scanOneCard(row);
     }
   }
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
   return Response.json({
     scanned,

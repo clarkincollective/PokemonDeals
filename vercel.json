@@ -2,11 +2,15 @@
   "crons": [
     {
       "path": "/api/refresh-deals?tier=priority",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 */4 * * *"
     },
     {
-      "path": "/api/refresh-deals?tier=extended",
-      "schedule": "0 */6 * * *"
+      "path": "/api/refresh-deals?tier=extended&half=1",
+      "schedule": "0 4 1-31/2 * *"
+    },
+    {
+      "path": "/api/refresh-deals?tier=extended&half=2",
+      "schedule": "0 4 2-30/2 * *"
     },
     {
       "path": "/api/sync-watchlist",
