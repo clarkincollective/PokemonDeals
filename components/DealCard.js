@@ -5,6 +5,9 @@ import { timeAgo, timeUntil } from "@/lib/time";
 import AffiliateLink from "@/components/AffiliateLink";
 import DealScoreBadge from "@/components/DealScoreBadge";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
+import ShareButton from "@/components/ShareButton";
+
+const SITE_URL = "https://pokemondealfinder.com";
 
 // rank (e.g. 1-10) and scoreBadge ({label, className}, from lib/dealScore.js)
 // are optional - always passed from Best Finds and search, and now also
@@ -125,6 +128,12 @@ export default function DealCard({ deal, rank, scoreBadge, pageName = "home" }) 
                 <path d="M12 5h4.5v4.5" />
               </svg>
             </a>
+            <ShareButton
+              url={`${SITE_URL}/deals/${deal.id}`}
+              title={`${cardName} - ${discountPct}% below market`}
+              text={`${cardName}${cardSet ? ` (${cardSet})` : ""} - $${Number(deal.total_price).toFixed(2)}, ${discountPct}% below market on Pokémon Deal Finder`}
+              className="rounded-md px-2.5"
+            />
             <AffiliateLink
               href={deal.affiliate_url}
               eventName="eBay Click"

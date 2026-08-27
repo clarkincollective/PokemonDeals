@@ -12,6 +12,9 @@ import SiteHeader from "@/components/SiteHeader";
 import DealScoreBadge from "@/components/DealScoreBadge";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
+import ShareButton from "@/components/ShareButton";
+
+const SITE_URL = "https://pokemondealfinder.com";
 
 // Always fresh - this only runs when someone actually opens a deal, so an
 // on-demand price-history fetch here doesn't multiply the scheduled scan's
@@ -260,6 +263,13 @@ export default async function DealDetailPage({ params }) {
               >
                 Check on TCGPlayer
               </AffiliateLink>
+              <ShareButton
+                url={`${SITE_URL}/deals/${deal.id}`}
+                title={`${cardName} - ${Math.round(deal.discount_pct * 100)}% below market`}
+                text={`${cardName}${cardSet ? ` (${cardSet})` : ""} - $${Number(deal.total_price).toFixed(2)}, ${Math.round(deal.discount_pct * 100)}% below market on Pokémon Deal Finder`}
+                label="Share"
+                className="rounded-lg px-4 py-2"
+              />
             </div>
           </div>
         </div>
