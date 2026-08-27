@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { findCardHubByWatchlistId } from "@/lib/deals";
+import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebay";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
@@ -177,6 +178,8 @@ export default async function DealDetailPage({ params }) {
 
   const cardName = deal.watchlist?.name ?? deal.title;
   const cardSet = deal.watchlist?.set;
+  // /sets/[slug] only exists for English cards (see app/sets/page.js).
+  const setSlug = cardSet && deal.watchlist?.language !== "japanese" ? slugifySet(cardSet) : null;
   const discountPct = Math.round(deal.discount_pct * 100);
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
@@ -311,7 +314,15 @@ export default async function DealDetailPage({ params }) {
               {cardName}
               <span className="font-medium text-zinc-500"> - {discountPct}% Below Market</span>
             </h1>
-            {cardSet && <p className="text-zinc-500">{cardSet}</p>}
+            {cardSet && (
+              setSlug ? (
+                <Link href={`/sets/${setSlug}`} className="text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500">
+                  {cardSet}
+                </Link>
+              ) : (
+                <p className="text-zinc-500">{cardSet}</p>
+              )
+            )}
             <p className="mt-1 line-clamp-2 text-sm text-zinc-400">{deal.title}</p>
 
             {cardHub && (

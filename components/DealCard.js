@@ -1,6 +1,8 @@
 import Image from "next/image";
+import Link from "next/link";
 import { MARKETPLACES } from "@/lib/ebay";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
+import { slugifySet } from "@/lib/slugify";
 import { timeAgo, timeUntil } from "@/lib/time";
 import AffiliateLink from "@/components/AffiliateLink";
 import DealScoreBadge from "@/components/DealScoreBadge";
@@ -20,6 +22,10 @@ export default function DealCard({ deal, rank, scoreBadge, pageName = "home" }) 
   const tcgplayerLink = buildTcgplayerLink(cardName, deal.watchlist?.justtcg_tcgplayer_id);
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
+  // /sets/[slug] only exists for English cards (see app/sets/page.js -
+  // its index is only ever built with language: "english") - Japanese
+  // sets have no hub page yet, so this only links when it's real.
+  const setSlug = cardSet && deal.watchlist?.language !== "japanese" ? slugifySet(cardSet) : null;
 
   return (
     <div className="group flex h-full flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950">
@@ -86,7 +92,18 @@ export default function DealCard({ deal, rank, scoreBadge, pageName = "home" }) 
         >
           {cardName}
         </a>
-        {cardSet && <p className="line-clamp-1 text-xs text-zinc-500">{cardSet}</p>}
+        {cardSet && (
+          setSlug ? (
+            <Link
+              href={`/sets/${setSlug}`}
+              className="line-clamp-1 text-xs text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500"
+            >
+              {cardSet}
+            </Link>
+          ) : (
+            <p className="line-clamp-1 text-xs text-zinc-500">{cardSet}</p>
+          )
+        )}
 
         <div className="mt-1">
           <div className="flex items-baseline gap-2">

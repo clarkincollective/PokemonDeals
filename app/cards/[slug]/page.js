@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { resolveCardSlug, fetchCardOffers } from "@/lib/deals";
+import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES } from "@/lib/ebay";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
@@ -148,7 +149,12 @@ export default async function CardHubPage({ params }) {
               {offers.length} active {offers.length === 1 ? "listing" : "listings"}
             </span>
             <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">{hub.name}</h1>
-            <p className="text-zinc-500">{hub.set}</p>
+            <Link
+              href={`/sets/${slugifySet(hub.set)}`}
+              className="text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500"
+            >
+              {hub.set}
+            </Link>
 
             {priceRange && (
               <p className="mt-4 text-2xl font-bold text-black dark:text-zinc-50">
