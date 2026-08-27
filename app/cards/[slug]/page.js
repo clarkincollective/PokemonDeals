@@ -6,11 +6,21 @@ import { resolveCardSlug, fetchCardOffers } from "@/lib/deals";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES } from "@/lib/ebay";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
+import { dealScore } from "@/lib/dealScore";
 import SiteHeader from "@/components/SiteHeader";
+import DealCard from "@/components/DealCard";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
+
+// How many of the cheapest offers get the full visual DealCard treatment
+// (image, badges, CTA) right at the top - real feedback: landing on a
+// page of plain text rows after clicking "N active listings" read as
+// confusing/broken, since every other page on the site shows deals as
+// image cards. The rest of the offers still get the complete plain list
+// further down for anyone comparing all of them, not just the top few.
+const FEATURED_OFFER_COUNT = 4;
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -115,8 +125,13 @@ export default async function CardHubPage({ params }) {
       <SiteHeader />
 
       <div className="mx-auto max-w-5xl px-6 py-10">
-        <Link href="/" className="block text-sm font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
-          ← All deals
+        {/* A real, visible button rather than a small muted text link -
+            same reasoning as /sets/[slug]'s "Back to Sets" button. */}
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+        >
+          ← Back to All Deals
         </Link>
 
         <div className="mt-4 flex flex-col gap-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
@@ -157,6 +172,19 @@ export default async function CardHubPage({ params }) {
           </div>
         </div>
 
+        {offers.length > 0 && (
+          <div className="mt-6">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-400">
+              {offers.length > FEATURED_OFFER_COUNT ? `Best ${FEATURED_OFFER_COUNT} Prices` : "Active Listings"}
+            </h2>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {offers.slice(0, FEATURED_OFFER_COUNT).map((deal, i) => (
+                <DealCard key={deal.id} deal={deal} rank={i + 1} scoreBadge={dealScore(deal.discount_pct)} pageName="card_hub" />
+              ))}
+            </div>
+          </div>
+        )}
+
         {primaryHistory.length > 0 && (
           <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Market price history</h2>
@@ -177,15 +205,18 @@ export default async function CardHubPage({ params }) {
           </div>
         )}
 
+        {error && (
+          <p className="mt-6 rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load listings: {error}</p>
+        )}
+
+        {!error && offers.length === 0 && (
+          <p className="mt-6 text-zinc-500">No active listings right now - check back after the next scheduled scan.</p>
+        )}
+
+        {offers.length > FEATURED_OFFER_COUNT && (
         <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-          <h2 className="text-sm font-semibold text-black dark:text-zinc-50">All active listings</h2>
+          <h2 className="text-sm font-semibold text-black dark:text-zinc-50">All {offers.length} active listings</h2>
           <p className="text-xs text-zinc-400">Every real, currently active eBay listing for this exact card - cheapest first.</p>
-
-          {error && <p className="mt-4 rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load listings: {error}</p>}
-
-          {!error && offers.length === 0 && (
-            <p className="mt-4 text-zinc-500">No active listings right now - check back after the next scheduled scan.</p>
-          )}
 
           <ul className="mt-4 divide-y divide-zinc-100 dark:divide-zinc-900">
             {offers.map((deal) => {
@@ -224,6 +255,16 @@ export default async function CardHubPage({ params }) {
               );
             })}
           </ul>
+        </div>
+        )}
+
+        <div className="mt-8 flex justify-center">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+          >
+            ← Back to All Deals
+          </Link>
         </div>
       </div>
 
