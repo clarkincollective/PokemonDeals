@@ -1,7 +1,14 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { MARKETPLACES, searchListings, searchNewlyListed, getGradingDetails } from "@/lib/ebay";
-import { getRawPrice, getGradedPrice } from "@/lib/pokemonPriceTracker";
-import { SANITY_FLOOR_PCT, coreTokens, listingMatchesCard, isTrustworthyListing } from "@/lib/dealMatching";
+import { getConditionPrices, getGradedPrice } from "@/lib/pokemonPriceTracker";
+import {
+  SANITY_FLOOR_PCT,
+  coreTokens,
+  listingMatchesCard,
+  isTrustworthyListing,
+  detectListingCondition,
+  selectConditionPrice,
+} from "@/lib/dealMatching";
 
 // This route does real work (API calls + database writes) and must never
 // be cached by Next.js. A full priority-tier run measured at ~6.5 min
@@ -43,7 +50,12 @@ function chunkOf(row, totalChunks) {
   return String((hash % totalChunks) + 1);
 }
 
-function dealRow({ watchlistId, listing, totalPrice, marketPrice, discountPct, priceChange24hr, grading }) {
+// condition, when passed, overrides listing.condition - used for raw
+// listings to store the real detected wear tier (Near Mint/Lightly
+// Played/.../Damaged) instead of eBay's own item.condition, which for
+// cards only ever says "Graded" or "Ungraded" and says nothing about
+// physical wear.
+function dealRow({ watchlistId, listing, totalPrice, marketPrice, discountPct, priceChange24hr, grading, condition }) {
   return {
     watchlist_id: watchlistId,
     source: "ebay",
@@ -62,7 +74,7 @@ function dealRow({ watchlistId, listing, totalPrice, marketPrice, discountPct, p
     market_price: marketPrice,
     discount_pct: discountPct,
     price_change_24hr: priceChange24hr ?? null,
-    condition: listing.condition,
+    condition: condition ?? listing.condition,
     is_graded: Boolean(grading),
     grader: grading?.grader ?? null,
     grade: grading?.grade ?? null,
@@ -88,9 +100,17 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
   const query = row.language === "japanese" ? `${baseQuery} Japanese` : baseQuery;
   // Push the sanity floor into the eBay query itself, so a full page of
   // results is actually viable candidates instead of getting drowned out
-  // by near-$0 junk that happens to loosely match the card's name.
+  // by near-$0 junk that happens to loosely match the card's name. Uses
+  // the LOWEST known condition price (not just the fallback/Near-Mint-ish
+  // one) so a genuine Damaged-condition listing - legitimately priced
+  // below fallbackPrice * SANITY_FLOOR_PCT - still gets fetched at all;
+  // the real per-listing condition check below is what actually prices it.
+  const knownPrices = [marketData.fallbackPrice, ...Object.values(marketData.byCondition ?? {})].filter(
+    (p) => p != null
+  );
+  const lowestKnownPrice = knownPrices.length > 0 ? Math.min(...knownPrices) : marketData.fallbackPrice;
   const listings = await searchListings(query, marketplaceId, {
-    minPrice: marketData.marketPrice * SANITY_FLOOR_PCT,
+    minPrice: lowestKnownPrice * SANITY_FLOOR_PCT,
   });
 
   const rawListings = listings.filter((l) => !l.isGraded);
@@ -111,10 +131,18 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     if (!isTrustworthyListing(listing)) continue;
     if (!listingMatchesCard(listing, row)) continue;
 
+    // Price THIS listing against its own real detected condition, not a
+    // flat Near Mint assumption for every listing regardless of actual
+    // wear (see selectConditionPrice/detectListingCondition for the real
+    // bug this fixes).
+    const condition = detectListingCondition(listing.title);
+    const marketPrice = selectConditionPrice(marketData.byCondition, condition) ?? marketData.fallbackPrice;
+    if (marketPrice == null) continue;
+
     const totalPrice = listing.price + listing.shipping;
-    const discountPct = (marketData.marketPrice - totalPrice) / marketData.marketPrice;
+    const discountPct = (marketPrice - totalPrice) / marketPrice;
     if (discountPct < discountThreshold) continue;
-    if (totalPrice < marketData.marketPrice * SANITY_FLOOR_PCT) continue;
+    if (totalPrice < marketPrice * SANITY_FLOOR_PCT) continue;
 
     seenListingIds.push(listing.listingId);
     await tryUpsert(
@@ -122,9 +150,10 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
         watchlistId: row.id,
         listing,
         totalPrice,
-        marketPrice: marketData.marketPrice,
+        marketPrice,
         discountPct,
         priceChange24hr: marketData.priceChange24hr,
+        condition,
       })
     );
   }
@@ -216,13 +245,13 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
   const listings = await searchNewlyListed(marketplaceId, { pages });
 
   const marketPriceCache = new Map();
-  async function cachedRawPrice(row) {
-    const key = `${row.justtcg_tcgplayer_id}|${row.justtcg_condition}|${row.language}`;
+  async function cachedConditionPrices(row) {
+    const key = `${row.justtcg_tcgplayer_id}|${row.language}`;
     if (marketPriceCache.has(key)) return marketPriceCache.get(key);
     let marketData = null;
     try {
-      const raw = await getRawPrice(row.justtcg_tcgplayer_id, row.justtcg_condition, row.language);
-      if (raw) marketData = { marketPrice: raw.price, priceChange24hr: null };
+      const raw = await getConditionPrices(row.justtcg_tcgplayer_id, row.language);
+      if (raw) marketData = { byCondition: raw.byCondition, fallbackPrice: raw.fallbackPrice, priceChange24hr: null };
     } catch {
       marketData = null;
     }
@@ -275,22 +304,27 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
         continue;
       }
 
-      const marketData = await cachedRawPrice(row);
+      const marketData = await cachedConditionPrices(row);
       if (!marketData) continue;
 
+      const condition = detectListingCondition(listing.title);
+      const marketPrice = selectConditionPrice(marketData.byCondition, condition) ?? marketData.fallbackPrice;
+      if (marketPrice == null) continue;
+
       const totalPrice = listing.price + listing.shipping;
-      const discountPct = (marketData.marketPrice - totalPrice) / marketData.marketPrice;
+      const discountPct = (marketPrice - totalPrice) / marketPrice;
       if (discountPct < discountThreshold) continue;
-      if (totalPrice < marketData.marketPrice * SANITY_FLOOR_PCT) continue;
+      if (totalPrice < marketPrice * SANITY_FLOOR_PCT) continue;
 
       await tryUpsert(
         dealRow({
           watchlistId: row.id,
           listing,
           totalPrice,
-          marketPrice: marketData.marketPrice,
+          marketPrice,
           discountPct,
           priceChange24hr: marketData.priceChange24hr,
+          condition,
         })
       );
     }
@@ -392,12 +426,12 @@ export async function GET(request) {
   async function scanOneCard(row) {
     let marketData;
     try {
-      const raw = await getRawPrice(row.justtcg_tcgplayer_id, row.justtcg_condition, row.language);
-      if (!raw) {
+      const raw = await getConditionPrices(row.justtcg_tcgplayer_id, row.language);
+      if (!raw || (raw.fallbackPrice == null && Object.keys(raw.byCondition).length === 0)) {
         errors.push(`No price for watchlist item "${row.name}" (id ${row.id})`);
         return;
       }
-      marketData = { marketPrice: raw.price, priceChange24hr: null };
+      marketData = { byCondition: raw.byCondition, fallbackPrice: raw.fallbackPrice, priceChange24hr: null };
     } catch (err) {
       errors.push(`Price lookup failed for "${row.name}": ${err.message}`);
       return;
