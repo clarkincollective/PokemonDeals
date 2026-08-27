@@ -150,14 +150,18 @@ export default async function Home({ searchParams }) {
       dedupedPool.push(deal);
     }
     // Shuffle a wider recency window instead of always showing the
-    // literal newest 24 - when scanning briefly stalls (e.g. an eBay
-    // rate-limit day), the pool stops growing and the exact same 24
-    // deals would otherwise show on every single visit until a new scan
-    // lands. This never shows anything fake - every deal here is real
-    // and still active - it just resurfaces a different genuine subset
-    // each time the page regenerates, so repeat visitors see real
-    // variety instead of a frozen list.
-    const ROTATION_POOL_SIZE = 100;
+    // literal newest 24 - when scanning stalls (e.g. an eBay rate-limit
+    // stretch, verified live to run 1.5+ hours), the pool stops growing
+    // and the exact same handful of deals would otherwise show on every
+    // single visit until a new scan lands. This never shows anything
+    // fake - every deal here is real and still active - it just
+    // resurfaces a different genuine subset each time the page
+    // regenerates. 400, not 100: verified live that a rate-limit stall
+    // freezes this window entirely, and 100 wasn't deep enough to avoid
+    // heavy overlap between visits a scan cycle or two apart - 400 draws
+    // from real, still-active inventory well beyond just what the most
+    // recent scan attempts happened to touch.
+    const ROTATION_POOL_SIZE = 400;
     deals = shuffled(dedupedPool.slice(0, ROTATION_POOL_SIZE)).slice(0, PAGE_SIZE);
   }
 

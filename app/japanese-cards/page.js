@@ -78,7 +78,11 @@ export default async function JapaneseCardsPage({ searchParams }) {
       seenCards.add(deal.watchlist_id);
       dedupedPool.push(deal);
     }
-    const ROTATION_POOL_SIZE = 100;
+    // See app/page.js's identical reasoning - 400 covers more than half
+    // of the entire active Japanese catalog (~750), so this window keeps
+    // giving real variety even through an extended eBay rate-limit
+    // stall.
+    const ROTATION_POOL_SIZE = 400;
     deals = shuffled(dedupedPool.slice(0, ROTATION_POOL_SIZE)).slice(0, PAGE_SIZE);
   }
 
