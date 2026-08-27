@@ -69,6 +69,8 @@ export default async function Home({ searchParams }) {
   const listingType = typeof params.listing === "string" ? params.listing : null; // FIXED_PRICE | AUCTION
   const maxPriceParam = typeof params.maxPrice === "string" ? Number(params.maxPrice) : null;
   const maxPrice = Number.isFinite(maxPriceParam) && maxPriceParam > 0 ? maxPriceParam : null;
+  const minPriceParam = typeof params.minPrice === "string" ? Number(params.minPrice) : null;
+  const minPrice = Number.isFinite(minPriceParam) && minPriceParam > 0 ? minPriceParam : null;
 
   const PAGE_SIZE = 24;
 
@@ -98,12 +100,16 @@ export default async function Home({ searchParams }) {
   if (cardType === "graded") query = query.eq("is_graded", true);
   if (listingType) query = query.eq("listing_type", listingType);
   if (maxPrice) query = query.lte("total_price", maxPrice);
+  if (minPrice) query = query.gte("total_price", minPrice);
 
   const { data: pool, error } = await query;
+  // Same maxPrice/minPrice passed to every section on the page, not just
+  // this main grid - a visitor who picks a budget filter shouldn't still
+  // see Best Finds/Auctions Ending Soon ignoring it.
   const [{ deals: bestFindsRaw }, { deals: bestFindsGraded }, { deals: endingSoon }] = await Promise.all([
-    fetchBestFinds({ limit: 3, graded: false }),
-    fetchBestFinds({ limit: 3, graded: true }),
-    fetchAuctionsEndingSoon({ limit: 6 }),
+    fetchBestFinds({ limit: 3, graded: false, maxPrice, minPrice }),
+    fetchBestFinds({ limit: 3, graded: true, maxPrice, minPrice }),
+    fetchAuctionsEndingSoon({ limit: 6, maxPrice, minPrice }),
   ]);
 
   const seenCards = new Set();
@@ -212,6 +218,7 @@ export default async function Home({ searchParams }) {
               cardType={cardType}
               listingType={listingType}
               maxPrice={maxPrice}
+              minPrice={minPrice}
             />
           </div>
         </div>

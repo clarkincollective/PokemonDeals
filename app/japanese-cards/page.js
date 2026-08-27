@@ -40,6 +40,8 @@ export default async function JapaneseCardsPage({ searchParams }) {
   const listingType = typeof params.listing === "string" ? params.listing : null;
   const maxPriceParam = typeof params.maxPrice === "string" ? Number(params.maxPrice) : null;
   const maxPrice = Number.isFinite(maxPriceParam) && maxPriceParam > 0 ? maxPriceParam : null;
+  const minPriceParam = typeof params.minPrice === "string" ? Number(params.minPrice) : null;
+  const minPrice = Number.isFinite(minPriceParam) && minPriceParam > 0 ? minPriceParam : null;
 
   const PAGE_SIZE = 24;
 
@@ -59,6 +61,7 @@ export default async function JapaneseCardsPage({ searchParams }) {
   if (cardType === "graded") query = query.eq("is_graded", true);
   if (listingType) query = query.eq("listing_type", listingType);
   if (maxPrice) query = query.lte("total_price", maxPrice);
+  if (minPrice) query = query.gte("total_price", minPrice);
 
   const { data: pool, error } = await query;
 
@@ -116,6 +119,7 @@ export default async function JapaneseCardsPage({ searchParams }) {
               cardType={cardType}
               listingType={listingType}
               maxPrice={maxPrice}
+              minPrice={minPrice}
               basePath="/japanese-cards"
             />
           </div>

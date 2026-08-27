@@ -12,6 +12,23 @@ export function filterHref(currentParams, key, value, basePath = "/") {
   return qs ? `${basePath}?${qs}` : basePath;
 }
 
+// Same toggle behavior as filterHref, but also clears the opposite price
+// bound - "Under $50" and "$100+" are mutually exclusive budget choices,
+// and leaving both set would silently produce a contradictory (always
+// empty) filter.
+export function priceFilterHref(currentParams, key, value, basePath) {
+  const params = new URLSearchParams(currentParams);
+  const otherKey = key === "maxPrice" ? "minPrice" : "maxPrice";
+  if (params.get(key) === value) {
+    params.delete(key);
+  } else {
+    params.set(key, value);
+    params.delete(otherKey);
+  }
+  const qs = params.toString();
+  return qs ? `${basePath}?${qs}` : basePath;
+}
+
 function FilterPill({ href, active, children }) {
   return (
     <a
@@ -38,7 +55,35 @@ function ScrollRow({ children }) {
   );
 }
 
-export default function FilterBar({ params, country, cardType, listingType, maxPrice, basePath = "/" }) {
+// Standalone, so pages that don't want the full filter set (e.g.
+// /best-finds, which already has its own raw/graded toggle) can still
+// offer the same price pills without pulling in Country/Card & listing.
+export function PriceFilterRow({ params, maxPrice, minPrice, basePath = "/" }) {
+  return (
+    <div>
+      <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">Price</span>
+      <ScrollRow>
+        <FilterPill href={priceFilterHref(params, "maxPrice", "25", basePath)} active={maxPrice === 25}>
+          Under $25
+        </FilterPill>
+        <FilterPill href={priceFilterHref(params, "maxPrice", "50", basePath)} active={maxPrice === 50}>
+          Under $50
+        </FilterPill>
+        <FilterPill href={priceFilterHref(params, "maxPrice", "100", basePath)} active={maxPrice === 100}>
+          Under $100
+        </FilterPill>
+        <FilterPill href={priceFilterHref(params, "minPrice", "100", basePath)} active={minPrice === 100}>
+          $100+
+        </FilterPill>
+        <FilterPill href={priceFilterHref(params, "minPrice", "500", basePath)} active={minPrice === 500}>
+          $500+
+        </FilterPill>
+      </ScrollRow>
+    </div>
+  );
+}
+
+export default function FilterBar({ params, country, cardType, listingType, maxPrice, minPrice, basePath = "/" }) {
   return (
     <div className="mb-8 flex flex-col gap-4">
       <div>
@@ -80,22 +125,7 @@ export default function FilterBar({ params, country, cardType, listingType, maxP
         </ScrollRow>
       </div>
 
-      <div>
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
-          Price
-        </span>
-        <ScrollRow>
-          <FilterPill href={filterHref(params, "maxPrice", "25", basePath)} active={maxPrice === 25}>
-            Under $25
-          </FilterPill>
-          <FilterPill href={filterHref(params, "maxPrice", "50", basePath)} active={maxPrice === 50}>
-            Under $50
-          </FilterPill>
-          <FilterPill href={filterHref(params, "maxPrice", "100", basePath)} active={maxPrice === 100}>
-            Under $100
-          </FilterPill>
-        </ScrollRow>
-      </div>
+      <PriceFilterRow params={params} maxPrice={maxPrice} minPrice={minPrice} basePath={basePath} />
     </div>
   );
 }

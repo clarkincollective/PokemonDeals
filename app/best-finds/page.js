@@ -3,6 +3,7 @@ import { fetchBestFinds } from "@/lib/deals";
 import { dealScore } from "@/lib/dealScore";
 import SiteHeader from "@/components/SiteHeader";
 import DealCard from "@/components/DealCard";
+import { filterHref, PriceFilterRow } from "@/components/FilterBar";
 
 export const revalidate = 60;
 
@@ -14,8 +15,10 @@ export const metadata = {
 
 // A single bordered track with two tabs inside, rather than two separate
 // pill buttons - reads as one control (raw vs. graded) instead of two
-// unrelated buttons.
-function TypeToggle({ type }) {
+// unrelated buttons. Built on filterHref (not a hardcoded href) so
+// switching raw/graded preserves an active price filter instead of
+// silently resetting it.
+function TypeToggle({ params, type }) {
   const tabClass = (active) =>
     `rounded-sm px-3 py-1.5 text-xs font-semibold transition-colors ${
       active
@@ -25,10 +28,10 @@ function TypeToggle({ type }) {
 
   return (
     <div className="mt-4 inline-flex gap-0.5 rounded-md border border-zinc-200 p-0.5 dark:border-zinc-800">
-      <a href="/best-finds?type=raw" className={tabClass(type === "raw")}>
+      <a href={filterHref(params, "type", "raw", "/best-finds")} className={tabClass(type === "raw")}>
         Raw
       </a>
-      <a href="/best-finds?type=graded" className={tabClass(type === "graded")}>
+      <a href={filterHref(params, "type", "graded", "/best-finds")} className={tabClass(type === "graded")}>
         Graded
       </a>
     </div>
@@ -42,7 +45,11 @@ export default async function BestFindsPage({ searchParams }) {
   // graded one) - default to raw since it's the far larger, more
   // frequently-updated list.
   const type = params.type === "graded" ? "graded" : "raw";
-  const { deals, error } = await fetchBestFinds({ limit: 10, graded: type === "graded" });
+  const maxPriceParam = typeof params.maxPrice === "string" ? Number(params.maxPrice) : null;
+  const maxPrice = Number.isFinite(maxPriceParam) && maxPriceParam > 0 ? maxPriceParam : null;
+  const minPriceParam = typeof params.minPrice === "string" ? Number(params.minPrice) : null;
+  const minPrice = Number.isFinite(minPriceParam) && minPriceParam > 0 ? minPriceParam : null;
+  const { deals, error } = await fetchBestFinds({ limit: 10, graded: type === "graded", maxPrice, minPrice });
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
@@ -67,7 +74,11 @@ export default async function BestFindsPage({ searchParams }) {
             discount first. Each stays on this list until a better deal replaces it.
           </p>
 
-          <TypeToggle type={type} />
+          <TypeToggle params={params} type={type} />
+
+          <div className="mt-6 border-t border-zinc-200 pt-5 dark:border-zinc-800">
+            <PriceFilterRow params={params} maxPrice={maxPrice} minPrice={minPrice} basePath="/best-finds" />
+          </div>
         </div>
       </header>
 
