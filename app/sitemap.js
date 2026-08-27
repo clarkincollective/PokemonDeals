@@ -47,6 +47,9 @@ export default async function sitemap() {
     { url: `${SITE_URL}/japanese-cards`, changeFrequency: "hourly", priority: 0.8 },
     { url: `${SITE_URL}/sealed-deals`, changeFrequency: "hourly", priority: 0.8 },
     { url: `${SITE_URL}/search`, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${SITE_URL}/market-data`, changeFrequency: "daily", priority: 0.6 },
+    { url: `${SITE_URL}/market-data/most-listed-cards`, changeFrequency: "daily", priority: 0.6 },
+    { url: `${SITE_URL}/market-data/most-expensive-cards`, changeFrequency: "daily", priority: 0.6 },
   ];
 
   const [deals, sealedDeals, { sets }, { hubs }] = await Promise.all([

@@ -97,8 +97,21 @@ export default async function SetDetailPage({ params, searchParams }) {
 
   const basePath = `/sets/${slug}`;
 
+  // Real gap found live: every other page type with a natural hierarchy
+  // (deal detail, card hub) already has BreadcrumbList - this one didn't.
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Deals", item: `${SITE_URL}/` },
+      { "@type": "ListItem", position: 2, name: "Sets", item: `${SITE_URL}/sets` },
+      { "@type": "ListItem", position: 3, name: resolved.set, item: `${SITE_URL}${basePath}` },
+    ],
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
