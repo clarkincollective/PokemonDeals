@@ -179,7 +179,7 @@ async function syncViaSetCrawl(db, manualKeys, maxSets, language) {
     // after the API's own suggested cooldown instead of losing that set.
     let cards;
     try {
-      cards = await listSetCards(set.id, language);
+      cards = await listSetCards(set.tcgPlayerId, language);
     } catch (err) {
       const retryMatch = err.message.match(/"retryAfter":(\d+)/);
       if (retryMatch) {
@@ -187,7 +187,7 @@ async function syncViaSetCrawl(db, manualKeys, maxSets, language) {
         console.log(`[sync-watchlist] rate limited on ${set.name}, waiting ${waitMs}ms`);
         await sleep(waitMs);
         try {
-          cards = await listSetCards(set.id, language);
+          cards = await listSetCards(set.tcgPlayerId, language);
         } catch (retryErr) {
           errors.push(`${set.name}: ${retryErr.message}`);
           await sleep(REQUEST_DELAY_MS);
