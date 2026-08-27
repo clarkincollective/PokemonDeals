@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
-import { MARKETPLACES } from "@/lib/ebay";
+import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebay";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import { dealScore } from "@/lib/dealScore";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
@@ -40,7 +40,12 @@ const loadDeal = cache(async (id) => {
 export async function generateMetadata({ params }) {
   const { id } = await params;
   const deal = await loadDeal(id);
-  if (!deal) return { title: "Deal not found" };
+  // Not active anymore = as good as not found for anyone landing here -
+  // don't generate a title/description repeating pricing/discount claims
+  // that are no longer real (e.g. a link shared or indexed before the
+  // deal expired) even in a link-preview card, which never hits the
+  // page component's own is_active check below.
+  if (!deal || !deal.is_active) return { title: "Deal not found", robots: { index: false, follow: true } };
 
   const cardName = deal.watchlist?.name ?? deal.title;
   const cardSet = deal.watchlist?.set;
@@ -68,10 +73,7 @@ export async function generateMetadata({ params }) {
       description,
       images: deal.image_url ? [deal.image_url] : undefined,
     },
-    // A deal that's sold/expired shouldn't rank for searches about a live
-    // discount that no longer exists - only actively-listed deals are
-    // worth indexing.
-    robots: deal.is_active ? undefined : { index: false, follow: true },
+    // Always active here - the inactive case returns early above.
   };
 }
 
@@ -93,7 +95,12 @@ export default async function DealDetailPage({ params }) {
 
   const deal = await loadDeal(id);
 
-  if (!deal) {
+  // A deactivated deal (naturally expired by the scan cycle, or corrected
+  // for bad data) is not distinguished from a nonexistent one here - both
+  // read the same to a visitor: this deal isn't available anymore, so
+  // don't keep showing it as a live, buyable page with real-looking
+  // pricing/CTAs to anyone who still has the link.
+  if (!deal || !deal.is_active) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-black">
         <SiteHeader />
@@ -307,12 +314,21 @@ export default async function DealDetailPage({ params }) {
             {analysis.conditionBreakdown.length > 0 && (
               <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
                 <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Condition breakdown</h2>
-                <p className="text-xs text-zinc-400">Current raw market price by condition.</p>
+                <p className="text-xs text-zinc-400">
+                  Current raw market price by condition - click any to find that condition on eBay.
+                </p>
                 <ul className="mt-4 flex flex-col gap-2">
                   {analysis.conditionBreakdown.map((c) => (
-                    <li key={c.condition} className="flex items-center justify-between text-sm">
-                      <span className="text-zinc-600 dark:text-zinc-300">{c.condition}</span>
-                      <span className="font-semibold text-black dark:text-zinc-50">${Number(c.price).toFixed(2)}</span>
+                    <li key={c.condition}>
+                      <AffiliateLink
+                        href={buildEbaySearchLink(`${cardName} ${c.condition}`)}
+                        eventName="eBay Click"
+                        eventData={{ card: cardName, page: "condition_breakdown", condition: c.condition }}
+                        className="flex items-center justify-between text-sm text-zinc-600 hover:text-red-600 dark:text-zinc-300 dark:hover:text-red-400"
+                      >
+                        <span>{c.condition}</span>
+                        <span className="font-semibold text-black dark:text-zinc-50">${Number(c.price).toFixed(2)}</span>
+                      </AffiliateLink>
                     </li>
                   ))}
                 </ul>

@@ -7,7 +7,7 @@ function formatDate(dateString) {
   return new Date(dateString).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function TileContents({ label, badge, currentPrice, minPrice, maxPrice, saleCount, lastSaleDate, isLowConfidence, history }) {
+function TileContents({ label, badge, currentPrice, minPrice, maxPrice, saleCount, lastSaleDate, isLowConfidence, history, showBuyHint }) {
   return (
     <>
       <div className="flex items-center justify-between gap-1">
@@ -38,6 +38,9 @@ function TileContents({ label, badge, currentPrice, minPrice, maxPrice, saleCoun
           {saleCount} sale{saleCount === 1 ? "" : "s"}
           {lastSaleDate && ` · last ${formatDate(lastSaleDate)}`}
         </p>
+      )}
+      {showBuyHint && (
+        <p className="mt-1.5 text-[10px] font-semibold text-red-600 dark:text-red-400">Find on eBay →</p>
       )}
     </>
   );
@@ -71,7 +74,7 @@ function Tile({ label, isActive, searchQuery, eventData, ...contentProps }) {
       eventData={eventData}
       className={className}
     >
-      <TileContents label={label} {...contentProps} />
+      <TileContents label={label} {...contentProps} showBuyHint />
     </AffiliateLink>
   );
 }
