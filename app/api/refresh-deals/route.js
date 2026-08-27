@@ -73,7 +73,13 @@ function dealRow({ watchlistId, listing, totalPrice, marketPrice, discountPct, p
 // to keep both eBay's per-item budget and PokemonPriceTracker's metered
 // credits bounded per scan cycle.
 async function scanCardInMarketplace(row, marketplaceId, marketData, db, discountThreshold) {
-  const query = row.set ? `${row.name} ${row.set}` : row.name;
+  const baseQuery = row.set ? `${row.name} ${row.set}` : row.name;
+  // Biases eBay's own relevance ranking toward genuine Japanese-print
+  // listings (sellers overwhelmingly include "Japanese" in the title) -
+  // listingMatchesCard's language check below is what actually enforces
+  // it, this just makes the search results worth checking in the first
+  // place.
+  const query = row.language === "japanese" ? `${baseQuery} Japanese` : baseQuery;
   // Push the sanity floor into the eBay query itself, so a full page of
   // results is actually viable candidates instead of getting drowned out
   // by near-$0 junk that happens to loosely match the card's name.
@@ -121,7 +127,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     try {
       const grading = await getGradingDetails(cheapestGraded.listingId, marketplaceId);
       const gradedPrice = grading.grader
-        ? await getGradedPrice(row.justtcg_tcgplayer_id, grading.grader, grading.grade)
+        ? await getGradedPrice(row.justtcg_tcgplayer_id, grading.grader, grading.grade, row.language)
         : null;
 
       if (gradedPrice) {
@@ -205,11 +211,11 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
 
   const marketPriceCache = new Map();
   async function cachedRawPrice(row) {
-    const key = `${row.justtcg_tcgplayer_id}|${row.justtcg_condition}`;
+    const key = `${row.justtcg_tcgplayer_id}|${row.justtcg_condition}|${row.language}`;
     if (marketPriceCache.has(key)) return marketPriceCache.get(key);
     let marketData = null;
     try {
-      const raw = await getRawPrice(row.justtcg_tcgplayer_id, row.justtcg_condition);
+      const raw = await getRawPrice(row.justtcg_tcgplayer_id, row.justtcg_condition, row.language);
       if (raw) marketData = { marketPrice: raw.price, priceChange24hr: null };
     } catch {
       marketData = null;
@@ -245,7 +251,7 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
         try {
           const grading = await getGradingDetails(listing.listingId, marketplaceId);
           const gradedPrice = grading.grader
-            ? await getGradedPrice(row.justtcg_tcgplayer_id, grading.grader, grading.grade)
+            ? await getGradedPrice(row.justtcg_tcgplayer_id, grading.grader, grading.grade, row.language)
             : null;
           if (!gradedPrice) continue;
 
@@ -380,7 +386,7 @@ export async function GET(request) {
   async function scanOneCard(row) {
     let marketData;
     try {
-      const raw = await getRawPrice(row.justtcg_tcgplayer_id, row.justtcg_condition);
+      const raw = await getRawPrice(row.justtcg_tcgplayer_id, row.justtcg_condition, row.language);
       if (!raw) {
         errors.push(`No price for watchlist item "${row.name}" (id ${row.id})`);
         return;

@@ -43,7 +43,7 @@ async function chunkedUpsert(db, rows) {
 
   for (let i = 0; i < rows.length; i += UPSERT_CHUNK_SIZE) {
     const chunk = rows.slice(i, i + UPSERT_CHUNK_SIZE);
-    const { error } = await db.from("watchlist").upsert(chunk, { onConflict: "name,set" });
+    const { error } = await db.from("watchlist").upsert(chunk, { onConflict: "name,set,language" });
     if (error) {
       errors.push(`chunk ${i}: ${error.message}`);
     } else {
@@ -57,8 +57,16 @@ async function chunkedUpsert(db, rows) {
   return { priorityCount, extendedCount, errors };
 }
 
-async function retireStaleAutoRows(db, seenKeys) {
-  const { data: autoRows } = await db.from("watchlist").select("id, name, set").eq("source", "auto");
+// Scoped to one language - without this, running a Japanese-only sync
+// (seenKeys containing only Japanese cards) would see every existing
+// English auto row as "not in this run" and retire the entire English
+// catalog.
+async function retireStaleAutoRows(db, seenKeys, language) {
+  const { data: autoRows } = await db
+    .from("watchlist")
+    .select("id, name, set")
+    .eq("source", "auto")
+    .eq("language", language);
   const staleIds = (autoRows ?? [])
     .filter((row) => !seenKeys.has(`${row.name}|${row.set}`))
     .map((row) => row.id);
@@ -131,11 +139,12 @@ async function syncViaExport(db, manualKeys) {
       source: "auto",
       tier,
       last_known_price: card.price,
+      language: "english",
     });
   }
 
   const { priorityCount, extendedCount, errors } = await chunkedUpsert(db, upsertRows);
-  const retired = await retireStaleAutoRows(db, seenKeys);
+  const retired = await retireStaleAutoRows(db, seenKeys, "english");
 
   return {
     method: "export",
@@ -151,8 +160,8 @@ async function syncViaExport(db, manualKeys) {
 
 // The proven, slower path: one request per set (218 total). Kept as the
 // default until syncViaExport is verified against real data.
-async function syncViaSetCrawl(db, manualKeys, maxSets) {
-  const allSets = await listSets();
+async function syncViaSetCrawl(db, manualKeys, maxSets, language) {
+  const allSets = await listSets(language);
   const sets = maxSets ? allSets.slice(0, maxSets) : allSets;
 
   let priorityCount = 0;
@@ -170,7 +179,7 @@ async function syncViaSetCrawl(db, manualKeys, maxSets) {
     // after the API's own suggested cooldown instead of losing that set.
     let cards;
     try {
-      cards = await listSetCards(set.id);
+      cards = await listSetCards(set.id, language);
     } catch (err) {
       const retryMatch = err.message.match(/"retryAfter":(\d+)/);
       if (retryMatch) {
@@ -178,7 +187,7 @@ async function syncViaSetCrawl(db, manualKeys, maxSets) {
         console.log(`[sync-watchlist] rate limited on ${set.name}, waiting ${waitMs}ms`);
         await sleep(waitMs);
         try {
-          cards = await listSetCards(set.id);
+          cards = await listSetCards(set.id, language);
         } catch (retryErr) {
           errors.push(`${set.name}: ${retryErr.message}`);
           await sleep(REQUEST_DELAY_MS);
@@ -223,11 +232,12 @@ async function syncViaSetCrawl(db, manualKeys, maxSets) {
         source: "auto",
         tier,
         last_known_price: price,
+        language,
       });
     }
 
     if (setRows.length > 0) {
-      const { error } = await db.from("watchlist").upsert(setRows, { onConflict: "name,set" });
+      const { error } = await db.from("watchlist").upsert(setRows, { onConflict: "name,set,language" });
       if (error) {
         errors.push(`${set.name}: ${error.message}`);
       } else {
@@ -241,7 +251,7 @@ async function syncViaSetCrawl(db, manualKeys, maxSets) {
     await sleep(REQUEST_DELAY_MS);
   }
 
-  const retired = maxSets ? 0 : await retireStaleAutoRows(db, seenKeys);
+  const retired = maxSets ? 0 : await retireStaleAutoRows(db, seenKeys, language);
 
   return {
     method: "set-crawl",
@@ -264,8 +274,14 @@ export async function GET(request) {
   const url = new URL(request.url);
   const useExport = url.searchParams.get("useExport") === "true";
   // ?maxSets=5 for a quick, safe test pass of the set-crawl path instead
-  // of the full ~218-set catalog.
+  // of the full catalog (218 English sets / 442 Japanese sets).
   const maxSets = Number(url.searchParams.get("maxSets")) || null;
+  // ?language=japanese - PokemonPriceTracker's other real catalog (see
+  // supabase/watchlist_language_migration.sql). useExport's CSV path is
+  // English-only (untested even for that - see syncViaExport above), so
+  // language only applies to the set-crawl path.
+  const languageParam = url.searchParams.get("language");
+  const language = languageParam === "japanese" ? "japanese" : "english";
 
   const db = supabaseAdmin();
 
@@ -277,7 +293,7 @@ export async function GET(request) {
 
   const result = useExport
     ? await syncViaExport(db, manualKeys)
-    : await syncViaSetCrawl(db, manualKeys, maxSets);
+    : await syncViaSetCrawl(db, manualKeys, maxSets, language);
 
   return Response.json({
     ...result,

@@ -42,6 +42,7 @@ export default async function sitemap() {
   const staticRoutes = [
     { url: `${SITE_URL}/`, changeFrequency: "always", priority: 1 },
     { url: `${SITE_URL}/best-finds`, changeFrequency: "hourly", priority: 0.9 },
+    { url: `${SITE_URL}/japanese-cards`, changeFrequency: "hourly", priority: 0.8 },
     { url: `${SITE_URL}/search`, changeFrequency: "monthly", priority: 0.7 },
   ];
 

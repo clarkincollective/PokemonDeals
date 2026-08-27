@@ -56,6 +56,11 @@ export default function DealCard({ deal, rank, scoreBadge, pageName = "home" }) 
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex flex-wrap items-center gap-1.5">
           <DealScoreBadge score={scoreBadge} />
+          {deal.watchlist?.language === "japanese" && (
+            <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              🇯🇵 Japanese
+            </span>
+          )}
           {deal.is_graded ? (
             <span className="rounded-md bg-indigo-100 px-2 py-0.5 text-[11px] font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
               {deal.grader} {deal.grade}

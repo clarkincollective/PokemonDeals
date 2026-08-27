@@ -1,11 +1,11 @@
 import { supabase } from "@/lib/supabaseClient";
-import { MARKETPLACES } from "@/lib/ebay";
 import { fetchBestFinds, fetchAuctionsEndingSoon } from "@/lib/deals";
 import { dealScore } from "@/lib/dealScore";
 import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
 import DealCard from "@/components/DealCard";
 import BestFindsBanner from "@/components/BestFindsBanner";
+import FilterBar from "@/components/FilterBar";
 
 // Re-check for new deals at most once a minute, so the page reflects the
 // latest scan quickly without hitting the database on every single visit.
@@ -62,16 +62,6 @@ function shuffled(array) {
   return copy;
 }
 
-// Builds a link that changes one filter while keeping the others intact,
-// or removes it entirely if the same value is clicked again (toggle).
-function filterHref(currentParams, key, value) {
-  const params = new URLSearchParams(currentParams);
-  if (params.get(key) === value) params.delete(key);
-  else params.set(key, value);
-  const qs = params.toString();
-  return qs ? `/?${qs}` : "/";
-}
-
 export default async function Home({ searchParams }) {
   const params = await searchParams;
   const country = typeof params.country === "string" ? params.country : null;
@@ -91,10 +81,15 @@ export default async function Home({ searchParams }) {
   // new finds never surfaced, and the page looked stuck at "75% off"
   // forever even though scans were actively running. Freshest-first
   // actually shows what's new.
+  // !inner + the watchlist.language filter keeps Japanese-print deals off
+  // the main English browsing experience entirely - they get their own
+  // dedicated /japanese-cards page instead (see fetchBestFinds/
+  // fetchAuctionsEndingSoon in lib/deals.js for the same scoping).
   let query = supabase
     .from("deals")
-    .select("*, watchlist:watchlist_id (name, set, justtcg_tcgplayer_id)")
+    .select("*, watchlist:watchlist_id!inner (name, set, justtcg_tcgplayer_id, language)")
     .eq("is_active", true)
+    .eq("watchlist.language", "english")
     .order("first_seen_at", { ascending: false })
     .limit(500);
 
@@ -388,87 +383,3 @@ function TrustBadges() {
   );
 }
 
-function FilterPill({ href, active, children }) {
-  return (
-    <a
-      href={href}
-      className={`shrink-0 whitespace-nowrap rounded-md border px-3 py-1 text-xs font-medium transition-colors ${
-        active
-          ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-          : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
-      }`}
-    >
-      {children}
-    </a>
-  );
-}
-
-// A horizontally scrolling strip instead of wrapping pills onto a second
-// line - bleeds past the page's own side padding (-mx-6/px-6) so it can
-// scroll edge-to-edge, and hides the scrollbar for a cleaner look.
-function ScrollRow({ children }) {
-  return (
-    <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {children}
-    </div>
-  );
-}
-
-function FilterBar({ params, country, cardType, listingType, maxPrice }) {
-  return (
-    <div className="mb-8 flex flex-col gap-4">
-      <div>
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
-          Country
-        </span>
-        <ScrollRow>
-          {Object.entries(MARKETPLACES).map(([id, info]) => (
-            <FilterPill key={id} href={filterHref(params, "country", id)} active={country === id}>
-              {info.flag} {info.label}
-            </FilterPill>
-          ))}
-        </ScrollRow>
-      </div>
-
-      <div>
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
-          Card &amp; listing
-        </span>
-        <ScrollRow>
-          <FilterPill href={filterHref(params, "type", "raw")} active={cardType === "raw"}>
-            Raw
-          </FilterPill>
-          <FilterPill href={filterHref(params, "type", "graded")} active={cardType === "graded"}>
-            Graded
-          </FilterPill>
-          <FilterPill
-            href={filterHref(params, "listing", "FIXED_PRICE")}
-            active={listingType === "FIXED_PRICE"}
-          >
-            Buy It Now
-          </FilterPill>
-          <FilterPill href={filterHref(params, "listing", "AUCTION")} active={listingType === "AUCTION"}>
-            Auction
-          </FilterPill>
-        </ScrollRow>
-      </div>
-
-      <div>
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
-          Price
-        </span>
-        <ScrollRow>
-          <FilterPill href={filterHref(params, "maxPrice", "25")} active={maxPrice === 25}>
-            Under $25
-          </FilterPill>
-          <FilterPill href={filterHref(params, "maxPrice", "50")} active={maxPrice === 50}>
-            Under $50
-          </FilterPill>
-          <FilterPill href={filterHref(params, "maxPrice", "100")} active={maxPrice === 100}>
-            Under $100
-          </FilterPill>
-        </ScrollRow>
-      </div>
-    </div>
-  );
-}

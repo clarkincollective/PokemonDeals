@@ -28,7 +28,7 @@ function formatSaleDate(dateString) {
 const loadDeal = cache(async (id) => {
   const { data } = await supabase
     .from("deals")
-    .select("*, watchlist:watchlist_id (name, set, justtcg_tcgplayer_id)")
+    .select("*, watchlist:watchlist_id (name, set, justtcg_tcgplayer_id, language)")
     .eq("id", id)
     .single();
   return data;
@@ -77,6 +77,7 @@ async function loadPriceAnalysis(deal, watchlist) {
     return await getFullPriceAnalysis(watchlist.justtcg_tcgplayer_id, {
       primaryGrader: deal.grader,
       primaryGrade: deal.grade,
+      language: watchlist.language,
     });
   } catch (err) {
     console.error("Price analysis lookup failed:", err.message);
@@ -183,6 +184,11 @@ export default async function DealDetailPage({ params }) {
                 {Math.round(deal.discount_pct * 100)}% below market
               </span>
               <DealScoreBadge score={dealScore(deal.discount_pct)} size="lg" />
+              {deal.watchlist?.language === "japanese" && (
+                <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                  🇯🇵 Japanese Print
+                </span>
+              )}
               {deal.is_graded ? (
                 <span className="rounded-md bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
                   {deal.grader} {deal.grade}

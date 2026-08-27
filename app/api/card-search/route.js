@@ -32,12 +32,22 @@ function sortDeals(query, sort) {
 // country ("card location") and sort (price low/high or best discount)
 // are visitor-controlled filters, not fixed defaults.
 async function findExistingDeals(db, q, { country, sort }) {
-  const { data: matchingRows } = await db.from("watchlist").select("id").ilike("name", `%${q}%`).limit(500);
+  // English-only - this powers the general card search, which browses
+  // PokemonPriceTracker's English catalog (searchCards below has no
+  // language param), so a Japanese watchlist row sharing a name substring
+  // (e.g. "Pikachu") should never surface here. Japanese cards get their
+  // own dedicated /japanese-cards page instead.
+  const { data: matchingRows } = await db
+    .from("watchlist")
+    .select("id")
+    .eq("language", "english")
+    .ilike("name", `%${q}%`)
+    .limit(500);
   if (!matchingRows || matchingRows.length === 0) return [];
 
   let dealsQuery = db
     .from("deals")
-    .select("*, watchlist:watchlist_id (name, set, justtcg_tcgplayer_id)")
+    .select("*, watchlist:watchlist_id (name, set, justtcg_tcgplayer_id, language)")
     .in(
       "watchlist_id",
       matchingRows.map((r) => r.id)
@@ -178,7 +188,7 @@ async function cardDetail(url, tcgplayerId) {
   if (watchlistRows && watchlistRows.length > 0) {
     let dealsQuery = db
       .from("deals")
-      .select("*, watchlist:watchlist_id (name, set, justtcg_tcgplayer_id)")
+      .select("*, watchlist:watchlist_id (name, set, justtcg_tcgplayer_id, language)")
       .in(
         "watchlist_id",
         watchlistRows.map((r) => r.id)
