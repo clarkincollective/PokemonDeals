@@ -1,4 +1,13 @@
-import { fetchBestFinds, fetchAuctionsEndingSoon, fetchDealsPool, fetchDealsPage, fetchLastScanTime } from "@/lib/deals";
+import Image from "next/image";
+import Link from "next/link";
+import {
+  fetchBestFinds,
+  fetchAuctionsEndingSoon,
+  fetchDealsPool,
+  fetchDealsPage,
+  fetchLastScanTime,
+  fetchCardHubs,
+} from "@/lib/deals";
 import { dealScore } from "@/lib/dealScore";
 import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
@@ -6,6 +15,7 @@ import DealCard from "@/components/DealCard";
 import BestFindsBanner from "@/components/BestFindsBanner";
 import FilterBar from "@/components/FilterBar";
 import Pagination, { pageHref } from "@/components/Pagination";
+import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -118,21 +128,37 @@ export default async function Home({ searchParams }) {
   // is paging through the catalog, a shuffled result set would make pages
   // overlap/skip unpredictably, and a stable order is exactly what makes
   // these pages worth linking to and indexing on their own URL.
-  const [{ data: pool, error: poolError }, dealsPageResult, { deals: bestFindsRaw }, { deals: bestFindsGraded }, { deals: endingSoon }, lastRefreshed] =
-    await Promise.all([
-      page === 1 ? fetchDealsPool(filters) : Promise.resolve({ data: null, error: null }),
-      page > 1 ? fetchDealsPage({ table: "deals", ...filters, page }) : Promise.resolve(null),
-      showRawFinds
-        ? fetchBestFinds({ limit: 3, graded: false, maxPrice, minPrice, country, listingType })
-        : Promise.resolve({ deals: [] }),
-      showGradedFinds
-        ? fetchBestFinds({ limit: 3, graded: true, maxPrice, minPrice, country, listingType })
-        : Promise.resolve({ deals: [] }),
-      showAuctions
-        ? fetchAuctionsEndingSoon({ limit: 6, maxPrice, minPrice, country, graded: gradedForAuctions })
-        : Promise.resolve({ deals: [] }),
-      fetchLastScanTime({ table: "deals", language: "english" }),
-    ]);
+  const [
+    { data: pool, error: poolError },
+    dealsPageResult,
+    { deals: bestFindsRaw },
+    { deals: bestFindsGraded },
+    { deals: endingSoon },
+    lastRefreshed,
+    cardHubsResult,
+  ] = await Promise.all([
+    page === 1 ? fetchDealsPool(filters) : Promise.resolve({ data: null, error: null }),
+    page > 1 ? fetchDealsPage({ table: "deals", ...filters, page }) : Promise.resolve(null),
+    showRawFinds
+      ? fetchBestFinds({ limit: 3, graded: false, maxPrice, minPrice, country, listingType })
+      : Promise.resolve({ deals: [] }),
+    showGradedFinds
+      ? fetchBestFinds({ limit: 3, graded: true, maxPrice, minPrice, country, listingType })
+      : Promise.resolve({ deals: [] }),
+    showAuctions
+      ? fetchAuctionsEndingSoon({ limit: 6, maxPrice, minPrice, country, graded: gradedForAuctions })
+      : Promise.resolve({ deals: [] }),
+    fetchLastScanTime({ table: "deals", language: "english" }),
+    // Real gap found live: the homepage (the site's strongest, most
+    // externally-linked page) had zero direct links into any /cards/
+    // [slug] hub page - they were only reachable via a 2-hop path
+    // through an individual /deals/[id] page, or the sitemap. Top
+    // hubs-by-listing-count is genuinely useful content on its own
+    // (real "N sellers, compare prices" signal), not just a link-equity
+    // trick. Page 1 only, same as Best Finds/Auctions Ending Soon.
+    page === 1 ? fetchCardHubs({ language: "english" }) : Promise.resolve({ hubs: [] }),
+  ]);
+  const topCardHubs = cardHubsResult.hubs.slice(0, 8);
 
   const error = poolError || dealsPageResult?.error;
 
@@ -339,6 +365,52 @@ export default async function Home({ searchParams }) {
           <Pagination page={page} totalPages={totalPages} params={params} basePath="/" />
         )}
       </main>
+
+      {topCardHubs.length > 0 && (
+        <section className="border-t border-zinc-200 dark:border-zinc-800">
+          <div className="mx-auto max-w-7xl px-6 py-8">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+              Compare Prices - Most Listed Cards
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500">
+              Cards with the most sellers competing right now - real listings, cheapest first.
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
+              {topCardHubs.map((hub) => (
+                <Link
+                  key={hub.id}
+                  href={`/cards/${hub.slug}`}
+                  className="group flex flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950"
+                >
+                  <div className="relative aspect-square w-full bg-zinc-50 dark:bg-zinc-900">
+                    {hub.image ? (
+                      <Image
+                        src={hub.image}
+                        alt={`${hub.name} - ${hub.set}`}
+                        fill
+                        sizes="(max-width: 640px) 50vw, 12vw"
+                        className="object-contain p-2 transition-transform duration-200 group-hover:scale-[1.03]"
+                      />
+                    ) : (
+                      <CardImagePlaceholder />
+                    )}
+                    <span className="absolute right-1 top-1 rounded-md bg-black/80 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      {hub.count} sellers
+                    </span>
+                  </div>
+                  <div className="p-2.5">
+                    <p className="line-clamp-1 text-xs font-semibold text-black dark:text-zinc-50">{hub.name}</p>
+                    <p className="line-clamp-1 text-[11px] text-zinc-500">{hub.set}</p>
+                    <p className="mt-1 text-xs font-bold text-black dark:text-zinc-50">
+                      From ${hub.cheapestPrice.toFixed(2)}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section id="how-it-works" className="border-t border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-12">
