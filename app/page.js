@@ -93,7 +93,7 @@ export default async function Home({ searchParams }) {
   // actually shows what's new.
   let query = supabase
     .from("deals")
-    .select("*, watchlist:watchlist_id (name, set)")
+    .select("*, watchlist:watchlist_id (name, set, justtcg_tcgplayer_id)")
     .eq("is_active", true)
     .order("first_seen_at", { ascending: false })
     .limit(500);

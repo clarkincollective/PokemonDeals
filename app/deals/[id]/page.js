@@ -117,7 +117,7 @@ export default async function DealDetailPage({ params }) {
   const cardSet = deal.watchlist?.set;
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
-  const tcgplayerLink = buildTcgplayerLink(cardName);
+  const tcgplayerLink = buildTcgplayerLink(cardName, deal.watchlist?.justtcg_tcgplayer_id);
 
   // Structured data so a search result can show price/availability
   // directly (Google's Product rich result). Auctions report the current

@@ -14,7 +14,7 @@ export default function DealCard({ deal, rank, scoreBadge, pageName = "home" }) 
   const cardSet = deal.watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
   const amountSaved = Number(deal.market_price) - Number(deal.total_price);
-  const tcgplayerLink = buildTcgplayerLink(cardName);
+  const tcgplayerLink = buildTcgplayerLink(cardName, deal.watchlist?.justtcg_tcgplayer_id);
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
 

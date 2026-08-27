@@ -37,7 +37,7 @@ async function findExistingDeals(db, q, { country, sort }) {
 
   let dealsQuery = db
     .from("deals")
-    .select("*, watchlist:watchlist_id (name, set)")
+    .select("*, watchlist:watchlist_id (name, set, justtcg_tcgplayer_id)")
     .in(
       "watchlist_id",
       matchingRows.map((r) => r.id)
@@ -178,7 +178,7 @@ async function cardDetail(url, tcgplayerId) {
   if (watchlistRows && watchlistRows.length > 0) {
     let dealsQuery = db
       .from("deals")
-      .select("*, watchlist:watchlist_id (name, set)")
+      .select("*, watchlist:watchlist_id (name, set, justtcg_tcgplayer_id)")
       .in(
         "watchlist_id",
         watchlistRows.map((r) => r.id)
