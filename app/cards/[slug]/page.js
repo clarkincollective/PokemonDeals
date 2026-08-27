@@ -65,7 +65,20 @@ export async function generateMetadata({ params }) {
   // cached result rather than costing a second real query.
   const { deals: offers } = await fetchCardOffers(hub.id);
   const image = offers[0]?.image_url;
-  const title = `${hub.name} (${hub.set}) - Compare ${hub.count} Deals`;
+
+  // Real gap found live: some watched cards have genuinely long real
+  // names (tournament/championship promo prints, e.g. "Buddy-Buddy
+  // Poffin - 144/162 (North America International Championship)
+  // [Staff]") - Google reliably shows only ~55-60 characters of a title
+  // before truncating or replacing it with its own rewrite, and the base
+  // "Compare N Deals" template pushed some of these past 120 characters.
+  // Never truncates the real name itself (that risks cutting off the
+  // card number or other identifying info) - just drops the promotional
+  // suffix when there's no room for it, rather than fighting a losing
+  // battle against a genuinely long real title.
+  const base = `${hub.name} (${hub.set})`;
+  const suffix = ` - Compare ${hub.count} Deals`;
+  const title = base.length + suffix.length <= 60 ? `${base}${suffix}` : base;
   const description = `${hub.count} active ${hub.name} (${hub.set}) listings on eBay right now, compared side by side against real market pricing - cheapest first.`;
 
   return {
@@ -118,10 +131,20 @@ export default async function CardHubPage({ params }) {
   // schema.org pattern for "multiple sellers, one product," and the
   // direct structured-data expression of why this page exists: real
   // current offers, not a fabricated aggregate.
+  // Real gap found live: Google's Product structured data guidelines
+  // treat `image` as required for the richer product-snippet result
+  // types, and this was missing here even though every sibling Product
+  // block on the site (deal detail, sealed detail) already sets it from
+  // real data - just an oversight when this page was first built, not a
+  // deliberate omission (unlike hasMerchantReturnPolicy elsewhere, which
+  // stays deliberately unset because there's no single real answer for
+  // it across multiple sellers).
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: `${hub.name} - ${hub.set}`,
+    image: cheapest?.image_url ?? undefined,
+    description: `${hub.name} (${hub.set}) - ${offers.length} active eBay ${offers.length === 1 ? "listing" : "listings"}, compared against real market pricing.`,
     brand: { "@type": "Brand", name: "Pokémon" },
     offers: offers.map((deal) => ({
       "@type": "Offer",
