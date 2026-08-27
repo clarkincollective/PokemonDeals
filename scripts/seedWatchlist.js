@@ -75,8 +75,9 @@ async function main() {
           // previously-auto-added row as source='auto' forever.
           source: "manual",
           tier: "priority",
+          language: "english",
         },
-        { onConflict: "name,set" }
+        { onConflict: "name,set,language" }
       );
 
       if (error) throw error;

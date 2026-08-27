@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { listSets, listSetCards, downloadPrintingsExport } from "@/lib/pokemonPriceTracker";
+import { listSets, listSetCards, downloadPrintingsExport, pickMarketPrice } from "@/lib/pokemonPriceTracker";
 
 // Pages through the entire Pokemon catalog, so this can take a while -
 // give it room instead of the default timeout.
@@ -207,7 +207,7 @@ async function syncViaSetCrawl(db, manualKeys, maxSets, language) {
         continue;
       }
 
-      const price = card.prices?.conditions?.["Near Mint"]?.price ?? card.prices?.market ?? null;
+      const price = card.prices?.conditions?.["Near Mint"]?.price ?? pickMarketPrice(card.prices, "Near Mint");
       const tier = price != null ? classifyTier(price) : null;
       if (!tier) {
         skipped++;
