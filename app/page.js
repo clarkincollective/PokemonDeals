@@ -103,13 +103,29 @@ export default async function Home({ searchParams }) {
   if (minPrice) query = query.gte("total_price", minPrice);
 
   const { data: pool, error } = await query;
-  // Same maxPrice/minPrice passed to every section on the page, not just
-  // this main grid - a visitor who picks a budget filter shouldn't still
-  // see Best Finds/Auctions Ending Soon ignoring it.
+
+  // Every filter selected on this page must apply to every section shown
+  // on it, not just the main "All Deals" grid below - previously Best
+  // Finds/Auctions Ending Soon ignored country/type/listing entirely
+  // (only maxPrice/minPrice were threaded through), so e.g. selecting
+  // "Graded" still showed an ungraded card in "Top Raw" and in Auctions
+  // Ending Soon. Skip a row/section outright when the active filter rules
+  // it out completely, rather than silently ignoring the filter for it.
+  const showRawFinds = cardType !== "graded";
+  const showGradedFinds = cardType !== "raw";
+  const showAuctions = listingType !== "FIXED_PRICE";
+  const gradedForAuctions = cardType === "graded" ? true : cardType === "raw" ? false : undefined;
+
   const [{ deals: bestFindsRaw }, { deals: bestFindsGraded }, { deals: endingSoon }] = await Promise.all([
-    fetchBestFinds({ limit: 3, graded: false, maxPrice, minPrice }),
-    fetchBestFinds({ limit: 3, graded: true, maxPrice, minPrice }),
-    fetchAuctionsEndingSoon({ limit: 6, maxPrice, minPrice }),
+    showRawFinds
+      ? fetchBestFinds({ limit: 3, graded: false, maxPrice, minPrice, country, listingType })
+      : Promise.resolve({ deals: [] }),
+    showGradedFinds
+      ? fetchBestFinds({ limit: 3, graded: true, maxPrice, minPrice, country, listingType })
+      : Promise.resolve({ deals: [] }),
+    showAuctions
+      ? fetchAuctionsEndingSoon({ limit: 6, maxPrice, minPrice, country, graded: gradedForAuctions })
+      : Promise.resolve({ deals: [] }),
   ]);
 
   const seenCards = new Set();
