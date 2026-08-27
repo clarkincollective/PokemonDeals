@@ -26,22 +26,28 @@ const CONCURRENCY = 8;
 // show up more often, not just the rarer bigger discounts.
 const DISCOUNT_THRESHOLD = 0.1;
 
-// The extended tier now covers ~8,500 cards ($15+: ~5,100 English per the
-// pokedealfinder.uk competitive check, plus ~3,500 Japanese once that
-// catalog was added) - too many to scan in one country in one day.
-// Splitting it into EXTENDED_CHUNKS stable pieces, one scanned per
-// country-day, keeps genuine coverage of the whole tier in every country
-// without busting eBay's ~5,000/day cap - sweep mode (see runSweep below)
-// now handles fast new-deal discovery cheaply, so this budget only needs
-// to cover confirming/expiring existing deals, not speed. Bumped from 2
-// to 3 when the catalog grew ~70% (Japanese addition) - at 2 chunks, a
-// day running an extended-tier chunk alongside sweep+priority's own daily
-// volume was pushing past the 5,000/day cap; 3 keeps real headroom, at
-// the cost of a slightly slower full-rotation cadence (~15 days instead
-// of ~10 - see vercel.json's now-15 extended cron entries). Hash-based on
-// watchlist id rather than a stored column - deterministic and needs no
-// migration; a card's chunk only changes if its id changes.
-const EXTENDED_CHUNKS = 3;
+// The extended tier covers ~8,530 cards - too many to scan in one
+// country in one day. Splitting it into EXTENDED_CHUNKS stable pieces,
+// one scanned per country-day, keeps genuine coverage of the whole tier
+// in every country without busting eBay's daily request cap - sweep
+// mode (see runSweep below) handles fast new-deal discovery cheaply, so
+// this budget only needs to cover confirming/expiring existing deals,
+// not speed.
+//
+// Bumped from 3 to 6 after a real, live outage: every country's sweep
+// started failing with a 429 ("request limit reached") for 10+ hours
+// straight, verified live via direct eBay calls and Vercel logs, not
+// just a brief blip - the eBay Developer dashboard doesn't expose the
+// actual quota number to check against, so this can't be tuned to an
+// exact figure. 3 chunks was itself a prior bump for the same reason
+// (see git history) and evidently isn't enough margin anymore - 6 roughly
+// halves this tier's single biggest daily spike (~2,843 -> ~1,422 calls
+// in the one country-chunk that runs each day), at the cost of a slower
+// full-rotation cadence (~30 days instead of ~15 - see vercel.json's
+// now-30 extended cron entries, one per country-chunk-day). Hash-based
+// on watchlist id rather than a stored column - deterministic and needs
+// no migration; a card's chunk only changes if its id changes.
+const EXTENDED_CHUNKS = 6;
 
 // Supabase/PostgREST silently caps any single request at 1,000 rows
 // regardless of no explicit .limit() being set - a real, significant bug
@@ -288,8 +294,13 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
   let matched = 0;
   let gradedLookups = 0;
   // Bounds worst-case extra eBay getItem + PokemonPriceTracker calls if an
-  // unusually large number of graded matches show up in one sweep.
-  const GRADED_LOOKUP_CAP = 30;
+  // unusually large number of graded matches show up in one sweep - at 30,
+  // this alone could add up to 192 sweeps/day * 30 = 5,760 extra eBay
+  // calls on a bad day, which is the whole daily budget by itself. Cut to
+  // 10 as part of the same real-outage response as EXTENDED_CHUNKS above
+  // (see its comment) - still covers a normal sweep's graded matches
+  // without leaving that much headroom exposed to a single bad sweep.
+  const GRADED_LOOKUP_CAP = 10;
   const errors = [];
 
   const tryUpsert = async (row_) => {
