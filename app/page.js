@@ -1,19 +1,31 @@
-import { supabase } from "@/lib/supabaseClient";
-import { fetchBestFinds, fetchAuctionsEndingSoon } from "@/lib/deals";
+import { fetchBestFinds, fetchAuctionsEndingSoon, fetchDealsPool, fetchDealsPage, fetchLastScanTime } from "@/lib/deals";
 import { dealScore } from "@/lib/dealScore";
 import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
 import DealCard from "@/components/DealCard";
 import BestFindsBanner from "@/components/BestFindsBanner";
 import FilterBar from "@/components/FilterBar";
+import Pagination, { pageHref } from "@/components/Pagination";
 
 // Re-check for new deals at most once a minute, so the page reflects the
 // latest scan quickly without hitting the database on every single visit.
 export const revalidate = 60;
 
-export const metadata = {
-  alternates: { canonical: "/" },
-};
+// Real pagination (see the "page" handling in the component below) needs
+// its own canonical per page rather than every page pointing back at "/"
+// - a shared canonical would tell Google pages 2+ are duplicates of page
+// 1 and their real, different deals would never get indexed under their
+// own URL.
+export async function generateMetadata({ searchParams }) {
+  const params = await searchParams;
+  const pageParam = typeof params.page === "string" ? Number(params.page) : 1;
+  const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
+  const canonical = page > 1 ? `/?page=${page}` : "/";
+  return {
+    title: page > 1 ? `Pokémon Deal Finder - Page ${page}` : undefined,
+    alternates: { canonical },
+  };
+}
 
 // Single source of truth for the FAQ section below AND its FAQPage
 // structured data - rendering both from one array means they can't drift
@@ -73,36 +85,8 @@ export default async function Home({ searchParams }) {
   const minPrice = Number.isFinite(minPriceParam) && minPriceParam > 0 ? minPriceParam : null;
 
   const PAGE_SIZE = 24;
-
-  // Fetch a much bigger pool than we display, then keep only the single
-  // best (highest-discount) listing per card - otherwise one card with
-  // ten sellers can fill the whole page and crowd out everything else.
-  // Sorted by freshness, not discount_pct: the sanity floor caps any
-  // discount at 75%, and there are always enough deals sitting right at
-  // that ceiling to permanently fill a discount-sorted top 24 - genuinely
-  // new finds never surfaced, and the page looked stuck at "75% off"
-  // forever even though scans were actively running. Freshest-first
-  // actually shows what's new.
-  // !inner + the watchlist.language filter keeps Japanese-print deals off
-  // the main English browsing experience entirely - they get their own
-  // dedicated /japanese-cards page instead (see fetchBestFinds/
-  // fetchAuctionsEndingSoon in lib/deals.js for the same scoping).
-  let query = supabase
-    .from("deals")
-    .select("*, watchlist:watchlist_id!inner (name, set, justtcg_tcgplayer_id, language)")
-    .eq("is_active", true)
-    .eq("watchlist.language", "english")
-    .order("first_seen_at", { ascending: false })
-    .limit(500);
-
-  if (country) query = query.eq("marketplace", country);
-  if (cardType === "raw") query = query.eq("is_graded", false);
-  if (cardType === "graded") query = query.eq("is_graded", true);
-  if (listingType) query = query.eq("listing_type", listingType);
-  if (maxPrice) query = query.lte("total_price", maxPrice);
-  if (minPrice) query = query.gte("total_price", minPrice);
-
-  const { data: pool, error } = await query;
+  const pageParam = typeof params.page === "string" ? Number(params.page) : 1;
+  const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
 
   // Every filter selected on this page must apply to every section shown
   // on it, not just the main "All Deals" grid below - previously Best
@@ -111,55 +95,69 @@ export default async function Home({ searchParams }) {
   // "Graded" still showed an ungraded card in "Top Raw" and in Auctions
   // Ending Soon. Skip a row/section outright when the active filter rules
   // it out completely, rather than silently ignoring the filter for it.
-  const showRawFinds = cardType !== "graded";
-  const showGradedFinds = cardType !== "raw";
-  const showAuctions = listingType !== "FIXED_PRICE";
+  // These only apply to page 1 - pages 2+ are a plain paginated listing
+  // with no room for promo sections above it (see below).
+  const showRawFinds = page === 1 && cardType !== "graded";
+  const showGradedFinds = page === 1 && cardType !== "raw";
+  const showAuctions = page === 1 && listingType !== "FIXED_PRICE";
   const gradedForAuctions = cardType === "graded" ? true : cardType === "raw" ? false : undefined;
 
-  const [{ deals: bestFindsRaw }, { deals: bestFindsGraded }, { deals: endingSoon }] = await Promise.all([
-    showRawFinds
-      ? fetchBestFinds({ limit: 3, graded: false, maxPrice, minPrice, country, listingType })
-      : Promise.resolve({ deals: [] }),
-    showGradedFinds
-      ? fetchBestFinds({ limit: 3, graded: true, maxPrice, minPrice, country, listingType })
-      : Promise.resolve({ deals: [] }),
-    showAuctions
-      ? fetchAuctionsEndingSoon({ limit: 6, maxPrice, minPrice, country, graded: gradedForAuctions })
-      : Promise.resolve({ deals: [] }),
-  ]);
+  // !inner + the watchlist.language filter (inside fetchDealsPool/
+  // fetchDealsPage) keeps Japanese-print deals off the main English
+  // browsing experience entirely - they get their own dedicated
+  // /japanese-cards page instead.
+  const filters = { language: "english", country, cardType, listingType, maxPrice, minPrice };
 
-  const seenCards = new Set();
-  const dedupedPool = [];
-  for (const deal of pool ?? []) {
-    if (seenCards.has(deal.watchlist_id)) continue;
-    seenCards.add(deal.watchlist_id);
-    dedupedPool.push(deal);
+  // Page 1 (the default, no ?page=) keeps its existing shuffled-variety
+  // pool - real deals, just a different genuine subset each time the page
+  // regenerates, so repeat visitors don't see a frozen list (see
+  // fetchDealsPool in lib/deals.js). Page 2+ switches to real, stable,
+  // offset-based pagination (fetchDealsPage) - once a visitor or crawler
+  // is paging through the catalog, a shuffled result set would make pages
+  // overlap/skip unpredictably, and a stable order is exactly what makes
+  // these pages worth linking to and indexing on their own URL.
+  const [{ data: pool, error: poolError }, dealsPageResult, { deals: bestFindsRaw }, { deals: bestFindsGraded }, { deals: endingSoon }, lastRefreshed] =
+    await Promise.all([
+      page === 1 ? fetchDealsPool(filters) : Promise.resolve({ data: null, error: null }),
+      page > 1 ? fetchDealsPage({ table: "deals", ...filters, page }) : Promise.resolve(null),
+      showRawFinds
+        ? fetchBestFinds({ limit: 3, graded: false, maxPrice, minPrice, country, listingType })
+        : Promise.resolve({ deals: [] }),
+      showGradedFinds
+        ? fetchBestFinds({ limit: 3, graded: true, maxPrice, minPrice, country, listingType })
+        : Promise.resolve({ deals: [] }),
+      showAuctions
+        ? fetchAuctionsEndingSoon({ limit: 6, maxPrice, minPrice, country, graded: gradedForAuctions })
+        : Promise.resolve({ deals: [] }),
+      fetchLastScanTime({ table: "deals", language: "english" }),
+    ]);
+
+  const error = poolError || dealsPageResult?.error;
+
+  let deals;
+  let totalPages = 1;
+  if (page > 1) {
+    deals = dealsPageResult?.deals ?? [];
+    totalPages = dealsPageResult?.totalPages ?? 1;
+  } else {
+    const seenCards = new Set();
+    const dedupedPool = [];
+    for (const deal of pool ?? []) {
+      if (seenCards.has(deal.watchlist_id)) continue;
+      seenCards.add(deal.watchlist_id);
+      dedupedPool.push(deal);
+    }
+    // Shuffle a wider recency window instead of always showing the
+    // literal newest 24 - when scanning briefly stalls (e.g. an eBay
+    // rate-limit day), the pool stops growing and the exact same 24
+    // deals would otherwise show on every single visit until a new scan
+    // lands. This never shows anything fake - every deal here is real
+    // and still active - it just resurfaces a different genuine subset
+    // each time the page regenerates, so repeat visitors see real
+    // variety instead of a frozen list.
+    const ROTATION_POOL_SIZE = 100;
+    deals = shuffled(dedupedPool.slice(0, ROTATION_POOL_SIZE)).slice(0, PAGE_SIZE);
   }
-
-  // Shuffle a wider recency window instead of always showing the literal
-  // newest 24 - when scanning briefly stalls (e.g. an eBay rate-limit
-  // day), the pool stops growing and the exact same 24 deals would
-  // otherwise show on every single visit until a new scan lands. This
-  // never shows anything fake - every deal here is real and still
-  // active - it just resurfaces a different genuine subset each time the
-  // page regenerates (every 60s, per revalidate below), so repeat
-  // visitors see real variety instead of a frozen list.
-  const ROTATION_POOL_SIZE = 100;
-  const deals = shuffled(dedupedPool.slice(0, ROTATION_POOL_SIZE)).slice(0, PAGE_SIZE);
-
-  // The true "when did we last scan anything" time, not just the newest
-  // timestamp among the currently-displayed top discounts - those are
-  // dominated by cards from the broad catalog sweep that only gets
-  // rescanned every ~20 days, so using only the displayed page made the
-  // indicator look stale even while the 15-min priority scan was actively
-  // running in the background.
-  const { data: lastScan } = await supabase
-    .from("deals")
-    .select("last_seen_at")
-    .order("last_seen_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const lastRefreshed = lastScan?.last_seen_at ?? null;
 
   const faqJsonLd = {
     "@context": "https://schema.org",
@@ -258,13 +256,11 @@ export default async function Home({ searchParams }) {
       )}
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
-        <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-zinc-400">All Deals</h2>
+        <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-zinc-400">
+          All Deals{page > 1 ? ` - Page ${page}` : ""}
+        </h2>
 
-        {error && (
-          <p className="rounded-lg bg-red-50 p-4 text-red-700">
-            Couldn&apos;t load deals: {error.message}
-          </p>
-        )}
+        {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
 
         {!error && deals?.length === 0 && (
           <p className="text-zinc-500">
@@ -278,6 +274,26 @@ export default async function Home({ searchParams }) {
             <DealCard key={deal.id} deal={deal} scoreBadge={dealScore(deal.discount_pct)} />
           ))}
         </div>
+
+        {/* Real, crawlable pagination - see components/Pagination.js for
+            why this matters for SEO. Page 1's grid is a shuffled variety
+            pool, not a stable numbered list, so it gets one plain link
+            forward instead of the full numbered control; from page 2 on,
+            fetchDealsPage's real, stable count drives the full pager. */}
+        {page === 1 ? (
+          deals?.length > 0 && (
+            <div className="mt-10 flex justify-center">
+              <a
+                href={pageHref(params, 2, "/")}
+                className="rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
+              >
+                Browse more deals →
+              </a>
+            </div>
+          )
+        ) : (
+          <Pagination page={page} totalPages={totalPages} params={params} basePath="/" />
+        )}
       </main>
 
       <section id="how-it-works" className="border-t border-zinc-200 dark:border-zinc-800">

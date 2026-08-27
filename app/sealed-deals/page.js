@@ -1,18 +1,26 @@
-import { supabase } from "@/lib/supabaseClient";
+import { fetchSealedDealsPool, fetchDealsPage, fetchLastScanTime } from "@/lib/deals";
 import { dealScore } from "@/lib/dealScore";
 import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
 import SealedDealCard from "@/components/SealedDealCard";
 import { CountryFilterRow, ListingTypeFilterRow, PriceFilterRow } from "@/components/FilterBar";
+import Pagination, { pageHref } from "@/components/Pagination";
 
 export const revalidate = 60;
 
-export const metadata = {
-  title: "Sealed Product Deals",
-  description:
-    "Real below-market booster box, elite trainer box, and other sealed Pokémon product deals on eBay, priced against real PokemonPriceTracker market data.",
-  alternates: { canonical: "/sealed-deals" },
-};
+// See app/page.js's identical generateMetadata for why paginated pages
+// need their own canonical instead of all pointing back at the base URL.
+export async function generateMetadata({ searchParams }) {
+  const params = await searchParams;
+  const pageParam = typeof params.page === "string" ? Number(params.page) : 1;
+  const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
+  return {
+    title: page > 1 ? `Sealed Product Deals - Page ${page}` : "Sealed Product Deals",
+    description:
+      "Real below-market booster box, elite trainer box, and other sealed Pokémon product deals on eBay, priced against real PokemonPriceTracker market data.",
+    alternates: { canonical: page > 1 ? `/sealed-deals?page=${page}` : "/sealed-deals" },
+  };
+}
 
 const SCAN_FRESH_THRESHOLD_MS = 30 * 60 * 1000;
 
@@ -39,39 +47,33 @@ export default async function SealedDealsPage({ searchParams }) {
   const minPrice = Number.isFinite(minPriceParam) && minPriceParam > 0 ? minPriceParam : null;
 
   const PAGE_SIZE = 24;
+  const pageParam = typeof params.page === "string" ? Number(params.page) : 1;
+  const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
+  const filters = { country, listingType, maxPrice, minPrice };
 
-  let query = supabase
-    .from("sealed_deals")
-    .select("*, sealed_watchlist:sealed_watchlist_id!inner (name, set, tcgplayer_id)")
-    .eq("is_active", true)
-    .order("first_seen_at", { ascending: false })
-    .limit(500);
+  const [{ data: pool, error: poolError }, dealsPageResult, lastRefreshed] = await Promise.all([
+    page === 1 ? fetchSealedDealsPool(filters) : Promise.resolve({ data: null, error: null }),
+    page > 1 ? fetchDealsPage({ table: "sealed_deals", ...filters, page }) : Promise.resolve(null),
+    fetchLastScanTime({ table: "sealed_deals" }),
+  ]);
+  const error = poolError || dealsPageResult?.error;
 
-  if (country) query = query.eq("marketplace", country);
-  if (listingType) query = query.eq("listing_type", listingType);
-  if (maxPrice) query = query.lte("total_price", maxPrice);
-  if (minPrice) query = query.gte("total_price", minPrice);
-
-  const { data: pool, error } = await query;
-
-  const seenProducts = new Set();
-  const dedupedPool = [];
-  for (const deal of pool ?? []) {
-    if (seenProducts.has(deal.sealed_watchlist_id)) continue;
-    seenProducts.add(deal.sealed_watchlist_id);
-    dedupedPool.push(deal);
+  let deals;
+  let totalPages = 1;
+  if (page > 1) {
+    deals = dealsPageResult?.deals ?? [];
+    totalPages = dealsPageResult?.totalPages ?? 1;
+  } else {
+    const seenProducts = new Set();
+    const dedupedPool = [];
+    for (const deal of pool ?? []) {
+      if (seenProducts.has(deal.sealed_watchlist_id)) continue;
+      seenProducts.add(deal.sealed_watchlist_id);
+      dedupedPool.push(deal);
+    }
+    const ROTATION_POOL_SIZE = 100;
+    deals = shuffled(dedupedPool.slice(0, ROTATION_POOL_SIZE)).slice(0, PAGE_SIZE);
   }
-
-  const ROTATION_POOL_SIZE = 100;
-  const deals = shuffled(dedupedPool.slice(0, ROTATION_POOL_SIZE)).slice(0, PAGE_SIZE);
-
-  const { data: lastScan } = await supabase
-    .from("sealed_deals")
-    .select("last_seen_at")
-    .order("last_seen_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const lastRefreshed = lastScan?.last_seen_at ?? null;
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
@@ -110,14 +112,10 @@ export default async function SealedDealsPage({ searchParams }) {
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
         <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          Sealed Product Deals
+          Sealed Product Deals{page > 1 ? ` - Page ${page}` : ""}
         </h2>
 
-        {error && (
-          <p className="rounded-lg bg-red-50 p-4 text-red-700">
-            Couldn&apos;t load deals: {error.message}
-          </p>
-        )}
+        {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
 
         {!error && deals?.length === 0 && (
           <p className="text-zinc-500">
@@ -132,6 +130,21 @@ export default async function SealedDealsPage({ searchParams }) {
             <SealedDealCard key={deal.id} deal={deal} scoreBadge={dealScore(deal.discount_pct)} />
           ))}
         </div>
+
+        {page === 1 ? (
+          deals?.length >= 24 && (
+            <div className="mt-10 flex justify-center">
+              <a
+                href={pageHref(params, 2, "/sealed-deals")}
+                className="rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
+              >
+                Browse more deals →
+              </a>
+            </div>
+          )
+        ) : (
+          <Pagination page={page} totalPages={totalPages} params={params} basePath="/sealed-deals" />
+        )}
       </main>
 
       <footer className="border-t border-zinc-200 px-6 py-8 text-center text-xs text-zinc-500 dark:border-zinc-800">

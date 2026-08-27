@@ -16,10 +16,17 @@ import ShareButton from "@/components/ShareButton";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
-// Always fresh - this only runs when someone actually opens a deal, so an
-// on-demand price-history fetch here doesn't multiply the scheduled scan's
-// request budget the way adding it to every watchlist item would.
-export const dynamic = "force-dynamic";
+// Real, live perf/cost problem found via SEO audit: force-dynamic meant
+// getFullPriceAnalysis (a real, billed PokemonPriceTracker API call) ran
+// fresh on EVERY single page view, with zero HTML caching - Cache-Control
+// was no-store, and this page type is by far the highest-volume on the
+// site (thousands of them, the biggest source of long-tail search
+// traffic). Switching to a 5-minute ISR window means repeat visits within
+// that window are served pre-rendered, with no new API call at all -
+// cuts both real latency and real per-visit API cost, at the price of up
+// to 5 minutes of staleness on a page type where deals already only
+// re-confirm on a scan cycle measured in minutes-to-hours anyway.
+export const revalidate = 300;
 
 function formatSaleDate(dateString) {
   return new Date(dateString).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -51,9 +58,14 @@ export async function generateMetadata({ params }) {
   const cardSet = deal.watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
   const title = `${cardName}${cardSet ? ` (${cardSet})` : ""} - ${discountPct}% below market`;
-  const description = `$${Number(deal.total_price).toFixed(2)} vs a $${Number(deal.market_price).toFixed(
+  // Real card/set context up front, not just bare price numbers - a
+  // search result showing only "$74.99 vs a $214.20 market price" gives a
+  // searcher no reason to click over a competing result unless they've
+  // already scanned the title; naming the card again in the snippet does
+  // that work for them.
+  const description = `${cardName}${cardSet ? ` (${cardSet})` : ""} for $${Number(deal.total_price).toFixed(
     2
-  )} market price - ${discountPct}% below market on eBay.`;
+  )} - ${discountPct}% below the $${Number(deal.market_price).toFixed(2)} real market price on eBay.`;
 
   return {
     title,
@@ -126,6 +138,7 @@ export default async function DealDetailPage({ params }) {
 
   const cardName = deal.watchlist?.name ?? deal.title;
   const cardSet = deal.watchlist?.set;
+  const discountPct = Math.round(deal.discount_pct * 100);
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
   const tcgplayerLink = buildTcgplayerLink(cardName, deal.watchlist?.justtcg_tcgplayer_id);
@@ -213,7 +226,7 @@ export default async function DealDetailPage({ params }) {
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-md bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">
-                {Math.round(deal.discount_pct * 100)}% below market
+                {discountPct}% below market
               </span>
               <DealScoreBadge score={dealScore(deal.discount_pct)} size="lg" />
               {deal.watchlist?.language === "japanese" && (
@@ -238,7 +251,15 @@ export default async function DealDetailPage({ params }) {
               {marketInfo && <span title={marketInfo.label}>{marketInfo.flag}</span>}
             </div>
 
-            <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">{cardName}</h1>
+            {/* Real deal context folded into the H1 itself (not just the
+                separate badge above it) - a bare card name as H1 misses
+                the actual search intent for "<card> deal"/"<card> below
+                market" queries, which the title tag and meta description
+                already target but the page's own primary heading didn't. */}
+            <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">
+              {cardName}
+              <span className="font-medium text-zinc-500"> - {discountPct}% Below Market</span>
+            </h1>
             {cardSet && <p className="text-zinc-500">{cardSet}</p>}
             <p className="mt-1 line-clamp-2 text-sm text-zinc-400">{deal.title}</p>
 
@@ -275,7 +296,7 @@ export default async function DealDetailPage({ params }) {
                 eventData={{
                   card: cardName,
                   marketplace: deal.marketplace,
-                  discountPct: Math.round(deal.discount_pct * 100),
+                  discountPct,
                   listingType: deal.listing_type,
                   isGraded: deal.is_graded,
                   page: "detail",
@@ -294,8 +315,8 @@ export default async function DealDetailPage({ params }) {
               </AffiliateLink>
               <ShareButton
                 url={`${SITE_URL}/deals/${deal.id}`}
-                title={`${cardName} - ${Math.round(deal.discount_pct * 100)}% below market`}
-                text={`${cardName}${cardSet ? ` (${cardSet})` : ""} - $${Number(deal.total_price).toFixed(2)}, ${Math.round(deal.discount_pct * 100)}% below market on Pokémon Deal Finder`}
+                title={`${cardName} - ${discountPct}% below market`}
+                text={`${cardName}${cardSet ? ` (${cardSet})` : ""} - $${Number(deal.total_price).toFixed(2)}, ${discountPct}% below market on Pokémon Deal Finder`}
                 label="Share"
                 className="rounded-lg px-4 py-2"
               />

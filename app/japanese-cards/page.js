@@ -1,19 +1,27 @@
-import { supabase } from "@/lib/supabaseClient";
+import { fetchDealsPool, fetchDealsPage, fetchLastScanTime } from "@/lib/deals";
 import { dealScore } from "@/lib/dealScore";
 import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
 import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
+import Pagination, { pageHref } from "@/components/Pagination";
 
 // Re-check for new deals at most once a minute - same as the homepage.
 export const revalidate = 60;
 
-export const metadata = {
-  title: "Japanese Pokémon Cards",
-  description:
-    "Real Japanese-print Pokémon card deals on eBay, priced against real Japanese-catalog market data - not converted from English pricing.",
-  alternates: { canonical: "/japanese-cards" },
-};
+// See app/page.js's identical generateMetadata for why paginated pages
+// need their own canonical instead of all pointing back at the base URL.
+export async function generateMetadata({ searchParams }) {
+  const params = await searchParams;
+  const pageParam = typeof params.page === "string" ? Number(params.page) : 1;
+  const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
+  return {
+    title: page > 1 ? `Japanese Pokémon Cards - Page ${page}` : "Japanese Pokémon Cards",
+    description:
+      "Real Japanese-print Pokémon card deals on eBay, priced against real Japanese-catalog market data - not converted from English pricing.",
+    alternates: { canonical: page > 1 ? `/japanese-cards?page=${page}` : "/japanese-cards" },
+  };
+}
 
 // Same reasoning as app/page.js's identical helpers - kept local rather
 // than shared, since a scan-freshness/shuffle-window pair this small
@@ -44,46 +52,35 @@ export default async function JapaneseCardsPage({ searchParams }) {
   const minPrice = Number.isFinite(minPriceParam) && minPriceParam > 0 ? minPriceParam : null;
 
   const PAGE_SIZE = 24;
+  const pageParam = typeof params.page === "string" ? Number(params.page) : 1;
+  const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
+  const filters = { language: "japanese", country, cardType, listingType, maxPrice, minPrice };
 
-  // Same pool-then-shuffle approach as the homepage (see app/page.js) -
-  // shows real variety across visits instead of a frozen top-N, without
-  // ever fabricating a listing.
-  let query = supabase
-    .from("deals")
-    .select("*, watchlist:watchlist_id!inner (name, set, justtcg_tcgplayer_id, language)")
-    .eq("is_active", true)
-    .eq("watchlist.language", "japanese")
-    .order("first_seen_at", { ascending: false })
-    .limit(500);
+  // Same pool-then-shuffle-on-page-1/real-pagination-beyond-that approach
+  // as the homepage (see app/page.js for the full reasoning).
+  const [{ data: pool, error: poolError }, dealsPageResult, lastRefreshed] = await Promise.all([
+    page === 1 ? fetchDealsPool(filters) : Promise.resolve({ data: null, error: null }),
+    page > 1 ? fetchDealsPage({ table: "deals", ...filters, page }) : Promise.resolve(null),
+    fetchLastScanTime({ table: "deals", language: "japanese" }),
+  ]);
+  const error = poolError || dealsPageResult?.error;
 
-  if (country) query = query.eq("marketplace", country);
-  if (cardType === "raw") query = query.eq("is_graded", false);
-  if (cardType === "graded") query = query.eq("is_graded", true);
-  if (listingType) query = query.eq("listing_type", listingType);
-  if (maxPrice) query = query.lte("total_price", maxPrice);
-  if (minPrice) query = query.gte("total_price", minPrice);
-
-  const { data: pool, error } = await query;
-
-  const seenCards = new Set();
-  const dedupedPool = [];
-  for (const deal of pool ?? []) {
-    if (seenCards.has(deal.watchlist_id)) continue;
-    seenCards.add(deal.watchlist_id);
-    dedupedPool.push(deal);
+  let deals;
+  let totalPages = 1;
+  if (page > 1) {
+    deals = dealsPageResult?.deals ?? [];
+    totalPages = dealsPageResult?.totalPages ?? 1;
+  } else {
+    const seenCards = new Set();
+    const dedupedPool = [];
+    for (const deal of pool ?? []) {
+      if (seenCards.has(deal.watchlist_id)) continue;
+      seenCards.add(deal.watchlist_id);
+      dedupedPool.push(deal);
+    }
+    const ROTATION_POOL_SIZE = 100;
+    deals = shuffled(dedupedPool.slice(0, ROTATION_POOL_SIZE)).slice(0, PAGE_SIZE);
   }
-
-  const ROTATION_POOL_SIZE = 100;
-  const deals = shuffled(dedupedPool.slice(0, ROTATION_POOL_SIZE)).slice(0, PAGE_SIZE);
-
-  const { data: lastScan } = await supabase
-    .from("deals")
-    .select("last_seen_at, watchlist:watchlist_id!inner(language)")
-    .eq("watchlist.language", "japanese")
-    .order("last_seen_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const lastRefreshed = lastScan?.last_seen_at ?? null;
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
@@ -128,14 +125,10 @@ export default async function JapaneseCardsPage({ searchParams }) {
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
         <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          Japanese Card Deals
+          Japanese Card Deals{page > 1 ? ` - Page ${page}` : ""}
         </h2>
 
-        {error && (
-          <p className="rounded-lg bg-red-50 p-4 text-red-700">
-            Couldn&apos;t load deals: {error.message}
-          </p>
-        )}
+        {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
 
         {!error && deals?.length === 0 && (
           <p className="text-zinc-500">
@@ -149,6 +142,21 @@ export default async function JapaneseCardsPage({ searchParams }) {
             <DealCard key={deal.id} deal={deal} scoreBadge={dealScore(deal.discount_pct)} pageName="japanese_cards" />
           ))}
         </div>
+
+        {page === 1 ? (
+          deals?.length > 0 && (
+            <div className="mt-10 flex justify-center">
+              <a
+                href={pageHref(params, 2, "/japanese-cards")}
+                className="rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
+              >
+                Browse more deals →
+              </a>
+            </div>
+          )
+        ) : (
+          <Pagination page={page} totalPages={totalPages} params={params} basePath="/japanese-cards" />
+        )}
       </main>
 
       <footer className="border-t border-zinc-200 px-6 py-8 text-center text-xs text-zinc-500 dark:border-zinc-800">

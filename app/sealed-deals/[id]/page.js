@@ -16,7 +16,10 @@ import ShareButton from "@/components/ShareButton";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
-export const dynamic = "force-dynamic";
+// See app/deals/[id]/page.js's identical reasoning - was force-dynamic
+// with zero HTML caching (Cache-Control: no-store), the single biggest
+// perf/cost issue found in an SEO audit. 5-minute ISR window instead.
+export const revalidate = 300;
 
 const loadDeal = cache(async (id) => {
   const { data } = await supabase
@@ -30,15 +33,23 @@ const loadDeal = cache(async (id) => {
 export async function generateMetadata({ params }) {
   const { id } = await params;
   const deal = await loadDeal(id);
-  if (!deal) return { title: "Deal not found" };
+  // Same real bug and same fix as app/deals/[id]/page.js: an inactive
+  // deal is as good as not found for anyone landing here - don't
+  // generate a title/description repeating pricing/discount claims that
+  // are no longer real (a link shared or indexed before the deal
+  // expired), even in a link-preview card, which never hits the page
+  // component's own is_active check below.
+  if (!deal || !deal.is_active) return { title: "Deal not found", robots: { index: false, follow: true } };
 
   const productName = deal.sealed_watchlist?.name ?? deal.title;
   const productSet = deal.sealed_watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
   const title = `${productName}${productSet ? ` (${productSet})` : ""} - ${discountPct}% below market`;
-  const description = `$${Number(deal.total_price).toFixed(2)} vs a $${Number(deal.market_price).toFixed(
-    2
-  )} market price - ${discountPct}% below market on eBay.`;
+  // Real product/set context up front, not just bare price numbers - see
+  // app/deals/[id]/page.js's identical reasoning.
+  const description = `${productName}${productSet ? ` (${productSet})` : ""} for $${Number(
+    deal.total_price
+  ).toFixed(2)} - ${discountPct}% below the $${Number(deal.market_price).toFixed(2)} real market price on eBay.`;
 
   return {
     title,
@@ -55,7 +66,7 @@ export async function generateMetadata({ params }) {
       description,
       images: deal.image_url ? [deal.image_url] : undefined,
     },
-    robots: deal.is_active ? undefined : { index: false, follow: true },
+    // Always active here - the inactive case returns early above.
   };
 }
 
@@ -63,7 +74,14 @@ export default async function SealedDealDetailPage({ params }) {
   const { id } = await params;
   const deal = await loadDeal(id);
 
-  if (!deal) {
+  // Same real bug and fix as app/deals/[id]/page.js: without the
+  // is_active check, a deactivated deal (expired, corrected for bad
+  // data, or superseded) kept rendering indefinitely as a live, fully
+  // buyable page with real-looking pricing/CTAs to anyone who still had
+  // the link - a genuine correctness and trust problem, not just an SEO
+  // one, but it also means Google would keep re-crawling stale content
+  // instead of a clear "gone" signal.
+  if (!deal || !deal.is_active) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-black">
         <SiteHeader />
@@ -164,7 +182,12 @@ export default async function SealedDealDetailPage({ params }) {
               {marketInfo && <span title={marketInfo.label}>{marketInfo.flag}</span>}
             </div>
 
-            <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">{productName}</h1>
+            {/* Real deal context folded into the H1 - see
+                app/deals/[id]/page.js's identical reasoning. */}
+            <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">
+              {productName}
+              <span className="font-medium text-zinc-500"> - {discountPct}% Below Market</span>
+            </h1>
             {productSet && <p className="text-zinc-500">{productSet}</p>}
             <p className="mt-1 line-clamp-2 text-sm text-zinc-400">{deal.title}</p>
 
