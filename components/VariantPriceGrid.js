@@ -1,19 +1,15 @@
 import MiniSparkline from "@/components/MiniSparkline";
+import AffiliateLink from "@/components/AffiliateLink";
+import { buildEbaySearchLink } from "@/lib/ebay";
 
 function formatDate(dateString) {
   if (!dateString) return null;
   return new Date(dateString).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function Tile({ label, badge, isActive, currentPrice, minPrice, maxPrice, saleCount, lastSaleDate, isLowConfidence, history }) {
+function TileContents({ label, badge, currentPrice, minPrice, maxPrice, saleCount, lastSaleDate, isLowConfidence, history }) {
   return (
-    <div
-      className={`rounded-lg border p-3 ${
-        isActive
-          ? "border-red-400 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20"
-          : "border-zinc-200 dark:border-zinc-800"
-      }`}
-    >
+    <>
       <div className="flex items-center justify-between gap-1">
         <span className="text-xs font-semibold text-black dark:text-zinc-50">{label}</span>
         {badge}
@@ -43,7 +39,40 @@ function Tile({ label, badge, isActive, currentPrice, minPrice, maxPrice, saleCo
           {lastSaleDate && ` · last ${formatDate(lastSaleDate)}`}
         </p>
       )}
-    </div>
+    </>
+  );
+}
+
+// isActive (this listing's own variant) renders as a plain, non-clickable
+// tile - it's already the thing the page's main "View Deal" button
+// points at, right above. Every OTHER tile is a real link out to a
+// tracked eBay search for that specific grade - a visitor comparing
+// variants who decides they'd rather have a different one should still
+// leave through an affiliate-tracked link, not a dead end.
+function Tile({ label, isActive, searchQuery, eventData, ...contentProps }) {
+  const className = `block rounded-lg border p-3 text-left transition-colors ${
+    isActive
+      ? "border-red-400 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20"
+      : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700"
+  }`;
+
+  if (isActive) {
+    return (
+      <div className={className}>
+        <TileContents label={label} {...contentProps} />
+      </div>
+    );
+  }
+
+  return (
+    <AffiliateLink
+      href={buildEbaySearchLink(searchQuery)}
+      eventName="eBay Click"
+      eventData={eventData}
+      className={className}
+    >
+      <TileContents label={label} {...contentProps} />
+    </AffiliateLink>
   );
 }
 
@@ -51,13 +80,15 @@ function Tile({ label, badge, isActive, currentPrice, minPrice, maxPrice, saleCo
 // sales) side by side, each with its own real price history sparkline -
 // activeKey (either "raw" or a grade key like "psa10") highlights whichever
 // variant the deal being viewed actually is.
-export default function VariantPriceGrid({ raw, graded, activeKey }) {
+export default function VariantPriceGrid({ raw, graded, activeKey, cardName }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
       <Tile
         label="Raw"
         badge={<span className="text-[10px] text-zinc-400">Near Mint</span>}
         isActive={activeKey === "raw"}
+        searchQuery={cardName}
+        eventData={{ card: cardName, page: "variant_grid", variant: "raw" }}
         currentPrice={raw.currentPrice}
         minPrice={raw.minPrice}
         maxPrice={raw.maxPrice}
@@ -76,6 +107,8 @@ export default function VariantPriceGrid({ raw, graded, activeKey }) {
             )
           }
           isActive={activeKey === g.key}
+          searchQuery={`${cardName} ${g.label}`}
+          eventData={{ card: cardName, page: "variant_grid", variant: g.key }}
           currentPrice={g.currentPrice}
           minPrice={g.minPrice}
           maxPrice={g.maxPrice}

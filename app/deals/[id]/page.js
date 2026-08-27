@@ -264,7 +264,7 @@ export default async function DealDetailPage({ params }) {
               Raw and every graded tier with real recorded sales - the highlighted tile is this listing.
             </p>
             <div className="mt-4">
-              <VariantPriceGrid raw={analysis.raw} graded={analysis.graded} activeKey={analysis.primaryKey} />
+              <VariantPriceGrid raw={analysis.raw} graded={analysis.graded} activeKey={analysis.primaryKey} cardName={cardName} />
             </div>
           </div>
         )}
@@ -321,14 +321,14 @@ export default async function DealDetailPage({ params }) {
               {recentSales.slice(0, 8).map((sale) => (
                 <li key={sale.listingId} className="flex items-center justify-between gap-3 py-2.5">
                   <div className="min-w-0">
-                    <a
+                    <AffiliateLink
                       href={sale.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="line-clamp-1 text-sm text-zinc-700 hover:underline dark:text-zinc-300"
+                      eventName="eBay Click"
+                      eventData={{ card: cardName, page: "recent_sales" }}
+                      className="line-clamp-1 block text-sm text-zinc-700 hover:underline dark:text-zinc-300"
                     >
                       {sale.title}
-                    </a>
+                    </AffiliateLink>
                     <p className="text-xs text-zinc-400">
                       {formatSaleDate(sale.soldDate)} &middot;{" "}
                       {sale.listingType === "auction" ? "Auction" : "Buy It Now"}
