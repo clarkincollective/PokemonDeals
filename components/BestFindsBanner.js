@@ -64,7 +64,7 @@ export default function BestFindsBanner({ rawFinds, gradedFinds }) {
       <div className="mx-auto max-w-7xl px-6 py-8">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1 text-xs font-bold text-white">
               🔥 Today&apos;s Best Finds
             </span>
             {!collapsed && (

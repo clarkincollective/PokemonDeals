@@ -1,20 +1,25 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
-import Logo from "@/components/Logo";
-import NavMenu from "@/components/NavMenu";
+import SiteHeader from "@/components/SiteHeader";
 import DealCard from "@/components/DealCard";
 import AffiliateLink from "@/components/AffiliateLink";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
+import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import { dealScore } from "@/lib/dealScore";
 import { MARKETPLACES } from "@/lib/ebay";
 
 const CONDITIONS = ["Near Mint", "Lightly Played", "Moderately Played", "Heavily Played", "Damaged"];
 
 export default function SearchClient() {
-  const [query, setQuery] = useState("");
+  // The homepage hero's search box submits a plain GET form to
+  // /search?q=... (no JS needed there) - picking that up here and
+  // auto-running the search is what makes it feel like one continuous
+  // action instead of landing on an empty search page.
+  const initialQuery = useSearchParams().get("q") ?? "";
+  const [query, setQuery] = useState(initialQuery);
   const [lastQuery, setLastQuery] = useState(null);
   const [deals, setDeals] = useState(null); // deals matching the query, shown first
   const [catalog, setCatalog] = useState(null); // {page, pageSize, total, hasMore, results}
@@ -38,7 +43,20 @@ export default function SearchClient() {
   const [maxPrice, setMaxPrice] = useState("");
   const [minDiscount, setMinDiscount] = useState("");
 
+  // Auto-run the search once on mount if the hero search box sent us
+  // here with a real query - intentionally empty deps, this should only
+  // ever fire for the initial URL, not every time `query` changes as the
+  // visitor types.
+  useEffect(() => {
+    const trimmed = initialQuery.trim();
+    if (trimmed.length >= 2) {
+      loadSearch(trimmed, 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function loadSearch(q, page, overrides = {}) {
+    setLastQuery(q);
     setSearching(true);
     setSearchError(null);
     const sc = overrides.country ?? searchCountry;
@@ -66,7 +84,6 @@ export default function SearchClient() {
     if (q.length < 2) return;
     setSelected(null);
     setDetail(null);
-    setLastQuery(q);
     loadSearch(q, 1);
   }
 
@@ -121,14 +138,7 @@ export default function SearchClient() {
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
-      <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/90 backdrop-blur dark:border-zinc-800 dark:bg-black/90">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
-          <Link href="/">
-            <Logo size="small" />
-          </Link>
-          <NavMenu />
-        </div>
-      </div>
+      <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-8">
@@ -161,7 +171,7 @@ export default function SearchClient() {
         {searchError && <p className="rounded-lg bg-red-50 p-4 text-red-700">{searchError}</p>}
 
         {!selected && (deals || catalog) && (
-          <form onSubmit={applyTopFilters} className="mb-6 flex flex-wrap items-end gap-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <form onSubmit={applyTopFilters} className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-400">
                 Card location
@@ -233,17 +243,17 @@ export default function SearchClient() {
                   {catalog.results.map((c) => (
                     <div
                       key={c.tcgplayerId}
-                      className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-950"
+                      className="flex flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950"
                     >
-                      <button onClick={() => pickCard(c)} className="relative aspect-square w-full bg-zinc-100 text-left dark:bg-zinc-900">
+                      <button onClick={() => pickCard(c)} className="relative aspect-square w-full bg-zinc-50 text-left dark:bg-zinc-900">
                         {c.imageUrl ? (
                           <Image src={c.imageUrl} alt={c.name} fill sizes="200px" className="object-contain p-3" />
                         ) : (
-                          <div className="flex h-full items-center justify-center text-xs text-zinc-400">No image</div>
+                          <CardImagePlaceholder />
                         )}
                         {c.deal && (
-                          <span className="absolute right-2 top-2 rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white shadow-sm">
-                            {Math.round(c.deal.discountPct * 100)}% off
+                          <span className="absolute right-2 top-2 rounded-md bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white shadow-sm">
+                            {Math.round(c.deal.discountPct * 100)}% below market
                           </span>
                         )}
                       </button>
@@ -311,12 +321,12 @@ export default function SearchClient() {
               ← Back to results
             </button>
 
-            <div className="mt-4 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="mt-4 flex flex-col gap-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
               <div className="relative h-40 w-40 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-100 sm:self-auto dark:bg-zinc-900">
                 {selected.imageUrl ? (
                   <Image src={selected.imageUrl} alt={selected.name} fill sizes="160px" className="object-contain p-3" />
                 ) : (
-                  <div className="flex h-full items-center justify-center text-xs text-zinc-400">No image</div>
+                  <CardImagePlaceholder />
                 )}
               </div>
               <div className="flex-1">
@@ -338,7 +348,7 @@ export default function SearchClient() {
             </div>
 
             {/* Filters */}
-            <form onSubmit={applyFilters} className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+            <form onSubmit={applyFilters} className="mt-6 flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-400">Condition</label>
                 <select
@@ -429,7 +439,7 @@ export default function SearchClient() {
 
             {detail && (
               <>
-                <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
                   <h3 className="text-sm font-semibold text-black dark:text-zinc-50">Price history</h3>
                   <div className="mt-4">
                     <PriceHistoryChart points={detail.history} />

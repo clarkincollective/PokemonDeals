@@ -5,9 +5,12 @@ import { supabase } from "@/lib/supabaseClient";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES } from "@/lib/ebay";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
+import { dealScore } from "@/lib/dealScore";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
-import Logo from "@/components/Logo";
+import SiteHeader from "@/components/SiteHeader";
+import DealScoreBadge from "@/components/DealScoreBadge";
+import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
 
 // Always fresh - this only runs when someone actually opens a deal, so an
@@ -39,7 +42,7 @@ export async function generateMetadata({ params }) {
   const cardName = deal.watchlist?.name ?? deal.title;
   const cardSet = deal.watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
-  const title = `${cardName}${cardSet ? ` (${cardSet})` : ""} - ${discountPct}% off`;
+  const title = `${cardName}${cardSet ? ` (${cardSet})` : ""} - ${discountPct}% below market`;
   const description = `$${Number(deal.total_price).toFixed(2)} vs a $${Number(deal.market_price).toFixed(
     2
   )} market price - ${discountPct}% below market on eBay.`;
@@ -88,11 +91,14 @@ export default async function DealDetailPage({ params }) {
 
   if (!deal) {
     return (
-      <div className="mx-auto max-w-2xl px-6 py-16 text-center">
-        <p className="text-zinc-500">Couldn&apos;t find that deal - it may have expired.</p>
-        <Link href="/" className="mt-4 inline-block text-sm font-medium underline">
-          Back to all deals
-        </Link>
+      <div className="min-h-screen bg-zinc-50 dark:bg-black">
+        <SiteHeader />
+        <div className="mx-auto max-w-2xl px-6 py-16 text-center">
+          <p className="text-zinc-500">Couldn&apos;t find that deal - it may have expired.</p>
+          <Link href="/" className="mt-4 inline-block text-sm font-medium underline">
+            Back to all deals
+          </Link>
+        </div>
       </div>
     );
   }
@@ -153,43 +159,42 @@ export default async function DealDetailPage({ params }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
+      <SiteHeader />
       <div className="mx-auto max-w-5xl px-6 py-10">
-        <Link href="/" className="inline-block">
-          <Logo size="small" />
-        </Link>
         <Link
           href="/"
-          className="mt-4 block text-sm font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+          className="block text-sm font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
         >
           ← All deals
         </Link>
 
-        <div className="mt-6 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
-          <div className="relative h-48 w-48 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-100 sm:self-auto dark:bg-zinc-900">
+        <div className="mt-4 flex flex-col gap-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="relative h-56 w-56 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:self-auto dark:bg-zinc-900">
             {deal.image_url ? (
-              <Image src={deal.image_url} alt={deal.title} fill sizes="192px" className="object-contain p-3" />
+              <Image src={deal.image_url} alt={deal.title} fill sizes="224px" className="object-contain p-3" />
             ) : (
-              <div className="flex h-full items-center justify-center text-xs text-zinc-400">No image</div>
+              <CardImagePlaceholder className="h-24 w-16" />
             )}
           </div>
 
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">
-                {Math.round(deal.discount_pct * 100)}% off
+              <span className="rounded-md bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">
+                {Math.round(deal.discount_pct * 100)}% below market
               </span>
+              <DealScoreBadge score={dealScore(deal.discount_pct)} size="lg" />
               {deal.is_graded ? (
-                <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                <span className="rounded-md bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
                   {deal.grader} {deal.grade}
                 </span>
               ) : (
                 deal.condition && (
-                  <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                  <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                     {deal.condition}
                   </span>
                 )
               )}
-              <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                 {isAuction ? "Auction" : "Buy It Now"}
               </span>
               {marketInfo && <span title={marketInfo.label}>{marketInfo.flag}</span>}
@@ -199,17 +204,29 @@ export default async function DealDetailPage({ params }) {
             {cardSet && <p className="text-zinc-500">{cardSet}</p>}
             <p className="mt-1 line-clamp-2 text-sm text-zinc-400">{deal.title}</p>
 
-            <div className="mt-4 flex items-baseline gap-3">
-              <span className="text-2xl font-bold text-black dark:text-zinc-50">
-                ${Number(deal.total_price).toFixed(2)}
-              </span>
-              <span className="text-base text-zinc-400 line-through">
-                ${Number(deal.market_price).toFixed(2)}
-              </span>
+            <div className="mt-4">
+              <div className="flex items-baseline gap-3">
+                <span className="text-2xl font-bold text-black dark:text-zinc-50">
+                  ${Number(deal.total_price).toFixed(2)}
+                </span>
+                <span className="text-base text-zinc-400 line-through">
+                  ${Number(deal.market_price).toFixed(2)}
+                </span>
+              </div>
+              {Number(deal.market_price) - Number(deal.total_price) > 0 && (
+                <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
+                  You save ${(Number(deal.market_price) - Number(deal.total_price)).toFixed(2)}
+                </p>
+              )}
             </div>
             {isAuction && (
               <p className="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">
                 Current bid{deal.bid_count != null ? ` · ${deal.bid_count} bids` : ""} - may rise before the auction ends
+              </p>
+            )}
+            {deal.seller_feedback_pct != null && (
+              <p className="mt-1 text-xs text-zinc-400">
+                {Number(deal.seller_feedback_pct).toFixed(1)}% seller feedback
               </p>
             )}
 
@@ -241,7 +258,7 @@ export default async function DealDetailPage({ params }) {
           </div>
         </div>
 
-        <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
           <h2 className="text-sm font-semibold text-black dark:text-zinc-50">
             {deal.is_graded ? `${deal.grader} ${deal.grade} price history` : "Market price history"}
           </h2>
@@ -257,7 +274,7 @@ export default async function DealDetailPage({ params }) {
         {analysis && (analysis.graded.length > 0 || analysis.raw.history.length > 0) && (
           <div
             id="price-analysis"
-            className="mt-6 scroll-mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
+            className="mt-6 scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
           >
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Every variant, side by side</h2>
             <p className="text-xs text-zinc-400">
@@ -272,7 +289,7 @@ export default async function DealDetailPage({ params }) {
         {analysis && (analysis.conditionBreakdown.length > 0 || analysis.salesVelocity) && (
           <div className="mt-6 grid gap-6 sm:grid-cols-2">
             {analysis.conditionBreakdown.length > 0 && (
-              <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+              <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
                 <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Condition breakdown</h2>
                 <p className="text-xs text-zinc-400">Current raw market price by condition.</p>
                 <ul className="mt-4 flex flex-col gap-2">
@@ -287,7 +304,7 @@ export default async function DealDetailPage({ params }) {
             )}
 
             {analysis.salesVelocity && (
-              <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+              <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
                 <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Market activity</h2>
                 <p className="text-xs text-zinc-400">Real eBay sales across all conditions and grades.</p>
                 <ul className="mt-4 flex flex-col gap-2 text-sm">
@@ -314,7 +331,7 @@ export default async function DealDetailPage({ params }) {
         )}
 
         {recentSales.length > 0 && (
-          <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Recent eBay sales</h2>
             <p className="text-xs text-zinc-400">Real individual sold listings, not an estimate.</p>
             <ul className="mt-4 divide-y divide-zinc-100 dark:divide-zinc-900">

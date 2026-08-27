@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { fetchBestFinds } from "@/lib/deals";
 import { dealScore } from "@/lib/dealScore";
-import Logo from "@/components/Logo";
-import NavMenu from "@/components/NavMenu";
+import SiteHeader from "@/components/SiteHeader";
 import DealCard from "@/components/DealCard";
 
 export const revalidate = 60;
@@ -13,18 +12,26 @@ export const metadata = {
   alternates: { canonical: "/best-finds" },
 };
 
-function TypePill({ href, active, children }) {
+// A single bordered track with two tabs inside, rather than two separate
+// pill buttons - reads as one control (raw vs. graded) instead of two
+// unrelated buttons.
+function TypeToggle({ type }) {
+  const tabClass = (active) =>
+    `rounded-sm px-3 py-1.5 text-xs font-semibold transition-colors ${
+      active
+        ? "bg-black text-white dark:bg-white dark:text-black"
+        : "text-zinc-600 hover:text-black dark:text-zinc-300 dark:hover:text-white"
+    }`;
+
   return (
-    <a
-      href={href}
-      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-        active
-          ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-          : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
-      }`}
-    >
-      {children}
-    </a>
+    <div className="mt-4 inline-flex gap-0.5 rounded-md border border-zinc-200 p-0.5 dark:border-zinc-800">
+      <a href="/best-finds?type=raw" className={tabClass(type === "raw")}>
+        Raw
+      </a>
+      <a href="/best-finds?type=graded" className={tabClass(type === "graded")}>
+        Graded
+      </a>
+    </div>
   );
 }
 
@@ -39,14 +46,7 @@ export default async function BestFindsPage({ searchParams }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
-      <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/90 backdrop-blur dark:border-zinc-800 dark:bg-black/90">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
-          <Link href="/">
-            <Logo size="small" />
-          </Link>
-          <NavMenu />
-        </div>
-      </div>
+      <SiteHeader />
 
       <header className="border-b border-zinc-200 bg-gradient-to-b from-red-50 to-transparent dark:border-zinc-800 dark:from-red-950/20">
         <div className="mx-auto max-w-7xl px-6 py-8">
@@ -56,7 +56,7 @@ export default async function BestFindsPage({ searchParams }) {
           >
             ← All deals
           </Link>
-          <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white">
+          <span className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1 text-xs font-bold text-white">
             🔥 Today&apos;s Best Finds
           </span>
           <h1 className="mt-3 text-2xl font-bold text-black dark:text-zinc-50">
@@ -67,14 +67,7 @@ export default async function BestFindsPage({ searchParams }) {
             discount first. Each stays on this list until a better deal replaces it.
           </p>
 
-          <div className="mt-4 flex gap-2">
-            <TypePill href="/best-finds?type=raw" active={type === "raw"}>
-              Raw
-            </TypePill>
-            <TypePill href="/best-finds?type=graded" active={type === "graded"}>
-              Graded
-            </TypePill>
-          </div>
+          <TypeToggle type={type} />
         </div>
       </header>
 

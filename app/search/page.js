@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import SearchClient from "./SearchClient";
 
 // SearchClient is "use client" (stateful search UI), which can't export
@@ -12,5 +13,9 @@ export const metadata = {
 };
 
 export default function SearchPage() {
-  return <SearchClient />;
+  return (
+    <Suspense fallback={null}>
+      <SearchClient />
+    </Suspense>
+  );
 }

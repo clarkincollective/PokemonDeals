@@ -1,46 +1,50 @@
 import Image from "next/image";
 import { MARKETPLACES } from "@/lib/ebay";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
-import { timeAgo } from "@/lib/time";
+import { timeAgo, timeUntil } from "@/lib/time";
 import AffiliateLink from "@/components/AffiliateLink";
+import DealScoreBadge from "@/components/DealScoreBadge";
+import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 
-// rank (e.g. 1-10) and scoreBadge ({label, className}) are optional -
-// used by the "Today's Best Finds" page/banner, unused (undefined) on the
-// regular homepage grid.
+// rank (e.g. 1-10) and scoreBadge ({label, className}, from lib/dealScore.js)
+// are optional - always passed from Best Finds and search, and now also
+// from the homepage grid so every card shows a Deal Score consistently.
 export default function DealCard({ deal, rank, scoreBadge, pageName = "home" }) {
   const cardName = deal.watchlist?.name ?? deal.title;
   const cardSet = deal.watchlist?.set;
-  const discountLabel = `${Math.round(deal.discount_pct * 100)}% off`;
+  const discountPct = Math.round(deal.discount_pct * 100);
+  const amountSaved = Number(deal.market_price) - Number(deal.total_price);
   const tcgplayerLink = buildTcgplayerLink(cardName);
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
 
   return (
-    <div className="group flex h-full flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="group flex h-full flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950">
       {/* Image */}
-      <a href={`/deals/${deal.id}`} className="relative block aspect-square w-full bg-zinc-100 dark:bg-zinc-900">
+      <a href={`/deals/${deal.id}`} className="relative block aspect-square w-full bg-zinc-50 dark:bg-zinc-900">
         {deal.image_url ? (
           <Image
             src={deal.image_url}
             alt={deal.title}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            className="object-contain p-5 transition-transform duration-200 group-hover:scale-105"
+            className="object-contain p-3 transition-transform duration-200 group-hover:scale-[1.03]"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-xs text-zinc-400">No image</div>
+          <CardImagePlaceholder />
         )}
         {rank != null && (
-          <span className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/80 text-xs font-bold text-white">
+          <span className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-md bg-black/80 text-xs font-bold text-white">
             {rank}
           </span>
         )}
-        <span className="absolute right-2 top-2 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white shadow-sm">
-          {discountLabel}
+        <span className="absolute right-2 top-2 flex flex-col items-center rounded-md bg-emerald-600 px-2 py-1 leading-none text-white shadow-sm">
+          <span className="text-sm font-extrabold">{discountPct}%</span>
+          <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wide">below market</span>
         </span>
         {marketInfo && (
           <span
-            className={`absolute left-2 ${rank != null ? "top-10" : "top-2"} rounded-full bg-white/90 px-2 py-1 text-xs shadow-sm dark:bg-zinc-950/90`}
+            className={`absolute left-2 ${rank != null ? "top-10" : "top-2"} rounded-md bg-white/90 px-2 py-1 text-xs shadow-sm dark:bg-zinc-950/90`}
             title={marketInfo.label}
           >
             {marketInfo.flag}
@@ -51,23 +55,19 @@ export default function DealCard({ deal, rank, scoreBadge, pageName = "home" }) 
       {/* Details */}
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex flex-wrap items-center gap-1.5">
-          {scoreBadge && (
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${scoreBadge.className}`}>
-              {scoreBadge.label}
-            </span>
-          )}
+          <DealScoreBadge score={scoreBadge} />
           {deal.is_graded ? (
-            <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+            <span className="rounded-md bg-indigo-100 px-2 py-0.5 text-[11px] font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
               {deal.grader} {deal.grade}
             </span>
           ) : (
             deal.condition && (
-              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                 {deal.condition}
               </span>
             )
           )}
-          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+          <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             {isAuction ? "Auction" : "Buy It Now"}
           </span>
         </div>
@@ -80,21 +80,32 @@ export default function DealCard({ deal, rank, scoreBadge, pageName = "home" }) 
         </a>
         {cardSet && <p className="line-clamp-1 text-xs text-zinc-500">{cardSet}</p>}
 
-        <div className="mt-1 flex items-baseline gap-2">
-          <span className="text-lg font-bold text-black dark:text-zinc-50">
-            ${Number(deal.total_price).toFixed(2)}
-          </span>
-          <span className="text-sm text-zinc-400 line-through">
-            ${Number(deal.market_price).toFixed(2)}
-          </span>
+        <div className="mt-1">
+          <div className="flex items-baseline gap-2">
+            <span className="text-lg font-bold text-black dark:text-zinc-50">
+              ${Number(deal.total_price).toFixed(2)}
+            </span>
+            <span className="text-sm text-zinc-400 line-through">
+              ${Number(deal.market_price).toFixed(2)}
+            </span>
+          </div>
+          {amountSaved > 0 && (
+            <p className="text-xs font-medium text-emerald-600 dark:text-emerald-500">
+              You save ${amountSaved.toFixed(2)}
+            </p>
+          )}
         </div>
         {isAuction && (
           <div className="-mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">
             Current bid{deal.bid_count != null ? ` · ${deal.bid_count} bids` : ""}
+            {deal.auction_end_at && ` · ${timeUntil(deal.auction_end_at)}`}
           </div>
         )}
 
-        <p className="text-[11px] text-zinc-400">Found {timeAgo(deal.first_seen_at)}</p>
+        <p className="text-[11px] text-zinc-400">
+          Found {timeAgo(deal.first_seen_at)}
+          {deal.seller_feedback_pct != null && ` · ${Number(deal.seller_feedback_pct).toFixed(1)}% seller feedback`}
+        </p>
 
         <div className="mt-auto flex flex-col gap-1.5 pt-2">
           <div className="flex gap-1.5">
@@ -102,7 +113,7 @@ export default function DealCard({ deal, rank, scoreBadge, pageName = "home" }) 
               href={`/deals/${deal.id}#price-analysis`}
               title="View price history and every graded tier"
               aria-label="View price history"
-              className="flex shrink-0 items-center justify-center rounded-lg border border-zinc-200 px-2.5 text-zinc-500 transition-colors hover:border-zinc-300 hover:text-zinc-700 dark:border-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+              className="flex shrink-0 items-center justify-center rounded-md border border-zinc-200 px-2.5 text-zinc-500 transition-colors hover:border-zinc-300 hover:text-zinc-700 dark:border-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
             >
               <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
                 <path d="M3 15.5 7.5 9l3 3.5L16.5 5" />
@@ -115,12 +126,12 @@ export default function DealCard({ deal, rank, scoreBadge, pageName = "home" }) 
               eventData={{
                 card: cardName,
                 marketplace: deal.marketplace,
-                discountPct: Math.round(deal.discount_pct * 100),
+                discountPct,
                 listingType: deal.listing_type,
                 isGraded: deal.is_graded,
                 page: pageName,
               }}
-              className="block flex-1 rounded-lg bg-black px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+              className="block flex-1 rounded-md bg-black px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
             >
               {isAuction ? "Bid Now →" : "View Deal →"}
             </AffiliateLink>

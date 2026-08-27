@@ -2,14 +2,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-
-const LINKS = [
-  { href: "/", label: "Deals" },
-  { href: "/search", label: "🔍 Search" },
-  { href: "/best-finds", label: "🔥 Today's Best Finds" },
-  { href: "#how-it-works", label: "How It Works" },
-  { href: "#faq", label: "FAQ" },
-];
+import { NAV_LINKS } from "@/lib/navLinks";
 
 // The header this button lives in uses backdrop-blur, which (per the CSS
 // spec) makes it a containing block for position:fixed descendants -
@@ -53,7 +46,7 @@ export default function NavMenu() {
                 </button>
               </div>
               <nav className="flex flex-col gap-1">
-                {LINKS.map((link) => (
+                {NAV_LINKS.map((link) => (
                   <a
                     key={link.href}
                     href={link.href}

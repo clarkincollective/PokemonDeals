@@ -1,10 +1,9 @@
-import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { MARKETPLACES } from "@/lib/ebay";
-import { fetchBestFinds } from "@/lib/deals";
+import { fetchBestFinds, fetchAuctionsEndingSoon } from "@/lib/deals";
+import { dealScore } from "@/lib/dealScore";
 import { timeAgo } from "@/lib/time";
-import Logo from "@/components/Logo";
-import NavMenu from "@/components/NavMenu";
+import SiteHeader from "@/components/SiteHeader";
 import DealCard from "@/components/DealCard";
 import BestFindsBanner from "@/components/BestFindsBanner";
 
@@ -78,6 +77,8 @@ export default async function Home({ searchParams }) {
   const country = typeof params.country === "string" ? params.country : null;
   const cardType = typeof params.type === "string" ? params.type : null; // "raw" | "graded"
   const listingType = typeof params.listing === "string" ? params.listing : null; // FIXED_PRICE | AUCTION
+  const maxPriceParam = typeof params.maxPrice === "string" ? Number(params.maxPrice) : null;
+  const maxPrice = Number.isFinite(maxPriceParam) && maxPriceParam > 0 ? maxPriceParam : null;
 
   const PAGE_SIZE = 24;
 
@@ -101,11 +102,13 @@ export default async function Home({ searchParams }) {
   if (cardType === "raw") query = query.eq("is_graded", false);
   if (cardType === "graded") query = query.eq("is_graded", true);
   if (listingType) query = query.eq("listing_type", listingType);
+  if (maxPrice) query = query.lte("total_price", maxPrice);
 
   const { data: pool, error } = await query;
-  const [{ deals: bestFindsRaw }, { deals: bestFindsGraded }] = await Promise.all([
+  const [{ deals: bestFindsRaw }, { deals: bestFindsGraded }, { deals: endingSoon }] = await Promise.all([
     fetchBestFinds({ limit: 3, graded: false }),
     fetchBestFinds({ limit: 3, graded: true }),
+    fetchAuctionsEndingSoon({ limit: 6 }),
   ]);
 
   const seenCards = new Set();
@@ -154,29 +157,38 @@ export default async function Home({ searchParams }) {
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
-      <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/90 backdrop-blur dark:border-zinc-800 dark:bg-black/90">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
-          <Link href="/">
-            <Logo size="small" />
-          </Link>
-          <NavMenu />
-        </div>
-      </div>
+      <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-6">
+        <div className="mx-auto max-w-7xl px-6 py-10">
           {/* A real, page-describing H1 - the logo above is branding, not
               a heading for this page's actual content, which is what H1
               should describe. */}
-          <h1 className="text-xl font-bold text-black dark:text-zinc-50 sm:text-2xl">
-            Live Pokémon Card Deals on eBay
+          <h1 className="max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
+            Find Pokémon Cards Below Market Price
           </h1>
-          <p className="mt-2 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
-            Below-market listings from eBay US and Australia, checked automatically around the clock
-            against real market pricing and real eBay sold-listing data - not estimates.
+          <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
+            We scan eBay listings around the clock and compare them against real market pricing and real
+            sold-listing data to uncover Pokémon cards genuinely worth buying.
           </p>
+
+          <form action="/search" className="mt-6 flex max-w-xl gap-2">
+            <input
+              type="text"
+              name="q"
+              placeholder="Search Charizard, Pikachu, Umbreon..."
+              className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            />
+            <button
+              type="submit"
+              className="whitespace-nowrap rounded-lg bg-red-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+            >
+              Search
+            </button>
+          </form>
+
           {lastRefreshed && (
-            <p className="mt-3 inline-flex items-center gap-2 text-sm text-zinc-500">
+            <p className="mt-4 inline-flex items-center gap-2 text-sm text-zinc-500">
               <span className="h-2 w-2 rounded-full bg-red-500" />
               {/* A raw "2h ago" reads as broken even when the site is
                   working fine - the deals shown are still real and active,
@@ -199,10 +211,33 @@ export default async function Home({ searchParams }) {
               in between - that was making the two sections feel jammed
               together and confusing to tell apart. */}
           <div className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
-            <FilterBar params={params} country={country} cardType={cardType} listingType={listingType} />
+            <FilterBar
+              params={params}
+              country={country}
+              cardType={cardType}
+              listingType={listingType}
+              maxPrice={maxPrice}
+            />
           </div>
         </div>
       </header>
+
+      <BestFindsBanner rawFinds={bestFindsRaw} gradedFinds={bestFindsGraded} />
+
+      {endingSoon.length > 0 && (
+        <section className="border-b border-zinc-200 dark:border-zinc-800">
+          <div className="mx-auto max-w-7xl px-6 py-8">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+              ⏰ Auctions Ending Soon
+            </h2>
+            <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              {endingSoon.map((deal) => (
+                <DealCard key={deal.id} deal={deal} scoreBadge={dealScore(deal.discount_pct)} pageName="ending_soon" />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
         <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-zinc-400">All Deals</h2>
@@ -222,12 +257,10 @@ export default async function Home({ searchParams }) {
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {deals?.map((deal) => (
-            <DealCard key={deal.id} deal={deal} />
+            <DealCard key={deal.id} deal={deal} scoreBadge={dealScore(deal.discount_pct)} />
           ))}
         </div>
       </main>
-
-      <BestFindsBanner rawFinds={bestFindsRaw} gradedFinds={bestFindsGraded} />
 
       <section id="how-it-works" className="border-t border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-12">
@@ -309,7 +342,7 @@ function TrustBadges() {
   };
 
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
+    <div className="mt-5 flex flex-wrap items-center gap-x-8 gap-y-3">
       <Badge
         icon={
           <svg {...iconProps}>
@@ -359,7 +392,7 @@ function FilterPill({ href, active, children }) {
   return (
     <a
       href={href}
-      className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+      className={`shrink-0 whitespace-nowrap rounded-md border px-3 py-1 text-xs font-medium transition-colors ${
         active
           ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
           : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
@@ -381,7 +414,7 @@ function ScrollRow({ children }) {
   );
 }
 
-function FilterBar({ params, country, cardType, listingType }) {
+function FilterBar({ params, country, cardType, listingType, maxPrice }) {
   return (
     <div className="mb-8 flex flex-col gap-4">
       <div>
@@ -416,6 +449,23 @@ function FilterBar({ params, country, cardType, listingType }) {
           </FilterPill>
           <FilterPill href={filterHref(params, "listing", "AUCTION")} active={listingType === "AUCTION"}>
             Auction
+          </FilterPill>
+        </ScrollRow>
+      </div>
+
+      <div>
+        <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+          Price
+        </span>
+        <ScrollRow>
+          <FilterPill href={filterHref(params, "maxPrice", "25")} active={maxPrice === 25}>
+            Under $25
+          </FilterPill>
+          <FilterPill href={filterHref(params, "maxPrice", "50")} active={maxPrice === 50}>
+            Under $50
+          </FilterPill>
+          <FilterPill href={filterHref(params, "maxPrice", "100")} active={maxPrice === 100}>
+            Under $100
           </FilterPill>
         </ScrollRow>
       </div>
