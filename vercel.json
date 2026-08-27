@@ -87,6 +87,10 @@
     {
       "path": "/api/sync-watchlist",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/refresh-sealed-deals",
+      "schedule": "0 6 * * *"
     }
   ]
 }

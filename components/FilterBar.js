@@ -55,6 +55,42 @@ function ScrollRow({ children }) {
   );
 }
 
+// Standalone, so pages without a raw/graded distinction (e.g.
+// /sealed-deals - a booster box has no "condition" the way a card does)
+// can still offer country filtering without pulling in Card & listing.
+export function CountryFilterRow({ params, country, basePath = "/" }) {
+  return (
+    <div>
+      <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">Country</span>
+      <ScrollRow>
+        {Object.entries(MARKETPLACES).map(([id, info]) => (
+          <FilterPill key={id} href={filterHref(params, "country", id, basePath)} active={country === id}>
+            {info.flag} {info.label}
+          </FilterPill>
+        ))}
+      </ScrollRow>
+    </div>
+  );
+}
+
+// Standalone for the same reason - "Buy It Now"/"Auction" applies to
+// sealed listings too, "Raw"/"Graded" doesn't.
+export function ListingTypeFilterRow({ params, listingType, basePath = "/" }) {
+  return (
+    <div>
+      <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">Listing</span>
+      <ScrollRow>
+        <FilterPill href={filterHref(params, "listing", "FIXED_PRICE", basePath)} active={listingType === "FIXED_PRICE"}>
+          Buy It Now
+        </FilterPill>
+        <FilterPill href={filterHref(params, "listing", "AUCTION", basePath)} active={listingType === "AUCTION"}>
+          Auction
+        </FilterPill>
+      </ScrollRow>
+    </div>
+  );
+}
+
 // Standalone, so pages that don't want the full filter set (e.g.
 // /best-finds, which already has its own raw/graded toggle) can still
 // offer the same price pills without pulling in Country/Card & listing.
@@ -86,18 +122,7 @@ export function PriceFilterRow({ params, maxPrice, minPrice, basePath = "/" }) {
 export default function FilterBar({ params, country, cardType, listingType, maxPrice, minPrice, basePath = "/" }) {
   return (
     <div className="mb-8 flex flex-col gap-4">
-      <div>
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
-          Country
-        </span>
-        <ScrollRow>
-          {Object.entries(MARKETPLACES).map(([id, info]) => (
-            <FilterPill key={id} href={filterHref(params, "country", id, basePath)} active={country === id}>
-              {info.flag} {info.label}
-            </FilterPill>
-          ))}
-        </ScrollRow>
-      </div>
+      <CountryFilterRow params={params} country={country} basePath={basePath} />
 
       <div>
         <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
