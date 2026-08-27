@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { fetchSets } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
+import SetsFilterList from "@/components/SetsFilterList";
 
 export const revalidate = 900;
 
@@ -34,20 +34,7 @@ export default async function SetsIndexPage() {
 
         {!error && sets.length === 0 && <p className="text-zinc-500">No active deals right now.</p>}
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {sets.map((s) => (
-            <Link
-              key={s.slug}
-              href={`/sets/${s.slug}`}
-              className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm transition-colors hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
-            >
-              <span className="font-medium text-black dark:text-zinc-50">{s.set}</span>
-              <span className="shrink-0 rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                {s.count}
-              </span>
-            </Link>
-          ))}
-        </div>
+        {!error && sets.length > 0 && <SetsFilterList sets={sets} />}
       </main>
 
       <footer className="border-t border-zinc-200 px-6 py-8 text-center text-xs text-zinc-500 dark:border-zinc-800">
