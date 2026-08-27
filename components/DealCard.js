@@ -97,21 +97,34 @@ export default function DealCard({ deal, rank, scoreBadge, pageName = "home" }) 
         <p className="text-[11px] text-zinc-400">Found {timeAgo(deal.first_seen_at)}</p>
 
         <div className="mt-auto flex flex-col gap-1.5 pt-2">
-          <AffiliateLink
-            href={deal.affiliate_url}
-            eventName="eBay Click"
-            eventData={{
-              card: cardName,
-              marketplace: deal.marketplace,
-              discountPct: Math.round(deal.discount_pct * 100),
-              listingType: deal.listing_type,
-              isGraded: deal.is_graded,
-              page: pageName,
-            }}
-            className="block rounded-lg bg-black px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-          >
-            {isAuction ? "Bid Now →" : "View Deal →"}
-          </AffiliateLink>
+          <div className="flex gap-1.5">
+            <a
+              href={`/deals/${deal.id}#price-analysis`}
+              title="View price history and every graded tier"
+              aria-label="View price history"
+              className="flex shrink-0 items-center justify-center rounded-lg border border-zinc-200 px-2.5 text-zinc-500 transition-colors hover:border-zinc-300 hover:text-zinc-700 dark:border-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+            >
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                <path d="M3 15.5 7.5 9l3 3.5L16.5 5" />
+                <path d="M12 5h4.5v4.5" />
+              </svg>
+            </a>
+            <AffiliateLink
+              href={deal.affiliate_url}
+              eventName="eBay Click"
+              eventData={{
+                card: cardName,
+                marketplace: deal.marketplace,
+                discountPct: Math.round(deal.discount_pct * 100),
+                listingType: deal.listing_type,
+                isGraded: deal.is_graded,
+                page: pageName,
+              }}
+              className="block flex-1 rounded-lg bg-black px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+            >
+              {isAuction ? "Bid Now →" : "View Deal →"}
+            </AffiliateLink>
+          </div>
           <AffiliateLink
             href={tcgplayerLink}
             eventName="TCGPlayer Click"

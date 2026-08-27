@@ -4,8 +4,9 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES } from "@/lib/ebay";
-import { getRawPriceHistory, getRawSoldComps, getGradedPrice } from "@/lib/pokemonPriceTracker";
+import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
+import VariantPriceGrid from "@/components/VariantPriceGrid";
 import Logo from "@/components/Logo";
 import AffiliateLink from "@/components/AffiliateLink";
 
@@ -68,20 +69,15 @@ export async function generateMetadata({ params }) {
   };
 }
 
-async function loadHistory(deal, watchlist) {
+async function loadPriceAnalysis(deal, watchlist) {
   try {
-    if (deal.is_graded) {
-      const graded = await getGradedPrice(watchlist.justtcg_tcgplayer_id, deal.grader, deal.grade);
-      return { history: graded?.history ?? [], recentSales: graded?.recentSales ?? [] };
-    }
-    const [history, comps] = await Promise.all([
-      getRawPriceHistory(watchlist.justtcg_tcgplayer_id, deal.condition ?? "Near Mint"),
-      getRawSoldComps(watchlist.justtcg_tcgplayer_id),
-    ]);
-    return { history, recentSales: comps.recentSales };
+    return await getFullPriceAnalysis(watchlist.justtcg_tcgplayer_id, {
+      primaryGrader: deal.grader,
+      primaryGrade: deal.grade,
+    });
   } catch (err) {
-    console.error("Price history lookup failed:", err.message);
-    return { history: [], recentSales: [] };
+    console.error("Price analysis lookup failed:", err.message);
+    return null;
   }
 }
 
@@ -101,7 +97,15 @@ export default async function DealDetailPage({ params }) {
     );
   }
 
-  const { history, recentSales } = await loadHistory(deal, deal.watchlist);
+  const analysis = await loadPriceAnalysis(deal, deal.watchlist);
+
+  // The chart/section for THIS specific listing's own variant - raw uses
+  // analysis.raw directly, graded finds its matching tile in
+  // analysis.graded by the key the library already computed.
+  const primaryHistory = deal.is_graded
+    ? analysis?.graded?.find((g) => g.key === analysis.primaryKey)?.history ?? []
+    : analysis?.raw?.history ?? [];
+  const recentSales = analysis?.primaryRecentSales ?? [];
 
   const cardName = deal.watchlist?.name ?? deal.title;
   const cardSet = deal.watchlist?.set;
@@ -149,7 +153,7 @@ export default async function DealDetailPage({ params }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
-      <div className="mx-auto max-w-3xl px-6 py-10">
+      <div className="mx-auto max-w-5xl px-6 py-10">
         <Link href="/" className="inline-block">
           <Logo size="small" />
         </Link>
@@ -246,9 +250,68 @@ export default async function DealDetailPage({ params }) {
             page.
           </p>
           <div className="mt-4">
-            <PriceHistoryChart points={history} />
+            <PriceHistoryChart points={primaryHistory} />
           </div>
         </div>
+
+        {analysis && (analysis.graded.length > 0 || analysis.raw.history.length > 0) && (
+          <div
+            id="price-analysis"
+            className="mt-6 scroll-mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
+          >
+            <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Every variant, side by side</h2>
+            <p className="text-xs text-zinc-400">
+              Raw and every graded tier with real recorded sales - the highlighted tile is this listing.
+            </p>
+            <div className="mt-4">
+              <VariantPriceGrid raw={analysis.raw} graded={analysis.graded} activeKey={analysis.primaryKey} />
+            </div>
+          </div>
+        )}
+
+        {analysis && (analysis.conditionBreakdown.length > 0 || analysis.salesVelocity) && (
+          <div className="mt-6 grid gap-6 sm:grid-cols-2">
+            {analysis.conditionBreakdown.length > 0 && (
+              <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Condition breakdown</h2>
+                <p className="text-xs text-zinc-400">Current raw market price by condition.</p>
+                <ul className="mt-4 flex flex-col gap-2">
+                  {analysis.conditionBreakdown.map((c) => (
+                    <li key={c.condition} className="flex items-center justify-between text-sm">
+                      <span className="text-zinc-600 dark:text-zinc-300">{c.condition}</span>
+                      <span className="font-semibold text-black dark:text-zinc-50">${Number(c.price).toFixed(2)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {analysis.salesVelocity && (
+              <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Market activity</h2>
+                <p className="text-xs text-zinc-400">Real eBay sales across all conditions and grades.</p>
+                <ul className="mt-4 flex flex-col gap-2 text-sm">
+                  <li className="flex items-center justify-between">
+                    <span className="text-zinc-600 dark:text-zinc-300">Sales in the last 30 days</span>
+                    <span className="font-semibold text-black dark:text-zinc-50">{analysis.salesVelocity.monthlyTotal}</span>
+                  </li>
+                  <li className="flex items-center justify-between">
+                    <span className="text-zinc-600 dark:text-zinc-300">Weekly average</span>
+                    <span className="font-semibold text-black dark:text-zinc-50">
+                      {analysis.salesVelocity.weeklyAverage.toFixed(1)}
+                    </span>
+                  </li>
+                  <li className="flex items-center justify-between">
+                    <span className="text-zinc-600 dark:text-zinc-300">Daily average</span>
+                    <span className="font-semibold text-black dark:text-zinc-50">
+                      {analysis.salesVelocity.dailyAverage.toFixed(2)}
+                    </span>
+                  </li>
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
 
         {recentSales.length > 0 && (
           <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
