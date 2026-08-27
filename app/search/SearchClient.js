@@ -9,7 +9,8 @@ import AffiliateLink from "@/components/AffiliateLink";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import { dealScore } from "@/lib/dealScore";
-import { MARKETPLACES } from "@/lib/ebay";
+import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebay";
+import { buildTcgplayerLink } from "@/lib/tcgplayer";
 
 const CONDITIONS = ["Near Mint", "Lightly Played", "Moderately Played", "Heavily Played", "Damaged"];
 
@@ -266,8 +267,8 @@ export default function SearchClient() {
                           </p>
                         )}
                       </button>
-                      {c.deal && (
-                        <div className="px-3 pb-3">
+                      <div className="flex flex-col gap-1.5 px-3 pb-3">
+                        {c.deal ? (
                           <AffiliateLink
                             href={c.deal.affiliateUrl}
                             eventName="eBay Click"
@@ -278,8 +279,21 @@ export default function SearchClient() {
                               ? "Bid Now →"
                               : `Buy It Now $${Number(c.deal.totalPrice).toFixed(2)} →`}
                           </AffiliateLink>
-                        </div>
-                      )}
+                        ) : (
+                          // No active below-market deal for this print -
+                          // still a real card someone might just want to
+                          // buy, so give them somewhere to go instead of a
+                          // dead end (and still earn a referral either way).
+                          <AffiliateLink
+                            href={buildEbaySearchLink(`${c.name} ${c.set ?? ""}`.trim())}
+                            eventName="eBay Click"
+                            eventData={{ card: c.name, page: "search_catalog_no_deal" }}
+                            className="block rounded-lg border border-zinc-200 px-3 py-1.5 text-center text-xs font-semibold text-zinc-700 transition-colors hover:border-zinc-300 dark:border-zinc-700 dark:text-zinc-300"
+                          >
+                            Find on eBay →
+                          </AffiliateLink>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -451,10 +465,30 @@ export default function SearchClient() {
                     Deals we&apos;ve found ({detail.deals.length})
                   </h3>
                   {detail.deals.length === 0 ? (
-                    <p className="mt-3 text-sm text-zinc-500">
-                      Nothing below market for this card matching your filters right now - check back after the next
-                      scan, or try loosening a filter above.
-                    </p>
+                    <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+                      <p className="text-sm text-zinc-500">
+                        Nothing below market for this card matching your filters right now - check back after the
+                        next scan, or try loosening a filter above. Still looking to buy it anyway?
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <AffiliateLink
+                          href={buildEbaySearchLink(`${selected.name} ${selected.set ?? ""}`.trim())}
+                          eventName="eBay Click"
+                          eventData={{ card: selected.name, page: "search_detail_no_deal" }}
+                          className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                        >
+                          Find on eBay →
+                        </AffiliateLink>
+                        <AffiliateLink
+                          href={buildTcgplayerLink(selected.name, selected.tcgplayerId)}
+                          eventName="TCGPlayer Click"
+                          eventData={{ card: selected.name, page: "search_detail_no_deal" }}
+                          className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:text-zinc-300"
+                        >
+                          Check on TCGPlayer
+                        </AffiliateLink>
+                      </div>
+                    </div>
                   ) : (
                     <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {detail.deals.map((deal) => (
