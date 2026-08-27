@@ -5,12 +5,26 @@ import SearchClient from "./SearchClient";
 // metadata itself - this thin server wrapper is what gives the page a
 // real, indexable title/description instead of silently falling back to
 // the root layout's generic metadata.
-export const metadata = {
-  title: "Search Any Card",
-  description:
-    "Search any Pokémon card for instant market pricing, real sales history, and any below-market deals we've already found for it.",
-  alternates: { canonical: "/search" },
-};
+//
+// A bare /search stays indexable (a real, useful tool page). A
+// ?q=<term> variant does not - the canonical was already pinned to the
+// bare /search, but a hint isn't a guarantee, and there's no reason to
+// let Google index and rank thousands of near-duplicate
+// /search?q=<card name> pages that would only compete with the real,
+// better-optimized /deals/[id] page for that exact card. follow: true
+// keeps link equity flowing from any indexed results page through to
+// the real deal/card pages it links to.
+export async function generateMetadata({ searchParams }) {
+  const params = await searchParams;
+  const query = typeof params.q === "string" ? params.q.trim() : "";
+  return {
+    title: "Search Any Card",
+    description:
+      "Search any Pokémon card for instant market pricing, real sales history, and any below-market deals we've already found for it.",
+    alternates: { canonical: "/search" },
+    robots: query ? { index: false, follow: true } : undefined,
+  };
+}
 
 // Reading useSearchParams() in SearchClient (for the homepage hero
 // search box's ?q= handoff) makes this route depend on request-time

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { fetchSets } from "@/lib/deals";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -42,15 +43,27 @@ export default async function sitemap() {
   const staticRoutes = [
     { url: `${SITE_URL}/`, changeFrequency: "always", priority: 1 },
     { url: `${SITE_URL}/best-finds`, changeFrequency: "hourly", priority: 0.9 },
+    { url: `${SITE_URL}/sets`, changeFrequency: "daily", priority: 0.8 },
     { url: `${SITE_URL}/japanese-cards`, changeFrequency: "hourly", priority: 0.8 },
     { url: `${SITE_URL}/sealed-deals`, changeFrequency: "hourly", priority: 0.8 },
     { url: `${SITE_URL}/search`, changeFrequency: "monthly", priority: 0.7 },
   ];
 
-  const [deals, sealedDeals] = await Promise.all([
+  const [deals, sealedDeals, { sets }] = await Promise.all([
     fetchActiveDealIds(MAX_DEAL_URLS),
     fetchActiveDealIds(MAX_DEAL_URLS, "sealed_deals"),
+    fetchSets({ language: "english" }),
   ]);
+
+  // Real /sets/[slug] category pages - one per set with an active deal
+  // right now (see app/sets/[slug]/page.js). A set with zero current
+  // deals simply doesn't get a sitemap entry rather than listing an
+  // empty page - it'll reappear here as soon as a real deal exists.
+  const setRoutes = sets.map((s) => ({
+    url: `${SITE_URL}/sets/${s.slug}`,
+    changeFrequency: "daily",
+    priority: 0.7,
+  }));
 
   const dealRoutes = deals.map((deal) => ({
     url: `${SITE_URL}/deals/${deal.id}`,
@@ -66,5 +79,5 @@ export default async function sitemap() {
     priority: 0.5,
   }));
 
-  return [...staticRoutes, ...dealRoutes, ...sealedDealRoutes];
+  return [...staticRoutes, ...setRoutes, ...dealRoutes, ...sealedDealRoutes];
 }

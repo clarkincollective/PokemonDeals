@@ -7,6 +7,8 @@ import BestFindsBanner from "@/components/BestFindsBanner";
 import FilterBar from "@/components/FilterBar";
 import Pagination, { pageHref } from "@/components/Pagination";
 
+const SITE_URL = "https://pokemondealfinder.com";
+
 // Re-check for new deals at most once a minute, so the page reflects the
 // latest scan quickly without hitting the database on every single visit.
 export const revalidate = 60;
@@ -169,9 +171,47 @@ export default async function Home({ searchParams }) {
     })),
   };
 
+  // Site-wide identity, not per-page content - only emitted on page 1 (the
+  // real canonical homepage), not every paginated variant. SearchAction's
+  // target is real, existing behavior: the search form right below on
+  // this same page already posts to /search?q=... (see its action="
+  // /search" below) - this doesn't add any new capability, just describes
+  // the one that's already there so Google can offer a sitelinks search
+  // box. No `logo` field: the only raster image on the site is the
+  // 1200x630 landscape OG image, and Google's Logo guidance wants
+  // something closer to square - asserting the wrong shape is worse than
+  // omitting the field.
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Pokémon Deal Finder",
+    url: SITE_URL,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${SITE_URL}/search?q={search_term_string}`,
+      "query-input": "required name=search_term_string",
+    },
+  };
+
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Pokémon Deal Finder",
+    url: SITE_URL,
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      {page === 1 && (
+        <>
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+          />
+        </>
+      )}
       <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
