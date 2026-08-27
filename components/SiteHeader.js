@@ -22,7 +22,11 @@ export default function SiteHeader() {
             <a
               key={link.href}
               href={link.href}
-              className="text-sm font-medium text-zinc-600 transition-colors hover:text-red-600 dark:text-zinc-300 dark:hover:text-red-500"
+              className={
+                link.emphasis
+                  ? "text-sm font-bold text-red-600 transition-colors hover:text-red-700 dark:text-red-500 dark:hover:text-red-400"
+                  : "text-sm font-medium text-zinc-600 transition-colors hover:text-red-600 dark:text-zinc-300 dark:hover:text-red-500"
+              }
             >
               {link.label}
             </a>

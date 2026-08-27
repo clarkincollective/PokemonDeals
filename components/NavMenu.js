@@ -51,7 +51,11 @@ export default function NavMenu() {
                     key={link.href}
                     href={link.href}
                     onClick={() => setOpen(false)}
-                    className="rounded-lg px-3 py-2.5 text-base font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                    className={
+                      link.emphasis
+                        ? "rounded-lg px-3 py-2.5 text-base font-bold text-red-600 hover:bg-zinc-100 dark:text-red-500 dark:hover:bg-zinc-900"
+                        : "rounded-lg px-3 py-2.5 text-base font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                    }
                   >
                     {link.label}
                   </a>
