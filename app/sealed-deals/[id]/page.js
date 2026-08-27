@@ -95,12 +95,17 @@ export default async function SealedDealDetailPage({ params }) {
     }
   }
 
+  // brand/shippingDetails are real data (see app/deals/[id]/page.js's
+  // identical reasoning) - deliberately no hasMerchantReturnPolicy, since
+  // the real return policy is set by whichever eBay seller has the
+  // listing and varies per one.
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: `${productName}${productSet ? ` - ${productSet}` : ""}`,
     image: deal.image_url ?? undefined,
     description: deal.title,
+    brand: { "@type": "Brand", name: "Pokémon" },
     offers: {
       "@type": "Offer",
       url: deal.listing_url,
@@ -108,6 +113,18 @@ export default async function SealedDealDetailPage({ params }) {
       price: Number(deal.total_price).toFixed(2),
       availability: deal.is_active ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/NewCondition",
+      shippingDetails: {
+        "@type": "OfferShippingDetails",
+        shippingRate: {
+          "@type": "MonetaryAmount",
+          value: Number(deal.shipping ?? 0).toFixed(2),
+          currency: marketInfo?.currency ?? "USD",
+        },
+        shippingDestination: {
+          "@type": "DefinedRegion",
+          addressCountry: deal.marketplace?.replace("EBAY_", "") ?? "US",
+        },
+      },
     },
   };
 
