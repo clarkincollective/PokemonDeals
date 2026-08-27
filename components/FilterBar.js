@@ -1,4 +1,5 @@
 import { MARKETPLACES } from "@/lib/ebay";
+import FilterToggle from "@/components/FilterToggle";
 
 // Builds a link that changes one filter while keeping the others intact,
 // or removes it entirely if the same value is clicked again (toggle).
@@ -120,37 +121,43 @@ export function PriceFilterRow({ params, maxPrice, minPrice, basePath = "/" }) {
 }
 
 export default function FilterBar({ params, country, cardType, listingType, maxPrice, minPrice, basePath = "/" }) {
+  const activeCount = [country, cardType, listingType, maxPrice, minPrice].filter((v) => v != null).length;
+
   return (
-    <div className="mb-8 flex flex-col gap-4">
-      <CountryFilterRow params={params} country={country} basePath={basePath} />
+    <div className="mb-8">
+      <FilterToggle defaultOpen={activeCount > 0} activeCount={activeCount}>
+        <div className="flex flex-col gap-4">
+          <CountryFilterRow params={params} country={country} basePath={basePath} />
 
-      <div>
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
-          Card &amp; listing
-        </span>
-        <ScrollRow>
-          <FilterPill href={filterHref(params, "type", "raw", basePath)} active={cardType === "raw"}>
-            Raw
-          </FilterPill>
-          <FilterPill href={filterHref(params, "type", "graded", basePath)} active={cardType === "graded"}>
-            Graded
-          </FilterPill>
-          <FilterPill
-            href={filterHref(params, "listing", "FIXED_PRICE", basePath)}
-            active={listingType === "FIXED_PRICE"}
-          >
-            Buy It Now
-          </FilterPill>
-          <FilterPill
-            href={filterHref(params, "listing", "AUCTION", basePath)}
-            active={listingType === "AUCTION"}
-          >
-            Auction
-          </FilterPill>
-        </ScrollRow>
-      </div>
+          <div>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+              Card &amp; listing
+            </span>
+            <ScrollRow>
+              <FilterPill href={filterHref(params, "type", "raw", basePath)} active={cardType === "raw"}>
+                Raw
+              </FilterPill>
+              <FilterPill href={filterHref(params, "type", "graded", basePath)} active={cardType === "graded"}>
+                Graded
+              </FilterPill>
+              <FilterPill
+                href={filterHref(params, "listing", "FIXED_PRICE", basePath)}
+                active={listingType === "FIXED_PRICE"}
+              >
+                Buy It Now
+              </FilterPill>
+              <FilterPill
+                href={filterHref(params, "listing", "AUCTION", basePath)}
+                active={listingType === "AUCTION"}
+              >
+                Auction
+              </FilterPill>
+            </ScrollRow>
+          </div>
 
-      <PriceFilterRow params={params} maxPrice={maxPrice} minPrice={minPrice} basePath={basePath} />
+          <PriceFilterRow params={params} maxPrice={maxPrice} minPrice={minPrice} basePath={basePath} />
+        </div>
+      </FilterToggle>
     </div>
   );
 }

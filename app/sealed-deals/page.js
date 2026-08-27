@@ -4,6 +4,7 @@ import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
 import SealedDealCard from "@/components/SealedDealCard";
 import { CountryFilterRow, ListingTypeFilterRow, PriceFilterRow } from "@/components/FilterBar";
+import FilterToggle from "@/components/FilterToggle";
 import Pagination, { pageHref } from "@/components/Pagination";
 
 export const revalidate = 60;
@@ -102,10 +103,17 @@ export default async function SealedDealsPage({ searchParams }) {
             </p>
           )}
 
-          <div className="mt-8 flex flex-col gap-4 border-t border-zinc-200 pt-6 dark:border-zinc-800">
-            <CountryFilterRow params={params} country={country} basePath="/sealed-deals" />
-            <ListingTypeFilterRow params={params} listingType={listingType} basePath="/sealed-deals" />
-            <PriceFilterRow params={params} maxPrice={maxPrice} minPrice={minPrice} basePath="/sealed-deals" />
+          <div className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+            <FilterToggle
+              defaultOpen={[country, listingType, maxPrice, minPrice].filter((v) => v != null).length > 0}
+              activeCount={[country, listingType, maxPrice, minPrice].filter((v) => v != null).length}
+            >
+              <div className="flex flex-col gap-4">
+                <CountryFilterRow params={params} country={country} basePath="/sealed-deals" />
+                <ListingTypeFilterRow params={params} listingType={listingType} basePath="/sealed-deals" />
+                <PriceFilterRow params={params} maxPrice={maxPrice} minPrice={minPrice} basePath="/sealed-deals" />
+              </div>
+            </FilterToggle>
           </div>
         </div>
       </header>

@@ -59,6 +59,9 @@ export default async function SetDetailPage({ params, searchParams }) {
     maxPrice,
     minPrice,
     page,
+    // 20, not the other list pages' 24 - requested specifically for set
+    // pages.
+    pageSize: 20,
   });
 
   const basePath = `/sets/${slug}`;
@@ -69,11 +72,14 @@ export default async function SetDetailPage({ params, searchParams }) {
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-10">
+          {/* A real, visible button rather than a small muted text link -
+              this is the way back to pick the next set to browse, so it
+              needs to be easy to spot, not just technically present. */}
           <Link
             href="/sets"
-            className="block text-sm font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
           >
-            ← All sets
+            ← Back to Sets
           </Link>
           <h1 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
             {resolved.set} Deals
@@ -118,6 +124,15 @@ export default async function SetDetailPage({ params, searchParams }) {
         </div>
 
         <Pagination page={page} totalPages={totalPages} params={sp} basePath={basePath} />
+
+        <div className="mt-8 flex justify-center">
+          <Link
+            href="/sets"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+          >
+            ← Back to Sets
+          </Link>
+        </div>
       </main>
 
       <footer className="border-t border-zinc-200 px-6 py-8 text-center text-xs text-zinc-500 dark:border-zinc-800">
