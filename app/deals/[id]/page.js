@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { findCardHubByWatchlistId } from "@/lib/deals";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebay";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
@@ -153,7 +154,18 @@ export default async function DealDetailPage({ params }) {
     );
   }
 
-  const analysis = await loadPriceAnalysis(deal, deal.watchlist);
+  // cardHub is only non-null when 2+ listings of this exact card are
+  // simultaneously active (see lib/deals.js's fetchCardHubs) - a real,
+  // live duplicate-content problem this session's SEO audit found: 69%
+  // of watched cards with an active deal have 2+ listings at once, each
+  // one otherwise a near-identical page competing with the others for
+  // the same search. Linking every one of them to the one consolidated
+  // hub page is what actually fixes that (not just the hub page
+  // existing on its own, unlinked).
+  const [analysis, cardHub] = await Promise.all([
+    loadPriceAnalysis(deal, deal.watchlist),
+    deal.watchlist_id ? findCardHubByWatchlistId(deal.watchlist_id) : Promise.resolve(null),
+  ]);
 
   // The chart/section for THIS specific listing's own variant - raw uses
   // analysis.raw directly, graded finds its matching tile in
@@ -213,12 +225,24 @@ export default async function DealDetailPage({ params }) {
     },
   };
 
+  // Real 3-level breadcrumb (Deals > this card's hub > this listing) when
+  // a hub exists - matches the real "View 12 active listings" link above
+  // and gives Google the same hierarchy the visible page shows, instead
+  // of a flat 2-level one that hides the hub relationship entirely.
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Deals", item: "https://pokemondealfinder.com/" },
-      { "@type": "ListItem", position: 2, name: cardName, item: `https://pokemondealfinder.com/deals/${deal.id}` },
+      ...(cardHub
+        ? [{ "@type": "ListItem", position: 2, name: cardName, item: `https://pokemondealfinder.com/cards/${cardHub.slug}` }]
+        : []),
+      {
+        "@type": "ListItem",
+        position: cardHub ? 3 : 2,
+        name: cardHub ? "This listing" : cardName,
+        item: `https://pokemondealfinder.com/deals/${deal.id}`,
+      },
     ],
   };
 
@@ -289,6 +313,15 @@ export default async function DealDetailPage({ params }) {
             </h1>
             {cardSet && <p className="text-zinc-500">{cardSet}</p>}
             <p className="mt-1 line-clamp-2 text-sm text-zinc-400">{deal.title}</p>
+
+            {cardHub && (
+              <Link
+                href={`/cards/${cardHub.slug}`}
+                className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:underline dark:text-red-500"
+              >
+                {cardHub.count} active listings found - compare prices →
+              </Link>
+            )}
 
             <div className="mt-4">
               <div className="flex items-baseline gap-3">

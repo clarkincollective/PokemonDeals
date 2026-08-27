@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
-import { fetchSets } from "@/lib/deals";
+import { fetchSets, fetchCardHubs } from "@/lib/deals";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -49,10 +49,11 @@ export default async function sitemap() {
     { url: `${SITE_URL}/search`, changeFrequency: "monthly", priority: 0.7 },
   ];
 
-  const [deals, sealedDeals, { sets }] = await Promise.all([
+  const [deals, sealedDeals, { sets }, { hubs }] = await Promise.all([
     fetchActiveDealIds(MAX_DEAL_URLS),
     fetchActiveDealIds(MAX_DEAL_URLS, "sealed_deals"),
     fetchSets({ language: "english" }),
+    fetchCardHubs({ language: "english" }),
   ]);
 
   // Real /sets/[slug] category pages - one per set with an active deal
@@ -63,6 +64,18 @@ export default async function sitemap() {
     url: `${SITE_URL}/sets/${s.slug}`,
     changeFrequency: "daily",
     priority: 0.7,
+  }));
+
+  // Real /cards/[slug] hub pages - one per exact print with 2+
+  // simultaneous active listings (see lib/deals.js's fetchCardHubs for
+  // why). Higher priority than set pages: these are the pages meant to
+  // consolidate ranking signal that was previously split across several
+  // near-duplicate /deals/[id] pages, so they're the strongest,
+  // highest-intent new page type from this pass.
+  const cardHubRoutes = hubs.map((h) => ({
+    url: `${SITE_URL}/cards/${h.slug}`,
+    changeFrequency: "hourly",
+    priority: 0.75,
   }));
 
   const dealRoutes = deals.map((deal) => ({
@@ -79,5 +92,5 @@ export default async function sitemap() {
     priority: 0.5,
   }));
 
-  return [...staticRoutes, ...setRoutes, ...dealRoutes, ...sealedDealRoutes];
+  return [...staticRoutes, ...setRoutes, ...cardHubRoutes, ...dealRoutes, ...sealedDealRoutes];
 }
