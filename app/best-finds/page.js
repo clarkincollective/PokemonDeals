@@ -7,10 +7,17 @@ import { filterHref, PriceFilterRow } from "@/components/FilterBar";
 
 export const revalidate = 60;
 
+const TITLE = "Today's Best Finds";
+const DESCRIPTION = "The biggest real discounts on higher-value Pokémon cards, found on eBay right now.";
+
+// See app/sets/page.js's identical fix - was falling back to the root
+// layout's generic preview when shared.
 export const metadata = {
-  title: "Today's Best Finds",
-  description: "The biggest real discounts on higher-value Pokémon cards, found on eBay right now.",
+  title: TITLE,
+  description: DESCRIPTION,
   alternates: { canonical: "/best-finds" },
+  openGraph: { title: TITLE, description: DESCRIPTION, url: "https://pokemondealfinder.com/best-finds" },
+  twitter: { card: "summary", title: TITLE, description: DESCRIPTION },
 };
 
 // A single bordered track with two tabs inside, rather than two separate

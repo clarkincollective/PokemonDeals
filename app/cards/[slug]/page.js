@@ -55,10 +55,35 @@ export async function generateMetadata({ params }) {
   const hub = await resolveCardSlug(slug);
   if (!hub) return { title: "Card not found", robots: { index: false, follow: true } };
 
+  // Real gap found live: without an explicit openGraph/twitter block,
+  // Next falls back to the root layout's generic site-wide preview
+  // (title "Pokémon Deal Finder", generic description, generic image,
+  // og:url pointing at the bare homepage) for every single card hub -
+  // meaning sharing a specific card's link in Discord/Reddit/etc showed
+  // no sign it was that card at all. fetchCardOffers is already
+  // unstable_cache'd, so calling it again here just reuses that same
+  // cached result rather than costing a second real query.
+  const { deals: offers } = await fetchCardOffers(hub.id);
+  const image = offers[0]?.image_url;
+  const title = `${hub.name} (${hub.set}) - Compare ${hub.count} Deals`;
+  const description = `${hub.count} active ${hub.name} (${hub.set}) listings on eBay right now, compared side by side against real market pricing - cheapest first.`;
+
   return {
-    title: `${hub.name} (${hub.set}) - Compare ${hub.count} Deals`,
-    description: `${hub.count} active ${hub.name} (${hub.set}) listings on eBay right now, compared side by side against real market pricing - cheapest first.`,
+    title,
+    description,
     alternates: { canonical: `/cards/${slug}` },
+    openGraph: {
+      title,
+      description,
+      url: `${SITE_URL}/cards/${slug}`,
+      images: image ? [image] : undefined,
+    },
+    twitter: {
+      card: image ? "summary_large_image" : "summary",
+      title,
+      description,
+      images: image ? [image] : undefined,
+    },
   };
 }
 

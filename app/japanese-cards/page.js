@@ -15,11 +15,19 @@ export async function generateMetadata({ searchParams }) {
   const params = await searchParams;
   const pageParam = typeof params.page === "string" ? Number(params.page) : 1;
   const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
+  const title = page > 1 ? `Japanese Pokémon Cards - Page ${page}` : "Japanese Pokémon Cards";
+  const description =
+    "Real Japanese-print Pokémon card deals on eBay, priced against real Japanese-catalog market data - not converted from English pricing.";
+  const canonical = page > 1 ? `/japanese-cards?page=${page}` : "/japanese-cards";
+
+  // See app/sets/page.js's identical fix - was falling back to the root
+  // layout's generic preview when shared.
   return {
-    title: page > 1 ? `Japanese Pokémon Cards - Page ${page}` : "Japanese Pokémon Cards",
-    description:
-      "Real Japanese-print Pokémon card deals on eBay, priced against real Japanese-catalog market data - not converted from English pricing.",
-    alternates: { canonical: page > 1 ? `/japanese-cards?page=${page}` : "/japanese-cards" },
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: { title, description, url: `https://pokemondealfinder.com${canonical}` },
+    twitter: { card: "summary", title, description },
   };
 }
 

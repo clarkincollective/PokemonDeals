@@ -7,6 +7,8 @@ import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
 import Pagination from "@/components/Pagination";
 
+const SITE_URL = "https://pokemondealfinder.com";
+
 export const revalidate = 900;
 
 // Real category page targeting "<set name> deals" search intent, which
@@ -24,11 +26,40 @@ export async function generateMetadata({ params, searchParams }) {
   const pageParam = typeof sp.page === "string" ? Number(sp.page) : 1;
   const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
   const title = page > 1 ? `${resolved.set} Card Deals - Page ${page}` : `${resolved.set} Card Deals`;
+  const description = `Real below-market ${resolved.set} Pokémon card deals on eBay, checked against real market pricing - ${resolved.count} active right now.`;
+  const canonical = page > 1 ? `/sets/${slug}?page=${page}` : `/sets/${slug}`;
+
+  // Real gap found live: without this, every set page fell back to the
+  // root layout's generic site-wide preview when shared (wrong title,
+  // wrong image, og:url pointing at the bare homepage) - same issue
+  // fixed on /cards/[slug]. One cheap extra row (pageSize: 1) for a
+  // representative image - a real listing from this set, not a
+  // fabricated one.
+  const { deals: sample } = await fetchDealsPage({
+    table: "deals",
+    language: "english",
+    set: resolved.set,
+    page: 1,
+    pageSize: 1,
+  });
+  const image = sample[0]?.image_url;
 
   return {
     title,
-    description: `Real below-market ${resolved.set} Pokémon card deals on eBay, checked against real market pricing - ${resolved.count} active right now.`,
-    alternates: { canonical: page > 1 ? `/sets/${slug}?page=${page}` : `/sets/${slug}` },
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title,
+      description,
+      url: `${SITE_URL}${canonical}`,
+      images: image ? [image] : undefined,
+    },
+    twitter: {
+      card: image ? "summary_large_image" : "summary",
+      title,
+      description,
+      images: image ? [image] : undefined,
+    },
   };
 }
 

@@ -4,10 +4,21 @@ import SetsFilterList from "@/components/SetsFilterList";
 
 export const revalidate = 900;
 
+const TITLE = "Browse by Set";
+const DESCRIPTION =
+  "Every Pokémon TCG set with an active below-market deal on eBay right now, browsable one set at a time.";
+
+// Real gap found live: without an explicit openGraph/twitter block, this
+// page (and japanese-cards/sealed-deals/best-finds - same fix applied to
+// each) fell back to the root layout's generic site-wide preview when
+// shared, even though its own <title>/description were already correct -
+// only the social-share layer hadn't been updated to match.
 export const metadata = {
-  title: "Browse by Set",
-  description: "Every Pokémon TCG set with an active below-market deal on eBay right now, browsable one set at a time.",
+  title: TITLE,
+  description: DESCRIPTION,
   alternates: { canonical: "/sets" },
+  openGraph: { title: TITLE, description: DESCRIPTION, url: "https://pokemondealfinder.com/sets" },
+  twitter: { card: "summary", title: TITLE, description: DESCRIPTION },
 };
 
 export default async function SetsIndexPage() {
