@@ -19,16 +19,22 @@ const CONCURRENCY = 8;
 // show up more often, not just the rarer bigger discounts.
 const DISCOUNT_THRESHOLD = 0.1;
 
-// The extended tier now covers ~5,000 cards ($15+, per the pokedealfinder.uk
-// competitive check) - too many to scan in one country in one day.
+// The extended tier now covers ~8,500 cards ($15+: ~5,100 English per the
+// pokedealfinder.uk competitive check, plus ~3,500 Japanese once that
+// catalog was added) - too many to scan in one country in one day.
 // Splitting it into EXTENDED_CHUNKS stable pieces, one scanned per
 // country-day, keeps genuine coverage of the whole tier in every country
 // without busting eBay's ~5,000/day cap - sweep mode (see runSweep below)
 // now handles fast new-deal discovery cheaply, so this budget only needs
-// to cover confirming/expiring existing deals, not speed. Hash-based on
+// to cover confirming/expiring existing deals, not speed. Bumped from 2
+// to 3 when the catalog grew ~70% (Japanese addition) - at 2 chunks, a
+// day running an extended-tier chunk alongside sweep+priority's own daily
+// volume was pushing past the 5,000/day cap; 3 keeps real headroom, at
+// the cost of a slightly slower full-rotation cadence (~15 days instead
+// of ~10 - see vercel.json's now-15 extended cron entries). Hash-based on
 // watchlist id rather than a stored column - deterministic and needs no
 // migration; a card's chunk only changes if its id changes.
-const EXTENDED_CHUNKS = 2;
+const EXTENDED_CHUNKS = 3;
 
 function chunkOf(row, totalChunks) {
   let hash = 0;
