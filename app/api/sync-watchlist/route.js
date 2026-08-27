@@ -62,12 +62,26 @@ async function chunkedUpsert(db, rows) {
 // English auto row as "not in this run" and retire the entire English
 // catalog.
 async function retireStaleAutoRows(db, seenKeys, language) {
-  const { data: autoRows } = await db
-    .from("watchlist")
-    .select("id, name, set")
-    .eq("source", "auto")
-    .eq("language", language);
-  const staleIds = (autoRows ?? [])
+  // Paginated - Supabase/PostgREST silently caps an unranged request at
+  // 1,000 rows, and the English auto catalog alone is ~5,000+ rows (found
+  // via a live audit - the same class of bug that was limiting
+  // refresh-deals' watchlist queries to ~1,000 of ~8,500 real rows).
+  // Without this, only the first 1,000 auto rows would ever be checked
+  // for staleness - real stale rows past that point would just never get
+  // retired.
+  let autoRows = [];
+  for (let from = 0; ; from += 1000) {
+    const { data } = await db
+      .from("watchlist")
+      .select("id, name, set")
+      .eq("source", "auto")
+      .eq("language", language)
+      .range(from, from + 999);
+    if (!data || data.length === 0) break;
+    autoRows = autoRows.concat(data);
+    if (data.length < 1000) break;
+  }
+  const staleIds = autoRows
     .filter((row) => !seenKeys.has(`${row.name}|${row.set}`))
     .map((row) => row.id);
 

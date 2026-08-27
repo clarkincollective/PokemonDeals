@@ -43,6 +43,31 @@ const DISCOUNT_THRESHOLD = 0.1;
 // migration; a card's chunk only changes if its id changes.
 const EXTENDED_CHUNKS = 3;
 
+// Supabase/PostgREST silently caps any single request at 1,000 rows
+// regardless of no explicit .limit() being set - a real, significant bug
+// found via a live "deep crawl" check: both the extended-tier query and
+// sweep mode's watchlist query below had no .range() pagination, so they
+// were silently only ever seeing the first 1,000 of 8,556 active
+// watchlist rows (verified live) - sweep mode (the fast, every-15-min
+// discovery path) had ~12% real coverage of the watchlist, not the ~100%
+// it was designed for; the extended tier's chunking was splitting that
+// same wrong 1,000-row subset three ways instead of the real ~8,500.
+// Same paginate-with-.range() pattern already used in app/sitemap.js -
+// buildQuery is called fresh each page (a Supabase query builder isn't
+// safe to re-range() and re-await after it's already been sent once).
+async function fetchAllRows(buildQuery) {
+  const PAGE_SIZE = 1000;
+  const all = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await buildQuery().range(from, from + PAGE_SIZE - 1);
+    if (error) return { data: null, error };
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < PAGE_SIZE) break;
+  }
+  return { data: all, error: null };
+}
+
 function chunkOf(row, totalChunks) {
   let hash = 0;
   const key = String(row.id);
@@ -368,7 +393,9 @@ export async function GET(request) {
         : "EBAY_US";
     const pages = Number(url.searchParams.get("pages")) || 5;
 
-    const { data: allActiveRows, error: activeError } = await db.from("watchlist").select("*").eq("active", true);
+    const { data: allActiveRows, error: activeError } = await fetchAllRows(() =>
+      db.from("watchlist").select("*").eq("active", true)
+    );
     if (activeError) return Response.json({ error: activeError.message }, { status: 500 });
 
     const result = await runSweep(marketplaceId, allActiveRows ?? [], db, discountThreshold, pages);
@@ -387,10 +414,11 @@ export async function GET(request) {
   // overrides everything else.
   const countriesParam = url.searchParams.get("countries");
 
-  let watchlistQuery = db.from("watchlist").select("*").eq("active", true);
-  if (tier) watchlistQuery = watchlistQuery.eq("tier", tier);
-
-  const { data: watchlistRowsRaw, error: watchlistError } = await watchlistQuery;
+  const { data: watchlistRowsRaw, error: watchlistError } = await fetchAllRows(() => {
+    let q = db.from("watchlist").select("*").eq("active", true);
+    if (tier) q = q.eq("tier", tier);
+    return q;
+  });
   const watchlistRows = chunk
     ? (watchlistRowsRaw ?? []).filter((row) => chunkOf(row, EXTENDED_CHUNKS) === chunk)
     : watchlistRowsRaw;
