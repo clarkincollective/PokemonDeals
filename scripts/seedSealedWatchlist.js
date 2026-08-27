@@ -39,6 +39,21 @@ const STARTER_SEALED_WATCHLIST = [
   "Lost Origin Booster Box",
   "Brilliant Stars Booster Box",
   "Fusion Strike Booster Box",
+  "Vivid Voltage Booster Box",
+  "Darkness Ablaze Booster Box",
+  "Rebel Clash Booster Box",
+  "Sword & Shield Booster Box",
+  "Chilling Reign Booster Box",
+  "Battle Styles Booster Box",
+  // Very high-demand chase-card sets (consistently trade well above
+  // typical booster box value)
+  "Hidden Fates Booster Box",
+  "Champion's Path Booster Box",
+  "Shining Fates Booster Box",
+  "Celebrations Booster Box",
+  // Newest sets
+  "Black Bolt Booster Box",
+  "White Flare Booster Box",
   // Elite Trainer Boxes
   "Scarlet & Violet Elite Trainer Box",
   "Obsidian Flames Elite Trainer Box",
@@ -51,10 +66,22 @@ const STARTER_SEALED_WATCHLIST = [
   "Stellar Crown Elite Trainer Box",
   "Surging Sparks Elite Trainer Box",
   "Prismatic Evolutions Elite Trainer Box",
+  "Journey Together Elite Trainer Box",
+  "Destined Rivals Elite Trainer Box",
   "Evolving Skies Elite Trainer Box",
   "Crown Zenith Elite Trainer Box",
   "Brilliant Stars Elite Trainer Box",
   "Fusion Strike Elite Trainer Box",
+  "Vivid Voltage Elite Trainer Box",
+  "Darkness Ablaze Elite Trainer Box",
+  "Chilling Reign Elite Trainer Box",
+  "Battle Styles Elite Trainer Box",
+  "Hidden Fates Elite Trainer Box",
+  "Champion's Path Elite Trainer Box",
+  "Shining Fates Elite Trainer Box",
+  "Celebrations Elite Trainer Box",
+  "Black Bolt Elite Trainer Box",
+  "White Flare Elite Trainer Box",
 ];
 
 // Words that show up as unwanted "surprise" variants if they weren't
