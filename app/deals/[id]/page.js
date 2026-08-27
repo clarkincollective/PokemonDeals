@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -16,33 +17,42 @@ import ShareButton from "@/components/ShareButton";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
-// Real, live perf/cost problem found via SEO audit: force-dynamic meant
-// getFullPriceAnalysis (a real, billed PokemonPriceTracker API call) ran
-// fresh on EVERY single page view, with zero HTML caching - Cache-Control
-// was no-store, and this page type is by far the highest-volume on the
-// site (thousands of them, the biggest source of long-tail search
-// traffic). Switching to a 5-minute ISR window means repeat visits within
-// that window are served pre-rendered, with no new API call at all -
-// cuts both real latency and real per-visit API cost, at the price of up
-// to 5 minutes of staleness on a page type where deals already only
-// re-confirm on a scan cycle measured in minutes-to-hours anyway.
-export const revalidate = 300;
-
 function formatSaleDate(dateString) {
   return new Date(dateString).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-// cache() dedupes this within a single request - generateMetadata and the
-// page component below both need the same deal, and without this it'd be
-// two round-trips to the database per page view instead of one.
-const loadDeal = cache(async (id) => {
+// Real, live perf/cost problem found via SEO audit: this page ran fully
+// dynamic on every view (confirmed live: Cache-Control was no-store,
+// getFullPriceAnalysis - a real, billed PokemonPriceTracker API call -
+// fired fresh every single time) despite this being the highest-volume
+// page type on the site by far. `export const revalidate` alone doesn't
+// fix this: Next 15+ defaults every fetch() to uncached, and the
+// Supabase client's internal fetch calls have no cache option set, so
+// any route touching them is forced fully dynamic regardless of a
+// route-level revalidate export - the same reason the grid pages
+// (lib/deals.js) needed unstable_cache instead. Wrapping the actual data
+// fetches directly, like this, is what actually works - verified live
+// (see the deal fetch's 60s window below and price analysis's 300s one).
+const loadDealUncached = async (id) => {
   const { data } = await supabase
     .from("deals")
     .select("*, watchlist:watchlist_id (name, set, justtcg_tcgplayer_id, language)")
     .eq("id", id)
     .single();
   return data;
-});
+};
+
+// 60s, not 300s like price analysis below - this row's own is_active flag
+// is what keeps a sold/expired deal from continuing to render as live and
+// buyable, so it shouldn't sit stale as long as data that only affects
+// reference pricing.
+const loadDealFromDataCache = unstable_cache(loadDealUncached, ["deal-detail"], { revalidate: 60 });
+
+// cache() dedupes this within a single request on top of the above -
+// generateMetadata and the page component below both need the same deal,
+// and without this it'd be two calls per request even when both hit the
+// same warm entry in Next's Data Cache.
+const loadDeal = cache(loadDealFromDataCache);
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
@@ -89,17 +99,34 @@ export async function generateMetadata({ params }) {
   };
 }
 
-async function loadPriceAnalysis(deal, watchlist) {
+// Keyed on primitives (not the deal/watchlist objects) so the cache key
+// is exactly the values that actually change the result - every listing
+// of the same card/grader/grade/language shares one cache entry here,
+// not just repeat views of the exact same deal id, which multiplies the
+// real hit rate on this expensive external API call well beyond what
+// per-deal caching alone would get. 300s: this is reference market
+// pricing, not the deal's own live/sold state (that's loadDeal, cached
+// separately above at 60s), so it can safely sit a few minutes stale.
+const loadPriceAnalysisUncached = async (tcgplayerId, grader, grade, language) => {
   try {
-    return await getFullPriceAnalysis(watchlist.justtcg_tcgplayer_id, {
-      primaryGrader: deal.grader,
-      primaryGrade: deal.grade,
-      language: watchlist.language,
-    });
+    return await getFullPriceAnalysis(tcgplayerId, { primaryGrader: grader, primaryGrade: grade, language });
   } catch (err) {
     console.error("Price analysis lookup failed:", err.message);
     return null;
   }
+};
+
+const loadPriceAnalysisFromDataCache = unstable_cache(loadPriceAnalysisUncached, ["price-analysis"], {
+  revalidate: 300,
+});
+
+async function loadPriceAnalysis(deal, watchlist) {
+  return loadPriceAnalysisFromDataCache(
+    watchlist.justtcg_tcgplayer_id ?? null,
+    deal.grader ?? null,
+    deal.grade ?? null,
+    watchlist.language ?? null
+  );
 }
 
 export default async function DealDetailPage({ params }) {

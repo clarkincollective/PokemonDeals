@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -16,18 +17,43 @@ import ShareButton from "@/components/ShareButton";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
-// See app/deals/[id]/page.js's identical reasoning - was force-dynamic
-// with zero HTML caching (Cache-Control: no-store), the single biggest
-// perf/cost issue found in an SEO audit. 5-minute ISR window instead.
-export const revalidate = 300;
-
-const loadDeal = cache(async (id) => {
+// See app/deals/[id]/page.js's identical reasoning - export const
+// revalidate alone doesn't cache this route, since Next 15+ defaults
+// every fetch() to uncached and the Supabase client's internal fetch
+// calls carry no cache option, forcing the whole route dynamic
+// regardless. Wrapping the actual data fetch in unstable_cache is what
+// verified live to actually work. 60s (not price history's 300s below):
+// this row's own is_active flag is what keeps a sold/expired deal from
+// rendering as live and buyable, so it shouldn't sit stale as long.
+const loadDealUncached = async (id) => {
   const { data } = await supabase
     .from("sealed_deals")
     .select("*, sealed_watchlist:sealed_watchlist_id (name, set, tcgplayer_id)")
     .eq("id", id)
     .single();
   return data;
+};
+
+const loadDealFromDataCache = unstable_cache(loadDealUncached, ["sealed-deal-detail"], { revalidate: 60 });
+
+const loadDeal = cache(loadDealFromDataCache);
+
+// Real, billed PokemonPriceTracker API call, keyed on the product's own
+// id (not the deal row) - every deal for the same sealed product shares
+// one cache entry, same reasoning as loadPriceAnalysis in
+// app/deals/[id]/page.js. 300s: reference pricing, not this deal's own
+// live/sold state.
+const loadSealedHistoryUncached = async (tcgplayerId) => {
+  try {
+    return await getSealedPriceHistory(tcgplayerId);
+  } catch (err) {
+    console.error("Sealed price history lookup failed:", err.message);
+    return [];
+  }
+};
+
+const loadSealedHistory = unstable_cache(loadSealedHistoryUncached, ["sealed-price-history"], {
+  revalidate: 300,
 });
 
 export async function generateMetadata({ params }) {
@@ -106,11 +132,7 @@ export default async function SealedDealDetailPage({ params }) {
 
   let history = [];
   if (watchlist?.tcgplayer_id) {
-    try {
-      history = await getSealedPriceHistory(watchlist.tcgplayer_id);
-    } catch (err) {
-      console.error("Sealed price history lookup failed:", err.message);
-    }
+    history = await loadSealedHistory(watchlist.tcgplayer_id);
   }
 
   // brand/shippingDetails are real data (see app/deals/[id]/page.js's
