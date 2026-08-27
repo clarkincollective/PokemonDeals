@@ -136,7 +136,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     // wear (see selectConditionPrice/detectListingCondition for the real
     // bug this fixes).
     const condition = detectListingCondition(listing.title);
-    const marketPrice = selectConditionPrice(marketData.byCondition, condition) ?? marketData.fallbackPrice;
+    const marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
     if (marketPrice == null) continue;
 
     const totalPrice = listing.price + listing.shipping;
@@ -308,7 +308,7 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
       if (!marketData) continue;
 
       const condition = detectListingCondition(listing.title);
-      const marketPrice = selectConditionPrice(marketData.byCondition, condition) ?? marketData.fallbackPrice;
+      const marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
       if (marketPrice == null) continue;
 
       const totalPrice = listing.price + listing.shipping;
