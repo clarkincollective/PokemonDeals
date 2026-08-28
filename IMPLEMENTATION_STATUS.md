@@ -124,10 +124,25 @@ no `generateStaticParams`, even when every data call is `unstable_cache`d):
   now return `Cache-Control: public` + `X-Vercel-Cache: HIT` (were
   `private, no-store` / MISS). ~5,700 of the indexable detail pages are
   edge-cached; SSR HTML still carries real native-currency prices.
-- **Still dynamic**: `/sets/[slug]` + `/pokemon/[slug]` (~340 pages) read
-  `searchParams` for their filter/pagination grid, so they stay `no-store`.
-  Making them static needs client-side filtering + path-based pagination
-  (`/sets/[slug]/page/[n]`) — the one remaining piece of this fix.
+- **`/sets/[slug]` + `/pokemon/[slug]` — now ISR too** (2026-08-29,
+  commit `caa26cb`). New `<DealGrid>` client component: the host page
+  renders page 1 (no filters) server-side — the crawler HTML — and
+  `<DealGrid>` handles filters / page > 1 by fetching a new
+  `/api/deals-page` endpoint. It reads `window.location.search` via
+  `useSyncExternalStore` (**not** `useSearchParams`, which drops a static
+  page to client-only rendering and blanks the grid for crawlers). Pages
+  drop `searchParams`, `generateStaticParams → []` + `revalidate`.
+  Canonical is always the bare path now — the `?page=N` self-canonical
+  series is gone (churny paginated lists don't rank, and the sitemap
+  enumerates every deal directly). **Verified live: `X-Vercel-Cache: HIT`
+  on `/cards/[slug]`, `/deals/[id]`, `/sealed-deals/[id]`, `/sets/[slug]`,
+  `/pokemon/[slug]` — ~6,100 pages, essentially the whole crawlable long
+  tail, now edge-cached** (were `no-store` MISS). SSR HTML still carries
+  the page-1 grid + JSON-LD + the species "every print" section.
+- **Only `ƒ` indexable URLs left**: `/`, `/best-finds`, `/japanese-cards`,
+  `/sealed-deals` (index) — 4 filtered-grid URLs, not a page *type*.
+  Negligible crawl cost; the same `<DealGrid>` pattern could be applied
+  later if wanted.
 
 ### Also this pass (2026-08-29)
 
