@@ -10,12 +10,17 @@ import AffiliateLink from "@/components/AffiliateLink";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebay";
-import { currencyForDeal, formatMoney } from "@/lib/money";
+import { formatMoney, toViewerCurrency } from "@/lib/money";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 
 const CONDITIONS = ["Near Mint", "Lightly Played", "Moderately Played", "Heavily Played", "Damaged"];
 
-export default function SearchClient() {
+export default function SearchClient({ viewerCurrency, rates }) {
+  // Prices shown in the viewer's currency when the server resolved one
+  // (from their region), converted from stored USD values; otherwise USD.
+  const displayCcy = viewerCurrency || "USD";
+  const ccyApprox = displayCcy !== "USD" ? "≈ " : "";
+  const inDisplayCcy = (usdAmount) => formatMoney(toViewerCurrency(usdAmount, displayCcy, rates), displayCcy);
   // The homepage hero's search box submits a plain GET form to
   // /search?q=... (no JS needed there) - picking that up here and
   // auto-running the search is what makes it feel like one continuous
@@ -268,7 +273,7 @@ export default function SearchClient() {
             ) : (
               <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {deals.map((deal) => (
-                  <DealCard key={deal.id} deal={deal} pageName="search" />
+                  <DealCard key={deal.id} deal={deal} pageName="search" viewerCurrency={viewerCurrency} rates={rates} />
                 ))}
               </div>
             )}
@@ -307,7 +312,8 @@ export default function SearchClient() {
                         {c.set && <p className="line-clamp-1 text-xs text-zinc-500">{c.set}</p>}
                         {c.marketPrice != null && (
                           <p className="mt-1 text-sm font-bold text-black dark:text-zinc-50">
-                            ${Number(c.marketPrice).toFixed(2)}
+                            {ccyApprox}
+                            {inDisplayCcy(c.marketPrice)}
                           </p>
                         )}
                       </button>
@@ -321,7 +327,11 @@ export default function SearchClient() {
                           >
                             {c.deal.listingType === "AUCTION"
                               ? "Bid Now →"
-                              : `Buy It Now ${formatMoney(c.deal.totalPrice, currencyForDeal({ marketplace: c.deal.marketplace }))} →`}
+                              : `Buy It Now ${
+                                  c.deal.totalPriceUsd != null
+                                    ? `${ccyApprox}${inDisplayCcy(c.deal.totalPriceUsd)}`
+                                    : formatMoney(c.deal.totalPrice, displayCcy)
+                                } →`}
                           </AffiliateLink>
                         ) : (
                           // No active below-market deal for this print -
@@ -392,7 +402,8 @@ export default function SearchClient() {
                 {selected.set && <p className="text-zinc-500">{selected.set}</p>}
                 {detail?.marketPrice != null && (
                   <p className="mt-2 text-2xl font-bold text-black dark:text-zinc-50">
-                    ${Number(detail.marketPrice).toFixed(2)}
+                    {ccyApprox}
+                    {inDisplayCcy(detail.marketPrice)}
                     <span className="ml-2 text-sm font-normal text-zinc-400">market price ({condition})</span>
                   </p>
                 )}
@@ -531,7 +542,7 @@ export default function SearchClient() {
                   ) : (
                     <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {detail.deals.map((deal) => (
-                        <DealCard key={deal.id} deal={deal} pageName="search" />
+                        <DealCard key={deal.id} deal={deal} pageName="search" viewerCurrency={viewerCurrency} rates={rates} />
                       ))}
                     </div>
                   )}

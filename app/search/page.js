@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 import SearchClient from "./SearchClient";
+import { viewerCurrency } from "@/lib/viewerCurrency";
+import { getUsdRates } from "@/lib/fx";
 
 // SearchClient is "use client" (stateful search UI), which can't export
 // metadata itself - this thin server wrapper is what gives the page a
@@ -34,10 +36,12 @@ export async function generateMetadata({ searchParams }) {
 // the page still ships real, indexable content in the initial HTML.
 export const dynamic = "force-dynamic";
 
-export default function SearchPage() {
+export default async function SearchPage({ searchParams }) {
+  const sp = (await searchParams) ?? {};
+  const [viewerCcy, rates] = await Promise.all([viewerCurrency(sp), getUsdRates()]);
   return (
     <Suspense fallback={null}>
-      <SearchClient />
+      <SearchClient viewerCurrency={viewerCcy} rates={rates} />
     </Suspense>
   );
 }

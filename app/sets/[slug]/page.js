@@ -4,6 +4,8 @@ import { resolveSetSlug, fetchDealsPage, fetchHubCounts } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
 import RegionRedirect from "@/components/RegionRedirect";
 import { detectedMarketplace } from "@/lib/geo";
+import { viewerCurrency } from "@/lib/viewerCurrency";
+import { getUsdRates } from "@/lib/fx";
 import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
 import Pagination from "@/components/Pagination";
@@ -70,6 +72,7 @@ export default async function SetDetailPage({ params, searchParams }) {
   const detectedRegion = await detectedMarketplace();
   const { slug } = await params;
   const sp = await searchParams;
+  const [viewerCcy, rates] = await Promise.all([viewerCurrency(sp), getUsdRates()]);
 
   const resolved = await resolveSetSlug(slug);
   if (!resolved) notFound();
@@ -181,7 +184,7 @@ export default async function SetDetailPage({ params, searchParams }) {
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {deals.map((deal) => (
-            <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="set_detail" />
+            <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="set_detail" viewerCurrency={viewerCcy} rates={rates} />
           ))}
         </div>
 

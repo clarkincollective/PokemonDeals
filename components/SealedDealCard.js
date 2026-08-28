@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { MARKETPLACES } from "@/lib/ebay";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
-import { currencyForDeal, formatMoney } from "@/lib/money";
+import { formatMoney, viewerPricing } from "@/lib/money";
 import { timeAgo, timeUntil } from "@/lib/time";
 import AffiliateLink from "@/components/AffiliateLink";
 import DealScoreBadge from "@/components/DealScoreBadge";
@@ -13,13 +13,14 @@ const SITE_URL = "https://pokemondealfinder.com";
 // Same visual language as DealCard, minus condition/grading (sealed
 // product has neither) - deal is a sealed_deals row joined to
 // sealed_watchlist (see app/sealed-deals/page.js).
-export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sealed" }) {
+export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sealed", viewerCurrency, rates }) {
   const productName = deal.sealed_watchlist?.name ?? deal.title;
   const productSet = deal.sealed_watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
-  const currency = currencyForDeal(deal);
-  const isUsd = currency === "USD";
-  const amountSaved = Number(deal.market_price) - Number(deal.total_price_usd ?? deal.total_price);
+  const price = viewerPricing(deal, viewerCurrency, rates);
+  const currency = price.currency;
+  const showRef = price.market != null && price.saved > 0;
+  const approxPrefix = price.approx ? "≈ " : "";
   const tcgplayerLink = buildTcgplayerLink(productName, deal.sealed_watchlist?.tcgplayer_id);
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
@@ -79,17 +80,18 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
         <div className="mt-1">
           <div className="flex items-baseline gap-2">
             <span className="text-lg font-bold text-black dark:text-zinc-50">
-              {formatMoney(deal.total_price, currency)}
+              {approxPrefix}
+              {formatMoney(price.listing, currency)}
             </span>
-            {isUsd && (
+            {showRef && (
               <span className="text-sm text-zinc-400 line-through">
-                {formatMoney(deal.market_price, "USD")}
+                {formatMoney(price.market, currency)}
               </span>
             )}
           </div>
-          {isUsd && amountSaved > 0 ? (
+          {showRef ? (
             <p className="text-xs font-medium text-emerald-600 dark:text-emerald-500">
-              You save {formatMoney(amountSaved, "USD")}
+              You save {formatMoney(price.saved, currency)} · {discountPct}% below market
             </p>
           ) : (
             <p className="text-xs font-medium text-emerald-600 dark:text-emerald-500">

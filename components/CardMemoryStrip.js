@@ -1,10 +1,10 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, toViewerCurrency } from "@/lib/money";
 import {
   readRecent,
   readSaved,
@@ -20,7 +20,22 @@ import {
 // Homepage strips for the viewer's own locally-stored "saved" and
 // "recently viewed" cards. Renders nothing on the server and nothing at
 // all when both lists are empty, so first-time visitors see no gap.
-function Tile({ card, onRemove }) {
+// A stored tile price is in the card's own (native) currency. Convert it
+// to the viewer's currency via USD when we know both; return null to fall
+// back to showing the native figure.
+function tilePrice(card, fx) {
+  const native = card.currency || "USD";
+  if (card.price == null) return null;
+  if (!fx?.viewer || !fx.rates || fx.viewer === native) {
+    return { text: formatMoney(card.price, native), approx: false };
+  }
+  const nativeRate = fx.rates[native] || 1;
+  const usd = Number(card.price) / nativeRate;
+  return { text: formatMoney(toViewerCurrency(usd, fx.viewer, fx.rates), fx.viewer), approx: true };
+}
+
+function Tile({ card, onRemove, fx }) {
+  const price = tilePrice(card, fx);
   return (
     <div className="relative w-32 shrink-0">
       <button
@@ -49,15 +64,18 @@ function Tile({ card, onRemove }) {
         <span className="line-clamp-1 text-xs font-medium text-zinc-700 group-hover:text-red-600 dark:text-zinc-300">
           {card.name}
         </span>
-        {card.price != null && (
-          <span className="text-xs text-zinc-500">from {formatMoney(card.price, card.currency || "USD")}</span>
+        {price && (
+          <span className="text-xs text-zinc-500">
+            from {price.approx ? "≈ " : ""}
+            {price.text}
+          </span>
         )}
       </Link>
     </div>
   );
 }
 
-function Row({ title, cards, onClear, onRemove }) {
+function Row({ title, cards, onClear, onRemove, fx }) {
   if (!cards.length) return null;
   return (
     <div>
@@ -73,7 +91,7 @@ function Row({ title, cards, onClear, onRemove }) {
       </div>
       <div className="-mx-6 flex gap-4 overflow-x-auto px-6 pb-2 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {cards.map((c) => (
-          <Tile key={c.key} card={c} onRemove={onRemove} />
+          <Tile key={c.key} card={c} onRemove={onRemove} fx={fx} />
         ))}
       </div>
     </div>
@@ -83,6 +101,23 @@ function Row({ title, cards, onClear, onRemove }) {
 export default function CardMemoryStrip() {
   const saved = useSyncExternalStore(subscribeCards, readSaved, getServerSnapshot);
   const recent = useSyncExternalStore(subscribeCards, readRecent, getServerSnapshot);
+
+  // Viewer currency + FX rates, so tile prices match the rest of the site.
+  // Loads after paint; until then (and on failure) tiles show the card's
+  // own currency.
+  const [fx, setFx] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/rates")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d?.rates) setFx(d);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (!saved.length && !recent.length) return null;
 
@@ -94,8 +129,8 @@ export default function CardMemoryStrip() {
   return (
     <section className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8">
-        <Row title="Your saved cards" cards={saved} onClear={clearSaved} onRemove={removeSaved} />
-        <Row title="Recently viewed" cards={recentOnly} onClear={clearRecent} onRemove={removeRecent} />
+        <Row title="Your saved cards" cards={saved} onClear={clearSaved} onRemove={removeSaved} fx={fx} />
+        <Row title="Recently viewed" cards={recentOnly} onClear={clearRecent} onRemove={removeRecent} fx={fx} />
       </div>
     </section>
   );

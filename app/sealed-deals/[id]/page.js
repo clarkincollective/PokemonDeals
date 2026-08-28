@@ -5,7 +5,9 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES } from "@/lib/ebay";
-import { currencyForDeal, formatMoney } from "@/lib/money";
+import { formatMoney, viewerPricing, toViewerCurrency } from "@/lib/money";
+import { viewerCurrency } from "@/lib/viewerCurrency";
+import { getUsdRates } from "@/lib/fx";
 import { getSealedPriceHistory } from "@/lib/pokemonPriceTracker";
 import { shouldIndexDeal } from "@/lib/indexability";
 import { timeAgo, timeUntil } from "@/lib/time";
@@ -102,8 +104,9 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default async function SealedDealDetailPage({ params }) {
+export default async function SealedDealDetailPage({ params, searchParams }) {
   const { id } = await params;
+  const sp = (await searchParams) ?? {};
   const deal = await loadDeal(id);
 
   // Same real bug and fix as app/deals/[id]/page.js: without the
@@ -131,9 +134,11 @@ export default async function SealedDealDetailPage({ params }) {
   const productName = watchlist?.name ?? deal.title;
   const productSet = watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
-  const dealCurrency = currencyForDeal(deal);
-  const isUsd = dealCurrency === "USD";
-  const amountSaved = Number(deal.market_price) - Number(deal.total_price_usd ?? deal.total_price);
+  // Prices in the viewer's currency where detectable (converted from the
+  // stored USD figures), else the listing's own currency, as before.
+  const [viewerCcy, rates] = await Promise.all([viewerCurrency(sp), getUsdRates()]);
+  const price = viewerPricing(deal, viewerCcy, rates);
+  const showRef = price.market != null && price.saved > 0;
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
   const tcgplayerLink = buildTcgplayerLink(productName, watchlist?.tcgplayer_id);
@@ -223,17 +228,18 @@ export default async function SealedDealDetailPage({ params }) {
             <div className="mt-4">
               <div className="flex items-baseline gap-3">
                 <span className="text-2xl font-bold text-black dark:text-zinc-50">
-                  {formatMoney(deal.total_price, dealCurrency)}
+                  {price.approx ? "≈ " : ""}
+                  {formatMoney(price.listing, price.currency)}
                 </span>
-                {isUsd && (
+                {showRef && (
                   <span className="text-lg text-zinc-400 line-through">
-                    {formatMoney(deal.market_price, "USD")}
+                    {formatMoney(price.market, price.currency)}
                   </span>
                 )}
               </div>
-              {isUsd && amountSaved > 0 ? (
+              {showRef ? (
                 <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                  You save {formatMoney(amountSaved, "USD")}
+                  You save {formatMoney(price.saved, price.currency)} · {discountPct}% below market
                 </p>
               ) : (
                 <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-500">
@@ -299,7 +305,11 @@ export default async function SealedDealDetailPage({ params }) {
             <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
               Not enough dated sales to plot a trend yet. Current market value is{" "}
               <span className="font-semibold text-black dark:text-zinc-50">
-                {formatMoney(deal.market_price, "USD")}
+                {price.approx ? "≈ " : ""}
+                {formatMoney(
+                  price.market ?? toViewerCurrency(deal.market_price, price.currency, rates),
+                  price.currency
+                )}
               </span>
               {" "}
               — this listing is{" "}

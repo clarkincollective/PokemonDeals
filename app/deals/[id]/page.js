@@ -9,7 +9,9 @@ import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebay";
-import { currencyForDeal, formatMoney } from "@/lib/money";
+import { currencyForDeal, formatMoney, viewerPricing, toViewerCurrency } from "@/lib/money";
+import { viewerCurrency } from "@/lib/viewerCurrency";
+import { getUsdRates } from "@/lib/fx";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
@@ -144,8 +146,9 @@ async function loadPriceAnalysis(deal, watchlist) {
   );
 }
 
-export default async function DealDetailPage({ params }) {
+export default async function DealDetailPage({ params, searchParams }) {
   const { id } = await params;
+  const sp = (await searchParams) ?? {};
 
   const deal = await loadDeal(id);
 
@@ -204,6 +207,13 @@ export default async function DealDetailPage({ params }) {
   const discountPct = Math.round(deal.discount_pct * 100);
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
+
+  // Prices shown in the viewer's own currency where we can detect it
+  // (converted from the stored USD figures); otherwise the listing's own
+  // currency, as before. `approx` -> show an "≈" and expect FX rounding.
+  const [viewerCcy, rates] = await Promise.all([viewerCurrency(sp), getUsdRates()]);
+  const price = viewerPricing(deal, viewerCcy, rates);
+  const priceLabel = `${price.approx ? "≈ " : ""}${formatMoney(price.listing, price.currency)}`;
   const tcgplayerLink = buildTcgplayerLink(cardName, deal.watchlist?.justtcg_tcgplayer_id);
 
   // Structured data so a search result can show price/availability
@@ -377,34 +387,27 @@ export default async function DealDetailPage({ params }) {
 
             <div className="mt-4">
               {(() => {
-                const dealCurrency = currencyForDeal(deal);
-                const isUsd = dealCurrency === "USD";
-                const usdTotal = Number(deal.total_price_usd ?? deal.total_price);
-                const usdSaved = Number(deal.market_price) - usdTotal;
+                const showRef = price.market != null && price.saved > 0;
                 return (
                   <>
                     <div className="flex items-baseline gap-3">
                       <span className="text-2xl font-bold text-black dark:text-zinc-50">
-                        {formatMoney(deal.total_price, dealCurrency)}
+                        {price.approx ? "≈ " : ""}
+                        {formatMoney(price.listing, price.currency)}
                       </span>
-                      {isUsd && (
+                      {showRef && (
                         <span className="text-base text-zinc-400 line-through">
-                          {formatMoney(deal.market_price, "USD")}
+                          {formatMoney(price.market, price.currency)}
                         </span>
                       )}
                     </div>
-                    {isUsd && usdSaved > 0 ? (
+                    {showRef ? (
                       <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                        You save {formatMoney(usdSaved, "USD")}
+                        You save {formatMoney(price.saved, price.currency)} · {discountPct}% below market
                       </p>
                     ) : (
                       <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
                         {discountPct}% below market
-                        {!isUsd && (
-                          <span className="ml-1 font-normal text-zinc-400">
-                            (vs a {formatMoney(deal.market_price, "USD")} US reference)
-                          </span>
-                        )}
                       </p>
                     )}
                   </>
@@ -501,7 +504,11 @@ export default async function DealDetailPage({ params }) {
               Not enough dated sales to plot a trend yet. Current{" "}
               {deal.is_graded ? "graded comp" : "market"} value is{" "}
               <span className="font-semibold text-black dark:text-zinc-50">
-                {formatMoney(deal.market_price, "USD")}
+                {price.approx ? "≈ " : ""}
+                {formatMoney(
+                  price.market ?? toViewerCurrency(deal.market_price, price.currency, rates),
+                  price.currency
+                )}
               </span>
               {" "}
               — this listing is{" "}
@@ -616,7 +623,7 @@ export default async function DealDetailPage({ params }) {
 
       <StickyDealCta
         href={deal.affiliate_url}
-        priceLabel={formatMoney(deal.total_price, currencyForDeal(deal))}
+        priceLabel={priceLabel}
         ctaLabel={isAuction ? "Bid on eBay →" : "Check on eBay →"}
         eventData={{ card: cardName, marketplace: deal.marketplace, discountPct }}
       />

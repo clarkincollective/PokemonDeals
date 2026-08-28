@@ -77,7 +77,7 @@ async function findDealsForCatalogPage(db, tcgPlayerIds, { country }) {
   const tcgIdByWatchlistId = new Map(watchlistRows.map((r) => [r.id, r.justtcg_tcgplayer_id]));
   let dealsQuery = db
     .from("deals")
-    .select("id, watchlist_id, total_price, discount_pct, listing_type, affiliate_url, marketplace")
+    .select("id, watchlist_id, total_price, total_price_usd, discount_pct, listing_type, affiliate_url, marketplace")
     .in(
       "watchlist_id",
       watchlistRows.map((r) => r.id)
@@ -139,6 +139,7 @@ async function cardSearch(url) {
               ? {
                   id: deal.id,
                   totalPrice: deal.total_price,
+                  totalPriceUsd: deal.total_price_usd ?? null,
                   marketplace: deal.marketplace,
                   discountPct: deal.discount_pct,
                   listingType: deal.listing_type,
