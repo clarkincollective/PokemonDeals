@@ -1,12 +1,63 @@
 # SEO implementation — final report
 
-Covers the full 26-phase brief. All code is **deployed to production**
-(commit `0506dab`, 2026-08-28) and verified live — `tests/seo/` passes
-40/40 against `https://pokemondealfinder.com`. The DB index migration is
-**applied**. Status key below: **live** = verified in production;
-**blocked** = needs an action still outside the codebase.
+Covers the full 26-phase brief. All code is **deployed to production** and
+verified live — `tests/seo/` passes 40/40 against
+`https://pokemondealfinder.com`. The DB index migration is **applied**.
 
 `IMPLEMENTATION_STATUS.md` is the per-phase log; this is the summary.
+
+---
+
+## Update — 2026-08-29 re-audit pass (commits `94e9a33` … `e12bfc7`)
+
+A fresh live crawler-HTML audit after the currency / country-catalog /
+variant-matching work, plus GSC setup (sitemap index parsed, 6,132 URLs
+discovered, 0 errors). What changed:
+
+- **Structured data** — 10 pages had **no JSON-LD at all**
+  (`/market-data*`, `/best-finds`, `/japanese-cards`, `/sets`, `/pokemon`,
+  `/sealed-deals`, `/sealed-deals/[id]`, `/search`). All now emit
+  `BreadcrumbList` + `CollectionPage` / `ItemList` / `SearchResultsPage`
+  via `lib/jsonLd.js` + `components/JsonLd.js`. Card-hub breadcrumb went
+  flat 2-level → 3-level (`Deals → set → card`). `tests/seo` now asserts
+  a `BreadcrumbList` on every indexable page.
+- **Edge caching restored** — the currency + region work read the geo
+  header during render, forcing every card / deal / set / species page to
+  `Cache-Control: no-store` (full uncached Supabase render per crawler
+  hit). Fixed by moving currency + region resolution fully client-side
+  (`CurrencyProvider` + `<Price>` islands; `/api/rates`) and making the
+  detail routes ISR:
+  - `/cards/[slug]`, `/deals/[id]`, `/sealed-deals/[id]` —
+    `generateStaticParams: []` + `revalidate` (no request-time APIs).
+  - `/sets/[slug]`, `/pokemon/[slug]` — page 1 server-rendered, filters +
+    pagination moved to a client `<DealGrid>` (reads
+    `window.location.search`, **not** `useSearchParams`, which would blank
+    the grid for crawlers) hitting a new `/api/deals-page`.
+  - **Verified live: `X-Vercel-Cache: HIT` on ~6,100 pages** — the whole
+    crawlable long tail — that were `MISS` / `no-store`. Only `/`,
+    `/best-finds`, `/japanese-cards`, `/sealed-deals` (4 filtered-grid
+    URLs) remain dynamic.
+- **Metadata / freshness** — `/cards/[slug]` H1 now carries set + intent
+  (`"Zapdos — Base Set Prices & Deals"`, was bare `"Zapdos"`);
+  `/market-data*` show a real "Data last updated" timestamp +
+  `dateModified`. The `?page=N` self-canonical series on set / species
+  pages is gone (churny lists don't rank; the sitemap enumerates deals
+  directly).
+- **Crawl budget** — `rel="nofollow"` on every filter / sort link and the
+  `?type=` / `?listing=` nav entries; `SET_MIN_LISTINGS` 1 → 3 (thin
+  1–2-deal set pages 404 and leave the sitemap); fixed a
+  `/sitemaps/deals.xml` duplicate-`<loc>` bug.
+- **Internal linking** — `/cards/[slug]` gained "Other <species> cards" +
+  "More from <set>" link lists (card ↔ card; was card → set/species/deals
+  only).
+- **Re-verified, unchanged** — Pokémon extraction (95.7% name / 98.6%
+  deal-row coverage, no false positives); affiliate outbound
+  (`rel="sponsored noopener noreferrer"`, per-marketplace EPN params, no
+  dark patterns).
+
+Open (judgment / content, not structural gaps): a deeper "price-guide"
+framing on the card hubs (§9); more market-data datasets only if the data
+genuinely supports them (§10); the 4 remaining dynamic grid URLs.
 
 ---
 
