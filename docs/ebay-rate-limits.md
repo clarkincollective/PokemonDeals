@@ -52,6 +52,14 @@ extended-chunk day) approaches the cap.
 3. **Transient-only retry** — `fetchWithRetry` in `lib/ebay.js` retries
    once on a 5xx / network blip. It **never retries a 429** (that just
    burns more quota and prolongs the block).
+4. **Expire-on-empty guard** — `searchListings` now returns
+   `{ listings, total }`. The per-card and sealed scanners only expire a
+   card's existing deals (`is_active=false`) when the scan is a
+   trustworthy view: it matched a listing, or eBay returned a real
+   `total` (even `total:0` "nothing for sale"). An empty response with no
+   `total` — a degraded/malformed 200, as opposed to a 429 — no longer
+   wipes the cached deals the site falls back to. A failed sweep also
+   returns a 200 (`skipped:"ebay_error"`) instead of a cron 500.
 
 With the guard in place the daily budget can no longer be *overrun*; at
 worst the extended tier is skipped for a day, which is acceptable

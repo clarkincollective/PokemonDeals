@@ -146,7 +146,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     (p) => p != null
   );
   const lowestKnownPrice = knownPrices.length > 0 ? Math.min(...knownPrices) : marketData.fallbackPrice;
-  const listings = await searchListings(query, marketplaceId, {
+  const { listings, total } = await searchListings(query, marketplaceId, {
     minPrice: lowestKnownPrice * SANITY_FLOOR_PCT,
   });
 
@@ -225,20 +225,30 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     }
   }
 
-  // Anything for this card+country that was active before but isn't in
-  // this scan's results anymore (sold, ended, no longer underpriced) gets
-  // retired instead of left showing as a live deal.
-  let expireQuery = db
-    .from("deals")
-    .update({ is_active: false })
-    .eq("watchlist_id", row.id)
-    .eq("marketplace", marketplaceId)
-    .eq("is_active", true);
+  // Retire anything for this card+country that was active before but isn't
+  // in this scan's results anymore (sold, ended, no longer underpriced).
+  //
+  // Only reconcile when this scan is a trustworthy view of the card's
+  // current listings: we matched at least one listing, OR eBay returned a
+  // real result set (a `total` count - even total:0 "nothing for sale").
+  // An empty response with no `total` is a degraded/malformed eBay reply,
+  // not a real "sold out" - expiring on it would wipe the cached deals the
+  // site falls back to when eBay is unavailable. Leave them be.
+  const canReconcile = listings.length > 0 || total !== null;
 
-  if (seenListingIds.length > 0) {
-    expireQuery = expireQuery.not("listing_id", "in", `(${seenListingIds.join(",")})`);
+  if (canReconcile) {
+    let expireQuery = db
+      .from("deals")
+      .update({ is_active: false })
+      .eq("watchlist_id", row.id)
+      .eq("marketplace", marketplaceId)
+      .eq("is_active", true);
+
+    if (seenListingIds.length > 0) {
+      expireQuery = expireQuery.not("listing_id", "in", `(${seenListingIds.join(",")})`);
+    }
+    await expireQuery;
   }
-  await expireQuery;
 
   return dealsFound;
 }
@@ -438,8 +448,21 @@ export async function GET(request) {
     );
     if (activeError) return Response.json({ error: activeError.message }, { status: 500 });
 
-    const result = await runSweep(marketplaceId, allActiveRows ?? [], db, discountThreshold, pages);
-    return Response.json({ mode: "sweep", marketplace: marketplaceId, ...result, scannedAt: new Date().toISOString() });
+    // A sweep never expires/deletes anything (see runSweep), so an eBay
+    // failure mid-sweep can only mean "found nothing this run" - report it
+    // as a 200 rather than letting the throw surface as a cron 500.
+    try {
+      const result = await runSweep(marketplaceId, allActiveRows ?? [], db, discountThreshold, pages);
+      return Response.json({ mode: "sweep", marketplace: marketplaceId, ...result, scannedAt: new Date().toISOString() });
+    } catch (err) {
+      return Response.json({
+        mode: "sweep",
+        marketplace: marketplaceId,
+        skipped: "ebay_error",
+        error: err.message,
+        scannedAt: new Date().toISOString(),
+      });
+    }
   }
 
   // ?chunk=1..2 - only meaningful for tier=extended (see EXTENDED_CHUNKS

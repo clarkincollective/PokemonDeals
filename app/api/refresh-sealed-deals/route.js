@@ -42,7 +42,7 @@ async function scanProductInMarketplace(row, marketplaceId, marketPrice, db, dis
   // categoryId: null - see searchListings in lib/ebay.js for why (sealed
   // product's real eBay category id isn't verified; the query text itself
   // plus listingMatchesSealedProduct below do the real filtering).
-  const listings = await searchListings(query, marketplaceId, {
+  const { listings, total } = await searchListings(query, marketplaceId, {
     minPrice: marketPrice * SANITY_FLOOR_PCT,
     categoryId: null,
   });
@@ -70,18 +70,26 @@ async function scanProductInMarketplace(row, marketplaceId, marketPrice, db, dis
     else dealsFound++;
   }
 
-  // Same expire-what-wasn't-seen pattern as the card scanner.
-  let expireQuery = db
-    .from("sealed_deals")
-    .update({ is_active: false })
-    .eq("sealed_watchlist_id", row.id)
-    .eq("marketplace", marketplaceId)
-    .eq("is_active", true);
+  // Same expire-what-wasn't-seen pattern as the card scanner, including its
+  // guard: only reconcile when this scan is a trustworthy view (matched
+  // something, or eBay returned a real `total`). An empty response with no
+  // `total` is a degraded reply, not "sold out" - don't wipe cached deals
+  // on it. See app/api/refresh-deals/route.js for the full reasoning.
+  const canReconcile = listings.length > 0 || total !== null;
 
-  if (seenListingIds.length > 0) {
-    expireQuery = expireQuery.not("listing_id", "in", `(${seenListingIds.join(",")})`);
+  if (canReconcile) {
+    let expireQuery = db
+      .from("sealed_deals")
+      .update({ is_active: false })
+      .eq("sealed_watchlist_id", row.id)
+      .eq("marketplace", marketplaceId)
+      .eq("is_active", true);
+
+    if (seenListingIds.length > 0) {
+      expireQuery = expireQuery.not("listing_id", "in", `(${seenListingIds.join(",")})`);
+    }
+    await expireQuery;
   }
-  await expireQuery;
 
   return dealsFound;
 }

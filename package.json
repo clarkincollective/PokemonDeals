@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "node tests/seo/run.mjs",
     "test:seo": "node tests/seo/run.mjs",
+    "test:scanner": "node --test \"tests/scanner/*.test.mjs\"",
     "fetch-card": "node scripts/fetchCardPrice.js",
     "seed-watchlist": "node scripts/seedWatchlist.js"
   },
