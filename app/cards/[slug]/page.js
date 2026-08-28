@@ -2,7 +2,7 @@ import { unstable_cache } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { resolveCardSlug, fetchCardOffers, resolveSpeciesByName } from "@/lib/deals";
+import { resolveCardSlug, fetchCardOffers, resolveSpeciesByName, fetchCardHubs } from "@/lib/deals";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
@@ -126,12 +126,27 @@ export default async function CardHubPage({ params }) {
   if (!hub) notFound();
 
   const speciesName = extractSpecies(hub.name);
-  const [{ deals: offers, error }, analysis, speciesHub] = await Promise.all([
+  const [{ deals: offers, error }, analysis, speciesHub, { hubs: allHubs }] = await Promise.all([
     fetchCardOffers(hub.id),
     loadPriceAnalysis(hub.tcgplayerId),
     speciesName ? resolveSpeciesByName(speciesName) : Promise.resolve(null),
+    fetchCardHubs({ language: "english" }),
   ]);
   const allOffers = offers;
+
+  // Related-card internal links (brief Phase 9: card <-> card). Both from
+  // the already-cached hub list - no extra query. Other prints of the
+  // same Pokemon, and other cards from the same set, most-listed first.
+  const relatedSpecies = speciesName
+    ? (allHubs ?? [])
+        .filter((h) => h.slug !== slug && extractSpecies(h.name) === speciesName)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 6)
+    : [];
+  const relatedSet = (allHubs ?? [])
+    .filter((h) => h.slug !== slug && h.set === hub.set)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
 
   // The hub only exists (see fetchCardHubs) when there were 2+ active
   // listings as of the last 15-minute cache refresh - but listings sell/
@@ -388,6 +403,67 @@ export default async function CardHubPage({ params }) {
             })}
           </ul>
         </div>
+        )}
+
+        {(relatedSpecies.length > 0 || relatedSet.length > 0) && (
+          <div className="mt-10 grid gap-8 sm:grid-cols-2">
+            {relatedSpecies.length > 0 && (
+              <section>
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+                  Other {speciesName} cards
+                </h2>
+                <ul className="mt-3 space-y-1.5">
+                  {relatedSpecies.map((h) => (
+                    <li key={h.slug}>
+                      <Link
+                        href={`/cards/${h.slug}`}
+                        className="text-sm text-zinc-700 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500"
+                      >
+                        {h.name} <span className="text-zinc-400">· {h.set}</span>
+                      </Link>
+                    </li>
+                  ))}
+                  {speciesHub && (
+                    <li>
+                      <Link
+                        href={`/pokemon/${speciesHub.slug}`}
+                        className="text-sm font-medium text-red-600 hover:underline dark:text-red-500"
+                      >
+                        All {speciesName} cards &amp; prices →
+                      </Link>
+                    </li>
+                  )}
+                </ul>
+              </section>
+            )}
+            {relatedSet.length > 0 && (
+              <section>
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+                  More from {hub.set}
+                </h2>
+                <ul className="mt-3 space-y-1.5">
+                  {relatedSet.map((h) => (
+                    <li key={h.slug}>
+                      <Link
+                        href={`/cards/${h.slug}`}
+                        className="text-sm text-zinc-700 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500"
+                      >
+                        {h.name}
+                      </Link>
+                    </li>
+                  ))}
+                  <li>
+                    <Link
+                      href={`/sets/${slugifySet(hub.set)}`}
+                      className="text-sm font-medium text-red-600 hover:underline dark:text-red-500"
+                    >
+                      All {hub.set} deals →
+                    </Link>
+                  </li>
+                </ul>
+              </section>
+            )}
+          </div>
         )}
 
         <div className="mt-8 flex justify-center">
