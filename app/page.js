@@ -16,6 +16,7 @@ import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import RegionRedirect from "@/components/RegionRedirect";
+import HeroSearch from "@/components/HeroSearch";
 import SectionHeader from "@/components/SectionHeader";
 import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
@@ -157,6 +158,7 @@ export default async function Home({ searchParams }) {
   }
 
   const topHubs = cardHubsResult.hubs.slice(0, 6);
+  const popularSearches = cardHubsResult.hubs.slice(0, 5).map((h) => ({ name: h.name, slug: h.slug }));
   const liveCount = summary?.activeDeals ?? null;
 
   const faqJsonLd = {
@@ -203,34 +205,9 @@ export default async function Home({ searchParams }) {
             Every listing checked against real sold prices. The junk filtered out. Free.
           </p>
 
-          <form action="/search" className="mt-6 flex max-w-2xl gap-2">
-            <div className="relative flex-1">
-              <svg
-                aria-hidden
-                viewBox="0 0 20 20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400"
-              >
-                <circle cx="8.5" cy="8.5" r="5.5" />
-                <line x1="16" y1="16" x2="12.5" y2="12.5" />
-              </svg>
-              <input
-                type="text"
-                name="q"
-                placeholder="Search a card, a set, or &quot;booster box&quot;…"
-                className="w-full rounded-xl border border-zinc-300 bg-white py-3.5 pl-11 pr-4 text-base text-zinc-900 shadow-card outline-none transition-colors focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-              />
-            </div>
-            <button
-              type="submit"
-              className="shrink-0 whitespace-nowrap rounded-xl bg-red-600 px-6 py-3.5 text-sm font-semibold text-white shadow-card transition-colors hover:bg-red-700"
-            >
-              Search
-            </button>
-          </form>
+          <div className="mt-6">
+            <HeroSearch popular={popularSearches} />
+          </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
             {START_HERE.map((t) => (
