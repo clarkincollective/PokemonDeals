@@ -10,6 +10,7 @@ import AffiliateLink from "@/components/AffiliateLink";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebay";
+import { currencyForDeal, formatMoney } from "@/lib/money";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 
 const CONDITIONS = ["Near Mint", "Lightly Played", "Moderately Played", "Heavily Played", "Damaged"];
@@ -320,7 +321,7 @@ export default function SearchClient() {
                           >
                             {c.deal.listingType === "AUCTION"
                               ? "Bid Now →"
-                              : `Buy It Now $${Number(c.deal.totalPrice).toFixed(2)} →`}
+                              : `Buy It Now ${formatMoney(c.deal.totalPrice, currencyForDeal({ marketplace: c.deal.marketplace }))} →`}
                           </AffiliateLink>
                         ) : (
                           // No active below-market deal for this print -

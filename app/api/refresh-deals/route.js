@@ -7,6 +7,7 @@ import {
   getBrowseRateLimit,
 } from "@/lib/ebay";
 import { getConditionPrices, getGradedPrice } from "@/lib/pokemonPriceTracker";
+import { getUsdRates, toUsd } from "@/lib/fx";
 import {
   SANITY_FLOOR_PCT,
   coreTokens,
@@ -92,7 +93,16 @@ function chunkOf(row, totalChunks) {
 // Played/.../Damaged) instead of eBay's own item.condition, which for
 // cards only ever says "Graded" or "Ungraded" and says nothing about
 // physical wear.
-function dealRow({ watchlistId, listing, totalPrice, marketPrice, discountPct, priceChange24hr, grading, condition }) {
+// The listing's total in its own currency, and in USD (market prices are
+// USD, so the discount has to be computed against the USD figure). `rates`
+// is a USD-base FX map from lib/fx.js.
+function pricedListing(listing, marketPriceUsd, rates) {
+  const totalLocal = listing.price + listing.shipping;
+  const totalUsd = toUsd(totalLocal, listing.currency, rates);
+  return { totalLocal, totalUsd, discountPct: (marketPriceUsd - totalUsd) / marketPriceUsd };
+}
+
+function dealRow({ watchlistId, listing, totalPrice, totalPriceUsd, marketPrice, discountPct, priceChange24hr, grading, condition }) {
   return {
     watchlist_id: watchlistId,
     source: "ebay",
@@ -108,6 +118,8 @@ function dealRow({ watchlistId, listing, totalPrice, marketPrice, discountPct, p
     price: listing.price,
     shipping: listing.shipping,
     total_price: totalPrice,
+    total_price_usd: totalPriceUsd ?? totalPrice,
+    currency: listing.currency ?? "USD",
     market_price: marketPrice,
     discount_pct: discountPct,
     price_change_24hr: priceChange24hr ?? null,
@@ -127,7 +139,7 @@ function dealRow({ watchlistId, listing, totalPrice, marketPrice, discountPct, p
 // graded listing gets the extra getGradingDetails() + graded-price lookup,
 // to keep both eBay's per-item budget and PokemonPriceTracker's metered
 // credits bounded per scan cycle.
-async function scanCardInMarketplace(row, marketplaceId, marketData, db, discountThreshold) {
+async function scanCardInMarketplace(row, marketplaceId, marketData, db, discountThreshold, rates) {
   const baseQuery = row.set ? `${row.name} ${row.set}` : row.name;
   // Biases eBay's own relevance ranking toward genuine Japanese-print
   // listings (sellers overwhelmingly include "Japanese" in the title) -
@@ -176,17 +188,17 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     const marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
     if (marketPrice == null) continue;
 
-    const totalPrice = listing.price + listing.shipping;
-    const discountPct = (marketPrice - totalPrice) / marketPrice;
+    const { totalLocal, totalUsd, discountPct } = pricedListing(listing, marketPrice, rates);
     if (discountPct < discountThreshold) continue;
-    if (totalPrice < marketPrice * SANITY_FLOOR_PCT) continue;
+    if (totalUsd < marketPrice * SANITY_FLOOR_PCT) continue;
 
     seenListingIds.push(listing.listingId);
     await tryUpsert(
       dealRow({
         watchlistId: row.id,
         listing,
-        totalPrice,
+        totalPrice: totalLocal,
+        totalPriceUsd: totalUsd,
         marketPrice,
         discountPct,
         priceChange24hr: marketData.priceChange24hr,
@@ -203,16 +215,16 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
         : null;
 
       if (gradedPrice) {
-        const totalPrice = cheapestGraded.price + cheapestGraded.shipping;
-        const discountPct = (gradedPrice.price - totalPrice) / gradedPrice.price;
+        const { totalLocal, totalUsd, discountPct } = pricedListing(cheapestGraded, gradedPrice.price, rates);
 
-        if (discountPct >= discountThreshold && totalPrice >= gradedPrice.price * SANITY_FLOOR_PCT) {
+        if (discountPct >= discountThreshold && totalUsd >= gradedPrice.price * SANITY_FLOOR_PCT) {
           seenListingIds.push(cheapestGraded.listingId);
           await tryUpsert(
             dealRow({
               watchlistId: row.id,
               listing: cheapestGraded,
-              totalPrice,
+              totalPrice: totalLocal,
+              totalPriceUsd: totalUsd,
               marketPrice: gradedPrice.price,
               discountPct,
               grading,
@@ -287,7 +299,7 @@ function candidateRowsForListing(listing, index) {
 // a sweep only ever sees a recent slice of new listings, never a card's
 // full current listing set, so it never expires anything - that stays the
 // tiered per-card scans' job.
-async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pages) {
+async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pages, rates) {
   const index = buildWatchlistIndex(watchlistRows);
   const listings = await searchNewlyListed(marketplaceId, { pages });
 
@@ -342,13 +354,20 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
             : null;
           if (!gradedPrice) continue;
 
-          const totalPrice = listing.price + listing.shipping;
-          const discountPct = (gradedPrice.price - totalPrice) / gradedPrice.price;
+          const { totalLocal, totalUsd, discountPct } = pricedListing(listing, gradedPrice.price, rates);
           if (discountPct < discountThreshold) continue;
-          if (totalPrice < gradedPrice.price * SANITY_FLOOR_PCT) continue;
+          if (totalUsd < gradedPrice.price * SANITY_FLOOR_PCT) continue;
 
           await tryUpsert(
-            dealRow({ watchlistId: row.id, listing, totalPrice, marketPrice: gradedPrice.price, discountPct, grading })
+            dealRow({
+              watchlistId: row.id,
+              listing,
+              totalPrice: totalLocal,
+              totalPriceUsd: totalUsd,
+              marketPrice: gradedPrice.price,
+              discountPct,
+              grading,
+            })
           );
         } catch (err) {
           errors.push(`Graded lookup failed for ${row.name} (${marketplaceId}): ${err.message}`);
@@ -363,16 +382,16 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
       const marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
       if (marketPrice == null) continue;
 
-      const totalPrice = listing.price + listing.shipping;
-      const discountPct = (marketPrice - totalPrice) / marketPrice;
+      const { totalLocal, totalUsd, discountPct } = pricedListing(listing, marketPrice, rates);
       if (discountPct < discountThreshold) continue;
-      if (totalPrice < marketPrice * SANITY_FLOOR_PCT) continue;
+      if (totalUsd < marketPrice * SANITY_FLOOR_PCT) continue;
 
       await tryUpsert(
         dealRow({
           watchlistId: row.id,
           listing,
-          totalPrice,
+          totalPrice: totalLocal,
+          totalPriceUsd: totalUsd,
           marketPrice,
           discountPct,
           priceChange24hr: marketData.priceChange24hr,
@@ -392,6 +411,7 @@ export async function GET(request) {
   }
 
   const db = supabaseAdmin();
+  const rates = await getUsdRates();
 
   // ?tier=priority (frequent, high-value cards) or ?tier=extended (broader
   // $5+ catalog, scanned less often) - vercel.json's two cron entries pass
@@ -452,7 +472,7 @@ export async function GET(request) {
     // failure mid-sweep can only mean "found nothing this run" - report it
     // as a 200 rather than letting the throw surface as a cron 500.
     try {
-      const result = await runSweep(marketplaceId, allActiveRows ?? [], db, discountThreshold, pages);
+      const result = await runSweep(marketplaceId, allActiveRows ?? [], db, discountThreshold, pages, rates);
       return Response.json({ mode: "sweep", marketplace: marketplaceId, ...result, scannedAt: new Date().toISOString() });
     } catch (err) {
       return Response.json({
@@ -535,7 +555,7 @@ export async function GET(request) {
       marketplaceIds.map(async (marketplaceId) => {
         scanned++;
         try {
-          dealsFound += await scanCardInMarketplace(row, marketplaceId, marketData, db, discountThreshold);
+          dealsFound += await scanCardInMarketplace(row, marketplaceId, marketData, db, discountThreshold, rates);
         } catch (err) {
           errors.push(`${row.name} (${marketplaceId}): ${err.message}`);
         }

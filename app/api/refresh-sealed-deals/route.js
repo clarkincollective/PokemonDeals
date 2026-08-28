@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { MARKETPLACES, searchListings, getBrowseRateLimit } from "@/lib/ebay";
 import { getSealedPrice } from "@/lib/pokemonPriceTracker";
+import { getUsdRates, toUsd } from "@/lib/fx";
 import { SANITY_FLOOR_PCT, isTrustworthySealedListing, listingMatchesSealedProduct } from "@/lib/dealMatching";
 
 // Real work (API calls + database writes) - never cached, and a small
@@ -12,7 +13,13 @@ export const maxDuration = 300;
 const CONCURRENCY = 5;
 const DISCOUNT_THRESHOLD = 0.1;
 
-function dealRow({ productId, listing, totalPrice, marketPrice, discountPct }) {
+function pricedListing(listing, marketPriceUsd, rates) {
+  const totalLocal = listing.price + listing.shipping;
+  const totalUsd = toUsd(totalLocal, listing.currency, rates);
+  return { totalLocal, totalUsd, discountPct: (marketPriceUsd - totalUsd) / marketPriceUsd };
+}
+
+function dealRow({ productId, listing, totalPrice, totalPriceUsd, marketPrice, discountPct }) {
   return {
     sealed_watchlist_id: productId,
     source: "ebay",
@@ -28,6 +35,8 @@ function dealRow({ productId, listing, totalPrice, marketPrice, discountPct }) {
     price: listing.price,
     shipping: listing.shipping,
     total_price: totalPrice,
+    total_price_usd: totalPriceUsd ?? totalPrice,
+    currency: listing.currency ?? "USD",
     market_price: marketPrice,
     discount_pct: discountPct,
     seller_username: listing.sellerUsername,
@@ -37,7 +46,7 @@ function dealRow({ productId, listing, totalPrice, marketPrice, discountPct }) {
   };
 }
 
-async function scanProductInMarketplace(row, marketplaceId, marketPrice, db, discountThreshold) {
+async function scanProductInMarketplace(row, marketplaceId, marketPrice, db, discountThreshold, rates) {
   const query = row.set ? `${row.name} ${row.set}` : row.name;
   // categoryId: null - see searchListings in lib/ebay.js for why (sealed
   // product's real eBay category id isn't verified; the query text itself
@@ -54,16 +63,15 @@ async function scanProductInMarketplace(row, marketplaceId, marketPrice, db, dis
     if (!isTrustworthySealedListing(listing)) continue;
     if (!listingMatchesSealedProduct(listing, row)) continue;
 
-    const totalPrice = listing.price + listing.shipping;
-    const discountPct = (marketPrice - totalPrice) / marketPrice;
+    const { totalLocal, totalUsd, discountPct } = pricedListing(listing, marketPrice, rates);
     if (discountPct < discountThreshold) continue;
-    if (totalPrice < marketPrice * SANITY_FLOOR_PCT) continue;
+    if (totalUsd < marketPrice * SANITY_FLOOR_PCT) continue;
 
     seenListingIds.push(listing.listingId);
     const { error } = await db
       .from("sealed_deals")
       .upsert(
-        dealRow({ productId: row.id, listing, totalPrice, marketPrice, discountPct }),
+        dealRow({ productId: row.id, listing, totalPrice: totalLocal, totalPriceUsd: totalUsd, marketPrice, discountPct }),
         { onConflict: "source,marketplace,listing_id" }
       );
     if (error) console.error(`Failed to upsert sealed deal ${listing.listingId}:`, error.message);
@@ -102,6 +110,7 @@ export async function GET(request) {
 
   const db = supabaseAdmin();
   const url = new URL(request.url);
+  const rates = await getUsdRates();
 
   // Pre-flight Browse API quota check - same guard as app/api/refresh-deals
   // (see docs/ebay-rate-limits.md). This run scans ~48 products x 5
@@ -156,7 +165,7 @@ export async function GET(request) {
       marketplaceIds.map(async (marketplaceId) => {
         scanned++;
         try {
-          dealsFound += await scanProductInMarketplace(row, marketplaceId, marketPrice, db, discountThreshold);
+          dealsFound += await scanProductInMarketplace(row, marketplaceId, marketPrice, db, discountThreshold, rates);
         } catch (err) {
           errors.push(`${row.name} (${marketplaceId}): ${err.message}`);
         }

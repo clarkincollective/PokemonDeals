@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES } from "@/lib/ebay";
+import { currencyForDeal, formatMoney } from "@/lib/money";
 import { getSealedPriceHistory } from "@/lib/pokemonPriceTracker";
 import { shouldIndexDeal } from "@/lib/indexability";
 import { timeAgo, timeUntil } from "@/lib/time";
@@ -130,7 +131,9 @@ export default async function SealedDealDetailPage({ params }) {
   const productName = watchlist?.name ?? deal.title;
   const productSet = watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
-  const amountSaved = Number(deal.market_price) - Number(deal.total_price);
+  const dealCurrency = currencyForDeal(deal);
+  const isUsd = dealCurrency === "USD";
+  const amountSaved = Number(deal.market_price) - Number(deal.total_price_usd ?? deal.total_price);
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
   const tcgplayerLink = buildTcgplayerLink(productName, watchlist?.tcgplayer_id);
@@ -220,15 +223,21 @@ export default async function SealedDealDetailPage({ params }) {
             <div className="mt-4">
               <div className="flex items-baseline gap-3">
                 <span className="text-2xl font-bold text-black dark:text-zinc-50">
-                  ${Number(deal.total_price).toFixed(2)}
+                  {formatMoney(deal.total_price, dealCurrency)}
                 </span>
-                <span className="text-lg text-zinc-400 line-through">
-                  ${Number(deal.market_price).toFixed(2)}
-                </span>
+                {isUsd && (
+                  <span className="text-lg text-zinc-400 line-through">
+                    {formatMoney(deal.market_price, "USD")}
+                  </span>
+                )}
               </div>
-              {amountSaved > 0 && (
+              {isUsd && amountSaved > 0 ? (
                 <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                  You save ${amountSaved.toFixed(2)}
+                  You save {formatMoney(amountSaved, "USD")}
+                </p>
+              ) : (
+                <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-500">
+                  {discountPct}% below market
                 </p>
               )}
             </div>
@@ -290,18 +299,14 @@ export default async function SealedDealDetailPage({ params }) {
             <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
               Not enough dated sales to plot a trend yet. Current market value is{" "}
               <span className="font-semibold text-black dark:text-zinc-50">
-                ${Number(deal.market_price).toFixed(2)}
+                {formatMoney(deal.market_price, "USD")}
               </span>
-              {amountSaved > 0 && (
-                <>
-                  {" "}
-                  — this listing is{" "}
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-500">
-                    ${amountSaved.toFixed(2)} below
-                  </span>{" "}
-                  it.
-                </>
-              )}
+              {" "}
+              — this listing is{" "}
+              <span className="font-semibold text-emerald-600 dark:text-emerald-500">
+                {discountPct}% below
+              </span>{" "}
+              it.
             </p>
           )}
         </div>

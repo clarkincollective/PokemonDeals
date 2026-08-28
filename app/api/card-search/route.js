@@ -139,6 +139,7 @@ async function cardSearch(url) {
               ? {
                   id: deal.id,
                   totalPrice: deal.total_price,
+                  marketplace: deal.marketplace,
                   discountPct: deal.discount_pct,
                   listingType: deal.listing_type,
                   affiliateUrl: deal.affiliate_url,

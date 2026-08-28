@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { MARKETPLACES } from "@/lib/ebay";
 import { slugifySet } from "@/lib/slugify";
+import { currencyForDeal, formatMoney } from "@/lib/money";
 import { timeAgo, timeUntil, isWithin } from "@/lib/time";
 import AffiliateLink from "@/components/AffiliateLink";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
@@ -34,7 +35,11 @@ export default function DealCard({ deal, rank, hub, pageName = "home" }) {
   const discountPct = Math.round(deal.discount_pct * 100);
   const total = Number(deal.total_price);
   const market = Number(deal.market_price);
-  const saved = market - total;
+  const currency = currencyForDeal(deal);
+  const isUsd = currency === "USD";
+  // market_price is a USD catalogue reference; only the "typical / save"
+  // absolute figures make sense next to a USD listing price.
+  const saved = market - Number(deal.total_price_usd ?? total);
   const isAuction = deal.listing_type === "AUCTION";
   const isJapanese = deal.watchlist?.language === "japanese";
   const marketInfo = MARKETPLACES[deal.marketplace];
@@ -58,6 +63,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home" }) {
               set: cardSet,
               image: deal.image_url,
               price: deal.total_price,
+              currency: currencyForDeal(deal),
             }}
           />
         </div>
@@ -128,12 +134,20 @@ export default function DealCard({ deal, rank, hub, pageName = "home" }) {
         </p>
 
         <div className="mt-1.5 flex items-baseline gap-2">
-          <span className="tnum text-lg font-bold text-zinc-900 dark:text-zinc-50">${total.toFixed(2)}</span>
-          <span className="tnum text-xs text-zinc-400 line-through">typical ${market.toFixed(2)}</span>
+          <span className="tnum text-lg font-bold text-zinc-900 dark:text-zinc-50">
+            {formatMoney(total, currency)}
+          </span>
+          {isUsd && (
+            <span className="tnum text-xs text-zinc-400 line-through">typical {formatMoney(market, "USD")}</span>
+          )}
         </div>
-        {saved > 0 && (
+        {isUsd && saved > 0 ? (
           <p className="tnum text-xs font-semibold text-emerald-700 dark:text-emerald-500">
-            Save ${saved.toFixed(2)} · {discountPct}% under
+            Save {formatMoney(saved, "USD")} · {discountPct}% under
+          </p>
+        ) : (
+          <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-500">
+            {discountPct}% below market
           </p>
         )}
 

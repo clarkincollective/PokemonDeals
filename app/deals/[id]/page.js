@@ -9,6 +9,7 @@ import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebay";
+import { currencyForDeal, formatMoney } from "@/lib/money";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
@@ -285,6 +286,7 @@ export default async function DealDetailPage({ params }) {
           set: cardSet,
           image: deal.image_url,
           price: deal.total_price,
+          currency: currencyForDeal(deal),
         }}
       />
       <SiteHeader />
@@ -372,19 +374,40 @@ export default async function DealDetailPage({ params }) {
             )}
 
             <div className="mt-4">
-              <div className="flex items-baseline gap-3">
-                <span className="text-2xl font-bold text-black dark:text-zinc-50">
-                  ${Number(deal.total_price).toFixed(2)}
-                </span>
-                <span className="text-base text-zinc-400 line-through">
-                  ${Number(deal.market_price).toFixed(2)}
-                </span>
-              </div>
-              {Number(deal.market_price) - Number(deal.total_price) > 0 && (
-                <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                  You save ${(Number(deal.market_price) - Number(deal.total_price)).toFixed(2)}
-                </p>
-              )}
+              {(() => {
+                const dealCurrency = currencyForDeal(deal);
+                const isUsd = dealCurrency === "USD";
+                const usdTotal = Number(deal.total_price_usd ?? deal.total_price);
+                const usdSaved = Number(deal.market_price) - usdTotal;
+                return (
+                  <>
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-2xl font-bold text-black dark:text-zinc-50">
+                        {formatMoney(deal.total_price, dealCurrency)}
+                      </span>
+                      {isUsd && (
+                        <span className="text-base text-zinc-400 line-through">
+                          {formatMoney(deal.market_price, "USD")}
+                        </span>
+                      )}
+                    </div>
+                    {isUsd && usdSaved > 0 ? (
+                      <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
+                        You save {formatMoney(usdSaved, "USD")}
+                      </p>
+                    ) : (
+                      <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
+                        {discountPct}% below market
+                        {!isUsd && (
+                          <span className="ml-1 font-normal text-zinc-400">
+                            (vs a {formatMoney(deal.market_price, "USD")} US reference)
+                          </span>
+                        )}
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
               <p className="mt-1 text-xs text-zinc-400">
                 Compared against real market pricing.{" "}
                 <Link
@@ -445,6 +468,7 @@ export default async function DealDetailPage({ params }) {
                   set: cardSet,
                   image: deal.image_url,
                   price: deal.total_price,
+                  currency: currencyForDeal(deal),
                 }}
               />
             </div>
@@ -468,18 +492,14 @@ export default async function DealDetailPage({ params }) {
               Not enough dated sales to plot a trend yet. Current{" "}
               {deal.is_graded ? "graded comp" : "market"} value is{" "}
               <span className="font-semibold text-black dark:text-zinc-50">
-                ${Number(deal.market_price).toFixed(2)}
+                {formatMoney(deal.market_price, "USD")}
               </span>
-              {Number(deal.market_price) - Number(deal.total_price) > 0 && (
-                <>
-                  {" "}
-                  — this listing is{" "}
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-500">
-                    ${(Number(deal.market_price) - Number(deal.total_price)).toFixed(2)} below
-                  </span>{" "}
-                  it.
-                </>
-              )}
+              {" "}
+              — this listing is{" "}
+              <span className="font-semibold text-emerald-600 dark:text-emerald-500">
+                {discountPct}% below
+              </span>{" "}
+              it.
             </p>
           )}
         </div>
@@ -587,7 +607,7 @@ export default async function DealDetailPage({ params }) {
 
       <StickyDealCta
         href={deal.affiliate_url}
-        priceLabel={`$${Number(deal.total_price).toFixed(2)}`}
+        priceLabel={formatMoney(deal.total_price, currencyForDeal(deal))}
         ctaLabel={isAuction ? "Bid on eBay →" : "Check on eBay →"}
         eventData={{ card: cardName, marketplace: deal.marketplace, discountPct }}
       />

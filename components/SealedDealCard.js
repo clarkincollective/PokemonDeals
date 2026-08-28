@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { MARKETPLACES } from "@/lib/ebay";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
+import { currencyForDeal, formatMoney } from "@/lib/money";
 import { timeAgo, timeUntil } from "@/lib/time";
 import AffiliateLink from "@/components/AffiliateLink";
 import DealScoreBadge from "@/components/DealScoreBadge";
@@ -16,7 +17,9 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
   const productName = deal.sealed_watchlist?.name ?? deal.title;
   const productSet = deal.sealed_watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
-  const amountSaved = Number(deal.market_price) - Number(deal.total_price);
+  const currency = currencyForDeal(deal);
+  const isUsd = currency === "USD";
+  const amountSaved = Number(deal.market_price) - Number(deal.total_price_usd ?? deal.total_price);
   const tcgplayerLink = buildTcgplayerLink(productName, deal.sealed_watchlist?.tcgplayer_id);
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
@@ -76,15 +79,21 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
         <div className="mt-1">
           <div className="flex items-baseline gap-2">
             <span className="text-lg font-bold text-black dark:text-zinc-50">
-              ${Number(deal.total_price).toFixed(2)}
+              {formatMoney(deal.total_price, currency)}
             </span>
-            <span className="text-sm text-zinc-400 line-through">
-              ${Number(deal.market_price).toFixed(2)}
-            </span>
+            {isUsd && (
+              <span className="text-sm text-zinc-400 line-through">
+                {formatMoney(deal.market_price, "USD")}
+              </span>
+            )}
           </div>
-          {amountSaved > 0 && (
+          {isUsd && amountSaved > 0 ? (
             <p className="text-xs font-medium text-emerald-600 dark:text-emerald-500">
-              You save ${amountSaved.toFixed(2)}
+              You save {formatMoney(amountSaved, "USD")}
+            </p>
+          ) : (
+            <p className="text-xs font-medium text-emerald-600 dark:text-emerald-500">
+              {discountPct}% below market
             </p>
           )}
         </div>

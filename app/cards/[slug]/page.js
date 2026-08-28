@@ -11,6 +11,7 @@ import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import SiteHeader from "@/components/SiteHeader";
 import DealCard from "@/components/DealCard";
 import { CountryFilterRow } from "@/components/FilterBar";
+import { currencyForDeal, formatMoney } from "@/lib/money";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
@@ -137,11 +138,14 @@ export default async function CardHubPage({ params, searchParams }) {
   // window is short) but isn't treated as an error if it does - just an
   // honest "nothing active right now" state, same as any other grid.
   const cheapest = offers[0];
+  // Listings can be priced in different marketplace currencies, so the
+  // cross-listing range is shown normalised to USD.
+  const usdOf = (o) => Number(o.total_price_usd ?? o.total_price);
   const priceRange =
-    offers.length > 1 && offers[0].total_price !== offers[offers.length - 1].total_price
-      ? `$${Number(offers[0].total_price).toFixed(2)} - $${Number(offers[offers.length - 1].total_price).toFixed(2)}`
+    offers.length > 1 && usdOf(offers[0]) !== usdOf(offers[offers.length - 1])
+      ? `${formatMoney(usdOf(offers[0]), "USD")} – ${formatMoney(usdOf(offers[offers.length - 1]), "USD")}`
       : offers[0]
-        ? `$${Number(offers[0].total_price).toFixed(2)}`
+        ? formatMoney(usdOf(offers[0]), "USD")
         : null;
 
   const primaryHistory = analysis?.raw?.history ?? [];
@@ -155,6 +159,7 @@ export default async function CardHubPage({ params, searchParams }) {
     set: hub.set,
     image: allOffers[0]?.image_url ?? null,
     price: allOffers[0]?.total_price ?? null,
+    currency: allOffers[0] ? currencyForDeal(allOffers[0]) : null,
   };
 
   // One real Offer per real active listing - the documented Google/
@@ -366,7 +371,9 @@ export default async function CardHubPage({ params, searchParams }) {
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
-                    <span className="font-semibold text-black dark:text-zinc-50">${Number(deal.total_price).toFixed(2)}</span>
+                    <span className="font-semibold text-black dark:text-zinc-50">
+                      {formatMoney(deal.total_price, currencyForDeal(deal))}
+                    </span>
                     <AffiliateLink
                       href={deal.affiliate_url}
                       eventName="eBay Click"
@@ -396,7 +403,7 @@ export default async function CardHubPage({ params, searchParams }) {
       {cheapest && (
         <StickyDealCta
           href={cheapest.affiliate_url}
-          priceLabel={`$${Number(cheapest.total_price).toFixed(2)}`}
+          priceLabel={formatMoney(cheapest.total_price, currencyForDeal(cheapest))}
           ctaLabel={cheapest.listing_type === "AUCTION" ? "Bid on eBay →" : "Check on eBay →"}
           eventData={{ card: hub.name, marketplace: cheapest.marketplace, page: "card_hub" }}
         />

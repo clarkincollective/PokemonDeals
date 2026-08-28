@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
+import { formatMoney } from "@/lib/money";
 import {
   readRecent,
   readSaved,
@@ -49,7 +50,7 @@ function Tile({ card, onRemove }) {
           {card.name}
         </span>
         {card.price != null && (
-          <span className="text-xs text-zinc-500">from ${Number(card.price).toFixed(2)}</span>
+          <span className="text-xs text-zinc-500">from {formatMoney(card.price, card.currency || "USD")}</span>
         )}
       </Link>
     </div>
