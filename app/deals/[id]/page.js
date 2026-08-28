@@ -9,9 +9,8 @@ import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebay";
-import { currencyForDeal, formatMoney, viewerPricing, toViewerCurrency } from "@/lib/money";
-import { viewerCurrency } from "@/lib/viewerCurrency";
-import { getUsdRates } from "@/lib/fx";
+import { currencyForDeal } from "@/lib/money";
+import Price from "@/components/Price";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
@@ -146,9 +145,8 @@ async function loadPriceAnalysis(deal, watchlist) {
   );
 }
 
-export default async function DealDetailPage({ params, searchParams }) {
+export default async function DealDetailPage({ params }) {
   const { id } = await params;
-  const sp = (await searchParams) ?? {};
 
   const deal = await loadDeal(id);
 
@@ -208,12 +206,15 @@ export default async function DealDetailPage({ params, searchParams }) {
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
 
-  // Prices shown in the viewer's own currency where we can detect it
-  // (converted from the stored USD figures); otherwise the listing's own
-  // currency, as before. `approx` -> show an "≈" and expect FX rounding.
-  const [viewerCcy, rates] = await Promise.all([viewerCurrency(sp), getUsdRates()]);
-  const price = viewerPricing(deal, viewerCcy, rates);
-  const priceLabel = `${price.approx ? "≈ " : ""}${formatMoney(price.listing, price.currency)}`;
+  // Native currency on the server (keeps this page statically cacheable);
+  // <Price> localises each figure to the viewer's currency after
+  // hydration. market_price and the derived "saved" are USD references.
+  const nativeCurrency = currencyForDeal(deal);
+  const total = Number(deal.total_price);
+  const usdTotal = Number(deal.total_price_usd ?? deal.total_price);
+  const marketUsd = Number(deal.market_price);
+  const savedUsd = marketUsd - usdTotal;
+  const showRef = Number.isFinite(marketUsd) && savedUsd > 0;
   const tcgplayerLink = buildTcgplayerLink(cardName, deal.watchlist?.justtcg_tcgplayer_id);
 
   // Structured data so a search result can show price/availability
@@ -386,33 +387,28 @@ export default async function DealDetailPage({ params, searchParams }) {
             )}
 
             <div className="mt-4">
-              {(() => {
-                const showRef = price.market != null && price.saved > 0;
-                return (
-                  <>
-                    <div className="flex items-baseline gap-3">
-                      <span className="text-2xl font-bold text-black dark:text-zinc-50">
-                        {price.approx ? "≈ " : ""}
-                        {formatMoney(price.listing, price.currency)}
-                      </span>
-                      {showRef && (
-                        <span className="text-base text-zinc-400 line-through">
-                          {formatMoney(price.market, price.currency)}
-                        </span>
-                      )}
-                    </div>
-                    {showRef ? (
-                      <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                        You save {formatMoney(price.saved, price.currency)} · {discountPct}% below market
-                      </p>
-                    ) : (
-                      <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                        {discountPct}% below market
-                      </p>
-                    )}
-                  </>
-                );
-              })()}
+              <div className="flex items-baseline gap-3">
+                <Price
+                  usd={usdTotal}
+                  native={{ amount: total, currency: nativeCurrency }}
+                  className="text-2xl font-bold text-black dark:text-zinc-50"
+                />
+                {showRef && (
+                  <span className="text-base text-zinc-400 line-through">
+                    <Price usd={marketUsd} native={{ amount: marketUsd, currency: "USD" }} approxPrefix="" />
+                  </span>
+                )}
+              </div>
+              {showRef ? (
+                <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
+                  You save <Price usd={savedUsd} native={{ amount: savedUsd, currency: "USD" }} /> ·{" "}
+                  {discountPct}% below market
+                </p>
+              ) : (
+                <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
+                  {discountPct}% below market
+                </p>
+              )}
               <p className="mt-1 text-xs text-zinc-400">
                 Compared against real market pricing.{" "}
                 <Link
@@ -504,11 +500,7 @@ export default async function DealDetailPage({ params, searchParams }) {
               Not enough dated sales to plot a trend yet. Current{" "}
               {deal.is_graded ? "graded comp" : "market"} value is{" "}
               <span className="font-semibold text-black dark:text-zinc-50">
-                {price.approx ? "≈ " : ""}
-                {formatMoney(
-                  price.market ?? toViewerCurrency(deal.market_price, price.currency, rates),
-                  price.currency
-                )}
+                <Price usd={marketUsd} native={{ amount: marketUsd, currency: "USD" }} approxPrefix="" />
               </span>
               {" "}
               — this listing is{" "}
@@ -623,7 +615,8 @@ export default async function DealDetailPage({ params, searchParams }) {
 
       <StickyDealCta
         href={deal.affiliate_url}
-        priceLabel={priceLabel}
+        priceUsd={usdTotal}
+        priceNative={{ amount: total, currency: nativeCurrency }}
         ctaLabel={isAuction ? "Bid on eBay →" : "Check on eBay →"}
         eventData={{ card: cardName, marketplace: deal.marketplace, discountPct }}
       />

@@ -2,9 +2,6 @@ import { fetchDealsPool, fetchDealsPage, fetchLastScanTime, fetchHubCounts } fro
 import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
 import RegionRedirect from "@/components/RegionRedirect";
-import { detectedMarketplace } from "@/lib/geo";
-import { viewerCurrency } from "@/lib/viewerCurrency";
-import { getUsdRates } from "@/lib/fx";
 import SiteFooter from "@/components/SiteFooter";
 import DealCard from "@/components/DealCard";
 import JsonLd from "@/components/JsonLd";
@@ -57,8 +54,6 @@ function shuffled(array) {
 
 export default async function JapaneseCardsPage({ searchParams }) {
   const params = await searchParams;
-  const detectedRegion = await detectedMarketplace();
-  const [viewerCcy, rates] = await Promise.all([viewerCurrency(params), getUsdRates()]);
   const country = typeof params.country === "string" ? params.country : null;
   const cardType = typeof params.type === "string" ? params.type : null;
   const listingType = typeof params.listing === "string" ? params.listing : null;
@@ -123,7 +118,7 @@ export default async function JapaneseCardsPage({ searchParams }) {
         ]}
       />
       <SiteHeader />
-      <RegionRedirect detected={detectedRegion} />
+      <RegionRedirect />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-10">
@@ -179,7 +174,7 @@ export default async function JapaneseCardsPage({ searchParams }) {
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {deals?.map((deal) => (
-            <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="japanese_cards" viewerCurrency={viewerCcy} rates={rates} />
+            <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="japanese_cards" />
           ))}
         </div>
 

@@ -16,10 +16,7 @@ import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import RegionRedirect from "@/components/RegionRedirect";
-import { detectedMarketplace } from "@/lib/geo";
-import { viewerCurrency } from "@/lib/viewerCurrency";
-import { getUsdRates } from "@/lib/fx";
-import { formatMoney, toViewerCurrency } from "@/lib/money";
+import Price from "@/components/Price";
 import HeroSearch from "@/components/HeroSearch";
 import MobileStickySearch from "@/components/MobileStickySearch";
 import NewSinceVisit from "@/components/NewSinceVisit";
@@ -97,8 +94,6 @@ const START_HERE = [
 
 export default async function Home({ searchParams }) {
   const params = await searchParams;
-  const detectedRegion = await detectedMarketplace();
-  const [viewerCcy, rates] = await Promise.all([viewerCurrency(params), getUsdRates()]);
   const country = typeof params.country === "string" ? params.country : null;
   const cardType = typeof params.type === "string" ? params.type : null;
   const listingType = typeof params.listing === "string" ? params.listing : null;
@@ -202,7 +197,7 @@ export default async function Home({ searchParams }) {
       )}
       <SiteHeader />
       <MobileStickySearch />
-      <RegionRedirect detected={detectedRegion} />
+      <RegionRedirect />
 
       {/* HERO - name the job, big search, entry chips, live proof */}
       <header className="border-b border-zinc-200 dark:border-zinc-800">
@@ -265,7 +260,7 @@ export default async function Home({ searchParams }) {
             />
             <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {bestFinds.map((deal, i) => (
-                <DealCard key={deal.id} deal={deal} rank={i + 1} hub={hubCounts[deal.watchlist_id]} pageName="home_best" viewerCurrency={viewerCcy} rates={rates} />
+                <DealCard key={deal.id} deal={deal} rank={i + 1} hub={hubCounts[deal.watchlist_id]} pageName="home_best" />
               ))}
             </div>
           </div>
@@ -295,7 +290,7 @@ export default async function Home({ searchParams }) {
             />
             <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               {endingSoon.map((deal) => (
-                <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_ending" viewerCurrency={viewerCcy} rates={rates} />
+                <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_ending" />
               ))}
             </div>
           </div>
@@ -317,7 +312,7 @@ export default async function Home({ searchParams }) {
             </div>
             <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               {freshFinds.map((deal) => (
-                <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_fresh" viewerCurrency={viewerCcy} rates={rates} />
+                <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_fresh" />
               ))}
             </div>
           </div>
@@ -361,8 +356,11 @@ export default async function Home({ searchParams }) {
                     <p className="line-clamp-1 text-xs font-semibold text-zinc-900 dark:text-zinc-50">{hub.name}</p>
                     <p className="line-clamp-1 text-[11px] text-zinc-500">{hub.set}</p>
                     <p className="tnum mt-1 text-xs font-bold text-zinc-900 dark:text-zinc-50">
-                      from {viewerCcy && viewerCcy !== "USD" ? "≈ " : ""}
-                      {formatMoney(toViewerCurrency(hub.cheapestPrice, viewerCcy || "USD", rates), viewerCcy || "USD")}
+                      from{" "}
+                      <Price
+                        usd={hub.cheapestPrice}
+                        native={{ amount: hub.cheapestPrice, currency: "USD" }}
+                      />
                     </p>
                   </div>
                 </Link>
@@ -435,7 +433,7 @@ export default async function Home({ searchParams }) {
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {deals?.map((deal) => (
-            <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} viewerCurrency={viewerCcy} rates={rates} />
+            <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} />
           ))}
         </div>
 

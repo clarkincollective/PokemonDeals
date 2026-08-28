@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import { formatMoney, toViewerCurrency } from "@/lib/money";
+import { useCurrency } from "@/components/CurrencyProvider";
 import {
   readRecent,
   readSaved,
@@ -102,22 +103,9 @@ export default function CardMemoryStrip() {
   const saved = useSyncExternalStore(subscribeCards, readSaved, getServerSnapshot);
   const recent = useSyncExternalStore(subscribeCards, readRecent, getServerSnapshot);
 
-  // Viewer currency + FX rates, so tile prices match the rest of the site.
-  // Loads after paint; until then (and on failure) tiles show the card's
-  // own currency.
-  const [fx, setFx] = useState(null);
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/rates")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!cancelled && d?.rates) setFx(d);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Viewer currency + FX rates from the shared context (loads after
+  // paint); until then tiles show the card's own currency.
+  const fx = useCurrency();
 
   if (!saved.length && !recent.length) return null;
 

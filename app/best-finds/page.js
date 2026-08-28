@@ -2,9 +2,6 @@ import Link from "next/link";
 import { fetchBestFinds, fetchHubCounts } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
 import RegionRedirect from "@/components/RegionRedirect";
-import { detectedMarketplace } from "@/lib/geo";
-import { viewerCurrency } from "@/lib/viewerCurrency";
-import { getUsdRates } from "@/lib/fx";
 import SiteFooter from "@/components/SiteFooter";
 import DealCard from "@/components/DealCard";
 import JsonLd from "@/components/JsonLd";
@@ -53,8 +50,6 @@ function TypeToggle({ params, type }) {
 
 export default async function BestFindsPage({ searchParams }) {
   const params = await searchParams;
-  const detectedRegion = await detectedMarketplace();
-  const [viewerCcy, rates] = await Promise.all([viewerCurrency(params), getUsdRates()]);
   // Raw and graded are ranked as two separate lists (graded is a much
   // smaller pool - mixing them would let raw deals crowd out every
   // graded one) - default to raw since it's the far larger, more
@@ -92,7 +87,7 @@ export default async function BestFindsPage({ searchParams }) {
         ]}
       />
       <SiteHeader />
-      <RegionRedirect detected={detectedRegion} />
+      <RegionRedirect />
 
       <header className="border-b border-zinc-200 bg-gradient-to-b from-red-50 to-transparent dark:border-zinc-800 dark:from-red-950/20">
         <div className="mx-auto max-w-7xl px-6 py-8">
@@ -139,7 +134,7 @@ export default async function BestFindsPage({ searchParams }) {
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {deals.map((deal, i) => (
-            <DealCard key={deal.id} deal={deal} rank={i + 1} hub={hubCounts[deal.watchlist_id]} pageName="best_finds" viewerCurrency={viewerCcy} rates={rates} />
+            <DealCard key={deal.id} deal={deal} rank={i + 1} hub={hubCounts[deal.watchlist_id]} pageName="best_finds" />
           ))}
         </div>
 

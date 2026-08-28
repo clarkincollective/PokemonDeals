@@ -1,16 +1,23 @@
 import { getUsdRates } from "@/lib/fx";
 import { viewerCurrency } from "@/lib/viewerCurrency";
+import { detectedMarketplace } from "@/lib/geo";
 
 export const dynamic = "force-dynamic";
 
-// Tiny read-only endpoint so client components (the homepage "saved" /
-// "recently viewed" strips) can show prices in the viewer's currency the
-// same way the server-rendered pages do. No secrets, no writes.
-//   { viewer: "AUD", rates: { USD: 1, GBP: 0.79, ... } }
+// The one request-time personalisation endpoint. Client components
+// (CurrencyProvider, RegionRedirect, the saved / recently-viewed strips)
+// read the viewer's currency + region + FX rates from here AFTER
+// hydration, so the pages that show prices never read the geo header
+// during render and stay statically cacheable. No secrets, no writes.
+//   { viewer: "AUD", marketplace: "EBAY_AU", rates: { USD: 1, GBP: 0.79, ... } }
 export async function GET() {
-  const [viewer, rates] = await Promise.all([viewerCurrency(), getUsdRates()]);
+  const [viewer, marketplace, rates] = await Promise.all([
+    viewerCurrency(),
+    detectedMarketplace(),
+    getUsdRates(),
+  ]);
   return Response.json(
-    { viewer, rates },
+    { viewer, marketplace, rates },
     { headers: { "Cache-Control": "private, max-age=900" } }
   );
 }

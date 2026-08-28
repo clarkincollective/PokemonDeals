@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 import AffiliateLink from "@/components/AffiliateLink";
+import Price from "@/components/Price";
 
 // A price + buy CTA pinned to the bottom of the viewport on long deal
 // pages, so the action is always reachable without scrolling back up.
 // Appears only after the user has scrolled past the main CTA (~500px),
 // and only on narrower viewports where the in-page button is off-screen.
-export default function StickyDealCta({ href, priceLabel, ctaLabel = "Check on eBay →", eventData }) {
+// Pass priceUsd + priceNative ({ amount, currency }) so the price
+// localises to the viewer's currency after hydration like everywhere else.
+export default function StickyDealCta({ href, priceUsd, priceNative, ctaLabel = "Check on eBay →", eventData }) {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -26,7 +29,11 @@ export default function StickyDealCta({ href, priceLabel, ctaLabel = "Check on e
       }`}
     >
       <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
-        <span className="text-lg font-bold text-black dark:text-zinc-50">{priceLabel}</span>
+        <Price
+          usd={priceUsd}
+          native={priceNative}
+          className="text-lg font-bold text-black dark:text-zinc-50"
+        />
         <AffiliateLink
           href={href}
           eventName="eBay Click"

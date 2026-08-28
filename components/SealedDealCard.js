@@ -1,26 +1,30 @@
 import Image from "next/image";
 import { MARKETPLACES } from "@/lib/ebay";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
-import { formatMoney, viewerPricing } from "@/lib/money";
+import { currencyForDeal } from "@/lib/money";
 import { timeAgo, timeUntil } from "@/lib/time";
 import AffiliateLink from "@/components/AffiliateLink";
 import DealScoreBadge from "@/components/DealScoreBadge";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import ShareButton from "@/components/ShareButton";
+import Price from "@/components/Price";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
 // Same visual language as DealCard, minus condition/grading (sealed
 // product has neither) - deal is a sealed_deals row joined to
 // sealed_watchlist (see app/sealed-deals/page.js).
-export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sealed", viewerCurrency, rates }) {
+export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sealed" }) {
   const productName = deal.sealed_watchlist?.name ?? deal.title;
   const productSet = deal.sealed_watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
-  const price = viewerPricing(deal, viewerCurrency, rates);
-  const currency = price.currency;
-  const showRef = price.market != null && price.saved > 0;
-  const approxPrefix = price.approx ? "≈ " : "";
+  // Native currency on the server; <Price> localises after hydration.
+  const nativeCurrency = currencyForDeal(deal);
+  const total = Number(deal.total_price);
+  const usdTotal = Number(deal.total_price_usd ?? deal.total_price);
+  const market = Number(deal.market_price);
+  const saved = market - usdTotal;
+  const showRef = Number.isFinite(market) && saved > 0;
   const tcgplayerLink = buildTcgplayerLink(productName, deal.sealed_watchlist?.tcgplayer_id);
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
@@ -79,19 +83,20 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
 
         <div className="mt-1">
           <div className="flex items-baseline gap-2">
-            <span className="text-lg font-bold text-black dark:text-zinc-50">
-              {approxPrefix}
-              {formatMoney(price.listing, currency)}
-            </span>
+            <Price
+              usd={usdTotal}
+              native={{ amount: total, currency: nativeCurrency }}
+              className="text-lg font-bold text-black dark:text-zinc-50"
+            />
             {showRef && (
               <span className="text-sm text-zinc-400 line-through">
-                {formatMoney(price.market, currency)}
+                <Price usd={market} native={{ amount: market, currency: "USD" }} approxPrefix="" />
               </span>
             )}
           </div>
           {showRef ? (
             <p className="text-xs font-medium text-emerald-600 dark:text-emerald-500">
-              You save {formatMoney(price.saved, currency)} · {discountPct}% below market
+              You save <Price usd={saved} native={{ amount: saved, currency: "USD" }} /> · {discountPct}% below market
             </p>
           ) : (
             <p className="text-xs font-medium text-emerald-600 dark:text-emerald-500">

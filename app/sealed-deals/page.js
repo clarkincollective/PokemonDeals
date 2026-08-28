@@ -6,8 +6,6 @@ import SiteFooter from "@/components/SiteFooter";
 import SealedDealCard from "@/components/SealedDealCard";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbList, collectionPage } from "@/lib/jsonLd";
-import { viewerCurrency } from "@/lib/viewerCurrency";
-import { getUsdRates } from "@/lib/fx";
 import { CountryFilterRow, ListingTypeFilterRow, PriceFilterRow } from "@/components/FilterBar";
 import FilterToggle from "@/components/FilterToggle";
 import Pagination, { pageHref } from "@/components/Pagination";
@@ -53,7 +51,6 @@ function shuffled(array) {
 
 export default async function SealedDealsPage({ searchParams }) {
   const params = await searchParams;
-  const [viewerCcy, rates] = await Promise.all([viewerCurrency(params), getUsdRates()]);
   const country = typeof params.country === "string" ? params.country : null;
   const listingType = typeof params.listing === "string" ? params.listing : null;
   const maxPriceParam = typeof params.maxPrice === "string" ? Number(params.maxPrice) : null;
@@ -160,7 +157,7 @@ export default async function SealedDealsPage({ searchParams }) {
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {deals?.map((deal) => (
-            <SealedDealCard key={deal.id} deal={deal} scoreBadge={dealScore(deal.discount_pct)} viewerCurrency={viewerCcy} rates={rates} />
+            <SealedDealCard key={deal.id} deal={deal} scoreBadge={dealScore(deal.discount_pct)} />
           ))}
         </div>
 

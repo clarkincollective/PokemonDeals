@@ -10,10 +10,8 @@ import { MARKETPLACES } from "@/lib/ebay";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import SiteHeader from "@/components/SiteHeader";
 import DealCard from "@/components/DealCard";
-import { CountryFilterRow } from "@/components/FilterBar";
-import { currencyForDeal, formatMoney, viewerPricing, toViewerCurrency } from "@/lib/money";
-import { viewerCurrency } from "@/lib/viewerCurrency";
-import { getUsdRates } from "@/lib/fx";
+import { currencyForDeal } from "@/lib/money";
+import Price from "@/components/Price";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
@@ -111,34 +109,18 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default async function CardHubPage({ params, searchParams }) {
+export default async function CardHubPage({ params }) {
   const { slug } = await params;
-  const sp = (await searchParams) ?? {};
-  const [viewerCcy, rates] = await Promise.all([viewerCurrency(sp), getUsdRates()]);
   const hub = await resolveCardSlug(slug);
   if (!hub) notFound();
 
   const speciesName = extractSpecies(hub.name);
-  const [{ deals: allOffers, error }, analysis, speciesHub] = await Promise.all([
+  const [{ deals: offers, error }, analysis, speciesHub] = await Promise.all([
     fetchCardOffers(hub.id),
     loadPriceAnalysis(hub.tcgplayerId),
     speciesName ? resolveSpeciesByName(speciesName) : Promise.resolve(null),
   ]);
-
-  // Region filter: a buyer usually wants listings that ship from their
-  // country. Filter the *displayed* listings only - the Product JSON-LD
-  // and the page metadata still describe the full set (the canonical URL
-  // carries no ?country, and a crawler has no region).
-  const country = typeof sp.country === "string" ? sp.country : null;
-  const marketplaces = new Set(allOffers.map((o) => o.marketplace));
-  const showCountryFilter = marketplaces.size > 1;
-  const offers = country
-    ? allOffers
-        .filter((o) => o.marketplace === country)
-        // In-country listings first (no international shipping wait), then
-        // keep the cheapest-first order fetchCardOffers already applied.
-        .sort((a, b) => (b.is_local ? 1 : 0) - (a.is_local ? 1 : 0))
-    : allOffers;
+  const allOffers = offers;
 
   // The hub only exists (see fetchCardHubs) when there were 2+ active
   // listings as of the last 15-minute cache refresh - but listings sell/
@@ -146,19 +128,18 @@ export default async function CardHubPage({ params, searchParams }) {
   // legitimately be down to 1 or 0. 0 shouldn't happen (this cache
   // window is short) but isn't treated as an error if it does - just an
   // honest "nothing active right now" state, same as any other grid.
+  // No ?country= filter here: the page is now statically cacheable (no
+  // request-time APIs), the country grids cover that intent, and the
+  // faceted per-hub URLs were only spending crawl budget.
   const cheapest = offers[0];
-  // Listings can be priced in several marketplace currencies, so the
-  // cross-listing range is normalised - to the viewer's currency where we
-  // detected it, otherwise USD (every offer carries a stored USD value).
-  const rangeCurrency = viewerCcy || "USD";
-  const rangeApprox = rangeCurrency !== "USD" ? "≈ " : "";
-  const rangeOf = (o) => toViewerCurrency(o.total_price_usd ?? o.total_price, rangeCurrency, rates);
-  const priceRange =
-    offers.length > 1 && rangeOf(offers[0]) !== rangeOf(offers[offers.length - 1])
-      ? `${rangeApprox}${formatMoney(rangeOf(offers[0]), rangeCurrency)} – ${formatMoney(rangeOf(offers[offers.length - 1]), rangeCurrency)}`
-      : offers[0]
-        ? `${rangeApprox}${formatMoney(rangeOf(offers[0]), rangeCurrency)}`
-        : null;
+  // Listings span several marketplace currencies, so the cross-listing
+  // range is normalised to the USD value every offer carries; <Price>
+  // localises each end after hydration.
+  const usdOf = (o) => Number(o.total_price_usd ?? o.total_price);
+  const rangeLowUsd = offers[0] ? usdOf(offers[0]) : null;
+  const rangeHighUsd = offers.length > 1 ? usdOf(offers[offers.length - 1]) : null;
+  const showRange = rangeLowUsd != null;
+  const showRangeSpan = rangeHighUsd != null && rangeHighUsd !== rangeLowUsd;
 
   const primaryHistory = analysis?.raw?.history ?? [];
   const tcgplayerLink = buildTcgplayerLink(hub.name, hub.tcgplayerId);
@@ -244,9 +225,7 @@ export default async function CardHubPage({ params, searchParams }) {
 
           <div className="flex-1">
             <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-              {offers.length}
-              {country && offers.length !== allOffers.length ? ` of ${allOffers.length}` : ""} active{" "}
-              {allOffers.length === 1 ? "listing" : "listings"}
+              {offers.length} active {offers.length === 1 ? "listing" : "listings"}
             </span>
             <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">
               {hub.name} — {hub.set} Prices &amp; Deals
@@ -269,10 +248,16 @@ export default async function CardHubPage({ params, searchParams }) {
               </div>
             )}
 
-            {priceRange && (
+            {showRange && (
               <p className="mt-4 text-2xl font-bold text-black dark:text-zinc-50">
-                {offers.length > 1 ? "From " : ""}
-                {priceRange}
+                {showRangeSpan ? "From " : ""}
+                <Price usd={rangeLowUsd} native={{ amount: rangeLowUsd, currency: "USD" }} />
+                {showRangeSpan && (
+                  <>
+                    {" – "}
+                    <Price usd={rangeHighUsd} native={{ amount: rangeHighUsd, currency: "USD" }} approxPrefix="" />
+                  </>
+                )}
               </p>
             )}
 
@@ -304,21 +289,6 @@ export default async function CardHubPage({ params, searchParams }) {
           </div>
         </div>
 
-        {showCountryFilter && (
-          <div className="mt-6">
-            <CountryFilterRow params={sp} country={country} basePath={`/cards/${slug}`} />
-          </div>
-        )}
-
-        {country && offers.length === 0 && allOffers.length > 0 && (
-          <p className="mt-6 text-zinc-500">
-            No listings from that country right now.{" "}
-            <Link href={`/cards/${slug}`} className="font-medium text-red-600 hover:underline dark:text-red-500">
-              Show all {allOffers.length} listings
-            </Link>
-          </p>
-        )}
-
         {offers.length > 0 && (
           <div className="mt-6">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-400">
@@ -326,7 +296,7 @@ export default async function CardHubPage({ params, searchParams }) {
             </h2>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {offers.slice(0, FEATURED_OFFER_COUNT).map((deal, i) => (
-                <DealCard key={deal.id} deal={deal} rank={i + 1} pageName="card_hub" viewerCurrency={viewerCcy} rates={rates} />
+                <DealCard key={deal.id} deal={deal} rank={i + 1} pageName="card_hub" />
               ))}
             </div>
           </div>
@@ -368,7 +338,6 @@ export default async function CardHubPage({ params, searchParams }) {
           <ul className="mt-4 divide-y divide-zinc-100 dark:divide-zinc-900">
             {offers.map((deal) => {
               const marketInfo = MARKETPLACES[deal.marketplace];
-              const p = viewerPricing(deal, viewerCcy, rates);
               return (
                 <li key={deal.id} className="flex items-center justify-between gap-4 py-3">
                   <div className="min-w-0 flex-1">
@@ -389,10 +358,11 @@ export default async function CardHubPage({ params, searchParams }) {
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
-                    <span className="font-semibold text-black dark:text-zinc-50">
-                      {p.approx ? "≈ " : ""}
-                      {formatMoney(p.listing, p.currency)}
-                    </span>
+                    <Price
+                      usd={deal.total_price_usd ?? deal.total_price}
+                      native={{ amount: Number(deal.total_price), currency: currencyForDeal(deal) }}
+                      className="font-semibold text-black dark:text-zinc-50"
+                    />
                     <AffiliateLink
                       href={deal.affiliate_url}
                       eventName="eBay Click"
@@ -422,10 +392,8 @@ export default async function CardHubPage({ params, searchParams }) {
       {cheapest && (
         <StickyDealCta
           href={cheapest.affiliate_url}
-          priceLabel={(() => {
-            const p = viewerPricing(cheapest, viewerCcy, rates);
-            return `${p.approx ? "≈ " : ""}${formatMoney(p.listing, p.currency)}`;
-          })()}
+          priceUsd={cheapest.total_price_usd ?? cheapest.total_price}
+          priceNative={{ amount: Number(cheapest.total_price), currency: currencyForDeal(cheapest) }}
           ctaLabel={cheapest.listing_type === "AUCTION" ? "Bid on eBay →" : "Check on eBay →"}
           eventData={{ card: hub.name, marketplace: cheapest.marketplace, page: "card_hub" }}
         />

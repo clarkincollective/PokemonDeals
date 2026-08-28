@@ -12,15 +12,18 @@ import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebay";
 import { formatMoney, toViewerCurrency } from "@/lib/money";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
+import { useCurrency } from "@/components/CurrencyProvider";
 
 const CONDITIONS = ["Near Mint", "Lightly Played", "Moderately Played", "Heavily Played", "Damaged"];
 
-export default function SearchClient({ viewerCurrency, rates }) {
-  // Prices shown in the viewer's currency when the server resolved one
-  // (from their region), converted from stored USD values; otherwise USD.
-  const displayCcy = viewerCurrency || "USD";
+export default function SearchClient() {
+  // Viewer currency + rates from the shared client context (populated by
+  // /api/rates after hydration). Falls back to USD until it resolves.
+  const { viewer, rates } = useCurrency();
+  const displayCcy = viewer || "USD";
   const ccyApprox = displayCcy !== "USD" ? "≈ " : "";
-  const inDisplayCcy = (usdAmount) => formatMoney(toViewerCurrency(usdAmount, displayCcy, rates), displayCcy);
+  const inDisplayCcy = (usdAmount) =>
+    formatMoney(toViewerCurrency(usdAmount, displayCcy, rates), displayCcy);
   // The homepage hero's search box submits a plain GET form to
   // /search?q=... (no JS needed there) - picking that up here and
   // auto-running the search is what makes it feel like one continuous
@@ -273,7 +276,7 @@ export default function SearchClient({ viewerCurrency, rates }) {
             ) : (
               <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {deals.map((deal) => (
-                  <DealCard key={deal.id} deal={deal} pageName="search" viewerCurrency={viewerCurrency} rates={rates} />
+                  <DealCard key={deal.id} deal={deal} pageName="search" />
                 ))}
               </div>
             )}
@@ -542,7 +545,7 @@ export default function SearchClient({ viewerCurrency, rates }) {
                   ) : (
                     <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {detail.deals.map((deal) => (
-                        <DealCard key={deal.id} deal={deal} pageName="search" viewerCurrency={viewerCurrency} rates={rates} />
+                        <DealCard key={deal.id} deal={deal} pageName="search" />
                       ))}
                     </div>
                   )}

@@ -2,8 +2,6 @@ import { Suspense } from "react";
 import SearchClient from "./SearchClient";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbList } from "@/lib/jsonLd";
-import { viewerCurrency } from "@/lib/viewerCurrency";
-import { getUsdRates } from "@/lib/fx";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -40,9 +38,7 @@ export async function generateMetadata({ searchParams }) {
 // the page still ships real, indexable content in the initial HTML.
 export const dynamic = "force-dynamic";
 
-export default async function SearchPage({ searchParams }) {
-  const sp = (await searchParams) ?? {};
-  const [viewerCcy, rates] = await Promise.all([viewerCurrency(sp), getUsdRates()]);
+export default function SearchPage() {
   return (
     <>
       <JsonLd
@@ -61,7 +57,7 @@ export default async function SearchPage({ searchParams }) {
         ]}
       />
       <Suspense fallback={null}>
-        <SearchClient viewerCurrency={viewerCcy} rates={rates} />
+        <SearchClient />
       </Suspense>
     </>
   );

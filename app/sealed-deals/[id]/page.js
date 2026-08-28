@@ -5,9 +5,8 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES } from "@/lib/ebay";
-import { formatMoney, viewerPricing, toViewerCurrency } from "@/lib/money";
-import { viewerCurrency } from "@/lib/viewerCurrency";
-import { getUsdRates } from "@/lib/fx";
+import { currencyForDeal } from "@/lib/money";
+import Price from "@/components/Price";
 import { getSealedPriceHistory } from "@/lib/pokemonPriceTracker";
 import { shouldIndexDeal } from "@/lib/indexability";
 import { timeAgo, timeUntil } from "@/lib/time";
@@ -105,9 +104,8 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default async function SealedDealDetailPage({ params, searchParams }) {
+export default async function SealedDealDetailPage({ params }) {
   const { id } = await params;
-  const sp = (await searchParams) ?? {};
   const deal = await loadDeal(id);
 
   // Same real bug and fix as app/deals/[id]/page.js: without the
@@ -135,11 +133,14 @@ export default async function SealedDealDetailPage({ params, searchParams }) {
   const productName = watchlist?.name ?? deal.title;
   const productSet = watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
-  // Prices in the viewer's currency where detectable (converted from the
-  // stored USD figures), else the listing's own currency, as before.
-  const [viewerCcy, rates] = await Promise.all([viewerCurrency(sp), getUsdRates()]);
-  const price = viewerPricing(deal, viewerCcy, rates);
-  const showRef = price.market != null && price.saved > 0;
+  // Native currency on the server (keeps this page cacheable); <Price>
+  // localises after hydration. market_price / "saved" are USD.
+  const nativeCurrency = currencyForDeal(deal);
+  const total = Number(deal.total_price);
+  const usdTotal = Number(deal.total_price_usd ?? deal.total_price);
+  const marketUsd = Number(deal.market_price);
+  const savedUsd = marketUsd - usdTotal;
+  const showRef = Number.isFinite(marketUsd) && savedUsd > 0;
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
   const tcgplayerLink = buildTcgplayerLink(productName, watchlist?.tcgplayer_id);
@@ -245,19 +246,21 @@ export default async function SealedDealDetailPage({ params, searchParams }) {
 
             <div className="mt-4">
               <div className="flex items-baseline gap-3">
-                <span className="text-2xl font-bold text-black dark:text-zinc-50">
-                  {price.approx ? "≈ " : ""}
-                  {formatMoney(price.listing, price.currency)}
-                </span>
+                <Price
+                  usd={usdTotal}
+                  native={{ amount: total, currency: nativeCurrency }}
+                  className="text-2xl font-bold text-black dark:text-zinc-50"
+                />
                 {showRef && (
                   <span className="text-lg text-zinc-400 line-through">
-                    {formatMoney(price.market, price.currency)}
+                    <Price usd={marketUsd} native={{ amount: marketUsd, currency: "USD" }} approxPrefix="" />
                   </span>
                 )}
               </div>
               {showRef ? (
                 <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                  You save {formatMoney(price.saved, price.currency)} · {discountPct}% below market
+                  You save <Price usd={savedUsd} native={{ amount: savedUsd, currency: "USD" }} /> ·{" "}
+                  {discountPct}% below market
                 </p>
               ) : (
                 <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-500">
@@ -323,11 +326,7 @@ export default async function SealedDealDetailPage({ params, searchParams }) {
             <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
               Not enough dated sales to plot a trend yet. Current market value is{" "}
               <span className="font-semibold text-black dark:text-zinc-50">
-                {price.approx ? "≈ " : ""}
-                {formatMoney(
-                  price.market ?? toViewerCurrency(deal.market_price, price.currency, rates),
-                  price.currency
-                )}
+                <Price usd={marketUsd} native={{ amount: marketUsd, currency: "USD" }} approxPrefix="" />
               </span>
               {" "}
               — this listing is{" "}

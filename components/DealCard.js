@@ -2,11 +2,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { MARKETPLACES } from "@/lib/ebay";
 import { slugifySet } from "@/lib/slugify";
-import { currencyForDeal, formatMoney, viewerPricing } from "@/lib/money";
+import { currencyForDeal } from "@/lib/money";
 import { timeAgo, timeUntil, isWithin } from "@/lib/time";
 import AffiliateLink from "@/components/AffiliateLink";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import SaveCardButton from "@/components/SaveCardButton";
+import Price from "@/components/Price";
 
 const JUST_FOUND_MS = 2 * 60 * 60 * 1000;
 
@@ -29,21 +30,20 @@ function discountBadgeClass(pct) {
 // `rank` shows a number badge only on ranked lists (Top 10, "Best deals").
 // `hub` is `{ count, slug }` from fetchHubCounts when this card has 2+
 // active listings, optional.
-export default function DealCard({ deal, rank, hub, pageName = "home", viewerCurrency, rates }) {
+export default function DealCard({ deal, rank, hub, pageName = "home" }) {
   const cardName = deal.watchlist?.name ?? deal.title;
   const cardSet = deal.watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
-  // Prices shown in the viewer's currency when we know it (converted from
-  // the stored USD figures); otherwise in the listing's own currency, the
-  // way the site behaved before. `approx` -> prefix an "≈" and expect
-  // rounding, since eBay charges in the listing's currency at checkout.
-  const price = viewerPricing(deal, viewerCurrency, rates);
-  const currency = price.currency;
-  const total = price.listing;
-  const market = price.market;
-  const saved = price.saved;
-  const showRef = market != null && saved > 0;
-  const approxPrefix = price.approx ? "≈ " : "";
+  // Rendered in the listing's own currency on the server; <Price> swaps
+  // each figure to the viewer's currency after hydration (see
+  // components/Price.js / CurrencyProvider). market_price / the derived
+  // "saved" are USD references; total has a native + a USD value.
+  const nativeCurrency = currencyForDeal(deal);
+  const total = Number(deal.total_price);
+  const usdTotal = Number(deal.total_price_usd ?? deal.total_price);
+  const market = Number(deal.market_price);
+  const saved = market - usdTotal;
+  const showRef = Number.isFinite(market) && saved > 0;
   const isAuction = deal.listing_type === "AUCTION";
   const isJapanese = deal.watchlist?.language === "japanese";
   const marketInfo = MARKETPLACES[deal.marketplace];
@@ -138,19 +138,21 @@ export default function DealCard({ deal, rank, hub, pageName = "home", viewerCur
         </p>
 
         <div className="mt-1.5 flex items-baseline gap-2">
-          <span className="tnum text-lg font-bold text-zinc-900 dark:text-zinc-50">
-            {approxPrefix}
-            {formatMoney(total, currency)}
-          </span>
+          <Price
+            usd={usdTotal}
+            native={{ amount: total, currency: nativeCurrency }}
+            className="tnum text-lg font-bold text-zinc-900 dark:text-zinc-50"
+          />
           {showRef && (
             <span className="tnum text-xs text-zinc-400 line-through">
-              typical {formatMoney(market, currency)}
+              typical{" "}
+              <Price usd={market} native={{ amount: market, currency: "USD" }} approxPrefix="" />
             </span>
           )}
         </div>
         {showRef ? (
           <p className="tnum text-xs font-semibold text-emerald-700 dark:text-emerald-500">
-            Save {formatMoney(saved, currency)} · {discountPct}% below market
+            Save <Price usd={saved} native={{ amount: saved, currency: "USD" }} /> · {discountPct}% below market
           </p>
         ) : (
           <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-500">

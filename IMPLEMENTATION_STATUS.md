@@ -76,20 +76,40 @@ viewer-currency, `deliveryCountry`, and variant-matching changes landed.
   page carries ≥1 valid JSON-LD block **and** a `BreadcrumbList` (home
   excepted). This is what caught the four missing-JSON-LD pages above.
 
-### Open — flagged, not yet done (needs a product call)
+### Caching regression — FIXED (2026-08-29)
 
-- **Caching regression on the indexable detail pages.** `/cards/[slug]`,
-  `/deals/[id]`, `/sealed-deals`, `/sealed-deals/[id]`, `/best-finds` now
-  serve `Cache-Control: private, no-store` (were ISR / `unstable_cache`d and
-  CDN-cacheable) because `viewerCurrency()` reads `headers()` during render;
-  `/sets/[slug]` + `/pokemon/[slug]` were already dynamic via
-  `detectedMarketplace()`. Uncached Supabase-reading renders (~200–800 ms
-  TTFB vs the ~60 ms the report measured) slow crawl throughput on a new
-  low-authority domain and dent CWV. **Fix** = move currency + region-default
-  resolution client-side (cookie set in `middleware.js`; prices convert after
-  hydration), restoring ISR. It partially reverses the server-side currency
-  approach and trades instant local currency for a brief post-load swap —
-  holding for a decision.
+Currency + region resolution moved **client-side** so no indexable page
+reads `headers()` during render:
+
+- **`components/CurrencyProvider.js`** (`"use client"`, wraps the app in
+  `app/layout.js`) fetches `/api/rates` once after hydration → `{ viewer,
+  marketplace, rates }` context. **`components/Price.js`** renders the
+  listing's native currency on the server / first paint and swaps to the
+  viewer's currency (text-only, no layout shift) once the context resolves.
+- `/api/rates` now also returns the geo-detected `marketplace`;
+  `RegionRedirect` reads it from the context instead of a server `detected`
+  prop. `SearchClient` + `CardMemoryStrip` use the same context (one fetch,
+  was three).
+- Every page (`/`, `/best-finds`, `/cards/[slug]`, `/deals/[id]`,
+  `/japanese-cards`, `/pokemon/[slug]`, `/sealed-deals`,
+  `/sealed-deals/[id]`, `/sets/[slug]`, `/search`) dropped its
+  `viewerCurrency()` / `getUsdRates()` / `detectedMarketplace()` server
+  calls; `DealCard` / `SealedDealCard` / `StickyDealCta` take no currency
+  props and render `<Price>` islands.
+- `/cards/[slug]`, `/deals/[id]`, `/sealed-deals/[id]` also **stopped
+  reading `searchParams`** → zero request-time APIs, fully ISR-cacheable
+  (data stays in `unstable_cache`). The card hub's `?country=` filter was
+  removed with them (the country grids cover that intent and the audit had
+  flagged the per-hub faceted URLs as crawl-budget bleed).
+- `/sets/[slug]` + `/pokemon/[slug]` keep `searchParams` (paginated
+  filterable grids) so they stay dynamic, but without `headers()` they no
+  longer force `no-store`.
+- SSR HTML verified to still contain real prices (native currency) for
+  crawlers; `tests/seo` 40/40; build clean.
+- Also fixed a **pre-existing sitemap bug** surfaced by the test run:
+  `/sitemaps/deals.xml` could emit a duplicate `<loc>` because the deal-id
+  scan ordered by non-unique `last_seen_at` across `.range()` pages —
+  added an `id` tiebreaker + a de-dupe Set.
 
 ## Not building (deliberate, documented)
 
