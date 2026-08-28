@@ -9,6 +9,7 @@ export default function PriceAlertForm({ cardSlug, cardName, suggestedPrice }) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [target, setTarget] = useState("");
+  const [digest, setDigest] = useState(false);
   const [status, setStatus] = useState("idle"); // idle | sending | sent | error
   const [message, setMessage] = useState("");
 
@@ -20,7 +21,7 @@ export default function PriceAlertForm({ cardSlug, cardName, suggestedPrice }) {
       const res = await fetch("/api/alerts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, cardSlug, cardName, targetPrice: target || null }),
+        body: JSON.stringify({ email, cardSlug, cardName, targetPrice: target || null, newsletter: digest }),
       });
       const body = await res.json().catch(() => ({}));
       if (res.ok && body.ok) {
@@ -87,6 +88,15 @@ export default function PriceAlertForm({ cardSlug, cardName, suggestedPrice }) {
         {status === "sending" ? "…" : "Notify me"}
       </button>
       {status === "error" && <p className="w-full text-xs text-red-600">{message}</p>}
+      <label className="flex w-full items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+        <input
+          type="checkbox"
+          checked={digest}
+          onChange={(e) => setDigest(e.target.checked)}
+          className="h-3.5 w-3.5 rounded border-zinc-300 text-red-600 focus:ring-red-500"
+        />
+        Also send me a weekly email of the site&apos;s best deals (optional)
+      </label>
       <p className="w-full text-xs text-zinc-400">
         One confirmation email, then only when it matches. No target = any below-market listing.
       </p>

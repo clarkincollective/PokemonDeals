@@ -23,6 +23,7 @@ export async function POST(request) {
   const email = String(body.email ?? "").trim().toLowerCase();
   const cardSlug = String(body.cardSlug ?? "").trim();
   const cardName = String(body.cardName ?? "").trim();
+  const wantsNewsletter = body.newsletter === true;
   const targetRaw = body.targetPrice;
   const targetPrice =
     targetRaw != null && targetRaw !== "" && Number.isFinite(Number(targetRaw)) && Number(targetRaw) > 0
@@ -64,6 +65,24 @@ export async function POST(request) {
     if (error) return Response.json({ ok: false, reason: "db_error" }, { status: 500 });
   }
 
+  // Separate marketing consent - a distinct table, distinct opt-in.
+  // Created unconfirmed here; the same confirm click below activates it.
+  if (wantsNewsletter) {
+    const { data: sub } = await db
+      .from("newsletter_subscribers")
+      .select("id, confirmed")
+      .eq("email", email)
+      .maybeSingle();
+    if (!sub) {
+      await db
+        .from("newsletter_subscribers")
+        .insert({ email, token: cryptoToken(), source: "price_alert_form" });
+    } else if (sub.confirmed) {
+      // if they re-tick it after unsubscribing, resubscribe
+      await db.from("newsletter_subscribers").update({ unsubscribed_at: null }).eq("id", sub.id);
+    }
+  }
+
   if (existing?.confirmed) {
     return Response.json({ ok: true, status: "already_confirmed" });
   }
@@ -97,7 +116,7 @@ export async function GET(request) {
   const db = supabaseAdmin();
   const { data: row } = await db
     .from("price_alerts")
-    .select("id, card_slug, card_name")
+    .select("id, email, card_slug, card_name")
     .eq("token", token)
     .maybeSingle();
   if (!row) return htmlResponse("This alert link is no longer valid.", 404);
@@ -107,10 +126,15 @@ export async function GET(request) {
     return htmlResponse(`Removed. You won't get further emails about ${escapeHtml(row.card_name)}.`);
   }
 
+  const now = new Date().toISOString();
+  await db.from("price_alerts").update({ confirmed: true, confirmed_at: now }).eq("id", row.id);
+  // This click is also the double-opt-in for a pending newsletter row
+  // for the same address (see the POST handler).
   await db
-    .from("price_alerts")
-    .update({ confirmed: true, confirmed_at: new Date().toISOString() })
-    .eq("id", row.id);
+    .from("newsletter_subscribers")
+    .update({ confirmed: true, confirmed_at: now })
+    .eq("email", row.email)
+    .eq("confirmed", false);
   return htmlResponse(
     `You're set. We'll email you when ${escapeHtml(row.card_name)} next has a matching listing.`,
     200,
