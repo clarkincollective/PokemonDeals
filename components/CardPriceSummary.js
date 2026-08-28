@@ -93,8 +93,8 @@ export default function CardPriceSummary({ analysis, offersCount = 0, listingsLo
                 <span className="flex items-baseline gap-2">
                   <span className="tnum font-semibold text-black dark:text-zinc-50">{usd(g.currentPrice)}</span>
                   <span className="text-xs text-zinc-400">
-                    {g.saleCount} sale{g.saleCount === 1 ? "" : "s"}
-                    {g.isLowConfidence && " · limited data"}
+                    {`${g.saleCount} sale${g.saleCount === 1 ? "" : "s"}`}
+                    {g.isLowConfidence && " · low confidence"}
                   </span>
                 </span>
               </li>
