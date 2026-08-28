@@ -14,6 +14,7 @@ import { currencyForDeal } from "@/lib/money";
 import Price from "@/components/Price";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
+import CardPriceSummary from "@/components/CardPriceSummary";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -97,9 +98,9 @@ export async function generateMetadata({ params }) {
   // suffix when there's no room for it, rather than fighting a losing
   // battle against a genuinely long real title.
   const base = `${hub.name} (${hub.set})`;
-  const suffix = ` - Compare ${hub.count} Deals`;
+  const suffix = ` Price & Deals`;
   const title = base.length + suffix.length <= 60 ? `${base}${suffix}` : base;
-  const description = `${hub.count} active ${hub.name} (${hub.set}) listings on eBay right now, compared side by side against real market pricing - cheapest first.`;
+  const description = `${hub.name} (${hub.set}) Pokémon card price and value - raw and graded (PSA/CGC/BGS) prices from real sold data, plus ${hub.count} live eBay listings compared cheapest first.`;
 
   return {
     title,
@@ -158,14 +159,10 @@ export default async function CardHubPage({ params }) {
   // request-time APIs), the country grids cover that intent, and the
   // faceted per-hub URLs were only spending crawl budget.
   const cheapest = offers[0];
-  // Listings span several marketplace currencies, so the cross-listing
-  // range is normalised to the USD value every offer carries; <Price>
-  // localises each end after hydration.
-  const usdOf = (o) => Number(o.total_price_usd ?? o.total_price);
-  const rangeLowUsd = offers[0] ? usdOf(offers[0]) : null;
-  const rangeHighUsd = offers.length > 1 ? usdOf(offers[offers.length - 1]) : null;
-  const showRange = rangeLowUsd != null;
-  const showRangeSpan = rangeHighUsd != null && rangeHighUsd !== rangeLowUsd;
+  // Cheapest live listing, normalised to the USD value every offer
+  // carries - shown in the price summary as an asking-price floor, not a
+  // market value.
+  const rangeLowUsd = offers[0] ? Number(offers[0].total_price_usd ?? offers[0].total_price) : null;
 
   const primaryHistory = analysis?.raw?.history ?? [];
   const tcgplayerLink = buildTcgplayerLink(hub.name, hub.tcgplayerId);
@@ -274,19 +271,6 @@ export default async function CardHubPage({ params }) {
               </div>
             )}
 
-            {showRange && (
-              <p className="mt-4 text-2xl font-bold text-black dark:text-zinc-50">
-                {showRangeSpan ? "From " : ""}
-                <Price usd={rangeLowUsd} native={{ amount: rangeLowUsd, currency: "USD" }} />
-                {showRangeSpan && (
-                  <>
-                    {" – "}
-                    <Price usd={rangeHighUsd} native={{ amount: rangeHighUsd, currency: "USD" }} approxPrefix="" />
-                  </>
-                )}
-              </p>
-            )}
-
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <SaveCardButton card={cardDescriptor} />
               {tcgplayerLink && (
@@ -307,13 +291,14 @@ export default async function CardHubPage({ params }) {
                 />
               )}
             </div>
-            <p className="mt-3 text-xs text-zinc-400">
-              <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">
-                How we work out the market price →
-              </Link>
-            </p>
           </div>
         </div>
+
+        <CardPriceSummary
+          analysis={analysis}
+          offersCount={offers.length}
+          listingsLowUsd={rangeLowUsd}
+        />
 
         {offers.length > 0 && (
           <div className="mt-6">
