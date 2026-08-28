@@ -2,7 +2,7 @@ import { unstable_cache } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { resolveCardSlug, fetchCardOffers, resolveSpeciesByName, fetchCardHubs } from "@/lib/deals";
+import { resolveCardSlug, fetchCardOffers, resolveSpeciesByName } from "@/lib/deals";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
@@ -36,18 +36,15 @@ const SITE_URL = "https://pokemondealfinder.com";
 
 export const revalidate = 900;
 
-// Prerender every current hub slug at build so these pages serve from the
-// edge cache (X-Vercel-Cache: HIT) and revalidate in the background every
-// 900s, instead of a full uncached Supabase render per crawler hit. A
-// brand-new slug not in this list still renders on demand (dynamicParams
-// defaults to true) and is cached from then on.
+// No request-time APIs on this route (currency/region moved client-side,
+// no searchParams), so an empty generateStaticParams + the revalidate
+// window above is enough to make it ISR: each hub renders on the first
+// request, then serves from the edge cache (X-Vercel-Cache: HIT) and
+// revalidates in the background. Prerendering all ~720 at build isn't
+// worth it - each one makes a billed, rate-limited PokemonPriceTracker
+// call, and on-demand spreads that load out instead of bursting it.
 export async function generateStaticParams() {
-  try {
-    const { hubs } = await fetchCardHubs({ language: "english" });
-    return (hubs ?? []).map((h) => ({ slug: h.slug }));
-  } catch {
-    return [];
-  }
+  return [];
 }
 
 // Real per-card hub page - see lib/deals.js's fetchCardHubs for the full
