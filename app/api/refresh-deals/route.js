@@ -128,11 +128,27 @@ const RAW_CONDITION_LOOKUP_CAP_SWEEP = 8;
 // memoises the getItem result per listing id so a listing that matches
 // several watchlist rows only costs one call. Returns either { condition }
 // to use, or { hold: true } meaning "can't safely price this now - skip".
-async function resolveRawCondition({ listing, titleCondition, provisionalDiscountPct, budget, cache }) {
+async function resolveRawCondition({
+  listing,
+  titleCondition,
+  provisionalDiscountPct,
+  listingUsd,
+  lpPrice,
+  budget,
+  cache,
+}) {
   // Seller stated wear in the title - already trusted, nothing to verify.
   if (titleCondition !== "Near Mint") return { condition: titleCondition };
-  // Plausible as a genuine Near Mint underpricing - don't spend a call.
-  if (!(provisionalDiscountPct >= SUSPICIOUS_RAW_DISCOUNT_PCT)) return { condition: "Near Mint" };
+
+  // Verify when either: the headline discount is "too good to be true",
+  // OR the price is at/below the card's Lightly Played market value -
+  // "Near Mint" a whole grade below LP isn't credible (this is what a
+  // steep NM->LP price cliff looks like: e.g. Turtwig 103/130 NM $25.86,
+  // LP $7.82, and every raw listing sitting at $7-10 shown as "65% off").
+  const belowLp = lpPrice != null && listingUsd != null && listingUsd <= lpPrice * 1.1;
+  if (!(provisionalDiscountPct >= SUSPICIOUS_RAW_DISCOUNT_PCT) && !belowLp) {
+    return { condition: "Near Mint" };
+  }
 
   if (cache?.has(listing.listingId)) return cache.get(listing.listingId);
 
@@ -257,6 +273,8 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
       listing,
       titleCondition,
       provisionalDiscountPct: priced.discountPct,
+      listingUsd: priced.totalUsd,
+      lpPrice: marketData.byCondition?.["Lightly Played"] ?? null,
       budget: rawCondBudget,
     });
     if (resolved.hold) continue;
@@ -490,6 +508,8 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
         listing,
         titleCondition,
         provisionalDiscountPct: priced.discountPct,
+        listingUsd: priced.totalUsd,
+        lpPrice: marketData.byCondition?.["Lightly Played"] ?? null,
         budget: rawCondBudget,
         cache: rawCondCache,
       });

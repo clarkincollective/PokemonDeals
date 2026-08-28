@@ -15,7 +15,23 @@ process.env.EBAY_CLIENT_SECRET = "test-secret";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { cardConditionToTier } from "../../lib/ebay.js";
-import { worseCondition } from "../../lib/dealMatching.js";
+import { worseCondition, detectListingCondition } from "../../lib/dealMatching.js";
+
+test("detectListingCondition: trailing 'HP' after a collector number is Heavily Played, not Hit Points", () => {
+  // The fake deal that prompted this: priced against $25.86 NM as "72% off".
+  assert.equal(
+    detectListingCondition("Turtwig - (Cosmos Holofoil) League & Championship Cards 103/130 HP"),
+    "Heavily Played"
+  );
+  // A real Hit Points value ("120 HP", "310 HP") must NOT trip it.
+  assert.equal(detectListingCondition("Charizard 120 HP Base Set Holo Unlimited"), "Near Mint");
+  assert.equal(detectListingCondition("Pikachu VMAX 310 HP Vivid Voltage 044/185"), "Near Mint");
+  // An explicit "Near Mint" in the same shape still wins.
+  assert.equal(
+    detectListingCondition("Turtwig (Cosmos Holofoil) 103/130 Near Mint NM"),
+    "Near Mint"
+  );
+});
 
 test("cardConditionToTier maps eBay's real descriptor strings", () => {
   assert.equal(cardConditionToTier("Near mint or better"), "Near Mint");
