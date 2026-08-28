@@ -2,7 +2,7 @@ import { unstable_cache } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { resolveCardSlug, fetchCardOffers, resolveSpeciesByName } from "@/lib/deals";
+import { resolveCardSlug, fetchCardOffers, resolveSpeciesByName, fetchCardHubs } from "@/lib/deals";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
@@ -35,6 +35,20 @@ const FEATURED_OFFER_COUNT = 4;
 const SITE_URL = "https://pokemondealfinder.com";
 
 export const revalidate = 900;
+
+// Prerender every current hub slug at build so these pages serve from the
+// edge cache (X-Vercel-Cache: HIT) and revalidate in the background every
+// 900s, instead of a full uncached Supabase render per crawler hit. A
+// brand-new slug not in this list still renders on demand (dynamicParams
+// defaults to true) and is cached from then on.
+export async function generateStaticParams() {
+  try {
+    const { hubs } = await fetchCardHubs({ language: "english" });
+    return (hubs ?? []).map((h) => ({ slug: h.slug }));
+  } catch {
+    return [];
+  }
+}
 
 // Real per-card hub page - see lib/deals.js's fetchCardHubs for the full
 // reasoning: consolidates every currently active listing of one exact

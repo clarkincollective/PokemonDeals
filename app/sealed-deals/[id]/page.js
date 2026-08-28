@@ -28,6 +28,15 @@ const SITE_URL = "https://pokemondealfinder.com";
 // verified live to actually work. 60s (not price history's 300s below):
 // this row's own is_active flag is what keeps a sold/expired deal from
 // rendering as live and buyable, so it shouldn't sit stale as long.
+// No request-time APIs on this route (currency/region are client-side
+// now), so an empty generateStaticParams + a revalidate window flips it
+// from fully-dynamic to ISR (edge-cached, background-revalidated). Sealed
+// deals are few but still churn, so nothing is prerendered at build.
+export const revalidate = 120;
+export async function generateStaticParams() {
+  return [];
+}
+
 const loadDealUncached = async (id) => {
   const { data } = await supabase
     .from("sealed_deals")
