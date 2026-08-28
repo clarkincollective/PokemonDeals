@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/refresh-catalog",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/refresh-deals?mode=sweep&country=EBAY_US&pages=5",
       "schedule": "*/15 * * * *"
     },
