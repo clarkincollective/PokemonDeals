@@ -17,6 +17,7 @@ import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import StickyDealCta from "@/components/StickyDealCta";
 import RecordCardView from "@/components/RecordCardView";
+import SaveCardButton from "@/components/SaveCardButton";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
 import ShareButton from "@/components/ShareButton";
@@ -435,6 +436,16 @@ export default async function DealDetailPage({ params }) {
                 text={`${cardName}${cardSet ? ` (${cardSet})` : ""} - $${Number(deal.total_price).toFixed(2)}, ${discountPct}% below market on Pokémon Deal Finder`}
                 label="Share"
                 className="rounded-lg px-4 py-2"
+              />
+              <SaveCardButton
+                card={{
+                  slug: cardHub?.slug ?? null,
+                  dealId: deal.id,
+                  name: cardName,
+                  set: cardSet,
+                  image: deal.image_url,
+                  price: deal.total_price,
+                }}
               />
             </div>
           </div>
