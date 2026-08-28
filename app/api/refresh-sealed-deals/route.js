@@ -37,6 +37,10 @@ function dealRow({ productId, listing, totalPrice, totalPriceUsd, marketPrice, d
     total_price: totalPrice,
     total_price_usd: totalPriceUsd ?? totalPrice,
     currency: listing.currency ?? "USD",
+    item_location_country: listing.itemLocationCountry ?? null,
+    is_local:
+      Boolean(listing.itemLocationCountry) &&
+      listing.itemLocationCountry === listing.marketplace.replace("EBAY_", ""),
     market_price: marketPrice,
     discount_pct: discountPct,
     seller_username: listing.sellerUsername,
@@ -56,7 +60,6 @@ async function scanProductInMarketplace(row, marketplaceId, marketPrice, db, dis
     categoryId: null,
   });
 
-  const seenListingIds = [];
   let dealsFound = 0;
 
   for (const listing of listings) {
@@ -67,7 +70,6 @@ async function scanProductInMarketplace(row, marketplaceId, marketPrice, db, dis
     if (discountPct < discountThreshold) continue;
     if (totalUsd < marketPrice * SANITY_FLOOR_PCT) continue;
 
-    seenListingIds.push(listing.listingId);
     const { error } = await db
       .from("sealed_deals")
       .upsert(
@@ -78,25 +80,23 @@ async function scanProductInMarketplace(row, marketplaceId, marketPrice, db, dis
     else dealsFound++;
   }
 
-  // Same expire-what-wasn't-seen pattern as the card scanner, including its
-  // guard: only reconcile when this scan is a trustworthy view (matched
-  // something, or eBay returned a real `total`). An empty response with no
-  // `total` is a degraded reply, not "sold out" - don't wipe cached deals
-  // on it. See app/api/refresh-deals/route.js for the full reasoning.
+  // Same expire pattern and grace window as the card scanner (see
+  // app/api/refresh-deals/route.js): only reconcile on a trustworthy view
+  // (matched something, or eBay returned a real `total`), and retire only
+  // what no scan has seen for the grace window rather than on the spot -
+  // sealed runs once a day, so an instant expire would flap the section.
+  const graceDays = marketplaceId === "EBAY_US" ? 2 : 5;
+  const graceCutoff = new Date(Date.now() - graceDays * 24 * 60 * 60 * 1000).toISOString();
   const canReconcile = listings.length > 0 || total !== null;
 
   if (canReconcile) {
-    let expireQuery = db
+    await db
       .from("sealed_deals")
       .update({ is_active: false })
       .eq("sealed_watchlist_id", row.id)
       .eq("marketplace", marketplaceId)
-      .eq("is_active", true);
-
-    if (seenListingIds.length > 0) {
-      expireQuery = expireQuery.not("listing_id", "in", `(${seenListingIds.join(",")})`);
-    }
-    await expireQuery;
+      .eq("is_active", true)
+      .lt("last_seen_at", graceCutoff);
   }
 
   return dealsFound;

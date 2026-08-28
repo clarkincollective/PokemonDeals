@@ -120,6 +120,12 @@ function dealRow({ watchlistId, listing, totalPrice, totalPriceUsd, marketPrice,
     total_price: totalPrice,
     total_price_usd: totalPriceUsd ?? totalPrice,
     currency: listing.currency ?? "USD",
+    item_location_country: listing.itemLocationCountry ?? null,
+    // Genuinely local (not just an international seller who ships here) -
+    // the country grids sort these first.
+    is_local:
+      Boolean(listing.itemLocationCountry) &&
+      listing.itemLocationCountry === listing.marketplace.replace("EBAY_", ""),
     market_price: marketPrice,
     discount_pct: discountPct,
     price_change_24hr: priceChange24hr ?? null,
@@ -165,7 +171,6 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
   const rawListings = listings.filter((l) => !l.isGraded);
   const cheapestGraded = listings.find((l) => l.isGraded) ?? null;
 
-  const seenListingIds = [];
   let dealsFound = 0;
 
   const tryUpsert = async (row_) => {
@@ -192,7 +197,6 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     if (discountPct < discountThreshold) continue;
     if (totalUsd < marketPrice * SANITY_FLOOR_PCT) continue;
 
-    seenListingIds.push(listing.listingId);
     await tryUpsert(
       dealRow({
         watchlistId: row.id,
@@ -218,7 +222,6 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
         const { totalLocal, totalUsd, discountPct } = pricedListing(cheapestGraded, gradedPrice.price, rates);
 
         if (discountPct >= discountThreshold && totalUsd >= gradedPrice.price * SANITY_FLOOR_PCT) {
-          seenListingIds.push(cheapestGraded.listingId);
           await tryUpsert(
             dealRow({
               watchlistId: row.id,
@@ -246,20 +249,27 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
   // An empty response with no `total` is a degraded/malformed eBay reply,
   // not a real "sold out" - expiring on it would wipe the cached deals the
   // site falls back to when eBay is unavailable. Leave them be.
+  // A listing missing from one scan isn't retired on the spot - it could
+  // be a transient eBay hiccup, and a per-card scan for the non-US
+  // markets only comes round every few days, so an instant expire would
+  // visibly drain those sections between runs. Retire only what no scan
+  // has seen for the whole grace window; anything upserted this run (or a
+  // recent one) carries a fresh last_seen_at and is safe. This replaces
+  // the old "not in (listing ids seen this run)" filter, which expired
+  // immediately.
+  const graceDays = marketplaceId === "EBAY_US" ? 2 : 5;
+  const graceCutoff = new Date(Date.now() - graceDays * 24 * 60 * 60 * 1000).toISOString();
+
   const canReconcile = listings.length > 0 || total !== null;
 
   if (canReconcile) {
-    let expireQuery = db
+    await db
       .from("deals")
       .update({ is_active: false })
       .eq("watchlist_id", row.id)
       .eq("marketplace", marketplaceId)
-      .eq("is_active", true);
-
-    if (seenListingIds.length > 0) {
-      expireQuery = expireQuery.not("listing_id", "in", `(${seenListingIds.join(",")})`);
-    }
-    await expireQuery;
+      .eq("is_active", true)
+      .lt("last_seen_at", graceCutoff);
   }
 
   return dealsFound;
@@ -445,6 +455,10 @@ export async function GET(request) {
   const floorKey =
     mode === "sweep" ? "sweep" : tier === "extended" ? "extended" : tier === "priority" ? "priority" : "default";
   const rl = await getBrowseRateLimit();
+  // Surfaced in every response below so the real daily Browse ceiling is
+  // observable (the eBay dashboard doesn't expose the number) - lets the
+  // cron cadence be tuned to headroom instead of guessed at.
+  const rateLimitRemaining = rl?.remaining ?? null;
   if (rl && rl.remaining != null && rl.remaining < RATE_LIMIT_FLOORS[floorKey]) {
     return Response.json({
       skipped: "ebay_rate_limited",
@@ -473,7 +487,7 @@ export async function GET(request) {
     // as a 200 rather than letting the throw surface as a cron 500.
     try {
       const result = await runSweep(marketplaceId, allActiveRows ?? [], db, discountThreshold, pages, rates);
-      return Response.json({ mode: "sweep", marketplace: marketplaceId, ...result, scannedAt: new Date().toISOString() });
+      return Response.json({ mode: "sweep", marketplace: marketplaceId, ...result, rateLimitRemaining, scannedAt: new Date().toISOString() });
     } catch (err) {
       return Response.json({
         mode: "sweep",
@@ -579,6 +593,7 @@ export async function GET(request) {
     scanned,
     dealsFound,
     errors,
+    rateLimitRemaining,
     scannedAt: new Date().toISOString(),
   });
 }

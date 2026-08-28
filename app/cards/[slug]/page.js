@@ -132,7 +132,13 @@ export default async function CardHubPage({ params, searchParams }) {
   const country = typeof sp.country === "string" ? sp.country : null;
   const marketplaces = new Set(allOffers.map((o) => o.marketplace));
   const showCountryFilter = marketplaces.size > 1;
-  const offers = country ? allOffers.filter((o) => o.marketplace === country) : allOffers;
+  const offers = country
+    ? allOffers
+        .filter((o) => o.marketplace === country)
+        // In-country listings first (no international shipping wait), then
+        // keep the cheapest-first order fetchCardOffers already applied.
+        .sort((a, b) => (b.is_local ? 1 : 0) - (a.is_local ? 1 : 0))
+    : allOffers;
 
   // The hub only exists (see fetchCardHubs) when there were 2+ active
   // listings as of the last 15-minute cache refresh - but listings sell/
