@@ -9,6 +9,10 @@ export function filterHref(currentParams, key, value, basePath = "/") {
   const params = new URLSearchParams(currentParams);
   if (params.get(key) === value) params.delete(key);
   else params.set(key, value);
+  // Changing a filter always returns to page 1 - otherwise a stale
+  // ?page=N carries onto a now-shorter result set and the range request
+  // lands past the end.
+  params.delete("page");
   const qs = params.toString();
   return qs ? `${basePath}?${qs}` : basePath;
 }
@@ -26,6 +30,7 @@ export function priceFilterHref(currentParams, key, value, basePath) {
     params.set(key, value);
     params.delete(otherKey);
   }
+  params.delete("page"); // see filterHref - reset to page 1 on any filter change
   const qs = params.toString();
   return qs ? `${basePath}?${qs}` : basePath;
 }
