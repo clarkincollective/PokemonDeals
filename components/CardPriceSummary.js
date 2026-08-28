@@ -36,11 +36,25 @@ function conditionLadder(analysis) {
   return out.length >= 2 ? out : [];
 }
 
-export default function CardPriceSummary({ analysis, offersCount = 0, listingsLowUsd = null }) {
+export default function CardPriceSummary({
+  analysis,
+  offersCount = 0,
+  listingsLowUsd = null,
+  listingsHref = "#listings",
+}) {
   const rawNm = analysis?.raw?.currentPrice ?? null;
   const ladder = conditionLadder(analysis);
   const graded = (analysis?.graded ?? [])
     .filter((g) => g.currentPrice != null && g.saleCount > 0)
+    // A graded slab that "sold" for less than the raw Near Mint market
+    // value is a contaminated sample (mislabelled lots, altered/proxy
+    // cards under a real grade string) - e.g. a "TAG 8.5" Base Set
+    // Charizard at $25 against an $855 raw price. Grading costs money and
+    // a slab carries a premium, so drop the tier rather than show a
+    // figure that makes the whole ladder look broken. Same trade-off the
+    // raw conditionLadder already makes. Kept when there's no raw
+    // reference to check against.
+    .filter((g) => rawNm == null || g.currentPrice >= rawNm)
     .slice(0, 5);
 
   // Nothing worth showing (no reference data at all, no listings figure).
@@ -88,15 +102,24 @@ export default function CardPriceSummary({ analysis, offersCount = 0, listingsLo
           </p>
           <ul className="mt-2 divide-y divide-zinc-100 dark:divide-zinc-900">
             {graded.map((g) => (
-              <li key={g.key} className="flex items-baseline justify-between gap-4 py-1.5 text-sm">
-                <span className="font-medium text-zinc-700 dark:text-zinc-300">{g.label}</span>
-                <span className="flex items-baseline gap-2">
-                  <span className="tnum font-semibold text-black dark:text-zinc-50">{usd(g.currentPrice)}</span>
-                  <span className="text-xs text-zinc-400">
-                    {`${g.saleCount} sale${g.saleCount === 1 ? "" : "s"}`}
-                    {g.isLowConfidence && " · low confidence"}
+              <li key={g.key} className="py-1.5 text-sm">
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="font-medium text-zinc-700 dark:text-zinc-300">{g.label}</span>
+                  <span className="flex items-baseline gap-2">
+                    <span className="tnum font-semibold text-black dark:text-zinc-50">{usd(g.currentPrice)}</span>
+                    <span className="text-xs text-zinc-400">
+                      {`${g.saleCount} sale${g.saleCount === 1 ? "" : "s"}`}
+                    </span>
                   </span>
-                </span>
+                </div>
+                {g.isLowConfidence && (
+                  // Its own line, not appended to the sale count - this flags
+                  // that the PRICE is a statistical outlier / wide-spread
+                  // estimate, which is unrelated to how many sales there were.
+                  <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-500">
+                    Price outlier — treat with caution
+                  </p>
+                )}
               </li>
             ))}
           </ul>
@@ -116,6 +139,24 @@ export default function CardPriceSummary({ analysis, offersCount = 0, listingsLo
             </span>{" "}
             <span className="text-zinc-400">(asking prices, not sold)</span>.
           </p>
+          {offersCount > 0 && (
+            // Primary action right here so a price-intent visitor can jump
+            // to the listings without scrolling past the value context.
+            // In-page anchor (not a direct affiliate link) because the copy
+            // promises a list to compare, not one pre-picked listing.
+            <a
+              href={listingsHref}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-600 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-red-600 dark:hover:text-white"
+            >
+              {offersCount === 1 ? "View the listing" : `View all ${offersCount} listings`} from{" "}
+              <Price
+                usd={listingsLowUsd}
+                native={{ amount: listingsLowUsd, currency: "USD" }}
+                approxPrefix=""
+              />{" "}
+              →
+            </a>
+          )}
         </div>
       )}
     </section>

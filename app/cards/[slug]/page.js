@@ -301,7 +301,7 @@ export default async function CardHubPage({ params }) {
         />
 
         {offers.length > 0 && (
-          <div className="mt-6">
+          <div id="listings" className="mt-6 scroll-mt-24">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-400">
               {offers.length > FEATURED_OFFER_COUNT ? `Best ${FEATURED_OFFER_COUNT} Prices` : "Active Listings"}
             </h2>

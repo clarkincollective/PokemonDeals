@@ -223,10 +223,11 @@ building"):
 | **Japanese market data** | **247** distinct JP cards have a real `market_price`, across 133 sets — but 167 of them are $10–50, only ~15 are $200+, top card $1,600. Thin, low-value, overlaps `/japanese-cards`, and only 2 days of data (no "as of" / movement to show). | **Borderline → do not build.** |
 | **Sets by average value / other slices** | Aggregate of the same current data the `/sets` index and `/market-data/*` pages already expose. | **Not distinct — do not build.** |
 
-Persisting a daily per-card price snapshot (a small `price_history`
-table written by `/api/refresh-catalog`) would unlock a genuine movers /
-trend page in ~4–8 weeks. Noted as a future data-collection task, not
-built now.
+Persisting a daily per-card price snapshot would unlock a genuine movers
+/ trend page in ~4–8 weeks. **Now started** — see *Workstream A* below:
+`price_history` table + write wired into `/api/sync-watchlist`,
+collecting from 2026-08-28. The page itself is still not built (needs the
+history depth first).
 
 ### Lever #3 — remaining dynamic routes (`/`, `/best-finds`, `/japanese-cards`, `/sealed-deals`) — REVIEWED, LEFT DYNAMIC
 
@@ -250,6 +251,136 @@ The brief's bar is "safe **and** straightforward" — this is neither, for
 a benefit that's marginal (4 URLs, already "Good" CWV). **Left dynamic
 deliberately.** The homepage is the one worth revisiting if Search
 Console / CrUX later flags its LCP; that would be its own scoped change.
+
+## Price-history logging + UX close-out — 2026-08-29
+
+### Workstream A — `price_history` collection — LIVE (commit `a2419aa`, migration applied 2026-08-28)
+
+The site kept only *current* prices (`watchlist.last_known_price` is
+overwritten every sync; `deals.market_price` is per-listing and churns),
+so there was no time series to build a movers / trend page from. Started
+collecting one now — a movers page needs ~4–8 weeks of history before
+it's meaningful, so the clock had to start regardless of when the page
+ships.
+
+- **Table `price_history`** (`supabase/price_history_migration.sql`, run
+  in the Supabase SQL Editor 2026-08-28) — non-destructive, one new
+  table + 3 indexes:
+
+  | column | notes |
+  | --- | --- |
+  | `id` | `bigint generated always as identity` PK |
+  | `tcgplayer_id` | stable card id (`watchlist.justtcg_tcgplayer_id`) |
+  | `name`, `"set"`, `language` | denormalised so a row stays readable if the watchlist entry is later retired |
+  | `condition` | `'Near Mint'` only today; column reserved for LP/MP/graded rows a future job can add |
+  | `price` | USD market reference (PokémonPriceTracker, sold-data-derived) |
+  | `source` | `'catalog'` today; future `'listing'` / `'graded_sold'` |
+  | `observed_on` | UTC date; **unique** on `(tcgplayer_id, condition, source, observed_on)` so a same-day re-run upserts instead of duplicating |
+  | `observed_at` | full timestamp |
+
+- **Write wired into `/api/sync-watchlist`** (the daily catalog price
+  refresh — `/api/refresh-catalog` only recomputes the `catalog_snapshot`
+  aggregate, it doesn't touch per-card prices). Both sync paths
+  (`syncViaExport`, `syncViaSetCrawl`) collect a record per priced card
+  and `logPriceHistory()` upserts them in `UPSERT_CHUNK_SIZE` batches,
+  deduped to one row per `tcgplayer_id` per run. **Best-effort**: any
+  failure is returned as `priceHistoryError` and never throws, so the
+  core sync can't be broken or slowed by it.
+- **Collection start date: 2026-08-28.**
+- **Verified** — `sync-watchlist?maxSets=3` returned
+  `priceHistoryRows: 3`, `priceHistoryError: null`, completed in 3.4 s
+  (not slowed); direct query confirmed 3 well-formed rows, **0
+  duplicates, 0 malformed / non-positive**. Idempotency confirmed by the
+  unique index + in-batch dedupe.
+- **Data-quality note for the future movers query:** `price_history`
+  records exactly what the catalog holds (`source: 'catalog'`), including
+  the occasional round-number placeholder (e.g. a `$1000.00`
+  `last_known_price`). A movers page should filter obvious round-number
+  outliers at read time once there's enough history to judge — not at
+  write time, where we can't yet tell a placeholder from a real $1,000
+  chase card.
+- **No user-facing page.** Pure collection.
+
+### Workstream B — UX / conversion close-out — DONE
+
+The original UX/psychology audit document was not recoverable. P0 was
+already implemented in prior commits (`31ff5a3` "UX/conversion audit P0:
+homepage rebuild, DealCard redesign, sort, breadcrumbs, sticky CTA",
+`9f32d09`, `90013da`). A fresh live re-check against the four focus
+areas — product-card hierarchy, homepage hierarchy, trust signals,
+choice architecture — found all four already in good shape; that
+re-check stands as the record in place of the missing audit. No P1/P2
+backlog was reconstructed (out of scope per the brief).
+
+**Three targeted fixes implemented:**
+
+1. **Card-page header CTA** (`components/CardPriceSummary.js`,
+   `app/cards/[slug]/page.js`) — the "Price & value" summary's live-
+   listings line now carries a primary button, **"View all N listings
+   from $X →"** (or "View the listing …" when N = 1), an in-page anchor
+   to the `#listings` deal grid (`scroll-mt-24` so the sticky header
+   doesn't cover it). A price-intent visitor can act without scrolling
+   past the value context. In-page anchor rather than a direct affiliate
+   link because the copy promises a list to compare, not one pre-picked
+   listing — every onward click from the grid is still affiliate-tracked.
+   Only renders when there's ≥ 1 active listing.
+2. **Currency hydration flash** (`components/CurrencyProvider.js`) — was:
+   for ~0.5 s a returning viewer saw a native listing price next to USD
+   "typical" / "Save" figures until the `/api/rates` round-trip resolved
+   and `<Price>` swapped them. Now the last successful `/api/rates`
+   response is cached in `localStorage` (`pdf_rates_v1`, 24 h max age)
+   and used to **prime the store synchronously** via
+   `useSyncExternalStore` — SSR and the hydration render still use the
+   null baseline (a crawler still indexes the real listing currency,
+   unchanged), and the cached value is applied in the same commit as
+   hydration, *before paint*, not after a network wait. `/api/rates`
+   still runs on mount to refresh stale rates / correct the geo currency.
+   A first-ever visitor is unchanged (native, then convert once the
+   fetch lands). Server-side resolution from a cookie/geo header was
+   rejected: it's a request-time API, which would force `/cards`,
+   `/deals`, `/sets`, `/pokemon` back to `no-store` and undo the caching
+   win.
+3. **"Low confidence" graded label** (`components/CardPriceSummary.js`) —
+   `isLowConfidence` is PPT's price-outlier / wide-spread flag, unrelated
+   to sale count, but it rendered as "· low confidence" appended to
+   "20 sales", which read as a contradiction. Now its own amber line
+   under the row: **"Price outlier — treat with caution"**.
+   `VariantPriceGrid`'s deep-dive tiles keep their existing "low
+   confidence" wording — there it sits directly under the price with a
+   sparkline + sale count for context, so it isn't ambiguous.
+
+**Bounded final pass (four lenses) — one finding, fixed:**
+
+- **Contaminated graded tiers in the "Price & value" summary.**
+  `/cards/charizard-base-set` showed a "TAG 8.5" tier at **$25.50**
+  against an **$855.52** raw Near Mint value — a mislabelled-lot / altered-
+  card sample surfacing under a real grade string, making the graded
+  ladder look broken. The raw condition ladder already guards against
+  this (stops at the first non-monotonic row); the graded list had no
+  equivalent. **Fix:** drop any graded tier priced **below the raw Near
+  Mint market value** (a slab costs money to grade and carries a premium,
+  so a "sold below raw" tier is a contaminated sample). Kept when there's
+  no raw reference to check against. Same trade-off the raw ladder makes.
+  Verified live-data locally: charizard-base-set graded tiers went from
+  `PSA 10 / CGC 10 / PSA 8.5 / PSA 9 / TAG 8.5` to
+  `PSA 10 / CGC 10 / PSA 8.5 / PSA 9 / PSA 8`.
+  The `VariantPriceGrid` "Every variant, side by side" grid lower down
+  still lists every tier (incl. low grades) — deliberate: it's the
+  exhaustive deep-dive view, each tile has a sparkline + sale count that
+  exposes an odd data point better than hiding it would.
+
+Nothing else in the four lenses stood out as clearly broken or clearly
+high-value. The summariser-flagged "currency inconsistency" on
+`/sets/[slug]` (per-listing native currencies in the no-JS view) is the
+documented crawler-facing baseline, addressed for real viewers by fix 2;
+"Just found" badges and "8,781 live deals" / auction end times are real
+recency/inventory data, not fake urgency.
+
+**Verification:** `tests/seo` 40/40, `tests/scanner` 5/5, `npm run
+build` clean, `/cards/[slug]` still SSG (`●`). Card-page `<title>`,
+self-referencing canonical, `Product` + `BreadcrumbList` JSON-LD,
+affiliate `rel`/params all unchanged. Full write-up in
+**`docs/ux-implementation-report.md`**.
 
 ## Not building (deliberate, documented)
 
