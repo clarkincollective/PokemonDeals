@@ -2,7 +2,8 @@ import { unstable_cache } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { resolveCardSlug, fetchCardOffers } from "@/lib/deals";
+import { resolveCardSlug, fetchCardOffers, resolveSpeciesByName } from "@/lib/deals";
+import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES } from "@/lib/ebay";
@@ -14,6 +15,7 @@ import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
+import SiteFooter from "@/components/SiteFooter";
 
 // How many of the cheapest offers get the full visual DealCard treatment
 // (image, badges, CTA) right at the top - real feedback: landing on a
@@ -105,9 +107,11 @@ export default async function CardHubPage({ params }) {
   const hub = await resolveCardSlug(slug);
   if (!hub) notFound();
 
-  const [{ deals: offers, error }, analysis] = await Promise.all([
+  const speciesName = extractSpecies(hub.name);
+  const [{ deals: offers, error }, analysis, speciesHub] = await Promise.all([
     fetchCardOffers(hub.id),
     loadPriceAnalysis(hub.tcgplayerId),
+    speciesName ? resolveSpeciesByName(speciesName) : Promise.resolve(null),
   ]);
 
   // The hub only exists (see fetchCardHubs) when there were 2+ active
@@ -203,6 +207,17 @@ export default async function CardHubPage({ params }) {
             >
               {hub.set}
             </Link>
+
+            {speciesHub && (
+              <div className="mt-1">
+                <Link
+                  href={`/pokemon/${speciesHub.slug}`}
+                  className="text-sm text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500"
+                >
+                  All {speciesHub.name} deals →
+                </Link>
+              </div>
+            )}
 
             {priceRange && (
               <p className="mt-4 text-2xl font-bold text-black dark:text-zinc-50">
@@ -322,12 +337,7 @@ export default async function CardHubPage({ params }) {
         </div>
       </div>
 
-      <footer className="border-t border-zinc-200 px-6 py-8 text-center text-xs text-zinc-500 dark:border-zinc-800">
-        As an eBay and TCGPlayer affiliate, we earn a commission on qualifying purchases made through
-        links on this site. Prices and availability are subject to change and were accurate as of the
-        listing&apos;s last scan. Card-to-listing matching is automated and not perfect - always
-        double-check a listing&apos;s photos and description before buying.
-      </footer>
+      <SiteFooter note="Card-to-listing matching is automated and not perfect - always double-check a listing's photos and description before buying." />
     </div>
   );
 }

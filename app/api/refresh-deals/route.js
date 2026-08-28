@@ -1,5 +1,11 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { MARKETPLACES, searchListings, searchNewlyListed, getGradingDetails } from "@/lib/ebay";
+import {
+  MARKETPLACES,
+  searchListings,
+  searchNewlyListed,
+  getGradingDetails,
+  getBrowseRateLimit,
+} from "@/lib/ebay";
 import { getConditionPrices, getGradedPrice } from "@/lib/pokemonPriceTracker";
 import {
   SANITY_FLOOR_PCT,
@@ -294,13 +300,13 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
   let matched = 0;
   let gradedLookups = 0;
   // Bounds worst-case extra eBay getItem + PokemonPriceTracker calls if an
-  // unusually large number of graded matches show up in one sweep - at 30,
-  // this alone could add up to 192 sweeps/day * 30 = 5,760 extra eBay
-  // calls on a bad day, which is the whole daily budget by itself. Cut to
-  // 10 as part of the same real-outage response as EXTENDED_CHUNKS above
-  // (see its comment) - still covers a normal sweep's graded matches
-  // without leaving that much headroom exposed to a single bad sweep.
-  const GRADED_LOOKUP_CAP = 10;
+  // unusually large number of graded matches show up in one sweep. This is
+  // the single biggest swing in the daily Browse budget: ~128 sweeps/day
+  // (US every 15 min + the four other countries every 3h) * this cap is
+  // the exposure. A normal sweep finds 0-2 graded deals, so 6 covers the
+  // real case while keeping the worst case (~768/day) well inside the
+  // ~5,000/day budget alongside the pre-flight quota guard in GET().
+  const GRADED_LOOKUP_CAP = 6;
   const errors = [];
 
   const tryUpsert = async (row_) => {
@@ -397,6 +403,29 @@ export async function GET(request) {
   // the tiered per-card scans below still run on their own schedule to
   // keep confirming/retiring existing ones.
   const mode = url.searchParams.get("mode");
+
+  // Pre-flight Browse API quota check (see lib/ebay.js's getBrowseRateLimit
+  // and docs/ebay-rate-limits.md). Once the ~5,000/day budget is spent
+  // every Browse request 429s until it resets at ~07:00 UTC, so bail
+  // before firing a whole run of doomed calls. Tier-aware floors reserve
+  // headroom for the cheap, user-facing sweep: the extended tier (just
+  // confirm/expire duty) yields first, the sweep last. A failed meta-call
+  // returns null -> proceed rather than block on it.
+  const RATE_LIMIT_FLOORS = { sweep: 250, priority: 600, extended: 1500, default: 250 };
+  const floorKey =
+    mode === "sweep" ? "sweep" : tier === "extended" ? "extended" : tier === "priority" ? "priority" : "default";
+  const rl = await getBrowseRateLimit();
+  if (rl && rl.remaining != null && rl.remaining < RATE_LIMIT_FLOORS[floorKey]) {
+    return Response.json({
+      skipped: "ebay_rate_limited",
+      floorKey,
+      floor: RATE_LIMIT_FLOORS[floorKey],
+      remaining: rl.remaining,
+      limit: rl.limit,
+      reset: rl.reset,
+    });
+  }
+
   if (mode === "sweep") {
     const marketplaceId =
       url.searchParams.get("country") && MARKETPLACES[url.searchParams.get("country")]
@@ -436,12 +465,13 @@ export async function GET(request) {
 
   // eBay's ~5,000/day request cap, split two ways now that sweep mode (see
   // above) handles fast new-deal discovery cheaply and separately:
-  // - Priority (~30 hand-picked cards, all 5 countries, every 4h via
+  // - Priority (~26 hand-picked cards, all 5 countries, every 6h via
   //   vercel.json): confirms/expires their existing deals.
-  // - Extended (~5,000 auto-synced cards): one country at a time, split
-  //   into EXTENDED_CHUNKS pieces per country (~2,500/day), rotating
-  //   through all 5 countries every ~10 days - also just confirm/expiry
-  //   duty now, since sweep already finds new ones fast.
+  // - Extended (~8,500 auto-synced cards): one country at a time, split
+  //   into EXTENDED_CHUNKS pieces per country, rotating through all 5
+  //   countries over ~30 days - also just confirm/expiry duty now, since
+  //   sweep already finds new ones fast. The GET() pre-flight guard skips
+  //   this run entirely on days the daily budget is already tight.
   const marketplaceIds = countriesParam
     ? countriesParam.split(",").filter((id) => MARKETPLACES[id])
     : countryParam && MARKETPLACES[countryParam]

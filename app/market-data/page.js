@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { fetchMarketDataSummary } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 
 export const revalidate = 900;
 
@@ -80,10 +81,7 @@ export default async function MarketDataPage() {
         </div>
       </main>
 
-      <footer className="border-t border-zinc-200 px-6 py-8 text-center text-xs text-zinc-500 dark:border-zinc-800">
-        As an eBay and TCGPlayer affiliate, we earn a commission on qualifying purchases made through
-        links on this site. Prices and availability are subject to change.
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

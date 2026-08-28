@@ -11,6 +11,7 @@ import {
 import { dealScore } from "@/lib/dealScore";
 import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import DealCard from "@/components/DealCard";
 import BestFindsBanner from "@/components/BestFindsBanner";
 import FilterBar from "@/components/FilterBar";
@@ -33,10 +34,12 @@ export async function generateMetadata({ searchParams }) {
   const pageParam = typeof params.page === "string" ? Number(params.page) : 1;
   const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
   const canonical = page > 1 ? `/?page=${page}` : "/";
-  return {
-    title: page > 1 ? `Pokémon Deal Finder - Page ${page}` : undefined,
-    alternates: { canonical },
-  };
+  // Page 1 must omit `title` entirely so the root layout's default
+  // ("Pokémon Deal Finder") applies - returning `title: undefined`
+  // instead makes Next 16 render no <title> tag at all (verified live).
+  return page > 1
+    ? { title: { absolute: `Pokémon Deal Finder - Page ${page}` }, alternates: { canonical } }
+    : { alternates: { canonical } };
 }
 
 // Single source of truth for the FAQ section below AND its FAQPage
@@ -454,13 +457,7 @@ export default async function Home({ searchParams }) {
         </div>
       </section>
 
-      <footer className="border-t border-zinc-200 px-6 py-8 text-center text-xs text-zinc-500 dark:border-zinc-800">
-        As an eBay and TCGPlayer affiliate, we earn a commission on qualifying
-        purchases made through links on this site. Prices and availability are
-        subject to change and were accurate as of the listing&apos;s last scan.
-        Card-to-listing matching is automated and not perfect - always
-        double-check a listing&apos;s photos and description before buying.
-      </footer>
+      <SiteFooter note="Card-to-listing matching is automated and not perfect - always double-check a listing's photos and description before buying." />
     </div>
   );
 }

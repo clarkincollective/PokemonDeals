@@ -2,6 +2,7 @@ import Link from "next/link";
 import { fetchBestFinds } from "@/lib/deals";
 import { dealScore } from "@/lib/dealScore";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import DealCard from "@/components/DealCard";
 import { filterHref, PriceFilterRow } from "@/components/FilterBar";
 
@@ -128,12 +129,7 @@ export default async function BestFindsPage({ searchParams }) {
         )}
       </main>
 
-      <footer className="border-t border-zinc-200 px-6 py-8 text-center text-xs text-zinc-500 dark:border-zinc-800">
-        As an eBay and TCGPlayer affiliate, we earn a commission on qualifying purchases made through
-        links on this site. Prices and availability are subject to change and were accurate as of the
-        listing&apos;s last scan. Card-to-listing matching is automated and not perfect - always
-        double-check a listing&apos;s photos and description before buying.
-      </footer>
+      <SiteFooter note="Card-to-listing matching is automated and not perfect - always double-check a listing's photos and description before buying." />
     </div>
   );
 }

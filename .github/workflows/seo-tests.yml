@@ -1,0 +1,43 @@
+# Automated SEO regression tests (brief Phase 23).
+#
+# Runs the tests/seo/ suite against a real production build: builds the
+# app, boots `next start` on a local port, and checks canonicals, titles,
+# H1s, meta descriptions, JSON-LD validity, sitemap/robots correctness,
+# internal links, and 404 behaviour.
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   NEXT_PUBLIC_SUPABASE_URL       - same value as .env.local
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY  - same value as .env.local (read-only, RLS)
+# Optional:
+#   POKEMONPRICETRACKER_API_KEY    - lets /cards/[slug] render its price
+#                                    sections during the run; the suite
+#                                    passes without it.
+
+name: SEO tests
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  seo:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      POKEMONPRICETRACKER_API_KEY: ${{ secrets.POKEMONPRICETRACKER_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - name: Run SEO test suite
+        run: npm run test:seo

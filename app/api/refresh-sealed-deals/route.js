@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { MARKETPLACES, searchListings } from "@/lib/ebay";
+import { MARKETPLACES, searchListings, getBrowseRateLimit } from "@/lib/ebay";
 import { getSealedPrice } from "@/lib/pokemonPriceTracker";
 import { SANITY_FLOOR_PCT, isTrustworthySealedListing, listingMatchesSealedProduct } from "@/lib/dealMatching";
 
@@ -94,6 +94,20 @@ export async function GET(request) {
 
   const db = supabaseAdmin();
   const url = new URL(request.url);
+
+  // Pre-flight Browse API quota check - same guard as app/api/refresh-deals
+  // (see docs/ebay-rate-limits.md). This run scans ~48 products x 5
+  // marketplaces and fires at 06:00 UTC, an hour before the daily reset,
+  // so it's the run most likely to hit an already-spent quota. Floor 250.
+  const rl = await getBrowseRateLimit();
+  if (rl && rl.remaining != null && rl.remaining < 250) {
+    return Response.json({
+      skipped: "ebay_rate_limited",
+      remaining: rl.remaining,
+      limit: rl.limit,
+      reset: rl.reset,
+    });
+  }
 
   const minDiscountParam = url.searchParams.get("minDiscount");
   const discountThreshold = minDiscountParam != null ? Number(minDiscountParam) : DISCOUNT_THRESHOLD;

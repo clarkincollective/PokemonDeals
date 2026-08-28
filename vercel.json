@@ -6,23 +6,23 @@
     },
     {
       "path": "/api/refresh-deals?mode=sweep&country=EBAY_GB&pages=5",
-      "schedule": "5 * * * *"
+      "schedule": "5 */3 * * *"
     },
     {
       "path": "/api/refresh-deals?mode=sweep&country=EBAY_AU&pages=5",
-      "schedule": "20 * * * *"
+      "schedule": "20 */3 * * *"
     },
     {
       "path": "/api/refresh-deals?mode=sweep&country=EBAY_CA&pages=5",
-      "schedule": "35 * * * *"
+      "schedule": "35 */3 * * *"
     },
     {
       "path": "/api/refresh-deals?mode=sweep&country=EBAY_DE&pages=5",
-      "schedule": "50 * * * *"
+      "schedule": "50 */3 * * *"
     },
     {
       "path": "/api/refresh-deals?tier=priority",
-      "schedule": "0 */4 * * *"
+      "schedule": "0 */6 * * *"
     },
     {
       "path": "/api/refresh-deals?tier=extended&country=EBAY_US&chunk=1",

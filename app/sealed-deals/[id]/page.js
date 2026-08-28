@@ -6,10 +6,12 @@ import { supabase } from "@/lib/supabaseClient";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES } from "@/lib/ebay";
 import { getSealedPriceHistory } from "@/lib/pokemonPriceTracker";
+import { shouldIndexDeal } from "@/lib/indexability";
 import { dealScore } from "@/lib/dealScore";
 import { timeAgo, timeUntil } from "@/lib/time";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import DealScoreBadge from "@/components/DealScoreBadge";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
@@ -65,12 +67,17 @@ export async function generateMetadata({ params }) {
   // are no longer real (a link shared or indexed before the deal
   // expired), even in a link-preview card, which never hits the page
   // component's own is_active check below.
-  if (!deal || !deal.is_active) return { title: "Deal not found", robots: { index: false, follow: true } };
+  if (!shouldIndexDeal(deal)) return { title: "Deal not found", robots: { index: false, follow: true } };
 
   const productName = deal.sealed_watchlist?.name ?? deal.title;
   const productSet = deal.sealed_watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
-  const title = `${productName}${productSet ? ` (${productSet})` : ""} - ${discountPct}% below market`;
+  // Length-aware, same approach as the card hub: keep the real product
+  // (and set) name intact and drop the "- N% below market" suffix rather
+  // than let the title run long once the site-name template is appended.
+  const titleBase = `${productName}${productSet ? ` (${productSet})` : ""}`;
+  const titleSuffix = ` - ${discountPct}% below market`;
+  const title = titleBase.length + titleSuffix.length <= 58 ? `${titleBase}${titleSuffix}` : titleBase;
   // Real product/set context up front, not just bare price numbers - see
   // app/deals/[id]/page.js's identical reasoning.
   const description = `${productName}${productSet ? ` (${productSet})` : ""} for $${Number(
@@ -107,7 +114,7 @@ export default async function SealedDealDetailPage({ params }) {
   // the link - a genuine correctness and trust problem, not just an SEO
   // one, but it also means Google would keep re-crawling stale content
   // instead of a clear "gone" signal.
-  if (!deal || !deal.is_active) {
+  if (!shouldIndexDeal(deal)) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-black">
         <SiteHeader />
@@ -286,12 +293,7 @@ export default async function SealedDealDetailPage({ params }) {
         )}
       </div>
 
-      <footer className="border-t border-zinc-200 px-6 py-8 text-center text-xs text-zinc-500 dark:border-zinc-800">
-        As an eBay and TCGPlayer affiliate, we earn a commission on qualifying purchases made through
-        links on this site. Prices and availability are subject to change. Listing-to-product matching
-        is automated and not perfect - always double-check a listing&apos;s photos and description
-        (and that it&apos;s genuinely factory sealed) before buying.
-      </footer>
+      <SiteFooter note="Listing-to-product matching is automated and not perfect - always double-check a listing's photos and description (and that it's genuinely factory sealed) before buying." />
     </div>
   );
 }

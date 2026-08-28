@@ -2,6 +2,7 @@ import { fetchSealedDealsPool, fetchDealsPage, fetchLastScanTime } from "@/lib/d
 import { dealScore } from "@/lib/dealScore";
 import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import SealedDealCard from "@/components/SealedDealCard";
 import { CountryFilterRow, ListingTypeFilterRow, PriceFilterRow } from "@/components/FilterBar";
 import FilterToggle from "@/components/FilterToggle";
@@ -163,13 +164,7 @@ export default async function SealedDealsPage({ searchParams }) {
         )}
       </main>
 
-      <footer className="border-t border-zinc-200 px-6 py-8 text-center text-xs text-zinc-500 dark:border-zinc-800">
-        As an eBay and TCGPlayer affiliate, we earn a commission on qualifying purchases made through
-        links on this site. Prices and availability are subject to change and were accurate as of the
-        listing&apos;s last scan. Listing-to-product matching is automated and not perfect - always
-        double-check a listing&apos;s photos and description (and that it&apos;s genuinely factory
-        sealed) before buying.
-      </footer>
+      <SiteFooter note="Listing-to-product matching is automated and not perfect - always double-check a listing's photos and description (and that it's genuinely factory sealed) before buying." />
     </div>
   );
 }

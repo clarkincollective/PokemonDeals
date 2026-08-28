@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "node tests/seo/run.mjs",
+    "test:seo": "node tests/seo/run.mjs",
     "fetch-card": "node scripts/fetchCardPrice.js",
     "seed-watchlist": "node scripts/seedWatchlist.js"
   },

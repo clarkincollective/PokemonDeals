@@ -3,7 +3,9 @@ import { unstable_cache } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { findCardHubByWatchlistId } from "@/lib/deals";
+import { findCardHubByWatchlistId, resolveSpeciesByName } from "@/lib/deals";
+import { shouldIndexDeal } from "@/lib/indexability";
+import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebay";
@@ -12,6 +14,7 @@ import { dealScore } from "@/lib/dealScore";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import DealScoreBadge from "@/components/DealScoreBadge";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
@@ -64,12 +67,17 @@ export async function generateMetadata({ params }) {
   // that are no longer real (e.g. a link shared or indexed before the
   // deal expired) even in a link-preview card, which never hits the
   // page component's own is_active check below.
-  if (!deal || !deal.is_active) return { title: "Deal not found", robots: { index: false, follow: true } };
+  if (!shouldIndexDeal(deal)) return { title: "Deal not found", robots: { index: false, follow: true } };
 
   const cardName = deal.watchlist?.name ?? deal.title;
   const cardSet = deal.watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
-  const title = `${cardName}${cardSet ? ` (${cardSet})` : ""} - ${discountPct}% below market`;
+  // Length-aware, same approach as the card hub: keep the real card (and
+  // set) name intact and drop the "- N% below market" suffix rather than
+  // let the title run long once the site-name template is appended.
+  const titleBase = `${cardName}${cardSet ? ` (${cardSet})` : ""}`;
+  const titleSuffix = ` - ${discountPct}% below market`;
+  const title = titleBase.length + titleSuffix.length <= 58 ? `${titleBase}${titleSuffix}` : titleBase;
   // Real card/set context up front, not just bare price numbers - a
   // search result showing only "$74.99 vs a $214.20 market price" gives a
   // searcher no reason to click over a competing result unless they've
@@ -141,7 +149,7 @@ export default async function DealDetailPage({ params }) {
   // read the same to a visitor: this deal isn't available anymore, so
   // don't keep showing it as a live, buyable page with real-looking
   // pricing/CTAs to anyone who still has the link.
-  if (!deal || !deal.is_active) {
+  if (!shouldIndexDeal(deal)) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-black">
         <SiteHeader />
@@ -163,9 +171,17 @@ export default async function DealDetailPage({ params }) {
   // the same search. Linking every one of them to the one consolidated
   // hub page is what actually fixes that (not just the hub page
   // existing on its own, unlinked).
-  const [analysis, cardHub] = await Promise.all([
+  // Species page is English-only (see lib/deals.js's fetchSpeciesHubs);
+  // only link one when this card's species cleared SPECIES_MIN_LISTINGS.
+  const speciesName =
+    deal.watchlist?.language !== "japanese"
+      ? extractSpecies(deal.watchlist?.name ?? deal.title)
+      : null;
+
+  const [analysis, cardHub, speciesHub] = await Promise.all([
     loadPriceAnalysis(deal, deal.watchlist),
     deal.watchlist_id ? findCardHubByWatchlistId(deal.watchlist_id) : Promise.resolve(null),
+    speciesName ? resolveSpeciesByName(speciesName) : Promise.resolve(null),
   ]);
 
   // The chart/section for THIS specific listing's own variant - raw uses
@@ -331,6 +347,15 @@ export default async function DealDetailPage({ params }) {
                 className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:underline dark:text-red-500"
               >
                 {cardHub.count} active listings found - compare prices →
+              </Link>
+            )}
+
+            {speciesHub && (
+              <Link
+                href={`/pokemon/${speciesHub.slug}`}
+                className="mt-1 flex items-center gap-1 text-sm text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500"
+              >
+                All {speciesHub.name} deals ({speciesHub.count}) →
               </Link>
             )}
 
@@ -506,11 +531,8 @@ export default async function DealDetailPage({ params }) {
           </div>
         )}
 
-        <p className="mt-6 text-center text-xs text-zinc-400">
-          Card-to-listing matching is automated and not perfect - always double-check a listing&apos;s
-          photos and description before buying.
-        </p>
       </div>
+      <SiteFooter note="Card-to-listing matching is automated and not perfect - always double-check a listing's photos and description before buying." />
     </div>
   );
 }

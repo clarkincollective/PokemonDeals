@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import DealCard from "@/components/DealCard";
 import AffiliateLink from "@/components/AffiliateLink";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
@@ -512,12 +513,7 @@ export default function SearchClient() {
         )}
       </main>
 
-      <footer className="border-t border-zinc-200 px-6 py-8 text-center text-xs text-zinc-500 dark:border-zinc-800">
-        As an eBay and TCGPlayer affiliate, we earn a commission on qualifying purchases made through
-        links on this site. Prices and availability are subject to change. Card-to-listing matching is
-        automated and not perfect - always double-check a listing&apos;s photos and description before
-        buying.
-      </footer>
+      <SiteFooter note="Card-to-listing matching is automated and not perfect - always double-check a listing's photos and description before buying." />
     </div>
   );
 }

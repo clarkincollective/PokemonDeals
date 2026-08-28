@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { fetchMostExpensiveCards, slugifySet } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 
 export const revalidate = 900;
 
@@ -73,10 +74,7 @@ export default async function MostExpensiveCardsPage() {
         </ol>
       </main>
 
-      <footer className="border-t border-zinc-200 px-6 py-8 text-center text-xs text-zinc-500 dark:border-zinc-800">
-        Market prices shown are real reference data checked against real market pricing, not sale offers
-        themselves - click through to see the real active listing.
-      </footer>
+      <SiteFooter note="Market prices shown are real reference data checked against real market pricing, not sale offers themselves - click through to see the real active listing." />
     </div>
   );
 }
