@@ -126,8 +126,38 @@ no `generateStaticParams`, even when every data call is `unstable_cache`d):
   edge-cached; SSR HTML still carries real native-currency prices.
 - **Still dynamic**: `/sets/[slug]` + `/pokemon/[slug]` (~340 pages) read
   `searchParams` for their filter/pagination grid, so they stay `no-store`.
-  Making them static needs the same client-side-filter move — the one
-  remaining piece of this fix.
+  Making them static needs client-side filtering + path-based pagination
+  (`/sets/[slug]/page/[n]`) — the one remaining piece of this fix.
+
+### Also this pass (2026-08-29)
+
+- **Thin-content: `SET_MIN_LISTINGS` 1 → 3** (`lib/indexability.js`,
+  enforced in `computeAggregates`). A set page is a browsable filterable
+  grid — 1–2 deals is a card or two + boilerplate, thin, and can't serve
+  "<set> card values" intent. Live data: 19 of 171 set pages sat at 1–2;
+  they now 404 and drop from the sitemap. Card hubs stay at 2 (a 2-seller
+  hub still carries price history + the variant grid — not thin).
+- **`/cards/[slug]` `generateStaticParams` → `[]`** (not every slug):
+  prerendering ~720 hubs at build fired ~720 billed, rate-limited
+  PokemonPriceTracker calls (429s, degraded initial renders). Empty
+  params + `revalidate` still gives ISR — each hub renders once on demand
+  then edge-caches — and spreads the API load out.
+- **New JSON-LD validated live** — all `BreadcrumbList` / `CollectionPage`
+  / `ItemList` / `SearchResultsPage` blocks added this session parse
+  cleanly on production; expired `/sealed-deals/[id]` correctly emits none
+  (it's `noindex`).
+- **Pokémon extraction re-verified** (`scripts/auditSpeciesExtraction.js`,
+  post `deliveryCountry` + variant-match changes): **95.7%** of distinct
+  watchlist names resolve (was 94.7%), **98.6%** of active deal rows
+  covered (was 97.0%). All 43 unmatched names are trainer/supporter/item/
+  energy/stadium singles (correctly no species page); no false positives
+  in the "species token not first" sample.
+- **Affiliate outbound journey audited** (`§12`): `components/AffiliateLink`
+  emits `rel="sponsored noopener noreferrer"` `target="_blank"` on every
+  eBay/TCGPlayer link; EPN params (`mkevt`/`mkcid`/`mkrid`/`campid`/
+  `toolid`) present and per-marketplace correct (US `711-…`, GB `710-…`,
+  AU `705-…`); click-tracked via Vercel Analytics; no countdown timers /
+  fake scarcity / invented stock. No change needed.
 
 ## Not building (deliberate, documented)
 
