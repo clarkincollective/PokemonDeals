@@ -55,9 +55,49 @@ discovered, 0 errors). What changed:
   (`rel="sponsored noopener noreferrer"`, per-marketplace EPN params, no
   dark patterns).
 
-Open (judgment / content, not structural gaps): a deeper "price-guide"
-framing on the card hubs (§9); more market-data datasets only if the data
-genuinely supports them (§10); the 4 remaining dynamic grid URLs.
+---
+
+## Update — 2026-08-29 SEO levers pass (commits `2c91cf1` … `fe39443`)
+
+Three targeted levers, done in order:
+
+**Lever #1 — card-page price/value framing — DONE.** `/cards/[slug]` now
+leads (directly under the H1) with `components/CardPriceSummary`:
+**Market value (raw, Near Mint)** as a labelled PokémonPriceTracker
+reference from sold data; the **raw by-condition ladder**; **graded
+tiers** from real recorded sold sales with per-tier counts. It only
+renders data the DB actually holds — the condition ladder is suppressed
+when it isn't a sane non-increasing sequence (cards with contaminated
+data, e.g. Shadowless Alakazam, show the NM headline + graded only, no
+"Damaged > Near Mint" rows); graded tiers need ≥ 1 real sale;
+low-confidence tiers are labelled. The former bare "From $X – $Y" (which
+read as a market value) is re-framed to "N active listings, from $X
+**(asking prices, not sold)**". Title → `"<name> (<set>) Price & Deals"`;
+description leads with price + value. `gradeLabel()` fixed for half
+grades. The variant grid, price history, deals grid, related links,
+`Product`/`Offer` + `BreadcrumbList` JSON-LD, canonical, indexability and
+affiliate CTAs are all unchanged and still below. `/cards/[slug]` stays
+SSG; verified live across vintage / modern / cheap / contaminated-data
+cards.
+
+**Lever #2 — more market-data pages — MEASURED, NOTHING BUILT.** The site
+keeps **no price time series of its own**: `deals.price_change_24hr` is
+100 % null, `deals` history spans ~2 days, there's no `price_history`
+table. So "biggest movers" is impossible without weeks of new data
+collection. "Vintage prices" duplicates `/market-data/most-expensive-
+cards`. "Japanese market data" is thin (247 priced cards, mostly $10–50,
+overlaps `/japanese-cards`). Per the brief's "if borderline, don't build"
+rule, **built none**; documented the measurement and the future
+`price_history`-table option in `IMPLEMENTATION_STATUS.md`.
+
+**Lever #3 — remaining dynamic routes — REVIEWED, LEFT DYNAMIC.** `/`,
+`/best-finds`, `/japanese-cards`, `/sealed-deals` serve `no-store` (TTFB
+~350–520 ms). But they're 4 individual URLs (no crawl-budget impact,
+already "Good" CWV), and the `<DealGrid>` pattern doesn't generalise
+cleanly to their different fetchers + page-1 shuffle + best-finds
+ranking. "Safe **and** straightforward" isn't met, so left dynamic
+deliberately; the homepage is the one to revisit if CrUX later flags its
+LCP.
 
 ---
 

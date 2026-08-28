@@ -174,6 +174,83 @@ no `generateStaticParams`, even when every data call is `unstable_cache`d):
   AU `705-…`); click-tracked via Vercel Analytics; no countdown timers /
   fake scarcity / invented stock. No change needed.
 
+## SEO levers pass — 2026-08-29
+
+### Lever #1 — card-page price/value framing — DONE (commits `2c91cf1`, `fe39443`)
+
+`/cards/[slug]` led with the deal grid; the reference pricing that
+answers "<card> <set> price / value / PSA 10 price" was only in the
+detailed variant grid at the bottom. Framing change (not a rebuild):
+
+- **`components/CardPriceSummary.js`** — a new block directly under the
+  H1: **Market value (raw, Near Mint)** from `analysis.raw.currentPrice`,
+  labelled as a PokémonPriceTracker reference from sold data; a **by-
+  condition raw ladder** (NM→Damaged); **graded tiers** from real
+  recorded sold sales with per-tier sale counts. Everything else (variant
+  grid, price history, deals, related cards, `Product`/`Offer` +
+  `BreadcrumbList` JSON-LD, canonical, indexability, affiliate CTAs) is
+  unchanged and still below.
+- **Anti-fabrication guards (verified live):** the condition ladder only
+  renders when it's a sane non-increasing sequence from Near Mint — cards
+  with contaminated data (e.g. Shadowless Alakazam, where "Damaged" >
+  "Near Mint") show just the NM headline + graded, no nonsense rows.
+  Graded tiers need ≥ 1 real sale; low-confidence tiers are labelled "low
+  confidence". Empty rows never render.
+- **Live-listing figure re-framed** — was a bare bold "From $X – $Y"
+  under the H1 (read as a market value); now "N active listings, from $X
+  **(asking prices, not sold)**" inside the summary.
+- **Metadata** — title `"<name> (<set>) Price & Deals"` (was "Compare N
+  Deals"); description leads with "price and value — raw and graded
+  prices from real sold data …".
+- **`gradeLabel()`** now parses `psa8_5` → "PSA 8.5", `tag9` → "TAG 9"
+  (also fixes the existing variant grid).
+- Verified live across vintage / modern / cheap / contaminated-data
+  cards: H1, title, canonical, robots (indexable), JSON-LD, affiliate
+  `rel`, internal links all intact; price figures accurate; no fabricated
+  or empty values. `tests/seo` 40/40; `/cards/[slug]` still SSG.
+
+### Lever #2 — additional market-data pages — MEASURED, NOT BUILDING
+
+Checked whether the real data can support "biggest price movers",
+"vintage card prices", "Japanese market data", or another dataset. It
+cannot, at the bar the brief sets ("if borderline, default to not
+building"):
+
+| Candidate | Finding | Decision |
+| --- | --- | --- |
+| **Biggest price movers** | `deals.price_change_24hr` is **100 % null** (the scanner writes `null`); `deals.first_seen_at` spans **~2 days**; there is **no price-history table** — the site keeps no time series of its own, only per-card live PokémonPriceTracker history (~30 pts, billed, rate-limited). Computing deltas would need weeks of persisted daily snapshots, or a few thousand PPT calls (already 429-ing at 500/min). | **Clearly insufficient — do not build.** |
+| **Vintage card prices** | Would be a WOTC-era filter over the exact data behind `/market-data/most-expensive-cards` — near-duplicate intent + content. | **Borderline → do not build.** |
+| **Japanese market data** | **247** distinct JP cards have a real `market_price`, across 133 sets — but 167 of them are $10–50, only ~15 are $200+, top card $1,600. Thin, low-value, overlaps `/japanese-cards`, and only 2 days of data (no "as of" / movement to show). | **Borderline → do not build.** |
+| **Sets by average value / other slices** | Aggregate of the same current data the `/sets` index and `/market-data/*` pages already expose. | **Not distinct — do not build.** |
+
+Persisting a daily per-card price snapshot (a small `price_history`
+table written by `/api/refresh-catalog`) would unlock a genuine movers /
+trend page in ~4–8 weeks. Noted as a future data-collection task, not
+built now.
+
+### Lever #3 — remaining dynamic routes (`/`, `/best-finds`, `/japanese-cards`, `/sealed-deals`) — REVIEWED, LEFT DYNAMIC
+
+Measured live: TTFB ~350–520 ms (`no-store`, `X-Vercel-Cache: MISS`) vs
+~40–80 ms on the now-edge-cached detail pages. So there *is* a TTFB
+saving on offer — but:
+
+- These are **4 individual URLs, not a page type**. The crawl-budget
+  argument that justified the `/cards` `/deals` `/sets` `/pokemon` work
+  (~6,100 pages) doesn't apply — Google crawls 4 URLs regardless.
+- All four are within Google's "Good" TTFB band already, and their data
+  is `unstable_cache`-warm, so the render is ~10–15 ms.
+- Applying the `<DealGrid>` pattern is **not straightforward** here: it's
+  coupled to `kind: "set" | "species"` + `/api/deals-page`, and these
+  pages use different fetchers (`fetchBestFinds`, `fetchSealedDealsPool`),
+  a deliberate page-1 shuffle rotation (`/` and `/japanese-cards`), and
+  best-finds' own ranking. Generalising it across four heterogeneous
+  pages is a real refactor with real regression surface.
+
+The brief's bar is "safe **and** straightforward" — this is neither, for
+a benefit that's marginal (4 URLs, already "Good" CWV). **Left dynamic
+deliberately.** The homepage is the one worth revisiting if Search
+Console / CrUX later flags its LCP; that would be its own scoped change.
+
 ## Not building (deliberate, documented)
 
 - **Phase 8 — dedicated price-history pages**: not building as separate `/cards/[slug]/price-history/` routes — price history is already integrated into the card hub and deal detail pages (chart + real data), and PokemonPriceTracker doesn't expose enough historical depth to justify a separate crawlable page beyond what's already shown. Documenting this as a deliberate scope decision, not an oversight.
