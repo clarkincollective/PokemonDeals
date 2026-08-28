@@ -4,7 +4,15 @@ import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
-import { readRecent, readSaved, subscribeCards, getServerSnapshot, entryHref } from "@/lib/recentCards";
+import {
+  readRecent,
+  readSaved,
+  subscribeCards,
+  getServerSnapshot,
+  entryHref,
+  clearRecent,
+  clearSaved,
+} from "@/lib/recentCards";
 
 // Homepage strips for the viewer's own locally-stored "saved" and
 // "recently viewed" cards. Renders nothing on the server and nothing at
@@ -31,11 +39,20 @@ function Tile({ card }) {
   );
 }
 
-function Row({ title, cards }) {
+function Row({ title, cards, onClear }) {
   if (!cards.length) return null;
   return (
     <div>
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">{title}</h2>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">{title}</h2>
+        <button
+          type="button"
+          onClick={onClear}
+          className="text-xs font-medium text-zinc-400 hover:text-red-600 hover:underline dark:hover:text-red-500"
+        >
+          Clear
+        </button>
+      </div>
       <div className="-mx-6 flex gap-4 overflow-x-auto px-6 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {cards.map((c) => (
           <Tile key={c.key} card={c} />
@@ -59,8 +76,8 @@ export default function CardMemoryStrip() {
   return (
     <section className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8">
-        <Row title="Your saved cards" cards={saved} />
-        <Row title="Recently viewed" cards={recentOnly} />
+        <Row title="Your saved cards" cards={saved} onClear={clearSaved} />
+        <Row title="Recently viewed" cards={recentOnly} onClear={clearRecent} />
       </div>
     </section>
   );
