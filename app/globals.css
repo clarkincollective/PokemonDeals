@@ -1,26 +1,77 @@
 @import "tailwindcss";
 
+/* Runtime CSS vars - the ones that must flip with the OS colour scheme
+   (this site follows prefers-color-scheme; there's no manual toggle). */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf9f7;
+  --foreground: #171514;
+  --sunk: #f2f0eb; /* tinted ground for alternating sections */
+  --surface: #ffffff;
+  --hairline: #e7e4dd;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0b0b0c;
+    --foreground: #ededed;
+    --sunk: #141416;
+    --surface: #141416;
+    --hairline: #26262a;
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-sunk: var(--sunk);
+  --color-surface: var(--surface);
+  --color-hairline: var(--hairline);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme {
+  /* Warm the neutral ramp so surfaces read as "paper", not cold zinc.
+     Luminance is kept close to stock so existing contrast still holds. */
+  --color-zinc-50: #faf9f7;
+  --color-zinc-100: #f3f1ed;
+  --color-zinc-200: #e7e4dd;
+  --color-zinc-300: #d7d2c8;
+  --color-zinc-400: #a39b8f;
+  --color-zinc-500: #7d7568;
+  --color-zinc-600: #5c554b;
+  --color-zinc-700: #423c34;
+  --color-zinc-800: #2a251f;
+  --color-zinc-900: #1a1613;
+  --color-zinc-950: #100e0c;
+
+  /* Brand red - deeper, less "browser-alert" than stock red-600 */
+  --color-red-500: #e13a3a;
+  --color-red-600: #d62828;
+  --color-red-700: #b71f1f;
+
+  /* Deal / savings green - slightly deeper */
+  --color-emerald-500: #12934f;
+  --color-emerald-600: #0e7c46;
+  --color-emerald-700: #0a6a3c;
+
+  /* Amber accent: live dot, "just added" freshness */
+  --color-live: #e0982f;
+
+  --radius-card: 0.75rem;
+  --shadow-card: 0 1px 2px rgb(20 18 15 / 0.05);
+  --shadow-card-hover: 0 12px 32px -16px rgb(20 18 15 / 0.16);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Prices and other figures line up column-to-column */
+.tnum {
+  font-variant-numeric: tabular-nums;
 }

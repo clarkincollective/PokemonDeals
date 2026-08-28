@@ -69,7 +69,7 @@ export default function NavDropdown({ label, items }) {
         aria-expanded={open}
         aria-controls={id}
         onClick={toggle}
-        className="flex items-center gap-1 text-sm font-medium text-zinc-600 transition-colors hover:text-red-600 dark:text-zinc-300 dark:hover:text-red-500"
+        className="flex items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-semibold tracking-tight text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-red-600 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-red-500"
       >
         {label}
         <svg

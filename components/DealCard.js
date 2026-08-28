@@ -2,21 +2,32 @@ import Image from "next/image";
 import Link from "next/link";
 import { MARKETPLACES } from "@/lib/ebay";
 import { slugifySet } from "@/lib/slugify";
-import { timeAgo, timeUntil } from "@/lib/time";
+import { timeAgo, timeUntil, isWithin } from "@/lib/time";
 import AffiliateLink from "@/components/AffiliateLink";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import SaveCardButton from "@/components/SaveCardButton";
 
-// One deal in a grid. Deliberately answers four questions fast and with
-// ONE action:
+const JUST_FOUND_MS = 2 * 60 * 60 * 1000;
+
+// The discount badge is tiered by how good the deal actually is (real
+// discount_pct) so a 65%-under card doesn't look identical to a 12%-under
+// one - the whole point of the site is "we found you a deal", so deal
+// quality has to be visible at a glance.
+function discountBadgeClass(pct) {
+  if (pct >= 40) return "bg-emerald-600 text-white";
+  if (pct >= 20) return "border border-emerald-600/40 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300";
+  return "border border-zinc-200 bg-white/90 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-950/90 dark:text-zinc-400";
+}
+
+// One deal in a grid. Answers four questions fast, with ONE action:
 //   what is it        -> image + name + set + condition
-//   is it a good deal -> the discount % badge + price / typical / saved
+//   is it a good deal -> tiered discount badge + price / typical / saved
 //   can I trust it    -> "N sellers" (real hub count) + recency
 //   what if I click   -> a single full-width "Check deal on eBay ->" CTA
 //
-// `rank` shows a number badge only on ranked lists (Top 10, "Biggest
-// discounts"). `hub` is `{ count, slug }` from fetchHubCounts when this
-// card has 2+ active listings, optional.
+// `rank` shows a number badge only on ranked lists (Top 10, "Best deals").
+// `hub` is `{ count, slug }` from fetchHubCounts when this card has 2+
+// active listings, optional.
 export default function DealCard({ deal, rank, hub, pageName = "home" }) {
   const cardName = deal.watchlist?.name ?? deal.title;
   const cardSet = deal.watchlist?.set;
@@ -28,67 +39,77 @@ export default function DealCard({ deal, rank, hub, pageName = "home" }) {
   const isJapanese = deal.watchlist?.language === "japanese";
   const marketInfo = MARKETPLACES[deal.marketplace];
   const setSlug = cardSet && !isJapanese ? slugifySet(cardSet) : null;
+  const justFound = !isAuction && isWithin(deal.first_seen_at, JUST_FOUND_MS);
 
   const conditionText = deal.is_graded
     ? `${deal.grader ?? "Graded"} ${deal.grade ?? ""}`.trim()
     : deal.condition || "Near Mint";
 
   return (
-    <div className="group flex h-full flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950">
-     <div className="relative">
-      <div className="absolute bottom-2 right-2 z-10">
-        <SaveCardButton
-          compact
-          card={{
-            slug: hub?.slug ?? null,
-            dealId: deal.id,
-            name: cardName,
-            set: cardSet,
-            image: deal.image_url,
-            price: deal.total_price,
-          }}
-        />
-      </div>
-      <a href={`/deals/${deal.id}`} className="relative block aspect-square w-full bg-zinc-50 dark:bg-zinc-900">
-        {deal.image_url ? (
-          <Image
-            src={deal.image_url}
-            alt={deal.title}
-            fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-contain p-3 transition-transform duration-200 group-hover:scale-[1.03]"
+    <div className="group flex h-full flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="relative">
+        <div className="absolute bottom-2 right-2 z-10">
+          <SaveCardButton
+            compact
+            card={{
+              slug: hub?.slug ?? null,
+              dealId: deal.id,
+              name: cardName,
+              set: cardSet,
+              image: deal.image_url,
+              price: deal.total_price,
+            }}
           />
-        ) : (
-          <CardImagePlaceholder />
-        )}
-
-        {rank != null && (
-          <span className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-md bg-black/80 text-xs font-bold text-white">
-            {rank}
-          </span>
-        )}
-        {marketInfo && (
-          <span
-            className={`absolute left-2 ${rank != null ? "top-10" : "top-2"} rounded-md bg-white/90 px-1.5 py-0.5 text-xs shadow-sm dark:bg-zinc-950/90`}
-            title={marketInfo.label}
-          >
-            {marketInfo.flag}
-          </span>
-        )}
-
-        <span className="absolute right-2 top-2 flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-sm font-extrabold leading-none text-white shadow-sm">
-          <svg viewBox="0 0 12 12" fill="currentColor" aria-hidden className="h-3 w-3">
-            <path d="M6 9 1.5 3.5h9z" />
-          </svg>
-          {discountPct}%
-        </span>
-      </a>
-     </div>
-
-      <div className="flex flex-1 flex-col gap-1.5 p-4">
+        </div>
         <a
           href={`/deals/${deal.id}`}
-          className="truncate text-[15px] font-semibold leading-snug text-black hover:underline dark:text-zinc-50"
+          className="relative block aspect-square w-full bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950"
+        >
+          {deal.image_url ? (
+            <Image
+              src={deal.image_url}
+              alt={deal.title}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-contain p-3 transition-transform duration-200 group-hover:scale-[1.03]"
+            />
+          ) : (
+            <CardImagePlaceholder />
+          )}
+
+          {rank != null && (
+            <span className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-md bg-zinc-900/85 text-xs font-bold text-white">
+              {rank}
+            </span>
+          )}
+          {marketInfo && (
+            <span
+              className={`absolute left-2 ${rank != null ? "top-10" : "top-2"} rounded-md bg-white/90 px-1.5 py-0.5 text-xs shadow-sm dark:bg-zinc-950/90`}
+              title={marketInfo.label}
+            >
+              {marketInfo.flag}
+            </span>
+          )}
+          {justFound && (
+            <span
+              className={`absolute left-2 ${rank != null ? "top-[4.5rem]" : "top-10"} rounded-md bg-live/95 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-900 shadow-sm`}
+            >
+              Just found
+            </span>
+          )}
+
+          <span
+            className={`absolute right-2 top-2 rounded-md px-2 py-1 text-sm font-extrabold leading-none shadow-sm ${discountBadgeClass(discountPct)}`}
+          >
+            −{discountPct}%
+          </span>
+        </a>
+      </div>
+
+      <div className="flex flex-1 flex-col gap-1 p-4">
+        <a
+          href={`/deals/${deal.id}`}
+          className="truncate text-[15px] font-semibold leading-snug text-zinc-900 hover:underline dark:text-zinc-50"
         >
           {cardName}
         </a>
@@ -106,15 +127,17 @@ export default function DealCard({ deal, rank, hub, pageName = "home" }) {
           {conditionText}
         </p>
 
-        <div className="mt-1 flex items-baseline gap-2">
-          <span className="text-lg font-bold text-black dark:text-zinc-50">${total.toFixed(2)}</span>
-          <span className="text-xs text-zinc-400 line-through">typical ${market.toFixed(2)}</span>
+        <div className="mt-1.5 flex items-baseline gap-2">
+          <span className="tnum text-lg font-bold text-zinc-900 dark:text-zinc-50">${total.toFixed(2)}</span>
+          <span className="tnum text-xs text-zinc-400 line-through">typical ${market.toFixed(2)}</span>
         </div>
         {saved > 0 && (
-          <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-500">Save ${saved.toFixed(2)}</p>
+          <p className="tnum text-xs font-semibold text-emerald-700 dark:text-emerald-500">
+            Save ${saved.toFixed(2)} · {discountPct}% under
+          </p>
         )}
 
-        <p className="text-[11px] text-zinc-400">
+        <p className="mt-0.5 text-[11px] text-zinc-400">
           {isAuction ? (
             <>
               Auction · ends {deal.auction_end_at ? timeUntil(deal.auction_end_at) : "soon"}
@@ -138,7 +161,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home" }) {
           )}
         </p>
 
-        <div className="mt-auto pt-2">
+        <div className="mt-auto pt-2.5">
           <AffiliateLink
             href={deal.affiliate_url}
             eventName="eBay Click"
@@ -150,7 +173,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home" }) {
               isGraded: deal.is_graded,
               page: pageName,
             }}
-            className="block rounded-md bg-black px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+            className="block rounded-lg bg-zinc-900 px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-red-600 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-red-600 dark:hover:text-white"
           >
             {isAuction ? "Bid on eBay →" : "Check deal on eBay →"}
           </AffiliateLink>

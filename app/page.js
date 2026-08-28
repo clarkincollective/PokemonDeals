@@ -15,6 +15,7 @@ import { GUIDES } from "@/lib/guides";
 import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import SectionHeader from "@/components/SectionHeader";
 import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
 import Pagination, { pageHref } from "@/components/Pagination";
@@ -151,7 +152,6 @@ export default async function Home({ searchParams }) {
     deals = shuffled(deduped.slice(0, 400)).slice(0, PAGE_SIZE);
   }
 
-  const heroDeal = bestFinds[0] ?? null;
   const topHubs = cardHubsResult.hubs.slice(0, 6);
   const liveCount = summary?.activeDeals ?? null;
 
@@ -178,7 +178,7 @@ export default async function Home({ searchParams }) {
   const organizationJsonLd = { "@context": "https://schema.org", "@type": "Organization", name: "Pokémon Deal Finder", url: SITE_URL };
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
+    <div className="flex min-h-screen flex-col bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       {showPromo && (
         <>
@@ -188,86 +188,72 @@ export default async function Home({ searchParams }) {
       )}
       <SiteHeader />
 
-      {/* HERO - value prop + search on the left, one live "deal of the moment" on the right */}
+      {/* HERO - name the job, big search, entry chips, live proof */}
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto grid max-w-7xl gap-8 px-6 py-8 lg:grid-cols-[1fr_320px] lg:py-10">
-          <div>
-            <h1 className="max-w-xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
-              Pokémon cards below market price
-            </h1>
-            <p className="mt-3 max-w-lg text-base text-zinc-600 dark:text-zinc-400">
-              Every eBay listing, checked against real sold prices. The junk filtered out. Free.
-            </p>
+        <div className="mx-auto max-w-7xl px-6 py-10 lg:py-14">
+          <h1 className="max-w-2xl text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl dark:text-zinc-50">
+            Find underpriced Pokémon cards on eBay
+          </h1>
+          <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
+            Every listing checked against real sold prices. The junk filtered out. Free.
+          </p>
 
-            <form action="/search" className="mt-5 flex max-w-lg gap-2">
+          <form action="/search" className="mt-6 flex max-w-2xl gap-2">
+            <div className="relative flex-1">
+              <svg
+                aria-hidden
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400"
+              >
+                <circle cx="8.5" cy="8.5" r="5.5" />
+                <line x1="16" y1="16" x2="12.5" y2="12.5" />
+              </svg>
               <input
                 type="text"
                 name="q"
-                placeholder="Search a card, a set, &quot;sealed&quot;…"
-                className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                placeholder="Search a card, a set, or &quot;booster box&quot;…"
+                className="w-full rounded-xl border border-zinc-300 bg-white py-3.5 pl-11 pr-4 text-base text-zinc-900 shadow-card outline-none transition-colors focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               />
-              <button
-                type="submit"
-                className="whitespace-nowrap rounded-lg bg-red-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700"
-              >
-                Search
-              </button>
-            </form>
-
-            {lastRefreshed && (
-              <p className="mt-4 inline-flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-                <span className="h-2 w-2 rounded-full bg-red-500" />
-                {liveCount != null && <span className="font-semibold">{liveCount.toLocaleString()} live deals</span>}
-                {liveCount != null && " · "}
-                {isRecentlyRefreshed(lastRefreshed) ? `checked ${timeAgo(lastRefreshed)}` : "refreshing automatically"}
-              </p>
-            )}
-
-            <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-zinc-500 dark:text-zinc-400">
-              <span>✔ Checked against real eBay sold prices</span>
-              <span>✔ Automated match, junk filtered out</span>
-              <span>
-                ✔{" "}
-                <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">
-                  How we price this
-                </Link>
-              </span>
             </div>
+            <button
+              type="submit"
+              className="shrink-0 whitespace-nowrap rounded-xl bg-red-600 px-6 py-3.5 text-sm font-semibold text-white shadow-card transition-colors hover:bg-red-700"
+            >
+              Search
+            </button>
+          </form>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {START_HERE.map((t) => (
+              <Link
+                key={t.href}
+                href={t.href}
+                className="rounded-full border border-zinc-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-zinc-700 transition-colors hover:border-red-300 hover:text-red-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:text-red-500"
+              >
+                {t.label}
+              </Link>
+            ))}
           </div>
 
-          {heroDeal && (
-            <a
-              href={`/deals/${heroDeal.id}`}
-              className="hidden flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-md lg:flex dark:border-zinc-800 dark:bg-zinc-950"
-            >
-              <div className="relative aspect-[4/3] w-full bg-zinc-50 dark:bg-zinc-900">
-                {heroDeal.image_url ? (
-                  <Image src={heroDeal.image_url} alt={heroDeal.title} fill sizes="320px" className="object-contain p-3" />
-                ) : (
-                  <CardImagePlaceholder />
-                )}
-                <span className="absolute right-2 top-2 rounded-md bg-emerald-600 px-2 py-1 text-sm font-extrabold text-white shadow-sm">
-                  ▼ {Math.round(heroDeal.discount_pct * 100)}%
-                </span>
-              </div>
-              <div className="p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Biggest discount right now</p>
-                <p className="mt-1 line-clamp-1 font-semibold text-black dark:text-zinc-50">
-                  {heroDeal.watchlist?.name ?? heroDeal.title}
-                </p>
-                <p className="mt-1 text-sm">
-                  <span className="text-lg font-bold text-black dark:text-zinc-50">
-                    ${Number(heroDeal.total_price).toFixed(2)}
-                  </span>{" "}
-                  <span className="text-xs text-zinc-400 line-through">
-                    typical ${Number(heroDeal.market_price).toFixed(2)}
-                  </span>
-                </p>
-                <span className="mt-3 inline-block rounded-md bg-black px-3 py-1.5 text-xs font-semibold text-white dark:bg-white dark:text-black">
-                  See this deal →
-                </span>
-              </div>
-            </a>
+          {lastRefreshed && (
+            <p className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600 dark:text-zinc-300">
+              <span className="inline-flex h-2 w-2 rounded-full bg-live" />
+              {liveCount != null && (
+                <span className="tnum font-semibold">{liveCount.toLocaleString()} live deals</span>
+              )}
+              {liveCount != null && <span className="text-zinc-300 dark:text-zinc-700">·</span>}
+              <span>
+                {isRecentlyRefreshed(lastRefreshed) ? `checked ${timeAgo(lastRefreshed)}` : "refreshing automatically"}
+              </span>
+              <span className="text-zinc-300 dark:text-zinc-700">·</span>
+              <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">
+                how we price this →
+              </Link>
+            </p>
           )}
         </div>
       </header>
@@ -276,49 +262,17 @@ export default async function Home({ searchParams }) {
           nothing for first-time visitors and on the server. */}
       {showPromo && <CardMemoryStrip />}
 
-      {/* START HERE */}
-      {showPromo && (
-        <section className="border-b border-zinc-200 dark:border-zinc-800">
-          <div className="mx-auto max-w-7xl px-6 py-6">
-            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Start here</span>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {START_HERE.map((t) => (
-                <Link
-                  key={t.href}
-                  href={t.href}
-                  className="rounded-md border border-zinc-200 bg-white px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:border-zinc-300 hover:text-red-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:text-red-500"
-                >
-                  {t.label}
-                </Link>
-              ))}
-              <Link
-                href="/sets"
-                className="rounded-md border border-zinc-200 bg-white px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:border-zinc-300 hover:text-red-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:text-red-500"
-              >
-                Browse by set →
-              </Link>
-              <Link
-                href="/pokemon"
-                className="rounded-md border border-zinc-200 bg-white px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:border-zinc-300 hover:text-red-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:text-red-500"
-              >
-                Browse by Pokémon →
-              </Link>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* BIGGEST DISCOUNTS */}
+      {/* BEST DEALS RIGHT NOW - the proof, first thing after the hero */}
       {showPromo && bestFinds.length > 0 && (
         <section className="border-b border-zinc-200 dark:border-zinc-800">
-          <div className="mx-auto max-w-7xl px-6 py-8">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Biggest discounts right now</h2>
-              <Link href="/best-finds" className="text-sm font-medium text-red-600 hover:underline dark:text-red-500">
-                See Top 10 →
-              </Link>
-            </div>
-            <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mx-auto max-w-7xl px-6 py-10">
+            <SectionHeader
+              kicker="The find"
+              title="Best deals right now"
+              actionLabel="See top 10"
+              actionHref="/best-finds"
+            />
+            <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {bestFinds.map((deal, i) => (
                 <DealCard key={deal.id} deal={deal} rank={i + 1} hub={hubCounts[deal.watchlist_id]} pageName="home_best" />
               ))}
@@ -327,17 +281,28 @@ export default async function Home({ searchParams }) {
         </section>
       )}
 
+      {/* Slim trust strip - keeps the disclosure near the deals, not only
+          buried in the footer. */}
+      {showPromo && (
+        <div className="border-b border-zinc-200 bg-sunk dark:border-zinc-800">
+          <p className="mx-auto max-w-7xl px-6 py-2.5 text-center text-xs text-zinc-500 dark:text-zinc-400">
+            Every price checked against real eBay sold listings · updated continuously · we may earn a
+            commission on purchases, at no cost to you
+          </p>
+        </div>
+      )}
+
       {/* ENDING SOON */}
       {showPromo && endingSoon.length > 0 && (
-        <section className="border-b border-zinc-200 dark:border-zinc-800">
-          <div className="mx-auto max-w-7xl px-6 py-8">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">⏰ Auctions ending soon</h2>
-              <Link href="/?listing=AUCTION&sort=ending" className="text-sm font-medium text-red-600 hover:underline dark:text-red-500">
-                See all →
-              </Link>
-            </div>
-            <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <section className="border-b border-zinc-200 bg-sunk dark:border-zinc-800">
+          <div className="mx-auto max-w-7xl px-6 py-10">
+            <SectionHeader
+              kicker="Real urgency"
+              title="Auctions ending soon"
+              actionLabel="See all"
+              actionHref="/?listing=AUCTION&sort=ending"
+            />
+            <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               {endingSoon.map((deal) => (
                 <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_ending" />
               ))}
@@ -346,29 +311,43 @@ export default async function Home({ searchParams }) {
         </section>
       )}
 
+      {/* JUST ADDED */}
+      {showPromo && freshFinds.length > 0 && (
+        <section className="border-b border-zinc-200 dark:border-zinc-800">
+          <div className="mx-auto max-w-7xl px-6 py-10">
+            <SectionHeader
+              kicker="Fresh"
+              title="Just added"
+              actionLabel="Browse newest"
+              actionHref="/?sort=newest"
+            />
+            <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              {freshFinds.map((deal) => (
+                <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_fresh" />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* MOST SELLERS COMPETING */}
       {showPromo && topHubs.length > 0 && (
-        <section className="border-b border-zinc-200 dark:border-zinc-800">
-          <div className="mx-auto max-w-7xl px-6 py-8">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-                Most sellers competing · cheapest wins
-              </h2>
-              <Link
-                href="/market-data/most-listed-cards"
-                className="text-sm font-medium text-red-600 hover:underline dark:text-red-500"
-              >
-                Compare all →
-              </Link>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <section className="border-b border-zinc-200 bg-sunk dark:border-zinc-800">
+          <div className="mx-auto max-w-7xl px-6 py-10">
+            <SectionHeader
+              kicker="Compare prices"
+              title="Most sellers competing"
+              actionLabel="Compare all"
+              actionHref="/market-data/most-listed-cards"
+            />
+            <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
               {topHubs.map((hub) => (
                 <Link
                   key={hub.id}
                   href={`/cards/${hub.slug}`}
-                  className="group flex flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950"
+                  className="group flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950"
                 >
-                  <div className="relative aspect-square w-full bg-zinc-50 dark:bg-zinc-900">
+                  <div className="relative aspect-square w-full bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950">
                     {hub.image ? (
                       <Image
                         src={hub.image}
@@ -380,14 +359,14 @@ export default async function Home({ searchParams }) {
                     ) : (
                       <CardImagePlaceholder />
                     )}
-                    <span className="absolute right-1 top-1 rounded-md bg-black/80 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    <span className="absolute right-1.5 top-1.5 rounded-md bg-zinc-900/85 px-1.5 py-0.5 text-[10px] font-bold text-white">
                       {hub.count} sellers
                     </span>
                   </div>
                   <div className="p-2.5">
-                    <p className="line-clamp-1 text-xs font-semibold text-black dark:text-zinc-50">{hub.name}</p>
+                    <p className="line-clamp-1 text-xs font-semibold text-zinc-900 dark:text-zinc-50">{hub.name}</p>
                     <p className="line-clamp-1 text-[11px] text-zinc-500">{hub.set}</p>
-                    <p className="mt-1 text-xs font-bold text-black dark:text-zinc-50">
+                    <p className="tnum mt-1 text-xs font-bold text-zinc-900 dark:text-zinc-50">
                       from ${hub.cheapestPrice.toFixed(2)}
                     </p>
                   </div>
@@ -398,14 +377,29 @@ export default async function Home({ searchParams }) {
         </section>
       )}
 
-      {/* JUST ADDED */}
-      {showPromo && freshFinds.length > 0 && (
+      {/* BROWSE - two big category entry tiles */}
+      {showPromo && (
         <section className="border-b border-zinc-200 dark:border-zinc-800">
-          <div className="mx-auto max-w-7xl px-6 py-8">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Just added</h2>
-            <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-              {freshFinds.map((deal) => (
-                <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_fresh" />
+          <div className="mx-auto max-w-7xl px-6 py-10">
+            <SectionHeader kicker="Know what you want" title="Browse the catalogue" />
+            <div className="mt-5 grid gap-5 sm:grid-cols-2">
+              {[
+                { href: "/sets", title: "Browse by set", copy: "Every set with an active below-market deal, one set at a time." },
+                { href: "/pokemon", title: "Browse by Pokémon", copy: "Every deal for a species, across all its prints and sets." },
+              ].map((t) => (
+                <Link
+                  key={t.href}
+                  href={t.href}
+                  className="group flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950"
+                >
+                  <div>
+                    <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{t.title}</p>
+                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{t.copy}</p>
+                  </div>
+                  <span className="text-xl text-zinc-300 transition-colors group-hover:text-red-600 dark:text-zinc-600">
+                    →
+                  </span>
+                </Link>
               ))}
             </div>
           </div>
@@ -413,15 +407,15 @@ export default async function Home({ searchParams }) {
       )}
 
       {/* ALL DEALS grid + sort/filter toolbar */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
-        <div className="mb-6 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-            {anyFilter ? "Filtered deals" : "All deals"}
-            {page > 1 ? ` · page ${page}` : ""}
-          </h2>
+      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-12">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
+          <SectionHeader
+            kicker={anyFilter ? "Filtered" : "Everything"}
+            title={anyFilter ? "Filtered deals" : "All deals"}
+          />
           {(useStableList || page > 1) && (
             <Link href="/" className="text-sm font-medium text-zinc-500 hover:text-red-600 dark:hover:text-red-500">
-              Clear
+              Clear filters
             </Link>
           )}
         </div>
@@ -455,7 +449,7 @@ export default async function Home({ searchParams }) {
             <div className="mt-10 flex justify-center">
               <a
                 href={pageHref(params, 2, "/")}
-                className="rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
+                className="rounded-full border border-zinc-200 bg-white px-5 py-2 text-sm font-medium text-zinc-600 transition-colors hover:border-red-300 hover:text-red-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
               >
                 Browse all deals →
               </a>
@@ -466,71 +460,67 @@ export default async function Home({ searchParams }) {
         )}
       </main>
 
-      {/* HOW IT WORKS - moved up from the bottom */}
-      <section id="how-it-works" className="border-t border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-12">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-lg font-bold text-black dark:text-zinc-50">How it works</h2>
-            <Link href="/methodology" className="text-sm font-medium text-red-600 hover:underline dark:text-red-500">
-              Full methodology →
-            </Link>
+      {/* HOW IT WORKS + FAQ - two balanced columns on the tinted ground */}
+      <section id="how-it-works" className="border-t border-zinc-200 bg-sunk dark:border-zinc-800">
+        <div className="mx-auto grid max-w-7xl gap-12 px-6 py-14 lg:grid-cols-2">
+          <div>
+            <SectionHeader
+              kicker="No guesswork"
+              title="How it works"
+              actionLabel="Full methodology"
+              actionHref="/methodology"
+            />
+            <ol className="mt-5 flex flex-col gap-5">
+              <li>
+                <p className="font-semibold text-zinc-900 dark:text-zinc-50">1. We scan eBay around the clock</p>
+                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                  Every watched card is checked against live eBay listings, continuously.
+                </p>
+              </li>
+              <li>
+                <p className="font-semibold text-zinc-900 dark:text-zinc-50">2. We check real pricing</p>
+                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                  Each listing is compared against the card&apos;s real market price for its condition, backed by
+                  recent eBay sold listings - not guesses.
+                </p>
+              </li>
+              <li>
+                <p className="font-semibold text-zinc-900 dark:text-zinc-50">3. We only show genuine deals</p>
+                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                  A listing only makes the list if it&apos;s meaningfully below market and the seller passes our
+                  trust checks.
+                </p>
+              </li>
+            </ol>
           </div>
-          <ol className="mt-5 grid gap-6 sm:grid-cols-3">
-            <li>
-              <p className="font-semibold text-black dark:text-zinc-50">1. We scan eBay</p>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                Every watched card is checked against live eBay listings, around the clock.
-              </p>
-            </li>
-            <li>
-              <p className="font-semibold text-black dark:text-zinc-50">2. We check real pricing</p>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                Each listing is compared against real market pricing and recent eBay sold listings - not guesses.
-              </p>
-            </li>
-            <li>
-              <p className="font-semibold text-black dark:text-zinc-50">3. We only show genuine deals</p>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                A listing only makes the list if it&apos;s meaningfully below market and the seller passes our trust checks.
-              </p>
-            </li>
-          </ol>
+
+          <div id="faq">
+            <SectionHeader kicker="Good to know" title="FAQ" />
+            <div className="mt-5 grid gap-5 sm:grid-cols-2">
+              {FAQ_ITEMS.map((item) => (
+                <div key={item.question}>
+                  <p className="font-semibold text-zinc-900 dark:text-zinc-50">{item.question}</p>
+                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{item.answer}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
       {/* GUIDES */}
       <section className="border-t border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-12">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-lg font-bold text-black dark:text-zinc-50">Buying guides</h2>
-            <Link href="/guides" className="text-sm font-medium text-red-600 hover:underline dark:text-red-500">
-              All guides →
-            </Link>
-          </div>
+        <div className="mx-auto max-w-7xl px-6 py-14">
+          <SectionHeader kicker="Learn the market" title="Buying guides" actionLabel="All guides" actionHref="/guides" />
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {GUIDES.map((g) => (
               <Link
                 key={g.slug}
                 href={`/guides/${g.slug}`}
-                className="rounded-lg border border-zinc-200 bg-white p-4 text-sm font-semibold text-black transition-colors hover:border-zinc-300 hover:text-red-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:text-red-500"
+                className="rounded-xl border border-zinc-200 bg-white p-5 text-sm font-semibold text-zinc-900 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:text-red-600 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:text-red-500"
               >
                 {g.title}
               </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section id="faq" className="border-t border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-12">
-          <h2 className="text-lg font-bold text-black dark:text-zinc-50">FAQ</h2>
-          <div className="mt-5 flex flex-col gap-5 sm:max-w-2xl">
-            {FAQ_ITEMS.map((item) => (
-              <div key={item.question}>
-                <p className="font-semibold text-black dark:text-zinc-50">{item.question}</p>
-                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{item.answer}</p>
-              </div>
             ))}
           </div>
         </div>
