@@ -201,6 +201,24 @@ export default function SearchClient() {
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
         {searchError && <p className="rounded-lg bg-red-50 p-4 text-red-700">{searchError}</p>}
 
+        {searching && !deals && !catalog && !selected && (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div
+                key={i}
+                className="animate-pulse overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950"
+              >
+                <div className="aspect-square w-full bg-zinc-100 dark:bg-zinc-900" />
+                <div className="space-y-2 p-3">
+                  <div className="h-3 w-4/5 rounded bg-zinc-100 dark:bg-zinc-900" />
+                  <div className="h-3 w-2/5 rounded bg-zinc-100 dark:bg-zinc-900" />
+                  <div className="h-6 w-full rounded bg-zinc-100 dark:bg-zinc-900" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {!selected && (deals || catalog) && (
           <div className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <div>

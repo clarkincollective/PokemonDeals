@@ -17,6 +17,8 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import RegionRedirect from "@/components/RegionRedirect";
 import HeroSearch from "@/components/HeroSearch";
+import MobileStickySearch from "@/components/MobileStickySearch";
+import NewSinceVisit from "@/components/NewSinceVisit";
 import SectionHeader from "@/components/SectionHeader";
 import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
@@ -193,6 +195,7 @@ export default async function Home({ searchParams }) {
         </>
       )}
       <SiteHeader />
+      <MobileStickySearch />
       <RegionRedirect />
 
       {/* HERO - name the job, big search, entry chips, live proof */}
@@ -303,7 +306,10 @@ export default async function Home({ searchParams }) {
               actionLabel="Browse newest"
               actionHref="/?sort=newest"
             />
-            <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <div className="mt-2">
+              <NewSinceVisit timestamps={freshFinds.map((d) => d.first_seen_at)} />
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               {freshFinds.map((deal) => (
                 <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_fresh" />
               ))}
