@@ -20,7 +20,9 @@ export const REGIONS = [
 //   EBAY_XX -> force this country as the default filter site-wide
 export const REGION_KEY = "pdf:region";
 
-function readRegion() {
+const KNOWN_CODES = new Set(REGIONS.map((r) => r.code).filter(Boolean));
+
+function readStoredRegion() {
   if (typeof window === "undefined") return null;
   try {
     return window.localStorage.getItem(REGION_KEY);
@@ -29,13 +31,27 @@ function readRegion() {
   }
 }
 
+// The region the header should reflect: the stored choice if there is one
+// (including "" for an explicit "All countries"), otherwise the country
+// currently applied via ?country= (set by a filter click or the geo-IP
+// default in RegionRedirect), otherwise null ("Shipping to…").
+function readEffectiveRegion() {
+  const stored = readStoredRegion();
+  if (stored !== null) return stored;
+  if (typeof window === "undefined") return null;
+  const fromUrl = new URLSearchParams(window.location.search).get("country");
+  return fromUrl && KNOWN_CODES.has(fromUrl) ? fromUrl : null;
+}
+
 function subscribeRegion(onChange) {
   if (typeof window === "undefined") return () => {};
   window.addEventListener("storage", onChange);
   window.addEventListener("pdf:region", onChange);
+  window.addEventListener("popstate", onChange);
   return () => {
     window.removeEventListener("storage", onChange);
     window.removeEventListener("pdf:region", onChange);
+    window.removeEventListener("popstate", onChange);
   };
 }
 
@@ -45,7 +61,7 @@ function subscribeRegion(onChange) {
 // the router hooks so it's safe inside the shared header on statically
 // rendered pages too.
 export default function RegionControl() {
-  const region = useSyncExternalStore(subscribeRegion, readRegion, () => null);
+  const region = useSyncExternalStore(subscribeRegion, readEffectiveRegion, () => null);
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
 

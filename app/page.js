@@ -16,6 +16,7 @@ import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import RegionRedirect from "@/components/RegionRedirect";
+import { detectedMarketplace } from "@/lib/geo";
 import HeroSearch from "@/components/HeroSearch";
 import MobileStickySearch from "@/components/MobileStickySearch";
 import NewSinceVisit from "@/components/NewSinceVisit";
@@ -93,6 +94,7 @@ const START_HERE = [
 
 export default async function Home({ searchParams }) {
   const params = await searchParams;
+  const detectedRegion = await detectedMarketplace();
   const country = typeof params.country === "string" ? params.country : null;
   const cardType = typeof params.type === "string" ? params.type : null;
   const listingType = typeof params.listing === "string" ? params.listing : null;
@@ -196,7 +198,7 @@ export default async function Home({ searchParams }) {
       )}
       <SiteHeader />
       <MobileStickySearch />
-      <RegionRedirect />
+      <RegionRedirect detected={detectedRegion} />
 
       {/* HERO - name the job, big search, entry chips, live proof */}
       <header className="border-b border-zinc-200 dark:border-zinc-800">

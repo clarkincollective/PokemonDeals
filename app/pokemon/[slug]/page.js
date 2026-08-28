@@ -9,6 +9,7 @@ import {
 import { slugifySet } from "@/lib/slugify";
 import SiteHeader from "@/components/SiteHeader";
 import RegionRedirect from "@/components/RegionRedirect";
+import { detectedMarketplace } from "@/lib/geo";
 import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
 import Pagination from "@/components/Pagination";
@@ -71,6 +72,7 @@ export async function generateMetadata({ params, searchParams }) {
 export default async function PokemonSpeciesPage({ params, searchParams }) {
   const { slug } = await params;
   const sp = await searchParams;
+  const detectedRegion = await detectedMarketplace();
 
   // Kick off the card-hubs scan now so it runs concurrently with the
   // species-hubs scan below (resolveSpeciesSlug) instead of after it -
@@ -173,7 +175,7 @@ export default async function PokemonSpeciesPage({ params, searchParams }) {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
       )}
       <SiteHeader />
-      <RegionRedirect />
+      <RegionRedirect detected={detectedRegion} />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-10">

@@ -2,6 +2,7 @@ import { fetchDealsPool, fetchDealsPage, fetchLastScanTime, fetchHubCounts } fro
 import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
 import RegionRedirect from "@/components/RegionRedirect";
+import { detectedMarketplace } from "@/lib/geo";
 import SiteFooter from "@/components/SiteFooter";
 import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
@@ -52,6 +53,7 @@ function shuffled(array) {
 
 export default async function JapaneseCardsPage({ searchParams }) {
   const params = await searchParams;
+  const detectedRegion = await detectedMarketplace();
   const country = typeof params.country === "string" ? params.country : null;
   const cardType = typeof params.type === "string" ? params.type : null;
   const listingType = typeof params.listing === "string" ? params.listing : null;
@@ -102,7 +104,7 @@ export default async function JapaneseCardsPage({ searchParams }) {
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <SiteHeader />
-      <RegionRedirect />
+      <RegionRedirect detected={detectedRegion} />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-10">

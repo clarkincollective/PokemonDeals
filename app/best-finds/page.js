@@ -2,6 +2,7 @@ import Link from "next/link";
 import { fetchBestFinds, fetchHubCounts } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
 import RegionRedirect from "@/components/RegionRedirect";
+import { detectedMarketplace } from "@/lib/geo";
 import SiteFooter from "@/components/SiteFooter";
 import DealCard from "@/components/DealCard";
 import { filterHref, PriceFilterRow, CountryFilterRow } from "@/components/FilterBar";
@@ -48,6 +49,7 @@ function TypeToggle({ params, type }) {
 
 export default async function BestFindsPage({ searchParams }) {
   const params = await searchParams;
+  const detectedRegion = await detectedMarketplace();
   // Raw and graded are ranked as two separate lists (graded is a much
   // smaller pool - mixing them would let raw deals crowd out every
   // graded one) - default to raw since it's the far larger, more
@@ -66,7 +68,7 @@ export default async function BestFindsPage({ searchParams }) {
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <SiteHeader />
-      <RegionRedirect />
+      <RegionRedirect detected={detectedRegion} />
 
       <header className="border-b border-zinc-200 bg-gradient-to-b from-red-50 to-transparent dark:border-zinc-800 dark:from-red-950/20">
         <div className="mx-auto max-w-7xl px-6 py-8">

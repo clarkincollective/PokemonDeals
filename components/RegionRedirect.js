@@ -4,30 +4,40 @@ import { useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { REGION_KEY } from "@/components/RegionControl";
 
-// Renders nothing. On a listing page with no explicit ?country=, if the
-// viewer has picked a shipping region (see RegionControl), re-navigate to
-// add ?country=<region> so they land on deals they can actually buy.
-// An explicit ?country in the URL always wins; "All countries" and
-// "no choice yet" both leave the page untouched (localStorage "" / null).
-export default function RegionRedirect() {
+// Renders nothing. On a listing page with no explicit ?country=, sends
+// the visitor to deals they can actually buy:
+//   1. an explicit ?country= in the URL always wins (do nothing);
+//   2. else a stored preference (RegionControl) wins - including the
+//      empty string, which means "All countries" (do nothing);
+//   3. else the geo-detected marketplace (`detected` prop), used only as
+//      a default - it is NOT written to storage, so the visitor can
+//      still override it and that choice persists.
+export default function RegionRedirect({ detected = null }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
 
   useEffect(() => {
     if (searchParams.has("country")) return;
-    let pref = null;
+
+    let stored = null;
     try {
-      pref = window.localStorage.getItem(REGION_KEY);
+      stored = window.localStorage.getItem(REGION_KEY);
     } catch {
-      return;
+      stored = null;
     }
-    if (!pref) return; // no choice, or explicit "all"
+
+    // stored: "EBAY_XX" = a choice, "" = explicit All, null = no choice.
+    const target = stored === null ? detected : stored;
+    if (!target) return;
+
     const next = new URLSearchParams(searchParams);
-    next.set("country", pref);
+    next.set("country", target);
     next.delete("page");
     router.replace(`${pathname}?${next.toString()}`, { scroll: false });
-  }, [pathname, searchParams, router]);
+    // Let the header control re-read the now-applied region.
+    window.dispatchEvent(new Event("pdf:region"));
+  }, [pathname, searchParams, router, detected]);
 
   return null;
 }
