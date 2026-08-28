@@ -39,10 +39,10 @@ function FilterPill({ href, active, children }) {
   return (
     <a
       href={href}
-      className={`shrink-0 whitespace-nowrap rounded-md border px-3 py-1 text-xs font-medium transition-colors ${
+      className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
         active
-          ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-          : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
+          ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-50 dark:bg-zinc-50 dark:text-zinc-900"
+          : "border-zinc-200 bg-white text-zinc-600 hover:border-red-300 hover:text-red-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:text-red-500"
       }`}
     >
       {children}
@@ -159,7 +159,7 @@ export default function FilterBar({ params, country, cardType, listingType, maxP
   const activeCount = [country, cardType, listingType, maxPrice, minPrice, sort].filter((v) => v != null).length;
 
   return (
-    <div className="mb-8">
+    <div className="mb-8 lg:rounded-xl lg:border lg:border-zinc-200 lg:bg-white lg:p-4 lg:shadow-card dark:lg:border-zinc-800 dark:lg:bg-zinc-950">
       <FilterToggle defaultOpen={activeCount > 0} activeCount={activeCount}>
         <div className="flex flex-col gap-4">
           <SortRow params={params} sort={sort} basePath={basePath} defaultValue="newest" />

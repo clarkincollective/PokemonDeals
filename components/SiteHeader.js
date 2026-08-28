@@ -2,6 +2,7 @@ import Link from "next/link";
 import Logo from "@/components/Logo";
 import NavMenu from "@/components/NavMenu";
 import NavDropdown from "@/components/NavDropdown";
+import RegionControl from "@/components/RegionControl";
 import { NAV_PRIMARY, NAV_GROUPS, NAV_SEARCH } from "@/lib/navLinks";
 
 // Shared sticky header. Desktop (>= lg): primary deal links inline +
@@ -15,7 +16,9 @@ export default function SiteHeader() {
           <Logo size="small" />
         </Link>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <RegionControl />
+
           <nav className="hidden items-center gap-1 lg:flex">
             {NAV_PRIMARY.map((link) =>
               link.emphasis ? (

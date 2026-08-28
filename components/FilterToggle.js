@@ -2,13 +2,11 @@
 
 import { useState } from "react";
 
-// Shared collapse/expand wrapper for the filter rows (Country, Card &
-// listing, Price, ...) - three stacked rows of pills reads as clutter on
-// every grid page, especially the /sets/[slug] pages where it sits above
-// a page someone's actively browsing through. Collapsed by default to
-// keep that first screen clean, but starts open whenever a filter from
-// this row group is already active (defaultOpen) - an applied filter
-// should never be hidden without explanation.
+// Collapse/expand wrapper for the filter rows. Below `lg` the rows are
+// clutter on a page someone's actively scrolling, so they stay behind a
+// "Filters" button (open automatically when a filter is already active).
+// On `lg` and up there's room - the rows are always shown, no toggle, so
+// filtering (especially region) is one click, not two.
 export default function FilterToggle({ defaultOpen, activeCount = 0, children }) {
   const [open, setOpen] = useState(defaultOpen);
 
@@ -18,7 +16,7 @@ export default function FilterToggle({ defaultOpen, activeCount = 0, children })
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+        className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-700 lg:hidden dark:text-zinc-400 dark:hover:text-zinc-200"
       >
         Filters
         {!open && activeCount > 0 && (
@@ -39,7 +37,7 @@ export default function FilterToggle({ defaultOpen, activeCount = 0, children })
         </svg>
       </button>
 
-      {open && <div className="mt-4">{children}</div>}
+      <div className={`${open ? "mt-4 block" : "hidden"} lg:mt-0 lg:block`}>{children}</div>
     </div>
   );
 }

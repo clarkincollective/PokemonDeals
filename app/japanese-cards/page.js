@@ -1,6 +1,7 @@
 import { fetchDealsPool, fetchDealsPage, fetchLastScanTime, fetchHubCounts } from "@/lib/deals";
 import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
+import RegionRedirect from "@/components/RegionRedirect";
 import SiteFooter from "@/components/SiteFooter";
 import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
@@ -101,6 +102,7 @@ export default async function JapaneseCardsPage({ searchParams }) {
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
       <SiteHeader />
+      <RegionRedirect />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-10">

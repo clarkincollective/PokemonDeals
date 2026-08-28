@@ -15,6 +15,7 @@ import { GUIDES } from "@/lib/guides";
 import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import RegionRedirect from "@/components/RegionRedirect";
 import SectionHeader from "@/components/SectionHeader";
 import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
@@ -102,9 +103,12 @@ export default async function Home({ searchParams }) {
   const pageParam = typeof params.page === "string" ? Number(params.page) : 1;
   const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
 
-  // Promo sections only make sense on the default, unfiltered page-1 view.
+  // Promo sections make sense on the default page-1 view. A `country`
+  // filter alone is allowed to keep them - a region-set visitor still
+  // gets the curated "Best deals right now / Just added / Ending soon"
+  // homepage, just scoped to deals they can actually buy.
   const anyFilter = Boolean(country || cardType || listingType || sort || maxPrice || minPrice);
-  const showPromo = page === 1 && !anyFilter;
+  const showPromo = page === 1 && !cardType && !listingType && !sort && !maxPrice && !minPrice;
 
   const filters = { language: "english", country, cardType, listingType, maxPrice, minPrice };
 
@@ -125,9 +129,9 @@ export default async function Home({ searchParams }) {
   ] = await Promise.all([
     useStableList ? Promise.resolve({ data: null, error: null }) : fetchDealsPool(filters),
     useStableList ? fetchDealsPage({ table: "deals", ...filters, sort: sort ?? "newest", page }) : Promise.resolve(null),
-    showPromo ? fetchBestFinds({ limit: 4 }) : Promise.resolve({ deals: [] }),
-    showPromo ? fetchAuctionsEndingSoon({ limit: 6 }) : Promise.resolve({ deals: [] }),
-    showPromo ? fetchFreshFinds({ limit: 6 }) : Promise.resolve({ deals: [] }),
+    showPromo ? fetchBestFinds({ limit: 4, country }) : Promise.resolve({ deals: [] }),
+    showPromo ? fetchAuctionsEndingSoon({ limit: 6, country }) : Promise.resolve({ deals: [] }),
+    showPromo ? fetchFreshFinds({ limit: 6, country }) : Promise.resolve({ deals: [] }),
     fetchLastScanTime({ table: "deals", language: "english" }),
     showPromo ? fetchCardHubs({ language: "english" }) : Promise.resolve({ hubs: [] }),
     fetchHubCounts({ language: "english" }),
@@ -187,6 +191,7 @@ export default async function Home({ searchParams }) {
         </>
       )}
       <SiteHeader />
+      <RegionRedirect />
 
       {/* HERO - name the job, big search, entry chips, live proof */}
       <header className="border-b border-zinc-200 dark:border-zinc-800">

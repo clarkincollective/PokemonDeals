@@ -8,6 +8,7 @@ import {
 } from "@/lib/deals";
 import { slugifySet } from "@/lib/slugify";
 import SiteHeader from "@/components/SiteHeader";
+import RegionRedirect from "@/components/RegionRedirect";
 import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
 import Pagination from "@/components/Pagination";
@@ -172,6 +173,7 @@ export default async function PokemonSpeciesPage({ params, searchParams }) {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
       )}
       <SiteHeader />
+      <RegionRedirect />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-10">

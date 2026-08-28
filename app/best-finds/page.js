@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { fetchBestFinds, fetchHubCounts } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
+import RegionRedirect from "@/components/RegionRedirect";
 import SiteFooter from "@/components/SiteFooter";
 import DealCard from "@/components/DealCard";
-import { filterHref, PriceFilterRow } from "@/components/FilterBar";
+import { filterHref, PriceFilterRow, CountryFilterRow } from "@/components/FilterBar";
 
 export const revalidate = 60;
 
@@ -52,18 +53,20 @@ export default async function BestFindsPage({ searchParams }) {
   // graded one) - default to raw since it's the far larger, more
   // frequently-updated list.
   const type = params.type === "graded" ? "graded" : "raw";
+  const country = typeof params.country === "string" ? params.country : null;
   const maxPriceParam = typeof params.maxPrice === "string" ? Number(params.maxPrice) : null;
   const maxPrice = Number.isFinite(maxPriceParam) && maxPriceParam > 0 ? maxPriceParam : null;
   const minPriceParam = typeof params.minPrice === "string" ? Number(params.minPrice) : null;
   const minPrice = Number.isFinite(minPriceParam) && minPriceParam > 0 ? minPriceParam : null;
   const [{ deals, error }, hubCounts] = await Promise.all([
-    fetchBestFinds({ limit: 10, graded: type === "graded", maxPrice, minPrice }),
+    fetchBestFinds({ limit: 10, graded: type === "graded", maxPrice, minPrice, country }),
     fetchHubCounts({ language: "english" }),
   ]);
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
       <SiteHeader />
+      <RegionRedirect />
 
       <header className="border-b border-zinc-200 bg-gradient-to-b from-red-50 to-transparent dark:border-zinc-800 dark:from-red-950/20">
         <div className="mx-auto max-w-7xl px-6 py-8">
@@ -86,7 +89,8 @@ export default async function BestFindsPage({ searchParams }) {
 
           <TypeToggle params={params} type={type} />
 
-          <div className="mt-6 border-t border-zinc-200 pt-5 dark:border-zinc-800">
+          <div className="mt-6 flex flex-col gap-4 border-t border-zinc-200 pt-5 dark:border-zinc-800">
+            <CountryFilterRow params={params} country={country} basePath="/best-finds" />
             <PriceFilterRow params={params} maxPrice={maxPrice} minPrice={minPrice} basePath="/best-finds" />
           </div>
         </div>

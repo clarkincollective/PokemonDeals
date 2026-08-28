@@ -10,6 +10,7 @@ import { MARKETPLACES } from "@/lib/ebay";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import SiteHeader from "@/components/SiteHeader";
 import DealCard from "@/components/DealCard";
+import { CountryFilterRow } from "@/components/FilterBar";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
@@ -105,17 +106,27 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default async function CardHubPage({ params }) {
+export default async function CardHubPage({ params, searchParams }) {
   const { slug } = await params;
+  const sp = (await searchParams) ?? {};
   const hub = await resolveCardSlug(slug);
   if (!hub) notFound();
 
   const speciesName = extractSpecies(hub.name);
-  const [{ deals: offers, error }, analysis, speciesHub] = await Promise.all([
+  const [{ deals: allOffers, error }, analysis, speciesHub] = await Promise.all([
     fetchCardOffers(hub.id),
     loadPriceAnalysis(hub.tcgplayerId),
     speciesName ? resolveSpeciesByName(speciesName) : Promise.resolve(null),
   ]);
+
+  // Region filter: a buyer usually wants listings that ship from their
+  // country. Filter the *displayed* listings only - the Product JSON-LD
+  // and the page metadata still describe the full set (the canonical URL
+  // carries no ?country, and a crawler has no region).
+  const country = typeof sp.country === "string" ? sp.country : null;
+  const marketplaces = new Set(allOffers.map((o) => o.marketplace));
+  const showCountryFilter = marketplaces.size > 1;
+  const offers = country ? allOffers.filter((o) => o.marketplace === country) : allOffers;
 
   // The hub only exists (see fetchCardHubs) when there were 2+ active
   // listings as of the last 15-minute cache refresh - but listings sell/
@@ -140,8 +151,8 @@ export default async function CardHubPage({ params }) {
     slug,
     name: hub.name,
     set: hub.set,
-    image: cheapest?.image_url ?? null,
-    price: cheapest?.total_price ?? null,
+    image: allOffers[0]?.image_url ?? null,
+    price: allOffers[0]?.total_price ?? null,
   };
 
   // One real Offer per real active listing - the documented Google/
@@ -160,10 +171,10 @@ export default async function CardHubPage({ params }) {
     "@context": "https://schema.org",
     "@type": "Product",
     name: `${hub.name} - ${hub.set}`,
-    image: cheapest?.image_url ?? undefined,
-    description: `${hub.name} (${hub.set}) - ${offers.length} active eBay ${offers.length === 1 ? "listing" : "listings"}, compared against real market pricing.`,
+    image: allOffers[0]?.image_url ?? undefined,
+    description: `${hub.name} (${hub.set}) - ${allOffers.length} active eBay ${allOffers.length === 1 ? "listing" : "listings"}, compared against real market pricing.`,
     brand: { "@type": "Brand", name: "Pokémon" },
-    offers: offers.map((deal) => ({
+    offers: allOffers.map((deal) => ({
       "@type": "Offer",
       url: deal.listing_url,
       priceCurrency: MARKETPLACES[deal.marketplace]?.currency ?? "USD",
@@ -184,7 +195,7 @@ export default async function CardHubPage({ params }) {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
-      {offers.length > 0 && (
+      {allOffers.length > 0 && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
       )}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
@@ -211,7 +222,9 @@ export default async function CardHubPage({ params }) {
 
           <div className="flex-1">
             <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-              {offers.length} active {offers.length === 1 ? "listing" : "listings"}
+              {offers.length}
+              {country && offers.length !== allOffers.length ? ` of ${allOffers.length}` : ""} active{" "}
+              {allOffers.length === 1 ? "listing" : "listings"}
             </span>
             <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">{hub.name}</h1>
             <Link
@@ -260,6 +273,21 @@ export default async function CardHubPage({ params }) {
           </div>
         </div>
 
+        {showCountryFilter && (
+          <div className="mt-6">
+            <CountryFilterRow params={sp} country={country} basePath={`/cards/${slug}`} />
+          </div>
+        )}
+
+        {country && offers.length === 0 && allOffers.length > 0 && (
+          <p className="mt-6 text-zinc-500">
+            No listings from that country right now.{" "}
+            <Link href={`/cards/${slug}`} className="font-medium text-red-600 hover:underline dark:text-red-500">
+              Show all {allOffers.length} listings
+            </Link>
+          </p>
+        )}
+
         {offers.length > 0 && (
           <div className="mt-6">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-400">
@@ -297,7 +325,7 @@ export default async function CardHubPage({ params }) {
           <p className="mt-6 rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load listings: {error}</p>
         )}
 
-        {!error && offers.length === 0 && (
+        {!error && allOffers.length === 0 && (
           <p className="mt-6 text-zinc-500">No active listings right now - check back after the next scheduled scan.</p>
         )}
 
