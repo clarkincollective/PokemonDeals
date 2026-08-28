@@ -1,17 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { createPortal } from "react-dom";
-import { NAV_LINKS } from "@/lib/navLinks";
+import { NAV_PRIMARY, NAV_GROUPS, NAV_SEARCH } from "@/lib/navLinks";
 
+// Mobile slide-in menu. Grouped to match the desktop header: primary deal
+// links first, then "Browse"/"Learn" sections, then Search.
+//
 // The header this button lives in uses backdrop-blur, which (per the CSS
 // spec) makes it a containing block for position:fixed descendants -
-// without a portal, the "full screen" overlay below gets trapped inside
-// the header's own small box instead of covering the viewport. open can
-// only become true from a client click, never during SSR, so document is
-// always available by the time this renders - no mount-check needed.
+// without a portal, the full-screen overlay gets trapped inside the
+// header's own small box. `open` only becomes true from a client click,
+// so document is always available by the time the portal renders.
 export default function NavMenu() {
   const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
+
+  const linkClass = (emphasis) =>
+    emphasis
+      ? "rounded-lg px-3 py-2.5 text-base font-bold text-red-600 hover:bg-zinc-100 dark:text-red-500 dark:hover:bg-zinc-900"
+      : "rounded-lg px-3 py-2.5 text-base font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-900";
 
   return (
     <>
@@ -30,12 +38,12 @@ export default function NavMenu() {
       {open &&
         createPortal(
           <div className="fixed inset-0 z-50">
-            <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
-            <div className="absolute right-0 top-0 flex h-full w-72 max-w-[85vw] flex-col bg-white p-6 shadow-xl dark:bg-zinc-950">
+            <div className="absolute inset-0 bg-black/50" onClick={close} />
+            <div className="absolute right-0 top-0 flex h-full w-72 max-w-[85vw] flex-col overflow-y-auto bg-white p-6 shadow-xl dark:bg-zinc-950">
               <div className="mb-4 flex items-center justify-between">
                 <span className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Menu</span>
                 <button
-                  onClick={() => setOpen(false)}
+                  onClick={close}
                   aria-label="Close menu"
                   className="rounded-md p-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900"
                 >
@@ -45,21 +53,32 @@ export default function NavMenu() {
                   </svg>
                 </button>
               </div>
+
               <nav className="flex flex-col gap-1">
-                {NAV_LINKS.map((link) => (
-                  <a
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setOpen(false)}
-                    className={
-                      link.emphasis
-                        ? "rounded-lg px-3 py-2.5 text-base font-bold text-red-600 hover:bg-zinc-100 dark:text-red-500 dark:hover:bg-zinc-900"
-                        : "rounded-lg px-3 py-2.5 text-base font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-900"
-                    }
-                  >
+                {NAV_PRIMARY.map((link) => (
+                  <a key={link.href} href={link.href} onClick={close} className={linkClass(link.emphasis)}>
                     {link.label}
                   </a>
                 ))}
+
+                {NAV_GROUPS.map((group) => (
+                  <Fragment key={group.label}>
+                    <div className="mt-4 px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                      {group.label}
+                    </div>
+                    {group.items.map((it) => (
+                      <a key={it.href} href={it.href} onClick={close} className={linkClass(false)}>
+                        {it.label}
+                      </a>
+                    ))}
+                  </Fragment>
+                ))}
+
+                <div className="mt-4 border-t border-zinc-100 pt-2 dark:border-zinc-900">
+                  <a href={NAV_SEARCH.href} onClick={close} className={linkClass(false)}>
+                    {NAV_SEARCH.label}
+                  </a>
+                </div>
               </nav>
             </div>
           </div>,
