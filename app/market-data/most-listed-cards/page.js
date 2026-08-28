@@ -1,7 +1,10 @@
 import Link from "next/link";
-import { fetchCardHubs } from "@/lib/deals";
+import { fetchCardHubs, fetchLastScanTime } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import JsonLd from "@/components/JsonLd";
+import { breadcrumbList, collectionPage, itemList } from "@/lib/jsonLd";
+import { formatScanTime } from "@/lib/time";
 
 export const revalidate = 900;
 
@@ -18,11 +21,31 @@ export const metadata = {
 };
 
 export default async function MostListedCardsPage() {
-  const { hubs } = await fetchCardHubs({ language: "english" });
+  const [{ hubs }, lastScan] = await Promise.all([
+    fetchCardHubs({ language: "english" }),
+    fetchLastScanTime(),
+  ]);
   const top = hubs.slice(0, 100);
+  const updated = formatScanTime(lastScan);
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
+      <JsonLd
+        data={[
+          breadcrumbList([
+            { name: "Deals", href: "/" },
+            { name: "Market data", href: "/market-data" },
+            { name: "Most-listed cards" },
+          ]),
+          collectionPage({
+            name: TITLE,
+            description: DESCRIPTION,
+            url: "/market-data/most-listed-cards",
+            dateModified: lastScan,
+          }),
+          itemList(top.map((h) => ({ name: `${h.name} (${h.set})`, url: `/cards/${h.slug}` }))),
+        ]}
+      />
       <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
@@ -38,6 +61,11 @@ export default async function MostListedCardsPage() {
             competing, the more likely you are to find a genuine below-market price. Click any card to
             compare every active listing side by side.
           </p>
+          {updated && (
+            <p className="mt-2 text-xs text-zinc-500">
+              Listing counts as of <time dateTime={new Date(lastScan).toISOString()}>{updated}</time>.
+            </p>
+          )}
         </div>
       </header>
 

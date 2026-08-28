@@ -1,7 +1,11 @@
 import { Suspense } from "react";
 import SearchClient from "./SearchClient";
+import JsonLd from "@/components/JsonLd";
+import { breadcrumbList } from "@/lib/jsonLd";
 import { viewerCurrency } from "@/lib/viewerCurrency";
 import { getUsdRates } from "@/lib/fx";
+
+const SITE_URL = "https://pokemondealfinder.com";
 
 // SearchClient is "use client" (stateful search UI), which can't export
 // metadata itself - this thin server wrapper is what gives the page a
@@ -40,8 +44,25 @@ export default async function SearchPage({ searchParams }) {
   const sp = (await searchParams) ?? {};
   const [viewerCcy, rates] = await Promise.all([viewerCurrency(sp), getUsdRates()]);
   return (
-    <Suspense fallback={null}>
-      <SearchClient viewerCurrency={viewerCcy} rates={rates} />
-    </Suspense>
+    <>
+      <JsonLd
+        data={[
+          breadcrumbList([
+            { name: "Deals", href: "/" },
+            { name: "Search" },
+          ]),
+          {
+            "@context": "https://schema.org",
+            "@type": "SearchResultsPage",
+            name: "Search Any Pokémon Card",
+            url: `${SITE_URL}/search`,
+            isPartOf: { "@type": "WebSite", name: "Pokémon Deal Finder", url: SITE_URL },
+          },
+        ]}
+      />
+      <Suspense fallback={null}>
+        <SearchClient viewerCurrency={viewerCcy} rates={rates} />
+      </Suspense>
+    </>
   );
 }

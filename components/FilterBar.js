@@ -39,6 +39,10 @@ function FilterPill({ href, active, children }) {
   return (
     <a
       href={href}
+      // Filter / sort permutations all canonicalise back to the base URL -
+      // no reason for Google to spend a new site's small crawl budget
+      // fetching thousands of them. Pagination links stay followable.
+      rel="nofollow"
       className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
         active
           ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-50 dark:bg-zinc-50 dark:text-zinc-900"

@@ -1,7 +1,10 @@
 import Link from "next/link";
-import { fetchMarketDataSummary } from "@/lib/deals";
+import { fetchMarketDataSummary, fetchLastScanTime } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import JsonLd from "@/components/JsonLd";
+import { breadcrumbList, collectionPage, itemList } from "@/lib/jsonLd";
+import { formatScanTime } from "@/lib/time";
 
 export const revalidate = 900;
 
@@ -18,7 +21,8 @@ export const metadata = {
 };
 
 export default async function MarketDataPage() {
-  const summary = await fetchMarketDataSummary();
+  const [summary, lastScan] = await Promise.all([fetchMarketDataSummary(), fetchLastScanTime()]);
+  const updated = formatScanTime(lastScan);
 
   const pages = [
     {
@@ -45,6 +49,21 @@ export default async function MarketDataPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
+      <JsonLd
+        data={[
+          breadcrumbList([
+            { name: "Deals", href: "/" },
+            { name: "Market data" },
+          ]),
+          collectionPage({
+            name: TITLE,
+            description: DESCRIPTION,
+            url: "/market-data",
+            dateModified: lastScan,
+          }),
+          itemList(pages.map((p) => ({ name: p.title, url: p.href }))),
+        ]}
+      />
       <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
@@ -56,6 +75,11 @@ export default async function MarketDataPage() {
             Real aggregate numbers from our own live-tracked catalog - not estimates, every figure below
             comes directly from currently active listings.
           </p>
+          {updated && (
+            <p className="mt-2 text-xs text-zinc-500">
+              Data last updated <time dateTime={new Date(lastScan).toISOString()}>{updated}</time>.
+            </p>
+          )}
 
           <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Stat label="Active card deals" value={summary.activeDeals} />

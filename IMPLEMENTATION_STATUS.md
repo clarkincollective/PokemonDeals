@@ -44,6 +44,53 @@ Tracking against the 26-phase brief. Updated as work completes and is verified (
 - **Phase 25 — GSC readiness doc**: `docs/gsc-readiness.md` — verification status (HTML tag already in `app/layout.js`), submit `/sitemap.xml` (the index; children auto-discovered), URL-inspection priority order, the indexing/enhancement/CWV reports to watch and their expected "not indexed" buckets for this site, and property-specific gotchas (faceted URLs canonicalise home; `/search` noindex; expired `/deals/[id]` = noindex 200; no hreflang).
 - **Phase 26 — Final report**: `docs/seo-final-report.md` — full 26-phase summary, final URL architecture, indexable vs non-indexable table, metadata/schema/sitemap/linking approach, perf + DB + eBay findings, deliberate non-goals, and the remaining-work-blocked list (index migration apply, contact mailbox, CI secrets, eBay limit increase, deploy + dev-server restart).
 
+## Re-audit + fixes — 2026-08-29 (post currency / country-catalog work)
+
+A fresh live audit (crawler-view HTML across ~20 routes + repo + GSC:
+sitemap index parsed OK, **6,132 URLs discovered**, 0 errors) after the
+viewer-currency, `deliveryCountry`, and variant-matching changes landed.
+
+### Fixed this pass (built + `tests/seo` 40/40 + build verified)
+
+- **Structured-data gaps** — `/market-data`, `/market-data/most-listed-cards`,
+  `/market-data/most-expensive-cards`, `/best-finds`, `/japanese-cards`,
+  `/sets`, `/pokemon`, `/sealed-deals`, `/search` had **no JSON-LD at all**;
+  `/sealed-deals/[id]` had `Product` but no `BreadcrumbList`; `/cards/[slug]`
+  had a flat 2-level `BreadcrumbList` (`Deals → card`) that didn't match its
+  own visible 3-level trail. All now emit `BreadcrumbList` (+ `CollectionPage`,
+  + `ItemList` on the list pages, + `SearchResultsPage` on `/search`) via new
+  `lib/jsonLd.js` builders and `components/JsonLd.js`. Card-hub breadcrumb is
+  now `Deals → {set} → {card}`, matching the visible one.
+- **`/cards/[slug]` H1** was just the bare Pokémon name (`Zapdos`) — now
+  `{name} — {set} Prices & Deals`, carrying the set + intent.
+- **`/market-data*` freshness** — the three pages now show a real "Data last
+  updated <timestamp>" line (from `fetchLastScanTime`) and pass it as
+  `dateModified` in `CollectionPage` (brief Phase 10 / §10).
+- **Crawl-budget bleed** — every filter/sort link (`FilterBar` `FilterPill`,
+  `/best-finds` raw/graded toggle) and the faceted nav entries
+  (`SiteHeader` / `NavMenu` "Graded", "Auctions" = `?type=`/`?listing=`) now
+  carry `rel="nofollow"`. They already canonicalised back to base; this keeps
+  Google from spending a new site's small crawl budget fetching thousands of
+  permutations. Pagination links stay followable.
+- **SEO test suite** — `tests/seo/pages.test.mjs` now asserts every indexable
+  page carries ≥1 valid JSON-LD block **and** a `BreadcrumbList` (home
+  excepted). This is what caught the four missing-JSON-LD pages above.
+
+### Open — flagged, not yet done (needs a product call)
+
+- **Caching regression on the indexable detail pages.** `/cards/[slug]`,
+  `/deals/[id]`, `/sealed-deals`, `/sealed-deals/[id]`, `/best-finds` now
+  serve `Cache-Control: private, no-store` (were ISR / `unstable_cache`d and
+  CDN-cacheable) because `viewerCurrency()` reads `headers()` during render;
+  `/sets/[slug]` + `/pokemon/[slug]` were already dynamic via
+  `detectedMarketplace()`. Uncached Supabase-reading renders (~200–800 ms
+  TTFB vs the ~60 ms the report measured) slow crawl throughput on a new
+  low-authority domain and dent CWV. **Fix** = move currency + region-default
+  resolution client-side (cookie set in `middleware.js`; prices convert after
+  hydration), restoring ISR. It partially reverses the server-side currency
+  approach and trades instant local currency for a brief post-load swap —
+  holding for a decision.
+
 ## Not building (deliberate, documented)
 
 - **Phase 8 — dedicated price-history pages**: not building as separate `/cards/[slug]/price-history/` routes — price history is already integrated into the card hub and deal detail pages (chart + real data), and PokemonPriceTracker doesn't expose enough historical depth to justify a separate crawlable page beyond what's already shown. Documenting this as a deliberate scope decision, not an oversight.

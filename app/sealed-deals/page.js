@@ -4,6 +4,8 @@ import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import SealedDealCard from "@/components/SealedDealCard";
+import JsonLd from "@/components/JsonLd";
+import { breadcrumbList, collectionPage } from "@/lib/jsonLd";
 import { viewerCurrency } from "@/lib/viewerCurrency";
 import { getUsdRates } from "@/lib/fx";
 import { CountryFilterRow, ListingTypeFilterRow, PriceFilterRow } from "@/components/FilterBar";
@@ -90,6 +92,17 @@ export default async function SealedDealsPage({ searchParams }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
+      <JsonLd
+        data={[
+          breadcrumbList([{ name: "Deals", href: "/" }, { name: "Sealed product" }]),
+          collectionPage({
+            name: "Sealed Pokémon Product Deals",
+            description:
+              "Below-market sealed Pokémon product on eBay - booster boxes, ETBs, tins and more, checked against real market pricing.",
+            url: "/sealed-deals",
+          }),
+        ]}
+      />
       <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">

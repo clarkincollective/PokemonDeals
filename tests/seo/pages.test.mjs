@@ -174,13 +174,23 @@ function assertPage({ path, parsed }) {
   // --- not accidentally noindexed ---
   assert.ok(!parsed.robots || !parsed.robots.includes("noindex"), `${path}: has robots "${parsed.robots}"`);
 
-  // --- every JSON-LD block is valid and typed ---
+  // --- structured data present, valid, and typed ---
+  assert.ok(parsed.jsonLd.length >= 1, `${path}: no JSON-LD block on the page`);
+  const types = new Set();
   for (const block of parsed.jsonLd) {
     assert.ok(block.ok, `${path}: invalid JSON-LD (${block.ok ? "" : block.error})`);
     const nodes = Array.isArray(block.data) ? block.data : [block.data];
     for (const node of nodes) {
       assert.ok(node["@context"], `${path}: JSON-LD node missing @context`);
       assert.ok(node["@type"], `${path}: JSON-LD node missing @type`);
+      types.add(node["@type"]);
     }
+  }
+  // Every page below the home level sits somewhere in a hierarchy and
+  // must say so - a flat or missing breadcrumb was a real gap the audit
+  // found (market-data / best-finds / japanese-cards / the index pages
+  // had no structured data at all).
+  if (path !== "/") {
+    assert.ok(types.has("BreadcrumbList"), `${path}: no BreadcrumbList JSON-LD (types: ${[...types].join(", ") || "none"})`);
   }
 }

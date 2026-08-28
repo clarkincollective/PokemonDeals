@@ -2,6 +2,8 @@ import { fetchSets } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import SetsFilterList from "@/components/SetsFilterList";
+import JsonLd from "@/components/JsonLd";
+import { breadcrumbList, collectionPage } from "@/lib/jsonLd";
 
 export const revalidate = 900;
 
@@ -27,6 +29,12 @@ export default async function SetsIndexPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
+      <JsonLd
+        data={[
+          breadcrumbList([{ name: "Deals", href: "/" }, { name: "Sets" }]),
+          collectionPage({ name: TITLE, description: DESCRIPTION, url: "/sets" }),
+        ]}
+      />
       <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">

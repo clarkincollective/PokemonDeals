@@ -1,7 +1,10 @@
 import Link from "next/link";
-import { fetchMostExpensiveCards, slugifySet } from "@/lib/deals";
+import { fetchMostExpensiveCards, fetchLastScanTime, slugifySet } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import JsonLd from "@/components/JsonLd";
+import { breadcrumbList, collectionPage, itemList } from "@/lib/jsonLd";
+import { formatScanTime } from "@/lib/time";
 
 export const revalidate = 900;
 
@@ -22,10 +25,32 @@ export const metadata = {
 };
 
 export default async function MostExpensiveCardsPage() {
-  const { cards, error } = await fetchMostExpensiveCards({ language: "english", limit: 100 });
+  const [{ cards, error }, lastScan] = await Promise.all([
+    fetchMostExpensiveCards({ language: "english", limit: 100 }),
+    fetchLastScanTime(),
+  ]);
+  const updated = formatScanTime(lastScan);
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
+      <JsonLd
+        data={[
+          breadcrumbList([
+            { name: "Deals", href: "/" },
+            { name: "Market data", href: "/market-data" },
+            { name: "Most expensive cards" },
+          ]),
+          collectionPage({
+            name: TITLE,
+            description: DESCRIPTION,
+            url: "/market-data/most-expensive-cards",
+            dateModified: lastScan,
+          }),
+          itemList(
+            cards.map((c) => ({ name: `${c.name} (${c.set})`, url: `/deals/${c.dealId}` }))
+          ),
+        ]}
+      />
       <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
@@ -40,6 +65,11 @@ export default async function MostExpensiveCardsPage() {
             Top {cards.length} highest real market-priced cards we currently track, based on real pricing
             data - not an estimate.
           </p>
+          {updated && (
+            <p className="mt-2 text-xs text-zinc-500">
+              Market prices as of <time dateTime={new Date(lastScan).toISOString()}>{updated}</time>.
+            </p>
+          )}
         </div>
       </header>
 

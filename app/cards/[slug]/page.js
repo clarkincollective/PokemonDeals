@@ -203,12 +203,15 @@ export default async function CardHubPage({ params, searchParams }) {
     })),
   };
 
+  // Mirrors the visible <Breadcrumbs> below (Deals -> set -> card) so the
+  // structured trail matches what a user sees, per Google's guidance.
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Deals", item: `${SITE_URL}/` },
-      { "@type": "ListItem", position: 2, name: `${hub.name} (${hub.set})`, item: `${SITE_URL}/cards/${slug}` },
+      { "@type": "ListItem", position: 2, name: hub.set, item: `${SITE_URL}/sets/${slugifySet(hub.set)}` },
+      { "@type": "ListItem", position: 3, name: `${hub.name} (${hub.set})`, item: `${SITE_URL}/cards/${slug}` },
     ],
   };
 
@@ -245,7 +248,9 @@ export default async function CardHubPage({ params, searchParams }) {
               {country && offers.length !== allOffers.length ? ` of ${allOffers.length}` : ""} active{" "}
               {allOffers.length === 1 ? "listing" : "listings"}
             </span>
-            <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">{hub.name}</h1>
+            <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">
+              {hub.name} — {hub.set} Prices &amp; Deals
+            </h1>
             <Link
               href={`/sets/${slugifySet(hub.set)}`}
               className="text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500"

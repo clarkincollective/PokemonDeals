@@ -7,6 +7,8 @@ import { viewerCurrency } from "@/lib/viewerCurrency";
 import { getUsdRates } from "@/lib/fx";
 import SiteFooter from "@/components/SiteFooter";
 import DealCard from "@/components/DealCard";
+import JsonLd from "@/components/JsonLd";
+import { breadcrumbList, collectionPage, itemList } from "@/lib/jsonLd";
 import { filterHref, PriceFilterRow, CountryFilterRow } from "@/components/FilterBar";
 
 export const revalidate = 60;
@@ -39,10 +41,10 @@ function TypeToggle({ params, type }) {
 
   return (
     <div className="mt-4 inline-flex gap-0.5 rounded-full border border-zinc-200 p-0.5 dark:border-zinc-800">
-      <a href={filterHref(params, "type", "raw", "/best-finds")} className={tabClass(type === "raw")}>
+      <a rel="nofollow" href={filterHref(params, "type", "raw", "/best-finds")} className={tabClass(type === "raw")}>
         Raw
       </a>
-      <a href={filterHref(params, "type", "graded", "/best-finds")} className={tabClass(type === "graded")}>
+      <a rel="nofollow" href={filterHref(params, "type", "graded", "/best-finds")} className={tabClass(type === "graded")}>
         Graded
       </a>
     </div>
@@ -70,6 +72,25 @@ export default async function BestFindsPage({ searchParams }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
+      <JsonLd
+        data={[
+          breadcrumbList([
+            { name: "Deals", href: "/" },
+            { name: "Best finds" },
+          ]),
+          collectionPage({ name: TITLE, description: DESCRIPTION, url: "/best-finds" }),
+          ...(deals.length
+            ? [
+                itemList(
+                  deals.map((d) => ({
+                    name: `${d.watchlist?.name ?? d.title} (${d.watchlist?.set ?? ""})`.trim(),
+                    url: `/deals/${d.id}`,
+                  }))
+                ),
+              ]
+            : []),
+        ]}
+      />
       <SiteHeader />
       <RegionRedirect detected={detectedRegion} />
 

@@ -7,6 +7,8 @@ import { viewerCurrency } from "@/lib/viewerCurrency";
 import { getUsdRates } from "@/lib/fx";
 import SiteFooter from "@/components/SiteFooter";
 import DealCard from "@/components/DealCard";
+import JsonLd from "@/components/JsonLd";
+import { breadcrumbList, collectionPage } from "@/lib/jsonLd";
 import FilterBar from "@/components/FilterBar";
 import Pagination, { pageHref } from "@/components/Pagination";
 
@@ -106,6 +108,20 @@ export default async function JapaneseCardsPage({ searchParams }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
+      <JsonLd
+        data={[
+          breadcrumbList([
+            { name: "Deals", href: "/" },
+            { name: "Japanese cards" },
+          ]),
+          collectionPage({
+            name: "Japanese Pokémon Card Deals",
+            description:
+              "Genuine Japanese-print Pokémon card listings on eBay, priced against real Japanese-catalog market data.",
+            url: "/japanese-cards",
+          }),
+        ]}
+      />
       <SiteHeader />
       <RegionRedirect detected={detectedRegion} />
 

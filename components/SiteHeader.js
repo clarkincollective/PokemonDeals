@@ -33,6 +33,10 @@ export default function SiteHeader() {
                 <a
                   key={link.href}
                   href={link.href}
+                  // "Graded" / "Auctions" are ?type=/?listing= filter views
+                  // that canonicalise to "/" - keep them out of the crawl
+                  // frontier on every page.
+                  rel={link.href.includes("?") ? "nofollow" : undefined}
                   className="rounded-full px-3 py-1.5 text-[13px] font-semibold tracking-tight text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-red-600 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-red-500"
                 >
                   {link.label}

@@ -56,7 +56,13 @@ export default function NavMenu() {
 
               <nav className="flex flex-col gap-1">
                 {NAV_PRIMARY.map((link) => (
-                  <a key={link.href} href={link.href} onClick={close} className={linkClass(link.emphasis)}>
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    rel={link.href.includes("?") ? "nofollow" : undefined}
+                    onClick={close}
+                    className={linkClass(link.emphasis)}
+                  >
                     {link.label}
                   </a>
                 ))}
