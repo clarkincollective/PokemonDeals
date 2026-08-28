@@ -10,7 +10,8 @@
 //     floor once correctly priced.
 // US rows are unchanged except the two new columns.
 //
-// Safe to re-run: rows already carrying a `currency` are skipped.
+// Safe to re-run: rows already carrying a `currency` are skipped, so an
+// interrupted run just continues.
 require("dotenv").config({ path: ".env.local" });
 const { getUsdRates, toUsd } = require("../lib/fx");
 const { supabaseAdmin } = require("../lib/supabaseAdmin");
@@ -18,35 +19,43 @@ const { MARKETPLACE_CURRENCY } = require("../lib/money");
 const { SANITY_FLOOR_PCT } = require("../lib/dealMatching");
 
 const DISCOUNT_THRESHOLD = 0.1;
+const CONCURRENCY = 24;
+
+async function runPool(items, worker) {
+  let i = 0;
+  async function next() {
+    while (i < items.length) {
+      const idx = i++;
+      await worker(items[idx]);
+    }
+  }
+  await Promise.all(Array.from({ length: CONCURRENCY }, next));
+}
 
 async function backfillTable(db, table, idCol, rates) {
-  let from = 0;
-  const PAGE = 1000;
   let checked = 0;
   let updated = 0;
   let deactivated = 0;
   let skipped = 0;
 
   for (;;) {
+    // Always pull the next 1,000 rows that still need work. Because each
+    // pass sets `currency`, the "is null" filter naturally advances.
     const { data, error } = await db
       .from(table)
-      .select(`${idCol}, marketplace, total_price, market_price, currency, is_active`)
+      .select(`${idCol}, marketplace, total_price, market_price`)
       .eq("is_active", true)
-      .range(from, from + PAGE - 1);
+      .is("currency", null)
+      .limit(1000);
     if (error) throw error;
     if (!data || data.length === 0) break;
 
-    for (const row of data) {
+    await runPool(data, async (row) => {
       checked++;
-      if (row.currency) {
-        skipped++;
-        continue;
-      }
       const currency = MARKETPLACE_CURRENCY[row.marketplace] || "USD";
       const totalUsd = toUsd(Number(row.total_price), currency, rates);
       const market = Number(row.market_price);
       const discountPct = (market - totalUsd) / market;
-
       const stillADeal =
         discountPct >= DISCOUNT_THRESHOLD && totalUsd >= market * SANITY_FLOOR_PCT;
 
@@ -69,14 +78,13 @@ async function backfillTable(db, table, idCol, rates) {
         if (dErr) console.log(`  ! deactivate ${row[idCol]}: ${dErr.message}`);
         else deactivated++;
       }
-    }
+    });
 
-    if (data.length < PAGE) break;
-    from += PAGE;
+    process.stdout.write(`  ${table}: ${checked} processed…\r`);
   }
 
   console.log(
-    `${table}: checked=${checked} updated=${updated} deactivated=${deactivated} skipped(already had currency)=${skipped}`
+    `\n${table}: checked=${checked} updated=${updated} deactivated=${deactivated} skipped=${skipped}`
   );
 }
 

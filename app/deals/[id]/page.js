@@ -19,6 +19,8 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import StickyDealCta from "@/components/StickyDealCta";
 import RecordCardView from "@/components/RecordCardView";
 import SaveCardButton from "@/components/SaveCardButton";
+import PriceAlertForm from "@/components/PriceAlertForm";
+import { emailEnabled } from "@/lib/email";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
 import ShareButton from "@/components/ShareButton";
@@ -471,6 +473,13 @@ export default async function DealDetailPage({ params }) {
                   currency: currencyForDeal(deal),
                 }}
               />
+              {emailEnabled() && cardHub && (
+                <PriceAlertForm
+                  cardSlug={cardHub.slug}
+                  cardName={cardName}
+                  suggestedPrice={deal.total_price_usd ?? deal.total_price}
+                />
+              )}
             </div>
           </div>
         </div>
