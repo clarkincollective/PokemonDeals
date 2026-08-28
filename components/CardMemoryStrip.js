@@ -12,34 +12,51 @@ import {
   entryHref,
   clearRecent,
   clearSaved,
+  removeRecent,
+  removeSaved,
 } from "@/lib/recentCards";
 
 // Homepage strips for the viewer's own locally-stored "saved" and
 // "recently viewed" cards. Renders nothing on the server and nothing at
 // all when both lists are empty, so first-time visitors see no gap.
-function Tile({ card }) {
+function Tile({ card, onRemove }) {
   return (
-    <Link href={entryHref(card)} className="group flex w-32 shrink-0 flex-col gap-1.5">
-      <div className="relative h-32 w-32 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-        {card.image ? (
-          <Image src={card.image} alt={card.name || "Card"} fill sizes="128px" className="object-contain p-2" />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <CardImagePlaceholder className="h-14 w-10" />
-          </div>
+    <div className="relative w-32 shrink-0">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onRemove(card);
+        }}
+        aria-label={`Remove ${card.name || "this card"}`}
+        title="Remove"
+        className="absolute -right-1.5 -top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-300 bg-white text-sm font-bold leading-none text-zinc-500 shadow-sm hover:border-red-400 hover:text-red-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:text-red-400"
+      >
+        ×
+      </button>
+      <Link href={entryHref(card)} className="group flex flex-col gap-1.5">
+        <div className="relative h-32 w-32 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+          {card.image ? (
+            <Image src={card.image} alt={card.name || "Card"} fill sizes="128px" className="object-contain p-2" />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <CardImagePlaceholder className="h-14 w-10" />
+            </div>
+          )}
+        </div>
+        <span className="line-clamp-1 text-xs font-medium text-zinc-700 group-hover:text-red-600 dark:text-zinc-300">
+          {card.name}
+        </span>
+        {card.price != null && (
+          <span className="text-xs text-zinc-500">from ${Number(card.price).toFixed(2)}</span>
         )}
-      </div>
-      <span className="line-clamp-1 text-xs font-medium text-zinc-700 group-hover:text-red-600 dark:text-zinc-300">
-        {card.name}
-      </span>
-      {card.price != null && (
-        <span className="text-xs text-zinc-500">from ${Number(card.price).toFixed(2)}</span>
-      )}
-    </Link>
+      </Link>
+    </div>
   );
 }
 
-function Row({ title, cards, onClear }) {
+function Row({ title, cards, onClear, onRemove }) {
   if (!cards.length) return null;
   return (
     <div>
@@ -48,14 +65,14 @@ function Row({ title, cards, onClear }) {
         <button
           type="button"
           onClick={onClear}
-          className="text-xs font-medium text-zinc-400 hover:text-red-600 hover:underline dark:hover:text-red-500"
+          className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/40"
         >
-          Clear
+          Clear all
         </button>
       </div>
-      <div className="-mx-6 flex gap-4 overflow-x-auto px-6 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="-mx-6 flex gap-4 overflow-x-auto px-6 pb-2 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {cards.map((c) => (
-          <Tile key={c.key} card={c} />
+          <Tile key={c.key} card={c} onRemove={onRemove} />
         ))}
       </div>
     </div>
@@ -76,8 +93,8 @@ export default function CardMemoryStrip() {
   return (
     <section className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8">
-        <Row title="Your saved cards" cards={saved} onClear={clearSaved} />
-        <Row title="Recently viewed" cards={recentOnly} onClear={clearRecent} />
+        <Row title="Your saved cards" cards={saved} onClear={clearSaved} onRemove={removeSaved} />
+        <Row title="Recently viewed" cards={recentOnly} onClear={clearRecent} onRemove={removeRecent} />
       </div>
     </section>
   );
