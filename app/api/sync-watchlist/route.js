@@ -46,6 +46,50 @@ function classifyTier(price) {
   return null;
 }
 
+// Appends one price observation per tracked card per run to price_history
+// (see supabase/price_history_migration.sql) - the site otherwise keeps
+// only current prices, so there's no series to build a movers/trends page
+// from later. Idempotent per (card, condition, source, day) via the
+// table's unique index, so a same-day re-run just overwrites. Best-effort:
+// a failure here (e.g. table not created yet) is reported, never thrown -
+// it must not break the core watchlist sync.
+async function logPriceHistory(db, records) {
+  if (!records.length) return { written: 0, error: null };
+
+  const observed_on = new Date().toISOString().slice(0, 10);
+  // Dedupe within the batch - Postgres ON CONFLICT rejects two rows with
+  // the same conflict key in one statement. Keep the higher price (same
+  // rule syncViaExport already uses for multi-printing cards).
+  const byKey = new Map();
+  for (const r of records) {
+    if (r.tcgplayer_id == null || !Number.isFinite(Number(r.price))) continue;
+    const prev = byKey.get(r.tcgplayer_id);
+    if (!prev || Number(r.price) > Number(prev.price)) byKey.set(r.tcgplayer_id, r);
+  }
+
+  const rows = [...byKey.values()].map((r) => ({
+    tcgplayer_id: String(r.tcgplayer_id),
+    name: r.name,
+    set: r.set,
+    language: r.language,
+    condition: "Near Mint",
+    source: "catalog",
+    price: Number(r.price),
+    observed_on,
+  }));
+
+  let written = 0;
+  for (let i = 0; i < rows.length; i += UPSERT_CHUNK_SIZE) {
+    const chunk = rows.slice(i, i + UPSERT_CHUNK_SIZE);
+    const { error } = await db
+      .from("price_history")
+      .upsert(chunk, { onConflict: "tcgplayer_id,condition,source,observed_on" });
+    if (error) return { written, error: error.message };
+    written += chunk.length;
+  }
+  return { written, error: null };
+}
+
 async function chunkedUpsert(db, rows) {
   let priorityCount = 0;
   let extendedCount = 0;
@@ -140,6 +184,7 @@ async function syncViaExport(db, manualKeys) {
 
   const seenKeys = new Set();
   const upsertRows = [];
+  const historyRecords = [];
 
   for (const [tcgPlayerId, card] of byCard) {
     const tier = classifyTier(card.price);
@@ -149,6 +194,16 @@ async function syncViaExport(db, manualKeys) {
     }
 
     seenKeys.add(`${card.name}|${card.set}`);
+    // Log the price for every real, priced card - including the
+    // hand-picked "manual" ones the watchlist upsert skips.
+    historyRecords.push({
+      tcgplayer_id: String(tcgPlayerId),
+      name: card.name,
+      set: card.set,
+      language: "english",
+      price: card.price,
+    });
+
     if (manualKeys.has(`${card.name}|${card.set}`)) {
       skipped++;
       continue;
@@ -169,6 +224,7 @@ async function syncViaExport(db, manualKeys) {
 
   const { priorityCount, extendedCount, errors } = await chunkedUpsert(db, upsertRows);
   const retired = await retireStaleAutoRows(db, seenKeys, "english");
+  const priceHistory = await logPriceHistory(db, historyRecords);
 
   return {
     method: "export",
@@ -178,6 +234,8 @@ async function syncViaExport(db, manualKeys) {
     extendedCount,
     skipped,
     retired,
+    priceHistoryRows: priceHistory.written,
+    priceHistoryError: priceHistory.error,
     errors,
   };
 }
@@ -193,6 +251,7 @@ async function syncViaSetCrawl(db, manualKeys, maxSets, language) {
   let skipped = 0;
   const errors = [];
   const seenKeys = new Set();
+  const historyRecords = [];
 
   for (const [setIndex, set] of sets.entries()) {
     console.log(`[sync-watchlist] (${setIndex + 1}/${sets.length}) ${set.name}`);
@@ -241,6 +300,13 @@ async function syncViaSetCrawl(db, manualKeys, maxSets, language) {
       const cardName = card.name;
       const cardSet = card.setName ?? set.name;
       seenKeys.add(`${cardName}|${cardSet}`);
+      historyRecords.push({
+        tcgplayer_id: String(card.tcgPlayerId),
+        name: cardName,
+        set: cardSet,
+        language,
+        price,
+      });
 
       if (manualKeys.has(`${cardName}|${cardSet}`)) {
         skipped++;
@@ -276,6 +342,7 @@ async function syncViaSetCrawl(db, manualKeys, maxSets, language) {
   }
 
   const retired = maxSets ? 0 : await retireStaleAutoRows(db, seenKeys, language);
+  const priceHistory = await logPriceHistory(db, historyRecords);
 
   return {
     method: "set-crawl",
@@ -285,6 +352,8 @@ async function syncViaSetCrawl(db, manualKeys, maxSets, language) {
     extendedCount,
     skipped,
     retired,
+    priceHistoryRows: priceHistory.written,
+    priceHistoryError: priceHistory.error,
     errors,
   };
 }
