@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { resolveSpeciesSlug, fetchSpeciesDealsPage, fetchSpeciesPrints, fetchHubCounts } from "@/lib/deals";
+import {
+  resolveSpeciesSlug,
+  fetchSpeciesDealsPage,
+  fetchSpeciesPrints,
+  fetchCardHubs,
+} from "@/lib/deals";
 import { slugifySet } from "@/lib/slugify";
 import SiteHeader from "@/components/SiteHeader";
 import DealCard from "@/components/DealCard";
@@ -66,8 +71,19 @@ export default async function PokemonSpeciesPage({ params, searchParams }) {
   const { slug } = await params;
   const sp = await searchParams;
 
+  // Kick off the card-hubs scan now so it runs concurrently with the
+  // species-hubs scan below (resolveSpeciesSlug) instead of after it -
+  // fetchSpeciesPrints needs it and would otherwise await it serially,
+  // roughly doubling a cold render. Both are 900s-cached full scans of
+  // the active `deals` table.
+  const cardHubsWarm = fetchCardHubs({ language: "english" });
+
   const resolved = await resolveSpeciesSlug(slug);
-  if (!resolved) notFound();
+  if (!resolved) {
+    // don't leave the prefetch as an unhandled rejection
+    cardHubsWarm.catch(() => {});
+    notFound();
+  }
 
   const country = typeof sp.country === "string" ? sp.country : null;
   const cardType = typeof sp.type === "string" ? sp.type : null;
@@ -80,7 +96,7 @@ export default async function PokemonSpeciesPage({ params, searchParams }) {
   const pageParam = typeof sp.page === "string" ? Number(sp.page) : 1;
   const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
 
-  const [{ deals, totalPages, error }, { prints }, hubCounts] = await Promise.all([
+  const [{ deals, totalPages, error }, { prints }] = await Promise.all([
     fetchSpeciesDealsPage({
       speciesName: resolved.name,
       language: "english",
@@ -94,8 +110,17 @@ export default async function PokemonSpeciesPage({ params, searchParams }) {
       pageSize: 20,
     }),
     fetchSpeciesPrints(resolved.name),
-    fetchHubCounts({ language: "english" }),
+    cardHubsWarm,
   ]);
+
+  // The "N sellers" line on each DealCard - derived from `prints` (which
+  // already carries per-print hub slug + active count for this species)
+  // rather than a separate full card-hubs scan.
+  const hubCounts = Object.fromEntries(
+    prints
+      .filter((p) => p.hubSlug && p.count >= 2)
+      .map((p) => [p.watchlistId, { count: p.count, slug: p.hubSlug }])
+  );
 
   const basePath = `/pokemon/${slug}`;
 
