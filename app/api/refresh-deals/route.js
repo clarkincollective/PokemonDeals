@@ -320,7 +320,23 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
     let marketData = null;
     try {
       const raw = await getConditionPrices(row.justtcg_tcgplayer_id, row.language);
-      if (raw) marketData = { byCondition: raw.byCondition, fallbackPrice: raw.fallbackPrice, priceChange24hr: null };
+      if (raw) {
+        // Same aggregate-price distrust guard as scanOneCard: an
+        // aggregate-only price that disagrees sharply with the daily
+        // catalog-sync value is where graded / wrong-printing prices leak
+        // in, so drop it rather than compute a fake discount.
+        const hasConditionData = Object.keys(raw.byCondition).length > 0;
+        const lastKnown = Number(row.last_known_price);
+        const untrusted =
+          !hasConditionData &&
+          raw.fallbackPrice != null &&
+          Number.isFinite(lastKnown) &&
+          lastKnown > 0 &&
+          Math.abs(raw.fallbackPrice - lastKnown) / lastKnown > 0.4;
+        if (!untrusted) {
+          marketData = { byCondition: raw.byCondition, fallbackPrice: raw.fallbackPrice, priceChange24hr: null };
+        }
+      }
     } catch {
       marketData = null;
     }
@@ -557,6 +573,28 @@ export async function GET(request) {
         errors.push(`No price for watchlist item "${row.name}" (id ${row.id})`);
         return;
       }
+
+      // When PokemonPriceTracker only has a single aggregate price for a
+      // card (no per-condition breakdown), that number is where graded
+      // comps and wrong-printing prices leak in. If it also disagrees
+      // sharply with last_known_price (the daily catalog-sync value, a
+      // steadier source), don't trust it - verified live: a Shadowless
+      // Venusaur scanned with market $501 while last_known was $919.
+      const hasConditionData = Object.keys(raw.byCondition).length > 0;
+      const lastKnown = Number(row.last_known_price);
+      if (
+        !hasConditionData &&
+        raw.fallbackPrice != null &&
+        Number.isFinite(lastKnown) &&
+        lastKnown > 0 &&
+        Math.abs(raw.fallbackPrice - lastKnown) / lastKnown > 0.4
+      ) {
+        errors.push(
+          `Untrusted market price for "${row.name}" (id ${row.id}): live ${raw.fallbackPrice} vs last_known ${lastKnown}`
+        );
+        return;
+      }
+
       marketData = { byCondition: raw.byCondition, fallbackPrice: raw.fallbackPrice, priceChange24hr: null };
     } catch (err) {
       errors.push(`Price lookup failed for "${row.name}": ${err.message}`);

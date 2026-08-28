@@ -1,5 +1,11 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { listSets, listSetCards, downloadPrintingsExport, pickMarketPrice } from "@/lib/pokemonPriceTracker";
+import {
+  listSets,
+  listSetCards,
+  downloadPrintingsExport,
+  pickMarketPrice,
+  isSentinelPrice,
+} from "@/lib/pokemonPriceTracker";
 
 // Pages through the entire Pokemon catalog, so this can take a while -
 // give it room instead of the default timeout.
@@ -31,6 +37,10 @@ const UPSERT_CHUNK_SIZE = 500;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function classifyTier(price) {
+  // A PokemonPriceTracker "no data" sentinel (999, 9999, ...) is not a
+  // real value - don't add the card (and don't store the sentinel as
+  // last_known_price for the scanner to trust later).
+  if (!Number.isFinite(price) || isSentinelPrice(price)) return null;
   if (price >= PRIORITY_MIN_VALUE_USD) return "priority";
   if (price >= EXTENDED_MIN_VALUE_USD) return "extended";
   return null;
