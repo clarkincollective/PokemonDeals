@@ -1,5 +1,7 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
+import GuideFigure from "@/components/guides/GuideFigure";
+import RawVsGraded from "@/components/guides/RawVsGraded";
 import { guideMetadata } from "@/lib/guides";
 
 const SLUG = "raw-vs-graded-pokemon-cards";
@@ -36,6 +38,11 @@ export default function Page() {
           collectors want to own and show it.
         </li>
       </GUL>
+
+      <GuideFigure caption="The multiplier isn't fixed — it depends on the card and the grade, and is largest for scarce cards at the top grades.">
+        <RawVsGraded />
+      </GuideFigure>
+
       <GP>
         The size of the premium varies enormously by card and grade. A common modern card in a PSA 9
         might be worth little more than raw; a sought-after vintage card in a PSA 10 can trade at many

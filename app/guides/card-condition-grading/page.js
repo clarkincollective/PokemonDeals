@@ -1,5 +1,7 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
+import GuideFigure from "@/components/guides/GuideFigure";
+import ConditionScale from "@/components/guides/ConditionScale";
 import { guideMetadata } from "@/lib/guides";
 
 const SLUG = "card-condition-grading";
@@ -43,6 +45,11 @@ export default function Page() {
           heavy water damage.
         </li>
       </GUL>
+
+      <GuideFigure caption="Bar length is illustrative, not a fixed ratio — the actual price drop between tiers varies by card, and is steepest for scarce vintage cards.">
+        <ConditionScale />
+      </GuideFigure>
+
       <GP>
         The gap between NM and LP prices is often large, and between NM and MP larger still, so a
         listing described as &ldquo;NM&rdquo; that shows edge wear in the photos isn&apos;t the deal

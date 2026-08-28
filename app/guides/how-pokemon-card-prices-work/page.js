@@ -1,5 +1,7 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
+import GuideFigure from "@/components/guides/GuideFigure";
+import PriceForkDiagram from "@/components/guides/PriceForkDiagram";
 import { guideMetadata } from "@/lib/guides";
 
 const SLUG = "how-pokemon-card-prices-work";
@@ -95,6 +97,10 @@ export default function Page() {
           .
         </li>
       </GUL>
+
+      <GuideFigure caption="Each attribute multiplies the number of separate markets, which is why one card name never has a single price.">
+        <PriceForkDiagram />
+      </GuideFigure>
 
       <GH2>Why prices you see disagree</GH2>
       <GP>

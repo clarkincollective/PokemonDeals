@@ -1,5 +1,7 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
+import GuideFigure from "@/components/guides/GuideFigure";
+import EraTimeline from "@/components/guides/EraTimeline";
 import { guideMetadata } from "@/lib/guides";
 
 const SLUG = "vintage-vs-modern-pokemon-cards";
@@ -33,6 +35,11 @@ export default function Page() {
           alternate-art and &ldquo;special illustration&rdquo; chase cards.
         </li>
       </GUL>
+
+      <GuideFigure caption="Boundaries are approximate — collectors don't fully agree on where one era ends and the next begins.">
+        <EraTimeline />
+      </GuideFigure>
+
       <GP>
         You can browse by set on the{" "}
         <Link href="/sets" className="text-red-600 hover:underline dark:text-red-500">
