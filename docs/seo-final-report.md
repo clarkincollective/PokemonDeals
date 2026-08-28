@@ -1,8 +1,10 @@
 # SEO implementation — final report
 
-Covers the full 26-phase brief. Status key: **live** = verified in
-production; **built** = code complete, build + local + `tests/seo/` pass,
-not yet deployed; **blocked** = needs an action outside the codebase.
+Covers the full 26-phase brief. All code is **deployed to production**
+(commit `0506dab`, 2026-08-28) and verified live — `tests/seo/` passes
+40/40 against `https://pokemondealfinder.com`. The DB index migration is
+**applied**. Status key below: **live** = verified in production;
+**blocked** = needs an action still outside the codebase.
 
 `IMPLEMENTATION_STATUS.md` is the per-phase log; this is the summary.
 
@@ -118,17 +120,17 @@ asserted by `tests/seo/negative.test.mjs`.
   `unstable_cache` data layer is what keeps TTFB low despite every page
   reading Supabase.
 - **`COUNT(*)` removed** from `/sets/[slug]` and `/pokemon/[slug]`
-  pagination (`estimated` count) — **landed**.
+  pagination (`estimated` count) — live.
 - **N+1:** none. Every fetcher is one query (or a bounded 1000-row
   paginated group-in-JS scan); joins are in a single `select`.
-- **Index migration — `supabase/seo_perf_indexes_migration.sql` —
-  BLOCKED on apply.** All `CREATE INDEX CONCURRENTLY … IF NOT EXISTS`
-  (non-destructive, no cron lock; run one at a time). Biggest gap:
-  `deals.watchlist_id` is a foreign key with no index, so every
-  `/cards/[slug]` and every species `.in(watchlist_id,…)` query
-  full-scans ~16.5k rows. Also `(is_active, first_seen_at desc)`,
-  `(is_active, last_seen_at desc)`, `(is_active, market_price desc)`, a
-  partial auction index, and `watchlist (language, "set")`.
+- **Six indexes applied** (`supabase/seo_perf_indexes_migration.sql`, all
+  `CREATE INDEX CONCURRENTLY`): `deals (watchlist_id)` — a foreign key
+  that had no index, so every `/cards/[slug]` and every species
+  `.in(watchlist_id,…)` query was full-scanning ~16.5k rows;
+  `deals (is_active, first_seen_at desc)`,
+  `deals (is_active, last_seen_at desc)`,
+  `deals (is_active, market_price desc)`, a partial auction index, and
+  `watchlist (language, "set")`.
 
 ---
 
@@ -136,11 +138,9 @@ asserted by `tests/seo/negative.test.mjs`.
 
 | Item | Needs |
 | --- | --- |
-| **Apply `supabase/seo_perf_indexes_migration.sql`** | DB owner runs it in the Supabase SQL editor (one statement at a time) |
 | **`/contact` mailbox** | `pokemondealfinder@gmail.com` must actually be monitored (it's published site-wide) |
 | **CI secrets** | `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` added to GitHub Actions for `.github/workflows/seo-tests.yml` |
 | **eBay rate-limit increase** | Request in the eBay Developer portal — 5,000/day default is the real cause of the 429s (`docs/ebay-rate-limits.md`) |
-| **Deploy** | Everything in §1 "built" ships on the next deploy. The local dev server on `:3000` also needs a restart — it holds a stale reference to the deleted `app/sitemap.js` |
 | **GSC** | Follow `docs/gsc-readiness.md` — submit `/sitemap.xml`, seed URL inspection, watch the reports |
 
 ---
