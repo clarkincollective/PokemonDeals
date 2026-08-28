@@ -18,6 +18,8 @@ import AffiliateLink from "@/components/AffiliateLink";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import StickyDealCta from "@/components/StickyDealCta";
 import SaveCardButton from "@/components/SaveCardButton";
+import PriceAlertForm from "@/components/PriceAlertForm";
+import { emailEnabled } from "@/lib/email";
 import RecordCardView from "@/components/RecordCardView";
 import SiteFooter from "@/components/SiteFooter";
 
@@ -263,6 +265,13 @@ export default async function CardHubPage({ params, searchParams }) {
                 >
                   Check on TCGPlayer
                 </AffiliateLink>
+              )}
+              {emailEnabled() && (
+                <PriceAlertForm
+                  cardSlug={slug}
+                  cardName={hub.name}
+                  suggestedPrice={cheapest?.total_price ?? null}
+                />
               )}
             </div>
             <p className="mt-3 text-xs text-zinc-400">
