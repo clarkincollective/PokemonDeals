@@ -16,6 +16,8 @@ import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import StickyDealCta from "@/components/StickyDealCta";
+import SaveCardButton from "@/components/SaveCardButton";
+import RecordCardView from "@/components/RecordCardView";
 import SiteFooter from "@/components/SiteFooter";
 
 // How many of the cheapest offers get the full visual DealCard treatment
@@ -132,6 +134,16 @@ export default async function CardHubPage({ params }) {
   const primaryHistory = analysis?.raw?.history ?? [];
   const tcgplayerLink = buildTcgplayerLink(hub.name, hub.tcgplayerId);
 
+  // Minimal descriptor for the viewer's local "recently viewed" / "saved"
+  // lists (lib/recentCards) - enough to render a tile and link back here.
+  const cardDescriptor = {
+    slug,
+    name: hub.name,
+    set: hub.set,
+    image: cheapest?.image_url ?? null,
+    price: cheapest?.total_price ?? null,
+  };
+
   // One real Offer per real active listing - the documented Google/
   // schema.org pattern for "multiple sellers, one product," and the
   // direct structured-data expression of why this page exists: real
@@ -176,6 +188,7 @@ export default async function CardHubPage({ params }) {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
       )}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <RecordCardView card={cardDescriptor} />
       <SiteHeader />
 
       <div className="mx-auto max-w-5xl px-6 py-10">
@@ -226,7 +239,8 @@ export default async function CardHubPage({ params }) {
               </p>
             )}
 
-            <div className="mt-5 flex flex-wrap gap-3">
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <SaveCardButton card={cardDescriptor} />
               {tcgplayerLink && (
                 <AffiliateLink
                   href={tcgplayerLink}
@@ -238,6 +252,11 @@ export default async function CardHubPage({ params }) {
                 </AffiliateLink>
               )}
             </div>
+            <p className="mt-3 text-xs text-zinc-400">
+              <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">
+                How we work out the market price →
+              </Link>
+            </p>
           </div>
         </div>
 

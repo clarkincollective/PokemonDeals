@@ -373,6 +373,15 @@ export default async function DealDetailPage({ params }) {
                   You save ${(Number(deal.market_price) - Number(deal.total_price)).toFixed(2)}
                 </p>
               )}
+              <p className="mt-1 text-xs text-zinc-400">
+                Compared against real market pricing.{" "}
+                <Link
+                  href="/methodology"
+                  className="hover:text-red-600 hover:underline dark:hover:text-red-500"
+                >
+                  How we price this →
+                </Link>
+              </p>
             </div>
             {isAuction && (
               <p className="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">

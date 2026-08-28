@@ -19,6 +19,7 @@ import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
 import Pagination, { pageHref } from "@/components/Pagination";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
+import CardMemoryStrip from "@/components/CardMemoryStrip";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -270,6 +271,10 @@ export default async function Home({ searchParams }) {
           )}
         </div>
       </header>
+
+      {/* The viewer's own locally-saved / recently-viewed cards. Renders
+          nothing for first-time visitors and on the server. */}
+      {showPromo && <CardMemoryStrip />}
 
       {/* START HERE */}
       {showPromo && (
