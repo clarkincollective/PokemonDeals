@@ -111,6 +111,24 @@ reads `headers()` during render:
   scan ordered by non-unique `last_seen_at` across `.range()` pages —
   added an `id` tiebreaker + a de-dupe Set.
 
+**Then made them actually edge-cache** (Next 16 keeps a dynamic-segment
+route fully dynamic — `no-store`, `X-Vercel-Cache: MISS` every hit — with
+no `generateStaticParams`, even when every data call is `unstable_cache`d):
+
+- `/cards/[slug]` — `generateStaticParams` over every current hub slug
+  (~724 pages prerendered, SSG + ISR).
+- `/deals/[id]`, `/sealed-deals/[id]` — empty `generateStaticParams` +
+  `revalidate` → ISR on demand (render once, then edge-cached +
+  background-revalidated).
+- **Verified live**: `/cards/[slug]`, `/deals/[id]`, `/sealed-deals/[id]`
+  now return `Cache-Control: public` + `X-Vercel-Cache: HIT` (were
+  `private, no-store` / MISS). ~5,700 of the indexable detail pages are
+  edge-cached; SSR HTML still carries real native-currency prices.
+- **Still dynamic**: `/sets/[slug]` + `/pokemon/[slug]` (~340 pages) read
+  `searchParams` for their filter/pagination grid, so they stay `no-store`.
+  Making them static needs the same client-side-filter move — the one
+  remaining piece of this fix.
+
 ## Not building (deliberate, documented)
 
 - **Phase 8 — dedicated price-history pages**: not building as separate `/cards/[slug]/price-history/` routes — price history is already integrated into the card hub and deal detail pages (chart + real data), and PokemonPriceTracker doesn't expose enough historical depth to justify a separate crawlable page beyond what's already shown. Documenting this as a deliberate scope decision, not an oversight.
