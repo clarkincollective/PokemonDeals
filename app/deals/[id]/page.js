@@ -10,12 +10,12 @@ import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebay";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
-import { dealScore } from "@/lib/dealScore";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import DealScoreBadge from "@/components/DealScoreBadge";
+import Breadcrumbs from "@/components/Breadcrumbs";
+import StickyDealCta from "@/components/StickyDealCta";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
 import ShareButton from "@/components/ShareButton";
@@ -277,12 +277,13 @@ export default async function DealDetailPage({ params }) {
       />
       <SiteHeader />
       <div className="mx-auto max-w-5xl px-6 py-10">
-        <Link
-          href="/"
-          className="block text-sm font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-        >
-          ← All deals
-        </Link>
+        <Breadcrumbs
+          items={[
+            { name: "Deals", href: "/" },
+            ...(cardHub ? [{ name: cardName, href: `/cards/${cardHub.slug}` }] : []),
+            { name: cardHub ? "This listing" : cardName },
+          ]}
+        />
 
         <div className="mt-4 flex flex-col gap-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
           <div className="relative h-56 w-56 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:self-auto dark:bg-zinc-900">
@@ -298,7 +299,6 @@ export default async function DealDetailPage({ params }) {
               <span className="rounded-md bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">
                 {discountPct}% below market
               </span>
-              <DealScoreBadge score={dealScore(deal.discount_pct)} size="lg" />
               {deal.watchlist?.language === "japanese" && (
                 <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                   🇯🇵 Japanese Print
@@ -428,9 +428,29 @@ export default async function DealDetailPage({ params }) {
             {deal.is_graded ? "Real graded sold comps" : "Real market pricing"}, fetched fresh for this
             page.
           </p>
-          <div className="mt-4">
-            <PriceHistoryChart points={primaryHistory} />
-          </div>
+          {primaryHistory.length >= 2 ? (
+            <div className="mt-4">
+              <PriceHistoryChart points={primaryHistory} />
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
+              Not enough dated sales to plot a trend yet. Current{" "}
+              {deal.is_graded ? "graded comp" : "market"} value is{" "}
+              <span className="font-semibold text-black dark:text-zinc-50">
+                ${Number(deal.market_price).toFixed(2)}
+              </span>
+              {Number(deal.market_price) - Number(deal.total_price) > 0 && (
+                <>
+                  {" "}
+                  — this listing is{" "}
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-500">
+                    ${(Number(deal.market_price) - Number(deal.total_price)).toFixed(2)} below
+                  </span>{" "}
+                  it.
+                </>
+              )}
+            </p>
+          )}
         </div>
 
         {analysis && (analysis.graded.length > 0 || analysis.raw.history.length > 0) && (
@@ -533,6 +553,13 @@ export default async function DealDetailPage({ params }) {
 
       </div>
       <SiteFooter note="Card-to-listing matching is automated and not perfect - always double-check a listing's photos and description before buying." />
+
+      <StickyDealCta
+        href={deal.affiliate_url}
+        priceLabel={`$${Number(deal.total_price).toFixed(2)}`}
+        ctaLabel={isAuction ? "Bid on eBay →" : "Check on eBay →"}
+        eventData={{ card: cardName, marketplace: deal.marketplace, discountPct }}
+      />
     </div>
   );
 }

@@ -8,13 +8,14 @@ import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES } from "@/lib/ebay";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
-import { dealScore } from "@/lib/dealScore";
 import SiteHeader from "@/components/SiteHeader";
 import DealCard from "@/components/DealCard";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
+import Breadcrumbs from "@/components/Breadcrumbs";
+import StickyDealCta from "@/components/StickyDealCta";
 import SiteFooter from "@/components/SiteFooter";
 
 // How many of the cheapest offers get the full visual DealCard treatment
@@ -178,14 +179,13 @@ export default async function CardHubPage({ params }) {
       <SiteHeader />
 
       <div className="mx-auto max-w-5xl px-6 py-10">
-        {/* A real, visible button rather than a small muted text link -
-            same reasoning as /sets/[slug]'s "Back to Sets" button. */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
-        >
-          ← Back to All Deals
-        </Link>
+        <Breadcrumbs
+          items={[
+            { name: "Deals", href: "/" },
+            { name: hub.set, href: `/sets/${slugifySet(hub.set)}` },
+            { name: hub.name },
+          ]}
+        />
 
         <div className="mt-4 flex flex-col gap-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
           <div className="relative h-56 w-56 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:self-auto dark:bg-zinc-900">
@@ -248,13 +248,13 @@ export default async function CardHubPage({ params }) {
             </h2>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {offers.slice(0, FEATURED_OFFER_COUNT).map((deal, i) => (
-                <DealCard key={deal.id} deal={deal} rank={i + 1} scoreBadge={dealScore(deal.discount_pct)} pageName="card_hub" />
+                <DealCard key={deal.id} deal={deal} rank={i + 1} pageName="card_hub" />
               ))}
             </div>
           </div>
         )}
 
-        {primaryHistory.length > 0 && (
+        {primaryHistory.length >= 2 && (
           <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Market price history</h2>
             <p className="text-xs text-zinc-400">Real market pricing, fetched fresh for this page.</p>
@@ -336,6 +336,15 @@ export default async function CardHubPage({ params }) {
           </Link>
         </div>
       </div>
+
+      {cheapest && (
+        <StickyDealCta
+          href={cheapest.affiliate_url}
+          priceLabel={`$${Number(cheapest.total_price).toFixed(2)}`}
+          ctaLabel={cheapest.listing_type === "AUCTION" ? "Bid on eBay →" : "Check on eBay →"}
+          eventData={{ card: hub.name, marketplace: cheapest.marketplace, page: "card_hub" }}
+        />
+      )}
 
       <SiteFooter note="Card-to-listing matching is automated and not perfect - always double-check a listing's photos and description before buying." />
     </div>

@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { resolveSpeciesSlug, fetchSpeciesDealsPage, fetchSpeciesPrints } from "@/lib/deals";
+import { resolveSpeciesSlug, fetchSpeciesDealsPage, fetchSpeciesPrints, fetchHubCounts } from "@/lib/deals";
 import { slugifySet } from "@/lib/slugify";
-import { dealScore } from "@/lib/dealScore";
 import SiteHeader from "@/components/SiteHeader";
 import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
 import Pagination from "@/components/Pagination";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import SiteFooter from "@/components/SiteFooter";
 
 const SITE_URL = "https://pokemondealfinder.com";
@@ -76,10 +76,11 @@ export default async function PokemonSpeciesPage({ params, searchParams }) {
   const maxPrice = Number.isFinite(maxPriceParam) && maxPriceParam > 0 ? maxPriceParam : null;
   const minPriceParam = typeof sp.minPrice === "string" ? Number(sp.minPrice) : null;
   const minPrice = Number.isFinite(minPriceParam) && minPriceParam > 0 ? minPriceParam : null;
+  const sort = typeof sp.sort === "string" ? sp.sort : null;
   const pageParam = typeof sp.page === "string" ? Number(sp.page) : 1;
   const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
 
-  const [{ deals, totalPages, error }, { prints }] = await Promise.all([
+  const [{ deals, totalPages, error }, { prints }, hubCounts] = await Promise.all([
     fetchSpeciesDealsPage({
       speciesName: resolved.name,
       language: "english",
@@ -88,10 +89,12 @@ export default async function PokemonSpeciesPage({ params, searchParams }) {
       listingType,
       maxPrice,
       minPrice,
+      sort: sort ?? "newest",
       page,
       pageSize: 20,
     }),
     fetchSpeciesPrints(resolved.name),
+    fetchHubCounts({ language: "english" }),
   ]);
 
   const basePath = `/pokemon/${slug}`;
@@ -147,9 +150,16 @@ export default async function PokemonSpeciesPage({ params, searchParams }) {
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-10">
+          <Breadcrumbs
+            items={[
+              { name: "Deals", href: "/" },
+              { name: "Pokémon", href: "/pokemon" },
+              { name: resolved.name },
+            ]}
+          />
           <Link
             href="/pokemon"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
           >
             ← Back to Pokémon
           </Link>
@@ -176,6 +186,7 @@ export default async function PokemonSpeciesPage({ params, searchParams }) {
               listingType={listingType}
               maxPrice={maxPrice}
               minPrice={minPrice}
+              sort={sort}
               basePath={basePath}
             />
           </div>
@@ -198,7 +209,7 @@ export default async function PokemonSpeciesPage({ params, searchParams }) {
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {deals.map((deal) => (
-            <DealCard key={deal.id} deal={deal} scoreBadge={dealScore(deal.discount_pct)} pageName="species_detail" />
+            <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="species_detail" />
           ))}
         </div>
 

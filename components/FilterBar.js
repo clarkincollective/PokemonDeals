@@ -120,13 +120,45 @@ export function PriceFilterRow({ params, maxPrice, minPrice, basePath = "/" }) {
   );
 }
 
-export default function FilterBar({ params, country, cardType, listingType, maxPrice, minPrice, basePath = "/" }) {
-  const activeCount = [country, cardType, listingType, maxPrice, minPrice].filter((v) => v != null).length;
+const SORT_OPTIONS = [
+  { value: "discount", label: "Biggest discount" },
+  { value: "price_asc", label: "Price: low to high" },
+  { value: "price_desc", label: "Price: high to low" },
+  { value: "newest", label: "Newest" },
+  { value: "ending", label: "Ending soon" },
+];
+
+// Sort pills - plain <a> links so this needs no client JS. `defaultValue`
+// is the effective sort when no ?sort= is set (the grid pages default to
+// a shuffled/newest view, so nothing is "active" until the user picks).
+export function SortRow({ params, sort, basePath = "/", defaultValue }) {
+  return (
+    <div>
+      <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">Sort</span>
+      <ScrollRow>
+        {SORT_OPTIONS.map((o) => (
+          <FilterPill
+            key={o.value}
+            href={filterHref(params, "sort", o.value, basePath)}
+            active={sort === o.value || (!sort && o.value === defaultValue)}
+          >
+            {o.label}
+          </FilterPill>
+        ))}
+      </ScrollRow>
+    </div>
+  );
+}
+
+export default function FilterBar({ params, country, cardType, listingType, maxPrice, minPrice, sort, basePath = "/" }) {
+  const activeCount = [country, cardType, listingType, maxPrice, minPrice, sort].filter((v) => v != null).length;
 
   return (
     <div className="mb-8">
       <FilterToggle defaultOpen={activeCount > 0} activeCount={activeCount}>
         <div className="flex flex-col gap-4">
+          <SortRow params={params} sort={sort} basePath={basePath} defaultValue="newest" />
+
           <CountryFilterRow params={params} country={country} basePath={basePath} />
 
           <div>

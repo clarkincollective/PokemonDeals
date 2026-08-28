@@ -7,12 +7,10 @@ import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES } from "@/lib/ebay";
 import { getSealedPriceHistory } from "@/lib/pokemonPriceTracker";
 import { shouldIndexDeal } from "@/lib/indexability";
-import { dealScore } from "@/lib/dealScore";
 import { timeAgo, timeUntil } from "@/lib/time";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import DealScoreBadge from "@/components/DealScoreBadge";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
 import ShareButton from "@/components/ShareButton";
@@ -201,7 +199,6 @@ export default async function SealedDealDetailPage({ params }) {
               <span className="rounded-md bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">
                 {discountPct}% below market
               </span>
-              <DealScoreBadge score={dealScore(deal.discount_pct)} size="lg" />
               <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                 Sealed
               </span>
@@ -283,14 +280,31 @@ export default async function SealedDealDetailPage({ params }) {
           </div>
         </div>
 
-        {history.length > 0 && (
-          <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-            <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Price history</h2>
+        <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Price history</h2>
+          {history.length >= 2 ? (
             <div className="mt-4">
               <PriceHistoryChart points={history} />
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
+              Not enough dated sales to plot a trend yet. Current market value is{" "}
+              <span className="font-semibold text-black dark:text-zinc-50">
+                ${Number(deal.market_price).toFixed(2)}
+              </span>
+              {amountSaved > 0 && (
+                <>
+                  {" "}
+                  — this listing is{" "}
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-500">
+                    ${amountSaved.toFixed(2)} below
+                  </span>{" "}
+                  it.
+                </>
+              )}
+            </p>
+          )}
+        </div>
       </div>
 
       <SiteFooter note="Listing-to-product matching is automated and not perfect - always double-check a listing's photos and description (and that it's genuinely factory sealed) before buying." />

@@ -9,7 +9,6 @@ import DealCard from "@/components/DealCard";
 import AffiliateLink from "@/components/AffiliateLink";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
-import { dealScore } from "@/lib/dealScore";
 import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebay";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 
@@ -225,7 +224,7 @@ export default function SearchClient() {
             ) : (
               <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {deals.map((deal) => (
-                  <DealCard key={deal.id} deal={deal} scoreBadge={dealScore(deal.discount_pct)} pageName="search" />
+                  <DealCard key={deal.id} deal={deal} pageName="search" />
                 ))}
               </div>
             )}
@@ -493,12 +492,7 @@ export default function SearchClient() {
                   ) : (
                     <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {detail.deals.map((deal) => (
-                        <DealCard
-                          key={deal.id}
-                          deal={deal}
-                          scoreBadge={dealScore(deal.discount_pct)}
-                          pageName="search"
-                        />
+                        <DealCard key={deal.id} deal={deal} pageName="search" />
                       ))}
                     </div>
                   )}

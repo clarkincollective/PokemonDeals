@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { resolveSetSlug, fetchDealsPage } from "@/lib/deals";
-import { dealScore } from "@/lib/dealScore";
+import { resolveSetSlug, fetchDealsPage, fetchHubCounts } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
 import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
 import Pagination from "@/components/Pagination";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import SiteFooter from "@/components/SiteFooter";
 
 const SITE_URL = "https://pokemondealfinder.com";
@@ -78,23 +78,28 @@ export default async function SetDetailPage({ params, searchParams }) {
   const maxPrice = Number.isFinite(maxPriceParam) && maxPriceParam > 0 ? maxPriceParam : null;
   const minPriceParam = typeof sp.minPrice === "string" ? Number(sp.minPrice) : null;
   const minPrice = Number.isFinite(minPriceParam) && minPriceParam > 0 ? minPriceParam : null;
+  const sort = typeof sp.sort === "string" ? sp.sort : null;
   const pageParam = typeof sp.page === "string" ? Number(sp.page) : 1;
   const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
 
-  const { deals, totalPages, error } = await fetchDealsPage({
-    table: "deals",
-    language: "english",
-    set: resolved.set,
-    country,
-    cardType,
-    listingType,
-    maxPrice,
-    minPrice,
-    page,
-    // 20, not the other list pages' 24 - requested specifically for set
-    // pages.
-    pageSize: 20,
-  });
+  const [{ deals, totalPages, error }, hubCounts] = await Promise.all([
+    fetchDealsPage({
+      table: "deals",
+      language: "english",
+      set: resolved.set,
+      country,
+      cardType,
+      listingType,
+      maxPrice,
+      minPrice,
+      sort: sort ?? "newest",
+      page,
+      // 20, not the other list pages' 24 - requested specifically for set
+      // pages.
+      pageSize: 20,
+    }),
+    fetchHubCounts({ language: "english" }),
+  ]);
 
   const basePath = `/sets/${slug}`;
 
@@ -120,9 +125,16 @@ export default async function SetDetailPage({ params, searchParams }) {
           {/* A real, visible button rather than a small muted text link -
               this is the way back to pick the next set to browse, so it
               needs to be easy to spot, not just technically present. */}
+          <Breadcrumbs
+            items={[
+              { name: "Deals", href: "/" },
+              { name: "Sets", href: "/sets" },
+              { name: resolved.set },
+            ]}
+          />
           <Link
             href="/sets"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
           >
             ← Back to Sets
           </Link>
@@ -142,6 +154,7 @@ export default async function SetDetailPage({ params, searchParams }) {
               listingType={listingType}
               maxPrice={maxPrice}
               minPrice={minPrice}
+              sort={sort}
               basePath={basePath}
             />
           </div>
@@ -164,7 +177,7 @@ export default async function SetDetailPage({ params, searchParams }) {
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {deals.map((deal) => (
-            <DealCard key={deal.id} deal={deal} scoreBadge={dealScore(deal.discount_pct)} pageName="set_detail" />
+            <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="set_detail" />
           ))}
         </div>
 

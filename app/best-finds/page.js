@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { fetchBestFinds } from "@/lib/deals";
-import { dealScore } from "@/lib/dealScore";
+import { fetchBestFinds, fetchHubCounts } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import DealCard from "@/components/DealCard";
@@ -57,7 +56,10 @@ export default async function BestFindsPage({ searchParams }) {
   const maxPrice = Number.isFinite(maxPriceParam) && maxPriceParam > 0 ? maxPriceParam : null;
   const minPriceParam = typeof params.minPrice === "string" ? Number(params.minPrice) : null;
   const minPrice = Number.isFinite(minPriceParam) && minPriceParam > 0 ? minPriceParam : null;
-  const { deals, error } = await fetchBestFinds({ limit: 10, graded: type === "graded", maxPrice, minPrice });
+  const [{ deals, error }, hubCounts] = await Promise.all([
+    fetchBestFinds({ limit: 10, graded: type === "graded", maxPrice, minPrice }),
+    fetchHubCounts({ language: "english" }),
+  ]);
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
@@ -107,13 +109,7 @@ export default async function BestFindsPage({ searchParams }) {
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {deals.map((deal, i) => (
-            <DealCard
-              key={deal.id}
-              deal={deal}
-              rank={i + 1}
-              scoreBadge={dealScore(deal.discount_pct)}
-              pageName="best_finds"
-            />
+            <DealCard key={deal.id} deal={deal} rank={i + 1} hub={hubCounts[deal.watchlist_id]} pageName="best_finds" />
           ))}
         </div>
 

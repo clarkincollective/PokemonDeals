@@ -1,5 +1,4 @@
-import { fetchDealsPool, fetchDealsPage, fetchLastScanTime } from "@/lib/deals";
-import { dealScore } from "@/lib/dealScore";
+import { fetchDealsPool, fetchDealsPage, fetchLastScanTime, fetchHubCounts } from "@/lib/deals";
 import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
@@ -59,24 +58,28 @@ export default async function JapaneseCardsPage({ searchParams }) {
   const maxPrice = Number.isFinite(maxPriceParam) && maxPriceParam > 0 ? maxPriceParam : null;
   const minPriceParam = typeof params.minPrice === "string" ? Number(params.minPrice) : null;
   const minPrice = Number.isFinite(minPriceParam) && minPriceParam > 0 ? minPriceParam : null;
+  const sort = typeof params.sort === "string" ? params.sort : null;
 
   const PAGE_SIZE = 24;
   const pageParam = typeof params.page === "string" ? Number(params.page) : 1;
   const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
   const filters = { language: "japanese", country, cardType, listingType, maxPrice, minPrice };
+  const useStableList = page > 1 || sort;
 
   // Same pool-then-shuffle-on-page-1/real-pagination-beyond-that approach
-  // as the homepage (see app/page.js for the full reasoning).
-  const [{ data: pool, error: poolError }, dealsPageResult, lastRefreshed] = await Promise.all([
-    page === 1 ? fetchDealsPool(filters) : Promise.resolve({ data: null, error: null }),
-    page > 1 ? fetchDealsPage({ table: "deals", ...filters, page }) : Promise.resolve(null),
+  // as the homepage (see app/page.js for the full reasoning). Any sort
+  // forces the deterministic list too.
+  const [{ data: pool, error: poolError }, dealsPageResult, lastRefreshed, hubCounts] = await Promise.all([
+    useStableList ? Promise.resolve({ data: null, error: null }) : fetchDealsPool(filters),
+    useStableList ? fetchDealsPage({ table: "deals", ...filters, sort: sort ?? "newest", page }) : Promise.resolve(null),
     fetchLastScanTime({ table: "deals", language: "japanese" }),
+    fetchHubCounts({ language: "japanese" }),
   ]);
   const error = poolError || dealsPageResult?.error;
 
   let deals;
   let totalPages = 1;
-  if (page > 1) {
+  if (useStableList) {
     deals = dealsPageResult?.deals ?? [];
     totalPages = dealsPageResult?.totalPages ?? 1;
   } else {
@@ -130,6 +133,7 @@ export default async function JapaneseCardsPage({ searchParams }) {
               listingType={listingType}
               maxPrice={maxPrice}
               minPrice={minPrice}
+              sort={sort}
               basePath="/japanese-cards"
             />
           </div>
@@ -152,11 +156,11 @@ export default async function JapaneseCardsPage({ searchParams }) {
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {deals?.map((deal) => (
-            <DealCard key={deal.id} deal={deal} scoreBadge={dealScore(deal.discount_pct)} pageName="japanese_cards" />
+            <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="japanese_cards" />
           ))}
         </div>
 
-        {page === 1 ? (
+        {!useStableList ? (
           deals?.length > 0 && (
             <div className="mt-10 flex justify-center">
               <a
