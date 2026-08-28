@@ -9,15 +9,20 @@ import {
 import { slugifySet } from "@/lib/slugify";
 import SiteHeader from "@/components/SiteHeader";
 import RegionRedirect from "@/components/RegionRedirect";
-import DealCard from "@/components/DealCard";
-import FilterBar from "@/components/FilterBar";
-import Pagination from "@/components/Pagination";
+import DealGrid from "@/components/DealGrid";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import SiteFooter from "@/components/SiteFooter";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
 export const revalidate = 900;
+
+// Page 1 renders server-side; pagination + filters are client-side (see
+// <DealGrid> / /api/deals-page), so this route reads no request-time APIs
+// and, with an empty generateStaticParams, is ISR-cacheable at the edge.
+export async function generateStaticParams() {
+  return [];
+}
 
 // Phase 5 - species entity page. Aggregates every active deal for one
 // Pokemon across all its prints/sets - the "<pokemon> pokemon card" /
@@ -27,20 +32,15 @@ export const revalidate = 900;
 // indexability threshold are derived - no fabricated content, just a
 // species-scoped view of the same real active deals, plus a real index
 // of that species' prints linking to their /cards/[slug] hubs.
-export async function generateMetadata({ params, searchParams }) {
+export async function generateMetadata({ params }) {
   const { slug } = await params;
-  const sp = await searchParams;
   const resolved = await resolveSpeciesSlug(slug);
   if (!resolved) return { title: "Pokémon not found", robots: { index: false, follow: true } };
 
-  const pageParam = typeof sp.page === "string" ? Number(sp.page) : 1;
-  const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
-
-  const base = `${resolved.name} — Pokémon Card Prices & Deals`;
-  const title = page > 1 ? `${resolved.name} Card Deals — Page ${page}` : base;
+  const title = `${resolved.name} — Pokémon Card Prices & Deals`;
   const setsPhrase = resolved.setCount === 1 ? "1 set" : `${resolved.setCount} sets`;
   const description = `${resolved.count} active ${resolved.name} Pokémon card listings on eBay right now, across ${setsPhrase} — compared against real market pricing, cheapest first.`;
-  const canonical = page > 1 ? `/pokemon/${slug}?page=${page}` : `/pokemon/${slug}`;
+  const canonical = `/pokemon/${slug}`;
 
   // Explicit openGraph/twitter blocks - same site-wide fix as
   // /cards/[slug] and /sets/[slug]: without them a shared species link
@@ -68,9 +68,8 @@ export async function generateMetadata({ params, searchParams }) {
   };
 }
 
-export default async function PokemonSpeciesPage({ params, searchParams }) {
+export default async function PokemonSpeciesPage({ params }) {
   const { slug } = await params;
-  const sp = await searchParams;
 
   // Kick off the card-hubs scan now so it runs concurrently with the
   // species-hubs scan below (resolveSpeciesSlug) instead of after it -
@@ -86,28 +85,12 @@ export default async function PokemonSpeciesPage({ params, searchParams }) {
     notFound();
   }
 
-  const country = typeof sp.country === "string" ? sp.country : null;
-  const cardType = typeof sp.type === "string" ? sp.type : null;
-  const listingType = typeof sp.listing === "string" ? sp.listing : null;
-  const maxPriceParam = typeof sp.maxPrice === "string" ? Number(sp.maxPrice) : null;
-  const maxPrice = Number.isFinite(maxPriceParam) && maxPriceParam > 0 ? maxPriceParam : null;
-  const minPriceParam = typeof sp.minPrice === "string" ? Number(sp.minPrice) : null;
-  const minPrice = Number.isFinite(minPriceParam) && minPriceParam > 0 ? minPriceParam : null;
-  const sort = typeof sp.sort === "string" ? sp.sort : null;
-  const pageParam = typeof sp.page === "string" ? Number(sp.page) : 1;
-  const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
-
   const [{ deals, totalPages, error }, { prints }] = await Promise.all([
     fetchSpeciesDealsPage({
       speciesName: resolved.name,
       language: "english",
-      country,
-      cardType,
-      listingType,
-      maxPrice,
-      minPrice,
-      sort: sort ?? "newest",
-      page,
+      sort: "newest",
+      page: 1,
       pageSize: 20,
     }),
     fetchSpeciesPrints(resolved.name),
@@ -204,43 +187,24 @@ export default async function PokemonSpeciesPage({ params, searchParams }) {
               {resolved.count} active listings · {priceRange}
             </p>
           )}
-
-          <div className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
-            <FilterBar
-              params={sp}
-              country={country}
-              cardType={cardType}
-              listingType={listingType}
-              maxPrice={maxPrice}
-              minPrice={minPrice}
-              sort={sort}
-              basePath={basePath}
-            />
-          </div>
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
         <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          {resolved.name} Deals{page > 1 ? ` — Page ${page}` : ""}
+          {resolved.name} Deals
         </h2>
 
         {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
 
-        {!error && deals.length === 0 && (
-          <p className="text-zinc-500">
-            No {resolved.name} deals match these filters right now. Try clearing a filter, or check
-            back after the next scheduled scan.
-          </p>
-        )}
-
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {deals.map((deal) => (
-            <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="species_detail" />
-          ))}
-        </div>
-
-        <Pagination page={page} totalPages={totalPages} params={sp} basePath={basePath} />
+        <DealGrid
+          kind="species"
+          slug={slug}
+          basePath={basePath}
+          initial={{ deals, totalPages }}
+          hubCounts={hubCounts}
+          emptyLabel={`No ${resolved.name} deals match these filters right now. Try clearing a filter, or check back after the next scheduled scan.`}
+        />
 
         {prints.length > 0 && (
           <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">

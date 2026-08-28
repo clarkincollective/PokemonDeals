@@ -1,9 +1,21 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { REGION_KEY } from "@/components/RegionControl";
 import { useCurrency } from "@/components/CurrencyProvider";
+
+// Public wrapper: the inner component reads useSearchParams(), which
+// forces the whole route to client-side rendering on a statically
+// prerendered page unless it sits under a Suspense boundary. Wrapping it
+// here keeps every call site safe (and renders nothing either way).
+export default function RegionRedirect() {
+  return (
+    <Suspense fallback={null}>
+      <RegionRedirectInner />
+    </Suspense>
+  );
+}
 
 // Renders nothing. On a listing page with no explicit ?country=, sends
 // the visitor to deals they can actually buy:
@@ -17,7 +29,7 @@ import { useCurrency } from "@/components/CurrencyProvider";
 // The geo default now arrives client-side (after hydration) rather than
 // as a server prop, so the host page never reads the geo header and stays
 // cacheable.
-export default function RegionRedirect() {
+function RegionRedirectInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
