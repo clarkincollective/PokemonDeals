@@ -382,6 +382,56 @@ self-referencing canonical, `Product` + `BreadcrumbList` JSON-LD,
 affiliate `rel`/params all unchanged. Full write-up in
 **`docs/ux-implementation-report.md`**.
 
+## Fake-discount fix: raw played/damaged cards priced as Near Mint — 2026-08-29
+
+**Symptom (user report):** listings for visibly played or damaged raw
+cards showing a big "% below market" because they were priced against the
+**Near Mint** reference. `detectListingCondition` only reads the listing
+**title**, so any seller who didn't write "LP"/"MP"/"Dmg" there had their
+card priced as NM.
+
+**Why the title is the only free signal:** probed the eBay Browse API
+live — raw singles all come back as a flat `condition: "Ungraded" /
+conditionId 4000` in search results regardless of wear. The real
+`conditionDescriptors` → **"Card Condition"** field ("Near mint or
+better" / "Lightly played (Excellent)" / … / "Damaged") is only in the
+single-item `getItem` endpoint — the same call `getGradingDetails`
+already spends selectively for graded cards.
+
+**Fix (`lib/ebay.js`, `lib/dealMatching.js`, `app/api/refresh-deals/route.js`):**
+- `getRawCardCondition(listingId, marketplaceId)` — one `getItem`, maps
+  the "Card Condition" descriptor to a `CONDITION_TIERS` string (or `null`
+  when eBay states none). `cardConditionToTier()` unit-tested.
+- `worseCondition(a, b)` — reconciles title guess vs eBay descriptor to
+  the more-worn tier; ignores unknowns rather than treating them as NM.
+- `resolveRawCondition()` in the scan route: a raw listing with **no
+  title condition signal** whose apparent discount is **≥ 45 %**
+  (`SUSPICIOUS_RAW_DISCOUNT_PCT`) gets one `getItem` to check real wear
+  before publishing. If eBay says worse than NM → re-price against that
+  tier via `selectConditionPrice` and re-apply the discount / sanity-floor
+  gates (usually the card then has *no* priceable worse tier in PPT data,
+  so it's dropped — correctly). Below 45 %, a missing signal is still
+  taken as NM (a 30 %-under NM card is plausible).
+- **Budget:** `getItem` is the scarce resource (shared ~5 000/day Browse
+  quota — see `EXTENDED_CHUNKS`). Capped like `GRADED_LOOKUP_CAP`: 2 per
+  per-card scan, 8 per sweep, memoised per listing id. Listings are
+  processed cheapest-first so the budget lands on the most suspicious.
+  When the budget is spent, a still-unverified suspect is **held** (not
+  published) that cycle, never shown on a guess.
+- Known limit: a title that *understates* wear ("LP" on an actually-HP
+  card) is still trusted — closing that would mean a `getItem` on every
+  played listing, not just the no-signal ones.
+
+**Retroactive cleanup — `scripts/verifyRawConditionDeals.js`** (user-run,
+dry-run by default, `--apply`, `--limit N`). Re-checks active raw deals
+that are ≥ 45 % off with no recorded wear against eBay's Card Condition,
+then re-prices or retires. **Dry-run sample (first 8 of ~2,369 suspects):
+7 were genuinely played/damaged cards priced as NM** — all retired (no
+priceable worse tier in PPT data). Clearing the full backlog is ~2,369
+Browse calls (≈ half a day's quota) so it needs spreading across runs via
+`--limit`, and it will visibly shrink the live deal count — the culled
+deals are the fake ones.
+
 ## Not building (deliberate, documented)
 
 - **Phase 8 — dedicated price-history pages**: not building as separate `/cards/[slug]/price-history/` routes — price history is already integrated into the card hub and deal detail pages (chart + real data), and PokemonPriceTracker doesn't expose enough historical depth to justify a separate crawlable page beyond what's already shown. Documenting this as a deliberate scope decision, not an oversight.

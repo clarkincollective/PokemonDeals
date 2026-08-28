@@ -4,6 +4,7 @@ import {
   searchListings,
   searchNewlyListed,
   getGradingDetails,
+  getRawCardCondition,
   getBrowseRateLimit,
 } from "@/lib/ebay";
 import { getConditionPrices, getGradedPrice } from "@/lib/pokemonPriceTracker";
@@ -14,6 +15,7 @@ import {
   listingMatchesCard,
   isTrustworthyListing,
   detectListingCondition,
+  worseCondition,
   selectConditionPrice,
 } from "@/lib/dealMatching";
 
@@ -102,6 +104,55 @@ function pricedListing(listing, marketPriceUsd, rates) {
   return { totalLocal, totalUsd, discountPct: (marketPriceUsd - totalUsd) / marketPriceUsd };
 }
 
+// A raw listing priced against Near Mint whose apparent discount is at
+// least this big is "too good to be true" and gets one eBay getItem call
+// to check its real "Card Condition" descriptor before we publish it - a
+// large share of these turn out to be correctly-cheap played/damaged
+// cards, not deals (the exact fake-discount the seller never claimed in
+// the title). Below this, a missing title signal is taken at its word
+// (Near Mint) as before - a 30%-under NM card is perfectly plausible.
+const SUSPICIOUS_RAW_DISCOUNT_PCT = 0.45;
+
+// getItem lookups are the scarce resource (shared ~5,000/day Browse
+// budget - see EXTENDED_CHUNKS and the pre-flight guard in GET). Cap the
+// raw-condition checks per scan unit the same way GRADED_LOOKUP_CAP does.
+// Listings are processed cheapest-first, so the budget lands on the most
+// suspicious ones; any suspicious listing left unverified when the budget
+// runs out is HELD (not published) that cycle rather than shown on a
+// guess.
+const RAW_CONDITION_LOOKUP_PER_CARD = 2;
+const RAW_CONDITION_LOOKUP_CAP_SWEEP = 8;
+
+// Decide the condition to actually price a raw listing at. `budget` is a
+// mutable { left } counter shared across one scan unit; `cache` (optional)
+// memoises the getItem result per listing id so a listing that matches
+// several watchlist rows only costs one call. Returns either { condition }
+// to use, or { hold: true } meaning "can't safely price this now - skip".
+async function resolveRawCondition({ listing, titleCondition, provisionalDiscountPct, budget, cache }) {
+  // Seller stated wear in the title - already trusted, nothing to verify.
+  if (titleCondition !== "Near Mint") return { condition: titleCondition };
+  // Plausible as a genuine Near Mint underpricing - don't spend a call.
+  if (!(provisionalDiscountPct >= SUSPICIOUS_RAW_DISCOUNT_PCT)) return { condition: "Near Mint" };
+
+  if (cache?.has(listing.listingId)) return cache.get(listing.listingId);
+
+  // Suspicious, but no budget left to check - don't publish a maybe-fake.
+  if (budget.left <= 0) return { hold: true };
+
+  budget.left -= 1;
+  let result;
+  try {
+    const ebayTier = await getRawCardCondition(listing.listingId, listing.marketplace);
+    // null => eBay states no card condition; fall back to the Near Mint
+    // assumption (this listing is no worse off than before the check).
+    result = { condition: worseCondition("Near Mint", ebayTier), verified: true };
+  } catch {
+    result = { hold: true };
+  }
+  cache?.set(listing.listingId, result);
+  return result;
+}
+
 function dealRow({ watchlistId, listing, totalPrice, totalPriceUsd, marketPrice, discountPct, priceChange24hr, grading, condition }) {
   return {
     watchlist_id: watchlistId,
@@ -181,6 +232,8 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     else dealsFound++;
   };
 
+  const rawCondBudget = { left: RAW_CONDITION_LOOKUP_PER_CARD };
+
   for (const listing of rawListings) {
     if (!isTrustworthyListing(listing)) continue;
     if (!listingMatchesCard(listing, row)) continue;
@@ -189,22 +242,42 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     // flat Near Mint assumption for every listing regardless of actual
     // wear (see selectConditionPrice/detectListingCondition for the real
     // bug this fixes).
-    const condition = detectListingCondition(listing.title);
-    const marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
+    const titleCondition = detectListingCondition(listing.title);
+    let condition = titleCondition;
+    let marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
     if (marketPrice == null) continue;
 
-    const { totalLocal, totalUsd, discountPct } = pricedListing(listing, marketPrice, rates);
-    if (discountPct < discountThreshold) continue;
-    if (totalUsd < marketPrice * SANITY_FLOOR_PCT) continue;
+    let priced = pricedListing(listing, marketPrice, rates);
+
+    // Apparent big discount + seller stated no condition -> verify real
+    // wear against eBay's own "Card Condition" descriptor before trusting
+    // it (see resolveRawCondition). resolved.hold = couldn't verify this
+    // cycle, don't publish a maybe-fake.
+    const resolved = await resolveRawCondition({
+      listing,
+      titleCondition,
+      provisionalDiscountPct: priced.discountPct,
+      budget: rawCondBudget,
+    });
+    if (resolved.hold) continue;
+    if (resolved.condition !== condition) {
+      condition = resolved.condition;
+      marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
+      if (marketPrice == null) continue;
+      priced = pricedListing(listing, marketPrice, rates);
+    }
+
+    if (priced.discountPct < discountThreshold) continue;
+    if (priced.totalUsd < marketPrice * SANITY_FLOOR_PCT) continue;
 
     await tryUpsert(
       dealRow({
         watchlistId: row.id,
         listing,
-        totalPrice: totalLocal,
-        totalPriceUsd: totalUsd,
+        totalPrice: priced.totalLocal,
+        totalPriceUsd: priced.totalUsd,
         marketPrice,
-        discountPct,
+        discountPct: priced.discountPct,
         priceChange24hr: marketData.priceChange24hr,
         condition,
       })
@@ -355,6 +428,8 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
   // real case while keeping the worst case (~768/day) well inside the
   // ~5,000/day budget alongside the pre-flight quota guard in GET().
   const GRADED_LOOKUP_CAP = 6;
+  const rawCondBudget = { left: RAW_CONDITION_LOOKUP_CAP_SWEEP };
+  const rawCondCache = new Map();
   const errors = [];
 
   const tryUpsert = async (row_) => {
@@ -404,22 +479,39 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
       const marketData = await cachedConditionPrices(row);
       if (!marketData) continue;
 
-      const condition = detectListingCondition(listing.title);
-      const marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
+      const titleCondition = detectListingCondition(listing.title);
+      let condition = titleCondition;
+      let marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
       if (marketPrice == null) continue;
 
-      const { totalLocal, totalUsd, discountPct } = pricedListing(listing, marketPrice, rates);
-      if (discountPct < discountThreshold) continue;
-      if (totalUsd < marketPrice * SANITY_FLOOR_PCT) continue;
+      let priced = pricedListing(listing, marketPrice, rates);
+
+      const resolved = await resolveRawCondition({
+        listing,
+        titleCondition,
+        provisionalDiscountPct: priced.discountPct,
+        budget: rawCondBudget,
+        cache: rawCondCache,
+      });
+      if (resolved.hold) continue;
+      if (resolved.condition !== condition) {
+        condition = resolved.condition;
+        marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
+        if (marketPrice == null) continue;
+        priced = pricedListing(listing, marketPrice, rates);
+      }
+
+      if (priced.discountPct < discountThreshold) continue;
+      if (priced.totalUsd < marketPrice * SANITY_FLOOR_PCT) continue;
 
       await tryUpsert(
         dealRow({
           watchlistId: row.id,
           listing,
-          totalPrice: totalLocal,
-          totalPriceUsd: totalUsd,
+          totalPrice: priced.totalLocal,
+          totalPriceUsd: priced.totalUsd,
           marketPrice,
-          discountPct,
+          discountPct: priced.discountPct,
           priceChange24hr: marketData.priceChange24hr,
           condition,
         })
