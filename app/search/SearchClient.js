@@ -56,6 +56,19 @@ export default function SearchClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Search as you type: debounce so we're not firing a request per
+  // keystroke, and skip when nothing meaningful changed or a card detail
+  // view is open (the query box isn't driving anything then).
+  useEffect(() => {
+    const q = query.trim();
+    if (selected) return;
+    if (q.length < 2) return;
+    if (q === (lastQuery ?? "").trim()) return;
+    const t = setTimeout(() => loadSearch(q, 1), 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, selected]);
+
   async function loadSearch(q, page, overrides = {}) {
     setLastQuery(q);
     setSearching(true);
@@ -93,9 +106,16 @@ export default function SearchClient() {
     loadSearch(lastQuery, page);
   }
 
-  function applyTopFilters(e) {
-    e.preventDefault();
-    if (lastQuery) loadSearch(lastQuery, 1);
+  // Filters apply immediately on change - no "Apply" step. The override
+  // is passed through because the state setter is async and loadSearch
+  // would otherwise read the previous value.
+  function changeSearchCountry(value) {
+    setSearchCountry(value);
+    if (lastQuery) loadSearch(lastQuery, 1, { country: value });
+  }
+  function changeSearchSort(value) {
+    setSearchSort(value);
+    if (lastQuery) loadSearch(lastQuery, 1, { sort: value });
   }
 
   async function pickCard(card, overrides = {}) {
@@ -130,10 +150,20 @@ export default function SearchClient() {
     }
   }
 
-  function applyFilters(e) {
-    e.preventDefault();
-    if (selected) pickCard(selected);
+  // Detail-view filters also apply on change, no "Apply" button. Selects
+  // fire immediately; the two number inputs are debounced (below) so
+  // they don't refetch on every keystroke.
+  function changeDetailFilter(setter, key, value) {
+    setter(value);
+    if (selected) pickCard(selected, { [key]: value });
   }
+
+  useEffect(() => {
+    if (!selected || !detail) return;
+    const t = setTimeout(() => pickCard(selected, { maxPrice, minDiscount }), 450);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maxPrice, minDiscount]);
 
   const totalPages = catalog?.total ? Math.ceil(catalog.total / catalog.pageSize) : null;
 
@@ -172,14 +202,14 @@ export default function SearchClient() {
         {searchError && <p className="rounded-lg bg-red-50 p-4 text-red-700">{searchError}</p>}
 
         {!selected && (deals || catalog) && (
-          <form onSubmit={applyTopFilters} className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-400">
                 Card location
               </label>
               <select
                 value={searchCountry}
-                onChange={(e) => setSearchCountry(e.target.value)}
+                onChange={(e) => changeSearchCountry(e.target.value)}
                 className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               >
                 <option value="">Any</option>
@@ -194,7 +224,7 @@ export default function SearchClient() {
               <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-400">Sort by</label>
               <select
                 value={searchSort}
-                onChange={(e) => setSearchSort(e.target.value)}
+                onChange={(e) => changeSearchSort(e.target.value)}
                 className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               >
                 <option value="discount">Best discount</option>
@@ -202,13 +232,8 @@ export default function SearchClient() {
                 <option value="price_desc">Price: High to Low</option>
               </select>
             </div>
-            <button
-              type="submit"
-              className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-            >
-              Apply
-            </button>
-          </form>
+            {searching && <span className="pb-2 text-xs text-zinc-400">Updating…</span>}
+          </div>
         )}
 
         {!selected && deals && (
@@ -361,13 +386,13 @@ export default function SearchClient() {
               </div>
             </div>
 
-            {/* Filters */}
-            <form onSubmit={applyFilters} className="mt-6 flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+            {/* Filters - apply on change, no Apply button */}
+            <div className="mt-6 flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-400">Condition</label>
                 <select
                   value={condition}
-                  onChange={(e) => setCondition(e.target.value)}
+                  onChange={(e) => changeDetailFilter(setCondition, "condition", e.target.value)}
                   className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                 >
                   {CONDITIONS.map((c) => (
@@ -381,7 +406,7 @@ export default function SearchClient() {
                 <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-400">Country</label>
                 <select
                   value={country}
-                  onChange={(e) => setCountry(e.target.value)}
+                  onChange={(e) => changeDetailFilter(setCountry, "country", e.target.value)}
                   className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                 >
                   <option value="">Any</option>
@@ -396,7 +421,7 @@ export default function SearchClient() {
                 <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-400">Card type</label>
                 <select
                   value={graded}
-                  onChange={(e) => setGraded(e.target.value)}
+                  onChange={(e) => changeDetailFilter(setGraded, "graded", e.target.value)}
                   className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                 >
                   <option value="">Any</option>
@@ -408,7 +433,7 @@ export default function SearchClient() {
                 <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-400">Listing</label>
                 <select
                   value={listingType}
-                  onChange={(e) => setListingType(e.target.value)}
+                  onChange={(e) => changeDetailFilter(setListingType, "listingType", e.target.value)}
                   className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                 >
                   <option value="">Any</option>
@@ -440,13 +465,8 @@ export default function SearchClient() {
                   className="mt-1 w-24 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                 />
               </div>
-              <button
-                type="submit"
-                className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-              >
-                Apply
-              </button>
-            </form>
+              {loadingDetail && <span className="pb-2 text-xs text-zinc-400">Updating…</span>}
+            </div>
 
             {loadingDetail && <p className="mt-6 text-sm text-zinc-500">Loading…</p>}
             {detailError && <p className="mt-6 rounded-lg bg-red-50 p-4 text-red-700">{detailError}</p>}
