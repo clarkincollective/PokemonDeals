@@ -5,6 +5,7 @@ import { slugifySet } from "@/lib/slugify";
 import { timeAgo, timeUntil } from "@/lib/time";
 import AffiliateLink from "@/components/AffiliateLink";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
+import SaveCardButton from "@/components/SaveCardButton";
 
 // One deal in a grid. Deliberately answers four questions fast and with
 // ONE action:
@@ -34,6 +35,20 @@ export default function DealCard({ deal, rank, hub, pageName = "home" }) {
 
   return (
     <div className="group flex h-full flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950">
+     <div className="relative">
+      <div className="absolute bottom-2 right-2 z-10">
+        <SaveCardButton
+          compact
+          card={{
+            slug: hub?.slug ?? null,
+            dealId: deal.id,
+            name: cardName,
+            set: cardSet,
+            image: deal.image_url,
+            price: deal.total_price,
+          }}
+        />
+      </div>
       <a href={`/deals/${deal.id}`} className="relative block aspect-square w-full bg-zinc-50 dark:bg-zinc-900">
         {deal.image_url ? (
           <Image
@@ -68,6 +83,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home" }) {
           {discountPct}%
         </span>
       </a>
+     </div>
 
       <div className="flex flex-1 flex-col gap-1.5 p-4">
         <a

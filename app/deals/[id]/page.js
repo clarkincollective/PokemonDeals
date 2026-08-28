@@ -16,6 +16,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import StickyDealCta from "@/components/StickyDealCta";
+import RecordCardView from "@/components/RecordCardView";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
 import ShareButton from "@/components/ShareButton";
@@ -274,6 +275,16 @@ export default async function DealDetailPage({ params }) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <RecordCardView
+        card={{
+          slug: cardHub?.slug ?? null,
+          dealId: deal.id,
+          name: cardName,
+          set: cardSet,
+          image: deal.image_url,
+          price: deal.total_price,
+        }}
       />
       <SiteHeader />
       <div className="mx-auto max-w-5xl px-6 py-10">

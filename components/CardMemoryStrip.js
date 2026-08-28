@@ -4,17 +4,14 @@ import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
-import { readRecent, readSaved, subscribeCards, getServerSnapshot } from "@/lib/recentCards";
+import { readRecent, readSaved, subscribeCards, getServerSnapshot, entryHref } from "@/lib/recentCards";
 
 // Homepage strips for the viewer's own locally-stored "saved" and
 // "recently viewed" cards. Renders nothing on the server and nothing at
 // all when both lists are empty, so first-time visitors see no gap.
 function Tile({ card }) {
   return (
-    <Link
-      href={`/cards/${card.slug}`}
-      className="group flex w-32 shrink-0 flex-col gap-1.5"
-    >
+    <Link href={entryHref(card)} className="group flex w-32 shrink-0 flex-col gap-1.5">
       <div className="relative h-32 w-32 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
         {card.image ? (
           <Image src={card.image} alt={card.name || "Card"} fill sizes="128px" className="object-contain p-2" />
@@ -41,7 +38,7 @@ function Row({ title, cards }) {
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">{title}</h2>
       <div className="-mx-6 flex gap-4 overflow-x-auto px-6 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {cards.map((c) => (
-          <Tile key={c.slug} card={c} />
+          <Tile key={c.key} card={c} />
         ))}
       </div>
     </div>
@@ -56,8 +53,8 @@ export default function CardMemoryStrip() {
 
   // Don't repeat a card in "recently viewed" if it's already shown under
   // "saved" right above it.
-  const savedSlugs = new Set(saved.map((c) => c.slug));
-  const recentOnly = recent.filter((c) => !savedSlugs.has(c.slug));
+  const savedKeys = new Set(saved.map((c) => c.key));
+  const recentOnly = recent.filter((c) => !savedKeys.has(c.key));
 
   return (
     <section className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
