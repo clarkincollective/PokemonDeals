@@ -44,7 +44,7 @@ export default async function MarketDataPage() {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
+    <div className="flex min-h-screen flex-col bg-paper">
       <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
@@ -72,7 +72,7 @@ export default async function MarketDataPage() {
             <Link
               key={p.href}
               href={p.href}
-              className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950"
+              className="rounded-xl border border-zinc-200 bg-white p-5 shadow-card transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950"
             >
               <h2 className="font-semibold text-black dark:text-zinc-50">{p.title} →</h2>
               <p className="mt-1 text-sm text-zinc-500">{p.description}</p>

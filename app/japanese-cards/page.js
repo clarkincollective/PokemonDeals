@@ -100,7 +100,7 @@ export default async function JapaneseCardsPage({ searchParams }) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
+    <div className="flex min-h-screen flex-col bg-paper">
       <SiteHeader />
       <RegionRedirect />
 

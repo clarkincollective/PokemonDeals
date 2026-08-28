@@ -31,7 +31,7 @@ const ul = "mt-3 flex list-disc flex-col gap-2 pl-5 text-sm leading-relaxed text
 
 export default function MethodologyPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
+    <div className="flex min-h-screen flex-col bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <SiteHeader />
 

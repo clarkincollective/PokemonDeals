@@ -30,7 +30,7 @@ const p = "mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400";
 
 export default function AffiliateDisclosurePage() {
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
+    <div className="flex min-h-screen flex-col bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <SiteHeader />
 

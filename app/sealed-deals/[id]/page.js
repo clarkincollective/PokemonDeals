@@ -114,7 +114,7 @@ export default async function SealedDealDetailPage({ params }) {
   // instead of a clear "gone" signal.
   if (!shouldIndexDeal(deal)) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-black">
+      <div className="min-h-screen bg-paper">
         <SiteHeader />
         <div className="mx-auto max-w-2xl px-6 py-16 text-center">
           <p className="text-zinc-500">Couldn&apos;t find that deal - it may have expired.</p>
@@ -174,7 +174,7 @@ export default async function SealedDealDetailPage({ params }) {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-black">
+    <div className="min-h-screen bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
       <SiteHeader />
       <div className="mx-auto max-w-5xl px-6 py-10">
@@ -185,7 +185,7 @@ export default async function SealedDealDetailPage({ params }) {
           ← All sealed product deals
         </Link>
 
-        <div className="mt-4 flex flex-col gap-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="mt-4 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
           <div className="relative h-56 w-56 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:self-auto dark:bg-zinc-900">
             {deal.image_url ? (
               <Image src={deal.image_url} alt={deal.title} fill sizes="224px" className="object-contain p-3" />
@@ -280,7 +280,7 @@ export default async function SealedDealDetailPage({ params }) {
           </div>
         </div>
 
-        <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
           <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Price history</h2>
           {history.length >= 2 ? (
             <div className="mt-4">

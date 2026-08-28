@@ -168,7 +168,7 @@ export default function SearchClient() {
   const totalPages = catalog?.total ? Math.ceil(catalog.total / catalog.pageSize) : null;
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
+    <div className="flex min-h-screen flex-col bg-paper">
       <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
@@ -269,7 +269,7 @@ export default function SearchClient() {
                   {catalog.results.map((c) => (
                     <div
                       key={c.tcgplayerId}
-                      className="flex flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950"
+                      className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950"
                     >
                       <button onClick={() => pickCard(c)} className="relative aspect-square w-full bg-zinc-50 text-left dark:bg-zinc-900">
                         {c.imageUrl ? (
@@ -360,7 +360,7 @@ export default function SearchClient() {
               ← Back to results
             </button>
 
-            <div className="mt-4 flex flex-col gap-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="mt-4 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
               <div className="relative h-40 w-40 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-100 sm:self-auto dark:bg-zinc-900">
                 {selected.imageUrl ? (
                   <Image src={selected.imageUrl} alt={selected.name} fill sizes="160px" className="object-contain p-3" />
@@ -473,7 +473,7 @@ export default function SearchClient() {
 
             {detail && (
               <>
-                <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
                   <h3 className="text-sm font-semibold text-black dark:text-zinc-50">Price history</h3>
                   <div className="mt-4">
                     <PriceHistoryChart points={detail.history} />

@@ -22,7 +22,7 @@ export default async function MostListedCardsPage() {
   const top = hubs.slice(0, 100);
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
+    <div className="flex min-h-screen flex-col bg-paper">
       <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">

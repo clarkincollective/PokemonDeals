@@ -194,7 +194,7 @@ export default async function CardHubPage({ params, searchParams }) {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-black">
+    <div className="min-h-screen bg-paper">
       {allOffers.length > 0 && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
       )}
@@ -211,7 +211,7 @@ export default async function CardHubPage({ params, searchParams }) {
           ]}
         />
 
-        <div className="mt-4 flex flex-col gap-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="mt-4 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
           <div className="relative h-56 w-56 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:self-auto dark:bg-zinc-900">
             {cheapest?.image_url ? (
               <Image src={cheapest.image_url} alt={`${hub.name} - ${hub.set}`} fill sizes="224px" className="object-contain p-3" />
@@ -302,7 +302,7 @@ export default async function CardHubPage({ params, searchParams }) {
         )}
 
         {primaryHistory.length >= 2 && (
-          <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Market price history</h2>
             <p className="text-xs text-zinc-400">Real market pricing, fetched fresh for this page.</p>
             <div className="mt-4">
@@ -312,7 +312,7 @@ export default async function CardHubPage({ params, searchParams }) {
         )}
 
         {analysis && (analysis.graded.length > 0 || analysis.raw.history.length > 0) && (
-          <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Every variant, side by side</h2>
             <p className="text-xs text-zinc-400">Raw and every graded tier with real recorded sales.</p>
             <div className="mt-4">
@@ -330,7 +330,7 @@ export default async function CardHubPage({ params, searchParams }) {
         )}
 
         {offers.length > FEATURED_OFFER_COUNT && (
-        <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
           <h2 className="text-sm font-semibold text-black dark:text-zinc-50">All {offers.length} active listings</h2>
           <p className="text-xs text-zinc-400">Every real, currently active eBay listing for this exact card - cheapest first.</p>
 

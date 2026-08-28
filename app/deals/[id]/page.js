@@ -153,7 +153,7 @@ export default async function DealDetailPage({ params }) {
   // pricing/CTAs to anyone who still has the link.
   if (!shouldIndexDeal(deal)) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-black">
+      <div className="min-h-screen bg-paper">
         <SiteHeader />
         <div className="mx-auto max-w-2xl px-6 py-16 text-center">
           <p className="text-zinc-500">Couldn&apos;t find that deal - it may have expired.</p>
@@ -268,7 +268,7 @@ export default async function DealDetailPage({ params }) {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-black">
+    <div className="min-h-screen bg-paper">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
@@ -297,7 +297,7 @@ export default async function DealDetailPage({ params }) {
           ]}
         />
 
-        <div className="mt-4 flex flex-col gap-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="mt-4 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
           <div className="relative h-56 w-56 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:self-auto dark:bg-zinc-900">
             {deal.image_url ? (
               <Image src={deal.image_url} alt={deal.title} fill sizes="224px" className="object-contain p-3" />
@@ -451,7 +451,7 @@ export default async function DealDetailPage({ params }) {
           </div>
         </div>
 
-        <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
           <h2 className="text-sm font-semibold text-black dark:text-zinc-50">
             {deal.is_graded ? `${deal.grader} ${deal.grade} price history` : "Market price history"}
           </h2>
@@ -487,7 +487,7 @@ export default async function DealDetailPage({ params }) {
         {analysis && (analysis.graded.length > 0 || analysis.raw.history.length > 0) && (
           <div
             id="price-analysis"
-            className="mt-6 scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
+            className="mt-6 scroll-mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950"
           >
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Every variant, side by side</h2>
             <p className="text-xs text-zinc-400">
@@ -502,7 +502,7 @@ export default async function DealDetailPage({ params }) {
         {analysis && (analysis.conditionBreakdown.length > 0 || analysis.salesVelocity) && (
           <div className="mt-6 grid gap-6 sm:grid-cols-2">
             {analysis.conditionBreakdown.length > 0 && (
-              <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+              <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
                 <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Condition breakdown</h2>
                 <p className="text-xs text-zinc-400">
                   Current raw market price by condition - click any to find that condition on eBay.
@@ -526,7 +526,7 @@ export default async function DealDetailPage({ params }) {
             )}
 
             {analysis.salesVelocity && (
-              <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+              <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
                 <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Market activity</h2>
                 <p className="text-xs text-zinc-400">Real eBay sales across all conditions and grades.</p>
                 <ul className="mt-4 flex flex-col gap-2 text-sm">
@@ -553,7 +553,7 @@ export default async function DealDetailPage({ params }) {
         )}
 
         {recentSales.length > 0 && (
-          <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Recent eBay sales</h2>
             <p className="text-xs text-zinc-400">Real individual sold listings, not an estimate.</p>
             <ul className="mt-4 divide-y divide-zinc-100 dark:divide-zinc-900">

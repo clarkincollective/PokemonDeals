@@ -28,14 +28,14 @@ export const metadata = {
 // silently resetting it.
 function TypeToggle({ params, type }) {
   const tabClass = (active) =>
-    `rounded-sm px-3 py-1.5 text-xs font-semibold transition-colors ${
+    `rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
       active
-        ? "bg-black text-white dark:bg-white dark:text-black"
-        : "text-zinc-600 hover:text-black dark:text-zinc-300 dark:hover:text-white"
+        ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900"
+        : "text-zinc-600 hover:text-red-600 dark:text-zinc-300 dark:hover:text-red-500"
     }`;
 
   return (
-    <div className="mt-4 inline-flex gap-0.5 rounded-md border border-zinc-200 p-0.5 dark:border-zinc-800">
+    <div className="mt-4 inline-flex gap-0.5 rounded-full border border-zinc-200 p-0.5 dark:border-zinc-800">
       <a href={filterHref(params, "type", "raw", "/best-finds")} className={tabClass(type === "raw")}>
         Raw
       </a>
@@ -64,7 +64,7 @@ export default async function BestFindsPage({ searchParams }) {
   ]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
+    <div className="flex min-h-screen flex-col bg-paper">
       <SiteHeader />
       <RegionRedirect />
 
@@ -121,7 +121,7 @@ export default async function BestFindsPage({ searchParams }) {
           <div className="mt-10 flex justify-center">
             <Link
               href="/"
-              className="rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+              className="rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-600 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-red-600 dark:hover:text-white"
             >
               See Today&apos;s Other Listings →
             </Link>

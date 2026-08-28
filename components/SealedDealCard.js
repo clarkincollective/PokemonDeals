@@ -22,7 +22,7 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
   const marketInfo = MARKETPLACES[deal.marketplace];
 
   return (
-    <div className="group flex h-full flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="group flex h-full flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950">
       <a href={`/sealed-deals/${deal.id}`} className="relative block aspect-square w-full bg-zinc-50 dark:bg-zinc-900">
         {deal.image_url ? (
           <Image
