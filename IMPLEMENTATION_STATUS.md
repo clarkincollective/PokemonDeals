@@ -422,15 +422,30 @@ already spends selectively for graded cards.
   card) is still trusted — closing that would mean a `getItem` on every
   played listing, not just the no-signal ones.
 
-**Retroactive cleanup — `scripts/verifyRawConditionDeals.js`** (user-run,
-dry-run by default, `--apply`, `--limit N`). Re-checks active raw deals
-that are ≥ 45 % off with no recorded wear against eBay's Card Condition,
-then re-prices or retires. **Dry-run sample (first 8 of ~2,369 suspects):
-7 were genuinely played/damaged cards priced as NM** — all retired (no
-priceable worse tier in PPT data). Clearing the full backlog is ~2,369
-Browse calls (≈ half a day's quota) so it needs spreading across runs via
-`--limit`, and it will visibly shrink the live deal count — the culled
-deals are the fake ones.
+**Retroactive cleanup — `scripts/verifyRawConditionDeals.js`** (dry-run
+by default, `--apply`, `--limit N`). Re-checks active raw deals that are
+≥ 45 % off with no recorded wear against eBay's Card Condition, then
+re-prices or retires.
+
+**Run 2026-08-28 → 08-29 (manual batches + an overnight quota-gated
+sweep):** ~2,369 initial suspects → **~1,440 retired + ~28 repriced**.
+The played-card hit rate fell from ~73 % in the first batch to ~4 % by
+the last — the fakes are essentially exhausted. Active deal count
+~8,780 → **~7,520** (≈ 14 % cull, all fake or corrected). ~930 raw
+"suspects" remain (≥ 45 % off, no recorded wear) but at the ~4 % tail
+hit-rate these are overwhelmingly genuine NM steals or listings eBay's
+descriptor confirms as NM; further passes are low-yield and not worth the
+Browse quota. Re-run `--apply` any time to chip at the remainder.
+
+Also fixed from a live report (Turtwig 103/130 League promo, every raw
+listing shown 54–72 % "below" the $25.86 NM price):
+- `detectListingCondition` now reads a trailing **"HP" right after a
+  `103/130` collector number** as Heavily Played (bare "HP" elsewhere
+  stays ignored — Hit Points).
+- `resolveRawCondition` also triggers eBay verification when the listing
+  price is **at/below the card's Lightly Played market value**, not only
+  above 45 % off — "Near Mint" a whole grade under LP isn't credible.
+- That card's 11 deals → 3 (8 retired as real LP/MP/HP).
 
 ## Not building (deliberate, documented)
 
