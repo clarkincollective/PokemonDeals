@@ -73,7 +73,7 @@ export default function CardPriceSummary({
             <Price usd={rawNm} native={{ amount: rawNm, currency: "USD" }} approxPrefix="" />
           </p>
           <p className="mt-1 text-xs text-zinc-400">
-            Reference price from PokémonPriceTracker, based on recent sold data —{" "}
+            Reference price from PokemonPriceTracker, based on recent sold data —{" "}
             <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">
               how we work this out
             </Link>

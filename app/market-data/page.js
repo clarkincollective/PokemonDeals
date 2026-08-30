@@ -8,7 +8,7 @@ import { formatScanTime } from "@/lib/time";
 
 export const revalidate = 900;
 
-const TITLE = "Pokémon Card Market Data";
+const TITLE = "Pokemon Card Market Data";
 const DESCRIPTION =
   "Real aggregate market data from our own live-tracked catalog - most-listed cards, highest-value cards, and more, all from real active eBay listings.";
 
@@ -69,7 +69,7 @@ export default async function MarketDataPage() {
       <header className="border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-5xl px-6 py-10">
           <h1 className="max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
-            Pokémon Card Market Data
+            Pokemon Card Market Data
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
             Real aggregate numbers from our own live-tracked catalog - not estimates, every figure below

@@ -6,7 +6,7 @@ const SITE_URL = "https://pokemondealfinder.com";
 
 const TITLE = "Affiliate Disclosure";
 const DESCRIPTION =
-  "Pokémon Deal Finder earns a commission through the eBay Partner Network and the TCGPlayer affiliate program. It doesn't change the price you pay, and there is no paid placement.";
+  "Pokemon Deal Finder earns a commission through the eBay Partner Network and the TCGPlayer affiliate program. It doesn't change the price you pay, and there is no paid placement.";
 
 export const metadata = {
   title: TITLE,
@@ -40,7 +40,7 @@ export default function AffiliateDisclosurePage() {
         </h1>
 
         <p className="mt-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-          Pokémon Deal Finder participates in the eBay Partner Network and the TCGPlayer affiliate
+          Pokemon Deal Finder participates in the eBay Partner Network and the TCGPlayer affiliate
           program (administered through Impact.com). When you click a listing or price link on this
           site and go on to make a purchase, we may earn a commission from eBay or TCGPlayer.
         </p>

@@ -58,7 +58,7 @@ export async function GET() {
         subject: `${a.card_name} is now $${price.toFixed(2)}`,
         text: `${a.card_name} has a listing at $${price.toFixed(2)} (${Math.round(cheapest.discount_pct * 100)}% below market).\n\nSee it: ${cardUrl}\n\nStop these emails: ${unsub}`,
         html: `<p><strong>${escapeHtml(a.card_name)}</strong> has a listing at <strong>$${price.toFixed(2)}</strong> (${Math.round(cheapest.discount_pct * 100)}% below market).</p>
-<p><a href="${cardUrl}">See it on Pokémon Deal Finder</a></p>
+<p><a href="${cardUrl}">See it on Pokemon Deal Finder</a></p>
 <p style="color:#888;font-size:12px"><a href="${unsub}" style="color:#888">Stop these emails</a></p>`,
       });
       if (res.sent) {

@@ -120,7 +120,7 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
           <ShareButton
             url={`${SITE_URL}/sealed-deals/${deal.id}`}
             title={`${productName} - ${discountPct}% below market`}
-            text={`${productName}${productSet ? ` (${productSet})` : ""} - $${Number(deal.total_price).toFixed(2)}, ${discountPct}% below market on Pokémon Deal Finder`}
+            text={`${productName}${productSet ? ` (${productSet})` : ""} - $${Number(deal.total_price).toFixed(2)}, ${discountPct}% below market on Pokemon Deal Finder`}
             className="rounded-md px-2.5"
           />
           <AffiliateLink

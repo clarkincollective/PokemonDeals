@@ -26,12 +26,12 @@ export default function OpengraphImage() {
             <line x1="87" y1="87" x2="128" y2="128" stroke="#DC2626" strokeWidth="17" strokeLinecap="round" />
           </svg>
           <div style={{ display: "flex", fontSize: 84, fontWeight: 700, letterSpacing: -2 }}>
-            <span style={{ color: "#DC2626" }}>Pokémon&nbsp;</span>
+            <span style={{ color: "#DC2626" }}>Pokemon&nbsp;</span>
             <span style={{ color: "#18181b" }}>Deal Finder</span>
           </div>
         </div>
         <div style={{ marginTop: 28, fontSize: 32, color: "#52525b" }}>
-          Live below-market Pokémon card listings from eBay
+          Live below-market Pokemon card listings from eBay
         </div>
       </div>
     ),

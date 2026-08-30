@@ -9,7 +9,7 @@ export const revalidate = 900;
 
 const TITLE = "Browse by Set";
 const DESCRIPTION =
-  "Every Pokémon TCG set with an active below-market deal on eBay right now, browsable one set at a time.";
+  "Every Pokemon TCG set with an active below-market deal on eBay right now, browsable one set at a time.";
 
 // Real gap found live: without an explicit openGraph/twitter block, this
 // page (and japanese-cards/sealed-deals/best-finds - same fix applied to

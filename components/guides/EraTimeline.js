@@ -1,4 +1,4 @@
-// Rough eras of the Pokémon TCG and what drives value differently in each.
+// Rough eras of the Pokemon TCG and what drives value differently in each.
 const BANDS = [
   {
     x: 20,

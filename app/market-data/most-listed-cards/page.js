@@ -8,9 +8,9 @@ import { formatScanTime } from "@/lib/time";
 
 export const revalidate = 900;
 
-const TITLE = "Most-Listed Pokémon Cards";
+const TITLE = "Most-Listed Pokemon Cards";
 const DESCRIPTION =
-  "Real Pokémon cards with the most sellers competing on price at once - ranked by currently active eBay listing count, not an estimate.";
+  "Real Pokemon cards with the most sellers competing on price at once - ranked by currently active eBay listing count, not an estimate.";
 
 export const metadata = {
   title: TITLE,
@@ -54,7 +54,7 @@ export default async function MostListedCardsPage() {
             ← Market Data
           </Link>
           <h1 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
-            Most-Listed Pokémon Cards
+            Most-Listed Pokemon Cards
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
             Top {top.length} cards by real, currently active eBay listing count - the more sellers

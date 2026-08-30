@@ -18,9 +18,9 @@ export async function generateMetadata({ searchParams }) {
   const params = await searchParams;
   const pageParam = typeof params.page === "string" ? Number(params.page) : 1;
   const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
-  const title = page > 1 ? `Japanese Pokémon Cards - Page ${page}` : "Japanese Pokémon Cards";
+  const title = page > 1 ? `Japanese Pokemon Cards - Page ${page}` : "Japanese Pokemon Cards";
   const description =
-    "Real Japanese-print Pokémon card deals on eBay, priced against real Japanese-catalog market data - not converted from English pricing.";
+    "Real Japanese-print Pokemon card deals on eBay, priced against real Japanese-catalog market data - not converted from English pricing.";
   const canonical = page > 1 ? `/japanese-cards?page=${page}` : "/japanese-cards";
 
   // See app/sets/page.js's identical fix - was falling back to the root
@@ -110,9 +110,9 @@ export default async function JapaneseCardsPage({ searchParams }) {
             { name: "Japanese cards" },
           ]),
           collectionPage({
-            name: "Japanese Pokémon Card Deals",
+            name: "Japanese Pokemon Card Deals",
             description:
-              "Genuine Japanese-print Pokémon card listings on eBay, priced against real Japanese-catalog market data.",
+              "Genuine Japanese-print Pokemon card listings on eBay, priced against real Japanese-catalog market data.",
             url: "/japanese-cards",
           }),
         ]}
@@ -126,7 +126,7 @@ export default async function JapaneseCardsPage({ searchParams }) {
             🇯🇵 Japanese Prints
           </span>
           <h1 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
-            Japanese Pokémon Card Deals
+            Japanese Pokemon Card Deals
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
             Genuine Japanese-print listings on eBay, priced against real Japanese-catalog market data -

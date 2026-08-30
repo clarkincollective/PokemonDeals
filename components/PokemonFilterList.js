@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 
-// Client-side filter over the full, already-server-rendered Pokémon list -
+// Client-side filter over the full, already-server-rendered Pokemon list -
 // not a fetch-on-type search. Every real /pokemon/[slug] link stays in the
 // initial HTML for crawlers (see app/pokemon/page.js); this is just a
 // progressive-enhancement filter for a visitor scanning a couple hundred
@@ -25,8 +25,8 @@ export default function PokemonFilterList({ species }) {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Filter Pokémon, e.g. Charizard..."
-          aria-label="Filter Pokémon"
+          placeholder="Filter Pokemon, e.g. Charizard..."
+          aria-label="Filter Pokemon"
           className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
         />
         {query && (
@@ -43,12 +43,12 @@ export default function PokemonFilterList({ species }) {
 
       {query && (
         <p className="mb-3 text-xs text-zinc-400">
-          {filtered.length} of {species.length} Pokémon match &quot;{query}&quot;
+          {filtered.length} of {species.length} Pokemon match &quot;{query}&quot;
         </p>
       )}
 
       {filtered.length === 0 ? (
-        <p className="text-zinc-500">No Pokémon match &quot;{query}&quot;.</p>
+        <p className="text-zinc-500">No Pokemon match &quot;{query}&quot;.</p>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((s) => (

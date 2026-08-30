@@ -6,7 +6,7 @@ const SITE_URL = "https://pokemondealfinder.com";
 
 const TITLE = "About";
 const DESCRIPTION =
-  "What Pokémon Deal Finder is: a free tool that continuously scans eBay for Pokémon cards priced below real market value, funded by affiliate commissions that don't change the price you pay.";
+  "What Pokemon Deal Finder is: a free tool that continuously scans eBay for Pokemon cards priced below real market value, funded by affiliate commissions that don't change the price you pay.";
 
 export const metadata = {
   title: TITLE,
@@ -28,9 +28,9 @@ const breadcrumbJsonLd = {
 const aboutPageJsonLd = {
   "@context": "https://schema.org",
   "@type": "AboutPage",
-  name: "About Pokémon Deal Finder",
+  name: "About Pokemon Deal Finder",
   url: `${SITE_URL}/about`,
-  publisher: { "@type": "Organization", name: "Pokémon Deal Finder", url: SITE_URL },
+  publisher: { "@type": "Organization", name: "Pokemon Deal Finder", url: SITE_URL },
 };
 
 export default function AboutPage() {
@@ -42,11 +42,11 @@ export default function AboutPage() {
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
         <h1 className="text-3xl font-bold tracking-tight text-black dark:text-zinc-50">
-          About Pokémon Deal Finder
+          About Pokemon Deal Finder
         </h1>
 
         <p className="mt-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-          Pokémon Deal Finder is a free tool that continuously scans eBay for Pokémon Trading Card Game
+          Pokemon Deal Finder is a free tool that continuously scans eBay for Pokemon Trading Card Game
           listings priced below their real market value. Every card shown is a real, currently-active
           listing that has been checked against real market pricing and recent eBay sold-listing data —
           not an estimate, and nothing is fabricated.
@@ -73,7 +73,7 @@ export default function AboutPage() {
             </Link>{" "}
             and by{" "}
             <Link href="/pokemon" className="text-red-600 hover:underline dark:text-red-500">
-              Pokémon
+              Pokemon
             </Link>
             .
           </li>

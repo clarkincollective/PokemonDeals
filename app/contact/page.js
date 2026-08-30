@@ -6,7 +6,7 @@ const CONTACT_EMAIL = "pokemondealfinder@gmail.com";
 
 const TITLE = "Contact";
 const DESCRIPTION =
-  "Reach Pokémon Deal Finder by email — for wrong card-to-listing matches, data problems, affiliate or press enquiries, and general questions.";
+  "Reach Pokemon Deal Finder by email — for wrong card-to-listing matches, data problems, affiliate or press enquiries, and general questions.";
 
 export const metadata = {
   title: TITLE,
@@ -28,9 +28,9 @@ const breadcrumbJsonLd = {
 const contactPageJsonLd = {
   "@context": "https://schema.org",
   "@type": "ContactPage",
-  name: "Contact Pokémon Deal Finder",
+  name: "Contact Pokemon Deal Finder",
   url: `${SITE_URL}/contact`,
-  publisher: { "@type": "Organization", name: "Pokémon Deal Finder", url: SITE_URL, email: CONTACT_EMAIL },
+  publisher: { "@type": "Organization", name: "Pokemon Deal Finder", url: SITE_URL, email: CONTACT_EMAIL },
 };
 
 export default function ContactPage() {

@@ -6,7 +6,7 @@ const SITE_URL = "https://pokemondealfinder.com";
 
 const TITLE = "Methodology";
 const DESCRIPTION =
-  "The exact data sources, pricing rules, card-matching logic, seller trust checks, and known limitations behind every deal shown on Pokémon Deal Finder.";
+  "The exact data sources, pricing rules, card-matching logic, seller trust checks, and known limitations behind every deal shown on Pokemon Deal Finder.";
 
 export const metadata = {
   title: TITLE,
@@ -48,12 +48,12 @@ export default function MethodologyPage() {
         <ul className={ul}>
           <li>
             <span className="font-semibold text-black dark:text-zinc-50">eBay Browse API</span> — live
-            listings from the Pokémon individual-cards category across five marketplaces (US, UK,
+            listings from the Pokemon individual-cards category across five marketplaces (US, UK,
             Australia, Canada, Germany), including the listing price, shipping cost, listing type
             (Buy It Now or auction), seller feedback, and photos.
           </li>
           <li>
-            <span className="font-semibold text-black dark:text-zinc-50">PokémonPriceTracker</span> —
+            <span className="font-semibold text-black dark:text-zinc-50">PokemonPriceTracker</span> —
             real market price per condition for raw cards, real sold-comp prices for graded cards,
             sealed-product prices, price history, and the underlying catalogue of 50,000+ cards.
           </li>
@@ -62,7 +62,7 @@ export default function MethodologyPage() {
         <h2 className={h2}>What &ldquo;market price&rdquo; means</h2>
         <p className={p}>
           For a raw card it is the current market price for that card&apos;s condition (Near Mint
-          unless the listing says otherwise — see below), taken from PokémonPriceTracker and grounded
+          unless the listing says otherwise — see below), taken from PokemonPriceTracker and grounded
           in recent eBay sold listings. Where a card has both a 1st Edition and an Unlimited printing,
           the price is adjusted so an Unlimited card isn&apos;t compared against an inflated 1st
           Edition figure. For a graded card, market price is the real sold-comp price for that exact
@@ -140,9 +140,9 @@ export default function MethodologyPage() {
           behind it. A card hub (one page consolidating every current listing of an exact printing)
           exists only when two or more listings of that printing are active at once. A{" "}
           <Link href="/pokemon" className="text-red-600 hover:underline dark:text-red-500">
-            Pokémon
+            Pokemon
           </Link>{" "}
-          page exists only when that Pokémon has at least five active listings across its printings. A{" "}
+          page exists only when that Pokemon has at least five active listings across its printings. A{" "}
           <Link href="/sets" className="text-red-600 hover:underline dark:text-red-500">
             set
           </Link>{" "}
@@ -162,7 +162,7 @@ export default function MethodologyPage() {
             can be a lag between the sale and the next scan.
           </li>
           <li>
-            Market pricing depends on a third party (PokémonPriceTracker); for very obscure or very
+            Market pricing depends on a third party (PokemonPriceTracker); for very obscure or very
             new cards the underlying data can be thin.
           </li>
         </ul>

@@ -35,11 +35,11 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }) {
   const { slug } = await params;
   const resolved = await resolveSpeciesSlug(slug);
-  if (!resolved) return { title: "Pokémon not found", robots: { index: false, follow: true } };
+  if (!resolved) return { title: "Pokemon not found", robots: { index: false, follow: true } };
 
-  const title = `${resolved.name} — Pokémon Card Prices & Deals`;
+  const title = `${resolved.name} — Pokemon Card Prices & Deals`;
   const setsPhrase = resolved.setCount === 1 ? "1 set" : `${resolved.setCount} sets`;
-  const description = `${resolved.count} active ${resolved.name} Pokémon card listings on eBay right now, across ${setsPhrase} — compared against real market pricing, cheapest first.`;
+  const description = `${resolved.count} active ${resolved.name} Pokemon card listings on eBay right now, across ${setsPhrase} — compared against real market pricing, cheapest first.`;
   const canonical = `/pokemon/${slug}`;
 
   // Explicit openGraph/twitter blocks - same site-wide fix as
@@ -115,14 +115,14 @@ export default async function PokemonSpeciesPage({ params }) {
         ? `$${Number(resolved.minPrice).toFixed(2)}`
         : null;
 
-  // Home → Pokémon → <Species>. Position 1 is "Deals" → "/" to match the
+  // Home → Pokemon → <Species>. Position 1 is "Deals" → "/" to match the
   // existing BreadcrumbList on /cards/[slug], /sets/[slug] and /deals/[id].
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Deals", item: `${SITE_URL}/` },
-      { "@type": "ListItem", position: 2, name: "Pokémon", item: `${SITE_URL}/pokemon` },
+      { "@type": "ListItem", position: 2, name: "Pokemon", item: `${SITE_URL}/pokemon` },
       { "@type": "ListItem", position: 3, name: resolved.name, item: `${SITE_URL}${basePath}` },
     ],
   };
@@ -136,7 +136,7 @@ export default async function PokemonSpeciesPage({ params }) {
       ? {
           "@context": "https://schema.org",
           "@type": "ItemList",
-          name: `${resolved.name} Pokémon card prints with active deals`,
+          name: `${resolved.name} Pokemon card prints with active deals`,
           numberOfItems: prints.length,
           itemListElement: prints.map((p, i) => ({
             "@type": "ListItem",
@@ -163,7 +163,7 @@ export default async function PokemonSpeciesPage({ params }) {
           <Breadcrumbs
             items={[
               { name: "Deals", href: "/" },
-              { name: "Pokémon", href: "/pokemon" },
+              { name: "Pokemon", href: "/pokemon" },
               { name: resolved.name },
             ]}
           />
@@ -171,10 +171,10 @@ export default async function PokemonSpeciesPage({ params }) {
             href="/pokemon"
             className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
           >
-            ← Back to Pokémon
+            ← Back to Pokemon
           </Link>
           <h1 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
-            {resolved.name} — Pokémon Card Prices &amp; Deals
+            {resolved.name} — Pokemon Card Prices &amp; Deals
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
             Every real below-market {resolved.name} listing on eBay right now, across{" "}
@@ -240,7 +240,7 @@ export default async function PokemonSpeciesPage({ params }) {
             href="/pokemon"
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
           >
-            ← Back to Pokémon
+            ← Back to Pokemon
           </Link>
         </div>
       </main>

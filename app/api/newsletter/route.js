@@ -32,16 +32,16 @@ export async function GET(request) {
     .from("newsletter_subscribers")
     .update({ confirmed: true, confirmed_at: new Date().toISOString(), unsubscribed_at: null })
     .eq("id", row.id);
-  return html("You're subscribed to the weekly Pokémon deals email.");
+  return html("You're subscribed to the weekly Pokemon deals email.");
 }
 
 function html(message, status = 200) {
   return new Response(
     `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Pokémon Deal Finder</title>
+<title>Pokemon Deal Finder</title>
 <div style="font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1.25rem;text-align:center">
   <p style="font-size:1.05rem;line-height:1.5">${message.replace(/[<>&]/g, "")}</p>
-  <p><a href="${SITE_URL}" style="color:#d62828;font-weight:600">← Back to Pokémon Deal Finder</a></p>
+  <p><a href="${SITE_URL}" style="color:#d62828;font-weight:600">← Back to Pokemon Deal Finder</a></p>
 </div>`,
     { status, headers: { "Content-Type": "text/html; charset=utf-8" } }
   );

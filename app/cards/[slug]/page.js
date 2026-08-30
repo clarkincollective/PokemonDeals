@@ -78,7 +78,7 @@ export async function generateMetadata({ params }) {
 
   // Real gap found live: without an explicit openGraph/twitter block,
   // Next falls back to the root layout's generic site-wide preview
-  // (title "Pokémon Deal Finder", generic description, generic image,
+  // (title "Pokemon Deal Finder", generic description, generic image,
   // og:url pointing at the bare homepage) for every single card hub -
   // meaning sharing a specific card's link in Discord/Reddit/etc showed
   // no sign it was that card at all. fetchCardOffers is already
@@ -100,7 +100,7 @@ export async function generateMetadata({ params }) {
   const base = `${hub.name} (${hub.set})`;
   const suffix = ` Price & Deals`;
   const title = base.length + suffix.length <= 60 ? `${base}${suffix}` : base;
-  const description = `${hub.name} (${hub.set}) Pokémon card price and value - raw and graded (PSA/CGC/BGS) prices from real sold data, plus ${hub.count} live eBay listings compared cheapest first.`;
+  const description = `${hub.name} (${hub.set}) Pokemon card price and value - raw and graded (PSA/CGC/BGS) prices from real sold data, plus ${hub.count} live eBay listings compared cheapest first.`;
 
   return {
     title,
@@ -196,7 +196,7 @@ export default async function CardHubPage({ params }) {
     name: `${hub.name} - ${hub.set}`,
     image: allOffers[0]?.image_url ?? undefined,
     description: `${hub.name} (${hub.set}) - ${allOffers.length} active eBay ${allOffers.length === 1 ? "listing" : "listings"}, compared against real market pricing.`,
-    brand: { "@type": "Brand", name: "Pokémon" },
+    brand: { "@type": "Brand", name: "Pokemon" },
     offers: allOffers.map((deal) => ({
       "@type": "Offer",
       url: deal.listing_url,

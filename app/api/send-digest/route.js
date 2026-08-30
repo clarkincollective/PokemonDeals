@@ -70,12 +70,12 @@ export async function GET(request) {
     const unsub = `${SITE_URL}/api/newsletter?token=${s.token}&action=unsubscribe`;
     return {
       to: s.email,
-      subject: "This week's best Pokémon card deals",
-      text: `The biggest below-market Pokémon card finds on eBay this week:\n\n${deals
+      subject: "This week's best Pokemon card deals",
+      text: `The biggest below-market Pokemon card finds on eBay this week:\n\n${deals
         .map((d) => `${d.watchlist?.name ?? d.title} — ${formatMoney(d.total_price, currencyForDeal(d))} (${Math.round(d.discount_pct * 100)}% below market)\n${SITE_URL}/deals/${d.id}`)
         .join("\n\n")}\n\nMore: ${SITE_URL}/best-finds\nUnsubscribe: ${unsub}`,
       html: `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;color:#171514">
-  <h1 style="font-size:19px;margin:0 0 4px">This week's best Pokémon deals</h1>
+  <h1 style="font-size:19px;margin:0 0 4px">This week's best Pokemon deals</h1>
   <p style="color:#6b6560;font-size:13px;margin:0 0 16px">The biggest below-market finds on eBay right now, checked against real sold prices.</p>
   <table style="width:100%;border-collapse:collapse">${rows}</table>
   <p style="margin:20px 0"><a href="${SITE_URL}/best-finds" style="display:inline-block;background:#1a1613;color:#fff;font-size:13px;font-weight:600;text-decoration:none;padding:10px 18px;border-radius:8px">See more deals &rarr;</a></p>

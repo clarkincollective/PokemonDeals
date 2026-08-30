@@ -34,7 +34,7 @@ export default function Logo({ size = "large" }) {
         />
       </svg>
       <span className={isLarge ? "text-3xl font-bold tracking-tight sm:text-4xl" : "text-lg font-bold tracking-tight"}>
-        <span className="text-red-600 dark:text-red-500">Pokémon</span>{" "}
+        <span className="text-red-600 dark:text-red-500">Pokemon</span>{" "}
         <span className="text-black dark:text-zinc-50">Deal Finder</span>
       </span>
     </span>

@@ -11,7 +11,7 @@ import { filterHref, PriceFilterRow, CountryFilterRow } from "@/components/Filte
 export const revalidate = 60;
 
 const TITLE = "Today's Best Finds";
-const DESCRIPTION = "The biggest real discounts on higher-value Pokémon cards, found on eBay right now.";
+const DESCRIPTION = "The biggest real discounts on higher-value Pokemon cards, found on eBay right now.";
 
 // See app/sets/page.js's identical fix - was falling back to the root
 // layout's generic preview when shared.

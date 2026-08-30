@@ -27,8 +27,8 @@ export default function GuideLayout({ slug, children }) {
     description: g.blurb,
     datePublished: GUIDES_PUBLISHED,
     dateModified: GUIDES_PUBLISHED,
-    author: { "@type": "Organization", name: "Pokémon Deal Finder", url: SITE_URL },
-    publisher: { "@type": "Organization", name: "Pokémon Deal Finder", url: SITE_URL },
+    author: { "@type": "Organization", name: "Pokemon Deal Finder", url: SITE_URL },
+    publisher: { "@type": "Organization", name: "Pokemon Deal Finder", url: SITE_URL },
     mainEntityOfPage: `${SITE_URL}/guides/${slug}`,
   };
 

@@ -237,7 +237,7 @@ export default async function DealDetailPage({ params }) {
   // "current bid, may rise" cleanly, and this stays accurate either way.
   //
   // brand and shippingDetails are both real data, not filled in to please
-  // Search Console: "Pokémon" is genuinely the brand of every card here,
+  // Search Console: "Pokemon" is genuinely the brand of every card here,
   // and shippingRate is deal.shipping - the actual cost eBay's own API
   // returned for this exact listing, already used to compute total_price.
   // Deliberately NOT adding hasMerchantReturnPolicy - the real return
@@ -250,7 +250,7 @@ export default async function DealDetailPage({ params }) {
     name: `${cardName}${cardSet ? ` - ${cardSet}` : ""}`,
     image: deal.image_url ?? undefined,
     description: deal.title,
-    brand: { "@type": "Brand", name: "Pokémon" },
+    brand: { "@type": "Brand", name: "Pokemon" },
     offers: {
       "@type": "Offer",
       url: deal.listing_url,
@@ -470,7 +470,7 @@ export default async function DealDetailPage({ params }) {
               <ShareButton
                 url={`${SITE_URL}/deals/${deal.id}`}
                 title={`${cardName} - ${discountPct}% below market`}
-                text={`${cardName}${cardSet ? ` (${cardSet})` : ""} - $${Number(deal.total_price).toFixed(2)}, ${discountPct}% below market on Pokémon Deal Finder`}
+                text={`${cardName}${cardSet ? ` (${cardSet})` : ""} - $${Number(deal.total_price).toFixed(2)}, ${discountPct}% below market on Pokemon Deal Finder`}
                 label="Share"
                 className="rounded-lg px-4 py-2"
               />

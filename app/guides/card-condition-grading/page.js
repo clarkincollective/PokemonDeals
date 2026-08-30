@@ -19,7 +19,7 @@ export default function Page() {
 
       <GH2>Raw card condition</GH2>
       <GP>
-        Most marketplaces and price guides (including TCGPlayer, which underlies a lot of Pokémon
+        Most marketplaces and price guides (including TCGPlayer, which underlies a lot of Pokemon
         pricing data) use a five-step scale. Sellers assign it themselves, so treat it as a claim to
         verify against the photos, not a fact.
       </GP>
@@ -66,11 +66,11 @@ export default function Page() {
       <GP>
         Grading companies authenticate a card, assign a numeric grade, and seal it in a tamper-evident
         holder (a &ldquo;slab&rdquo;). The grade is theirs, not the seller&apos;s, which is why graded
-        cards trade in their own market. The main companies you&apos;ll see in Pokémon listings:
+        cards trade in their own market. The main companies you&apos;ll see in Pokemon listings:
       </GP>
       <GUL>
         <li>
-          <strong>PSA.</strong> The most common for Pokémon by volume. A single 1–10 whole-number
+          <strong>PSA.</strong> The most common for Pokemon by volume. A single 1–10 whole-number
           scale (with a rarely-used half grade at 1.5). PSA 10 is &ldquo;Gem Mint&rdquo;; PSA 9 is
           &ldquo;Mint&rdquo;. No sub-grades on the label.
         </li>
@@ -92,7 +92,7 @@ export default function Page() {
       </GUL>
       <GP>
         Grades are not interchangeable across companies — a PSA 10 and a CGC 10 don&apos;t command the
-        same price, and the market usually pays the most for PSA at the top end for Pokémon. When you
+        same price, and the market usually pays the most for PSA at the top end for Pokemon. When you
         compare graded prices, compare like for like: same company, same grade. On this site, graded
         listings are only ever priced against real sold records for that exact company and grade.
       </GP>

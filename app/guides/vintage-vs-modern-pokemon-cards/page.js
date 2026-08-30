@@ -12,7 +12,7 @@ export default function Page() {
     <GuideLayout slug={SLUG}>
       <GP>
         &ldquo;Vintage&rdquo; and &ldquo;modern&rdquo; aren&apos;t official categories, but collectors
-        use them because the two ends of the Pokémon TCG&apos;s history behave differently as markets.
+        use them because the two ends of the Pokemon TCG&apos;s history behave differently as markets.
         Knowing roughly where a set sits helps you read its prices.
       </GP>
 
@@ -25,7 +25,7 @@ export default function Page() {
         </li>
         <li>
           <strong>Middle era (2003–2016).</strong> The EX, Diamond &amp; Pearl, Platinum,
-          HeartGold &amp; SoulSilver, Black &amp; White, and XY blocks, after The Pokémon Company took
+          HeartGold &amp; SoulSilver, Black &amp; White, and XY blocks, after The Pokemon Company took
           the licence back. Large print runs; a long stretch that&apos;s only recently drawn
           sustained collector attention.
         </li>
@@ -79,7 +79,7 @@ export default function Page() {
       <GH2>What drives value in modern</GH2>
       <GUL>
         <li>
-          <strong>Rarity tier, not just the Pokémon.</strong> Within a modern set, the gap between a
+          <strong>Rarity tier, not just the Pokemon.</strong> Within a modern set, the gap between a
           regular holo and the alternate-art or secret-rare version of the same card is enormous.
         </li>
         <li>

@@ -15,16 +15,16 @@ const geistMono = Geist_Mono({
 });
 
 const SITE_URL = "https://pokemondealfinder.com";
-const SITE_TITLE = "Pokémon Deal Finder";
+const SITE_TITLE = "Pokemon Deal Finder";
 const SITE_DESCRIPTION =
-  "Live below-market Pokémon card listings from eBay, checked automatically against real market pricing and real sold-listing data.";
+  "Live below-market Pokemon card listings from eBay, checked automatically against real market pricing and real sold-listing data.";
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: SITE_TITLE,
     // %s lets child pages set their own title while keeping the site name
-    // suffixed consistently (e.g. "Search Any Card | Pokémon Deal Finder").
+    // suffixed consistently (e.g. "Search Any Card | Pokemon Deal Finder").
     template: `%s | ${SITE_TITLE}`,
   },
   description: SITE_DESCRIPTION,

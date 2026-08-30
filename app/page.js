@@ -39,7 +39,7 @@ export async function generateMetadata({ searchParams }) {
   // Page 1 must omit `title` entirely so the root layout's default
   // applies - `title: undefined` makes Next 16 render no <title> at all.
   return page > 1
-    ? { title: { absolute: `Pokémon Deal Finder - Page ${page}` }, alternates: { canonical } }
+    ? { title: { absolute: `Pokemon Deal Finder - Page ${page}` }, alternates: { canonical } }
     : { alternates: { canonical } };
 }
 
@@ -176,7 +176,7 @@ export default async function Home({ searchParams }) {
   const websiteJsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "Pokémon Deal Finder",
+    name: "Pokemon Deal Finder",
     url: SITE_URL,
     potentialAction: {
       "@type": "SearchAction",
@@ -184,7 +184,7 @@ export default async function Home({ searchParams }) {
       "query-input": "required name=search_term_string",
     },
   };
-  const organizationJsonLd = { "@context": "https://schema.org", "@type": "Organization", name: "Pokémon Deal Finder", url: SITE_URL };
+  const organizationJsonLd = { "@context": "https://schema.org", "@type": "Organization", name: "Pokemon Deal Finder", url: SITE_URL };
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
@@ -203,7 +203,7 @@ export default async function Home({ searchParams }) {
       <header className="border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-10 lg:py-14">
           <h1 className="max-w-2xl text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl dark:text-zinc-50">
-            Find underpriced Pokémon cards on eBay
+            Find underpriced Pokemon cards on eBay
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
             Every listing checked against real sold prices. The junk filtered out. Free.
@@ -378,7 +378,7 @@ export default async function Home({ searchParams }) {
             <div className="mt-5 grid gap-5 sm:grid-cols-2">
               {[
                 { href: "/sets", title: "Browse by set", copy: "Every set with an active below-market deal, one set at a time." },
-                { href: "/pokemon", title: "Browse by Pokémon", copy: "Every deal for a species, across all its prints and sets." },
+                { href: "/pokemon", title: "Browse by Pokemon", copy: "Every deal for a species, across all its prints and sets." },
               ].map((t) => (
                 <Link
                   key={t.href}

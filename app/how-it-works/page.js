@@ -6,7 +6,7 @@ const SITE_URL = "https://pokemondealfinder.com";
 
 const TITLE = "How It Works";
 const DESCRIPTION =
-  "How Pokémon Deal Finder scans eBay, checks each listing against real market and sold-listing pricing, and surfaces only genuine below-market deals — plus how often it updates.";
+  "How Pokemon Deal Finder scans eBay, checks each listing against real market and sold-listing pricing, and surfaces only genuine below-market deals — plus how often it updates.";
 
 export const metadata = {
   title: TITLE,
@@ -33,7 +33,7 @@ export default function HowItWorksPage() {
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
         <h1 className="text-3xl font-bold tracking-tight text-black dark:text-zinc-50">
-          How Pokémon Deal Finder Works
+          How Pokemon Deal Finder Works
         </h1>
         <p className="mt-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
           Three stages run on a schedule, around the clock: discovering new eBay listings, pricing them
@@ -42,7 +42,7 @@ export default function HowItWorksPage() {
 
         <h2 className="mt-10 text-lg font-bold text-black dark:text-zinc-50">1. Scanning eBay</h2>
         <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-          New listings are discovered continuously through the eBay Browse API, in the Pokémon
+          New listings are discovered continuously through the eBay Browse API, in the Pokemon
           individual-cards category — every 15 minutes on the US marketplace and hourly on the UK,
           Australia, Canada, and Germany marketplaces. Separately, listings already on the site are
           re-checked to confirm they&apos;re still active and still a deal: a hand-picked priority set
@@ -55,7 +55,7 @@ export default function HowItWorksPage() {
         <h2 className="mt-10 text-lg font-bold text-black dark:text-zinc-50">2. Checking real pricing</h2>
         <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
           Each listing is compared against the card&apos;s real market price for its condition, drawn
-          from PokémonPriceTracker&apos;s pricing data and backed by recent eBay sold listings — not a
+          from PokemonPriceTracker&apos;s pricing data and backed by recent eBay sold listings — not a
           guess or a formula. Raw (ungraded) cards are priced against the market price for the
           condition the seller describes in the listing title. Graded cards are priced only against
           real sold comps for that exact grading company and grade. The price a buyer actually pays —

@@ -156,10 +156,10 @@ function escapeHtml(s) {
 function htmlResponse(message, status = 200, backHref = SITE_URL) {
   return new Response(
     `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Pokémon Deal Finder</title>
+<title>Pokemon Deal Finder</title>
 <div style="font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1.25rem;text-align:center">
   <p style="font-size:1.05rem;line-height:1.5">${escapeHtml(message)}</p>
-  <p><a href="${backHref}" style="color:#d62828;font-weight:600">← Back to Pokémon Deal Finder</a></p>
+  <p><a href="${backHref}" style="color:#d62828;font-weight:600">← Back to Pokemon Deal Finder</a></p>
 </div>`,
     { status, headers: { "Content-Type": "text/html; charset=utf-8" } }
   );

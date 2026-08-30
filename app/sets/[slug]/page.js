@@ -29,7 +29,7 @@ export async function generateMetadata({ params }) {
   if (!resolved) return { title: "Set not found", robots: { index: false, follow: true } };
 
   const title = `${resolved.set} Card Deals`;
-  const description = `Real below-market ${resolved.set} Pokémon card deals on eBay, checked against real market pricing - ${resolved.count} active right now.`;
+  const description = `Real below-market ${resolved.set} Pokemon card deals on eBay, checked against real market pricing - ${resolved.count} active right now.`;
   const canonical = `/sets/${slug}`;
 
   // One cheap extra row for a representative OG image - a real listing

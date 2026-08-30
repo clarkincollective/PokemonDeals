@@ -11,7 +11,7 @@ export default function Page() {
   return (
     <GuideLayout slug={SLUG}>
       <GP>
-        A Pokémon card has no fixed price. What it&apos;s &ldquo;worth&rdquo; is just the range recent
+        A Pokemon card has no fixed price. What it&apos;s &ldquo;worth&rdquo; is just the range recent
         buyers and sellers have agreed on, and that range moves. Understanding what feeds it makes it
         much easier to tell a real bargain from a listing that only looks cheap.
       </GP>
@@ -21,7 +21,7 @@ export default function Page() {
         The number that matters is what cards have actually <em>sold</em> for recently, not what
         hopeful sellers are asking. Active listings can sit unsold for months at aspirational prices;
         completed sales are the real signal. Reputable price sources (this site uses
-        PokémonPriceTracker, grounded in eBay sold data) publish a market price built from recent sold
+        PokemonPriceTracker, grounded in eBay sold data) publish a market price built from recent sold
         listings rather than current asks. When you compare a listing to a market price, make sure the
         market price is a sold-based one.
       </GP>
@@ -36,7 +36,7 @@ export default function Page() {
         <li>
           <strong>Playability and collectability.</strong> A card can be valuable because it&apos;s
           strong in competitive play, because it&apos;s a chase card (alternate art, secret rare),
-          because the Pokémon is popular, or all three. Demand for a specific Charizard art is not the
+          because the Pokemon is popular, or all three. Demand for a specific Charizard art is not the
           same as demand for the card next to it in the set.
         </li>
         <li>
@@ -52,7 +52,7 @@ export default function Page() {
       </GP>
       <GUL>
         <li>
-          <strong>Printing / set.</strong> The same Pokémon and artwork can exist in Base Set, a
+          <strong>Printing / set.</strong> The same Pokemon and artwork can exist in Base Set, a
           later reprint, and a promo, each with its own market. On this site, each exact printing with
           two or more live listings gets its own consolidated{" "}
           <Link

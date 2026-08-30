@@ -8,9 +8,9 @@ import { formatScanTime } from "@/lib/time";
 
 export const revalidate = 900;
 
-const TITLE = "Most Expensive Pokémon Cards";
+const TITLE = "Most Expensive Pokemon Cards";
 const DESCRIPTION =
-  "The highest real market-priced Pokémon cards currently tracked, ranked by real market pricing - not an estimate or a fabricated valuation.";
+  "The highest real market-priced Pokemon cards currently tracked, ranked by real market pricing - not an estimate or a fabricated valuation.";
 
 export const metadata = {
   title: TITLE,
@@ -59,7 +59,7 @@ export default async function MostExpensiveCardsPage() {
             ← Market Data
           </Link>
           <h1 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
-            Most Expensive Pokémon Cards
+            Most Expensive Pokemon Cards
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
             Top {cards.length} highest real market-priced cards we currently track, based on real pricing

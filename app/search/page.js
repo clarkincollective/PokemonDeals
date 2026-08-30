@@ -24,7 +24,7 @@ export async function generateMetadata({ searchParams }) {
   return {
     title: "Search Any Card",
     description:
-      "Search any Pokémon card for instant market pricing, real sales history, and any below-market deals we've already found for it.",
+      "Search any Pokemon card for instant market pricing, real sales history, and any below-market deals we've already found for it.",
     alternates: { canonical: "/search" },
     robots: query ? { index: false, follow: true } : undefined,
   };
@@ -50,9 +50,9 @@ export default function SearchPage() {
           {
             "@context": "https://schema.org",
             "@type": "SearchResultsPage",
-            name: "Search Any Pokémon Card",
+            name: "Search Any Pokemon Card",
             url: `${SITE_URL}/search`,
-            isPartOf: { "@type": "WebSite", name: "Pokémon Deal Finder", url: SITE_URL },
+            isPartOf: { "@type": "WebSite", name: "Pokemon Deal Finder", url: SITE_URL },
           },
         ]}
       />

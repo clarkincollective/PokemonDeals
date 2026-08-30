@@ -20,7 +20,7 @@ export async function generateMetadata({ searchParams }) {
   const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
   const title = page > 1 ? `Sealed Product Deals - Page ${page}` : "Sealed Product Deals";
   const description =
-    "Real below-market booster box, elite trainer box, and other sealed Pokémon product deals on eBay, priced against real PokemonPriceTracker market data.";
+    "Real below-market booster box, elite trainer box, and other sealed Pokemon product deals on eBay, priced against real PokemonPriceTracker market data.";
   const canonical = page > 1 ? `/sealed-deals?page=${page}` : "/sealed-deals";
 
   // See app/sets/page.js's identical fix - was falling back to the root
@@ -93,9 +93,9 @@ export default async function SealedDealsPage({ searchParams }) {
         data={[
           breadcrumbList([{ name: "Deals", href: "/" }, { name: "Sealed product" }]),
           collectionPage({
-            name: "Sealed Pokémon Product Deals",
+            name: "Sealed Pokemon Product Deals",
             description:
-              "Below-market sealed Pokémon product on eBay - booster boxes, ETBs, tins and more, checked against real market pricing.",
+              "Below-market sealed Pokemon product on eBay - booster boxes, ETBs, tins and more, checked against real market pricing.",
             url: "/sealed-deals",
           }),
         ]}

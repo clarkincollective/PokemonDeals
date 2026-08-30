@@ -7,7 +7,7 @@ const SITE_URL = "https://pokemondealfinder.com";
 
 const TITLE = "Guides";
 const DESCRIPTION =
-  "Short, factual guides to buying Pokémon cards: how prices are set, condition and grading scales, raw vs. graded, and vintage vs. modern.";
+  "Short, factual guides to buying Pokemon cards: how prices are set, condition and grading scales, raw vs. graded, and vintage vs. modern.";
 
 export const metadata = {
   title: TITLE,
@@ -29,7 +29,7 @@ const breadcrumbJsonLd = {
 const itemListJsonLd = {
   "@context": "https://schema.org",
   "@type": "ItemList",
-  name: "Pokémon card buying guides",
+  name: "Pokemon card buying guides",
   numberOfItems: GUIDES.length,
   itemListElement: GUIDES.map((g, i) => ({
     "@type": "ListItem",
@@ -49,7 +49,7 @@ export default function GuidesIndexPage() {
       <header className="border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-3xl px-6 py-10">
           <h1 className="text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
-            Pokémon Card Buying Guides
+            Pokemon Card Buying Guides
           </h1>
           <p className="mt-3 text-base text-zinc-600 dark:text-zinc-400">
             A few short, evergreen explainers — the background worth having before you buy. For how

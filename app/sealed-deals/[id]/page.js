@@ -169,7 +169,7 @@ export default async function SealedDealDetailPage({ params }) {
     name: `${productName}${productSet ? ` - ${productSet}` : ""}`,
     image: deal.image_url ?? undefined,
     description: deal.title,
-    brand: { "@type": "Brand", name: "Pokémon" },
+    brand: { "@type": "Brand", name: "Pokemon" },
     offers: {
       "@type": "Offer",
       url: deal.listing_url,
@@ -317,7 +317,7 @@ export default async function SealedDealDetailPage({ params }) {
               <ShareButton
                 url={`${SITE_URL}/sealed-deals/${deal.id}`}
                 title={`${productName} - ${discountPct}% below market`}
-                text={`${productName}${productSet ? ` (${productSet})` : ""} - $${Number(deal.total_price).toFixed(2)}, ${discountPct}% below market on Pokémon Deal Finder`}
+                text={`${productName}${productSet ? ` (${productSet})` : ""} - $${Number(deal.total_price).toFixed(2)}, ${discountPct}% below market on Pokemon Deal Finder`}
                 label="Share"
                 className="rounded-lg px-4 py-2"
               />

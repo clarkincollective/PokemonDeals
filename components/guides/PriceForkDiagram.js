@@ -1,4 +1,4 @@
-// One Pokémon name forks into many prices: each attribute (printing,
+// One Pokemon name forks into many prices: each attribute (printing,
 // edition, condition, grade) multiplies the number of distinct markets.
 const STAGES = ["Printing", "Edition", "Condition", "Grade"];
 
