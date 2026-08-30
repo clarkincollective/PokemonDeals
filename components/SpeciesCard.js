@@ -6,9 +6,10 @@ import Price from "@/components/Price";
 import { MARKETPLACE_CURRENCY, hasPrice } from "@/lib/money";
 import { buildEbaySearchLink } from "@/lib/ebay";
 
-// One card tile in the per-species grid. Same shell as DealCard
-// (image-forward, aspect-square, info + CTA below, hover lift) so the
-// species pages read as the same design system.
+// One card tile in a catalogue grid - per species (/pokemon/[slug]) or
+// per set (/sets/[slug]). Same shell as DealCard (image-forward,
+// aspect-square, info + CTA below, hover lift) so both read as the same
+// design system.
 //
 // Two variants, kept visibly distinct:
 //   card.deal != null -> emerald accent, "-N%" badge, "N% below market",
@@ -16,7 +17,17 @@ import { buildEbaySearchLink } from "@/lib/ebay";
 //   card.deal == null -> plain: the PokemonPriceTracker reference price
 //     + attribution + a neutral "View on eBay" affiliate CTA. No discount
 //     badge, no "below market", no green.
-export default function SpeciesCard({ card, speciesName, dealsHref = "#deals", pageName = "species_card" }) {
+//
+// `label` is the grouping name (species or set) used only for
+// click-tracking; `speciesName` is accepted as its old name.
+export default function SpeciesCard({
+  card,
+  label,
+  speciesName,
+  dealsHref = "#deals",
+  pageName = "species_card",
+}) {
+  const context = label ?? speciesName;
   const isDeal = Boolean(card.deal);
   const meta = [card.set, card.cardNumber, card.rarity].filter(Boolean).join(" · ");
   const dealHref = card.hubSlug ? `/cards/${card.hubSlug}` : dealsHref;
@@ -102,7 +113,7 @@ export default function SpeciesCard({ card, speciesName, dealsHref = "#deals", p
               <AffiliateLink
                 href={buildEbaySearchLink(`${card.name} ${card.set}`)}
                 eventName="eBay Click"
-                eventData={{ species: speciesName, card: card.name, page: pageName }}
+                eventData={{ context, card: card.name, page: pageName }}
                 className="block rounded-lg border border-zinc-300 px-4 py-2 text-center text-sm font-semibold text-zinc-700 transition-colors hover:border-zinc-400 hover:text-black dark:border-zinc-700 dark:text-zinc-200 dark:hover:text-zinc-50"
               >
                 View on eBay →

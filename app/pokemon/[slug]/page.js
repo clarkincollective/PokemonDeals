@@ -253,7 +253,7 @@ export default async function PokemonSpeciesPage({ params }) {
               live eBay search.
             </p>
             <SpeciesCardList
-              speciesName={resolved.name}
+              label={resolved.name}
               cards={allCards}
               dealsHref="#deals"
               pageName="species_detail_catalog"

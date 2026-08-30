@@ -63,7 +63,7 @@ export default function SpeciesCatalog({ speciesName, slug, cards }) {
             <h2 className="mt-10 text-sm font-semibold uppercase tracking-wide text-zinc-400">
               Every {speciesName} card ({cards.length})
             </h2>
-            <SpeciesCardList speciesName={speciesName} cards={cards} pageName="species_catalog" />
+            <SpeciesCardList label={speciesName} cards={cards} pageName="species_catalog" />
             <p className="mt-6 text-xs text-zinc-400">
               Reference prices from PokemonPriceTracker, based on recent sold data - not a guaranteed
               value.{" "}

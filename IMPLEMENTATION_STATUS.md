@@ -1184,6 +1184,86 @@ No referer gate, real bytes. Hotlinkable.
 - Species sprites: full 1–1025 coverage; forms/regionals share the base
   dex sprite (intentional — tiles are per base species).
 
+## /sets/[slug] — "every card in this set" grid — 2026-08-30 — SHIPPED
+
+`/sets/<slug>` showed only the set's active deals. It now also shows
+**every card in the set** from `card_catalog` (the same source as the
+species pages), same deal-vs-browse pattern.
+
+### What changed
+
+- **`lib/deals.js` → `fetchSetCatalog(setName, language)`** — new, the
+  set-scoped twin of `fetchSpeciesCatalog`. `card_catalog` rows for the
+  set (paged past the PostgREST 1000-row cap in 1000-row windows —
+  needed for the ~1,960-row "World Championship Decks") + a scoped
+  `deals` query (`watchlist.set = setName`, active) merged per
+  `tcgplayer_id` into the exact `{ deal | null, refPrice, hubSlug, … }`
+  card shape `SpeciesCard` already renders. **Deal detection untouched** —
+  this only reads the `deals` table, never decides what a deal is.
+- **`app/sets/[slug]/page.js`** — adds the pokemontcg.io set logo to the
+  header (from the earlier logo work), an `id="deals"` heading on the
+  existing deals grid, and below it a `<section>` "Every card in <set>"
+  rendering the shared `<SpeciesCardList>`. Bounded `ItemList` JSON-LD of
+  the catalogue cards (cap 100) added alongside the existing
+  `BreadcrumbList`.
+- **Components generalised, not forked.** `SpeciesCardList` /
+  `SpeciesCard` took `speciesName`; they now take `label` (species name
+  *or* set name) for the section headings + click-tracking, with
+  `speciesName` still accepted as an alias. Analytics `eventData` key
+  `species` → `context`. Callers (`app/pokemon/[slug]`,
+  `components/SpeciesCatalog`) updated to `label=`. No new components.
+
+### Decisions
+
+- **Sort:** by the set's own card numbering — leading integer of
+  `card_number` (`"103/130"`→103, `"H9"`→9, `"SWSH262"`→262), then a
+  numeric-aware string compare; unnumbered cards last. Verified on
+  `xy-flashfire`: the browse grid runs 1,2,3,…,109 in order (with 13,
+  100, 101, 103 lifted into the deals section, which is itself ordered).
+  This is more useful here than on species pages (a set is one numbered
+  run) so it's set-only; species keep their deals-cheapest-then-refprice
+  order.
+- **Min to show the grid:** `SET_CATALOG_MIN_CARDS = 10`. A `/sets` page
+  already needs `SET_MIN_LISTINGS = 3` active deals to exist at all;
+  this second gate stops a near-empty "full catalogue" while
+  `card_catalog` is mid-backfill. Below it, the deals grid still serves.
+- **Max grid size:** `SET_CATALOG_MAX_BROWSE = 600` browse tiles (all
+  deal-matched cards always kept). Every real expansion (~≤360 cards)
+  renders whole; only the 3 oversized grab-bag "sets" truncate — World
+  Championship Decks (602 of 1,960), Prize Pack Series (605 of 886) —
+  with a "Cards in <set> (N of M)" heading. Keeps worst-case page weight
+  ~3.5 MB instead of ~12 MB.
+
+### Verification (local `next start`, `card_catalog` as of 2026-08-30, mid-backfill)
+
+| Set | Era | `card_catalog` | PPT `cardCount` | Coverage | Grid on page | deals / browse shown |
+| --- | --- | ---: | ---: | --- | --- | --- |
+| **XY - Flashfire** | 2014 | 111 | 111 | **complete** | yes | 4 / 107 |
+| Jungle | 1999 | 64 | 64 | **complete** | yes | 19 / 45 |
+| Skyridge | 2003 | 182 | 182 | **complete** | yes | (grid renders) |
+| SV: Prismatic Evolutions | 2025 | 355 | 355 | **complete** | yes | 10 / 345 |
+| SM Promos | 2017–19 | 336 | 333 | complete (+3) | yes | (grid renders) |
+| **Base Set** | 1999 | 0 | 102 | **known backfill gap** | no (< 10) | deals grid only |
+| WoTC Promo | 1999+ | 0 | 70 | **known backfill gap** | no | deals grid only |
+| World Championship Decks | n/a | 1,960 | — | complete | yes (truncated) | 2 / 600 |
+
+Every set whose page renders the grid has `card_catalog` count == PPT's
+own `cardCount` (±3). **The thin/absent grids are the documented A4
+`card_catalog` sync gap** (`## Card data completeness`), not a bug in
+this change — 40 of 155 set pages are below the 10-card gate right now
+and will fill in when the outstanding `/export` sync completes.
+
+- Affiliate links on browse cards verified: every "View on eBay" carries
+  `campid=5339197414` + `mkcid=1` + `mkrid=711-53200-19255-0` +
+  `mkevt=1` (same EPN wrapping as the rest of the site).
+- CWV: card images all `loading="lazy"` in fixed aspect-square boxes
+  (no CLS), grid below the fold, no render-blocking additions. Largest
+  real set page (Prismatic, 355 cards) ≈ 2.2 MB HTML, TTFB ~15 ms from
+  ISR; same pattern/weight class as the large species pages.
+- `test:seo` 57/57, `test:scanner` 11/11, `npm run build` clean.
+- `scripts/auditSetCatalog.js` — new, prints the `card_catalog`-vs-PPT
+  count per set page + how many will render the grid.
+
 ## Not building (deliberate, documented)
 
 - **Phase 8 — dedicated price-history pages**: not building as separate `/cards/[slug]/price-history/` routes — price history is already integrated into the card hub and deal detail pages (chart + real data), and PokemonPriceTracker doesn't expose enough historical depth to justify a separate crawlable page beyond what's already shown. Documenting this as a deliberate scope decision, not an oversight.
