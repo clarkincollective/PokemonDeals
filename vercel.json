@@ -161,6 +161,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/sync-card-catalog",
+      "schedule": "0 2 * * *"
+    },
+    {
       "path": "/api/refresh-sealed-deals",
       "schedule": "0 6 * * *"
     }

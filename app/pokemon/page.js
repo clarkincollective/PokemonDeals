@@ -62,9 +62,11 @@ export default async function PokemonIndexPage() {
     }
     const deal = dealBySpecies.get(s.name) ?? null;
     // Every species links to /pokemon/<slug>: a deal-having one to its
-    // live deal page, the rest to the catalogue + eBay-search fallback.
+    // live deal page, the rest to the full card catalogue for that
+    // species (+ eBay search).
     current.species.push({
       name: s.name,
+      dex: s.dex,
       slug: deal?.slug ?? s.slug,
       count: deal?.count ?? 0,
       hasDeal: Boolean(deal),
@@ -100,11 +102,11 @@ export default async function PokemonIndexPage() {
             Browse Pokemon Cards by Generation
           </h1>
           <p className="mt-3 max-w-2xl text-base text-zinc-600 dark:text-zinc-400">
-            All {SPECIES_WITH_GENERATION.length} Pokemon, in National Pokedex order and grouped by
-            generation. {totalWithDeals > 0 ? `${totalWithDeals} currently have` : "None currently have"}{" "}
-            an active below-market deal (shown in bold with a listing count) and link straight to every
-            current listing. The rest link to the cards we track for that Pokemon plus a live eBay
-            search. Use the filter to jump to any name.
+            Every Pokemon, in National Pokedex order, grouped into collapsible generations.{" "}
+            {totalWithDeals > 0 ? `${totalWithDeals} currently have` : "None currently have"} an active
+            below-market deal — those are highlighted green with a listing count. Open any Pokemon to
+            see every card of it, with a reference price and a live eBay search whether or not there
+            is a deal right now. Use the filter to jump to any name.
           </p>
         </div>
       </header>

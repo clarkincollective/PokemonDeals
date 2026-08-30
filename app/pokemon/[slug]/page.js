@@ -14,6 +14,7 @@ import RegionRedirect from "@/components/RegionRedirect";
 import DealGrid from "@/components/DealGrid";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import SpeciesCatalog from "@/components/SpeciesCatalog";
+import SpeciesCardList from "@/components/SpeciesCardList";
 import SiteFooter from "@/components/SiteFooter";
 
 const SITE_URL = "https://pokemondealfinder.com";
@@ -110,17 +111,19 @@ export default async function PokemonSpeciesPage({ params }) {
     return <SpeciesCatalog speciesName={speciesName} slug={slug} cards={cards} />;
   }
 
-  const [{ deals, totalPages, error }, { prints }] = await Promise.all([
-    fetchSpeciesDealsPage({
-      speciesName: resolved.name,
-      language: "english",
-      sort: "newest",
-      page: 1,
-      pageSize: 20,
-    }),
-    fetchSpeciesPrints(resolved.name),
-    cardHubsWarm,
-  ]);
+  const [{ deals, totalPages, error }, { prints }, { cards: allCards }] =
+    await Promise.all([
+      fetchSpeciesDealsPage({
+        speciesName: resolved.name,
+        language: "english",
+        sort: "newest",
+        page: 1,
+        pageSize: 20,
+      }),
+      fetchSpeciesPrints(resolved.name),
+      fetchSpeciesCatalog(resolved.name),
+      cardHubsWarm,
+    ]);
 
   // The "N sellers" line on each DealCard - derived from `prints` (which
   // already carries per-print hub slug + active count for this species)
@@ -216,7 +219,7 @@ export default async function PokemonSpeciesPage({ params }) {
       </header>
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
-        <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-zinc-400">
+        <h2 id="deals" className="mb-5 scroll-mt-24 text-sm font-semibold uppercase tracking-wide text-zinc-400">
           {resolved.name} Deals
         </h2>
 
@@ -231,32 +234,17 @@ export default async function PokemonSpeciesPage({ params }) {
           emptyLabel={`No ${resolved.name} deals match these filters right now. Try clearing a filter, or check back after the next scheduled scan.`}
         />
 
-        {prints.length > 0 && (
+        {allCards.length > 0 && (
           <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-              Every {resolved.name} print with a live deal
+              Every {resolved.name} card ({allCards.length})
             </h2>
             <p className="mt-1 text-xs text-zinc-400">
-              Each exact print, most-listed first — open one to compare every current listing of it
-              side by side.
+              Deals first (green), then the rest of the catalogue with its reference price and a live
+              eBay search. Reference prices from PokemonPriceTracker&apos;s recent sold data — not a
+              guaranteed value.
             </p>
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {prints.map((p) => (
-                <Link
-                  key={p.watchlistId}
-                  href={p.hubSlug ? `/cards/${p.hubSlug}` : `/sets/${slugifySet(p.set)}`}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm transition-colors hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium text-black dark:text-zinc-50">{p.name}</span>
-                    <span className="block truncate text-xs text-zinc-500 dark:text-zinc-400">{p.set}</span>
-                  </span>
-                  <span className="shrink-0 rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                    {p.count}
-                  </span>
-                </Link>
-              ))}
-            </div>
+            <SpeciesCardList speciesName={resolved.name} cards={allCards} dealsHref="#deals" />
           </section>
         )}
 

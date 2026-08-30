@@ -733,9 +733,76 @@ double-confirms the active plan.
    full catalogue), one reference price per card, no price-history /
    per-condition / sold-comp data in the browse layer, no CSV/API/feed.
 
-Phases 2–5 (data architecture + credit estimate, the Pokedex grid, the
-per-species card lists, affiliate wiring) are **not started** and await
-the two confirmations above.
+### Phases 2–5 — IMPLEMENTED (2026-08-30, owner confirmed Business plan)
+
+**Phase 2 — data architecture.**
+
+* New table **`card_catalog`** (`supabase/card_catalog_migration.sql` —
+  owner runs it). PPT's full card catalogue synced into our own DB:
+  `tcgplayer_id` (PK), `name`, `"set"`, `set_id`, `card_number`,
+  `rarity`, `card_type`, `species` (= `extractSpecies(name)`, null for
+  trainers/energy), `language`, `market_price` (PPT `prices.market` —
+  **reference only**), `image_url`, `source = 'pokemonpricetracker'`,
+  `synced_at`. The `market_price` column name + `source` value keep it
+  clearly distinct from `deals` (eBay, our source of truth) and
+  `watchlist` (the value-filtered slice we re-scan).
+* New endpoint **`/api/sync-card-catalog`** (cron `0 2 * * *`, CRON_SECRET
+  auth). One `listSetCards` request per set (219 English sets), upserts
+  by `tcgplayer_id`. `?chunks=N&chunk=M` splits it for resumability;
+  `?maxSets=N` for a test pass. Reports `setsScanned`, `cardsUpserted`,
+  `creditsApprox`.
+* **Credit estimate (Business tier = 200,000 credits/day, 500 req/min):**
+  `listSetCards` bills ~1 credit per card returned. PPT's own docs put a
+  full set-by-set catalogue crawl at **~29,000 credits / 219 requests**
+  (≈ 14.5% of the daily budget; 219 requests is trivial against
+  500/min). Cadence chosen: **once daily**. Head-room for the other PPT
+  jobs (`sync-watchlist` ~a few thousand credits/day, on-demand card
+  pages ~3 credits each) is ample. The `/export` endpoint (0 credits,
+  2/day cap) is a future optimisation once its CSV schema is verified —
+  not used now.
+* **Not live-queried per page load.** Pages read `card_catalog` from our
+  DB; `fetchSpeciesCatalog` is `unstable_cache`d (`CARD_HUB_REVALIDATE_
+  SECONDS` = 900s). Before the first sync it degrades to the `watchlist`
+  slice automatically.
+
+**Phase 3 — `/pokemon` grid.** Collapsible generation sections (Gen 1
+open, 2–9 collapsed — every species link still in the server HTML, just
+`hidden`, so crawlers see all 1,025). Deal-having species get the green
+tile + emerald listing-count badge; the rest are plain. Small
+dex-number chip, no card art / no official branding. Every species links
+(deal page, or the full-catalogue page).
+
+**Phase 4 — `/pokemon/[slug]`.** Both variants now show **every known
+card of the species** via a shared `<SpeciesCardList>`:
+
+* deal card → green row: "N% below market · N live listings from $X",
+  links to the listings (`/cards/[slug]` hub or the `#deals` grid).
+* non-deal card → plain row: set · number · rarity, the PPT **reference
+  price** (labelled, never as a deal or guaranteed value), and a plain
+  **"View on eBay"** affiliate link. No savings %, no strikethrough, no
+  green.
+* Sorted deals-first, then the rest by reference price.
+* Deal-having species: the deal grid stays the top section (`#deals`),
+  the full card list is added below it — browsing isn't gated behind a
+  deal existing. No-deal species: the card list replaces last turn's
+  thin list; page stays `noindex,follow`, still not in the sitemap.
+
+**Phase 5 — affiliate correctness.** The non-deal "View on eBay" and
+per-species "Search … on eBay" links use `buildEbaySearchLink()` →
+`wrapEbayAffiliateUrl()` — the same EPN params (`campid`, `mkevt`,
+`rel="sponsored"`) as the existing deal CTAs. Verified in the rendered
+HTML (`campid=` present on every non-deal link). No "below market" /
+savings language anywhere on a non-deal card.
+
+**Indexability unchanged.** Only species that clear
+`SPECIES_MIN_LISTINGS` get an indexable `/pokemon/[slug]`; everything
+else is `noindex,follow` and absent from the sitemap. `card_catalog` is
+internal, rendered per page, never exported — matching PPT's terms
+(cache + serve to your own end users; no feed/API/bulk redistribution).
+
+**Owner action to finish:** run `supabase/card_catalog_migration.sql`,
+then the first sync populates ~40k cards; until then the pages use the
+`watchlist` fallback (~4,900 cards).
 
 ## Not building (deliberate, documented)
 
