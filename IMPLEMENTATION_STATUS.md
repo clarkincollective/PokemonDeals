@@ -664,6 +664,79 @@ generations (with region names Kanto…Paldea) and per-generation counts.
   build), 9 generation sections, one `<h1>`, `test:seo` 50/50, build
   clean, `/pokemon` still statically rendered.
 
+## /pokemon rework Phase 1 — PokemonPriceTracker licensing check (2026-08-30)
+
+Brief: before integrating more PokemonPriceTracker (PPT) data into a
+public "complete Pokedex + every card per species" browsing layer,
+confirm their terms permit **publicly displaying** their pricing data.
+
+**Read:** `pokemonpricetracker.com/terms` and `/licensing` (2026-08-30).
+
+**Finding — public display IS permitted, conditional on the Business
+plan.** Confirming clauses, verbatim:
+
+* Terms: *"You may store and cache PokePriceTracker Data in your own
+  systems and serve it to the end users of your own application, on the
+  plan appropriate to your use."*
+* Terms: commercial use ("Building applications, websites, bots, tools,
+  or services that generate revenue") *"requires an active Business or
+  Enterprise subscription."*
+* Licensing: *"Aggregate prices — medians, ranges, trends, your own
+  derived numbers — can be displayed on any plan appropriate to your
+  use."*
+* Licensing: *"Caching and storing responses to serve your own
+  application is expected and fine."*
+* Licensing, on the Business tier: *"Advertising, affiliate links,
+  subscriptions, paid features and one-off sales all count as revenue."*
+
+**Prohibited (must stay clear of):**
+
+* Terms: *"You may not resell, sublicense, syndicate, or redistribute the
+  raw data itself as a standalone product or data service."* /
+  *"Use our API to power your own competing API that sells or provides
+  the same pricing data to third parties."*
+* Terms: caching *"does not extend to exposing your stored copy to third
+  parties, publishing it as an API or feed, or transferring the stored
+  dataset to anyone else."*
+* Licensing: *"a 'derived' feed that is really our dataset in a thin
+  disguise is still redistribution"* / *"if someone could use your
+  product instead of subscribing to us in order to get the data, that is
+  not permitted."*
+* Terms: data-accuracy disclaimer — *"WE DO NOT GUARANTEE ... THE RESULTS
+  ... WILL BE ACCURATE OR RELIABLE."* Keep the existing "reference price
+  from PokemonPriceTracker, based on recent sold data" framing; never
+  present a figure as a guaranteed valuation.
+
+**Plan tier:** the site generates affiliate revenue, so it must be on
+**Business/Enterprise**. Evidence it already is: `lib/pokemonPriceTracker.js`
+uses a Business-tier-only endpoint (individual eBay sold listings via
+`includeEbay`), and `.env.example` already notes *"Needs their Business
+tier for commercial/public use."* Recommend the account owner
+double-confirms the active plan.
+
+**Status: BLOCKED pending two owner decisions — no Phase 2+ code written.**
+
+1. **Confirm the PPT account is on Business or Enterprise.** The *current*
+   public display of PPT-derived prices (`/cards/[slug]`,
+   `/methodology`, the `/pokemon/[slug]` catalogue fallback) already
+   depends on this; it is not new to this rework.
+2. **Scope call (business/legal judgment, not engineering):** "every card
+   for every species with a PPT reference price, browsable" surfaces far
+   more of PPT's catalogue than the current per-deal usage. A per-species
+   card list with one reference price each reads as "aggregate prices
+   displayed to end users" (permitted); a comprehensive, searchable
+   all-cards-with-prices database edges toward the "substitute for
+   subscribing / derived dataset" line their resale clause targets.
+   Recommended conservative scope if greenlit: browse only from our own
+   DB (the value-filtered `watchlist` slice `sync-watchlist` already
+   maintains — keep the min-value filter, do **not** bulk-`/export` the
+   full catalogue), one reference price per card, no price-history /
+   per-condition / sold-comp data in the browse layer, no CSV/API/feed.
+
+Phases 2–5 (data architecture + credit estimate, the Pokedex grid, the
+per-species card lists, affiliate wiring) are **not started** and await
+the two confirmations above.
+
 ## Not building (deliberate, documented)
 
 - **Phase 8 — dedicated price-history pages**: not building as separate `/cards/[slug]/price-history/` routes — price history is already integrated into the card hub and deal detail pages (chart + real data), and PokemonPriceTracker doesn't expose enough historical depth to justify a separate crawlable page beyond what's already shown. Documenting this as a deliberate scope decision, not an oversight.
