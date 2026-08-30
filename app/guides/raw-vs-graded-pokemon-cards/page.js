@@ -105,6 +105,33 @@ export default function Page() {
           .
         </li>
       </GUL>
+
+      <GH2>Keep reading</GH2>
+      <GUL>
+        <li>
+          <Link href="/guides/card-condition-grading" className="text-red-600 hover:underline dark:text-red-500">
+            Pokemon card condition &amp; grading explained
+          </Link>{" "}
+          — the Near Mint-to-Damaged scale and what a PSA / CGC / BGS number means.
+        </li>
+        <li>
+          <Link href="/guides/how-pokemon-card-prices-work" className="text-red-600 hover:underline dark:text-red-500">
+            How Pokemon card prices are determined
+          </Link>{" "}
+          — why one card has many prices.
+        </li>
+        <li>
+          Compare a card&apos;s raw and every graded tier side by side:{" "}
+          <Link href="/pokemon" className="text-red-600 hover:underline dark:text-red-500">
+            browse by Pokemon
+          </Link>
+          , or see current{" "}
+          <Link href="/?type=graded" className="text-red-600 hover:underline dark:text-red-500">
+            graded deals
+          </Link>
+          .
+        </li>
+      </GUL>
     </GuideLayout>
   );
 }

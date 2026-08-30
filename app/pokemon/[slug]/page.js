@@ -15,7 +15,7 @@ import RegionRedirect from "@/components/RegionRedirect";
 import DealGrid from "@/components/DealGrid";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import SpeciesCatalog from "@/components/SpeciesCatalog";
-import SpeciesCardList from "@/components/SpeciesCardList";
+import SpeciesCardsBySet from "@/components/SpeciesCardsBySet";
 import SiteFooter from "@/components/SiteFooter";
 
 const SITE_URL = "https://pokemondealfinder.com";
@@ -46,13 +46,35 @@ export async function generateMetadata({ params }) {
     // only a slug that isn't a species at all is a genuine 404.
     const speciesName = speciesForSlug(slug);
     if (speciesName) {
+      // P1: a species with enough real, priced, imaged catalog cards gets
+      // a durable indexable "prices & values" hub; a thinner one keeps the
+      // lean noindex fallback.
+      const { stats, indexable } = await fetchSpeciesCatalog(speciesName);
+      const canonical = `/pokemon/${slug}`;
+      if (indexable && stats) {
+        const t = `${speciesName} Pokemon Cards — Prices & Values`;
+        const range =
+          stats.minPrice != null && stats.maxPrice != null && stats.maxPrice !== stats.minPrice
+            ? `$${stats.minPrice.toFixed(2)}–$${stats.maxPrice.toFixed(2)}`
+            : null;
+        const description = `Browse ${stats.cardCount} ${speciesName} Pokemon cards across ${stats.setCount} ${
+          stats.setCount === 1 ? "set" : "sets"
+        }, with real recent-sold market values${range ? ` from ${range}` : ""}. Live eBay deals shown when available.`;
+        return {
+          title: t,
+          description,
+          alternates: { canonical },
+          openGraph: { title: t, description, url: `${SITE_URL}${canonical}`, type: "website" },
+          twitter: { card: "summary", title: t, description },
+        };
+      }
       const t = `${speciesName} Pokemon Cards`;
       return {
         title: t,
         description: `${speciesName} Pokemon card catalogue and market prices, plus a live eBay search. No active below-market ${speciesName} deal right now.`,
-        alternates: { canonical: `/pokemon/${slug}` },
+        alternates: { canonical },
         robots: { index: false, follow: true },
-        openGraph: { title: t, description: `Browse ${speciesName} Pokemon cards and prices.`, url: `${SITE_URL}/pokemon/${slug}` },
+        openGraph: { title: t, description: `Browse ${speciesName} Pokemon cards and prices.`, url: `${SITE_URL}${canonical}` },
         twitter: { card: "summary", title: t, description: `Browse ${speciesName} Pokemon cards and prices.` },
       };
     }
@@ -108,8 +130,20 @@ export default async function PokemonSpeciesPage({ params }) {
     // fallback (noindex). Not a species at all -> 404.
     const speciesName = speciesForSlug(slug);
     if (!speciesName) notFound();
-    const { cards } = await fetchSpeciesCatalog(speciesName);
-    return <SpeciesCatalog speciesName={speciesName} slug={slug} cards={cards} />;
+    const [{ cards, stats, indexable }, validSetSlugs] = await Promise.all([
+      fetchSpeciesCatalog(speciesName),
+      fetchSetSlugs("english"),
+    ]);
+    return (
+      <SpeciesCatalog
+        speciesName={speciesName}
+        slug={slug}
+        cards={cards}
+        stats={stats}
+        indexable={indexable}
+        validSetSlugs={validSetSlugs}
+      />
+    );
   }
 
   const [{ deals, totalPages, error }, { prints }, { cards: allCards }, validSetSlugs] =
@@ -245,18 +279,17 @@ export default async function PokemonSpeciesPage({ params }) {
         {allCards.length > 0 && (
           <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-              Every {resolved.name} card ({allCards.length})
+              Every {resolved.name} card, by set ({allCards.length})
             </h2>
             <p className="mt-1 text-xs text-zinc-400">
-              The full catalogue — cards with an active deal are shown in green, the rest with their
-              PokemonPriceTracker reference price (recent sold data, not a guaranteed value) and a
-              live eBay search.
+              Every catalogued {resolved.name} print grouped by set, with its recent-sold market
+              reference price (not a guaranteed value). Cards with a live below-market listing show
+              that price instead; each links to its full price page.
             </p>
-            <SpeciesCardList
-              label={resolved.name}
+            <SpeciesCardsBySet
+              speciesName={resolved.name}
               cards={allCards}
-              dealsHref="#deals"
-              pageName="species_detail_catalog"
+              validSetSlugs={validSetSlugs}
             />
           </section>
         )}
