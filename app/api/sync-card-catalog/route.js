@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { downloadPrintingsExport } from "@/lib/pokemonPriceTracker";
+import { downloadPrintingsExport, isSentinelPrice } from "@/lib/pokemonPriceTracker";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 
 // Daily sync of PokemonPriceTracker's full card catalogue into our own
@@ -20,13 +20,17 @@ export const maxDuration = 800;
 const UPSERT_CHUNK = 500;
 const CDN = "https://tcgplayer-cdn.tcgplayer.com/product";
 
-// First positive number in the list, else null. PPT gives an empty
-// string (not 0/null) for a condition it has no data for; a card can
-// have e.g. only a Lightly Played price and no market/NM price.
+// First positive, non-sentinel number in the list, else null. PPT gives
+// an empty string (not 0/null) for a condition it has no data for; a card
+// can have e.g. only a Lightly Played price and no market/NM price. It
+// also emits repdigit sentinels (999 / 9999 / ...) for "no real comps" -
+// treat those as no-data too, same as sync-watchlist's classifyTier and
+// the /cards price lookups already do (this was the one place the
+// sentinel filter was missing - see docs/scanning-architecture.md).
 function firstPrice(...vals) {
   for (const v of vals) {
     const n = Number(v);
-    if (Number.isFinite(n) && n > 0) return n;
+    if (Number.isFinite(n) && n > 0 && !isSentinelPrice(n)) return n;
   }
   return null;
 }

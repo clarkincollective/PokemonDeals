@@ -2,6 +2,8 @@
 
 Tracking against the 26-phase brief. Updated as work completes and is verified (build + local/live checks), not merely written.
 
+> **Reference:** [`docs/scanning-architecture.md`](docs/scanning-architecture.md) — end-to-end map of the card / sealed deal scanning + PPT pricing pipeline, every trust/sanity check and where it runs, current coverage numbers, and the gaps found (with which were fixed vs. reported). Written 2026-08-30.
+
 ## Completed (this session, verified live in production)
 
 - **Phase 1 — Audit**: done (architecture, schema, rendering, sitemap, robots, canonical, metadata, structured data, internal linking, pagination all inspected and documented in conversation).
