@@ -993,6 +993,66 @@ catalogue + per-condition price fallback).
 * **Pending:** the full `/export` sync (02:00 UTC 08-31) and A4's broad
   species re-check afterward.
 
+## Set logos / species icons for /sets & /pokemon — 2026-08-30 — BLOCKED at Phase 1, no code written
+
+### Phase 1 — PokemonPriceTracker image licensing: NOT confirmable
+
+Read `pokemonpricetracker.com/licensing` and `/terms` directly.
+**Images are not mentioned anywhere** in either document — no clause on
+card images, set logos/symbols, artwork, thumbnails, hotlinking, image
+caching, or a CDN. There is no "image access" entitlement concept, so
+nothing to confirm the Business tier "includes" for images.
+
+The only adjacent clause, verbatim (licensing page), is about **data**:
+> "Caching and storing responses to serve your own application is
+> expected and fine — it is easier on both of us than re-querying
+> constantly… What you may not do is expose that stored copy to third
+> parties as a data source, or hand the stored dataset to anyone else."
+
+`/terms` disclaims affiliation with TCGplayer, Nintendo, and The Pokémon
+Company and is silent on image rights. **Per the brief's guardrail
+("if any licensing question can't be confidently resolved, stop and
+report"), this is a stop.** The site's existing ~29k card thumbnails
+(TCGplayer `product/*.jpg`, hotlinked) already run on a fair-use posture
+the owner accepted; extending that to new asset classes is the owner's
+call, not one to make here.
+
+### Phase 2 — /api/v2/sets DOES return images, but they 403
+
+`GET /api/v2/sets` returns `imageCdnUrl` / `imageCdnUrl200|400|800` /
+`imageUrl`, all pointing at
+`https://tcgplayer-cdn.tcgplayer.com/set_icon/<tcgPlayerNumericId><Name>.png`
+(TCGplayer set-symbol icons). **These URLs return `403` on a direct GET**
+(plain, and with a browser UA + tcgplayer.com referer) — unlike the
+`product/*.jpg` card images the site already uses, which return `200`.
+So even setting licensing aside, PPT's set-image URLs are **not
+hotlinkable by us**. A working set-logo feature would need self-hosted
+downloaded assets — which sharpens the licensing question rather than
+resolving it.
+
+### Phase 3 — species icons: source found, license unresolved
+
+PPT has no species data model (`/sets` + `/cards` only — confirmed).
+Candidate: **PokéAPI sprites**
+(`raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/<dexNo>.png`
+— 96×96 PNGs, ~600 B, all resolve `200`). PokéAPI is already this repo's
+species-name source (`lib/pokemonSpeciesData.js`). License: PokéAPI's
+*code* is permissive (BSD-3), but the **sprite images are game assets** —
+the sprites repo carries no image LICENSE, and PokéAPI states it is not
+affiliated with Nintendo and the assets originate from the games. Same
+fair-use posture as the existing card thumbnails; a new asset class.
+
+### Status
+
+**Phase 4 not started. No code, config, or schema changed.** Needs an
+owner decision:
+1. **Set logos** — not feasible as specced (PPT's URLs 403). Skip, or
+   self-host a set-symbol set (separate task + its own licensing call)?
+2. **Species icons** — PokéAPI sprites are the practical source and
+   mirror the site's existing card-thumbnail fair-use posture exactly.
+   OK to proceed on `/pokemon` on that basis (small identification-scale
+   icons, cached, no affiliation claims), or skip?
+
 ## Not building (deliberate, documented)
 
 - **Phase 8 — dedicated price-history pages**: not building as separate `/cards/[slug]/price-history/` routes — price history is already integrated into the card hub and deal detail pages (chart + real data), and PokemonPriceTracker doesn't expose enough historical depth to justify a separate crawlable page beyond what's already shown. Documenting this as a deliberate scope decision, not an oversight.
