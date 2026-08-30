@@ -1398,6 +1398,17 @@ SSR (`openSets` default); the rest expand client-side — page is 1.31 MB,
 TTFB ~16 ms from ISR. Pre-sync it degrades to a "still syncing" line with
 the live-deal strip intact.
 
+**Group-header set logos (2026-08-30).** Each collapsible group header
+carries the set's pokemontcg.io logo next to the name — the same
+`lib/setImages.js` assets `/sets` uses, enriched onto each group in
+`app/sealed-deals/page.js` via `setImage(g.set)?.logo`. Fixed 64×28 box
+(`h-7 w-16`), lazy `next/image`, so the collapsed list stays even with
+zero CLS. **126 of the 151 groups have a logo (~83 %)**, in line with the
+`/sets` coverage (161/207, ~78%); the other 25 fall back to text-only
+(empty box, no broken image). CWV: `fetchpriority="high"` count on the
+page is **0** — every logo is lazy, only the ~14 in the first viewport
+are fetched; page markup grew ~0.24 MB (srcSet strings, not downloads).
+
 ### Affiliate / images / CWV / tests
 
 - **Affiliate:** browse tiles use the same `buildEbaySearchLink()` path

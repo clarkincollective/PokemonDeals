@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import SpeciesCard from "@/components/SpeciesCard";
 
 // The standalone /sealed-deals catalogue: every sealed product PPT
@@ -10,8 +11,9 @@ import SpeciesCard from "@/components/SpeciesCard";
 // type chips, "deals only" toggle - same progressive-enhancement shape
 // as PokemonFilterList / SetsFilterList.
 //
-// `groups` = [{ set, slug, products: [SpeciesCard cards], dealCount }],
-// products pre-sorted deals-first by fetchSealedCatalog.
+// `groups` = [{ set, slug, logo, products: [SpeciesCard cards], dealCount }],
+// products pre-sorted deals-first by fetchSealedCatalog; `logo` from
+// setImage() enriched in the page (null when pokemontcg.io has no logo).
 const GRID = "mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
 
 export default function SealedProductBrowser({ groups, types }) {
@@ -130,11 +132,28 @@ export default function SealedProductBrowser({ groups, types }) {
                   aria-expanded={open}
                   className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
                 >
-                  <span className="flex flex-wrap items-baseline gap-x-2 text-sm font-bold text-black dark:text-zinc-50">
-                    {g.set}
-                    <span className="text-xs font-medium text-zinc-400">
-                      {g.products.length} product{g.products.length === 1 ? "" : "s"}
-                      {g.dealCount > 0 ? ` · ${g.dealCount} deal${g.dealCount === 1 ? "" : "s"}` : ""}
+                  <span className="flex min-w-0 flex-1 items-center gap-2.5">
+                    {/* Real pokemontcg.io set logo (same assets as /sets).
+                        Fixed 64x28 box so the collapsed list stays even and
+                        there's no layout shift; lazy by default. No logo ->
+                        empty box, the set name still identifies it. */}
+                    <span className="relative block h-7 w-16 shrink-0">
+                      {g.logo && (
+                        <Image
+                          src={g.logo}
+                          alt=""
+                          fill
+                          sizes="64px"
+                          className="object-contain object-left"
+                        />
+                      )}
+                    </span>
+                    <span className="flex flex-wrap items-baseline gap-x-2 text-sm font-bold text-black dark:text-zinc-50">
+                      {g.set}
+                      <span className="text-xs font-medium text-zinc-400">
+                        {g.products.length} product{g.products.length === 1 ? "" : "s"}
+                        {g.dealCount > 0 ? ` · ${g.dealCount} deal${g.dealCount === 1 ? "" : "s"}` : ""}
+                      </span>
                     </span>
                   </span>
                   <span className={`shrink-0 text-zinc-400 transition-transform ${open ? "rotate-90" : ""}`}>

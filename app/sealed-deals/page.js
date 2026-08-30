@@ -2,6 +2,7 @@ import { fetchSealedDealsPool, fetchSealedCatalog, fetchLastScanTime } from "@/l
 import { dealScore } from "@/lib/dealScore";
 import { timeAgo } from "@/lib/time";
 import { SEALED_PRODUCT_TYPES } from "@/lib/sealedCatalog";
+import { setImage } from "@/lib/setImages";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import SealedDealCard from "@/components/SealedDealCard";
@@ -61,6 +62,10 @@ export default async function SealedDealsPage() {
   const typesPresent = new Set();
   for (const g of catalog.groups) for (const p of g.products) if (p.productType) typesPresent.add(p.productType);
   const types = SEALED_PRODUCT_TYPES.filter((t) => typesPresent.has(t));
+
+  // Attach the pokemontcg.io set logo (same assets as /sets) to each
+  // group; null when that set has no catalogued logo -> text-only header.
+  const groupsWithLogos = catalog.groups.map((g) => ({ ...g, logo: setImage(g.set)?.logo ?? null }));
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
@@ -127,7 +132,7 @@ export default async function SealedDealsPage() {
         </h2>
 
         {catalog.groups.length > 0 ? (
-          <SealedProductBrowser groups={catalog.groups} types={types} />
+          <SealedProductBrowser groups={groupsWithLogos} types={types} />
         ) : (
           <p className="text-zinc-500">
             The sealed-product catalogue is still syncing. Live deals above are unaffected — check
