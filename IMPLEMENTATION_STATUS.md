@@ -1421,8 +1421,43 @@ the live-deal strip intact.
 - `scripts/auditSealedCatalog.js` — new; per-set `sealed_catalog`-vs-PPT
   count + a live image-resolve check.
 
+### Coverage: remaining 68 sets checked — 2026-08-30
+
+Ran `scripts/syncSealedCatalogSets.js --file` (new — targeted per-set
+sealed sync + per-set progress + the `flagImplausibleSealedPrices` pass)
+against the **68 `listSets` names with no `sealed_catalog` rows**.
+
+**Result: 0 new products, 0 new sets.** Total stays **2,329 products /
+151 of 219 sets**. Every one of the 68 returned no product whose own
+`setName` is that set — PokemonPriceTracker's `/sealed-products` endpoint
+genuinely has nothing for them. Verified the notable ones aren't a
+name-spelling miss: `?setName=` and `?search=` for "EX Sandstorm Booster
+Box", "Skyridge Booster Box", "EX Ruby & Sapphire", "Expedition Base
+Set" etc. all return **empty**. `flagImplausibleSealedPrices` ran on the
+(empty) new set — 0 nulled, so no new placeholder prices were let in.
+
+The 68, categorised:
+
+| Category | n | Why no sealed product |
+| --- | ---: | --- |
+| Promo sets (McDonald's, WoTC, Nintendo, SM/XY/SV/SWSH Promos, …) | 24 | promos aren't sold as sealed boxes |
+| Trainer / Training / Starter Kits (EX/XY/BW/HGSS/DP kits, Kalos Starter Set) | 11 | are sealed themselves but PPT doesn't catalogue them |
+| Subsets (Shiny Vault, Radiant Collection, Trainer/Galarian Gallery, Classic Collection) | 11 | no standalone sealed — the parent set is covered |
+| **Old sets PPT has no sealed data for** (EX Sandstorm → EX Dragon, Skyridge, Dark Explorers) | 13 | real sealed boxes exist in the world; **PPT just doesn't track them** — not fixable from our side |
+| Misc non-sealed "sets" (Jumbo Cards, Energies, Prize Pack, e-Reader Sample, Blister/Deck Exclusives, Rumble, League & Championship) | 9 | not sealed-product sets by nature |
+
+Only the 13 vintage EX/e-Card sets are a genuine catalogue gap, and it's
+a **PokemonPriceTracker limitation** (no upstream data), not a sync bug —
+nothing more to fetch. `test:seo` 57/57, `test:scanner` 11/11, build
+clean; spot-checked `/sets/sv09-journey-together` (25), `swsh05-battle-
+styles` (27), `sm-cosmic-eclipse` (15), `sv-paldean-fates` (33) — sealed
+sections render, no regression.
+
 ### Coverage gaps (documented)
 
+- **13 vintage sets (EX Sandstorm–EX Dragon, Skyridge, Dark Explorers)**
+  have no `sealed_catalog` rows — PPT catalogues no sealed product for
+  them. Their `/sets/<slug>` pages simply show no sealed section.
 - Sealed deal coverage is inherently sparse — `sealed_watchlist` is only
   ~48 hand-picked products, so only ~50 active sealed deals across ~17
   sets right now. Every other sealed product shows as browse-only. This
