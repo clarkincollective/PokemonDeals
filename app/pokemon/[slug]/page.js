@@ -240,11 +240,16 @@ export default async function PokemonSpeciesPage({ params }) {
               Every {resolved.name} card ({allCards.length})
             </h2>
             <p className="mt-1 text-xs text-zinc-400">
-              Deals first (green), then the rest of the catalogue with its reference price and a live
-              eBay search. Reference prices from PokemonPriceTracker&apos;s recent sold data — not a
-              guaranteed value.
+              The full catalogue — cards with an active deal are shown in green, the rest with their
+              PokemonPriceTracker reference price (recent sold data, not a guaranteed value) and a
+              live eBay search.
             </p>
-            <SpeciesCardList speciesName={resolved.name} cards={allCards} dealsHref="#deals" />
+            <SpeciesCardList
+              speciesName={resolved.name}
+              cards={allCards}
+              dealsHref="#deals"
+              pageName="species_detail_catalog"
+            />
           </section>
         )}
 

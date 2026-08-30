@@ -32,7 +32,7 @@ export default function SpeciesCatalog({ speciesName, slug, cards }) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <SiteHeader />
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
         <Breadcrumbs
           items={[
             { name: "Deals", href: "/" },
@@ -63,8 +63,8 @@ export default function SpeciesCatalog({ speciesName, slug, cards }) {
             <h2 className="mt-10 text-sm font-semibold uppercase tracking-wide text-zinc-400">
               Every {speciesName} card ({cards.length})
             </h2>
-            <SpeciesCardList speciesName={speciesName} cards={cards} />
-            <p className="mt-3 text-xs text-zinc-400">
+            <SpeciesCardList speciesName={speciesName} cards={cards} pageName="species_catalog" />
+            <p className="mt-6 text-xs text-zinc-400">
               Reference prices from PokemonPriceTracker, based on recent sold data - not a guaranteed
               value.{" "}
               <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">
