@@ -44,3 +44,8 @@ create index if not exists card_catalog_species_idx
 -- Set-scoped lookups + the sync job's per-set upsert.
 create index if not exists card_catalog_set_idx
   on card_catalog (set_id, language);
+
+-- Public reference data (no user rows) - the site's anon client must be
+-- able to read it, same as `deals` / `watchlist` / `catalog_snapshot`.
+-- Without this the pages silently fall back to the watchlist slice.
+alter table card_catalog disable row level security;
