@@ -1,8 +1,9 @@
 # Scanning & deal-detection architecture
 
-_Last reviewed: 2026-08-30. This describes what the code **actually does**,
-cross-referenced against the files named in each section — not the
-intended design._
+_Written 2026-08-30, re-verified against the code 2026-08-31 (no drift;
+one watchlist-count clarification below). This describes what the code
+**actually does**, cross-referenced against the files named in each
+section — not the intended design._
 
 The system has **three independent data planes**, each with its own cron,
 its own source, and its own table:
@@ -31,18 +32,28 @@ one row per card **whose PPT Near-Mint price ≥ `EXTENDED_MIN_VALUE_USD`
 ($15)**. Tiering (`classifyTier` in `sync-watchlist/route.js`):
 
 - `PRIORITY_MIN_VALUE_USD = Infinity` → nothing auto-lands in `priority`;
-  it's reserved for ~26 hand-picked rows (`source: "manual"`, from
+  it's reserved for the ~21 hand-picked rows (`source: "manual"`, from
   `scripts/seedWatchlist.js`).
-- `≥ $15` → `extended` (`source: "auto"`). ~8,375 rows.
+- `≥ $15` → `extended` (`source: "auto"`).
 - `< $15`, or a PPT repdigit sentinel (999/9999/…) → **not added.**
+
+**Row counts (2026-08-31):** `watchlist` active total **8,375** =
+**4,909 English** (4,888 `extended` + 21 `priority`) + **3,466
+Japanese**. The Japanese rows are the same table, scanned via the
+`?language=japanese` cron path and surfaced on `/japanese-cards`; every
+`listingMatchesCard` language guard keeps the two catalogues from
+cross-matching. (An earlier draft's "~8,375" was the combined figure —
+English-only scan coverage is ~4,900.) Separately, **213 English `auto`
+rows are inactive** — correctly retired by `retireStaleAutoRows` when a
+full crawl no longer saw them.
 
 `retireStaleAutoRows` deactivates `auto` rows no longer seen in a full
 crawl. `last_known_price` on each row = the PPT NM price at last sync;
 the scanner uses it as a stability reference (see 1c).
 
 **Coverage boundary:** every card in `card_catalog` priced **≥ $15** and
-non-sentinel is eligible. Cards under $15, and the ~8k `card_catalog`
-rows that are sub-$15 / unpriced, are **never scanned for deals** — they
+non-sentinel is eligible. Cards under $15, and the `card_catalog` rows
+that are sub-$15 / unpriced, are **never scanned for deals** — they
 appear on browse pages with a PPT reference price only.
 
 ### 1b. What triggers a scan
@@ -51,7 +62,7 @@ appear on browse pages with a PPT reference price only.
 | --- | --- | --- | --- |
 | `*/15 * * * *` | `refresh-deals?mode=sweep&country=EBAY_US&pages=5` | every 15 min | **sweep** — US new-listing discovery |
 | `5,20,35,50 */2 * * *` | `refresh-deals?mode=sweep&country=EBAY_{GB,AU,CA,DE}&pages=8` | every 2 h | sweep — other 4 countries |
-| `0 */6 * * *` | `refresh-deals?tier=priority` | every 6 h | per-card scan of the ~26 priority rows, all 5 countries |
+| `0 */6 * * *` | `refresh-deals?tier=priority` | every 6 h | per-card scan of the ~21 priority rows, all 5 countries |
 | `0 4 <dom> * *` | `refresh-deals?tier=extended&country=…&chunk=1..6` | 1 country-chunk/day | per-card scan of 1/6 of the extended tier in 1 country — full rotation ≈ 30 days |
 
 - **Sweep** (`runSweep`): pulls the newest ~1,000–1,600 listings across
