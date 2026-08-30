@@ -1435,6 +1435,50 @@ the live-deal strip intact.
   has an active sealed deal (same trade-off as `SET_CATALOG_MIN_CARDS`);
   those deals still surface on the standalone hub.
 
+### Follow-up: "Base Set booster box ~$600" bug — 2026-08-30 — FIXED
+
+**Root cause: bad reference data from PokemonPriceTracker, not a
+matching / currency / code bug.** The tile was
+`Base Set Booster Box [Revised Unlimited Edition]` (the 2000 reprint
+run, id 185731) — a real, correctly-classified product — with PPT's
+`unopenedPrice` = **$499.99**, a value that is *also* attached to
+`Base Set (Shadowless) [1st Edition] Booster Box` (id, real value
+~$300k+) and reads as a placeholder for "no real comps". PPT has no
+sales data for ultra-rare vintage sealed product and emits a low
+figure. The classifier was right; the price was wrong.
+
+Not a live deal — there is no active `sealed_deal` for any vintage Base
+Set box (the only Base-Set-ish sealed deal is a correctly-priced $175
+SV01 half booster box). So the eBay-listing-trust angle didn't apply
+here; for completeness, the sealed deal scanner already runs the same
+class of checks the card scanner does (`isTrustworthySealedListing`,
+`listingMatchesSealedProduct`, `SANITY_FLOOR_PCT` price floor in
+`app/api/refresh-sealed-deals/route.js`).
+
+**Fix** (`lib/sealedCatalog.js` → `flagImplausibleSealedPrices`, run in
+both sync entry points + a one-time backfill): null `market_price` on
+any **Booster Box** whose price is **≤ the set's most expensive Booster
+Pack** (a box holds ~36 packs — it can never be worth less than one) or
+**< $40** absolute. `SpeciesCard` already renders "Price unavailable"
++ the eBay search for a null reference price (same posture as the
+card-side `$0.00` fix). Precise — it nulled exactly **3 rows** catalogue-
+wide, zero false positives:
+
+| Product | was | why |
+| --- | ---: | --- |
+| Base Set Booster Box [Revised Unlimited Edition] | $499.99 | < its own set's pack ($838.20) |
+| Base Set (Shadowless) [1st Edition] Booster Box | $499.99 | < that set's pack ($15,000) |
+| Pitch Black Half Booster Boxes (ME05) | $8.99 | < $40 floor |
+
+**Spot-check of other high-value vintage sealed** (`scripts/auditSealed
+Catalog.js` data): every remaining pre-2004 sealed price is now
+plausible — Gym Heroes / Gym Challenge Unlimited boxes $10k–$14k;
+single WOTC Unlimited/1st-Ed booster packs $280–$2,095; sealed WOTC
+theme decks $165–$700. The `Base Set Booster Pack [Revised Unlimited]`
+at $838.20 was checked and **left as-is** — freshly scraped, no logical
+contradiction (its box is now null), and reprint-run singles genuinely
+trade that high. `test:seo` 57/57, `test:scanner` 11/11, build clean.
+
 ## Not building (deliberate, documented)
 
 - **Phase 8 — dedicated price-history pages**: not building as separate `/cards/[slug]/price-history/` routes — price history is already integrated into the card hub and deal detail pages (chart + real data), and PokemonPriceTracker doesn't expose enough historical depth to justify a separate crawlable page beyond what's already shown. Documenting this as a deliberate scope decision, not an oversight.

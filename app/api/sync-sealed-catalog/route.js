@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { listSets, listSealedProductsForSet } from "@/lib/pokemonPriceTracker";
-import { sealedCatalogRecord } from "@/lib/sealedCatalog";
+import { sealedCatalogRecord, flagImplausibleSealedPrices } from "@/lib/sealedCatalog";
 
 // Daily sync of PokemonPriceTracker's sealed-product catalogue into our
 // own `sealed_catalog` table - the browsing layer's source of "every
@@ -64,6 +64,7 @@ export async function GET(request) {
   }
 
   const records = [...byId.values()];
+  const nulledPrices = flagImplausibleSealedPrices(records);
   let upserted = 0;
   for (let i = 0; i < records.length; i += UPSERT_CHUNK) {
     const slice = records.slice(i, i + UPSERT_CHUNK);
@@ -83,6 +84,7 @@ export async function GET(request) {
     setsWithProducts: withProducts,
     distinctProducts: byId.size,
     upserted,
+    implausibleBoxPricesNulled: nulledPrices,
     withPrice: records.filter((r) => r.market_price != null).length,
     setErrors: errors.length,
     errors: errors.slice(0, 10),

@@ -12,7 +12,7 @@
 require("dotenv").config({ path: ".env.local" });
 const { createClient } = require("@supabase/supabase-js");
 const { listSets, listSealedProductsForSet } = require("../lib/pokemonPriceTracker");
-const { sealedCatalogRecord } = require("../lib/sealedCatalog");
+const { sealedCatalogRecord, flagImplausibleSealedPrices } = require("../lib/sealedCatalog");
 
 const LANGUAGE = "english";
 const UPSERT_CHUNK = 500;
@@ -77,7 +77,8 @@ async function main() {
   }
 
   const records = [...byId.values()];
-  log(`\nscanned ${scanned} sets (${withProducts} had sealed products); ${records.length} distinct products; ${errors.length} set errors`);
+  const nulledPrices = flagImplausibleSealedPrices(records);
+  log(`\nscanned ${scanned} sets (${withProducts} had sealed products); ${records.length} distinct products; ${errors.length} set errors; ${nulledPrices} implausible box prices -> null`);
   if (errors.length) errors.slice(0, 10).forEach((e) => log(`  err: ${e}`));
 
   let upserted = 0;
