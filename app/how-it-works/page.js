@@ -43,12 +43,12 @@ export default function HowItWorksPage() {
         <h2 className="mt-10 text-lg font-bold text-black dark:text-zinc-50">1. Scanning eBay</h2>
         <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
           New listings are discovered continuously through the eBay Browse API, in the Pokemon
-          individual-cards category — every 15 minutes on the US marketplace and hourly on the UK,
-          Australia, Canada, and Germany marketplaces. Separately, listings already on the site are
-          re-checked to confirm they&apos;re still active and still a deal: a hand-picked priority set
-          of cards every 4 hours across all five marketplaces, and the wider catalogue (tens of
-          thousands of cards) one slice per marketplace per day, cycling through the whole list about
-          once a month. The card catalogue itself is re-synced daily, and sealed products are
+          individual-cards category — every 15 minutes on the US marketplace and every couple of
+          hours on the UK, Australia, Canada, Germany, and Italy marketplaces. Separately, listings
+          already on the site are re-checked to confirm they&apos;re still active and still a deal: a
+          hand-picked priority set of cards every 6 hours across all six marketplaces, and the wider
+          catalogue (tens of thousands of cards) one slice per marketplace per day, cycling through
+          the whole list about once a month. The card catalogue itself is re-synced daily, and sealed products are
           re-scanned daily.
         </p>
 

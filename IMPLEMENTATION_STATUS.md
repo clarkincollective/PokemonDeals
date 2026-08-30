@@ -1733,6 +1733,246 @@ waiting on the PPT `/export` 2/day quota, target `2026-08-31T00:05:00Z`
 species**. The manual fallback would just re-hit the 429 (reset time is
 future). Fires + re-audits on its own once the quota clears.
 
+## Additional eBay marketplaces — research → EBAY_IT added — 2026-08-31
+
+### Research + tiered-rollout modeling (recommendation only, no code)
+
+Two analysis passes preceded the change:
+
+1. **Which additional marketplaces are worth adding.** Browse API
+   supports FR/IT/ES/IE/NL officially (AT/CH work in probes,
+   unofficial). Live `itemLocationCountry` probes for domestic seller
+   depth ("charizard", cross-checked with 4 other queries):
+   **IT 19,423** (> live EBAY_CA 11,829, ~4× live EBAY_DE 4,944) —
+   FR 1,570 · ES 1,007 · NL 965 (all below the EBAY_DE "worth-it" floor)
+   — IE 289 · AT 256 · CH ~250 (negligible). EPN campaign ID
+   `5339197414` covers every international marketplace automatically —
+   no per-country affiliate setup. EUR already wired end-to-end.
+2. **Tiered / reduced-cadence rollout for the thin markets.** Modeled
+   and rejected: `runSweep` never expires deals (only the per-card
+   priority/extended tiers do), so every scanned market needs a
+   per-card pass — a hard floor of ~225 Browse calls/day/market
+   regardless of how "reduced" the cadence is. IT + FR/ES/NL at that
+   floor is ~1,250/day, over the ~900–1,500/day headroom. No honest
+   config fits more than IT now. FR/ES/NL wait for the rate-limit
+   increase (case #00450936); IE/AT/CH aren't worth a cron slot or the
+   CHF plumbing at any cadence.
+
+### EBAY_IT added as the 6th live marketplace — SHIPPED
+
+| File | Change |
+| --- | --- |
+| `lib/ebay.js` | `MARKETPLACES.EBAY_IT = { label: "Italy", flag: "🇮🇹", currency: "EUR" }` |
+| `app/api/refresh-deals/route.js` | `EXTENDED_CHUNKS` 6 → 5 (6 countries × 5 chunks = 30 daily cron slots; per-country full-rotation cadence unchanged at ~30 days; `chunkOf` is hash-of-id, no migration) |
+| `vercel.json` | +1 sweep cron (`country=EBAY_IT`, `10 */2 * * *`, 8 pages); extended-tier block regenerated as 5 chunks × 6 countries, days 1–30 |
+| `lib/money.js` | `MARKETPLACE_CURRENCY.EBAY_IT = "EUR"` (`SYMBOL` already had `€`; `lib/fx.js` `NEEDED`/`FALLBACK` already had EUR — no FX change) |
+| `components/RegionControl.js` | Italy row in `REGIONS` (the hand-synced picker list) |
+| `lib/geo.js` | `IT → EBAY_IT` so Italian visitors geo-default to the Italy marketplace |
+| `app/page.js`, `app/about`, `app/how-it-works`, `app/methodology` | marketplace-list copy: "five" → "six", added Italy |
+| `tests/seo/identity.test.mjs` | homepage "which markets" assertion now includes Italy |
+| `docs/scanning-architecture.md`, `docs/ebay-rate-limits.md` | budget tables + cron tables updated to 6 marketplaces |
+
+Auto-picked-up, no change needed (verified): the sweep resolves
+`?country=` per request; the priority tier scans `Object.keys(MARKETPLACES)`
+so IT joins at full cadence (21 cards × 4 runs/day); `refresh-sealed-deals`
+scans `Object.keys(MARKETPLACES)` so IT joins the daily sealed scan
+(~194 products); `FilterBar` and `SearchClient` iterate `MARKETPLACES`
+for their country dropdowns; `<DealCard>` / `<SealedDealCard>` /
+deal-detail pages read `MARKETPLACES[deal.marketplace]` for flag + label.
+
+**Pre-launch budget estimate:** +~575 Browse calls/day (sweep ~125 +
+priority ~90 + extended ~163 amortised + sealed ~194), landing the daily
+total at ~3,900–4,700 of 5,000 — same "fits current headroom" profile as
+the sealed-scan expansion. Peak on an IT extended-chunk day is covered by
+the pre-flight `getBrowseRateLimit()` guard (extended floor 1,500).
+
+**Verification (2026-08-31):**
+- `test:scanner` 11/11, `test:seo` 63/63, `next build` clean.
+- Live `searchListings(…, "EBAY_IT")` probe: real inventory
+  ("charizard base set" total 4,461; "pikachu ex 151" 723; "umbreon
+  vmax alt art" 76), prices in **EUR**, `itemLocation.country`
+  populated (drives `is_local` sort). Affiliate URLs come back as
+  `ebay.it/itm/…` with `mkcid=1&mkrid=724-53478-19255-0&campid=5339197414`
+  — eBay auto-generates the correct **Italy rotation ID**; attribution
+  confirmed on every sampled listing.
+- Browse quota at probe time: 1,500 remaining of 5,000 (consistent with
+  prior measurements; IT's crons haven't run yet).
+
+**Post-launch follow-up (pending real cron runs):** monitor one full day
+including an IT extended-chunk day (`0 4 6 * *` / `12` / `18` / `24` /
+`30`), confirm the daily Browse total stays < 5,000 and the pre-flight
+guard defers extended cleanly on any tight day; spot-check a rendered IT
+deal tile + affiliate click-through; confirm the re-chunk didn't drop
+coverage for the existing 5 markets (every country still gets a chunk
+across days 1–30). Update this section with the observed numbers.
+
+## External discovery ingestion (PokeDealFinder board → our pipeline) — 2026-08-31
+
+### Premise (per site-operator representation)
+
+The operator states they have permission from PokeDealFinder to use its
+public deal board as a discovery source. This integration takes **only the
+public eBay item id + marketplace** off that board as a *hint*; every item
+is then independently re-fetched via our own eBay Browse API, re-validated
+through our own trust/match/score pipeline, matched against our own
+`card_catalog`, and wrapped with our own affiliate links. No PokeDealFinder
+affiliate link, tracking param, branding, or content is imported or shown.
+Recorded here because provenance matters if terms are revisited:
+- **PokeDealFinder permission** — taken as represented by the operator; not
+  independently verifiable from the codebase.
+- **eBay API License Agreement** — ingesting externally-sourced item ids and
+  looking them up via Browse stays the operator's compliance call. Nothing
+  here evades quota: verification is real Browse calls, guarded and capped.
+
+### Key technical finding — no batch lookup
+
+eBay's `getItems` (20-ids-per-call) **403s "Access denied"** on this
+production keyset (restricted Buy API). `get_item_by_legacy_id` works, so
+verification is **one Browse call per new item**. This is why the design is
+hourly + capped + high-floor-gated rather than 15-min: it can only ever be
+a *spare-capacity supplement*, not a substitute for a spent quota (the
+original brief's "fallback when our quota is maxed" framing isn't
+achievable — verifying costs the same budget).
+
+### What shipped
+
+| File | Change |
+| --- | --- |
+| `supabase/deals_feed_discovery_migration.sql` | **NEW — must be run in SQL Editor before deploy.** `deals.watchlist_id` → nullable; `+ card_catalog_id` FK; `+ discovery_source` (`scan` / `external` / `scan+external`) with a merge trigger; `+ card_name/card_set/card_language/card_tcgplayer_id` resolved columns filled by a `BEFORE INSERT/UPDATE` trigger from whichever ref is set; `deals_has_card_ref` check; backfill; indexes |
+| `lib/pokeFeed.js` | NEW — `fetchFeed()` (timeout + retry, failures are no-ops) and pure `parseFeedHtml()`: pulls `/itm/<id>` + eBay TLD→marketplace out of each board row's `du` param |
+| `lib/ebay.js` | NEW `getItemsByLegacyIds(ids, marketplace, {concurrency})` — bounded-parallel `get_item_by_legacy_id`, maps via `mapItemSummary`, returns `{listings, calls}` |
+| `app/api/ingest-feed/route.js` | NEW cron route — quota guard (floor 800), feed parse, skip-if-verified-<20h (DB-only `last_seen_at` bump for still-listed), ≤40 new/cycle, per-marketplace Browse verify, `card_catalog` whole-word match index, trust + discount 0.1 + sanity-floor 0.25 gates, upsert `discovery_source:'external'`, feed-absence expiry (2-day grace for feed-only rows) |
+| `vercel.json` | `+ {"path":"/api/ingest-feed","schedule":"0 * * * *"}` |
+| `lib/deals.js` | `cardColsReady()` probe + `withCard()` normaliser (exported). `fetchDealsPoolUncached` + `fetchDealsPageUncached` prefer flat `card_*` columns / fall back to the `watchlist:!inner` embed until the migration runs; dedup key falls back to `card_tcgplayer_id`; rows normalised so every consumer keeps reading `deal.watchlist?.name` unchanged |
+| `app/deals/[id]/page.js` | same prefer-`card_*`/fallback + `withCard()` |
+| `tests/scanner/poke-feed.test.mjs` | NEW — parser contract (id/marketplace extraction, drops unresolvable rows, dedup) |
+| `docs/scanning-architecture.md`, `docs/ebay-rate-limits.md` | new plane documented; budget table + typical-total updated |
+
+### Scope of surfacing (v1)
+
+Feed-discovered **catalogue-only** deals (no watchlist row) appear in the
+**main deal grids** (`fetchDealsPool` → homepage + `/japanese-cards`;
+`fetchDealsPage` → `/deals`, category, set/species, paginated) and the
+**deal detail page**. They do **not** yet appear in: Best Finds,
+Auctions-Ending-Soon, the `catalog_snapshot` aggregates (`/sets`,
+`/pokemon`, card hubs), `/search`, or market-data — those still use
+`watchlist:!inner` and are a documented **phase-2** follow-up. Feed deals
+whose card *is* watched carry `watchlist_id` and already appear everywhere.
+
+### Deploy order
+
+1. Run `supabase/deals_feed_discovery_migration.sql` in the Supabase SQL
+   Editor. (Code is safe in either order — `cardColsReady()` falls back to
+   the old embed until the columns exist — but `ingest-feed` writes fail
+   the `deals_has_card_ref` check until it's applied.)
+2. Deploy. `ingest-feed` runs hourly; it self-skips below `remaining` 800.
+
+### Verification done (2026-08-31)
+
+- `test:scanner` **14/14** (3 new parser tests), `test:seo` **63/63**,
+  `next build` clean. All read paths exercised via the legacy fallback
+  (dev DB migration not applied) → **zero behaviour change** pre-migration.
+- `parseFeedHtml` against the live board: **105 listings**, clean split
+  24/24/24/24 GB/US/AU/CA + 9 DE (0 IT on the board right now), every row
+  resolved to a 12-digit id + marketplace, 0 malformed.
+- `getItemsByLegacyIds` live (EBAY_GB, 3 ids): 3/3 returned, prices in
+  GBP, `itemLocation` populated, `affiliateUrl` carries
+  `mkcid=1 & campid=5339197414`. **Confirmed 1 Browse call per item.**
+- End-to-end dry run (feed → verify → match → price, no writes) on 6 real
+  board items: correctly produced 1 DEAL (Gardevoir ex 217/091 Paldean
+  Fates, 10% off), rejected 1 above-market match, 1 untrusted, 1 graded
+  (skipped), 2 no-catalogue-match (no fabricated match). 6 items = 6
+  Browse calls.
+
+### Pending (needs the migration applied + real cron runs)
+
+Confirm on prod: `ingest-feed` response counts sane; a feed-only deal
+renders correctly on a grid + its detail page (flag, our eBay affiliate
+URL carrying our campaign id **not** PokeDealFinder's, TCGPlayer link,
+`discovery_source='external'` in the row); daily Browse total stays under
+5,000 with the floor-800 guard skipping on tight days; feed-absence expiry
+retires a feed-only deal ~2 days after it leaves the board. Then decide
+whether phase-2 surfacing (Best Finds / aggregates / search) is worth it.
+
+## Discovery-gap analytics — instrumentation only — 2026-08-31 (Phase 2)
+
+### Why this is instrumentation, not analysis
+
+Phase 2's goal is "why does the feed find listings our scanner doesn't,
+and how do we close that in our own scanner." That is a **data-analysis**
+task and **there is no data yet**: the Phase 1 migration isn't applied,
+`ingest-feed` has never run, and there are zero `discovery_source =
+'external'` rows. Producing the gap analysis / query-pattern findings /
+scanner-change recommendations now would be the exact guessing the brief
+forbids ("measure first, learn second, optimize third"; "Only recommend
+changes supported by observed external-only data"). So this turn builds
+the measurement apparatus and stops there.
+
+### What shipped
+
+| File | Role |
+| --- | --- |
+| `supabase/discovery_analytics_migration.sql` | **NEW — run after `deals_feed_discovery_migration.sql`.** `discovery_events` append-only table: one row each time the scanner or the feed *evaluates* a listing far enough to know its card. `listing_key` = `MARKETPLACE:<eBay legacy id>` (stable across both pipelines). Powers overlap-over-time, per-marketplace gap rate, scan-vs-feed latency, feed acceptance rate. RLS on, service-role only |
+| `lib/discoveryLog.js` | NEW — `logDiscoveryEvent(db, …)` (**best-effort**, every failure swallowed — analytics can never break a scan), `legacyIdFromListingId()`, `discoveryListingKey()` |
+| `app/api/refresh-deals/route.js` | `scanCardInMarketplace` takes a `searchType` param (`priority`/`extended`/`manual`); both its and `runSweep`'s `tryUpsert` fire one best-effort `discovery_events` insert on a successful deal upsert (`source:'scan'`, `search_type`, card id, discount). ~6 additive lines, no behaviour change — `test:scanner` 18/18, build clean |
+| `app/api/ingest-feed/route.js` | logs one `discovery_events` row per **verified** listing (`source:'external'`, `became_deal` true/false, card id, discount, board href) — the Step-9 acceptance-rate denominator |
+| `lib/pokeFeed.js` | parsed items now carry `sourceUrl` (the `/public/cards/…` href, minus the `du=` eBay-URL tail) — internal debug metadata only |
+| `lib/discoveryAnalytics.js` | NEW — `discoveryReport(db, {days})`: Step 3 overlap (from `deals.discovery_source`), Step 7 per-marketplace external-only rate, Step 8 latency (median/p90/mean minutes + never-found-by-scanner %), Step 9 feed acceptance rate + median accepted discount. Carries a `dataSufficiency` gate (≥14 days, ≥300 external-only listings, ≥30 external accepted deals) — below it, `actionable:false` and the numbers are directional-only |
+| `app/api/admin/discovery-report/route.js` | NEW — `Bearer CRON_SECRET`, `?days=1\|7\|30`, returns the report JSON. No public UI; never exposed to users |
+| `tests/scanner/discovery-log.test.mjs` | NEW — cross-pipeline `listing_key` contract (RESTful id ↔ bare legacy id collide on one key) |
+
+### Deliberately NOT built (needs accumulated data)
+
+Steps 4–6 (title/query-pattern gap mining over external-only listings),
+Step 11 (candidate prioritisation score — needs observed
+acceptance-by-signal), Steps 12–13 (concrete scanner changes ranked by
+accepted-deals-per-Browse-call), Step 15 (top-5 scanner changes to replace
+the feed). The report endpoint lists these under `notComputedYet`.
+
+### Design decisions
+
+- **Append-only events table, not columns on `deals`.** `deals` is mutable
+  current-state that ~20 read paths depend on; discovery history is
+  immutable and multi-touch (a listing can be seen by sweep, then extended,
+  then the feed). An events log captures the timeline; column-on-`deals`
+  would only keep the last touch.
+- **`discovery_source` stays the 3-value string** (`scan` / `external` /
+  `scan+external`) from Phase 1, not an array. It already encodes exactly
+  the A/B/C the overlap step needs; converting to `text[]` now is churn
+  with no analytic gain.
+- **Scanner logs only became-deal events; feed logs every verified
+  listing.** Logging every listing the sweep evaluates would be
+  hundreds–thousands of inserts per cycle. The feed side (≤40/cycle) can
+  afford full logging, so feed acceptance rate is exact; scanner acceptance
+  rate is read from `refresh-deals` run stats instead (noted in the report).
+- **Not captured:** the scanner's constant filters/category (`183454`,
+  `FIXED_PRICE|AUCTION`, `deliveryCountry`) — invariant, so per-row storage
+  is pure noise (brief: "Do NOT store unnecessary data").
+
+### Deploy order
+
+1. `supabase/deals_feed_discovery_migration.sql` (Phase 1)
+2. `supabase/discovery_analytics_migration.sql` (this)
+3. Deploy. `ingest-feed` (hourly) + the scanner start writing `discovery_events`.
+
+### Revisit threshold
+
+Come back to the gap analysis (Steps 4–6, 11–13, 15) once
+`GET /api/admin/discovery-report?days=14` returns
+`dataSufficiency.sufficient: true` — i.e. **≥14 days** of feed runs,
+**≥300** external-only listings, **≥30** external-only accepted deals.
+Realistically ~3–4 weeks after the feed goes live. At that point the
+report's `overlap` / `marketplaceGaps` / `discoveryLatency` / `dealQuality`
+blocks are the evidence base for the scanner-improvement recommendations.
+
+### Verified (2026-08-31)
+
+`test:scanner` **18/18** (2 new discovery-log tests), `test:seo` **63/63**,
+`next build` clean. `logDiscoveryEvent` is try/catch-wrapped so the scanner
+and `ingest-feed` run unchanged whether or not `discovery_events` exists.
+Not yet exercised against a live `discovery_events` table (migration
+pending) — the report endpoint returns a explanatory 200 until then.
+
 ## Not building (deliberate, documented)
 
 - **Phase 8 — dedicated price-history pages**: not building as separate `/cards/[slug]/price-history/` routes — price history is already integrated into the card hub and deal detail pages (chart + real data), and PokemonPriceTracker doesn't expose enough historical depth to justify a separate crawlable page beyond what's already shown. Documenting this as a deliberate scope decision, not an oversight.

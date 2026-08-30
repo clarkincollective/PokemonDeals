@@ -3,7 +3,7 @@ import { unstable_cache } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { findCardHubByWatchlistId, resolveSpeciesByName, fetchSetSlugs } from "@/lib/deals";
+import { findCardHubByWatchlistId, resolveSpeciesByName, fetchSetSlugs, cardColsReady, withCard } from "@/lib/deals";
 import { shouldIndexDeal } from "@/lib/indexability";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
@@ -63,12 +63,17 @@ export async function generateStaticParams() {
 }
 
 const loadDealUncached = async (id) => {
+  // Prefer the flat resolved card_* columns (a feed-discovered deal has no
+  // watchlist row); fall back to the watchlist embed until the
+  // deals_feed_discovery migration runs. withCard() normalises either shape
+  // so everything below can keep reading deal.watchlist?.name etc.
+  const ready = await cardColsReady();
   const { data } = await supabase
     .from("deals")
-    .select("*, watchlist:watchlist_id (name, set, justtcg_tcgplayer_id, language)")
+    .select(ready ? "*" : "*, watchlist:watchlist_id (name, set, justtcg_tcgplayer_id, language)")
     .eq("id", id)
     .single();
-  return data;
+  return data ? withCard(data) : data;
 };
 
 // 60s, not 300s like price analysis below - this row's own is_active flag

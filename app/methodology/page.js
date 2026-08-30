@@ -48,8 +48,8 @@ export default function MethodologyPage() {
         <ul className={ul}>
           <li>
             <span className="font-semibold text-black dark:text-zinc-50">eBay Browse API</span> — live
-            listings from the Pokemon individual-cards category across five marketplaces (US, UK,
-            Australia, Canada, Germany), including the listing price, shipping cost, listing type
+            listings from the Pokemon individual-cards category across six marketplaces (US, UK,
+            Australia, Canada, Germany, Italy), including the listing price, shipping cost, listing type
             (Buy It Now or auction), seller feedback, and photos.
           </li>
           <li>

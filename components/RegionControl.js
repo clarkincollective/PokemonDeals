@@ -12,6 +12,7 @@ export const REGIONS = [
   { code: "EBAY_AU", label: "Australia", flag: "🇦🇺" },
   { code: "EBAY_CA", label: "Canada", flag: "🇨🇦" },
   { code: "EBAY_DE", label: "Germany", flag: "🇩🇪" },
+  { code: "EBAY_IT", label: "Italy", flag: "🇮🇹" },
 ];
 
 // localStorage value:

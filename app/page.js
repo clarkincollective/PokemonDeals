@@ -50,7 +50,7 @@ export async function generateMetadata({ searchParams }) {
       absolute: "Pokemon Card Deals — Cards Priced Below Market on eBay | Pokemon Deal Finder",
     },
     description:
-      "Live Pokemon card deals updated continuously: every eBay listing priced below its real market value, checked against recent sold data. Covers the US, UK, Australia, Canada and Germany.",
+      "Live Pokemon card deals updated continuously: every eBay listing priced below its real market value, checked against recent sold data. Covers the US, UK, Australia, Canada, Germany and Italy.",
     alternates: { canonical },
   };
 }
@@ -207,8 +207,8 @@ export default async function Home({ searchParams }) {
         name: "Pokemon Deal Finder - below-market Pokemon card listings",
         description:
           liveCount != null
-            ? `Approximately ${liveCount.toLocaleString()} active below-market Pokemon card listings from eBay's US, UK, Australia, Canada and Germany marketplaces, each compared against real market prices and recent sold-listing data.`
-            : "Active below-market Pokemon card listings from eBay's US, UK, Australia, Canada and Germany marketplaces, each compared against real market prices and recent sold-listing data.",
+            ? `Approximately ${liveCount.toLocaleString()} active below-market Pokemon card listings from eBay's US, UK, Australia, Canada, Germany and Italy marketplaces, each compared against real market prices and recent sold-listing data.`
+            : "Active below-market Pokemon card listings from eBay's US, UK, Australia, Canada, Germany and Italy marketplaces, each compared against real market prices and recent sold-listing data.",
         url: `${SITE_URL}/`,
         isPartOf: { "@id": `${SITE_URL}/#website` },
         ...(lastRefreshed ? { dateModified: new Date(lastRefreshed).toISOString() } : {}),
@@ -241,8 +241,8 @@ export default async function Home({ searchParams }) {
               /how-it-works and /methodology exactly. */}
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
             Pokemon Deal Finder scans eBay listings for Pokemon TCG cards across the US, UK,
-            Australia, Canada and Germany marketplaces and compares each one against its real market
-            price and recent sold listings, surfacing only the genuine deals — the listings
+            Australia, Canada, Germany and Italy marketplaces and compares each one against its real
+            market price and recent sold listings, surfacing only the genuine deals — the listings
             meaningfully below market.{" "}
             <Link href="/methodology" className="underline hover:text-red-600 dark:hover:text-red-500">
               How we find deals

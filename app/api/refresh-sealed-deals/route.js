@@ -10,9 +10,9 @@ import { SANITY_FLOOR_PCT, isTrustworthySealedListing, listingMatchesSealedProdu
 export const dynamic = "force-dynamic";
 // Raised from 300 when the watchlist grew from ~48 hand-picked products
 // to ~48 manual + ~150 auto-promoted (Booster Box + ETB, see
-// /api/sync-sealed-watchlist). ~200 products x 5 marketplaces at
-// CONCURRENCY 5 fits comfortably; 500 is headroom for PPT price-lookup
-// pacing + retries.
+// /api/sync-sealed-watchlist). ~194 products x 6 marketplaces (EBAY_IT
+// added 2026-08-31) at CONCURRENCY 5 fits comfortably; 500 is headroom
+// for PPT price-lookup pacing + retries.
 export const maxDuration = 500;
 
 const CONCURRENCY = 5;
@@ -118,9 +118,9 @@ export async function GET(request) {
   const rates = await getUsdRates();
 
   // Pre-flight Browse API quota check - same guard as app/api/refresh-deals
-  // (see docs/ebay-rate-limits.md). This run scans ~200 products (48
-  // manual + ~150 auto-promoted Booster Box / ETB) x 5 marketplaces
-  // ≈ 1,000 Browse calls, and fires at 06:00 UTC, an hour before the
+  // (see docs/ebay-rate-limits.md). This run scans ~194 products (48
+  // manual + ~146 auto-promoted Booster Box / ETB) x 6 marketplaces
+  // ≈ 1,150 Browse calls, and fires at 06:00 UTC, an hour before the
   // daily reset - the run most likely to hit an already-spent quota.
   // Floor 250.
   const rl = await getBrowseRateLimit();

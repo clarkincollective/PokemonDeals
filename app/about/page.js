@@ -55,8 +55,8 @@ export default function AboutPage() {
         <h2 className="mt-10 text-lg font-bold text-black dark:text-zinc-50">What the site does</h2>
         <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
           <li>
-            Scans live eBay listings across five marketplaces (US, UK, Australia, Canada, Germany) for
-            single cards, graded cards, Japanese cards, and sealed products.
+            Scans live eBay listings across six marketplaces (US, UK, Australia, Canada, Germany,
+            Italy) for single cards, graded cards, Japanese cards, and sealed products.
           </li>
           <li>
             Compares each listing to the card&apos;s real market price for its condition, and graded

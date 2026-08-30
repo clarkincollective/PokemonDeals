@@ -5,18 +5,62 @@ one watchlist-count clarification below). This describes what the code
 **actually does**, cross-referenced against the files named in each
 section — not the intended design._
 
-The system has **three independent data planes**, each with its own cron,
-its own source, and its own table:
+The system has **three independent deal-discovery / catalogue planes**,
+plus a supplementary discovery source:
 
 | Plane | Source | Table | What it's for |
 | --- | --- | --- | --- |
 | **Deal scan (cards)** | our eBay Browse API scan | `deals` | live below-market card listings |
 | **Deal scan (sealed)** | our eBay Browse API scan | `sealed_deals` | live below-market sealed listings |
 | **Reference catalogue** | PokemonPriceTracker (PPT) | `card_catalog`, `sealed_catalog` | every card / sealed product + a market price, for browse pages |
+| **External discovery** _(2026-08-31)_ | PokeDealFinder public board → our own eBay Browse re-lookup | `deals` (`discovery_source = 'external'`) | supplements the card scan with eBay listings it missed, when Browse quota has headroom |
 
 A fourth job, `refresh-catalog`, is pure DB→DB: it rolls the `deals`
 table up into `catalog_snapshot` every 15 min so the browse pages read
 one JSON row instead of scanning ~8k deal rows per cold render.
+
+### 0. External discovery ingestion (`/api/ingest-feed`, `0 * * * *`)
+
+An **additive, best-effort** second discovery path — it never disables or
+replaces the eBay scan. `lib/pokeFeed.js` fetches PokeDealFinder's public
+HTML board (one page, ~105 deals across the 6 marketplaces) and pulls only
+the **eBay item id + marketplace** out of each row's destination-URL param.
+That id is a discovery *hint* — nothing from the board is trusted or
+shown. Each genuinely-new id is re-fetched through **our own** Browse API
+(`getItemsByLegacyIds` → `get_item_by_legacy_id`, **one call per item** —
+eBay's batch `getItems` 403s on this keyset), then run through the
+**identical** pipeline as the scanner: `isTrustworthyListing`, whole-word
+`listingMatchesCard` against `card_catalog` (not just `watchlist` — this is
+how it expands coverage), `DISCOUNT_THRESHOLD` 0.1, `SANITY_FLOOR_PCT`
+0.25. Matched deals are upserted with `discovery_source = 'external'`,
+`card_catalog_id` set, and `watchlist_id` set too **iff** that card is also
+watched. Affiliate links are our own (`itemAffiliateWebUrl` from our own
+Browse response; TCGPlayer via `buildTcgplayerLink` at render). Graded
+listings are skipped in v1 (no grader-specific reference price here).
+
+**Guards, because verification spends Browse budget:** pre-flight
+`getBrowseRateLimit()` with a **high floor (800)** — it only supplements
+when there's real headroom, it is *not* a substitute for a spent quota;
+**≤ 40 new items verified per cycle**; hourly, not 15-min. Feed-only deals
+(`discovery_source = 'external'` AND `watchlist_id IS NULL`) expire on
+**absence from the board** past a 2-day grace; deals also seen by the
+scanner (`'scan+external'`) or linked to a watchlist row are reconciled by
+the scanner's own per-card expiry. Real cost ≈ **240–720 Browse calls/day**
+(hard cap ~960). Schema: `supabase/deals_feed_discovery_migration.sql`
+(nullable `watchlist_id`, `card_catalog_id` FK, `discovery_source`,
+resolved `card_*` columns + triggers).
+
+**Discovery analytics (Phase 2, instrumentation only).** Both the scanner
+(on each deal upsert) and `ingest-feed` (on each verified listing) write a
+best-effort row to the append-only `discovery_events` table
+(`supabase/discovery_analytics_migration.sql`) keyed by
+`MARKETPLACE:<eBay legacy id>`. `GET /api/admin/discovery-report?days=N`
+(CRON_SECRET-auth, internal only) computes discovery overlap,
+per-marketplace external-only rate, scan-vs-feed latency, and feed
+acceptance rate, with a `dataSufficiency` gate. The actual gap analysis /
+scanner-improvement recommendations are **not** produced until that gate
+passes (≈3–4 weeks of live feed data) — see IMPLEMENTATION_STATUS.md
+"Discovery-gap analytics".
 
 ---
 
@@ -61,9 +105,20 @@ appear on browse pages with a PPT reference price only.
 | Cron | Route | Cadence | Job |
 | --- | --- | --- | --- |
 | `*/15 * * * *` | `refresh-deals?mode=sweep&country=EBAY_US&pages=5` | every 15 min | **sweep** — US new-listing discovery |
-| `5,20,35,50 */2 * * *` | `refresh-deals?mode=sweep&country=EBAY_{GB,AU,CA,DE}&pages=8` | every 2 h | sweep — other 4 countries |
-| `0 */6 * * *` | `refresh-deals?tier=priority` | every 6 h | per-card scan of the ~21 priority rows, all 5 countries |
-| `0 4 <dom> * *` | `refresh-deals?tier=extended&country=…&chunk=1..6` | 1 country-chunk/day | per-card scan of 1/6 of the extended tier in 1 country — full rotation ≈ 30 days |
+| `5,10,20,35,50 */2 * * *` | `refresh-deals?mode=sweep&country=EBAY_{GB,IT,AU,CA,DE}&pages=8` | every 2 h | sweep — other 5 countries |
+| `0 */6 * * *` | `refresh-deals?tier=priority` | every 6 h | per-card scan of the ~21 priority rows, all 6 countries |
+| `0 4 <dom> * *` | `refresh-deals?tier=extended&country=…&chunk=1..5` | 1 country-chunk/day | per-card scan of 1/5 of the extended tier in 1 country — 6 countries × 5 chunks fill days 1–30; full rotation ≈ 30 days |
+
+_2026-08-31: **EBAY_IT added as the 6th marketplace.** Real domestic
+seller depth (~19,400 domestic Charizard listings — > EBAY_CA, ~4×
+EBAY_DE); EUR already wired end-to-end (`lib/fx.js`, `lib/money.js`), EPN
+campaign ID covers it automatically. Added ~575 Browse calls/day (sweep +
+priority + amortised extended + sealed), landing the daily total ~3,900–
+4,700 of 5,000 — same "fits current headroom" profile as the sealed-scan
+expansion. `EXTENDED_CHUNKS` cut 6 → 5 so 6 countries still rotate through
+the 30 day-of-month cron slots. FR/ES/NL held for the pending rate-limit
+increase; IE/AT/CH ruled out as too thin at any cadence — see the
+marketplace research + tiered-rollout modeling write-ups._
 
 - **Sweep** (`runSweep`): pulls the newest ~1,000–1,600 listings across
   the *whole* Pokémon-singles category (`searchNewlyListed`, `pages` ×
@@ -154,8 +209,8 @@ missing piece: `source … | 'auto' (future catalog sync)` — never built.
 ### 2b. What triggers a scan
 
 One cron: **`/api/refresh-sealed-deals`** at `0 6 * * *` (daily). Scans
-every active `sealed_watchlist` row × all 5 marketplaces (`CONCURRENCY =
-5`). Same pre-flight Browse quota guard (floor 250). Isolated from the
+every active `sealed_watchlist` row × all 6 marketplaces (`CONCURRENCY =
+5`; EBAY_IT picked up automatically from `MARKETPLACES` on 2026-08-31). Same pre-flight Browse quota guard (floor 250). Isolated from the
 card scan's cron budget by scheduling, not by a separate eBay quota — it
 shares the same 5,000/day Browse ceiling.
 

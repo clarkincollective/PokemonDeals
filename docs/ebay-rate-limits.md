@@ -23,14 +23,28 @@ spending the whole allocation, usually by mid-day, after which every
 | Source | Cron | Calls/day |
 | --- | --- | --- |
 | US sweep (`searchNewlyListed`, 5 pages) | every 15 min (96×) | ~480 |
-| GB/AU/CA/DE sweeps | every 3 h (8× each) | ~160 |
+| GB/AU/CA/DE/IT sweeps (8 pages each) | every 2 h (12× each) | ~480 |
 | Sweep graded lookups (`getGradingDetails`) | per sweep, capped at `GRADED_LOOKUP_CAP = 6` | ~0–500 (usually low) |
-| Priority tier (26 cards × 5 marketplaces) | every 6 h (4×) | ~520 |
-| Extended tier (one country-chunk, ~1,400 cards) | 1×/day | ~1,400 |
-| Sealed products (48 × 5 marketplaces) | 1×/day at 06:00 UTC | ~240 |
+| Priority tier (~21 cards × 6 marketplaces) | every 6 h (4×) | ~500 |
+| Extended tier (one country-chunk, ~980 cards) | 1×/day | ~980 |
+| Sealed products (~194 × 6 marketplaces) | 1×/day at 06:00 UTC | ~1,160 |
+| External discovery verify (`ingest-feed`, 1 Browse call per new board item) | hourly, ≤40/cycle, gated at `remaining >= 800` | ~240–720 (hard cap ~960) |
 
-Typical total ≈ **2,600–3,400 / day**; worst case (graded-heavy sweeps +
-extended-chunk day) approaches the cap.
+Typical total ≈ **4,150–5,400 / day** (after the EBAY_IT addition, the
+sealed-scan expansion, and external-discovery ingestion). This is tight
+against the 5,000 cap on purpose-bounded terms: the extended tier defers
+first (floor 1,500), then `ingest-feed` skips entirely below `remaining`
+800 — so external discovery only runs on the days there is genuine spare
+capacity, and can't itself cause an overrun. Raising `ingest-feed` above
+hourly / lifting its cap should wait for an approved rate-limit increase.
+
+_Updated 2026-08-31: EBAY_IT added as the 6th marketplace (~575 calls/day
+added — sweep + priority + amortised extended + sealed). The extended
+tier was re-chunked 6 → 5 so 6 marketplaces still rotate through 30 daily
+cron slots; per-country full-rotation cadence is unchanged at ~30 days.
+FR/ES/NL remain held for the rate-limit increase; IE/AT/CH ruled out as
+too thin. See the marketplace research + tiered-rollout modeling in
+`IMPLEMENTATION_STATUS.md`._
 
 ## Mitigations applied
 

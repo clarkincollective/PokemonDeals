@@ -123,7 +123,7 @@ test("homepage: crawlable text states what the tool does and which markets it co
     /scans eBay listings for Pokemon (?:TCG )?cards/i.test(text),
     "no plain-language 'what it does' sentence",
   );
-  for (const market of ["US", "UK", "Australia", "Canada", "Germany"]) {
+  for (const market of ["US", "UK", "Australia", "Canada", "Germany", "Italy"]) {
     assert.ok(new RegExp(`\\b${market}\\b`).test(text), `homepage does not name the ${market} marketplace`);
   }
 });

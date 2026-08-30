@@ -9,6 +9,7 @@ import {
 } from "@/lib/ebay";
 import { getConditionPrices, getGradedPrice } from "@/lib/pokemonPriceTracker";
 import { getUsdRates, toUsd } from "@/lib/fx";
+import { logDiscoveryEvent } from "@/lib/discoveryLog";
 import {
   SANITY_FLOOR_PCT,
   coreTokens,
@@ -56,7 +57,18 @@ const DISCOUNT_THRESHOLD = 0.1;
 // now-30 extended cron entries, one per country-chunk-day). Hash-based
 // on watchlist id rather than a stored column - deterministic and needs
 // no migration; a card's chunk only changes if its id changes.
-const EXTENDED_CHUNKS = 6;
+//
+// Reduced 6 -> 5 on 2026-08-31 when EBAY_IT was added as the 6th
+// marketplace. The extended tier runs one country-chunk per day and the
+// full rotation is packed into 30 daily cron slots (days 1-30). 6
+// marketplaces x 5 chunks = 30 slots keeps the whole rotation inside one
+// month exactly as 5 x 6 did; the per-country full-rotation cadence
+// (~30 days) is unchanged. Each daily chunk is ~20% larger (~4,900
+// English extended rows / 5 instead of / 6 ≈ ~980 vs ~815 cards) - still
+// well inside the pre-flight guard's 1,500 extended floor. `chunkOf` is
+// pure hash-of-id % totalChunks, so re-chunking just reshuffles which
+// day a card is confirmed on - no migration, no stored column to update.
+const EXTENDED_CHUNKS = 5;
 
 // Supabase/PostgREST silently caps any single request at 1,000 rows
 // regardless of no explicit .limit() being set - a real, significant bug
@@ -212,7 +224,7 @@ function dealRow({ watchlistId, listing, totalPrice, totalPriceUsd, marketPrice,
 // graded listing gets the extra getGradingDetails() + graded-price lookup,
 // to keep both eBay's per-item budget and PokemonPriceTracker's metered
 // credits bounded per scan cycle.
-async function scanCardInMarketplace(row, marketplaceId, marketData, db, discountThreshold, rates) {
+async function scanCardInMarketplace(row, marketplaceId, marketData, db, discountThreshold, rates, searchType = "priority") {
   const baseQuery = row.set ? `${row.name} ${row.set}` : row.name;
   // Biases eBay's own relevance ranking toward genuine Japanese-print
   // listings (sellers overwhelmingly include "Japanese" in the title) -
@@ -245,7 +257,20 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
       .from("deals")
       .upsert(row_, { onConflict: "source,marketplace,listing_id" });
     if (error) console.error(`Failed to upsert deal ${row_.listing_id}:`, error.message);
-    else dealsFound++;
+    else {
+      dealsFound++;
+      // Best-effort discovery-analytics event (Phase 2). Never awaited on
+      // the critical path in a way that can fail the scan.
+      logDiscoveryEvent(db, {
+        marketplace: marketplaceId,
+        listingId: row_.listing_id,
+        source: "scan",
+        searchType,
+        cardTcgplayerId: row.justtcg_tcgplayer_id ?? null,
+        becameDeal: true,
+        discountPct: row_.discount_pct,
+      });
+    }
   };
 
   const rawCondBudget = { left: RAW_CONDITION_LOOKUP_PER_CARD };
@@ -450,10 +475,21 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
   const rawCondCache = new Map();
   const errors = [];
 
-  const tryUpsert = async (row_) => {
+  const tryUpsert = async (row_, cardId) => {
     const { error } = await db.from("deals").upsert(row_, { onConflict: "source,marketplace,listing_id" });
     if (error) console.error(`Failed to upsert deal ${row_.listing_id}:`, error.message);
-    else dealsFound++;
+    else {
+      dealsFound++;
+      logDiscoveryEvent(db, {
+        marketplace: marketplaceId,
+        listingId: row_.listing_id,
+        source: "scan",
+        searchType: "sweep",
+        cardTcgplayerId: cardId ?? null,
+        becameDeal: true,
+        discountPct: row_.discount_pct,
+      });
+    }
   };
 
   for (const listing of listings) {
@@ -486,7 +522,8 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
               marketPrice: gradedPrice.price,
               discountPct,
               grading,
-            })
+            }),
+            row.justtcg_tcgplayer_id
           );
         } catch (err) {
           errors.push(`Graded lookup failed for ${row.name} (${marketplaceId}): ${err.message}`);
@@ -534,7 +571,8 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
           discountPct: priced.discountPct,
           priceChange24hr: marketData.priceChange24hr,
           condition,
-        })
+        }),
+        row.justtcg_tcgplayer_id
       );
     }
   }
@@ -650,11 +688,11 @@ export async function GET(request) {
 
   // eBay's ~5,000/day request cap, split two ways now that sweep mode (see
   // above) handles fast new-deal discovery cheaply and separately:
-  // - Priority (~26 hand-picked cards, all 5 countries, every 6h via
+  // - Priority (~21 hand-picked cards, all 6 countries, every 6h via
   //   vercel.json): confirms/expires their existing deals.
-  // - Extended (~8,500 auto-synced cards): one country at a time, split
-  //   into EXTENDED_CHUNKS pieces per country, rotating through all 5
-  //   countries over ~30 days - also just confirm/expiry duty now, since
+  // - Extended (~4,900 English auto-synced cards): one country at a time,
+  //   split into EXTENDED_CHUNKS pieces per country, rotating through all
+  //   6 countries over ~30 days - also just confirm/expiry duty now, since
   //   sweep already finds new ones fast. The GET() pre-flight guard skips
   //   this run entirely on days the daily budget is already tight.
   const marketplaceIds = countriesParam
@@ -719,7 +757,15 @@ export async function GET(request) {
       marketplaceIds.map(async (marketplaceId) => {
         scanned++;
         try {
-          dealsFound += await scanCardInMarketplace(row, marketplaceId, marketData, db, discountThreshold, rates);
+          dealsFound += await scanCardInMarketplace(
+            row,
+            marketplaceId,
+            marketData,
+            db,
+            discountThreshold,
+            rates,
+            tier || "manual"
+          );
         } catch (err) {
           errors.push(`${row.name} (${marketplaceId}): ${err.message}`);
         }
