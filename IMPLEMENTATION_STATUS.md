@@ -1022,6 +1022,13 @@ new script in the tree.
 
 **Part A is NOT closed.** _(Post-sync audit table will be filled in here.)_
 
+**Status 2026-08-30 20:30 UTC:** still blocked. The PPT `/export` 2/day
+quota resets at `2026-08-31T00:05:00Z` — the background job
+(`b1a0ui2ht`) is alive and waiting, target ~3.5 h out. `card_catalog`
+unchanged at 21,175 / 16,656 with species. Running the manual fallback
+now would just re-hit the 429 (verified: the reset time is future). It
+fires + re-audits on its own once the quota clears.
+
 ### Part B — "$0.00" reference prices
 
 **Root cause (named): PokemonPriceTracker returns `0` or `""` (never
@@ -1665,6 +1672,66 @@ work is necessary but not sufficient — if positions for the three head
 terms don't improve despite correct execution, that is expected. The
 realistic near-term wins are long-tail (entity, set, species,
 deal-category pages), which the architecture is built for.
+
+## Sealed-deal scan expansion (rec b) + A4 status — 2026-08-30
+
+### Part 1 — sealed-deal scan expansion — SHIPPED (commit `f4b1c46`)
+
+Implemented `docs/scanning-architecture.md` §6 rec (b): auto-promote
+Booster Box + Elite Trainer Box products (`market_price >= $25`) from
+`sealed_catalog` into `sealed_watchlist` for active eBay deal scanning.
+Fits the current 5,000/day Browse budget — **no rate-limit increase
+needed**.
+
+- **`/api/sync-sealed-watchlist`** (new, cron `30 5 * * *` — between the
+  05:00 catalogue sync and the 06:00 deal scan): DB→DB, mirrors
+  `sync-watchlist`. Qualifying `sealed_catalog` rows → `sealed_watchlist`
+  `source: "auto"`; a `retireStaleAutoRows` equivalent deactivates auto
+  rows that stop qualifying; the 48 `source: "manual"` rows are never
+  touched. Criteria in `lib/sealedCatalog.js` (`SEALED_AUTO_SCAN_TYPES`,
+  `SEALED_AUTO_MIN_PRICE`).
+- **`refresh-sealed-deals`** — reads reference prices from
+  `sealed_catalog` (batch, keyed by `tcgplayer_id`) instead of one live
+  `getSealedPrice` per product. A first full run showed ~half the
+  products skipped on PPT 500/min 429s otherwise; live `getSealedPrice`
+  stays as the fallback for products not in the catalogue.
+  `maxDuration` 300 → 500.
+- **`lib/sitemap.js`** — `fetchActiveDealIds` now filters
+  `is_active = true` (it never did). 53 expired `/sealed-deals/[id]`
+  (and recently-expired `/deals/[id]` inside the newest-5000 slice)
+  noindex URLs were in the sitemap until the 900 s cache refreshed —
+  surfaced by the expire step of the test scan run, caught by
+  `tests/seo/sitemap.test.mjs`.
+
+**Real numbers — first full run (2026-08-30):**
+
+| Metric | Before | After |
+| --- | ---: | ---: |
+| `sealed_watchlist` active | 48 | **194** (48 manual + 146 auto) |
+| Sets with sealed-deal **scan** coverage | ~17 | **71** |
+| Active `sealed_deals` | ~50 | **425 across 36 sets** (184 from auto rows) |
+| eBay Browse cost / day (sealed) | ~240 | **~970** (measured 760 that run) |
+| Daily Browse total | ~2,600–3,400 | ~3,300–4,100 (< 5,000) |
+
+Run: 49 s, 0 errors, 970 (product × marketplace) scans, 30 new deals
+upserted. **0 contested-auction deals** (trust check holds).
+Spot-checked `/sets/me05-pitch-black` — a set with zero sealed-deal
+coverage before — now renders **10 emerald deal tiles** in its sealed
+section. `test:scanner` 11/11, build clean. `test:seo` 62/63 — the one
+failure (`/deals/24409`, a card deal-detail title of 77 chars from an
+unusually long card name) is **pre-existing and unrelated to sealed
+scanning**, surfaced by the suite's random deal-ID sampling; the
+deal-title logic deliberately keeps full card/set names intact, so
+tightening it for outlier names is a separate design call, not a bug
+here.
+
+### Part 2 — A4 card catalog sync — still blocked, correctly
+
+As of 2026-08-30 20:30 UTC: background job `b1a0ui2ht` is alive and
+waiting on the PPT `/export` 2/day quota, target `2026-08-31T00:05:00Z`
+(~3.5 h out). `card_catalog` unchanged at **21,175 / 16,656 with
+species**. The manual fallback would just re-hit the 429 (reset time is
+future). Fires + re-audits on its own once the quota clears.
 
 ## Not building (deliberate, documented)
 

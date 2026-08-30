@@ -294,9 +294,34 @@ passing all of the trust + match + threshold + floor gates.
    and > $40). Added `isSentinelPrice` to all four spots + nulled the 6
    existing rows.
 
+### Update 2026-08-30 — rec (b) implemented
+
+**Gap 3 (sealed-scan coverage) closed via option (b).** New
+`/api/sync-sealed-watchlist` (cron `30 5 * * *`, between the catalogue
+sync and the deal scan) auto-promotes `sealed_catalog` rows of type
+**Booster Box / Elite Trainer Box with `market_price >= $25`** into
+`sealed_watchlist` as `source: "auto"`, with a `retireStaleAutoRows`
+equivalent; the ~48 `source: "manual"` rows are never touched. Constants
+in `lib/sealedCatalog.js` (`SEALED_AUTO_SCAN_TYPES`,
+`SEALED_AUTO_MIN_PRICE`).
+
+`refresh-sealed-deals` now batch-reads reference prices from
+`sealed_catalog` (keyed by `tcgplayer_id`) instead of one live
+`getSealedPrice` per product — at ~200 products the per-product PPT
+lookups tripped the 500/min window and half the run was skipped; live
+`getSealedPrice` stays as the fallback for products not in the
+catalogue. `maxDuration` 300 → 500.
+
+**Real numbers, first full run:** `sealed_watchlist` active **48 → 194**
+(48 manual + 146 auto); sets with scan coverage **~17 → 71**; active
+`sealed_deals` **~50 → 425 across 36 sets** (184 from auto rows). eBay
+Browse cost **240/day → ~970/day** (measured 760 that run); daily total
+~3,300–4,100, under the 5,000 cap — **no rate-limit increase needed**.
+Run: 49 s, 0 errors, 0 contested-auction deals (trust checks hold).
+
 ### Reported — needs a design decision, not changed
 
-3. **Sealed deal-scan coverage is structurally frozen at 48 products.**
+3. **Sealed deal-scan coverage was structurally frozen at 48 products** _(now closed — see the update box above)_.
    Cards have `sync-watchlist` auto-promoting the whole catalogue into
    the scan set by a $15 value floor. Sealed has **no equivalent** —
    `sealed_watchlist` is a hardcoded seed list, so 2,281 of 2,329
@@ -367,12 +392,11 @@ number that only happened to work.
 
 ## 6. Recommendations, in priority order
 
-1. **Decide sealed-deal scan expansion (§5.3).** This is the single
-   biggest coverage asymmetry in the system and the one with real user
-   impact. Recommend option (b): auto-promote Booster Box + Elite
-   Trainer Box products (~200) from `sealed_catalog` into
-   `sealed_watchlist`, US-daily with the other countries on a rotation,
-   fits the Browse budget.
+1. ~~**Decide sealed-deal scan expansion (§5.3).**~~ **DONE 2026-08-30**
+   — implemented option (b) (Booster Box + ETB auto-promotion). Ran all
+   5 marketplaces daily rather than the US-daily/rotation variant, since
+   it measured at ~970 Browse calls/day and fits the budget. See the
+   §5.3 update box.
 2. **Request an eBay Browse rate-limit increase.** The 5,000/day default
    is already the binding constraint on *card* extended-tier cadence
    (~30-day full rotation) and is what blocks the cheapest sealed-scan
