@@ -900,6 +900,99 @@ sub-threshold sets were never in `sitemap.xml`. No change needed.
   intermittent on this exact assertion). `npm run test:scanner` 11/11.
 * `npm run build` — clean.
 
+## Card data completeness: missing cards + "$0.00" prices — 2026-08-30
+
+### Part A — missing cards on species pages
+
+**Root cause (named): the `card_catalog` sync had not finished — ~133 of
+219 sets synced.** *Not* a pagination bug and *not* a species-matching
+bug:
+
+* Pagination — `listSetCards(setId, { fetchAllInSet: true })` returns
+  every card of a set in one request. Verified on Skyridge: PPT returns
+  182, `card_catalog` has 182, **0 missing**.
+* Species matching — `extractSpecies` returned null for 24 Skyridge cards,
+  **all of them genuinely non-Pokémon** ("Star Piece", "Mystery Plate",
+  "Mirage Stadium", …). No false negatives on real Pokémon cards.
+* The actual mechanism: the per-set `listSetCards` crawl (~29,000 credits
+  for a full pass) kept **429-ing on PPT's per-minute credit window** —
+  each `listSetCards` pulls 200-300 cards = 200-300 credits at once — so
+  each chunked run only got ~15-20 of its ~27 sets in before the rest
+  failed/were skipped. The catalogue filled slowly and unevenly.
+
+**Fix — switched `sync-card-catalog` to PPT's `/export` (printings CSV):**
+
+* **One request, zero API credits**, the whole catalogue in a gzip CSV
+  (~76k printing rows → **~29,294 distinct English cards**, vs the ~17k
+  the crawl had managed).
+* Per-`tcgPlayerId` merge of the printing rows; `market_price` falls back
+  NM → market → LP → MP → HP → Damaged (so a card with only played-
+  condition data still gets a real reference — see Part B).
+* `image_url` derived as `…/product/<tcgPlayerId>_in_200x200.jpg` (the
+  same URL `listSetCards` returned) — no extra call.
+* `/export` is capped at **2 downloads/day**, so the cron is back to
+  once-daily (`0 2 * * *`).
+
+**Backfill status:** the two diagnostic `/export` downloads exhausted
+today's quota (resets `2026-08-31T00:00:00Z`). The full ~29k-card sync
+runs at the **02:00 UTC 2026-08-31 cron** (or a manual trigger any time
+after 00:00 UTC). Until then the pages serve the ~17k-row partial (133
+sets) — species with cards only in the ~86 unsynced sets are still
+incomplete. **A4's broad 10-15-species re-verification is pending that
+run.**
+
+### Part B — "$0.00" reference prices
+
+**Root cause (named): PokemonPriceTracker returns `0` or `""` (never
+null) for a card/condition it has no price data for; the sync stored the
+`0`, and `<Price>` rendered a formatted currency zero** ("A$0.00" on the
+reported Gengar (H9) Skyridge, `?country=EBAY_AU`). Confirmed it is *not*
+a currency-conversion bug: the underlying value was genuinely `0`, and it
+rendered "$0.00" in the US view too.
+
+**Fixes:**
+
+* **`lib/money.js` `hasPrice(n)`** = `Number.isFinite(n) && n > 0`. One
+  helper, used to gate every reference-price render:
+  * `SpeciesCard` — `hasPrice(refPrice)` ? `<Price>` : **"Price
+    unavailable"** (matches the site's existing incomplete-data pattern,
+    e.g. `VariantPriceGrid`'s "—" and `CardPriceSummary`'s
+    contaminated-ladder suppression).
+  * `CardPriceSummary` — `rawNm`, the raw condition ladder, and each
+    graded tier now require `hasPrice`.
+  * `VariantPriceGrid` — tile price (`—` when absent) and the
+    min-max range line.
+* **Sync** stores `null` for `market_price <= 0`, and the NM→…→Damaged
+  fallback means a sparse card like Gengar (H9) (no NM price, real
+  `marketLightlyPlayed` of $1,499.99) will get a real reference once the
+  `/export` sync runs — instead of "unavailable".
+* **Backfill applied now:** 240 existing `card_catalog` rows with
+  `market_price <= 0` set to `null` (Supabase data-API `update`, not
+  DDL). Verified live: `/pokemon/gengar?country=EBAY_AU` now shows
+  Gengar (H9) as "Price unavailable", **0 `$0.00`/`A$0.00`** on the page
+  (US view too).
+* **Regression check:** `tests/seo/prices.test.mjs` — fetches a sample of
+  species/card pages (incl. an AU country view and sparse vintage sets)
+  and fails on any currency-symbol-adjacent `0.00`. `test:seo` **57/57**.
+
+### Do the two issues share a cause?
+
+**Loosely — same population of cards, different mechanisms.** Both bite
+older/sparse sets (Skyridge, e-Reader): those sets synced last/not-yet
+(A), and their cards come back with `0`/empty prices (B). A is a
+sync-throughput/completeness problem; B is a null-handling problem. Fixed
+independently; the `/export` switch happens to help both (complete
+catalogue + per-condition price fallback).
+
+### Verification
+
+* `test:seo` 57/57 (7 new zero-price checks), `test:scanner` 11/11,
+  `npm run build` clean.
+* No perf regression — `/export` is a single request replacing 219;
+  `fetchSpeciesCatalog` query is unchanged.
+* **Pending:** the full `/export` sync (02:00 UTC 08-31) and A4's broad
+  species re-check afterward.
+
 ## Not building (deliberate, documented)
 
 - **Phase 8 — dedicated price-history pages**: not building as separate `/cards/[slug]/price-history/` routes — price history is already integrated into the card hub and deal detail pages (chart + real data), and PokemonPriceTracker doesn't expose enough historical depth to justify a separate crawlable page beyond what's already shown. Documenting this as a deliberate scope decision, not an oversight.
