@@ -169,6 +169,10 @@
       "schedule": "0 5 * * *"
     },
     {
+      "path": "/api/sync-sealed-watchlist",
+      "schedule": "30 5 * * *"
+    },
+    {
       "path": "/api/refresh-sealed-deals",
       "schedule": "0 6 * * *"
     }

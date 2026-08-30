@@ -8,7 +8,12 @@ import { SANITY_FLOOR_PCT, isTrustworthySealedListing, listingMatchesSealedProdu
 // (~30-50 product) watchlist scanned once/day on its own dedicated tier,
 // isolated from the card-scanning cron budget entirely (see vercel.json).
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
+// Raised from 300 when the watchlist grew from ~48 hand-picked products
+// to ~48 manual + ~150 auto-promoted (Booster Box + ETB, see
+// /api/sync-sealed-watchlist). ~200 products x 5 marketplaces at
+// CONCURRENCY 5 fits comfortably; 500 is headroom for PPT price-lookup
+// pacing + retries.
+export const maxDuration = 500;
 
 const CONCURRENCY = 5;
 const DISCOUNT_THRESHOLD = 0.1;
@@ -113,9 +118,11 @@ export async function GET(request) {
   const rates = await getUsdRates();
 
   // Pre-flight Browse API quota check - same guard as app/api/refresh-deals
-  // (see docs/ebay-rate-limits.md). This run scans ~48 products x 5
-  // marketplaces and fires at 06:00 UTC, an hour before the daily reset,
-  // so it's the run most likely to hit an already-spent quota. Floor 250.
+  // (see docs/ebay-rate-limits.md). This run scans ~200 products (48
+  // manual + ~150 auto-promoted Booster Box / ETB) x 5 marketplaces
+  // ≈ 1,000 Browse calls, and fires at 06:00 UTC, an hour before the
+  // daily reset - the run most likely to hit an already-spent quota.
+  // Floor 250.
   const rl = await getBrowseRateLimit();
   if (rl && rl.remaining != null && rl.remaining < 250) {
     return Response.json({
@@ -138,6 +145,27 @@ export async function GET(request) {
     .select("*")
     .eq("active", true);
 
+  // Reference prices: batch-read them from `sealed_catalog` (populated
+  // daily by /api/sync-sealed-catalog, ~1h before this cron) keyed by
+  // tcgplayer_id, instead of one live PPT `getSealedPrice` call per
+  // product. With the watchlist now ~200 products, per-product live
+  // lookups slammed PPT's 500/min window and half the run was skipped.
+  // Live `getSealedPrice` stays as the fallback for the handful of
+  // products not in `sealed_catalog` (mostly older manual rows).
+  const catalogPrice = new Map();
+  {
+    const ids = [...new Set((watchlistRows ?? []).map((r) => String(r.tcgplayer_id)))];
+    for (let i = 0; i < ids.length; i += 500) {
+      const { data } = await db
+        .from("sealed_catalog")
+        .select("tcgplayer_id, market_price")
+        .in("tcgplayer_id", ids.slice(i, i + 500));
+      for (const r of data ?? []) {
+        if (r.market_price != null) catalogPrice.set(String(r.tcgplayer_id), Number(r.market_price));
+      }
+    }
+  }
+
   if (watchlistError) return Response.json({ error: watchlistError.message }, { status: 500 });
   if (!watchlistRows || watchlistRows.length === 0) {
     return Response.json({ scanned: 0, dealsFound: 0, message: "Sealed watchlist is empty" });
@@ -148,17 +176,21 @@ export async function GET(request) {
   const errors = [];
 
   async function scanOneProduct(row) {
-    let marketPrice;
-    try {
-      const raw = await getSealedPrice(row.tcgplayer_id);
-      if (!raw) {
-        errors.push(`No price for sealed product "${row.name}" (id ${row.id})`);
+    let marketPrice = catalogPrice.get(String(row.tcgplayer_id)) ?? null;
+    if (marketPrice == null) {
+      // Not in sealed_catalog (or no price there) - fall back to a live
+      // PPT lookup for this one product.
+      try {
+        const raw = await getSealedPrice(row.tcgplayer_id);
+        if (!raw) {
+          errors.push(`No price for sealed product "${row.name}" (id ${row.id})`);
+          return;
+        }
+        marketPrice = raw.price;
+      } catch (err) {
+        errors.push(`Price lookup failed for "${row.name}": ${err.message}`);
         return;
       }
-      marketPrice = raw.price;
-    } catch (err) {
-      errors.push(`Price lookup failed for "${row.name}": ${err.message}`);
-      return;
     }
 
     await Promise.all(
