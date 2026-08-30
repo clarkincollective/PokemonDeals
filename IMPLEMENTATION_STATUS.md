@@ -632,6 +632,38 @@ canonicalising home. If Search Console coverage ever shows a
 call (serve the geo default without a URL param at all) and should be
 raised rather than patched ad hoc.
 
+## `/pokemon` index: full dex, grouped by generation — 2026-08-30
+
+The `/pokemon` index previously listed **only** species with an active
+deal (`SPECIES_MIN_LISTINGS`+). Rebuilt as a browsable directory of **all
+1,025 canonical species**, in National Pokedex order, grouped into the 9
+generations (with region names Kanto…Paldea) and per-generation counts.
+
+* Data: `SPECIES_WITH_GENERATION` (new export in `lib/pokemonSpecies.js`)
+  — the existing `SPECIES` array (auto-generated from PokeAPI, dex order)
+  tagged with dex number + generation via the fixed dex-range boundaries.
+  No new dataset, no network.
+* A species **links to `/pokemon/[slug]`** only when it has an active
+  deal (from `fetchSpeciesHubs`, unchanged) — shown with an emerald
+  listing-count badge. The other ~850 render as **plain dimmed text**
+  (no link): their slug page 404s by design, so a link would be a dead
+  end.
+* **`/pokemon/[slug]` and its indexability are unchanged** — still exists
+  and is indexable only for species that clear `SPECIES_MIN_LISTINGS`;
+  still `notFound()` / `noindex` otherwise. The `/methodology` statement
+  ("A Pokemon page exists only when that Pokemon has at least five active
+  listings") still holds for the detail pages. The index itself is a
+  content-rich hub, not thin content.
+* JSON-LD: `breadcrumbList` + `collectionPage` (unchanged) + an
+  `itemList` of **only the linked species** (real names, real URLs — no
+  entries for the deal-less ones).
+* `PokemonFilterList` now groups by generation; the client-side substring
+  filter spans the whole dex. Every species + every real link is in the
+  server HTML.
+* Verified: 1,025 species in raw HTML (171 linked + 854 plain on the test
+  build), 9 generation sections, one `<h1>`, `test:seo` 50/50, build
+  clean, `/pokemon` still statically rendered.
+
 ## Not building (deliberate, documented)
 
 - **Phase 8 — dedicated price-history pages**: not building as separate `/cards/[slug]/price-history/` routes — price history is already integrated into the card hub and deal detail pages (chart + real data), and PokemonPriceTracker doesn't expose enough historical depth to justify a separate crawlable page beyond what's already shown. Documenting this as a deliberate scope decision, not an oversight.
