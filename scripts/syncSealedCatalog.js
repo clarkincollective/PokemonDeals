@@ -16,7 +16,10 @@ const { sealedCatalogRecord } = require("../lib/sealedCatalog");
 
 const LANGUAGE = "english";
 const UPSERT_CHUNK = 500;
-const PACE_MS = 350; // ~3 req/s, well under 500/min
+// PPT bills sealed list requests as ~limit/10 "minute calls" against a
+// tiny window; listSealedProductsForSet already uses a small page +
+// fetchPPTPaced backoff, this is just base spacing between sets.
+const PACE_MS = 1200;
 
 const limitArg = (() => {
   const i = process.argv.indexOf("--limit");

@@ -1264,6 +1264,89 @@ and will fill in when the outstanding `/export` sync completes.
 - `scripts/auditSetCatalog.js` — new, prints the `card_catalog`-vs-PPT
   count per set page + how many will render the grid.
 
+## Sealed products: set-page section + standalone hub — 2026-08-30 — SHIPPED
+
+The sealed twin of the card-catalogue work. `/sets/<slug>` gains a
+"Sealed products for <set>" section; `/sealed-deals` is reworked from a
+deals-only rotation into a searchable/filterable catalogue.
+
+### Phase 1 — data access (confirmed live, not assumed)
+
+- **`/sealed-products` works on Business** (1 credit per product
+  returned). `?setName=<display name>` filters directly — verified
+  `?setName=SWSH07: Evolving Skies` → 31 products. No un-filtered
+  browse-all (`?` alone → 400), but every-set iteration covers it.
+- **Images:** `tcgplayer-cdn.tcgplayer.com/product/<id>_in_NNN.jpg` —
+  the *exact* host + path the ~29k card thumbnails already use (already
+  in `next.config.mjs`). Verified a real product photo: **200, 26 KB,
+  image/jpeg**. Not the blocked `set_icon` path.
+- **Licensing:** PPT's caching / first-party-display clause is written
+  about API *responses* generally; it doesn't distinguish singles from
+  sealed. Same posture as `card_catalog` — stated, not silently carried.
+- A bulk **`/export?type=sealed` exists** but shares the 2/day export cap
+  (spent by the card backfill), so the sync walks every English set via
+  `?setName=` instead (~219 requests, paced under the per-minute window).
+
+### Phase 2 — data architecture
+
+- **New `sealed_catalog` table** (`supabase/sealed_catalog_migration.sql`,
+  run in the SQL editor) — the exact structural twin of `card_catalog`:
+  `tcgplayer_id` PK, `name`, `set` (PPT setName), `set_id`,
+  `product_type`, `market_price` (PPT `unopenedPrice`), `image_url`,
+  `source`, RLS-disabled + anon `select` grant.
+- **`lib/sealedCatalog.js`** — `sealedProductType(name)` derives a stable
+  filterable type from the name (PPT has no `type` field): Booster Box /
+  Elite Trainer Box / Booster Bundle / Blister / Booster Pack / Build &
+  Battle / Collection Box / Tin / Hanger Box / Case / Other. Order-of-
+  rules matters ("Booster Box Case" → Case, "…Elite Trainer Box" → ETB).
+  Plus `sealedCatalogRecord()`, shared by both sync entry points.
+- **Sync:** `app/api/sync-sealed-catalog/route.js` (cron `0 5 * * *`,
+  added to `vercel.json`) **and** `scripts/syncSealedCatalog.js`
+  (off-Vercel, no timeout) — both call `listSealedProductsForSet()` per
+  set and upsert. Idempotent (`onConflict: tcgplayer_id`). Reference
+  data, never re-exported.
+- Sources stay distinguishable internally exactly as with cards:
+  `sealed_deals` = our eBay scan (deals), `sealed_watchlist` = the ~48
+  we re-scan, `sealed_catalog` = PPT reference (`source` +
+  `market_price` column name mark every row).
+
+### Phase 3 — `/sets/<slug>` sealed section
+
+`lib/deals.js` → `fetchSetSealedCatalog(setName)` mirrors
+`fetchSetCatalog`: `sealed_catalog` rows for the set + active
+`sealed_deals` (joined through `sealed_watchlist`, keyed by
+`tcgplayer_id`) merged into the same card object `SpeciesCard` renders.
+Deals lead (cheapest first), then browse by descending reference price
+(a set's headline sealed products *are* its priciest). Section gated on
+**`SET_SEALED_MIN_PRODUCTS = 4`** (lower than the 10-card gate — a set
+has far fewer sealed products than cards); browse capped at
+**`SEALED_CATALOG_MAX_BROWSE = 200`**. Rendered by the same
+`<SpeciesCardList>` — no fork; `SpeciesCard` gained `card.meta` /
+`card.searchQuery` overrides so sealed tiles read "<set> · <type>" and
+search eBay by the self-contained product name.
+
+### Phase 4 — `/sealed-deals` reworked
+
+Audited: it was a deals-only rotation pool + `?page=` pagination +
+country/listing/price *deal* filters, no catalogue, no set/type filter.
+Reworked to:
+- a **"Live sealed deals right now"** strip (kept — 8 deduped current
+  `SealedDealCard`s from the existing pool), then
+- **`<SealedProductBrowser>`** (new client component, same
+  progressive-enhancement shape as `PokemonFilterList`): name search,
+  product-type filter chips, "deals only" toggle, collapsible per-set
+  groups (sets that have a `/sets` page first, in release order, from
+  the `catalog_snapshot`; the rest alphabetical). `fetchSealedCatalog()`
+  groups the whole `sealed_catalog` by set with deal status merged.
+- Dropped the deal-only country/listing/price filters + pagination (the
+  browser + deals-only toggle replace them). Pre-sync, the browser shows
+  a "still syncing" line and the live-deal strip still works
+  (independent of `sealed_catalog`).
+
+### Verification
+
+_(sync running — table + counts + spot-check table to be filled in)_
+
 ## Not building (deliberate, documented)
 
 - **Phase 8 — dedicated price-history pages**: not building as separate `/cards/[slug]/price-history/` routes — price history is already integrated into the card hub and deal detail pages (chart + real data), and PokemonPriceTracker doesn't expose enough historical depth to justify a separate crawlable page beyond what's already shown. Documenting this as a deliberate scope decision, not an oversight.

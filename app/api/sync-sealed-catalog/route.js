@@ -20,7 +20,7 @@ export const maxDuration = 800;
 
 const LANGUAGE = "english";
 const UPSERT_CHUNK = 500;
-const PACE_MS = 300;
+const PACE_MS = 1000; // listSealedProductsForSet self-throttles on 429
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
