@@ -133,6 +133,7 @@ export default async function SetDetailPage({ params }) {
           initial={{ deals, totalPages }}
           hubCounts={hubCounts}
           emptyLabel={`No ${resolved.set} deals match these filters right now. Try clearing a filter, or check back after the next scheduled scan.`}
+          validSetSlugs={[slug]}
         />
 
         <div className="mt-8 flex justify-center">

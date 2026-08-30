@@ -67,7 +67,7 @@ function GridSkeleton() {
   );
 }
 
-export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}, emptyLabel }) {
+export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}, emptyLabel, validSetSlugs = [] }) {
   const search = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const params = useMemo(() => parseSearch(search), [search]);
   const reqKey = params.raw;
@@ -137,6 +137,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
               deal={deal}
               hub={hubCounts[deal.watchlist_id]}
               pageName={`${kind}_detail`}
+              validSetSlugs={validSetSlugs}
             />
           ))}
         </div>

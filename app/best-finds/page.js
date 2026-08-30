@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { fetchBestFinds, fetchHubCounts } from "@/lib/deals";
+import { fetchBestFinds, fetchHubCounts, fetchSetSlugs } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
 import RegionRedirect from "@/components/RegionRedirect";
 import SiteFooter from "@/components/SiteFooter";
@@ -60,9 +60,10 @@ export default async function BestFindsPage({ searchParams }) {
   const maxPrice = Number.isFinite(maxPriceParam) && maxPriceParam > 0 ? maxPriceParam : null;
   const minPriceParam = typeof params.minPrice === "string" ? Number(params.minPrice) : null;
   const minPrice = Number.isFinite(minPriceParam) && minPriceParam > 0 ? minPriceParam : null;
-  const [{ deals, error }, hubCounts] = await Promise.all([
+  const [{ deals, error }, hubCounts, validSetSlugs] = await Promise.all([
     fetchBestFinds({ limit: 10, graded: type === "graded", maxPrice, minPrice, country }),
     fetchHubCounts({ language: "english" }),
+    fetchSetSlugs("english"),
   ]);
 
   return (
@@ -134,7 +135,7 @@ export default async function BestFindsPage({ searchParams }) {
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {deals.map((deal, i) => (
-            <DealCard key={deal.id} deal={deal} rank={i + 1} hub={hubCounts[deal.watchlist_id]} pageName="best_finds" />
+            <DealCard key={deal.id} deal={deal} rank={i + 1} hub={hubCounts[deal.watchlist_id]} pageName="best_finds" validSetSlugs={validSetSlugs} />
           ))}
         </div>
 

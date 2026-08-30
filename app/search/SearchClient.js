@@ -16,7 +16,7 @@ import { useCurrency } from "@/components/CurrencyProvider";
 
 const CONDITIONS = ["Near Mint", "Lightly Played", "Moderately Played", "Heavily Played", "Damaged"];
 
-export default function SearchClient() {
+export default function SearchClient({ validSetSlugs = [] }) {
   // Viewer currency + rates from the shared client context (populated by
   // /api/rates after hydration). Falls back to USD until it resolves.
   const { viewer, rates } = useCurrency();
@@ -276,7 +276,7 @@ export default function SearchClient() {
             ) : (
               <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {deals.map((deal) => (
-                  <DealCard key={deal.id} deal={deal} pageName="search" />
+                  <DealCard key={deal.id} deal={deal} pageName="search" validSetSlugs={validSetSlugs} />
                 ))}
               </div>
             )}
@@ -545,7 +545,7 @@ export default function SearchClient() {
                   ) : (
                     <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {detail.deals.map((deal) => (
-                        <DealCard key={deal.id} deal={deal} pageName="search" />
+                        <DealCard key={deal.id} deal={deal} pageName="search" validSetSlugs={validSetSlugs} />
                       ))}
                     </div>
                   )}

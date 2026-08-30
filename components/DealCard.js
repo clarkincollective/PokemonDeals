@@ -30,7 +30,7 @@ function discountBadgeClass(pct) {
 // `rank` shows a number badge only on ranked lists (Top 10, "Best deals").
 // `hub` is `{ count, slug }` from fetchHubCounts when this card has 2+
 // active listings, optional.
-export default function DealCard({ deal, rank, hub, pageName = "home" }) {
+export default function DealCard({ deal, rank, hub, pageName = "home", validSetSlugs }) {
   const cardName = deal.watchlist?.name ?? deal.title;
   const cardSet = deal.watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
@@ -48,6 +48,11 @@ export default function DealCard({ deal, rank, hub, pageName = "home" }) {
   const isJapanese = deal.watchlist?.language === "japanese";
   const marketInfo = MARKETPLACES[deal.marketplace];
   const setSlug = cardSet && !isJapanese ? slugifySet(cardSet) : null;
+  // Only link to /sets/<slug> when that page actually exists right now
+  // (same SET_MIN_LISTINGS list as fetchSets/resolveSetSlug, passed in via
+  // validSetSlugs). A set that fell below the threshold has no page and a
+  // link to it 404s. No list passed -> render the set as plain text.
+  const setHasPage = setSlug != null && Array.isArray(validSetSlugs) && validSetSlugs.includes(setSlug);
   const justFound = !isAuction && isWithin(deal.first_seen_at, JUST_FOUND_MS);
 
   const conditionText = deal.is_graded
@@ -126,7 +131,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home" }) {
 
         <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
           {isJapanese && "🇯🇵 "}
-          {setSlug ? (
+          {setHasPage ? (
             <Link href={`/sets/${setSlug}`} className="hover:text-red-600 hover:underline dark:hover:text-red-500">
               {cardSet}
             </Link>

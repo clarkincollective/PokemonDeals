@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { fetchMostExpensiveCards, fetchLastScanTime, slugifySet } from "@/lib/deals";
+import { fetchMostExpensiveCards, fetchLastScanTime, fetchSetSlugs, slugifySet } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import JsonLd from "@/components/JsonLd";
@@ -25,9 +25,10 @@ export const metadata = {
 };
 
 export default async function MostExpensiveCardsPage() {
-  const [{ cards, error }, lastScan] = await Promise.all([
+  const [{ cards, error }, lastScan, validSetSlugs] = await Promise.all([
     fetchMostExpensiveCards({ language: "english", limit: 100 }),
     fetchLastScanTime(),
+    fetchSetSlugs("english"),
   ]);
   const updated = formatScanTime(lastScan);
 
@@ -88,12 +89,16 @@ export default async function MostExpensiveCardsPage() {
                   >
                     {card.name}
                   </Link>
-                  <Link
-                    href={`/sets/${slugifySet(card.set)}`}
-                    className="block truncate text-xs text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500"
-                  >
-                    {card.set}
-                  </Link>
+                  {validSetSlugs.includes(slugifySet(card.set)) ? (
+                    <Link
+                      href={`/sets/${slugifySet(card.set)}`}
+                      className="block truncate text-xs text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500"
+                    >
+                      {card.set}
+                    </Link>
+                  ) : (
+                    <span className="block truncate text-xs text-zinc-500">{card.set}</span>
+                  )}
                 </div>
               </div>
               <span className="shrink-0 text-sm font-bold text-black dark:text-zinc-50">

@@ -6,6 +6,7 @@ import {
   fetchSpeciesPrints,
   fetchSpeciesCatalog,
   fetchCardHubs,
+  fetchSetSlugs,
 } from "@/lib/deals";
 import { speciesForSlug } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
@@ -111,7 +112,7 @@ export default async function PokemonSpeciesPage({ params }) {
     return <SpeciesCatalog speciesName={speciesName} slug={slug} cards={cards} />;
   }
 
-  const [{ deals, totalPages, error }, { prints }, { cards: allCards }] =
+  const [{ deals, totalPages, error }, { prints }, { cards: allCards }, validSetSlugs] =
     await Promise.all([
       fetchSpeciesDealsPage({
         speciesName: resolved.name,
@@ -122,6 +123,7 @@ export default async function PokemonSpeciesPage({ params }) {
       }),
       fetchSpeciesPrints(resolved.name),
       fetchSpeciesCatalog(resolved.name),
+      fetchSetSlugs("english"),
       cardHubsWarm,
     ]);
 
@@ -170,9 +172,14 @@ export default async function PokemonSpeciesPage({ params }) {
             "@type": "ListItem",
             position: i + 1,
             name: `${p.name} (${p.set})`,
+            // its own hub if it has one; else the set page if that exists;
+            // else this species page (which lists the print) - never a
+            // /sets/<slug> that 404s.
             url: p.hubSlug
               ? `${SITE_URL}/cards/${p.hubSlug}`
-              : `${SITE_URL}/sets/${slugifySet(p.set)}`,
+              : validSetSlugs.includes(slugifySet(p.set))
+                ? `${SITE_URL}/sets/${slugifySet(p.set)}`
+                : `${SITE_URL}${basePath}`,
           })),
         }
       : null;
@@ -232,6 +239,7 @@ export default async function PokemonSpeciesPage({ params }) {
           initial={{ deals, totalPages }}
           hubCounts={hubCounts}
           emptyLabel={`No ${resolved.name} deals match these filters right now. Try clearing a filter, or check back after the next scheduled scan.`}
+          validSetSlugs={validSetSlugs}
         />
 
         {allCards.length > 0 && (

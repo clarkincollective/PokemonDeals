@@ -2,7 +2,7 @@ import { unstable_cache } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { resolveCardSlug, fetchCardOffers, resolveSpeciesByName, fetchCardHubs } from "@/lib/deals";
+import { resolveCardSlug, fetchCardOffers, resolveSpeciesByName, fetchCardHubs, fetchSetSlugs } from "@/lib/deals";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
@@ -127,13 +127,21 @@ export default async function CardHubPage({ params }) {
   if (!hub) notFound();
 
   const speciesName = extractSpecies(hub.name);
-  const [{ deals: offers, error }, analysis, speciesHub, { hubs: allHubs }] = await Promise.all([
-    fetchCardOffers(hub.id),
-    loadPriceAnalysis(hub.tcgplayerId),
-    speciesName ? resolveSpeciesByName(speciesName) : Promise.resolve(null),
-    fetchCardHubs({ language: "english" }),
-  ]);
+  const [{ deals: offers, error }, analysis, speciesHub, { hubs: allHubs }, validSetSlugs] =
+    await Promise.all([
+      fetchCardOffers(hub.id),
+      loadPriceAnalysis(hub.tcgplayerId),
+      speciesName ? resolveSpeciesByName(speciesName) : Promise.resolve(null),
+      fetchCardHubs({ language: "english" }),
+      fetchSetSlugs("english"),
+    ]);
   const allOffers = offers;
+
+  // This card's set only has a browsable /sets/[slug] page when it clears
+  // SET_MIN_LISTINGS (a card hub needs only 2 listings; a set page needs
+  // 3). Gate every "{set}" link/URL on that so we never link to a 404.
+  const setSlug = slugifySet(hub.set);
+  const setHasPage = validSetSlugs.includes(setSlug);
 
   // Related-card internal links (brief Phase 9: card <-> card). Both from
   // the already-cached hub list - no extra query. Other prints of the
@@ -214,7 +222,12 @@ export default async function CardHubPage({ params }) {
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Deals", item: `${SITE_URL}/` },
-      { "@type": "ListItem", position: 2, name: hub.set, item: `${SITE_URL}/sets/${slugifySet(hub.set)}` },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: hub.set,
+        ...(setHasPage ? { item: `${SITE_URL}/sets/${setSlug}` } : {}),
+      },
       { "@type": "ListItem", position: 3, name: `${hub.name} (${hub.set})`, item: `${SITE_URL}/cards/${slug}` },
     ],
   };
@@ -232,7 +245,7 @@ export default async function CardHubPage({ params }) {
         <Breadcrumbs
           items={[
             { name: "Deals", href: "/" },
-            { name: hub.set, href: `/sets/${slugifySet(hub.set)}` },
+            { name: hub.set, href: setHasPage ? `/sets/${setSlug}` : undefined },
             { name: hub.name },
           ]}
         />
@@ -253,12 +266,16 @@ export default async function CardHubPage({ params }) {
             <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">
               {hub.name} — {hub.set} Prices &amp; Deals
             </h1>
-            <Link
-              href={`/sets/${slugifySet(hub.set)}`}
-              className="text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500"
-            >
-              {hub.set}
-            </Link>
+            {setHasPage ? (
+              <Link
+                href={`/sets/${setSlug}`}
+                className="text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500"
+              >
+                {hub.set}
+              </Link>
+            ) : (
+              <span className="text-zinc-500">{hub.set}</span>
+            )}
 
             {speciesHub && (
               <div className="mt-1">
@@ -307,7 +324,7 @@ export default async function CardHubPage({ params }) {
             </h2>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {offers.slice(0, FEATURED_OFFER_COUNT).map((deal, i) => (
-                <DealCard key={deal.id} deal={deal} rank={i + 1} pageName="card_hub" />
+                <DealCard key={deal.id} deal={deal} rank={i + 1} pageName="card_hub" validSetSlugs={validSetSlugs} />
               ))}
             </div>
           </div>
@@ -437,14 +454,16 @@ export default async function CardHubPage({ params }) {
                       </Link>
                     </li>
                   ))}
-                  <li>
-                    <Link
-                      href={`/sets/${slugifySet(hub.set)}`}
-                      className="text-sm font-medium text-red-600 hover:underline dark:text-red-500"
-                    >
-                      All {hub.set} deals →
-                    </Link>
-                  </li>
+                  {setHasPage && (
+                    <li>
+                      <Link
+                        href={`/sets/${setSlug}`}
+                        className="text-sm font-medium text-red-600 hover:underline dark:text-red-500"
+                      >
+                        All {hub.set} deals →
+                      </Link>
+                    </li>
+                  )}
                 </ul>
               </section>
             )}

@@ -3,7 +3,7 @@ import { unstable_cache } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { findCardHubByWatchlistId, resolveSpeciesByName } from "@/lib/deals";
+import { findCardHubByWatchlistId, resolveSpeciesByName, fetchSetSlugs } from "@/lib/deals";
 import { shouldIndexDeal } from "@/lib/indexability";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
@@ -197,10 +197,11 @@ export default async function DealDetailPage({ params }) {
       ? extractSpecies(deal.watchlist?.name ?? deal.title)
       : null;
 
-  const [analysis, cardHub, speciesHub] = await Promise.all([
+  const [analysis, cardHub, speciesHub, validSetSlugs] = await Promise.all([
     loadPriceAnalysis(deal, deal.watchlist),
     deal.watchlist_id ? findCardHubByWatchlistId(deal.watchlist_id) : Promise.resolve(null),
     speciesName ? resolveSpeciesByName(speciesName) : Promise.resolve(null),
+    fetchSetSlugs("english"),
   ]);
 
   // The chart/section for THIS specific listing's own variant - raw uses
@@ -213,8 +214,10 @@ export default async function DealDetailPage({ params }) {
 
   const cardName = deal.watchlist?.name ?? deal.title;
   const cardSet = deal.watchlist?.set;
-  // /sets/[slug] only exists for English cards (see app/sets/page.js).
-  const setSlug = cardSet && deal.watchlist?.language !== "japanese" ? slugifySet(cardSet) : null;
+  // /sets/[slug] only exists for an English set that clears
+  // SET_MIN_LISTINGS - gate on the real list, not just "is English".
+  const setSlugRaw = cardSet && deal.watchlist?.language !== "japanese" ? slugifySet(cardSet) : null;
+  const setSlug = setSlugRaw && validSetSlugs.includes(setSlugRaw) ? setSlugRaw : null;
   const discountPct = Math.round(deal.discount_pct * 100);
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];

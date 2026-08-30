@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import SearchClient from "./SearchClient";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbList } from "@/lib/jsonLd";
+import { fetchSetSlugs } from "@/lib/deals";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -38,7 +39,8 @@ export async function generateMetadata({ searchParams }) {
 // the page still ships real, indexable content in the initial HTML.
 export const dynamic = "force-dynamic";
 
-export default function SearchPage() {
+export default async function SearchPage() {
+  const validSetSlugs = await fetchSetSlugs("english");
   return (
     <>
       <JsonLd
@@ -57,7 +59,7 @@ export default function SearchPage() {
         ]}
       />
       <Suspense fallback={null}>
-        <SearchClient />
+        <SearchClient validSetSlugs={validSetSlugs} />
       </Suspense>
     </>
   );

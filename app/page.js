@@ -10,6 +10,7 @@ import {
   fetchCardHubs,
   fetchHubCounts,
   fetchMarketDataSummary,
+  fetchSetSlugs,
 } from "@/lib/deals";
 import { GUIDES } from "@/lib/guides";
 import { timeAgo } from "@/lib/time";
@@ -130,6 +131,7 @@ export default async function Home({ searchParams }) {
     cardHubsResult,
     hubCounts,
     summary,
+    validSetSlugs,
   ] = await Promise.all([
     useStableList ? Promise.resolve({ data: null, error: null }) : fetchDealsPool(filters),
     useStableList ? fetchDealsPage({ table: "deals", ...filters, sort: sort ?? "newest", page }) : Promise.resolve(null),
@@ -140,6 +142,7 @@ export default async function Home({ searchParams }) {
     showPromo ? fetchCardHubs({ language: "english" }) : Promise.resolve({ hubs: [] }),
     fetchHubCounts({ language: "english" }),
     showPromo ? fetchMarketDataSummary() : Promise.resolve(null),
+    fetchSetSlugs("english"),
   ]);
 
   const error = poolError || dealsPageResult?.error;
@@ -281,7 +284,7 @@ export default async function Home({ searchParams }) {
             />
             <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {bestFinds.map((deal, i) => (
-                <DealCard key={deal.id} deal={deal} rank={i + 1} hub={hubCounts[deal.watchlist_id]} pageName="home_best" />
+                <DealCard key={deal.id} deal={deal} rank={i + 1} hub={hubCounts[deal.watchlist_id]} pageName="home_best" validSetSlugs={validSetSlugs} />
               ))}
             </div>
           </div>
@@ -311,7 +314,7 @@ export default async function Home({ searchParams }) {
             />
             <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               {endingSoon.map((deal) => (
-                <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_ending" />
+                <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_ending" validSetSlugs={validSetSlugs} />
               ))}
             </div>
           </div>
@@ -333,7 +336,7 @@ export default async function Home({ searchParams }) {
             </div>
             <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               {freshFinds.map((deal) => (
-                <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_fresh" />
+                <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_fresh" validSetSlugs={validSetSlugs} />
               ))}
             </div>
           </div>
@@ -454,7 +457,7 @@ export default async function Home({ searchParams }) {
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {deals?.map((deal) => (
-            <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} />
+            <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} validSetSlugs={validSetSlugs} />
           ))}
         </div>
 
