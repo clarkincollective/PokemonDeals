@@ -1453,11 +1453,59 @@ clean; spot-checked `/sets/sv09-journey-together` (25), `swsh05-battle-
 styles` (27), `sm-cosmic-eclipse` (15), `sv-paldean-fates` (33) — sealed
 sections render, no regression.
 
+### Follow-up: can the site price the 13 uncovered vintage sets itself? — 2026-08-30 — NO (Phase 3)
+
+**Phase 1 — what the price mechanism actually is.** Every reference /
+market price on the site (`card_catalog.market_price`,
+`sealed_catalog.market_price`, per-condition + graded prices on
+`/deals/[id]`) comes from **PokemonPriceTracker**. The site's copy
+("backed by recent eBay sold listings") describes *PPT's* methodology,
+which the site relays — there is **no in-house eBay-sold-price
+computation** to extend. The site's own eBay integration
+(`lib/ebay.js`) is the **Browse API only** (`/buy/browse/v1/
+item_summary/search`) — active listings, no sold/completed data. The
+only sold listings shown anywhere are PPT's `soldListings` array
+(`includeEbay=true`), rendered verbatim on `/deals/[id]`.
+
+**Phase 2 — not feasible.** A sold-listings reference price would need
+either eBay's **Marketplace Insights API** (separate `buy.marketplace.
+insights` OAuth scope + eBay partner approval — the site requests only
+the base `api_scope` and is on the default 5k/day Browse tier) or the
+**Finding API `findCompletedItems`** (eBay removed completed-item data
+from that API years ago). Scraping eBay's sold search pages is the
+"publicly viewable ≠ permission" case the brief rules out.
+
+**Browse API active listings can't stand in.** Live query for these,
+run for real:
+
+- `EX Sandstorm Booster Box` — **11 total results**: mostly *empty*
+  boxes ($20–$400), theme-deck boxes, single cards with "Booster Box" in
+  the title; the two genuine sealed listings are aspirational asks at
+  **$50,090** and **$57,925**.
+- `Skyridge Booster Box` — **9 total**: empty-box lots ($2–$15), an
+  *empty* display box at $4,999, wrong-set items ("151 Japanese"), and
+  two real sealed asks at **$250,000** and **$325,997**.
+
+Asking prices ≠ sold prices (vintage sealed sits listed for months at
+aspirational numbers), volume is 1–5 real listings, and the pool is
+heavily contaminated by repros / empties. Any central-tendency number
+off that is a **fabricated price**, which the site's own rules
+(`flagImplausibleSealedPrices`, the `$0.00` fix) exist to prevent.
+
+**Phase 3 — end state (accepted).** The 13 vintage EX/e-Card sets keep
+**no `sealed_catalog` rows → no sealed section** on their `/sets/<slug>`
+pages, and don't appear on `/sealed-deals`. Anyone after a Skyridge box
+uses the existing browsable "View on eBay" path. No code change; no
+fabricated data introduced. `test:seo` 57/57, `test:scanner` 11/11,
+build clean.
+
 ### Coverage gaps (documented)
 
 - **13 vintage sets (EX Sandstorm–EX Dragon, Skyridge, Dark Explorers)**
   have no `sealed_catalog` rows — PPT catalogues no sealed product for
-  them. Their `/sets/<slug>` pages simply show no sealed section.
+  them and the site has no first-party way to price them (see the
+  follow-up above). Their `/sets/<slug>` pages simply show no sealed
+  section.
 - Sealed deal coverage is inherently sparse — `sealed_watchlist` is only
   ~48 hand-picked products, so only ~50 active sealed deals across ~17
   sets right now. Every other sealed product shows as browse-only. This
