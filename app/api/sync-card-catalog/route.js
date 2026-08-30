@@ -1,58 +1,39 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { listSets, listSetCards } from "@/lib/pokemonPriceTracker";
+import { downloadPrintingsExport } from "@/lib/pokemonPriceTracker";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 
 // Daily sync of PokemonPriceTracker's full card catalogue into our own
 // `card_catalog` table - the browsing layer's source of "every card of a
-// species" + a reference market price for the ones with no active eBay
-// deal. Cached in our DB, never re-exposed as a feed (PPT terms - see
-// IMPLEMENTATION_STATUS "Phase 1 licensing check").
+// species" + a reference market price for cards with no active eBay deal.
 //
-// One request per set via listSetCards (219 English sets). PPT's own
-// docs put a full set-by-set crawl at ~29,000 credits - ~15% of the
-// Business tier's 200,000/day - and 219 requests is nothing against
-// 500/min. `chunks`/`chunk` split it across runs for resumability;
-// `maxSets` is for a quick test pass.
+// Uses PPT's /export (printings CSV): ONE request, ZERO API credits, the
+// whole catalogue (~76k printing rows -> ~29k distinct English cards).
+// Replaces the earlier per-set listSetCards crawl, which cost ~29k
+// credits and kept 429-ing on PPT's per-minute window. /export is capped
+// at 2 downloads/day, so this must stay a once-daily job.
+//
+// Cached in our DB, never re-exposed as a feed (PPT terms - see
+// IMPLEMENTATION_STATUS "Phase 1 licensing check").
 export const dynamic = "force-dynamic";
 export const maxDuration = 800;
 
 const UPSERT_CHUNK = 500;
-// One listSetCards call pulls 200-300 cards = 200-300 credits, and PPT
-// enforces a small PER-MINUTE credit window on top of the daily budget
-// (~3 sets/min before a 429). 20s between sets keeps a chunked run under
-// that; the 429 retry below is the safety net.
-const REQUEST_DELAY_MS = 20_000;
-const MAX_SETS_PER_RUN = 40; // 40 * 20s = 800s = the function's maxDuration
+const CDN = "https://tcgplayer-cdn.tcgplayer.com/product";
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-// Deterministic set -> chunk assignment (hash of set id), so `chunk=1 of
-// chunks=4` is a stable ~quarter of the catalogue and a run only ever
-// touches its own slice.
-function chunkOf(key, totalChunks) {
-  let hash = 0;
-  const s = String(key);
-  for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
-  return (hash % totalChunks) + 1;
-}
-
-function normalizeType(t) {
-  if (!t) return null;
-  const s = String(t).toLowerCase();
-  if (s.includes("energy")) return "Energy";
-  if (s.includes("trainer") || s.includes("supporter") || s.includes("stadium") || s.includes("item")) return "Trainer";
-  return "Pokémon";
-}
-
-async function upsertRows(db, rows) {
-  let written = 0;
-  for (let i = 0; i < rows.length; i += UPSERT_CHUNK) {
-    const slice = rows.slice(i, i + UPSERT_CHUNK);
-    const { error } = await db.from("card_catalog").upsert(slice, { onConflict: "tcgplayer_id" });
-    if (error) return { written, error: error.message };
-    written += slice.length;
+// First positive number in the list, else null. PPT gives an empty
+// string (not 0/null) for a condition it has no data for; a card can
+// have e.g. only a Lightly Played price and no market/NM price.
+function firstPrice(...vals) {
+  for (const v of vals) {
+    const n = Number(v);
+    if (Number.isFinite(n) && n > 0) return n;
   }
-  return { written, error: null };
+  return null;
+}
+
+function firstNonEmpty(...vals) {
+  for (const v of vals) if (v != null && String(v).trim() !== "") return String(v);
+  return null;
 }
 
 export async function GET(request) {
@@ -63,111 +44,90 @@ export async function GET(request) {
 
   const url = new URL(request.url);
   const language = url.searchParams.get("language") || "english";
-  const maxSets = Number(url.searchParams.get("maxSets")) || null;
-  const chunks = Number(url.searchParams.get("chunks")) || null;
-  // With ?chunks=N and no explicit ?chunk, rotate through the N slices by
-  // wall-clock 3h bucket - so a single cron entry (`?chunks=8` every 3h)
-  // refreshes the whole catalogue once a day, ~27 sets per run.
-  const chunk =
-    Number(url.searchParams.get("chunk")) ||
-    (chunks ? (Math.floor(Date.now() / (3 * 3600 * 1000)) % chunks) + 1 : null);
+  const limit = Number(url.searchParams.get("limit")) || null; // test pass
 
   const db = supabaseAdmin();
   const started = Date.now();
 
-  let allSets;
+  let rows;
   try {
-    allSets = await listSets(language);
+    rows = await downloadPrintingsExport();
   } catch (err) {
-    return Response.json({ ok: false, stage: "listSets", error: err.message }, { status: 200 });
+    return Response.json({ ok: false, stage: "export", error: err.message }, { status: 200 });
   }
 
-  let sets = allSets;
-  if (chunks && chunk) sets = sets.filter((s) => chunkOf(s.id ?? s.tcgPlayerId ?? s.name, chunks) === chunk);
-  if (maxSets) sets = sets.slice(0, maxSets);
-  sets = sets.slice(0, MAX_SETS_PER_RUN);
+  // Merge the per-printing rows into one record per card (tcgPlayerId).
+  const byId = new Map();
+  for (const r of rows) {
+    if ((r.language || "english") !== language) continue;
+    const id = r.tcgPlayerId != null ? String(r.tcgPlayerId).trim() : null;
+    if (!id) continue;
+    const cur = byId.get(id) ?? {
+      tcgplayer_id: id,
+      name: null,
+      set: null,
+      set_id: null,
+      card_number: null,
+      rarity: null,
+      prices: [],
+    };
+    cur.name = cur.name ?? firstNonEmpty(r.name);
+    cur.set = cur.set ?? firstNonEmpty(r.setName);
+    cur.set_id = cur.set_id ?? firstNonEmpty(r.setId);
+    cur.card_number = cur.card_number ?? firstNonEmpty(r.cardNumber);
+    cur.rarity = cur.rarity ?? firstNonEmpty(r.rarity);
+    cur.prices.push(
+      firstPrice(
+        r.marketNearMint,
+        r.marketPrice,
+        r.marketLightlyPlayed,
+        r.marketModeratelyPlayed,
+        r.marketHeavilyPlayed,
+        r.marketDamaged
+      )
+    );
+    byId.set(id, cur);
+  }
 
-  let setsScanned = 0;
-  let cardsSeen = 0;
-  let cardsUpserted = 0;
-  let skippedNonCatalog = 0;
-  const errors = [];
+  let records = [...byId.values()].map((c) => ({
+    tcgplayer_id: c.tcgplayer_id,
+    name: c.name ?? "",
+    set: c.set ?? "",
+    set_id: c.set_id,
+    card_number: c.card_number,
+    rarity: c.rarity,
+    card_type: null, // /export doesn't carry it; species null already gates non-Pokemon
+    species: extractSpecies(c.name ?? ""),
+    language,
+    market_price: firstPrice(...c.prices),
+    image_url: `${CDN}/${c.tcgplayer_id}_in_200x200.jpg`,
+    source: "pokemonpricetracker",
+    synced_at: new Date().toISOString(),
+  }));
+  if (limit) records = records.slice(0, limit);
 
-  for (const set of sets) {
-    const setId = set.id ?? set.tcgPlayerId;
-    if (!setId) continue;
-
-    let cards;
-    try {
-      cards = await listSetCards(setId, language);
-    } catch (err) {
-      // PPT per-minute credit window - wait it out and retry the set once.
-      const m = err.message.match(/"retryAfter":\s*(\d+)/);
-      if (m) {
-        await sleep((Number(m[1]) + 3) * 1000);
-        try {
-          cards = await listSetCards(setId, language);
-        } catch (retryErr) {
-          errors.push(`${set.name}: ${retryErr.message}`);
-          await sleep(REQUEST_DELAY_MS);
-          continue;
-        }
-      } else {
-        errors.push(`${set.name}: ${err.message}`);
-        await sleep(REQUEST_DELAY_MS);
-        continue;
-      }
+  let upserted = 0;
+  for (let i = 0; i < records.length; i += UPSERT_CHUNK) {
+    const slice = records.slice(i, i + UPSERT_CHUNK);
+    const { error } = await db.from("card_catalog").upsert(slice, { onConflict: "tcgplayer_id" });
+    if (error) {
+      return Response.json(
+        { ok: false, stage: "upsert", upserted, error: error.message },
+        { status: 200 }
+      );
     }
-    setsScanned++;
-    cardsSeen += cards.length;
-
-    const rows = [];
-    for (const c of cards) {
-      const tcgplayerId = c.tcgPlayerId != null ? String(c.tcgPlayerId) : null;
-      if (!tcgplayerId) {
-        skippedNonCatalog++;
-        continue;
-      }
-      const name = c.name ?? "";
-      rows.push({
-        tcgplayer_id: tcgplayerId,
-        name,
-        set: c.setName ?? set.name,
-        set_id: setId != null ? String(setId) : null,
-        card_number: c.cardNumber ?? null,
-        rarity: c.rarity ?? null,
-        card_type: normalizeType(c.cardType ?? c.pokemonType),
-        // null for trainers / energy / anything extractSpecies can't
-        // resolve - those never surface on a /pokemon/<slug> page.
-        species: extractSpecies(name),
-        language,
-        market_price: Number.isFinite(Number(c.prices?.market)) ? Number(c.prices.market) : null,
-        image_url: c.imageCdnUrl200 ?? c.imageUrl ?? c.imageCdnUrl ?? null,
-        source: "pokemonpricetracker",
-        synced_at: new Date().toISOString(),
-      });
-    }
-
-    const res = await upsertRows(db, rows);
-    cardsUpserted += res.written;
-    if (res.error) errors.push(`${set.name} upsert: ${res.error}`);
-
-    await sleep(REQUEST_DELAY_MS);
+    upserted += slice.length;
   }
 
   return Response.json({
     ok: true,
     language,
-    totalSets: allSets.length,
-    setsScanned,
-    cardsSeen,
-    cardsUpserted,
-    skippedNonCatalog,
-    // listSetCards bills roughly per card returned - a rough credit tally
-    // for tuning cadence against the 200,000/day Business limit.
-    creditsApprox: cardsSeen,
-    chunk: chunks && chunk ? `${chunk}/${chunks}` : null,
+    exportRows: rows.length,
+    distinctCards: byId.size,
+    upserted,
+    withPrice: records.filter((r) => r.market_price != null).length,
+    withSpecies: records.filter((r) => r.species != null).length,
+    creditsApprox: 0,
     tookMs: Date.now() - started,
-    errors,
   });
 }

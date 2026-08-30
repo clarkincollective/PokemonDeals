@@ -1,6 +1,7 @@
 import MiniSparkline from "@/components/MiniSparkline";
 import AffiliateLink from "@/components/AffiliateLink";
 import { buildEbaySearchLink } from "@/lib/ebay";
+import { hasPrice } from "@/lib/money";
 
 function formatDate(dateString) {
   if (!dateString) return null;
@@ -19,7 +20,7 @@ function TileContents({ label, badge, currentPrice, minPrice, maxPrice, saleCoun
 
       <div className="mt-1 flex items-baseline gap-1">
         <span className="text-sm font-bold text-black dark:text-zinc-50">
-          {currentPrice != null ? `$${Number(currentPrice).toFixed(2)}` : "—"}
+          {hasPrice(currentPrice) ? `$${Number(currentPrice).toFixed(2)}` : "—"}
         </span>
         {isLowConfidence && (
           <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400" title="Based on very few real sales - treat as a rough estimate.">
@@ -28,7 +29,7 @@ function TileContents({ label, badge, currentPrice, minPrice, maxPrice, saleCoun
         )}
       </div>
 
-      {minPrice != null && maxPrice != null && (
+      {hasPrice(minPrice) && hasPrice(maxPrice) && (
         <p className="text-[10px] text-zinc-400">
           ${Number(minPrice).toFixed(2)} – ${Number(maxPrice).toFixed(2)} range
         </p>

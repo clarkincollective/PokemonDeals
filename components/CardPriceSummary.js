@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Price from "@/components/Price";
+import { hasPrice } from "@/lib/money";
 
 // A price/value summary that leads the card page - so a "<card> <set>
 // price / value / PSA 10 price" search is answered above the fold, not
@@ -19,8 +20,9 @@ function usd(n) {
 
 function conditionLadder(analysis) {
   const cb = analysis?.conditionBreakdown ?? [];
-  const nm =
+  const nmRaw =
     cb.find((c) => /near mint/i.test(c.condition))?.price ?? analysis?.raw?.currentPrice ?? null;
+  const nm = hasPrice(nmRaw) ? Number(nmRaw) : null;
   if (nm == null) return [];
   // Keep only leading rows that never rise above Near Mint and never
   // increase as condition worsens - a rise means the underlying data for
@@ -29,7 +31,7 @@ function conditionLadder(analysis) {
   const out = [];
   let prev = Infinity;
   for (const c of cb) {
-    if (c.price == null || c.price > nm * 1.02 || c.price > prev) break;
+    if (!hasPrice(c.price) || c.price > nm * 1.02 || c.price > prev) break;
     out.push(c);
     prev = c.price;
   }
@@ -42,10 +44,11 @@ export default function CardPriceSummary({
   listingsLowUsd = null,
   listingsHref = "#listings",
 }) {
-  const rawNm = analysis?.raw?.currentPrice ?? null;
+  const rawNmValue = analysis?.raw?.currentPrice ?? null;
+  const rawNm = hasPrice(rawNmValue) ? Number(rawNmValue) : null;
   const ladder = conditionLadder(analysis);
   const graded = (analysis?.graded ?? [])
-    .filter((g) => g.currentPrice != null && g.saleCount > 0)
+    .filter((g) => hasPrice(g.currentPrice) && g.saleCount > 0)
     // A graded slab that "sold" for less than the raw Near Mint market
     // value is a contaminated sample (mislabelled lots, altered/proxy
     // cards under a real grade string) - e.g. a "TAG 8.5" Base Set

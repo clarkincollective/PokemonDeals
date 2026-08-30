@@ -161,8 +161,8 @@
       "schedule": "0 3 * * *"
     },
     {
-      "path": "/api/sync-card-catalog?chunks=8",
-      "schedule": "20 */3 * * *"
+      "path": "/api/sync-card-catalog",
+      "schedule": "0 2 * * *"
     },
     {
       "path": "/api/refresh-sealed-deals",

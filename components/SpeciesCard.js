@@ -3,7 +3,7 @@ import Link from "next/link";
 import AffiliateLink from "@/components/AffiliateLink";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import Price from "@/components/Price";
-import { MARKETPLACE_CURRENCY } from "@/lib/money";
+import { MARKETPLACE_CURRENCY, hasPrice } from "@/lib/money";
 import { buildEbaySearchLink } from "@/lib/ebay";
 
 // One card tile in the per-species grid. Same shell as DealCard
@@ -84,7 +84,7 @@ export default function SpeciesCard({ card, speciesName, dealsHref = "#deals", p
         ) : (
           <>
             <div className="mt-1.5">
-              {card.refPrice != null ? (
+              {hasPrice(card.refPrice) ? (
                 <Price
                   usd={card.refPrice}
                   native={{ amount: card.refPrice, currency: "USD" }}
@@ -92,11 +92,11 @@ export default function SpeciesCard({ card, speciesName, dealsHref = "#deals", p
                   className="tnum text-lg font-bold text-zinc-900 dark:text-zinc-50"
                 />
               ) : (
-                <span className="text-sm text-zinc-400">No reference price</span>
+                <span className="text-sm text-zinc-400">Price unavailable</span>
               )}
             </div>
             <p className="text-[11px] text-zinc-400">
-              {card.refPrice != null ? "Reference price · " : ""}PokemonPriceTracker
+              {hasPrice(card.refPrice) ? "Reference price · " : ""}PokemonPriceTracker
             </p>
             <div className="mt-auto pt-2.5">
               <AffiliateLink
