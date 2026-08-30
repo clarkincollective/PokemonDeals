@@ -993,20 +993,32 @@ Charizard V", Lost Origin Trainer Gallery TG03 — all in sets that have
 names it dropped from the search results were correctly-excluded Tag Team
 duos ("Reshiram & Charizard GX"), code cards, and deck-mate energy cards.
 
-### What it takes to actually close Part A
+### Fix in progress — off-Vercel full sync (2026-08-30)
 
-1. **One complete `/export` sync must land.** Blocked twice over right
-   now: the export is `429`-capped until **2026-08-31 00:00 UTC**, and
-   even with quota the Vercel route times out mid-write.
-2. **Run it off-Vercel.** A local node script (service-role, no 800 s
-   ceiling) that calls `downloadPrintingsExport()` once after the reset
-   and upserts every row is the reliable path — the daily cron can keep
-   it fresh afterward, but the cron has the same `maxDuration` risk and
-   should be watched for a full `upserted ≈ 29 k` in its JSON.
-3. **Re-run `scripts/auditSpeciesCoverage.js`** — expect DB == PPT
-   (±Tag-Team/code-card noise) for all 18 before calling this closed.
+- **`scripts/syncCardCatalogFull.js`** — new. Runs the `/export` sync end
+  to end in one long-lived local process (service-role, no 800 s
+  ceiling). Same record logic as the route. One download; **exit 2 and
+  consumes nothing if the export 429s**. Chunked upsert (1000/chunk)
+  logging a cumulative count; any upsert error aborts loudly with the
+  partial total. Post-run: english row count vs export distinct-card
+  total + duplicate-`tcgplayer_id` scan; non-zero exit if short. No more
+  "done" from a clean exit that didn't finish.
+- **Blocked until 2026-08-31 00:00 UTC** — verified live at 08:07 UTC
+  30-Aug: `/export` → `429 {"remaining":0,"resetAt":"2026-08-31T00:00:00Z"}`.
+  Both of 30-Aug's 2 calls were spent by the failed backfill.
+- **Queued:** a background job waits for the reset, runs
+  `syncCardCatalogFull.js` (one retry with the 2nd daily call if the
+  first still 429s), then re-runs `scripts/auditSpeciesCoverage.js` and
+  dumps totals to `full-sync-and-audit.log`.
+- **Close criteria:** english `card_catalog` rows ≈ export distinct total
+  (~29,294), 0 duplicate ids, and the 18-species audit showing DB == PPT
+  (± Tag-Team / code-card noise) — real numbers in the table below, not a
+  summary claim.
 
-**Part A is NOT closed.**
+`test:seo` 57/57, `test:scanner` 11/11, `npm run build` clean with the
+new script in the tree.
+
+**Part A is NOT closed.** _(Post-sync audit table will be filled in here.)_
 
 ### Part B — "$0.00" reference prices
 
