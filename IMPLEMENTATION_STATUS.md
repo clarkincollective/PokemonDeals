@@ -933,12 +933,80 @@ bug:
 * `/export` is capped at **2 downloads/day**, so the cron is back to
   once-daily (`0 2 * * *`).
 
-**Backfill status — DONE (2026-08-30).** The full `/export` backfill ran
-(8 chunks, ~12 min apart; chunks 1–4 grew the table, 5–8 were idempotent
-no-ops). `card_catalog` now holds **21,175 rows, 16,656 with a resolved
-species** — up from the ~17k / 133-set partial. **A4's broad
-10-15-species re-verification (3-way PPT/DB/live comparison) is still the
-open item** — the data is in place; the spot-check hasn't been re-run.
+**Backfill status — INCOMPLETE (A4 spot-check FAILED 2026-08-30).** The
+backfill run did *not* fill the catalogue. It only ever got 2 successful
+`/export` downloads before PPT's **2-downloads-per-day** cap returned
+`429 "Daily export limit reached"` on every subsequent call, and each of
+those 2 runs was itself killed mid-upsert by Vercel's `maxDuration`
+(800 s) — the full parse + `extractSpecies` ×29 k + ~58 sequential
+Supabase upserts doesn't fit one invocation. `card_catalog` today is the
+**leftover union of that partial `/export` work and the earlier partial
+per-set crawl (83 of 219 sets)** — not a complete snapshot.
+
+State right now: **21,175 English rows / 16,656 with a species**, across
+**155 of 219 sets** — vs the export's **~29,294 distinct English cards**.
+**~8 k cards (~28 %) and 64 whole sets are missing**, including **Base
+Set, Neo Genesis, Crown Zenith, Silver Tempest, SWSH Black Star Promos,
+Jumbo Cards, and every Trainer Gallery subset**.
+
+### A4 — three-way coverage spot-check (`scripts/auditSpeciesCoverage.js`)
+
+18 species across every generation. **PPT** = distinct English
+`tcgPlayerId`s from the `/cards?search=` endpoint (independent of the
+`/export` CSV the sync uses) run through the *same* `extractSpecies`
+filter; **DB** = `card_catalog` rows for `(species, english)`; **LIVE** =
+distinct card thumbnails rendered on `/pokemon/<slug>`.
+
+| Species | Gen / era | PPT | DB | LIVE | Verdict |
+| --- | --- | ---: | ---: | ---: | --- |
+| Charizard | 1 — Base→SV | 207 | 90 | 90 | **FAIL** |
+| Blastoise | 1 — Base, e-Card | 71 | 39 | 39 | **FAIL** |
+| Alakazam | 1 — Base Set | 42 | 34 | 34 | **FAIL** |
+| Dragonite | 1 — Fossil, Neo | 80 | 39 | 39 | **FAIL** |
+| Feraligatr | 2 — Neo Genesis | 34 | 24 | 24 | **FAIL** |
+| Espeon | 2 — Neo, Skyridge | 69 | 43 | 43 | **FAIL** |
+| Umbreon | 2 — Neo, Skyridge | 72 | 46 | 46 | **FAIL** |
+| Tyranitar | 2 — Neo, e-Card | 69 | 44 | 44 | **FAIL** |
+| Kingdra | 2 — Aquapolis | 37 | 28 | 28 | **FAIL** |
+| Rayquaza | 3 — EX-era | 87 | 55 | 55 | **FAIL** |
+| Gardevoir | 3 — EX→SV | 85 | 58 | 58 | **FAIL** |
+| Flygon | 3 — EX-era | 45 | 33 | 33 | **FAIL** |
+| Lucario | 4 — DP/Platinum | 111 | 72 | 72 | **FAIL** |
+| Garchomp | 4 — DP/Platinum | 59 | 38 | 38 | **FAIL** |
+| Zoroark | 5 — B&W | 68 | 47 | 47 | **FAIL** |
+| Greninja | 6 — XY | 69 | 42 | 42 | **FAIL** |
+| Zacian | 8 — SWSH | 48 | 21 | 21 | **FAIL** |
+| Miraidon | 9 — SV | 41 | 30 | 30 | **FAIL** |
+
+**0 / 18 PASS.** DB runs ~43–65 % of PPT for every species, every era —
+a *systemic* shortfall, not an old-set-specific one (modern Zacian 44 %,
+Miraidon 73 %; vintage Alakazam 81 %). **LIVE == DB in all 18 rows**, so
+the `/pokemon/<slug>` render layer is faithful — the gap is entirely
+missing `card_catalog` rows.
+
+Verified the gap is **real cards, not search-endpoint artefacts**
+(`scripts/auditMissingIds.js`): of Charizard's 117 missing ids, a
+direct `/cards?tcgPlayerId=` lookup on a sample returned real English
+cards — "Special Delivery Charizard", "Charizard VSTAR SWSH262", "Lance's
+Charizard V", Lost Origin Trainer Gallery TG03 — all in sets that have
+**0 rows** in `card_catalog`. `extractSpecies` is not implicated: the
+names it dropped from the search results were correctly-excluded Tag Team
+duos ("Reshiram & Charizard GX"), code cards, and deck-mate energy cards.
+
+### What it takes to actually close Part A
+
+1. **One complete `/export` sync must land.** Blocked twice over right
+   now: the export is `429`-capped until **2026-08-31 00:00 UTC**, and
+   even with quota the Vercel route times out mid-write.
+2. **Run it off-Vercel.** A local node script (service-role, no 800 s
+   ceiling) that calls `downloadPrintingsExport()` once after the reset
+   and upserts every row is the reliable path — the daily cron can keep
+   it fresh afterward, but the cron has the same `maxDuration` risk and
+   should be watched for a full `upserted ≈ 29 k` in its JSON.
+3. **Re-run `scripts/auditSpeciesCoverage.js`** — expect DB == PPT
+   (±Tag-Team/code-card noise) for all 18 before calling this closed.
+
+**Part A is NOT closed.**
 
 ### Part B — "$0.00" reference prices
 
@@ -989,8 +1057,12 @@ catalogue + per-condition price fallback).
   `npm run build` clean.
 * No perf regression — `/export` is a single request replacing 219;
   `fetchSpeciesCatalog` query is unchanged.
-* **Pending:** A4's broad species re-check (the full backfill has now run
-  — see Part A "Backfill status").
+* **A4 re-check: RAN 2026-08-30 — FAILED 0/18.** `card_catalog` is still
+  ~28 % short (64 sets missing, incl. Base Set). Part A is **not closed**
+  — see "Backfill status — INCOMPLETE" and "A4 — three-way coverage
+  spot-check" above for the table, root cause, and remediation.
+* Part B (the `$0.00` display fix) is unaffected by the A4 failure and
+  stands — `hasPrice()` guards + the DB backfill were verified separately.
 
 ## Set logos (pokemontcg.io) + species icons (PokéAPI) for /sets & /pokemon — 2026-08-30 — SHIPPED (commit `ff8796d`)
 
