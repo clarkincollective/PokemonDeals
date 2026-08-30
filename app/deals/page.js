@@ -8,9 +8,13 @@ import DealCard from "@/components/DealCard";
 import Breadcrumbs from "@/components/Breadcrumbs";
 
 const SITE_URL = "https://pokemondealfinder.com";
-const TITLE = "Pokemon Card Deals by Price & Category";
+// Framed as "browse by category" so the homepage stays the primary
+// candidate for the head term "Pokemon card deals" and this page owns
+// the long-tail ("pokemon cards under $50", "graded pokemon card deals",
+// "vintage pokemon card deals") without competing head-on.
+const TITLE = "Browse Pokemon Card Deals by Price, Grade & Era";
 const DESCRIPTION =
-  "Browse below-market Pokemon card deals by price band, condition and era — cards under $25/$50/$100, graded deals, auctions, vintage and modern. All live eBay listings checked against real market data.";
+  "Pokemon card deals grouped by price band, condition and era — cards under $25/$50/$100, graded (PSA/CGC/BGS), auctions, vintage WOTC and modern. All live eBay listings checked against real market data.";
 
 export const revalidate = 300;
 
@@ -61,7 +65,7 @@ export default async function DealsIndexPage() {
         <div className="mx-auto max-w-7xl px-6 py-10">
           <Breadcrumbs items={[{ name: "Deals", href: "/" }, { name: "Deal categories" }]} />
           <h1 className="mt-4 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
-            Pokemon Card Deals by Price &amp; Category
+            Browse Pokemon Card Deals by Price, Grade &amp; Era
           </h1>
           <p className="mt-3 max-w-2xl text-base text-zinc-600 dark:text-zinc-400">
             Every deal below is a live eBay listing our scan found priced under its real market value.

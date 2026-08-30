@@ -119,7 +119,10 @@ test("homepage: visible freshness + a live deal count are in the raw HTML", asyn
 test("homepage: crawlable text states what the tool does and which markets it covers", async () => {
   const res = await get("/");
   const text = res.body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-  assert.ok(/scans eBay listings for Pokemon cards/i.test(text), "no plain-language 'what it does' sentence");
+  assert.ok(
+    /scans eBay listings for Pokemon (?:TCG )?cards/i.test(text),
+    "no plain-language 'what it does' sentence",
+  );
   for (const market of ["US", "UK", "Australia", "Canada", "Germany"]) {
     assert.ok(new RegExp(`\\b${market}\\b`).test(text), `homepage does not name the ${market} marketplace`);
   }

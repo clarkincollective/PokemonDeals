@@ -37,11 +37,22 @@ export async function generateMetadata({ searchParams }) {
   const pageParam = typeof params.page === "string" ? Number(params.page) : 1;
   const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
   const canonical = page > 1 ? `/?page=${page}` : "/";
-  // Page 1 must omit `title` entirely so the root layout's default
-  // applies - `title: undefined` makes Next 16 render no <title> at all.
-  return page > 1
-    ? { title: { absolute: `Pokemon Deal Finder - Page ${page}` }, alternates: { canonical } }
-    : { alternates: { canonical } };
+  if (page > 1) {
+    return { title: { absolute: `Pokemon Deal Finder - Page ${page}` }, alternates: { canonical } };
+  }
+  // Page 1: a real head-term title + description rather than the root
+  // layout's bare "Pokemon Deal Finder" brand default. Leads with the
+  // phrase the homepage is the primary candidate for, keeps the
+  // below-market value framing, no stuffing. `absolute` bypasses the
+  // "%s | Pokemon Deal Finder" template (the brand is already inside).
+  return {
+    title: {
+      absolute: "Pokemon Card Deals — Cards Priced Below Market on eBay | Pokemon Deal Finder",
+    },
+    description:
+      "Live Pokemon card deals updated continuously: every eBay listing priced below its real market value, checked against recent sold data. Covers the US, UK, Australia, Canada and Germany.",
+    alternates: { canonical },
+  };
 }
 
 // Single source of truth for the FAQ section AND its FAQPage JSON-LD -
@@ -84,12 +95,17 @@ function shuffled(array) {
   return copy;
 }
 
+// The under-$X / graded chips point at the dedicated /deals/<category>/
+// landing routes now that those exist (same live results, a real
+// crawlable page + descriptive anchor text) rather than the
+// renderer-nofollowed `/?maxPrice=` filter URLs. $100+ has no dedicated
+// route - it stays a plain filter link.
 const START_HERE = [
-  { href: "/?maxPrice=25", label: "Under $25" },
-  { href: "/?maxPrice=50", label: "Under $50" },
+  { href: "/deals/under-25", label: "Under $25" },
+  { href: "/deals/under-50", label: "Under $50" },
   { href: "/?minPrice=100", label: "$100+" },
   { href: "/sealed-deals", label: "Sealed" },
-  { href: "/?type=graded", label: "Graded" },
+  { href: "/deals/graded", label: "Graded" },
   { href: "/japanese-cards", label: "Japanese" },
 ];
 
@@ -213,7 +229,7 @@ export default async function Home({ searchParams }) {
       <header className="border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-10 lg:py-14">
           <h1 className="max-w-2xl text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl dark:text-zinc-50">
-            Find underpriced Pokemon cards on eBay
+            Pokemon Card Deals — Underpriced Cards on eBay
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
             Every listing checked against real sold prices. The junk filtered out. Free.
@@ -224,9 +240,10 @@ export default async function Home({ searchParams }) {
               top rather than left to be inferred from the UI. Facts match
               /how-it-works and /methodology exactly. */}
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
-            Pokemon Deal Finder scans eBay listings for Pokemon cards across the US, UK, Australia,
-            Canada and Germany marketplaces and compares each one against its real market price and
-            recent sold listings, showing only the listings that are meaningfully below market.{" "}
+            Pokemon Deal Finder scans eBay listings for Pokemon TCG cards across the US, UK,
+            Australia, Canada and Germany marketplaces and compares each one against its real market
+            price and recent sold listings, surfacing only the genuine deals — the listings
+            meaningfully below market.{" "}
             <Link href="/methodology" className="underline hover:text-red-600 dark:hover:text-red-500">
               How we find deals
             </Link>
@@ -242,6 +259,7 @@ export default async function Home({ searchParams }) {
               <Link
                 key={t.href}
                 href={t.href}
+                rel={t.href.includes("?") ? "nofollow" : undefined}
                 className="rounded-full border border-zinc-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-zinc-700 transition-colors hover:border-red-300 hover:text-red-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:text-red-500"
               >
                 {t.label}

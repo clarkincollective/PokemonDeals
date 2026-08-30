@@ -1575,6 +1575,97 @@ at $838.20 was checked and **left as-is** — freshly scraped, no logical
 contradiction (its box is now null), and reprint-run singles genuinely
 trade that high. `test:seo` 57/57, `test:scanner` 11/11, build clean.
 
+## Head-term audit + homepage keyword targeting — 2026-08-30
+
+Full re-audit of prior SEO work against production + a keyword-targeting
+pass for the head terms **"Pokemon deals" / "Pokemon card deals" /
+"Pokemon TCG deals"**.
+
+### Phase 1 audit — current state (verified live, 13 routes)
+
+- **JSON-LD** — `Organization` + `WebSite` (+ `#organization` / `#website`
+  `@id`s) site-wide from `app/layout.js`; `FAQPage` + `CollectionPage`
+  on `/`; `BreadcrumbList` + `ItemList`/`CollectionPage` on list pages;
+  `Product`/`Offer` only on `/cards/[slug]`, `/deals/[id]`,
+  `/sealed-deals/[id]`. All parse as valid JSON. **No regression.**
+- **Metadata** — unique title + description + one H1 per page across
+  `/`, `/pokemon*`, `/sets*`, `/cards*`, `/deals*`, `/market-data*`.
+  **0 duplicate titles, 0 duplicate descriptions** across the sample.
+- **Canonical** — exactly one, self-referencing, absolute per page.
+  Params stripped: `/deals/graded?maxPrice=100`, `/sets/base-set?page=2`,
+  `?country=…&sort=…` all canonical to the bare path. **Country-param
+  behaviour still holds.**
+- **Robots** — `robots.txt`: `Allow: /`, `Disallow: /api/`, sitemap
+  declared. No `<meta name=robots>` on any indexable page (default
+  index,follow). No accidental noindex, no faceted-URL indexing.
+- **Sitemap** — index → 6 child sitemaps; `/deals` + all 7
+  `/deals/<category>` now included in `pages.xml`; redirect slugs
+  excluded.
+- **Internal linking** — dense crawlable `<a>` graph (29–1,041
+  links/page); every page carries the nav's `/deals/graded` +
+  `/deals/auctions`; `/pokemon` → 1,000+ species pages, `/sets` → every
+  set page.
+- **CWV / speed** — `/deals/*` TTFB ~90–110 ms, edge-cached (ISR).
+  `/`, `/best-finds`, `/japanese-cards`, `/sealed-deals` stay dynamic
+  (`no-store`) — 4 URLs, documented, CWV previously "Good" in Speed
+  Insights. `/pokemon/charizard` ~618 KB is the heaviest page.
+- **Search Console** — **not accessible from this codebase** (no API
+  integration, no credentials; only `docs/gsc-readiness.md` exists as a
+  setup guide). Impressions / clicks / average position / index count
+  cannot be reported from here — that is the actual ground truth and it
+  has to be read in the GSC UI.
+
+### Phases 2–3 — keyword targeting (changed)
+
+The homepage is the primary head-term candidate; it had the phrase in
+**neither its title nor its H1** (title was the bare brand, H1 was "Find
+underpriced Pokemon cards on eBay"). `/deals` *did* carry "Pokemon Card
+Deals" in title + H1 → mild cannibalisation with the weaker-signalled
+root. Fixed with natural copy only:
+
+- `/` `<title>` → "Pokemon Card Deals — Cards Priced Below Market on eBay
+  | Pokemon Deal Finder"; new `/`-specific `<meta description>` leading
+  with "Live Pokemon card deals…".
+- `/` `<h1>` → "Pokemon Card Deals — Underpriced Cards on eBay" (keeps
+  the value framing).
+- `/` crawler-summary `<p>` → "…Pokemon **TCG** cards… surfacing only
+  the **genuine deals**…" (adds the "TCG" variant + "deals" once, natural).
+- `/` "start here" chips repointed from `/?maxPrice=25` / `/?type=graded`
+  (renderer-nofollowed) to `/deals/under-25` / `/deals/under-50` /
+  `/deals/graded` — real crawlable routes, descriptive anchors; `$100+`
+  stays a nofollow filter link (no dedicated route, not worth one).
+- `/deals` `<title>`/`<h1>` reframed to "Browse Pokemon Card Deals by
+  Price, Grade & Era" so `/` is the unambiguous primary and `/deals`
+  owns the long-tail.
+
+No stuffing — the phrase appears once each in title / H1 / summary.
+`tests/seo/identity.test.mjs` regex widened `Pokemon (TCG )?cards` to
+match the natural variant.
+
+### Phase 4 — page-type gaps
+
+None built. `/deals/` + the 7 `/deals/<category>` routes (added
+2026-08-30, see the deal-landing-routes section) already cover the
+category intent with real, non-duplicate data. A `/pokemon-tcg-deals/`
+URL would only cannibalise `/` — not built.
+
+### Phase 5 — technical sweep
+
+`test:seo` **63/63**, `test:scanner` **11/11**, `npm run build` clean.
+No broken internal links, no new duplicate-metadata patterns, no
+orphaned pages, JSON-LD valid on every changed page. Identity /
+freshness / canonical / country-param handling all re-verified intact.
+
+### Phase 6 — out of scope (on record)
+
+Full inventory in **`docs/seo-headterm-strategy.md`**: for head terms
+this broad, backlinks / brand-search volume / PR / domain age are the
+dominant factors and **cannot be moved from this codebase**. On-page
+work is necessary but not sufficient — if positions for the three head
+terms don't improve despite correct execution, that is expected. The
+realistic near-term wins are long-tail (entity, set, species,
+deal-category pages), which the architecture is built for.
+
 ## Not building (deliberate, documented)
 
 - **Phase 8 — dedicated price-history pages**: not building as separate `/cards/[slug]/price-history/` routes — price history is already integrated into the card hub and deal detail pages (chart + real data), and PokemonPriceTracker doesn't expose enough historical depth to justify a separate crawlable page beyond what's already shown. Documenting this as a deliberate scope decision, not an oversight.
