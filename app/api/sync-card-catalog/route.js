@@ -17,7 +17,12 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 800;
 
 const UPSERT_CHUNK = 500;
-const REQUEST_DELAY_MS = 120;
+// One listSetCards call pulls 200-300 cards = 200-300 credits, and PPT
+// enforces a small PER-MINUTE credit window on top of the daily budget
+// (~3 sets/min before a 429). 20s between sets keeps a chunked run under
+// that; the 429 retry below is the safety net.
+const REQUEST_DELAY_MS = 20_000;
+const MAX_SETS_PER_RUN = 40; // 40 * 20s = 800s = the function's maxDuration
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -60,7 +65,12 @@ export async function GET(request) {
   const language = url.searchParams.get("language") || "english";
   const maxSets = Number(url.searchParams.get("maxSets")) || null;
   const chunks = Number(url.searchParams.get("chunks")) || null;
-  const chunk = Number(url.searchParams.get("chunk")) || null;
+  // With ?chunks=N and no explicit ?chunk, rotate through the N slices by
+  // wall-clock 3h bucket - so a single cron entry (`?chunks=8` every 3h)
+  // refreshes the whole catalogue once a day, ~27 sets per run.
+  const chunk =
+    Number(url.searchParams.get("chunk")) ||
+    (chunks ? (Math.floor(Date.now() / (3 * 3600 * 1000)) % chunks) + 1 : null);
 
   const db = supabaseAdmin();
   const started = Date.now();
@@ -75,6 +85,7 @@ export async function GET(request) {
   let sets = allSets;
   if (chunks && chunk) sets = sets.filter((s) => chunkOf(s.id ?? s.tcgPlayerId ?? s.name, chunks) === chunk);
   if (maxSets) sets = sets.slice(0, maxSets);
+  sets = sets.slice(0, MAX_SETS_PER_RUN);
 
   let setsScanned = 0;
   let cardsSeen = 0;
@@ -90,9 +101,22 @@ export async function GET(request) {
     try {
       cards = await listSetCards(setId, language);
     } catch (err) {
-      errors.push(`${set.name}: ${err.message}`);
-      await sleep(REQUEST_DELAY_MS);
-      continue;
+      // PPT per-minute credit window - wait it out and retry the set once.
+      const m = err.message.match(/"retryAfter":\s*(\d+)/);
+      if (m) {
+        await sleep((Number(m[1]) + 3) * 1000);
+        try {
+          cards = await listSetCards(setId, language);
+        } catch (retryErr) {
+          errors.push(`${set.name}: ${retryErr.message}`);
+          await sleep(REQUEST_DELAY_MS);
+          continue;
+        }
+      } else {
+        errors.push(`${set.name}: ${err.message}`);
+        await sleep(REQUEST_DELAY_MS);
+        continue;
+      }
     }
     setsScanned++;
     cardsSeen += cards.length;
