@@ -48,7 +48,13 @@ create index if not exists sealed_catalog_type_idx
   on sealed_catalog (product_type, language);
 
 -- Public reference data (no user rows) - the site's anon client must be
--- able to read it, same as `card_catalog` / `deals` / `sealed_deals`.
--- Without this the pages silently render an empty section.
-alter table sealed_catalog disable row level security;
+-- able to read it. Uses the same enable-RLS + permissive-select-policy
+-- shape as sealed_deals / sealed_watchlist (a bare `disable row level
+-- security` did NOT stick on this project - see IMPLEMENTATION_STATUS).
+-- Without a working read path the pages silently render an empty section.
+alter table sealed_catalog enable row level security;
+drop policy if exists "Public read access to sealed_catalog" on sealed_catalog;
+create policy "Public read access to sealed_catalog"
+  on sealed_catalog for select
+  using (true);
 grant select on sealed_catalog to anon, authenticated;
