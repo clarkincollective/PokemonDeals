@@ -933,13 +933,12 @@ bug:
 * `/export` is capped at **2 downloads/day**, so the cron is back to
   once-daily (`0 2 * * *`).
 
-**Backfill status:** the two diagnostic `/export` downloads exhausted
-today's quota (resets `2026-08-31T00:00:00Z`). The full ~29k-card sync
-runs at the **02:00 UTC 2026-08-31 cron** (or a manual trigger any time
-after 00:00 UTC). Until then the pages serve the ~17k-row partial (133
-sets) — species with cards only in the ~86 unsynced sets are still
-incomplete. **A4's broad 10-15-species re-verification is pending that
-run.**
+**Backfill status — DONE (2026-08-30).** The full `/export` backfill ran
+(8 chunks, ~12 min apart; chunks 1–4 grew the table, 5–8 were idempotent
+no-ops). `card_catalog` now holds **21,175 rows, 16,656 with a resolved
+species** — up from the ~17k / 133-set partial. **A4's broad
+10-15-species re-verification (3-way PPT/DB/live comparison) is still the
+open item** — the data is in place; the spot-check hasn't been re-run.
 
 ### Part B — "$0.00" reference prices
 
@@ -990,68 +989,116 @@ catalogue + per-condition price fallback).
   `npm run build` clean.
 * No perf regression — `/export` is a single request replacing 219;
   `fetchSpeciesCatalog` query is unchanged.
-* **Pending:** the full `/export` sync (02:00 UTC 08-31) and A4's broad
-  species re-check afterward.
+* **Pending:** A4's broad species re-check (the full backfill has now run
+  — see Part A "Backfill status").
 
-## Set logos / species icons for /sets & /pokemon — 2026-08-30 — BLOCKED at Phase 1, no code written
+## Set logos (pokemontcg.io) + species icons (PokéAPI) for /sets & /pokemon — 2026-08-30 — SHIPPED (commit `ff8796d`)
 
-### Phase 1 — PokemonPriceTracker image licensing: NOT confirmable
+The earlier stop stood on PPT: its terms are silent on images and the
+set-image URLs it returns (TCGplayer `set_icon/*.png`) `403` on a direct
+GET. The owner then directed a different source — **pokemontcg.io** for
+set logos, **PokéAPI sprites** for species icons — and cleared PokéAPI
+sprites explicitly (same fair-use posture as the site's existing ~29k
+hotlinked card thumbnails). Built on that basis.
 
-Read `pokemonpricetracker.com/licensing` and `/terms` directly.
-**Images are not mentioned anywhere** in either document — no clause on
-card images, set logos/symbols, artwork, thumbnails, hotlinking, image
-caching, or a CDN. There is no "image access" entitlement concept, so
-nothing to confirm the Business tier "includes" for images.
+### Phase 1 — pokemontcg.io images: hotlinkable, confirmed (the TCGplayer-CDN test, repeated)
 
-The only adjacent clause, verbatim (licensing page), is about **data**:
-> "Caching and storing responses to serve your own application is
-> expected and fine — it is easier on both of us than re-querying
-> constantly… What you may not do is expose that stored copy to third
-> parties as a data source, or hand the stored dataset to anyone else."
+pokemontcg.io is a **separate free public Pokémon TCG API**, unrelated to
+PPT / TCGplayer infra. Read `pokemontcg.io` docs + `/terms` directly:
+no API key required at our volume (1000 req/day, 30/min unauthenticated),
+**no stated attribution requirement**, `pokemon-tcg-data` has no image
+LICENSE and the SDKs are MIT.
 
-`/terms` disclaims affiliation with TCGplayer, Nintendo, and The Pokémon
-Company and is silent on image rights. **Per the brief's guardrail
-("if any licensing question can't be confidently resolved, stop and
-report"), this is a stop.** The site's existing ~29k card thumbnails
-(TCGplayer `product/*.jpg`, hotlinked) already run on a fair-use posture
-the owner accepted; extending that to new asset classes is the owner's
-call, not one to make here.
+Direct GET (same probe used on the TCGplayer CDN):
 
-### Phase 2 — /api/v2/sets DOES return images, but they 403
+| URL | Result |
+| --- | --- |
+| `images.pokemontcg.io/base1/logo.png` | **200** `image/png` 437 KB |
+| `images.pokemontcg.io/sv8/logo.png` | **200** `image/png` 156 KB |
+| `images.scrydex.com/pokemon/<id>-logo/logo` (newest sets) | **200** `image/png` |
+| — contrast — `tcgplayer-cdn.tcgplayer.com/set_icon/*.png` (PPT's URLs) | **403** |
 
-`GET /api/v2/sets` returns `imageCdnUrl` / `imageCdnUrl200|400|800` /
-`imageUrl`, all pointing at
-`https://tcgplayer-cdn.tcgplayer.com/set_icon/<tcgPlayerNumericId><Name>.png`
-(TCGplayer set-symbol icons). **These URLs return `403` on a direct GET**
-(plain, and with a browser UA + tcgplayer.com referer) — unlike the
-`product/*.jpg` card images the site already uses, which return `200`.
-So even setting licensing aside, PPT's set-image URLs are **not
-hotlinkable by us**. A working set-logo feature would need self-hosted
-downloaded assets — which sharpens the licensing question rather than
-resolving it.
+No referer gate, real bytes. Hotlinkable.
 
-### Phase 3 — species icons: source found, license unresolved
+### Phase 2 — set logos on /sets
 
-PPT has no species data model (`/sets` + `/cards` only — confirmed).
-Candidate: **PokéAPI sprites**
-(`raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/<dexNo>.png`
-— 96×96 PNGs, ~600 B, all resolve `200`). PokéAPI is already this repo's
-species-name source (`lib/pokemonSpeciesData.js`). License: PokéAPI's
-*code* is permissive (BSD-3), but the **sprite images are game assets** —
-the sprites repo carries no image LICENSE, and PokéAPI states it is not
-affiliated with Nintendo and the assets originate from the games. Same
-fair-use posture as the existing card thumbnails; a new asset class.
+- **`scripts/generateSetImages.js`** (one-off, committed for
+  reproducibility) — fetches `api.pokemontcg.io/v2/sets` (paginate
+  `pageSize=50` + up to 5 retries/page; their API 500s intermittently),
+  reads our distinct English set names from `card_catalog` +
+  `watchlist WHERE language='english'`, matches, writes
+  `lib/setImagesData.js`.
+- **Set-name matching strategy** — PPT/our set names carry era prefixes
+  pokemontcg.io drops ("EX Ruby & Sapphire" → "Ruby & Sapphire", "Base
+  Set" → "Base", "Scarlet & Violet 151" → "151"). Solved with
+  `norm()` (strip a leading era-code token incl. em-dash separators,
+  fold `&`→`and`, drop non-alphanumerics, lowercase) + a hand-built
+  `ALIASES` table for the ~40 that normalise doesn't catch (promo sets,
+  HS-era em-dash names, base-set renames). **Result: 161 / 207 distinct
+  English set names matched (~78%).**
+- **The 46 unmatched are genuine gaps** — sets pokemontcg.io doesn't
+  catalogue at all: Trainer Kits, McDonald's promo sets, deck/blister
+  exclusives, "e-Reader Sample Cards", "League & Championship Cards",
+  "Jumbo Cards", the very newest promo sets. These fall back to the set
+  name as text (no broken-image icon).
+- **`lib/setImagesData.js`** — `SET_IMAGES = { "<set name>": { logo,
+  symbol } }`, 161 entries. Hosts: `images.pokemontcg.io` (most) +
+  `images.scrydex.com` (8 newest ME sets). Static — no runtime fetch.
+- **`lib/setImages.js`** — `setImage(name) → { logo, symbol } | null`.
+  Dependency-free CJS (no `next/cache`, no Supabase) so it's safe to
+  reach from the client component.
+- **`app/sets/page.js`** enriches each set with `logo: setImage(s.set)
+  ?.logo ?? null`; **`components/SetsFilterList.js`** renders it as a
+  lazy `next/image` `fill` inside a fixed `h-8 w-20` (80×32) box —
+  `object-contain object-left`, `sizes="80px"`. Fixed box = no CLS.
+  No logo → empty span, set name still identifies the tile.
+- **`next.config.mjs`** — `images.remotePatterns` += `images.pokemontcg.io`,
+  `images.scrydex.com`.
 
-### Status
+### Phase 3 — species icons on /pokemon
 
-**Phase 4 not started. No code, config, or schema changed.** Needs an
-owner decision:
-1. **Set logos** — not feasible as specced (PPT's URLs 403). Skip, or
-   self-host a set-symbol set (separate task + its own licensing call)?
-2. **Species icons** — PokéAPI sprites are the practical source and
-   mirror the site's existing card-thumbnail fair-use posture exactly.
-   OK to proceed on `/pokemon` on that basis (small identification-scale
-   icons, cached, no affiliation claims), or skip?
+- **`components/PokemonFilterList.js`** — each species tile renders a
+  plain lazy `<img>` (not `next/image` — 1025 of them, tiny static PNGs,
+  no optimiser value) at the PokéAPI sprite:
+  `https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/${dex}.png`.
+- **URL is deterministic from the dex number** — nothing to cache or
+  fetch; it's computed inline from data already on the tile.
+- 28×28 fixed `width`/`height` (no CLS), `loading="lazy"`,
+  `decoding="async"`, `[image-rendering:pixelated]`. `onError` hides a
+  sprite that fails rather than showing a broken-image icon.
+- Covers **all 1025 dex** (every sprite 1–1025 resolves 200; spot-checked
+  1.png = 543 B, 1025.png = 1715 B).
+
+### Verification (live, commit `ff8796d`)
+
+- `/sets` — 76 `_next/image` requests for pokemontcg.io/scrydex logos,
+  **all HTTP 200**, non-zero bytes, zero 4xx, zero zero-size. DOM check:
+  `img.complete`, `naturalWidth > 0`, `visibility: visible`, box 80×32.
+  Canvas pixel-sample of 6 logos (old base-set through SWSH) confirms
+  real coloured content (opaque 28–85%, avg luminance 78–166) — not
+  blank/white/broken. **134 / 154 live set tiles carry a logo**; the
+  other 20 show set-name text only.
+- `/pokemon` — all 1025 sprite `<img>` in the server HTML; sampled
+  dex-1 sprite loads (`complete`, `naturalWidth 96`, `visibility:
+  visible`, rendered 28×28). Off-screen sprites correctly deferred by
+  `loading="lazy"`.
+- No CWV regression: both image types are lazy, in fixed-size boxes
+  (zero CLS), off the critical path; sprites are ~0.6 KB CDN PNGs.
+- `test:seo` 57/57, `test:scanner` 11/11, `npm run build` clean.
+- Note: the browser-automation **screenshot** tool's `captureScreenshot`
+  was timing out during this check (CDP renderer flake, every tab) — so
+  the verification above is DOM + network + canvas-pixel evidence rather
+  than a visual capture. That evidence is conclusive: the images fetch
+  200, decode, and paint at real coordinates with real pixel content.
+
+### Coverage gaps (documented, acceptable)
+
+- Set logos: 46 / 207 English set names have no pokemontcg.io entry
+  (list above) → text fallback. Japanese sets not covered (`/sets` is
+  English-only). No logo for a set below `SET_MIN_LISTINGS` since it has
+  no tile.
+- Species sprites: full 1–1025 coverage; forms/regionals share the base
+  dex sprite (intentional — tiles are per base species).
 
 ## Not building (deliberate, documented)
 
