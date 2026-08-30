@@ -599,6 +599,39 @@ guarantees Google AI Overview citations, AI-search visibility, rankings,
 traffic, indexing, revenue, or any other specific outcome. It is a
 machine-readability and entity-clarity improvement only.
 
+### Note: the `?country=EBAY_XX` param that appears on `/` (client-side only)
+
+Loading a bare `https://pokemondealfinder.com/` in a **browser** ends up
+showing `…/?country=EBAY_AU` (or `EBAY_US`, etc.) in the address bar.
+Traced 2026-08-30 — **this is not a server-side redirect** and does not
+create a duplicate indexable URL:
+
+* `curl -I https://pokemondealfinder.com/` (and with a Googlebot UA)
+  returns **HTTP 200**, no `Location` header, `X-Matched-Path: /`.
+  `curl -L` follows **0 redirects**. A non-JS crawl gets the bare URL.
+* The URL change is `router.replace()` (= `history.replaceState`) inside a
+  `useEffect` in `components/RegionRedirect.js` — client-side, after
+  hydration. It sends a visitor with no explicit `?country=` and no
+  stored region preference to their geo-detected marketplace (from
+  `/api/rates` → Vercel `x-vercel-ip-country`), as a *default only* (not
+  written to storage).
+* **Consolidation signals, all present:** every `/?country=EBAY_XX`
+  response carries `rel="canonical"` → bare `https://pokemondealfinder.com`
+  (page-2+ → `/?page=N` with `country` stripped) — not self-referential;
+  all in-page country filter links are `rel="nofollow"`; **zero**
+  `?country=` URLs in `sitemap.xml`.
+* **Not introduced by the identity/freshness work.** `RegionRedirect`'s
+  auto-default-to-`?country=` behaviour dates to commit `d364ee7`
+  ("Auto-detect the visitor's region (geo-IP) as the region default"),
+  part of the earlier localization phase; later moved fully client-side
+  in `7dba737`. The identity work did not touch region/personalisation.
+
+Bounded URL space: 5 marketplace values × page variants, all
+canonicalising home. If Search Console coverage ever shows a
+`?country=…` URL indexed separately, the fix is a product/architecture
+call (serve the geo default without a URL param at all) and should be
+raised rather than patched ad hoc.
+
 ## Not building (deliberate, documented)
 
 - **Phase 8 — dedicated price-history pages**: not building as separate `/cards/[slug]/price-history/` routes — price history is already integrated into the card hub and deal detail pages (chart + real data), and PokemonPriceTracker doesn't expose enough historical depth to justify a separate crawlable page beyond what's already shown. Documenting this as a deliberate scope decision, not an oversight.
