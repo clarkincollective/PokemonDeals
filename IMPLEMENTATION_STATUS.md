@@ -804,6 +804,54 @@ internal, rendered per page, never exported — matching PPT's terms
 then the first sync populates ~40k cards; until then the pages use the
 `watchlist` fallback (~4,900 cards).
 
+### Follow-up — "Every [Species] card" list redesign (2026-08-30)
+
+The list shipped as a thin ~40px-thumbnail row table, out of step with
+the site's DealCard grids. Visual pass only — no data / deal-detection
+change.
+
+* **`components/SpeciesCard.js`** (new) — one tile, same shell as
+  `DealCard` (image-forward `aspect-square`, info + CTA below, hover
+  lift). Two variants, still visibly distinct:
+  * **deal** → emerald border + `−N%` badge, cheapest listing price via
+    `<Price>`, "N% below market · N live listings", green **See deal →**
+    (to the `/cards/[slug]` hub or the `#deals` grid).
+  * **browse** → plain: the PokemonPriceTracker reference price via
+    `<Price>` + "Reference price · PokemonPriceTracker" attribution, a
+    neutral bordered **View on eBay →** affiliate CTA
+    (`buildEbaySearchLink` → EPN params, `rel="sponsored"`). No badge, no
+    green, no "below market".
+* **`components/SpeciesCardList.js`** — now an image-forward grid
+  (`grid-cols-2` mobile → `sm:3` → `lg:4` → `xl:5`, matching the site's
+  other card grids). Active deals lead in their own labelled green
+  section, then the full browse grid — a real deal is never buried among
+  the browsable-only cards.
+* **`next/image`** replaces the raw `<img>` — responsive `sizes`,
+  optimised (WebP/AVIF) + lazy by default; `tcgplayer-cdn.tcgplayer.com`
+  was already in `next.config.mjs` `remotePatterns`.
+* `SpeciesCatalog` main widened `max-w-3xl` → `max-w-6xl` so the grid
+  breathes.
+
+**Core Web Vitals — checked:**
+* **LCP** — unaffected. The card grid sits below the fold on both page
+  variants (after the hero on the no-deal page, after the whole
+  `<DealGrid>` on the deal page); `next/image` without `priority` is
+  `loading="lazy"`, so these images don't enter the LCP path. Source
+  images are already small (`_in_200x200.jpg`) and Next serves
+  per-breakpoint variants.
+* **CLS** — none introduced. Every tile image is `<Image fill>` inside a
+  fixed `aspect-square` container, so space is reserved before load —
+  the same pattern `DealCard` uses.
+* Verified `grid-cols-2` on mobile width (the layout's original
+  complaint), `xl:grid-cols-5` on desktop; deal tiles green with the
+  badge, browse tiles plain with reference price + working EPN "View on
+  eBay".
+
+`tests/seo` 49/50 (the one failure is the pre-existing, unrelated
+homepage→`/sets/<thin-set>` `DealCard` broken-link that flakes with the
+deal rotation — a `DealCard` set-link guard, not this pass),
+`tests/scanner` 11/11, production build clean.
+
 ## Not building (deliberate, documented)
 
 - **Phase 8 — dedicated price-history pages**: not building as separate `/cards/[slug]/price-history/` routes — price history is already integrated into the card hub and deal detail pages (chart + real data), and PokemonPriceTracker doesn't expose enough historical depth to justify a separate crawlable page beyond what's already shown. Documenting this as a deliberate scope decision, not an oversight.
