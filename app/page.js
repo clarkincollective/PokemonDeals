@@ -173,27 +173,34 @@ export default async function Home({ searchParams }) {
       acceptedAnswer: { "@type": "Answer", text: item.answer },
     })),
   };
-  const websiteJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: "Pokemon Deal Finder",
-    url: SITE_URL,
-    potentialAction: {
-      "@type": "SearchAction",
-      target: `${SITE_URL}/search?q={search_term_string}`,
-      "query-input": "required name=search_term_string",
-    },
-  };
-  const organizationJsonLd = { "@context": "https://schema.org", "@type": "Organization", name: "Pokemon Deal Finder", url: SITE_URL };
+
+  // The site-wide Organization + WebSite entities live in the root layout
+  // (app/layout.js) and carry stable @ids. The homepage adds only a
+  // CollectionPage that names the same WebSite and, crucially, exposes the
+  // real data-freshness timestamp - the SAME `lastRefreshed` value the
+  // visible "checked X ago" line below uses (MAX(deals.last_seen_at) via
+  // fetchLastScanTime). Not new Date(), not a hardcoded date. Only on the
+  // canonical promo view; filtered / page-2+ views canonicalise to "/".
+  const homeCollectionJsonLd = showPromo
+    ? {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: "Pokemon Deal Finder - below-market Pokemon card listings",
+        description:
+          liveCount != null
+            ? `Approximately ${liveCount.toLocaleString()} active below-market Pokemon card listings from eBay's US, UK, Australia, Canada and Germany marketplaces, each compared against real market prices and recent sold-listing data.`
+            : "Active below-market Pokemon card listings from eBay's US, UK, Australia, Canada and Germany marketplaces, each compared against real market prices and recent sold-listing data.",
+        url: `${SITE_URL}/`,
+        isPartOf: { "@id": `${SITE_URL}/#website` },
+        ...(lastRefreshed ? { dateModified: new Date(lastRefreshed).toISOString() } : {}),
+      }
+    : null;
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
-      {showPromo && (
-        <>
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
-        </>
+      {homeCollectionJsonLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homeCollectionJsonLd) }} />
       )}
       <SiteHeader />
       <MobileStickySearch />
@@ -207,6 +214,20 @@ export default async function Home({ searchParams }) {
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
             Every listing checked against real sold prices. The junk filtered out. Free.
+          </p>
+
+          {/* Plain-language summary for text-only crawlers: what the tool
+              does and which marketplaces it covers, stated once near the
+              top rather than left to be inferred from the UI. Facts match
+              /how-it-works and /methodology exactly. */}
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+            Pokemon Deal Finder scans eBay listings for Pokemon cards across the US, UK, Australia,
+            Canada and Germany marketplaces and compares each one against its real market price and
+            recent sold listings, showing only the listings that are meaningfully below market.{" "}
+            <Link href="/methodology" className="underline hover:text-red-600 dark:hover:text-red-500">
+              How we find deals
+            </Link>
+            .
           </p>
 
           <div className="mt-6">

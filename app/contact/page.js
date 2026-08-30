@@ -30,7 +30,7 @@ const contactPageJsonLd = {
   "@type": "ContactPage",
   name: "Contact Pokemon Deal Finder",
   url: `${SITE_URL}/contact`,
-  publisher: { "@type": "Organization", name: "Pokemon Deal Finder", url: SITE_URL, email: CONTACT_EMAIL },
+  publisher: { "@id": `${SITE_URL}/#organization`, email: CONTACT_EMAIL },
 };
 
 export default function ContactPage() {

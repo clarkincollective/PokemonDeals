@@ -30,7 +30,7 @@ const aboutPageJsonLd = {
   "@type": "AboutPage",
   name: "About Pokemon Deal Finder",
   url: `${SITE_URL}/about`,
-  publisher: { "@type": "Organization", name: "Pokemon Deal Finder", url: SITE_URL },
+  publisher: { "@id": `${SITE_URL}/#organization` },
 };
 
 export default function AboutPage() {

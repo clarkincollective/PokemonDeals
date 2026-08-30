@@ -447,6 +447,158 @@ listing shown 54–72 % "below" the $25.86 NM price):
   above 45 % off — "Near Mint" a whole grade under LP isn't credible.
 - That card's 11 deals → 3 (8 retired as real LP/MP/HP).
 
+## Machine-readable identity, entity clarity & freshness — 2026-08-30
+
+Narrowly scoped: add the missing identity / freshness layer only. No
+redesign, no new data pipeline, no schema change.
+
+### Identity
+
+* **Organization schema added:** yes — site-wide, in the root layout
+  (`app/layout.js`), so it is on every route (previously a bare
+  `Organization` appeared only on the homepage's promo view).
+* **Organization `@id`:** `https://pokemondealfinder.com/#organization`
+* **Canonical URL:** `https://pokemondealfinder.com/`
+* **`logo`:** `https://pokemondealfinder.com/icon.svg` — the real existing
+  favicon mark (`app/icon.svg`), verified to serve `200 image/svg+xml`.
+* **Description:** *"Pokemon Deal Finder is a free tool that scans eBay
+  listings for Pokemon trading cards and identifies the ones priced below
+  their market value, using real market prices and recent sold-listing
+  data."* — one sentence, factual, matches `/how-it-works` and
+  `/methodology`, no superlatives, no affiliation claim, no Person/founder.
+* **`WebSite` entity:** also site-wide — `@id .../#website`, `publisher`
+  → `{"@id": ".../#organization"}`, `SearchAction` (sitelinks search
+  box). Removed the duplicate bare `WebSite`/`Organization` that the
+  homepage emitted.
+* **`@id` consistency:** `lib/jsonLd.js` `collectionPage()` now sets
+  `isPartOf: {"@id": ".../#website"}` (was a re-declared `WebSite` copy);
+  `/about`, `/contact`, and guide `Article` blocks now reference
+  `{"@id": ".../#organization"}` instead of re-declaring the org.
+
+### sameAs
+
+No `sameAs` links were included because no verified external Pokemon Deal
+Finder profiles were found. Searched the codebase, the site footer, and
+`docs/` — every external link is to eBay / TCGPlayer (affiliate) or
+Impact/Vercel (tooling). The footer links are all internal
+(`/about`, `/how-it-works`, `/methodology`, `/guides`,
+`/affiliate-disclosure`, `/contact`). No X/Twitter, GitHub, YouTube,
+Facebook, Instagram, or app-store presence exists. A `sameAs` will be
+added only if/when a real official profile is created.
+
+### Freshness
+
+* **Source of freshness timestamp:** `fetchLastScanTime({ table: "deals",
+  language: "english" })` in `lib/deals.js` → `MAX(deals.last_seen_at)`
+  over active English deals.
+* **Exact field:** `deals.last_seen_at` (Supabase), written by
+  `/api/refresh-deals` on every upsert of a still-active listing — i.e.
+  the time of the most recent scan that confirmed a live deal.
+* **What it represents:** the last successful deal-data refresh, not the
+  page-render time.
+* **How it reaches the frontend:** the homepage already `await`s
+  `fetchLastScanTime` (`lastRefreshed`) and renders
+  `checked {timeAgo(lastRefreshed)}` (or "refreshing automatically" past
+  a 30-minute threshold), plus the `{liveCount} live deals` count.
+* **How it reaches JSON-LD:** the **same** `lastRefreshed` value is put
+  on a new homepage `CollectionPage` as
+  `dateModified: new Date(lastRefreshed).toISOString()`. One source, two
+  renderings — no separate calculation.
+* **Updates automatically:** yes. `fetchLastScanTime` is
+  `unstable_cache`d with `POOL_REVALIDATE_SECONDS`; the homepage is
+  `revalidate = 60`. As scans write newer `last_seen_at`, both the
+  visible line and `dateModified` move with it.
+* **Not hardcoded:** confirmed — no literal date anywhere; no `new Date()`
+  substituted for the refresh time. Verified live: the emitted
+  `dateModified` was a real recent scan timestamp
+  (`2026-08-29T12:31:33.575Z` on the test build), not "now".
+
+### Dynamic Data
+
+* **Deal count:** `fetchMarketDataSummary()` in `lib/deals.js` →
+  `activeDeals = count(deals where is_active = true)` (exact count query,
+  `unstable_cache`d). Homepage renders it as `{liveCount} live deals` and
+  the new `CollectionPage.description` uses the same value
+  ("Approximately N …"). **Not hardcoded** — no number literal; falls
+  back to a count-free sentence when the query returns null.
+* **Market coverage:** `MARKETPLACES` in `lib/ebay.js` —
+  `EBAY_US, EBAY_GB, EBAY_AU, EBAY_CA, EBAY_DE` → United States, United
+  Kingdom, Australia, Canada, Germany. Now also stated in the homepage
+  hero paragraph and the `CollectionPage.description`; already stated in
+  `/how-it-works` and `/methodology` prose.
+* **Refresh cadence:** `vercel.json` crons (US sweep every 15 min, other
+  marketplaces every ~2 h, priority set every 6 h, wider catalogue one
+  slice/marketplace/day, catalogue + sealed re-synced daily). Described
+  in prose on `/how-it-works` and the homepage FAQ. Not restated in
+  JSON-LD (no clean schema.org property for it).
+
+### Pages Changed
+
+* **`/`** (`app/page.js`) — removed the duplicate bare
+  `Organization`/`WebSite` (now site-wide); added a `CollectionPage`
+  JSON-LD carrying `dateModified` (from `lastRefreshed`) + a description
+  naming the five marketplaces and the approx deal count; added one
+  plain-language hero paragraph — *"Pokemon Deal Finder scans eBay
+  listings for Pokemon cards across the US, UK, Australia, Canada and
+  Germany marketplaces and compares each one against its real market
+  price and recent sold listings, showing only the listings that are
+  meaningfully below market."* + a `/methodology` link. FAQ + "How it
+  works" prose block unchanged.
+* **`/how-it-works`** — **no change.** Already fully crawlable static
+  prose covering: what the tool is, the eBay Browse API source, all five
+  marketplaces, deal-detection thresholds, per-tier refresh cadence, data
+  currency ("How current is it?"), and two `/methodology` links.
+* **`/methodology`** — **no change.** Already fully crawlable static
+  prose covering: both data sources, what "market price" means, the deal
+  thresholds (≥10% below, >~75% excluded), matching logic, condition /
+  grading handling, seller trust checks, which pages get published, and
+  limitations.
+* **`app/layout.js`** — added the site-wide `Organization` + `WebSite`
+  JSON-LD (static constants, in `<head>`; no data fetching added).
+* **`lib/jsonLd.js`, `app/about/page.js`, `app/contact/page.js`,
+  `components/GuideLayout.js`** — point `isPartOf` / `publisher` /
+  `author` at the shared `@id`s.
+* **`tests/seo/identity.test.mjs`** — new (10 checks).
+
+### Validation
+
+* **JSON-LD:** extracted from `/`, `/how-it-works`, `/methodology` from a
+  local `next start` (no JS). All blocks parse as valid JSON. Verified:
+  `Organization` `@id`/`url`/`name`/`logo` correct, **no `sameAs`**, no
+  `Person`, no `founder`, description free of superlatives; `WebSite`
+  `@id` + `SearchAction` + `publisher` `@id`; homepage `CollectionPage`
+  `dateModified` parses as ISO and was a real recent scan time;
+  `isPartOf` `@id` matches the `WebSite`. External Rich Results Test not
+  run from this environment — local structural validation only, now
+  enforced by the test suite on every run.
+* **Raw HTML inspection:** the homepage raw HTML contains, without JS:
+  what the tool does, the five marketplaces, the live deal count, the
+  "checked X ago" freshness line, and a `/methodology` link.
+  `/how-it-works` and `/methodology` raw HTML contain the full prose
+  described above.
+* **Tests:** `npm run test:seo` — 50/50 (was 40; +10 identity checks).
+  `npm run test:scanner` — pass. Build clean.
+* **Production build:** `npm run build` succeeds; `/`, `/how-it-works`,
+  `/methodology` render as before (`/` ISR, the other two static).
+
+### Architectural Decisions
+
+No significant architectural changes were required. The deal count
+(`fetchMarketDataSummary`) and the refresh timestamp
+(`fetchLastScanTime` → `MAX(deals.last_seen_at)`) already had single,
+real, cached sources of truth that the homepage already fetched. The new
+JSON-LD is either a static constant (`Organization`/`WebSite`) or reuses
+an already-fetched value (`lastRefreshed`). No database, ingestion
+pipeline, caching, or deal-detection change; no second source of truth
+introduced.
+
+### Explicit Non-Claims
+
+This implementation does **not** claim or imply that structured data
+guarantees Google AI Overview citations, AI-search visibility, rankings,
+traffic, indexing, revenue, or any other specific outcome. It is a
+machine-readability and entity-clarity improvement only.
+
 ## Not building (deliberate, documented)
 
 - **Phase 8 — dedicated price-history pages**: not building as separate `/cards/[slug]/price-history/` routes — price history is already integrated into the card hub and deal detail pages (chart + real data), and PokemonPriceTracker doesn't expose enough historical depth to justify a separate crawlable page beyond what's already shown. Documenting this as a deliberate scope decision, not an oversight.
