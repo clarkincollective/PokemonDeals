@@ -1,10 +1,50 @@
 # SEO implementation — final report
 
 Covers the full 26-phase brief. All code is **deployed to production** and
-verified live — `tests/seo/` passes 40/40 against
-`https://pokemondealfinder.com`. The DB index migration is **applied**.
+verified live — `tests/seo/` passes 63/63. The DB index migration is
+**applied**. `IMPLEMENTATION_STATUS.md` is the per-phase log; this is the
+summary. Related deep docs: `scanning-architecture.md` (deal-scan +
+pricing pipeline), `indexability.md` (the `shouldIndex()` rules),
+`gsc-readiness.md` (Search Console).
 
-`IMPLEMENTATION_STATUS.md` is the per-phase log; this is the summary.
+---
+
+## Update — 2026-08-30 · clean `/deals/<category>/` landing routes
+
+Faceted-nav closure (brief Phase 6 + Phase 9): high-intent deal queries
+now have **intentional clean routes** instead of relying on
+`?maxPrice=50` filter permutations.
+
+- **7 routes:** `/deals/under-25`, `/deals/under-50`, `/deals/under-100`,
+  `/deals/graded`, `/deals/auctions`, `/deals/vintage` (1998–2003 WOTC /
+  e-Card sets), `/deals/modern` (SV + SWSH era, set list resolved live).
+  Plus the `/deals/` index. `/deals/japanese` + `/deals/sealed` → **308**
+  to `/japanese-cards` / `/sealed-deals` (which already own that intent —
+  no duplicate implementation).
+- **`lib/dealCategories.js`** is the single source of truth (slug →
+  preset filter + `h1` / `title` / `description` / `intro`).
+  **`components/DealCategoryPage.js`** renders page 1 server-side then
+  hands off to the existing `<DealGrid kind="category">` for
+  filters/pagination — no new deal logic, reuses `DealCard`,
+  `SiteHeader/Footer`, `Breadcrumbs`. Dispatched from
+  `app/deals/[id]/page.js` by a 3-line guard (a real deal id is numeric,
+  a category slug never is); category slugs are in `generateStaticParams`
+  so they prerender.
+- **Canonical:** each route self-canonicals to `/deals/<slug>` (params
+  stripped); `FilterBar` links stay `rel="nofollow"` — same faceted-nav
+  protection `/sets/[slug]` already has.
+- **Internal linking:** nav "Graded" / "Auctions" repointed from
+  `/?type=graded` / `/?listing=AUCTION` (renderer-nofollowed) to the new
+  clean routes; "Deals by Price" added to the Browse menu; all 8 routes
+  added to the pages sitemap.
+- **Not built:** per-entity `/market-data/charizard-prices/` style pages
+  — `/pokemon/charizard` already *is* that landing page; a second URL
+  for the same intent is keyword cannibalisation / doorway-adjacent,
+  which the brief itself forbids (Phase 8).
+- `test:seo` **63/63** (6 new `/deals/*` checks), `test:scanner` 11/11,
+  build clean. Filters verified: `under-50` caps at $50, `graded` all
+  `is_graded`, `vintage` only WOTC/e-Card sets, a looser user `?maxPrice`
+  is clamped to the band ceiling.
 
 ---
 
