@@ -7,6 +7,54 @@ import { guideMetadata } from "@/lib/guides";
 const SLUG = "card-condition-grading";
 export const metadata = guideMetadata(SLUG);
 
+// Q&A restated from the body above - every answer is a condensed version
+// of a claim already made and sourced on this page, so the visible list
+// and the FAQPage structured data below match (Google's requirement).
+const FAQ = [
+  {
+    q: "What do Pokemon card condition grades mean?",
+    a: "“Condition” is an informal description of a raw (un-slabbed) card’s wear, assigned by the seller on a five-step scale from Near Mint to Damaged. A “grade” is different: a number assigned by a third-party company after it inspects and seals the card. Both affect price.",
+  },
+  {
+    q: "What is Near Mint (NM) condition?",
+    a: "A card that looks essentially unplayed, with at most tiny, hard-to-see imperfections — a very slight edge nick or a minor surface flaw visible only under angled light.",
+  },
+  {
+    q: "What is Lightly Played (LP) condition?",
+    a: "Minor wear that is visible on close inspection: light edge whitening, small scratches, or one soft corner. Still an attractive card.",
+  },
+  {
+    q: "What is Moderately Played (MP) condition?",
+    a: "Obvious wear — noticeable whitening, scratches, light creasing, or minor border wear — but the card is structurally sound and not defaced.",
+  },
+  {
+    q: "What is Heavily Played (HP) condition?",
+    a: "Major wear: heavy whitening, creasing, scratching, water damage, or writing on the card. Clearly a well-used card.",
+  },
+  {
+    q: "What is Damaged (DMG) condition?",
+    a: "Significant damage such as tears, large creases, bends, holes, or heavy water damage.",
+  },
+  {
+    q: "What is the difference between raw and graded Pokemon cards?",
+    a: "A raw card is un-slabbed; its condition is the seller’s own claim, so verify it against the photos. A graded card has been authenticated, assigned a numeric grade, and sealed in a tamper-evident holder by a company such as PSA or CGC — the grade is theirs, not the seller’s, so graded cards trade in their own market.",
+  },
+  {
+    q: "What do PSA, CGC and BGS grades mean?",
+    a: "PSA uses a 1–10 whole-number scale (PSA 10 is “Gem Mint”, PSA 9 is “Mint”) with no sub-grades on the label. CGC uses 1–10 in half-point steps with a distinct “Pristine 10” above the standard “Gem Mint 10” and records four sub-grades. BGS (Beckett) uses 1–10 in half-point steps with four sub-grades on every label; BGS 9.5 is the common high grade and an all-10 “Black Label” is the rarest.",
+  },
+];
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQ.map((f) => ({
+    "@type": "Question",
+    name: f.q,
+    acceptedAnswer: { "@type": "Answer", text: f.a },
+  })),
+};
+
 export default function Page() {
   return (
     <GuideLayout slug={SLUG}>
@@ -106,6 +154,44 @@ export default function Page() {
           Browse graded deals specifically on{" "}
           <Link href="/?type=graded" className="text-red-600 hover:underline dark:text-red-500">
             the graded filter
+          </Link>
+          .
+        </li>
+      </GUL>
+
+      <GH2>Common questions</GH2>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      <div className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
+        {FAQ.map((f) => (
+          <div key={f.q} className="py-4">
+            <h3 className="text-sm font-bold text-black dark:text-zinc-50">{f.q}</h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{f.a}</p>
+          </div>
+        ))}
+      </div>
+
+      <GH2>Keep reading</GH2>
+      <GUL>
+        <li>
+          <Link href="/guides/raw-vs-graded-pokemon-cards" className="text-red-600 hover:underline dark:text-red-500">
+            Raw vs. graded Pokemon cards
+          </Link>{" "}
+          — why the same card costs several times more in a slab, and when grading is worth it.
+        </li>
+        <li>
+          <Link href="/guides/how-pokemon-card-prices-work" className="text-red-600 hover:underline dark:text-red-500">
+            How Pokemon card prices are determined
+          </Link>{" "}
+          — how condition, grade, edition and printing split one card into many prices.
+        </li>
+        <li>
+          Look up any card&apos;s raw and graded value:{" "}
+          <Link href="/pokemon" className="text-red-600 hover:underline dark:text-red-500">
+            browse by Pokemon
+          </Link>
+          , or check current{" "}
+          <Link href="/?type=graded" className="text-red-600 hover:underline dark:text-red-500">
+            graded deals
           </Link>
           .
         </li>

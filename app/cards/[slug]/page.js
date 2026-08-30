@@ -2,7 +2,8 @@ import { unstable_cache } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { resolveCardSlug, fetchCardOffers, resolveSpeciesByName, fetchCardHubs, fetchSetSlugs } from "@/lib/deals";
+import { resolveCardSlug, resolveCatalogCard, fetchCardOffers, resolveSpeciesByName, fetchCardHubs, fetchSetSlugs } from "@/lib/deals";
+import { catalogCardTitle } from "@/lib/cardSlug";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
@@ -18,6 +19,7 @@ import CardPriceSummary from "@/components/CardPriceSummary";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import CatalogCardView from "@/components/CatalogCardView";
 import StickyDealCta from "@/components/StickyDealCta";
 import SaveCardButton from "@/components/SaveCardButton";
 import PriceAlertForm from "@/components/PriceAlertForm";
@@ -74,7 +76,33 @@ const loadPriceAnalysis = unstable_cache(loadPriceAnalysisUncached, ["card-hub-p
 export async function generateMetadata({ params }) {
   const { slug } = await params;
   const hub = await resolveCardSlug(slug);
-  if (!hub) return { title: "Card not found", robots: { index: false, follow: true } };
+  if (!hub) {
+    // No live-deal hub - fall back to the stable card_catalog record.
+    const card = await resolveCatalogCard(slug);
+    if (!card) return { title: "Card not found", robots: { index: false, follow: true } };
+    const title = catalogCardTitle(card.name, card.set);
+    const priceStr = card.refPrice != null ? `$${card.refPrice.toFixed(2)}` : null;
+    const description = priceStr
+      ? `${card.name} (${card.set}) Pokemon card value: ${priceStr} market reference from real recent sold data${card.rarity ? `, ${card.rarity}` : ""}${card.cardNumber ? ` (${card.cardNumber})` : ""}. Raw and graded (PSA/CGC/BGS) pricing, plus a TCGPlayer link.`
+      : `${card.name} (${card.set}) Pokemon card - market value, raw and graded pricing from real sold data.`;
+    return {
+      title,
+      description,
+      alternates: { canonical: `/cards/${slug}` },
+      openGraph: {
+        title,
+        description,
+        url: `${SITE_URL}/cards/${slug}`,
+        images: card.image ? [card.image] : undefined,
+      },
+      twitter: {
+        card: card.image ? "summary_large_image" : "summary",
+        title,
+        description,
+        images: card.image ? [card.image] : undefined,
+      },
+    };
+  }
 
   // Real gap found live: without an explicit openGraph/twitter block,
   // Next falls back to the root layout's generic site-wide preview
@@ -124,7 +152,23 @@ export async function generateMetadata({ params }) {
 export default async function CardHubPage({ params }) {
   const { slug } = await params;
   const hub = await resolveCardSlug(slug);
-  if (!hub) notFound();
+  if (!hub) {
+    // No live-deal hub - render the stable card_catalog-backed page
+    // instead (Phase 4 P0). It has no offers, so no Product/Offer schema.
+    const card = await resolveCatalogCard(slug);
+    if (!card) notFound();
+    const [analysis, validSetSlugs] = await Promise.all([
+      loadPriceAnalysis(card.tcgplayerId),
+      fetchSetSlugs("english"),
+    ]);
+    return (
+      <CatalogCardView
+        card={card}
+        analysis={analysis}
+        setHasPage={validSetSlugs.includes(slugifySet(card.set))}
+      />
+    );
+  }
 
   const speciesName = extractSpecies(hub.name);
   const [{ deals: offers, error }, analysis, speciesHub, { hubs: allHubs }, validSetSlugs] =
