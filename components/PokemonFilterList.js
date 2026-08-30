@@ -9,9 +9,10 @@ import Link from "next/link";
 // crawlers (see app/pokemon/page.js). This is a progressive-enhancement
 // filter for a visitor scanning ~1,000 names by hand.
 //
-// A species links to /pokemon/[slug] only when it has an active deal
-// (slug set). The rest render as plain, dimmed text - their slug page
-// 404s by design, so linking there would be a dead end.
+// Every species links to /pokemon/[slug]. A species with an active deal
+// (hasDeal) gets the bold treatment + an emerald listing-count badge and
+// points at its live deal page; the rest are plain and point at the
+// catalogue + eBay-search fallback page.
 export default function PokemonFilterList({ groups }) {
   const [query, setQuery] = useState("");
 
@@ -67,7 +68,7 @@ export default function PokemonFilterList({ groups }) {
       ) : (
         <div className="flex flex-col gap-10">
           {filteredGroups.map((g) => {
-            const withDeals = g.species.filter((s) => s.slug).length;
+            const withDeals = g.species.filter((s) => s.hasDeal).length;
             return (
               <section key={g.generation}>
                 <h2 className="mb-3 flex flex-wrap items-baseline gap-x-2 text-sm font-bold text-black dark:text-zinc-50">
@@ -79,7 +80,7 @@ export default function PokemonFilterList({ groups }) {
                 </h2>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                   {g.species.map((s) =>
-                    s.slug ? (
+                    s.hasDeal ? (
                       <Link
                         key={s.name}
                         href={`/pokemon/${s.slug}`}
@@ -91,13 +92,14 @@ export default function PokemonFilterList({ groups }) {
                         </span>
                       </Link>
                     ) : (
-                      <span
+                      <Link
                         key={s.name}
-                        className="flex items-center rounded-lg border border-transparent px-3 py-2 text-sm text-zinc-400 dark:text-zinc-600"
-                        title="No active deals right now"
+                        href={`/pokemon/${s.slug}`}
+                        className="flex items-center rounded-lg border border-transparent px-3 py-2 text-sm text-zinc-500 transition-colors hover:text-red-600 hover:underline dark:text-zinc-500 dark:hover:text-red-500"
+                        title="No active deal - catalogue + eBay search"
                       >
                         <span className="truncate">{s.name}</span>
-                      </span>
+                      </Link>
                     )
                   )}
                 </div>

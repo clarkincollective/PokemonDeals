@@ -4,13 +4,16 @@ import {
   resolveSpeciesSlug,
   fetchSpeciesDealsPage,
   fetchSpeciesPrints,
+  fetchSpeciesCatalog,
   fetchCardHubs,
 } from "@/lib/deals";
+import { speciesForSlug } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import SiteHeader from "@/components/SiteHeader";
 import RegionRedirect from "@/components/RegionRedirect";
 import DealGrid from "@/components/DealGrid";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import SpeciesCatalog from "@/components/SpeciesCatalog";
 import SiteFooter from "@/components/SiteFooter";
 
 const SITE_URL = "https://pokemondealfinder.com";
@@ -35,7 +38,24 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }) {
   const { slug } = await params;
   const resolved = await resolveSpeciesSlug(slug);
-  if (!resolved) return { title: "Pokemon not found", robots: { index: false, follow: true } };
+  if (!resolved) {
+    // No active deal for this species - if it's still a real dex species,
+    // it gets the catalogue + eBay-search fallback page (noindex,follow);
+    // only a slug that isn't a species at all is a genuine 404.
+    const speciesName = speciesForSlug(slug);
+    if (speciesName) {
+      const t = `${speciesName} Pokemon Cards`;
+      return {
+        title: t,
+        description: `${speciesName} Pokemon card catalogue and market prices, plus a live eBay search. No active below-market ${speciesName} deal right now.`,
+        alternates: { canonical: `/pokemon/${slug}` },
+        robots: { index: false, follow: true },
+        openGraph: { title: t, description: `Browse ${speciesName} Pokemon cards and prices.`, url: `${SITE_URL}/pokemon/${slug}` },
+        twitter: { card: "summary", title: t, description: `Browse ${speciesName} Pokemon cards and prices.` },
+      };
+    }
+    return { title: "Pokemon not found", robots: { index: false, follow: true } };
+  }
 
   const title = `${resolved.name} — Pokemon Card Prices & Deals`;
   const setsPhrase = resolved.setCount === 1 ? "1 set" : `${resolved.setCount} sets`;
@@ -82,7 +102,12 @@ export default async function PokemonSpeciesPage({ params }) {
   if (!resolved) {
     // don't leave the prefetch as an unhandled rejection
     cardHubsWarm.catch(() => {});
-    notFound();
+    // Real dex species with no active deal -> catalogue + eBay-search
+    // fallback (noindex). Not a species at all -> 404.
+    const speciesName = speciesForSlug(slug);
+    if (!speciesName) notFound();
+    const { cards } = await fetchSpeciesCatalog(speciesName);
+    return <SpeciesCatalog speciesName={speciesName} slug={slug} cards={cards} />;
   }
 
   const [{ deals, totalPages, error }, { prints }] = await Promise.all([

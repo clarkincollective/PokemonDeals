@@ -61,21 +61,25 @@ export default async function PokemonIndexPage() {
       groups.push(current);
     }
     const deal = dealBySpecies.get(s.name) ?? null;
+    // Every species links to /pokemon/<slug>: a deal-having one to its
+    // live deal page, the rest to the catalogue + eBay-search fallback.
     current.species.push({
       name: s.name,
-      slug: deal?.slug ?? null,
+      slug: deal?.slug ?? s.slug,
       count: deal?.count ?? 0,
+      hasDeal: Boolean(deal),
     });
   }
 
   const withDeals = [...dealBySpecies.values()];
   const totalWithDeals = withDeals.length;
 
-  // ItemList of only the species that resolve to a real page - real
-  // names, real URLs, no fabricated entries for the deal-less ones.
+  // ItemList of only the species with an indexable deal page - real
+  // names, real URLs. The noindex catalogue-fallback pages the deal-less
+  // species link to are deliberately not advertised here.
   const linkedItems = groups
     .flatMap((g) => g.species)
-    .filter((s) => s.slug)
+    .filter((s) => s.hasDeal)
     .map((s) => ({ name: s.name, url: `/pokemon/${s.slug}` }));
 
   return (
@@ -98,8 +102,9 @@ export default async function PokemonIndexPage() {
           <p className="mt-3 max-w-2xl text-base text-zinc-600 dark:text-zinc-400">
             All {SPECIES_WITH_GENERATION.length} Pokemon, in National Pokedex order and grouped by
             generation. {totalWithDeals > 0 ? `${totalWithDeals} currently have` : "None currently have"}{" "}
-            an active below-market deal - those names link straight to every current listing of that
-            Pokemon across all its sets and prints. Use the filter to jump to any name.
+            an active below-market deal (shown in bold with a listing count) and link straight to every
+            current listing. The rest link to the cards we track for that Pokemon plus a live eBay
+            search. Use the filter to jump to any name.
           </p>
         </div>
       </header>
