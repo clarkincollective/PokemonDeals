@@ -247,6 +247,7 @@ export default async function SetDetailPage({ params }) {
               cards={sealedProducts}
               dealsHref="/sealed-deals"
               pageName="set_detail_sealed"
+              itemNoun="sealed product"
             />
           </section>
         )}

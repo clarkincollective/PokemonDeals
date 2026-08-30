@@ -18,6 +18,7 @@ export default function SpeciesCardList({
   cards,
   dealsHref = "#deals",
   pageName,
+  itemNoun = "card",
 }) {
   const name = label ?? speciesName;
   if (!cards || cards.length === 0) return null;
@@ -50,7 +51,7 @@ export default function SpeciesCardList({
         <section className={deals.length > 0 ? "mt-8" : ""}>
           {deals.length > 0 && (
             <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
-              Every other {name} card ({browse.length})
+              Every other {name} {itemNoun} ({browse.length})
             </h3>
           )}
           <div className={GRID}>

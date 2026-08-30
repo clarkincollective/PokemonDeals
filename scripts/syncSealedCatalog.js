@@ -93,6 +93,40 @@ async function main() {
     log(`  upserted ${upserted}/${records.length}`);
   }
 
+  // Prune broken image URLs -> null so SpeciesCard falls back to the
+  // placeholder instead of a broken <img>. ~2% of TCGplayer CDN product
+  // photos 403/404 (mostly older misc products).
+  {
+    const rows = [];
+    for (let from = 0; ; from += 1000) {
+      const { data } = await db
+        .from("sealed_catalog")
+        .select("tcgplayer_id, image_url")
+        .not("image_url", "is", null)
+        .range(from, from + 999);
+      if (!data || !data.length) break;
+      rows.push(...data);
+      if (data.length < 1000) break;
+    }
+    const broken = [];
+    for (let i = 0; i < rows.length; i += 40) {
+      await Promise.all(
+        rows.slice(i, i + 40).map(async (r) => {
+          try {
+            const res = await fetch(r.image_url, { method: "HEAD" });
+            if (!res.ok) broken.push(r.tcgplayer_id);
+          } catch {
+            broken.push(r.tcgplayer_id);
+          }
+        })
+      );
+    }
+    for (let i = 0; i < broken.length; i += 100) {
+      await db.from("sealed_catalog").update({ image_url: null }).in("tcgplayer_id", broken.slice(i, i + 100));
+    }
+    log(`pruned ${broken.length} broken image URLs -> null`);
+  }
+
   // verify
   const { count: after } = await db
     .from("sealed_catalog")

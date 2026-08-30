@@ -1343,9 +1343,97 @@ Reworked to:
   a "still syncing" line and the live-deal strip still works
   (independent of `sealed_catalog`).
 
-### Verification
+### Sync run + coverage
 
-_(sync running — table + counts + spot-check table to be filled in)_
+`node scripts/syncSealedCatalog.js` (2026-08-30): **2,329 distinct
+products across 151 sets**, 0 duplicate ids, every row priced. ~6 min
+with the 429 backoff (a naive run wedged instantly — `?limit=200` is
+billed as ~20 "minute calls"). Type distribution after the classifier
+tweak: Collection Box 435, Tin 418, Blister 317, Booster Pack 177,
+Booster Bundle 147, ETB 131, Booster Box 65, Build & Battle 67, Case
+227, Deck 184, Hanger Box 5, **Other 156** (was 407 before the tweak).
+
+**Per-set count vs PokemonPriceTracker** (`scripts/auditSealedCatalog.js`):
+
+| Set | `sealed_catalog` | PPT | verdict |
+| --- | ---: | ---: | --- |
+| SWSH07: Evolving Skies | 31 | 31 | **match** |
+| SWSH08: Fusion Strike | 31 | 31 | **match** |
+| SV07: Stellar Crown | 23 | 23 | **match** |
+| SV: Prismatic Evolutions | 41 | 41 | **match** |
+| XY - Flashfire | 6 | 6 | **match** |
+| Base Set | 6 | 6 | **match** (PPT's loose `?setName=` returns 120 cross-set; only 6 are truly Base Set) |
+| Jungle | 4 | 4 | **match** |
+
+7/7 exact. 68 of 219 `listSets` names have no sealed products (Trainer
+Kits, McDonald's promos, Shiny Vault / Trainer Gallery subsets,
+promo-card sets) — genuine, not a sync gap.
+
+### Set-page section (`/sets/<slug>`)
+
+| Set | sealed section | deals / browse | notes |
+| --- | --- | --- | --- |
+| SWSH08: Fusion Strike | "Sealed products for … (31)" | 1 / 30 | deal tile emerald, links to `/sealed-deals` |
+| SV: Prismatic Evolutions | "… (41)" | 1 / 40 | |
+| SWSH07: Evolving Skies | "… (31)" | 0 / 31 | browse-only, no deal sub-heading |
+| XY - Flashfire | "… (6)" | 0 / 6 | at the `SET_SEALED_MIN_PRODUCTS = 4` floor |
+| Jungle | "… (4)" | 0 / 4 | at the floor |
+| Legendary Treasures (2), Plasma Storm (1) | **no section** | — | below the floor — card deal grid still serves |
+
+Browse order verified: type-priority (Booster Box leads, then Half
+Booster Box, ETB, …; Case/Other sink), price as tiebreak. Sub-heading
+reads "Every other <set> **sealed product**" (`SpeciesCardList` gained an
+`itemNoun` prop). Deal tiles get the emerald border + "N% below market"
++ "See deal →" → `/sealed-deals`; browse tiles get the plain "View on
+eBay".
+
+### Standalone hub (`/sealed-deals`)
+
+Renders: "Live sealed deals right now" strip (8 deduped `SealedDealCard`s
+from the existing pool) → `<SealedProductBrowser>` with **151 set
+groups** (sets with a `/sets` page first, in `catalog_snapshot` order),
+**12 product-type chips** (All types + the 11 real types), a name search,
+and a "Deals only (N)" toggle. Only ~6 groups render their tile grids on
+SSR (`openSets` default); the rest expand client-side — page is 1.31 MB,
+TTFB ~16 ms from ISR. Pre-sync it degrades to a "still syncing" line with
+the live-deal strip intact.
+
+### Affiliate / images / CWV / tests
+
+- **Affiliate:** browse tiles use the same `buildEbaySearchLink()` path
+  as every other "View on eBay" on the site — raw HTML confirms
+  `campid=5339197414` + `mkcid=1` + `mkrid=711-53200-19255-0` +
+  `mkevt=1` on the sealed tiles. `card.searchQuery = product name` so
+  the query is the self-contained name ("Evolving Skies Booster Box"),
+  not name+set.
+- **Images:** all on `tcgplayer-cdn.tcgplayer.com/product/*` (already an
+  allowed host). A HEAD sweep of all 2,329 found **52 (2.2 %) that
+  403/404** (scattered, mostly older "Miscellaneous" products) — those
+  `image_url`s were set to `null` so `SpeciesCard` renders the
+  `CardImagePlaceholder`, no broken `<img>`. The sync script now runs
+  that prune as a final pass so it self-heals.
+- **No new thin indexable pages** — the hub and the set pages already
+  existed; this adds sections/content to them, no new routes.
+- **CWV:** all sealed tiles are lazy `next/image` in fixed aspect-square
+  boxes (no CLS). Largest combined page (Prismatic: 355 cards + 41
+  sealed) ≈ 2.40 MB, up ~0.24 MB from card-only; hub ≈ 1.31 MB.
+- `test:seo` **57/57**, `test:scanner` **11/11**, `npm run build` clean.
+- `scripts/auditSealedCatalog.js` — new; per-set `sealed_catalog`-vs-PPT
+  count + a live image-resolve check.
+
+### Coverage gaps (documented)
+
+- Sealed deal coverage is inherently sparse — `sealed_watchlist` is only
+  ~48 hand-picked products, so only ~50 active sealed deals across ~17
+  sets right now. Every other sealed product shows as browse-only. This
+  matches the old page's own copy ("small, hand-picked watchlist").
+- The cron route (`/api/sync-sealed-catalog`, `0 5 * * *`) is best-effort
+  within `maxDuration` and skips the image-prune pass;
+  `scripts/syncSealedCatalog.js` is the reliable full path (no timeout,
+  includes the prune).
+- A set with < 4 catalogued sealed products shows no section even if it
+  has an active sealed deal (same trade-off as `SET_CATALOG_MIN_CARDS`);
+  those deals still surface on the standalone hub.
 
 ## Not building (deliberate, documented)
 
