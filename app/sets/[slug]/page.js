@@ -6,7 +6,9 @@ import {
   fetchDealsPage,
   fetchHubCounts,
   fetchSetCatalog,
+  fetchSetSealedCatalog,
   SET_CATALOG_MIN_CARDS,
+  SET_SEALED_MIN_PRODUCTS,
 } from "@/lib/deals";
 import { setImage } from "@/lib/setImages";
 import SiteHeader from "@/components/SiteHeader";
@@ -81,6 +83,7 @@ export default async function SetDetailPage({ params }) {
     { deals, totalPages, error },
     hubCounts,
     { cards: catalogCards, totalCards: catalogTotal, truncated: catalogTruncated },
+    { products: sealedProducts, totalProducts: sealedTotal, truncated: sealedTruncated },
   ] = await Promise.all([
     fetchDealsPage({
       table: "deals",
@@ -92,6 +95,7 @@ export default async function SetDetailPage({ params }) {
     }),
     fetchHubCounts({ language: "english" }),
     fetchSetCatalog(resolved.set, "english"),
+    fetchSetSealedCatalog(resolved.set, "english"),
   ]);
 
   const basePath = `/sets/${slug}`;
@@ -104,6 +108,9 @@ export default async function SetDetailPage({ params }) {
   // bug here.
   const showCatalog = catalogCards.length >= SET_CATALOG_MIN_CARDS;
   const catalogDealCount = catalogCards.filter((c) => c.deal).length;
+
+  const showSealed = sealedProducts.length >= SET_SEALED_MIN_PRODUCTS;
+  const sealedDealCount = sealedProducts.filter((p) => p.deal).length;
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
@@ -216,6 +223,30 @@ export default async function SetDetailPage({ params }) {
               cards={catalogCards}
               dealsHref="#deals"
               pageName="set_detail_catalog"
+            />
+          </section>
+        )}
+
+        {showSealed && (
+          <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+              {sealedTruncated
+                ? `Sealed products for ${resolved.set} (${sealedProducts.length} of ${sealedTotal})`
+                : `Sealed products for ${resolved.set} (${sealedTotal})`}
+            </h2>
+            <p className="mt-1 text-xs text-zinc-400">
+              Booster boxes, elite trainer boxes, bundles, blisters and more, priciest first.{" "}
+              {sealedDealCount > 0
+                ? "Products with an active deal are shown in green; the rest carry their "
+                : "Each carries its "}
+              PokemonPriceTracker sealed reference price (not a guaranteed value) and a live eBay
+              search.
+            </p>
+            <SpeciesCardList
+              label={resolved.set}
+              cards={sealedProducts}
+              dealsHref="/sealed-deals"
+              pageName="set_detail_sealed"
             />
           </section>
         )}

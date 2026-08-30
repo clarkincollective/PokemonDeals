@@ -29,8 +29,11 @@ export default function SpeciesCard({
 }) {
   const context = label ?? speciesName;
   const isDeal = Boolean(card.deal);
-  const meta = [card.set, card.cardNumber, card.rarity].filter(Boolean).join(" · ");
+  const meta = card.meta ?? [card.set, card.cardNumber, card.rarity].filter(Boolean).join(" · ");
   const dealHref = card.hubSlug ? `/cards/${card.hubSlug}` : dealsHref;
+  // Sealed products carry their own self-contained name ("Evolving Skies
+  // Booster Box"); a card needs its set appended to disambiguate prints.
+  const ebayQuery = card.searchQuery ?? `${card.name} ${card.set}`;
 
   return (
     <div
@@ -111,7 +114,7 @@ export default function SpeciesCard({
             </p>
             <div className="mt-auto pt-2.5">
               <AffiliateLink
-                href={buildEbaySearchLink(`${card.name} ${card.set}`)}
+                href={buildEbaySearchLink(ebayQuery)}
                 eventName="eBay Click"
                 eventData={{ context, card: card.name, page: pageName }}
                 className="block rounded-lg border border-zinc-300 px-4 py-2 text-center text-sm font-semibold text-zinc-700 transition-colors hover:border-zinc-400 hover:text-black dark:border-zinc-700 dark:text-zinc-200 dark:hover:text-zinc-50"

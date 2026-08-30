@@ -165,6 +165,10 @@
       "schedule": "0 2 * * *"
     },
     {
+      "path": "/api/sync-sealed-catalog",
+      "schedule": "0 5 * * *"
+    },
+    {
       "path": "/api/refresh-sealed-deals",
       "schedule": "0 6 * * *"
     }

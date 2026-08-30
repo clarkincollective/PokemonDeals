@@ -1,35 +1,25 @@
-import { fetchSealedDealsPool, fetchDealsPage, fetchLastScanTime } from "@/lib/deals";
+import { fetchSealedDealsPool, fetchSealedCatalog, fetchLastScanTime } from "@/lib/deals";
 import { dealScore } from "@/lib/dealScore";
 import { timeAgo } from "@/lib/time";
+import { SEALED_PRODUCT_TYPES } from "@/lib/sealedCatalog";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import SealedDealCard from "@/components/SealedDealCard";
+import SealedProductBrowser from "@/components/SealedProductBrowser";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbList, collectionPage } from "@/lib/jsonLd";
-import { CountryFilterRow, ListingTypeFilterRow, PriceFilterRow } from "@/components/FilterBar";
-import FilterToggle from "@/components/FilterToggle";
-import Pagination, { pageHref } from "@/components/Pagination";
 
-export const revalidate = 60;
+export const revalidate = 300;
 
-// See app/page.js's identical generateMetadata for why paginated pages
-// need their own canonical instead of all pointing back at the base URL.
-export async function generateMetadata({ searchParams }) {
-  const params = await searchParams;
-  const pageParam = typeof params.page === "string" ? Number(params.page) : 1;
-  const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
-  const title = page > 1 ? `Sealed Product Deals - Page ${page}` : "Sealed Product Deals";
+export async function generateMetadata() {
+  const title = "Sealed Pokemon Products — Deals & Prices";
   const description =
-    "Real below-market booster box, elite trainer box, and other sealed Pokemon product deals on eBay, priced against real PokemonPriceTracker market data.";
-  const canonical = page > 1 ? `/sealed-deals?page=${page}` : "/sealed-deals";
-
-  // See app/sets/page.js's identical fix - was falling back to the root
-  // layout's generic preview when shared.
+    "Every sealed Pokemon product — booster boxes, elite trainer boxes, bundles, blisters, tins — browsable by set and type, with real below-market eBay deals surfaced and PokemonPriceTracker reference prices for the rest.";
   return {
     title,
     description,
-    alternates: { canonical },
-    openGraph: { title, description, url: `https://pokemondealfinder.com${canonical}` },
+    alternates: { canonical: "/sealed-deals" },
+    openGraph: { title, description, url: "https://pokemondealfinder.com/sealed-deals" },
     twitter: { card: "summary", title, description },
   };
 }
@@ -49,53 +39,38 @@ function shuffled(array) {
   return copy;
 }
 
-export default async function SealedDealsPage({ searchParams }) {
-  const params = await searchParams;
-  const country = typeof params.country === "string" ? params.country : null;
-  const listingType = typeof params.listing === "string" ? params.listing : null;
-  const maxPriceParam = typeof params.maxPrice === "string" ? Number(params.maxPrice) : null;
-  const maxPrice = Number.isFinite(maxPriceParam) && maxPriceParam > 0 ? maxPriceParam : null;
-  const minPriceParam = typeof params.minPrice === "string" ? Number(params.minPrice) : null;
-  const minPrice = Number.isFinite(minPriceParam) && minPriceParam > 0 ? minPriceParam : null;
-
-  const PAGE_SIZE = 24;
-  const pageParam = typeof params.page === "string" ? Number(params.page) : 1;
-  const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
-  const filters = { country, listingType, maxPrice, minPrice };
-
-  const [{ data: pool, error: poolError }, dealsPageResult, lastRefreshed] = await Promise.all([
-    page === 1 ? fetchSealedDealsPool(filters) : Promise.resolve({ data: null, error: null }),
-    page > 1 ? fetchDealsPage({ table: "sealed_deals", ...filters, page }) : Promise.resolve(null),
+export default async function SealedDealsPage() {
+  const [{ data: pool, error: poolError }, catalog, lastRefreshed] = await Promise.all([
+    fetchSealedDealsPool({}),
+    fetchSealedCatalog({ language: "english" }),
     fetchLastScanTime({ table: "sealed_deals" }),
   ]);
-  const error = poolError || dealsPageResult?.error;
 
-  let deals;
-  let totalPages = 1;
-  if (page > 1) {
-    deals = dealsPageResult?.deals ?? [];
-    totalPages = dealsPageResult?.totalPages ?? 1;
-  } else {
-    const seenProducts = new Set();
-    const dedupedPool = [];
-    for (const deal of pool ?? []) {
-      if (seenProducts.has(deal.sealed_watchlist_id)) continue;
-      seenProducts.add(deal.sealed_watchlist_id);
-      dedupedPool.push(deal);
-    }
-    const ROTATION_POOL_SIZE = 100;
-    deals = shuffled(dedupedPool.slice(0, ROTATION_POOL_SIZE)).slice(0, PAGE_SIZE);
+  // Live-deal strip: a handful of current below-market listings, deduped
+  // to one per product (the same rotation the page has always led with).
+  const seen = new Set();
+  const liveDeals = [];
+  for (const deal of pool ?? []) {
+    if (seen.has(deal.sealed_watchlist_id)) continue;
+    seen.add(deal.sealed_watchlist_id);
+    liveDeals.push(deal);
   }
+  const featuredDeals = shuffled(liveDeals.slice(0, 60)).slice(0, 8);
+
+  // Product types actually present in the catalogue, in canonical order.
+  const typesPresent = new Set();
+  for (const g of catalog.groups) for (const p of g.products) if (p.productType) typesPresent.add(p.productType);
+  const types = SEALED_PRODUCT_TYPES.filter((t) => typesPresent.has(t));
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <JsonLd
         data={[
-          breadcrumbList([{ name: "Deals", href: "/" }, { name: "Sealed product" }]),
+          breadcrumbList([{ name: "Deals", href: "/" }, { name: "Sealed products" }]),
           collectionPage({
-            name: "Sealed Pokemon Product Deals",
+            name: "Sealed Pokemon Products",
             description:
-              "Below-market sealed Pokemon product on eBay - booster boxes, ETBs, tins and more, checked against real market pricing.",
+              "Browse every sealed Pokemon product by set and type - booster boxes, ETBs, bundles, blisters, tins - with live below-market eBay deals surfaced.",
             url: "/sealed-deals",
           }),
         ]}
@@ -108,72 +83,56 @@ export default async function SealedDealsPage({ searchParams }) {
             📦 Sealed Product
           </span>
           <h1 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
-            Sealed Product Deals
+            Sealed Pokemon Products
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
-            Booster boxes, elite trainer boxes, and other factory-sealed product genuinely below
-            market price, checked against real PokemonPriceTracker pricing - not converted or
-            estimated from singles.
+            Every booster box, elite trainer box, bundle, blister and tin we track — search or filter
+            by set and type. Genuine below-market eBay deals are flagged in green; everything else
+            shows its PokemonPriceTracker sealed reference price and a live eBay search.
           </p>
 
           {lastRefreshed && (
             <p className="mt-4 inline-flex items-center gap-2 text-sm text-zinc-500">
               <span className="h-2 w-2 rounded-full bg-red-500" />
               {isRecentlyRefreshed(lastRefreshed)
-                ? `Last refreshed ${timeAgo(lastRefreshed)}`
-                : "Checked once daily - deals refresh automatically"}
+                ? `Deals last refreshed ${timeAgo(lastRefreshed)}`
+                : "Deals checked once daily - refresh automatically"}
             </p>
           )}
-
-          <div className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
-            <FilterToggle
-              defaultOpen={[country, listingType, maxPrice, minPrice].filter((v) => v != null).length > 0}
-              activeCount={[country, listingType, maxPrice, minPrice].filter((v) => v != null).length}
-            >
-              <div className="flex flex-col gap-4">
-                <CountryFilterRow params={params} country={country} basePath="/sealed-deals" />
-                <ListingTypeFilterRow params={params} listingType={listingType} basePath="/sealed-deals" />
-                <PriceFilterRow params={params} maxPrice={maxPrice} minPrice={minPrice} basePath="/sealed-deals" />
-              </div>
-            </FilterToggle>
-          </div>
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
-        <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          Sealed Product Deals{page > 1 ? ` - Page ${page}` : ""}
-        </h2>
-
-        {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
-
-        {!error && deals?.length === 0 && (
-          <p className="text-zinc-500">
-            No sealed product deals match these filters right now - this is a small, hand-picked
-            watchlist (~30-50 products) checked once a day, so genuine deals show up less often than
-            the full card catalog. Try clearing a filter, or check back tomorrow.
+        {(poolError || catalog.error) && (
+          <p className="mb-6 rounded-lg bg-red-50 p-4 text-red-700">
+            Couldn&apos;t load some data: {poolError || catalog.error}
           </p>
         )}
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {deals?.map((deal) => (
-            <SealedDealCard key={deal.id} deal={deal} scoreBadge={dealScore(deal.discount_pct)} />
-          ))}
-        </div>
-
-        {page === 1 ? (
-          deals?.length >= 24 && (
-            <div className="mt-10 flex justify-center">
-              <a
-                href={pageHref(params, 2, "/sealed-deals")}
-                className="rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
-              >
-                Browse more deals →
-              </a>
+        {featuredDeals.length > 0 && (
+          <section className="mb-12">
+            <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-500">
+              Live sealed deals right now
+            </h2>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {featuredDeals.map((deal) => (
+                <SealedDealCard key={deal.id} deal={deal} scoreBadge={dealScore(deal.discount_pct)} />
+              ))}
             </div>
-          )
+          </section>
+        )}
+
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">
+          Browse every sealed product
+        </h2>
+
+        {catalog.groups.length > 0 ? (
+          <SealedProductBrowser groups={catalog.groups} types={types} />
         ) : (
-          <Pagination page={page} totalPages={totalPages} params={params} basePath="/sealed-deals" />
+          <p className="text-zinc-500">
+            The sealed-product catalogue is still syncing. Live deals above are unaffected — check
+            back shortly for the full browsable list.
+          </p>
         )}
       </main>
 
