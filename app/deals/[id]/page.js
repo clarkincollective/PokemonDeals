@@ -25,6 +25,8 @@ import { emailEnabled } from "@/lib/email";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
 import ShareButton from "@/components/ShareButton";
+import { DEAL_CATEGORIES, DEAL_CATEGORY_SLUGS } from "@/lib/dealCategories";
+import DealCategoryPage, { dealCategoryMetadata } from "@/components/DealCategoryPage";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -54,7 +56,10 @@ function formatSaleDate(dateString) {
 // prerender at build, so the list is empty and every page is on-demand.
 export const revalidate = 120;
 export async function generateStaticParams() {
-  return [];
+  // /deals/<category>/ landing routes share this [id] segment (a real
+  // deal id is always numeric, a category slug never is). Prerender the
+  // category pages; leave the ~5,000 individual deal pages on-demand.
+  return DEAL_CATEGORY_SLUGS.map((id) => ({ id }));
 }
 
 const loadDealUncached = async (id) => {
@@ -80,6 +85,7 @@ const loadDeal = cache(loadDealFromDataCache);
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
+  if (DEAL_CATEGORIES[id]) return dealCategoryMetadata(id);
   const deal = await loadDeal(id);
   // Not active anymore = as good as not found for anyone landing here -
   // don't generate a title/description repeating pricing/discount claims
@@ -160,6 +166,9 @@ async function loadPriceAnalysis(deal, watchlist) {
 
 export default async function DealDetailPage({ params }) {
   const { id } = await params;
+
+  // /deals/<category>/ landing route (category slug), not a deal id.
+  if (DEAL_CATEGORIES[id]) return <DealCategoryPage slug={id} />;
 
   const deal = await loadDeal(id);
 

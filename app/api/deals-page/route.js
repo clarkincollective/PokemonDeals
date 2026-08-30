@@ -1,9 +1,11 @@
 import {
   fetchDealsPage,
   fetchSpeciesDealsPage,
+  fetchSets,
   resolveSetSlug,
   resolveSpeciesSlug,
 } from "@/lib/deals";
+import { DEAL_CATEGORIES, isModernSet } from "@/lib/dealCategories";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +44,41 @@ export async function GET(request) {
       const resolved = await resolveSpeciesSlug(slug);
       if (!resolved) return Response.json({ deals: [], totalPages: 1, error: "not found" }, { status: 404 });
       const r = await fetchSpeciesDealsPage({ speciesName: resolved.name, language: "english", ...filters });
+      return Response.json(r);
+    }
+    if (kind === "category") {
+      const cat = DEAL_CATEGORIES[slug];
+      if (!cat || cat.redirect) {
+        return Response.json({ deals: [], totalPages: 1, error: "not found" }, { status: 404 });
+      }
+      // Preset filter for the category. Only overlay the user filters
+      // that are actually set (an unset maxPrice arrives as null and
+      // would otherwise wipe the category's own preset).
+      const preset = { ...cat.filter };
+      if (preset.modernEra) {
+        delete preset.modernEra;
+        const { sets: allSets } = await fetchSets({ language: "english" });
+        preset.sets = (allSets ?? []).map((s) => s.set).filter(isModernSet);
+      }
+      const userOverlay = {};
+      for (const k of ["country", "cardType", "listingType", "maxPrice", "minPrice"]) {
+        if (filters[k] != null) userOverlay[k] = filters[k];
+      }
+      // A tighter user maxPrice inside a price-band category wins; a
+      // looser one is clamped to the category ceiling.
+      if (userOverlay.maxPrice != null && preset.maxPrice != null) {
+        userOverlay.maxPrice = Math.min(userOverlay.maxPrice, preset.maxPrice);
+      }
+      const userSort = u.searchParams.get("sort");
+      const r = await fetchDealsPage({
+        table: "deals",
+        language: "english",
+        ...preset,
+        ...userOverlay,
+        sort: userSort && userSort !== "newest" ? userSort : cat.defaultSort ?? "newest",
+        page: filters.page,
+        pageSize: 24,
+      });
       return Response.json(r);
     }
     return Response.json({ deals: [], totalPages: 1, error: "bad kind" }, { status: 400 });
