@@ -10,7 +10,14 @@ import {
 // Pages through the entire Pokemon catalog, so this can take a while -
 // give it room instead of the default timeout.
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
+// The full set-crawl (219 sets, with PokemonPriceTracker per-minute rate-
+// limit cooldowns of 30-45s several times a run) does not fit in 300s -
+// the 03:00 UTC cron was 504-ing at ~set 190/219, which also meant the
+// end-of-run price_history write never happened. 800 (same as
+// refresh-deals) gives it room; the per-set price_history flush below is
+// the belt-and-braces so a timeout still persists everything up to the
+// last completed set.
+export const maxDuration = 800;
 
 // Checking a real competitor's live deals (pokedealfinder.uk) showed the
 // overwhelming majority of genuine deals are $15-$200 cards, not $1,200+
@@ -251,7 +258,9 @@ async function syncViaSetCrawl(db, manualKeys, maxSets, language) {
   let skipped = 0;
   const errors = [];
   const seenKeys = new Set();
-  const historyRecords = [];
+  let historyRecords = [];
+  let priceHistoryWritten = 0;
+  let priceHistoryError = null;
 
   for (const [setIndex, set] of sets.entries()) {
     console.log(`[sync-watchlist] (${setIndex + 1}/${sets.length}) ${set.name}`);
@@ -338,11 +347,22 @@ async function syncViaSetCrawl(db, manualKeys, maxSets, language) {
       }
     }
 
+    // Flush this set's price_history now rather than accumulating for one
+    // write at the end - if the function times out mid-crawl, everything
+    // up to the last completed set is already persisted. Idempotent (daily
+    // unique index), so a retry that re-crawls earlier sets just no-ops.
+    if (historyRecords.length > 0) {
+      const flushed = await logPriceHistory(db, historyRecords);
+      priceHistoryWritten += flushed.written;
+      if (flushed.error && !priceHistoryError) priceHistoryError = flushed.error;
+      historyRecords = [];
+    }
+
     await sleep(REQUEST_DELAY_MS);
   }
 
   const retired = maxSets ? 0 : await retireStaleAutoRows(db, seenKeys, language);
-  const priceHistory = await logPriceHistory(db, historyRecords);
+  const priceHistory = { written: priceHistoryWritten, error: priceHistoryError };
 
   return {
     method: "set-crawl",
