@@ -1,4 +1,5 @@
 import { fetchSets } from "@/lib/deals";
+import { setImage } from "@/lib/setImages";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import SetsFilterList from "@/components/SetsFilterList";
@@ -26,6 +27,10 @@ export const metadata = {
 
 export default async function SetsIndexPage() {
   const { sets, error } = await fetchSets({ language: "english" });
+
+  // Attach the real pokemontcg.io logo URL (null when that set has no
+  // image - SetsFilterList falls back to the name). Plain map lookup.
+  const setsWithLogos = sets.map((s) => ({ ...s, logo: setImage(s.set)?.logo ?? null }));
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
@@ -55,7 +60,7 @@ export default async function SetsIndexPage() {
 
         {!error && sets.length === 0 && <p className="text-zinc-500">No active deals right now.</p>}
 
-        {!error && sets.length > 0 && <SetsFilterList sets={sets} />}
+        {!error && sets.length > 0 && <SetsFilterList sets={setsWithLogos} />}
       </main>
 
       <SiteFooter />

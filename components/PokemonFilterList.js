@@ -135,7 +135,24 @@ export default function PokemonFilterList({ groups }) {
                         }
                         title={s.hasDeal ? `${s.count} active deal${s.count === 1 ? "" : "s"}` : "Browse every card"}
                       >
-                        <span className="flex min-w-0 items-baseline gap-1.5">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          {/* PokéAPI game sprite - small identification-
+                              scale icon, deterministic URL from the dex
+                              number, lazy, fixed 28px box (no CLS). Hidden
+                              if it fails to load. */}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={`https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/${s.dex}.png`}
+                            alt=""
+                            width={28}
+                            height={28}
+                            loading="lazy"
+                            decoding="async"
+                            className="h-7 w-7 shrink-0 [image-rendering:pixelated]"
+                            onError={(e) => {
+                              e.currentTarget.style.visibility = "hidden";
+                            }}
+                          />
                           <span className="shrink-0 text-[10px] tabular-nums text-zinc-400">
                             {String(s.dex).padStart(4, "0")}
                           </span>

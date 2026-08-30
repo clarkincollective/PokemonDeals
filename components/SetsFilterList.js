@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 // Client-side filter over the full, already-server-rendered set list -
 // not a fetch-on-type search. All real set links stay in the initial
@@ -55,9 +56,25 @@ export default function SetsFilterList({ sets }) {
             <Link
               key={s.slug}
               href={`/sets/${s.slug}`}
-              className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm transition-colors hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
+              className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm transition-colors hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
             >
-              <span className="font-medium text-black dark:text-zinc-50">{s.set}</span>
+              {/* Real pokemontcg.io set logo; fixed box so there's no
+                  layout shift, lazy by default. No logo -> nothing (the
+                  set name below still identifies it). */}
+              <span className="relative block h-8 w-20 shrink-0">
+                {s.logo && (
+                  <Image
+                    src={s.logo}
+                    alt=""
+                    fill
+                    sizes="80px"
+                    className="object-contain object-left"
+                  />
+                )}
+              </span>
+              <span className="min-w-0 flex-1 truncate font-medium text-black dark:text-zinc-50">
+                {s.set}
+              </span>
               <span className="shrink-0 rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                 {s.count}
               </span>
