@@ -852,6 +852,54 @@ homepage→`/sets/<thin-set>` `DealCard` broken-link that flakes with the
 deal rotation — a `DealCard` set-link guard, not this pass),
 `tests/scanner` 11/11, production build clean.
 
+## Fix: set-name links to non-existent /sets/[slug] pages — 2026-08-30
+
+`DealCard` (and several sibling components) linked a card's set name to
+`/sets/<slug>` **unconditionally**. When a set drops below
+`SET_MIN_LISTINGS` its page stops existing (`/sets/[slug]` → 404 by
+design), but the components didn't know — so the homepage carried a
+broken internal link. This tripped `tests/seo` intermittently across
+multiple sessions (data-dependent: a different thin set each time — last
+seen `sv01-scarlet-violet-base-set`, before that `sm-crimson-invasion`).
+
+### Source of truth
+
+`lib/deals.js` `fetchSetSlugs(language)` — the `SET_MIN_LISTINGS`-filtered
+slug list, derived from the **same** `fetchSets()` /
+`computeAggregates()` the page's own existence check uses (no second
+threshold implementation). Returned as a plain array so client
+components can take it as a prop.
+
+### Every place a set name was shown as a link — now gated
+
+| Location | Fix |
+| --- | --- |
+| `components/DealCard.js` | new `validSetSlugs` prop; set is a `<Link>` only if `validSetSlugs.includes(setSlug)`, plain text otherwise (safe default when the prop is absent) |
+| `app/page.js` (5 `<DealCard>` grids) | pass `validSetSlugs` from `fetchSetSlugs()` in the page `Promise.all` |
+| `app/best-finds/page.js` | same |
+| `app/cards/[slug]/page.js` | `setHasPage` gate on: visible breadcrumb, `BreadcrumbList` JSON-LD `item`, the header set link, the "All &lt;set&gt; deals →" link, and the featured `<DealCard>` |
+| `app/deals/[id]/page.js` | `setSlug` is now `null` unless in the valid list → existing `setSlug ? <Link> : text` already handles it |
+| `app/market-data/most-expensive-cards/page.js` | `<Link>` vs `<span>` gate per row |
+| `components/DealGrid.js` → `app/pokemon/[slug]`, `app/sets/[slug]` | `validSetSlugs` prop threaded to its `<DealCard>`s (`sets/[slug]` passes `[slug]` — its own page exists) |
+| `app/pokemon/[slug]/page.js` | `ItemList` JSON-LD fallback URL: hub → set page (if it exists) → this species page, never a 404 `/sets/` |
+| `app/search/SearchClient.js` | `validSetSlugs` prop from the (now `async`) `app/search/page.js` |
+| `app/japanese-cards/page.js` | unaffected — `DealCard` already nulls the set link for Japanese cards |
+
+### Sitemap — re-confirmed
+
+`lib/sitemap.js` `case "sets"` already maps over `fetchSets()`, so
+sub-threshold sets were never in `sitemap.xml`. No change needed.
+
+### Verification
+
+* Real current case: `/sets/swsh11-lost-origin` (2 active deals, below
+  the threshold) returns **404**; `/deals/22256` (a card in that set)
+  now renders "SWSH11: Lost Origin" as **plain text**, no `href`; every
+  `/sets/` link on the live homepage resolves **200**.
+* `npm run test:seo` — **50/50 across 3 consecutive runs** (previously
+  intermittent on this exact assertion). `npm run test:scanner` 11/11.
+* `npm run build` — clean.
+
 ## Not building (deliberate, documented)
 
 - **Phase 8 — dedicated price-history pages**: not building as separate `/cards/[slug]/price-history/` routes — price history is already integrated into the card hub and deal detail pages (chart + real data), and PokemonPriceTracker doesn't expose enough historical depth to justify a separate crawlable page beyond what's already shown. Documenting this as a deliberate scope decision, not an oversight.
