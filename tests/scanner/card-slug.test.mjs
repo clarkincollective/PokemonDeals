@@ -11,6 +11,8 @@ import {
   catalogCardTitle,
   catalogPriceOk,
   pickCatalogMatch,
+  catalogCardResolvable,
+  catalogCardIndexable,
 } from "../../lib/cardSlug.js";
 
 test("catalogCardSlug: name + set -> the same scheme card hubs use", () => {
@@ -125,18 +127,37 @@ test("pickCatalogMatch: resolves a card that sits past the first 1,000-row page"
   assert.equal(hit.tcgplayer_id, "999001");
 });
 
-test("pickCatalogMatch: no name match -> null; matched-but-unusable -> null", () => {
+test("pickCatalogMatch: resolvability, NOT price - a real imaged card resolves even priceless", () => {
   const rows = [
-    { name: "Voltorb", set: "Jungle", market_price: 5, image_url: "x.jpg" },
-    { name: "Electrode", set: "Jungle", market_price: null, image_url: "x.jpg" }, // no price
-    { name: "Pikachu", set: "Jungle", market_price: 10, image_url: null }, // no image
-    { name: "Booster Pack", set: "Jungle", market_price: 4, image_url: "x.jpg" }, // not a card
+    { tcgplayer_id: "1", name: "Voltorb", set: "Jungle", market_price: 5, image_url: "x.jpg" },
+    { tcgplayer_id: "2", name: "Electrode", set: "Jungle", market_price: null, image_url: "x.jpg" }, // no price
+    { tcgplayer_id: "3", name: "Pikachu", set: "Jungle", market_price: 10, image_url: null }, // no image
+    { tcgplayer_id: "4", name: "Booster Pack", set: "Jungle", market_price: 4, image_url: "x.jpg" }, // not a card
   ];
   assert.equal(pickCatalogMatch(rows, "not-in-this-set"), null);
-  assert.equal(pickCatalogMatch(rows, "electrode"), null); // matched name, but no price
-  assert.equal(pickCatalogMatch(rows, "pikachu"), null); // matched name, but no image
-  assert.equal(pickCatalogMatch(rows, "booster-pack"), null); // matched, but not a real card
-  assert.equal(pickCatalogMatch(rows, "voltorb").name, "Voltorb"); // the one usable match
+  // PRICE no longer gates resolution: a real, imaged card keeps its URL.
+  assert.equal(pickCatalogMatch(rows, "electrode").name, "Electrode");
+  assert.equal(pickCatalogMatch(rows, "pikachu"), null); // still needs an image
+  assert.equal(pickCatalogMatch(rows, "booster-pack"), null); // still not a real card
+  assert.equal(pickCatalogMatch(rows, "voltorb").name, "Voltorb");
+});
+
+test("catalogCardResolvable vs catalogCardIndexable: URL existence != price availability", () => {
+  const priced = { name: "Charizard", set: "Base Set", image_url: "x.jpg", tcgplayer_id: "42382", market_price: 868.56 };
+  const priceless = { name: "Charizard", set: "Skyridge", image_url: "x.jpg", tcgplayer_id: "84186", market_price: null };
+  const sentinel = { name: "Mew", set: "X", image_url: "x.jpg", tcgplayer_id: "9", market_price: 999.99 };
+  const noImage = { name: "Pikachu", set: "X", image_url: null, tcgplayer_id: "7", market_price: 5 };
+  const product = { name: "Booster Box", set: "X", image_url: "x.jpg", tcgplayer_id: "8", market_price: 100 };
+
+  assert.equal(catalogCardResolvable(priced), true);
+  assert.equal(catalogCardResolvable(priceless), true); // real + imaged + id -> gets a URL
+  assert.equal(catalogCardResolvable(sentinel), true);
+  assert.equal(catalogCardResolvable(noImage), false);
+  assert.equal(catalogCardResolvable(product), false);
+
+  assert.equal(catalogCardIndexable(priced), true);
+  assert.equal(catalogCardIndexable(priceless), false); // resolvable, but not indexable
+  assert.equal(catalogCardIndexable(sentinel), false); // sentinel price is not a real price
 });
 
 test("pickCatalogMatch: same-slug tie is broken on a STABLE key, never price", () => {

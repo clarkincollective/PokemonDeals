@@ -118,8 +118,23 @@ test("pickCatalogMatch: a unique card resolves to itself; image comes from that 
   assert.equal(pick.image_url, "106999.jpg"); // image is the selected row's, not the $868 row
 });
 
-test("pickCatalogMatch: still requires a real card + price + image", () => {
-  assert.equal(pickCatalogMatch([{ tcgplayer_id: "1", name: "Unown", set: "X", market_price: null, image_url: "x" }], "unown"), null);
+test("pickCatalogMatch: real+imaged card resolves even with NO price (URL != price)", () => {
+  // price unavailable upstream -> the permanent URL must NOT 404
+  const priceless = pickCatalogMatch(
+    [{ tcgplayer_id: "1", name: "Unown", set: "X", market_price: null, image_url: "x" }],
+    "unown"
+  );
+  assert.equal(priceless?.tcgplayer_id, "1");
+  // still needs an image and a genuine card name
   assert.equal(pickCatalogMatch([{ tcgplayer_id: "1", name: "Unown", set: "X", market_price: 5, image_url: null }], "unown"), null);
   assert.equal(pickCatalogMatch([{ tcgplayer_id: "1", name: "Code Card - Unown Tin", set: "X", market_price: 5, image_url: "x" }], "code-card-unown-tin"), null);
+});
+
+test("pickCatalogMatch: identity slug is unchanged by price loss OR price recovery", () => {
+  const withPrice = pickCatalogMatch([row("84186", "Charizard", 249.95, { set: "Skyridge" })], "charizard");
+  const priceGone = pickCatalogMatch([row("84186", "Charizard", null, { set: "Skyridge" })], "charizard");
+  const priceBack = pickCatalogMatch([row("84186", "Charizard", 3200, { set: "Skyridge" })], "charizard");
+  assert.equal(withPrice.tcgplayer_id, "84186");
+  assert.equal(priceGone.tcgplayer_id, "84186");
+  assert.equal(priceBack.tcgplayer_id, "84186"); // no 200 -> 404 -> 200 churn
 });

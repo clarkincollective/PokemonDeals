@@ -84,10 +84,15 @@ export async function generateMetadata({ params }) {
     const priceStr = card.refPrice != null ? `$${card.refPrice.toFixed(2)}` : null;
     const description = priceStr
       ? `${card.name} (${card.set}) Pokemon card value: ${priceStr} market reference from real recent sold data${card.rarity ? `, ${card.rarity}` : ""}${card.cardNumber ? ` (${card.cardNumber})` : ""}. Raw and graded (PSA/CGC/BGS) pricing, plus a TCGPlayer link.`
-      : `${card.name} (${card.set}) Pokemon card - market value, raw and graded pricing from real sold data.`;
+      : `${card.name} (${card.set}) Pokemon card - identity, image and a TCGPlayer link. Market price currently unavailable.`;
     return {
       title,
       description,
+      // The permanent URL stays live (200) even with no trustworthy
+      // price, but a page with no market value is too thin to index -
+      // noindex,follow until a real price returns (P0 sitemap stays
+      // price-gated to match).
+      robots: card.indexable ? undefined : { index: false, follow: true },
       alternates: { canonical: `/cards/${slug}` },
       openGraph: {
         title,
