@@ -183,6 +183,10 @@
     {
       "path": "/api/ingest-feed",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/screen-visual-authenticity",
+      "schedule": "40 */3 * * *"
     }
   ]
 }
