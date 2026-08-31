@@ -68,6 +68,14 @@ test("card's own '200HP' hit points is NOT read as Heavily Played", () => {
   assert.equal(isDisplayableDeal(deal({ title: t })), true); // title alone is clean
 });
 
+test("a lone trailing 'HP'/'PL' abbreviation (after a word, not a number) is a wear tag", () => {
+  assert.equal(classifyListingCondition({ title: "Pokemon Card Raikou H26/H32 Holo Rare Skyridge HP" }), "Heavily Played");
+  assert.equal(classifyListingCondition({ title: "Feraligatr 4/111 Neo Genesis Holo PL" }), "Moderately Played");
+  assert.equal(isDisplayableDeal(deal({ title: "Raikou H26/H32 Holo Rare Skyridge HP" })), false);
+  // still not a false positive on a real HP stat
+  assert.notEqual(classifyListingCondition({ title: "Charizard VMAX 020/189 Darkness Ablaze 330 HP" }), "Heavily Played");
+});
+
 test("structured 'Card Condition' descriptor is authoritative over a clean title", () => {
   assert.equal(
     classifyListingCondition({ title: "Espeon GX 152/149 SM Base Set 200HP", descriptorContent: "Heavily played (Poor)" }),
