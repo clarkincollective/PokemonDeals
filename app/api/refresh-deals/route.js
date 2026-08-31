@@ -214,7 +214,7 @@ async function resolveRawCondition({
   return result;
 }
 
-function dealRow({ watchlistId, listing, totalPrice, totalPriceUsd, marketPrice, discountPct, priceChange24hr, grading, condition, imageCount = null, returnsAccepted = null }) {
+function dealRow({ watchlistId, listing, totalPrice, totalPriceUsd, marketPrice, discountPct, priceChange24hr, grading, condition }) {
   return {
     watchlist_id: watchlistId,
     source: "ebay",
@@ -247,16 +247,40 @@ function dealRow({ watchlistId, listing, totalPrice, totalPriceUsd, marketPrice,
     grade: grading?.grade ?? null,
     seller_username: listing.sellerUsername,
     seller_feedback_pct: listing.sellerFeedbackPct,
-    // Phase-1 listing-trust signals. seller_feedback_score is in every
-    // search result; image_count / returns_accepted come only from the
-    // getItem call resolveRawCondition already makes, so they are null on
-    // a row that never needed that call (a modest, unsuspicious discount).
-    seller_feedback_score: listing.sellerFeedbackScore ?? null,
-    image_count: imageCount,
-    returns_accepted: returnsAccepted,
     is_active: true,
     last_seen_at: new Date().toISOString(),
   };
+}
+
+// Phase-1 listing-trust signals, written as a SEPARATE best-effort update
+// so the core deal upsert never fails if the columns aren't migrated yet
+// (seller_feedback_score / image_count / returns_accepted - see
+// scripts/sql/2026-08-31_deal_trust_signals.sql). seller_feedback_score
+// is in every search result; image_count / returns_accepted come only
+// from the getItem resolveRawCondition already makes, so they stay null
+// on a row that never needed that call.
+let _trustColsMissingLogged = false;
+async function enrichDealTrustSignals(db, listing, { imageCount = null, returnsAccepted = null } = {}) {
+  const patch = {};
+  if (listing.sellerFeedbackScore != null) patch.seller_feedback_score = listing.sellerFeedbackScore;
+  if (imageCount != null) patch.image_count = imageCount;
+  if (returnsAccepted != null) patch.returns_accepted = returnsAccepted;
+  if (Object.keys(patch).length === 0) return;
+  try {
+    const { error } = await db
+      .from("deals")
+      .update(patch)
+      .match({ source: "ebay", marketplace: listing.marketplace, listing_id: listing.listingId });
+    if (error && !_trustColsMissingLogged) {
+      _trustColsMissingLogged = true;
+      console.warn(`deal trust-signal columns not writable yet (${error.message}) - run the migration`);
+    }
+  } catch (e) {
+    if (!_trustColsMissingLogged) {
+      _trustColsMissingLogged = true;
+      console.warn(`deal trust-signal enrichment skipped: ${e.message}`);
+    }
+  }
 }
 
 // Scans one watchlist card in one country. Raw listings are priced against
@@ -445,10 +469,12 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
         discountPct: priced.discountPct,
         priceChange24hr: marketData.priceChange24hr,
         condition,
-        imageCount: resolved.imageCount ?? null,
-        returnsAccepted: resolved.returnsAccepted ?? null,
       })
     );
+    await enrichDealTrustSignals(db, listing, {
+      imageCount: resolved.imageCount ?? null,
+      returnsAccepted: resolved.returnsAccepted ?? null,
+    });
   }
 
   // (The graded branch is deliberately NOT gated on referenceUnverified -
@@ -481,6 +507,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
               grading,
             })
           );
+          await enrichDealTrustSignals(db, cheapestGraded);
         }
       }
     } catch (err) {
