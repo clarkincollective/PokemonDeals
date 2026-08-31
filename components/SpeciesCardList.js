@@ -16,7 +16,6 @@ export default function SpeciesCardList({
   label,
   speciesName,
   cards,
-  dealsHref = "#deals",
   pageName,
   itemNoun = "card",
 }) {
@@ -39,7 +38,6 @@ export default function SpeciesCardList({
                 key={c.tcgplayerId ?? `${c.name}|${c.set}`}
                 card={c}
                 label={name}
-                dealsHref={dealsHref}
                 pageName={pageName}
               />
             ))}
@@ -60,7 +58,6 @@ export default function SpeciesCardList({
                 key={c.tcgplayerId ?? `${c.name}|${c.set}`}
                 card={c}
                 label={name}
-                dealsHref={dealsHref}
                 pageName={pageName}
               />
             ))}

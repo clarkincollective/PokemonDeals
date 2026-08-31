@@ -168,7 +168,6 @@ export default function SealedProductBrowser({ groups, types }) {
                           key={p.tcgplayerId ?? p.name}
                           card={p}
                           label={g.set}
-                          dealsHref="/sealed-deals"
                           pageName="sealed_hub"
                         />
                       ))}

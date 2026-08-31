@@ -1,40 +1,68 @@
 import Image from "next/image";
 import Link from "next/link";
 import AffiliateLink from "@/components/AffiliateLink";
+import EbaySearchLink from "@/components/EbaySearchLink";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import Price from "@/components/Price";
 import { MARKETPLACE_CURRENCY, hasPrice } from "@/lib/money";
 import { buildEbaySearchLink } from "@/lib/ebay";
 import { upgradeCatalogImage } from "@/lib/cardImage";
 
-// One card tile in a catalogue grid - per species (/pokemon/[slug]) or
-// per set (/sets/[slug]). Same shell as DealCard (image-forward,
-// aspect-square, info + CTA below, hover lift) so both read as the same
-// design system.
+// One card tile in a catalogue grid - per set (/sets/[slug]), per species
+// (/pokemon/[slug] no-deal path) or per sealed hub. Same shell as
+// DealCard (image-forward, aspect-square, info + CTA below, hover lift).
 //
-// Two variants, kept visibly distinct:
-//   card.deal != null -> emerald accent, "-N%" badge, "N% below market",
-//     live-listing count, "See deal ->" to the listings.
-//   card.deal == null -> plain: the PokemonPriceTracker reference price
-//     + attribution + a neutral "View on eBay" affiliate CTA. No discount
-//     badge, no "below market", no green.
+// EVERY visible card gets TWO distinct, always-useful actions - there is
+// no dead tile and no "hunt for yourself in #deals":
+//   - image + title  -> the permanent /cards/[slug] page (SEO / details)
+//   - shopping CTA:
+//       has a verified live deal (card.deal.affiliateUrl is an exact
+//         /itm/ URL the deal-quality gate already vouched for)
+//         -> "View Deal on eBay" / "Bid on eBay" straight to that exact
+//            listing, campid preserved. Never #deals, never /p/, /sch/.
+//       no verified live deal
+//         -> "Find on eBay": the card-specific, campaign-wrapped search,
+//            re-pointed to the visitor's marketplace (EbaySearchLink).
 //
-// `label` is the grouping name (species or set) used only for
-// click-tracking; `speciesName` is accepted as its old name.
-export default function SpeciesCard({
-  card,
-  label,
-  speciesName,
-  dealsHref = "#deals",
-  pageName = "species_card",
-}) {
+// `label` is the grouping name (set / species) used only for click
+// tracking; `speciesName` is accepted as its old name.
+export default function SpeciesCard({ card, label, speciesName, pageName = "species_card" }) {
   const context = label ?? speciesName;
-  const isDeal = Boolean(card.deal);
+
+  // A card only counts as a DEAL tile when it carries the exact verified
+  // /itm/ listing URL. Anything else -> render as a no-deal card (Find on
+  // eBay), never a stale "See deal".
+  const dealUrl =
+    typeof card.deal?.affiliateUrl === "string" && /\.ebay\.[^/]+\/itm\/\d+/.test(card.deal.affiliateUrl)
+      ? card.deal.affiliateUrl
+      : null;
+  const isDeal = Boolean(dealUrl);
+
+  const cardPageHref = card.hubSlug
+    ? `/cards/${card.hubSlug}`
+    : card.catalogSlug
+      ? `/cards/${card.catalogSlug}`
+      : null;
+
   const meta = card.meta ?? [card.set, card.cardNumber, card.rarity].filter(Boolean).join(" · ");
-  const dealHref = card.hubSlug ? `/cards/${card.hubSlug}` : dealsHref;
-  // Sealed products carry their own self-contained name ("Evolving Skies
-  // Booster Box"); a card needs its set appended to disambiguate prints.
+  // Sealed product names are self-contained; a card needs its set to
+  // disambiguate prints. Prefer the server-built (campaign-wrapped) href.
   const ebayQuery = card.searchQuery ?? `${card.name} ${card.set}`;
+  const searchHref = card.ebayHref ?? buildEbaySearchLink(ebayQuery);
+  const isAuction = card.deal?.listingType === "AUCTION";
+
+  const imageEl = card.image ? (
+    <Image
+      src={upgradeCatalogImage(card.image)}
+      alt={card.name}
+      fill
+      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+      quality={85}
+      className="object-contain p-3 transition-transform duration-200 group-hover:scale-[1.03]"
+    />
+  ) : (
+    <CardImagePlaceholder />
+  );
 
   return (
     <div
@@ -51,25 +79,29 @@ export default function SpeciesCard({
           </span>
         )}
         <div className="relative block aspect-square w-full bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950">
-          {card.image ? (
-            <Image
-              src={upgradeCatalogImage(card.image)}
-              alt={card.name}
-              fill
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-              quality={85}
-              className="object-contain p-3 transition-transform duration-200 group-hover:scale-[1.03]"
-            />
+          {cardPageHref ? (
+            <Link href={cardPageHref} className="block h-full w-full" aria-label={`${card.name} — card details`}>
+              {imageEl}
+            </Link>
           ) : (
-            <CardImagePlaceholder />
+            imageEl
           )}
         </div>
       </div>
 
       <div className="flex flex-1 flex-col gap-1 p-4">
-        <p className="truncate text-[15px] font-semibold leading-snug text-zinc-900 dark:text-zinc-50">
-          {card.name}
-        </p>
+        {cardPageHref ? (
+          <Link
+            href={cardPageHref}
+            className="truncate text-[15px] font-semibold leading-snug text-zinc-900 hover:text-emerald-700 dark:text-zinc-50 dark:hover:text-emerald-500"
+          >
+            {card.name}
+          </Link>
+        ) : (
+          <p className="truncate text-[15px] font-semibold leading-snug text-zinc-900 dark:text-zinc-50">
+            {card.name}
+          </p>
+        )}
         <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{meta || " "}</p>
 
         {isDeal ? (
@@ -88,13 +120,23 @@ export default function SpeciesCard({
               {card.deal.discountPct != null && `${Math.round(card.deal.discountPct * 100)}% below market · `}
               {card.deal.count} live {card.deal.count === 1 ? "listing" : "listings"}
             </p>
-            <div className="mt-auto pt-2.5">
-              <Link
-                href={dealHref}
+            <div className="mt-auto flex flex-col gap-1.5 pt-2.5">
+              <AffiliateLink
+                href={dealUrl}
+                eventName={isAuction ? "Bid on eBay" : "View Deal on eBay"}
+                eventData={{ context, card: card.name, page: pageName, marketplace: card.deal.marketplace }}
                 className="block rounded-lg bg-emerald-600 px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
               >
-                See deal →
-              </Link>
+                {isAuction ? "Bid on eBay →" : "View Deal on eBay →"}
+              </AffiliateLink>
+              {cardPageHref && (
+                <Link
+                  href={cardPageHref}
+                  className="block text-center text-xs font-medium text-zinc-500 hover:text-emerald-700 dark:text-zinc-400 dark:hover:text-emerald-500"
+                >
+                  View card
+                </Link>
+              )}
             </div>
           </>
         ) : (
@@ -114,15 +156,22 @@ export default function SpeciesCard({
             <p className="text-[11px] text-zinc-400">
               {hasPrice(card.refPrice) ? "Reference price · " : ""}PokemonPriceTracker
             </p>
-            <div className="mt-auto pt-2.5">
-              <AffiliateLink
-                href={buildEbaySearchLink(ebayQuery)}
-                eventName="eBay Click"
-                eventData={{ context, card: card.name, page: pageName }}
+            <div className="mt-auto flex flex-col gap-1.5 pt-2.5">
+              <EbaySearchLink
+                href={searchHref}
+                event={{ context, card: card.name, page: pageName, cta: "find_on_ebay" }}
                 className="block rounded-lg border border-zinc-300 px-4 py-2 text-center text-sm font-semibold text-zinc-700 transition-colors hover:border-zinc-400 hover:text-black dark:border-zinc-700 dark:text-zinc-200 dark:hover:text-zinc-50"
               >
-                View on eBay →
-              </AffiliateLink>
+                Find on eBay →
+              </EbaySearchLink>
+              {cardPageHref && (
+                <Link
+                  href={cardPageHref}
+                  className="block text-center text-xs font-medium text-zinc-500 hover:text-emerald-700 dark:text-zinc-400 dark:hover:text-emerald-500"
+                >
+                  View card
+                </Link>
+              )}
             </div>
           </>
         )}

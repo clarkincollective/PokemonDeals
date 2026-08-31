@@ -221,7 +221,6 @@ export default async function SetDetailPage({ params }) {
             <SpeciesCardList
               label={resolved.set}
               cards={catalogCards}
-              dealsHref="#deals"
               pageName="set_detail_catalog"
             />
           </section>
@@ -245,7 +244,6 @@ export default async function SetDetailPage({ params }) {
             <SpeciesCardList
               label={resolved.set}
               cards={sealedProducts}
-              dealsHref="/sealed-deals"
               pageName="set_detail_sealed"
               itemNoun="sealed product"
             />
