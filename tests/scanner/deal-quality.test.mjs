@@ -14,6 +14,7 @@ import {
   isExactEbayDealDestination,
   auctionEnded,
   legacyItemId,
+  listingStillMatchesCatalogue,
   isDisplayableDeal,
   disqualificationReason,
 } from "../../lib/dealQuality.js";
@@ -301,4 +302,49 @@ test("a graded deal still needs an exact destination and a live auction", () => 
   const past = new Date(Date.now() - HOUR).toISOString();
   assert.equal(isDisplayableDeal(deal({ is_graded: true, grader: "PSA", grade: "9", listing_type: "AUCTION", auction_end_at: past })), false);
   assert.equal(isDisplayableDeal(deal({ is_graded: true, affiliate_url: "https://www.ebay.com/p/123", listing_url: "https://www.ebay.com/p/123" })), false);
+});
+
+// ---------- LISTING <-> CATALOGUE IDENTITY (deal 29411) ----------
+const idDeal = (over = {}) => deal({ card_name: "Charizard", card_set: "Base Set 2", ...over });
+
+test("listing whose title says a DIFFERENT numbered set than the matched card is rejected", () => {
+  // deal 29411: Expedition Charizard 40/165 priced against Base Set 2 Charizard
+  const d = idDeal({ title: "Pokémon TCG Charizard Expedition Base Set Reverse Holo Card 40/165" });
+  assert.equal(listingStillMatchesCatalogue(d), false);
+  assert.equal(isDisplayableDeal(d), false);
+  assert.equal(disqualificationReason(d), "identity:card_mismatch");
+});
+
+test("Base Set 2 vs plain Base Set / Shadowless / SV Base Set are all rejected", () => {
+  for (const t of [
+    "Charizard 4/102 Base Set Holo 1999 WOTC",
+    "Charizard Base Set (Shadowless) 4/102 Holo",
+    "Chansey Reverse Holo SV01: Scarlet & Violet Base Set 144/198 NM",
+    "Clefable (3/123) [HeartGold & SoulSilver: Base Set]",
+    "Wigglytuff 89/146 XY Base Set Rare",
+  ]) {
+    assert.equal(listingStillMatchesCatalogue(idDeal({ title: t })), false, t);
+  }
+});
+
+test("a genuine Base Set 2 listing (with the '2') still matches", () => {
+  for (const t of [
+    "Charizard Base Set 2 4/130 Holo Rare 1999",
+    "Pokemon Base Set 2 Charizard 004/130 Holo WOTC",
+  ]) {
+    assert.equal(listingStillMatchesCatalogue(idDeal({ title: t })), true, t);
+  }
+});
+
+test("POP Series N is not matched by a different POP Series M listing", () => {
+  assert.equal(listingStillMatchesCatalogue(deal({ card_name: "Lucario", card_set: "POP Series 6", title: "Lucario 2/17 Rare POP Series 8 Pokemon" })), false);
+  assert.equal(listingStillMatchesCatalogue(deal({ card_name: "Lucario", card_set: "POP Series 6", title: "Lucario 2/17 Rare POP Series 6 Pokemon" })), true);
+});
+
+test("identity check is skipped when the row has no resolved card_name/card_set (feed rows)", () => {
+  assert.equal(listingStillMatchesCatalogue(deal({ title: "anything at all" })), true); // no card_name/card_set
+});
+
+test("non-numbered sets are unaffected - normal matches still pass", () => {
+  assert.equal(listingStillMatchesCatalogue(deal({ card_name: "Umbreon", card_set: "Evolving Skies", title: "Umbreon VMAX 215/203 Evolving Skies Alt Art NM" })), true);
 });
