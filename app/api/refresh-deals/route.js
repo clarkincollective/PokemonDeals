@@ -14,6 +14,7 @@ import {
   SANITY_FLOOR_PCT,
   coreTokens,
   qualifiesAsTradingCard,
+  admitsProxyOrCounterfeit,
   listingMatchesCard,
   isTrustworthyListing,
   isHighRiskBelowMarket,
@@ -372,9 +373,12 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
   const rawCondBudget = { left: RAW_CONDITION_LOOKUP_PER_CARD };
 
   for (const listing of referenceUnverified ? [] : rawListings) {
-    // STAGE 0: is it actually a trading card? (keychain / sticker / coin /
-    // "Extended Art Case" display piece / fan-made proxy that names a card)
+    // STAGE 0a: is it actually a trading card? (keychain / sticker / coin /
+    // "Extended Art Case" display piece that names a card)
     if (!qualifiesAsTradingCard(listing)) continue;
+    // STAGE 0b: does the listing text admit the card is a proxy / replica
+    // / custom / unofficial / "metal card" novelty of a paper printing?
+    if (admitsProxyOrCounterfeit(listing, { name: row.name, set: row.set })) continue;
     if (!isTrustworthyListing(listing)) continue;
     if (!listingMatchesCard(listing, row)) continue;
 
@@ -483,6 +487,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
   if (
     cheapestGraded &&
     qualifiesAsTradingCard(cheapestGraded) &&
+    !admitsProxyOrCounterfeit(cheapestGraded, { name: row.name, set: row.set }) &&
     isTrustworthyListing(cheapestGraded) &&
     listingMatchesCard(cheapestGraded, row)
   ) {
@@ -653,9 +658,13 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
 
   for (const listing of listings) {
     if (!qualifiesAsTradingCard(listing)) continue;
+    // Card-context-free proxy/replica check here; the metal-novelty branch
+    // (needs the matched card) runs again per-candidate below.
+    if (admitsProxyOrCounterfeit(listing, null)) continue;
     if (!isTrustworthyListing(listing)) continue;
 
     for (const row of candidateRowsForListing(listing, index)) {
+      if (admitsProxyOrCounterfeit(listing, { name: row.name, set: row.set })) continue;
       if (!listingMatchesCard(listing, row)) continue;
       matched++;
 

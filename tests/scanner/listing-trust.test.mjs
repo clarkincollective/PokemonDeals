@@ -16,6 +16,9 @@ import {
   listingTrustRisk,
   isHighRiskBelowMarket,
   listingMatchesCard,
+  admitsProxyOrCounterfeit,
+  authenticityRisk,
+  visualIdentityMismatch,
   HIGH_RISK_SCORE,
 } from "../../lib/dealMatching.js";
 import { isDisplayableDeal, disqualificationReason } from "../../lib/dealQuality.js";
@@ -43,16 +46,24 @@ test("2. card-style jewellery (pendant / necklace / charm) is rejected", () => {
   }
 });
 
-test("3. proxy / custom / fan-made / novelty items are rejected", () => {
+test("3. non-card merchandise (binder insert / display case / sticker / coin) fails the product-type gate", () => {
   for (const t of [
-    "M Charizard EX Full Art Evolutions Ultra Rare Pokémon Card FAN MADE",
-    "Blastoise Base Set 2/102 custom holo proxy card",
     "Pokemon Manaphy XY113 Promo Extended Art Binder Insert 3x3 9-Pocket",
     "POKEMON TCG EXTENDED ART CASE MEGA ZYGARDE EX 124/088 ME03: Perfect Order",
     "Zapdos Base Set 2 Holographic Pokemon Sticker Card",
     "Pokemon Eevee Black Star Holographic Trading Card Game Coin 2000 WOTC",
   ]) {
     assert.equal(qualifiesAsTradingCard({ title: t }), false, t);
+  }
+});
+
+test("3b. proxy / custom / fan-made card-shaped items go to the AUTHENTICITY gate, not the product-type gate", () => {
+  for (const t of [
+    "M Charizard EX Full Art Evolutions Ultra Rare Pokémon Card FAN MADE",
+    "Blastoise Base Set 2/102 custom holo proxy card",
+  ]) {
+    assert.equal(qualifiesAsTradingCard({ title: t }), true, `${t} - is card-shaped`);
+    assert.equal(admitsProxyOrCounterfeit({ title: t }, { name: "Charizard", set: "Evolutions" }), true, `${t} - but not genuine`);
   }
 });
 
@@ -263,4 +274,106 @@ test("13b. condition + language gates still bite (unchanged)", () => {
     isDisplayableDeal(row({ title: "Charizard 4/102 Base Set Holo Japanese", card_language: "english" })),
     false
   );
+});
+
+// ---------------------------------------------------------------------------
+// AUTHENTICITY - proxy / replica / novelty-copy gate (deterministic)
+// ---------------------------------------------------------------------------
+
+const mewtwo = { name: "Mewtwo EX (98 Full Art)", set: "Next Destinies" };
+
+test("A1. an explicit PROXY of the right card is rejected", () => {
+  assert.equal(admitsProxyOrCounterfeit({ title: "Proxy Mewtwo EX 98/99 Next Destinies Full Art" }, mewtwo), true);
+  assert.equal(authenticityRisk({ title: "Mewtwo EX 98/99 Next Destinies proxy card" }, mewtwo), "reject");
+});
+
+test("A2. a CUSTOM gold novelty of a printing that isn't gold is rejected", () => {
+  assert.equal(
+    admitsProxyOrCounterfeit({ title: "Custom Gold Metal Mewtwo EX 98/99 Next Destinies Full Art" }, mewtwo),
+    true
+  );
+  // the metal-card noun phrase alone, no "custom", still rejects when the
+  // real printing is paper
+  assert.equal(
+    admitsProxyOrCounterfeit({ title: "Mewtwo EX 98/99 Next Destinies Gold Metal Card" }, mewtwo),
+    true
+  );
+});
+
+test("A3. a replica Pokemon card is rejected", () => {
+  assert.equal(admitsProxyOrCounterfeit({ title: "Replica Charizard Base Set 4/102 Holo" }, { name: "Charizard", set: "Base Set" }), true);
+  assert.equal(admitsProxyOrCounterfeit({ title: "Blastoise Base Set reproduction card" }, { name: "Blastoise", set: "Base Set" }), true);
+});
+
+test("A4. ORICA is rejected", () => {
+  assert.equal(admitsProxyOrCounterfeit({ title: "Umbreon VMAX Alt Art 215/203 ORICA" }, { name: "Umbreon", set: "Evolving Skies" }), true);
+  assert.equal(admitsProxyOrCounterfeit({ title: "Charizard Base Set orica fan made" }, { name: "Charizard", set: "Base Set" }), true);
+});
+
+test("A5. a legitimate official GOLD Pokemon card is allowed", () => {
+  for (const t of [
+    "Charizard VMAX 074/073 Champions Path Gold Secret Rare",
+    "Arceus V 172/172 Brilliant Stars Gold Rare Alt",
+    "Pikachu 211/198 Chilling Reign Gold Secret Rare",
+  ]) {
+    assert.equal(admitsProxyOrCounterfeit({ title: t }, { name: "Charizard VMAX", set: "Champions Path", rarity: "Gold Secret Rare" }), false, t);
+  }
+});
+
+test("A6. an official METAL product is not rejected solely for 'metal'", () => {
+  // matched catalogue card legitimately carries "Metal" -> the metal-card
+  // phrase is context-allowed
+  assert.equal(
+    admitsProxyOrCounterfeit(
+      { title: "Mew ex 205/165 (151 Metal Card) SV 151 EN" },
+      { name: "Mew ex", set: "SV: 151", rarity: "Metal Promo" }
+    ),
+    false
+  );
+  assert.equal(admitsProxyOrCounterfeit({ title: "Metal Energy Special Deluxe Promo" }, { name: "Metal Energy", set: "Promo" }), false);
+});
+
+test("A6b. a genuine seller's DISCLAIMER ('no proxies', 'not a replica') does not trip the gate", () => {
+  for (const t of [
+    "Charizard Base Set 4/102 Holo - 100% genuine, NO proxies",
+    "Mewtwo EX 98/99 Next Destinies - not a replica, real card",
+    "Pikachu 58/102 Base Set - authentic, proxy free",
+  ]) {
+    assert.equal(admitsProxyOrCounterfeit({ title: t }, mewtwo), false, t);
+  }
+});
+
+test("A7. a normal genuine raw listing is allowed", () => {
+  assert.equal(
+    admitsProxyOrCounterfeit({ title: "Mewtwo EX 98/99 Next Destinies Full Art Holo Near Mint" }, mewtwo),
+    false
+  );
+});
+
+test("A8-A10. seller feedback / photo count / discount are NOT authenticity signals", () => {
+  // authenticityRisk only ever looks at the title text
+  assert.equal(authenticityRisk({ title: "Mewtwo EX 98/99 Next Destinies Holo" }, mewtwo), "ok");
+  // (low seller / one image / huge discount are handled by the SEPARATE
+  // trust-risk score, never by the authenticity gate)
+});
+
+test("A11. visualIdentityMismatch returns UNKNOWN and UNKNOWN is never treated as counterfeit", () => {
+  assert.equal(visualIdentityMismatch({ title: "x", image_url: "https://i.ebayimg.com/x.jpg" }, mewtwo), "UNKNOWN");
+  // the display gate does not reject on a visual UNKNOWN
+  assert.equal(isDisplayableDeal(row({ title: "Mewtwo EX 98/99 Next Destinies Holo NM", card_name: "Mewtwo EX (98 Full Art)", card_set: "Next Destinies" })), true);
+});
+
+test("A12. proxy admission hides a stored row with authenticity:proxy_or_counterfeit", () => {
+  const p = row({ title: "Proxy Charizard Base Set 4/102 Holo", card_name: "Charizard", card_set: "Base Set" });
+  assert.equal(isDisplayableDeal(p), false);
+  assert.equal(disqualificationReason(p), "authenticity:proxy_or_counterfeit");
+});
+
+test("A12b. permanent catalogue image stays canonical (helper is deterministic from the id)", async () => {
+  const { catalogImageUrl } = await import("../../lib/cardImage.js");
+  assert.equal(
+    catalogImageUrl(87432),
+    "https://tcgplayer-cdn.tcgplayer.com/product/87432_in_1000x1000.jpg"
+  );
+  assert.equal(catalogImageUrl(null), null);
 });

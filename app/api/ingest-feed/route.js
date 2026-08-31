@@ -13,6 +13,7 @@ import {
   SANITY_FLOOR_PCT,
   coreTokens,
   qualifiesAsTradingCard,
+  admitsProxyOrCounterfeit,
   listingMatchesCard,
   isTrustworthyListing,
 } from "@/lib/dealMatching";
@@ -196,7 +197,7 @@ export async function GET(request) {
           ...extra,
         });
 
-      if (!qualifiesAsTradingCard(listing)) {
+      if (!qualifiesAsTradingCard(listing) || admitsProxyOrCounterfeit(listing, null)) {
         counts.untrusted++;
         logFeed(false);
         continue;
@@ -351,6 +352,7 @@ function matchCatalog(listing, index) {
     }
   }
   for (const row of candidates.values()) {
+    if (admitsProxyOrCounterfeit(listing, { name: row.name, set: row.set })) continue;
     if (listingMatchesCard(listing, { name: row.name, set: row.set, language: row.language })) {
       return row;
     }

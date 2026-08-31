@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { resolveCardSlug, resolveCatalogCard, fetchCardOffers, resolveSpeciesByName, fetchCardHubs, fetchSetSlugs } from "@/lib/deals";
 import { catalogCardTitle } from "@/lib/cardSlug";
+import { catalogImageUrl } from "@/lib/cardImage";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
@@ -118,7 +119,14 @@ export async function generateMetadata({ params }) {
   // unstable_cache'd, so calling it again here just reuses that same
   // cached result rather than costing a second real query.
   const { deals: offers } = await fetchCardOffers(hub.id);
-  const image = offers[0]?.image_url;
+  // Card ARTWORK on a permanent page is the trusted TCGplayer catalogue
+  // image for this exact product id - NEVER a marketplace listing photo,
+  // which can be a counterfeit / novelty / wrong-angle shot of the card
+  // (verified live: gold-metal fakes of Mewtwo EX 98/99 and Pikachu &
+  // Zekrom GX 184/181 were the cheapest listing, so their photo would
+  // have become this page's hero + og:image). A listing photo is a
+  // last-resort fallback only when there is no catalogue image at all.
+  const image = catalogImageUrl(hub.tcgplayerId) ?? offers[0]?.image_url;
 
   // Real gap found live: some watched cards have genuinely long real
   // names (tournament/championship promo prints, e.g. "Buddy-Buddy
@@ -185,6 +193,8 @@ export default async function CardHubPage({ params }) {
       fetchSetSlugs("english"),
     ]);
   const allOffers = offers;
+  // Trusted canonical artwork for this exact product - see generateMetadata.
+  const canonicalImage = catalogImageUrl(hub.tcgplayerId);
 
   // This card's set only has a browsable /sets/[slug] page when it clears
   // SET_MIN_LISTINGS (a card hub needs only 2 listings; a set page needs
@@ -230,7 +240,7 @@ export default async function CardHubPage({ params }) {
     slug,
     name: hub.name,
     set: hub.set,
-    image: allOffers[0]?.image_url ?? null,
+    image: canonicalImage ?? allOffers[0]?.image_url ?? null,
     price: allOffers[0]?.total_price ?? null,
     currency: allOffers[0] ? currencyForDeal(allOffers[0]) : null,
   };
@@ -251,7 +261,7 @@ export default async function CardHubPage({ params }) {
     "@context": "https://schema.org",
     "@type": "Product",
     name: `${hub.name} - ${hub.set}`,
-    image: allOffers[0]?.image_url ?? undefined,
+    image: canonicalImage ?? allOffers[0]?.image_url ?? undefined,
     description: `${hub.name} (${hub.set}) - ${allOffers.length} active eBay ${allOffers.length === 1 ? "listing" : "listings"}, compared against real market pricing.`,
     brand: { "@type": "Brand", name: "Pokemon" },
     offers: allOffers.map((deal) => ({
@@ -301,9 +311,9 @@ export default async function CardHubPage({ params }) {
 
         <div className="mt-4 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
           <div className="relative aspect-[63/88] w-44 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:w-64 sm:self-auto dark:bg-zinc-900">
-            {cheapest?.image_url ? (
+            {canonicalImage || cheapest?.image_url ? (
               <Image
-                src={cheapest.image_url}
+                src={canonicalImage ?? cheapest.image_url}
                 alt={`${hub.name} - ${hub.set}`}
                 fill
                 sizes="(max-width: 640px) 176px, 256px"
