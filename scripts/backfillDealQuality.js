@@ -64,7 +64,10 @@ async function loadActive() {
     const { data, error } = await db
       .from("deals")
       .select(
-        "id, listing_id, marketplace, title, condition, is_graded, is_active, discount_pct, total_price_usd, market_price, card_language, card_set, watchlist_id"
+        // listing_url + affiliate_url are REQUIRED - disqualificationReason
+        // now runs isExactEbayDealDestination first; without the url
+        // columns every row falsely reads as destination:non_exact.
+        "id, listing_id, listing_url, affiliate_url, listing_type, auction_end_at, marketplace, title, condition, is_graded, is_active, discount_pct, total_price_usd, market_price, card_language, card_set, watchlist_id"
       )
       .eq("is_active", true)
       .range(from, from + 999);
@@ -99,7 +102,9 @@ async function stampInactive(hasReasonCol) {
   for (let from = 0; ; from += 1000) {
     const { data, error } = await db
       .from("deals")
-      .select("id, title, condition, is_graded, card_language, discount_pct")
+      .select(
+        "id, listing_id, listing_url, affiliate_url, listing_type, auction_end_at, title, condition, is_graded, card_language, discount_pct"
+      )
       .eq("is_active", false)
       .is("disqualified_reason", null)
       .range(from, from + 999);
@@ -112,7 +117,9 @@ async function stampInactive(hasReasonCol) {
   for (const r of rows) {
     if (r.is_graded) continue;
     const reason = disqualificationReason(r); // stored data only
-    if (!reason || reason === "condition:unknown_unverified") continue; // don't fabricate
+    // don't fabricate a reason where stored data can't establish one -
+    // an inactive row is usually just an expired listing.
+    if (!reason || reason === "condition:unknown_unverified" || reason === "destination:non_exact") continue;
     if (!byReason.has(reason)) byReason.set(reason, []);
     byReason.get(reason).push(r.id);
   }
