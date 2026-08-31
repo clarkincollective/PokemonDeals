@@ -1,13 +1,11 @@
-import Image from "next/image";
 import Link from "next/link";
 import { MARKETPLACES } from "@/lib/ebay";
 import { slugifySet } from "@/lib/slugify";
 import { currencyForDeal } from "@/lib/money";
 import { timeAgo, timeUntil, isWithin } from "@/lib/time";
 import { conditionLabel } from "@/lib/dealQuality";
-import { upgradeCatalogImage } from "@/lib/cardImage";
 import AffiliateLink from "@/components/AffiliateLink";
-import CardImagePlaceholder from "@/components/CardImagePlaceholder";
+import DealImage from "@/components/DealImage";
 import SaveCardButton from "@/components/SaveCardButton";
 import Price from "@/components/Price";
 
@@ -83,18 +81,13 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           href={`/deals/${deal.id}`}
           className="relative block aspect-square w-full bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950"
         >
-          {deal.image_url ? (
-            <Image
-              src={upgradeCatalogImage(deal.image_url)}
-              alt={deal.title}
-              fill
-              sizes="(max-width: 640px) 90vw, (max-width: 1024px) 46vw, 24vw"
-              quality={85}
-              className="object-contain p-3 transition-transform duration-200 group-hover:scale-[1.03]"
-            />
-          ) : (
-            <CardImagePlaceholder />
-          )}
+          <DealImage
+            src={deal.image_url}
+            cardTcgplayerId={deal.card_tcgplayer_id}
+            alt={deal.title}
+            sizes="(max-width: 640px) 90vw, (max-width: 1024px) 46vw, 24vw"
+            quality={85}
+          />
 
           {rank != null && (
             <span className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-md bg-zinc-900/85 text-xs font-bold text-white">
