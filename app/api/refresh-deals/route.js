@@ -4,7 +4,7 @@ import {
   searchListings,
   searchNewlyListed,
   getGradingDetails,
-  getRawCardCondition,
+  getRawListingDetail,
   getBrowseRateLimit,
 } from "@/lib/ebay";
 import { getConditionPrices, getGradedPrice } from "@/lib/pokemonPriceTracker";
@@ -13,8 +13,10 @@ import { logDiscoveryEvent } from "@/lib/discoveryLog";
 import {
   SANITY_FLOOR_PCT,
   coreTokens,
+  qualifiesAsTradingCard,
   listingMatchesCard,
   isTrustworthyListing,
+  isHighRiskBelowMarket,
   selectConditionPrice,
 } from "@/lib/dealMatching";
 import {
@@ -184,19 +186,26 @@ async function resolveRawCondition({
   budget.left -= 1;
   let result;
   try {
-    const ebayTier = await getRawCardCondition(listing.listingId, listing.marketplace);
-    if (ebayTier) {
-      result = { condition: ebayTier, verified: true };
+    // One getItem call - also carries the listing-trust signals
+    // (photo count / returns policy / sold state) that only exist here.
+    const detail = await getRawListingDetail(listing.listingId, listing.marketplace);
+    const extra = {
+      imageCount: detail.imageCount ?? null,
+      returnsAccepted: detail.returnsAccepted,
+      soldOut: detail.soldOut === true,
+    };
+    if (detail.tier) {
+      result = { condition: detail.tier, verified: true, ...extra };
     } else if (highValueVintage || provisionalDiscountPct >= SUSPICIOUS_RAW_DISCOUNT_PCT) {
       // eBay states no "Card Condition" and this is a high-value-vintage /
       // steep-discount listing - we could NOT establish the physical
       // condition, so it is Unknown, not Near Mint. It won't be published
       // as a verified deal (conditionAllowsPromotion rejects Unknown).
-      result = { condition: "Unknown", verified: true };
+      result = { condition: "Unknown", verified: true, ...extra };
     } else {
       // Modest discount, non-vintage, eBay silent - the Near Mint
       // assumption is still reasonable here.
-      result = { condition: "Near Mint", verified: true };
+      result = { condition: "Near Mint", verified: true, ...extra };
     }
   } catch {
     result = { hold: true };
@@ -205,7 +214,7 @@ async function resolveRawCondition({
   return result;
 }
 
-function dealRow({ watchlistId, listing, totalPrice, totalPriceUsd, marketPrice, discountPct, priceChange24hr, grading, condition }) {
+function dealRow({ watchlistId, listing, totalPrice, totalPriceUsd, marketPrice, discountPct, priceChange24hr, grading, condition, imageCount = null, returnsAccepted = null }) {
   return {
     watchlist_id: watchlistId,
     source: "ebay",
@@ -238,6 +247,13 @@ function dealRow({ watchlistId, listing, totalPrice, totalPriceUsd, marketPrice,
     grade: grading?.grade ?? null,
     seller_username: listing.sellerUsername,
     seller_feedback_pct: listing.sellerFeedbackPct,
+    // Phase-1 listing-trust signals. seller_feedback_score is in every
+    // search result; image_count / returns_accepted come only from the
+    // getItem call resolveRawCondition already makes, so they are null on
+    // a row that never needed that call (a modest, unsuspicious discount).
+    seller_feedback_score: listing.sellerFeedbackScore ?? null,
+    image_count: imageCount,
+    returns_accepted: returnsAccepted,
     is_active: true,
     last_seen_at: new Date().toISOString(),
   };
@@ -276,6 +292,38 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
 
   let dealsFound = 0;
 
+  // STAGE 5 (reference-price sanity). If this card has a healthy supply of
+  // genuine, matched, trustworthy raw listings and EVERY ONE of them sits
+  // far below our market reference, it is the REFERENCE that is wrong, not
+  // the whole market - publishing any of them as an "N% below market" deal
+  // would advertise a fiction. Verified on the Phase-1 ~141-listing audit:
+  // Pikachu & Zekrom GX SM168 promo referenced at $225 with 16 independent
+  // asks at $58-85; Clefairy (Shadowless) at $199 with every ask $50-73;
+  // Mew (EX Legend Maker) at $209 with every ask $56-73. Costs no extra
+  // API call - these listings are already in hand.
+  const REF_SANITY_MIN_LISTINGS = 5;
+  const REF_SANITY_MAX_RATIO = 0.55;
+  const refCandidates = rawListings.filter(
+    (l) =>
+      qualifiesAsTradingCard(l) &&
+      isTrustworthyListing(l) &&
+      listingMatchesCard(l, row) &&
+      Number.isFinite(l.price)
+  );
+  const referenceUnverified =
+    marketData.fallbackPrice > 0 &&
+    refCandidates.length >= REF_SANITY_MIN_LISTINGS &&
+    refCandidates.every((l) => {
+      const usd = toUsd((l.price ?? 0) + (l.shipping ?? 0), l.currency, rates);
+      return usd > 0 && usd <= marketData.fallbackPrice * REF_SANITY_MAX_RATIO;
+    });
+  if (referenceUnverified) {
+    console.warn(
+      `reference:price_unverified - ${row.name} / ${row.set} (${marketplaceId}): ` +
+        `${refCandidates.length} matched listings all <= ${REF_SANITY_MAX_RATIO * 100}% of $${marketData.fallbackPrice.toFixed(2)} - skipping deal publication this cycle`
+    );
+  }
+
   const tryUpsert = async (row_) => {
     const { error } = await db
       .from("deals")
@@ -299,7 +347,10 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
 
   const rawCondBudget = { left: RAW_CONDITION_LOOKUP_PER_CARD };
 
-  for (const listing of rawListings) {
+  for (const listing of referenceUnverified ? [] : rawListings) {
+    // STAGE 0: is it actually a trading card? (keychain / sticker / coin /
+    // "Extended Art Case" display piece / fan-made proxy that names a card)
+    if (!qualifiesAsTradingCard(listing)) continue;
     if (!isTrustworthyListing(listing)) continue;
     if (!listingMatchesCard(listing, row)) continue;
 
@@ -354,9 +405,27 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
       highValueVintage,
     });
     if (resolved.hold) continue;
+    // eBay now reports the item sold / out of stock - not a live deal.
+    if (resolved.soldOut) continue;
     // Unknown / played after verification -> discovered, NOT a verified
     // deal (conditionAllowsPromotion rejects Unknown and MP/HP/Damaged).
     if (!conditionAllowsPromotion(resolved.condition)) continue;
+
+    // STAGE 3: multi-signal listing-trust. Now that the getItem gave us
+    // photo count + returns policy, a steep discount whose listing also
+    // has thin seller history and a title-echo description is held back
+    // (discovered, not promoted) rather than published as a bargain.
+    if (
+      isHighRiskBelowMarket({
+        sellerFeedbackScore: listing.sellerFeedbackScore ?? null,
+        imageCount: resolved.imageCount,
+        returnsAccepted: resolved.returnsAccepted,
+        discountPct: priced.discountPct,
+      })
+    ) {
+      continue;
+    }
+
     if (resolved.condition !== condition) {
       condition = resolved.condition;
       marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
@@ -376,11 +445,21 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
         discountPct: priced.discountPct,
         priceChange24hr: marketData.priceChange24hr,
         condition,
+        imageCount: resolved.imageCount ?? null,
+        returnsAccepted: resolved.returnsAccepted ?? null,
       })
     );
   }
 
-  if (cheapestGraded && isTrustworthyListing(cheapestGraded) && listingMatchesCard(cheapestGraded, row)) {
+  // (The graded branch is deliberately NOT gated on referenceUnverified -
+  // it is priced against grade-specific sold comps, not the raw NM
+  // reference this flag is about.)
+  if (
+    cheapestGraded &&
+    qualifiesAsTradingCard(cheapestGraded) &&
+    isTrustworthyListing(cheapestGraded) &&
+    listingMatchesCard(cheapestGraded, row)
+  ) {
     try {
       const grading = await getGradingDetails(cheapestGraded.listingId, marketplaceId);
       const gradedPrice = grading.grader
@@ -546,6 +625,7 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
   };
 
   for (const listing of listings) {
+    if (!qualifiesAsTradingCard(listing)) continue;
     if (!isTrustworthyListing(listing)) continue;
 
     for (const row of candidateRowsForListing(listing, index)) {

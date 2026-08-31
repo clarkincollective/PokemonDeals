@@ -12,6 +12,7 @@ import { logDiscoveryEvent, legacyIdFromListingId } from "@/lib/discoveryLog";
 import {
   SANITY_FLOOR_PCT,
   coreTokens,
+  qualifiesAsTradingCard,
   listingMatchesCard,
   isTrustworthyListing,
 } from "@/lib/dealMatching";
@@ -195,6 +196,11 @@ export async function GET(request) {
           ...extra,
         });
 
+      if (!qualifiesAsTradingCard(listing)) {
+        counts.untrusted++;
+        logFeed(false);
+        continue;
+      }
       if (!isTrustworthyListing(listing)) {
         counts.untrusted++;
         logFeed(false);
