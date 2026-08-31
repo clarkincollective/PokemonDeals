@@ -9,10 +9,14 @@ import {
   sortCards,
   groupBySet,
   visibleCount,
+  flatVisible,
   distinctSorted,
   DEFAULT_SORT,
   INITIAL_PER_LARGE_GROUP,
+  INITIAL_FLAT,
+  FLAT_STEP,
   ALWAYS_FULL_UP_TO,
+  SORTS,
 } from "../../lib/catalogueView.js";
 import ebay from "../../lib/ebay.js";
 
@@ -99,4 +103,30 @@ test("progressive disclosure: small groups show in full, large groups collapse t
 test("distinctSorted builds clean filter options from real data only", () => {
   assert.deepEqual(distinctSorted(cards, "set"), ["Base Set", "Brilliant Stars", "Obsidian Flames", "Team Rocket"]);
   assert.deepEqual(distinctSorted(cards, "rarity"), ["Double Rare", "Holo Rare", "Ultra Rare"]);
+});
+
+// ---------- set-page (flat, single-set) progressive disclosure ----------
+test("flatVisible: a small set shows everything; a large set shows INITIAL_FLAT then grows", () => {
+  assert.equal(flatVisible(10), 10); // under the threshold -> all
+  assert.equal(flatVisible(INITIAL_FLAT), INITIAL_FLAT);
+  assert.equal(flatVisible(567), INITIAL_FLAT); // 567-card set: NOT a dump
+  assert.equal(flatVisible(567, INITIAL_FLAT + FLAT_STEP), INITIAL_FLAT + FLAT_STEP); // after "Show more"
+  assert.equal(flatVisible(567, 999), 567); // "Show all" clamps to total
+  assert.equal(flatVisible(567, 5), INITIAL_FLAT); // never below the initial window
+  assert.ok(INITIAL_FLAT < 60, "initial window is a scannable first screen, not hundreds");
+});
+
+test("set toolbar exposes exactly the four required sorts, Highest price default", () => {
+  assert.deepEqual(Object.keys(SORTS), ["value_desc", "value_asc", "number", "name"]);
+  assert.deepEqual(
+    Object.values(SORTS).map((s) => s.label),
+    ["Highest price", "Lowest price", "Card number", "Name A–Z"]
+  );
+  assert.equal(DEFAULT_SORT, "value_desc"); // large catalogue -> value-first discovery
+});
+
+test("card-number order is preserved as an explicit sort option", () => {
+  const s = sortCards(cards, "number").map((c) => c.cardNumber);
+  assert.equal(s[0], "4/102"); // 4
+  assert.equal(s[1], "4/82"); // 4 (tie -> name)
 });

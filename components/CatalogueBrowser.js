@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { track } from "@vercel/analytics";
@@ -12,6 +12,9 @@ import {
   DEFAULT_SORT,
   ALWAYS_FULL_UP_TO,
   INITIAL_PER_LARGE_GROUP,
+  INITIAL_FLAT,
+  FLAT_STEP,
+  flatVisible,
   filterCards,
   sortCards,
   groupBySet,
@@ -47,6 +50,7 @@ export function Tile({ card, speciesName, placement }) {
   const href = permanentHref(card);
   const meta = [card.set, card.cardNumber && `#${card.cardNumber}`].filter(Boolean).join(" · ");
   const isDeal = Boolean(card.deal);
+  const isAuction = card.deal?.listingType === "AUCTION";
   const discountPct = card.deal?.discountPct != null ? Math.round(card.deal.discountPct * 100) : null;
   const ev = { species: speciesName, cardCatalogId: card.tcgplayerId ?? null, placement };
   const viewCard = () => track("View Card", { ...ev, cta: "view_card" });
@@ -141,10 +145,14 @@ export function Tile({ card, speciesName, placement }) {
             <AffiliateLink
               href={card.deal.affiliateUrl}
               eventName="eBay Click"
-              eventData={{ ...ev, cta: "view_deal", marketplace: card.deal.marketplace ?? region ?? "unknown" }}
+              eventData={{
+                ...ev,
+                cta: isAuction ? "bid_on_ebay" : "view_deal",
+                marketplace: card.deal.marketplace ?? region ?? "unknown",
+              }}
               className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-center text-xs font-semibold text-white transition-colors hover:bg-emerald-700"
             >
-              View Deal on eBay
+              {isAuction ? "Bid on eBay" : "View Deal on eBay"}
             </AffiliateLink>
           ) : (
             <a
@@ -217,13 +225,18 @@ function SetGroup({ set, list, speciesName, expandAll, groupHidden }) {
   );
 }
 
-export default function CatalogueBrowser({ speciesName, items }) {
+export default function CatalogueBrowser({ speciesName, label, items, variant = "species" }) {
+  const name = label ?? speciesName;
+  const isSet = variant === "set";
+  const prefix = isSet ? "set_" : "species_";
+
   const [q, setQ] = useState("");
   const [setFilter, setSetFilter] = useState("");
   const [rarityFilter, setRarityFilter] = useState("");
   const [sort, setSort] = useState(DEFAULT_SORT);
   const [expandAll, setExpandAll] = useState(false);
   const [showAllSets, setShowAllSets] = useState(false);
+  const [shown, setShown] = useState(INITIAL_FLAT); // flat (set) disclosure counter
 
   const setOptions = useMemo(() => distinctSorted(items, "set"), [items]);
   const rarityOptions = useMemo(() => distinctSorted(items, "rarity"), [items]);
@@ -236,6 +249,13 @@ export default function CatalogueBrowser({ speciesName, items }) {
   const isFiltering = Boolean(q.trim() || setFilter || rarityFilter || sort !== DEFAULT_SORT);
   const groups = useMemo(() => groupBySet(filtered), [filtered]);
   const flat = useMemo(() => sortCards(filtered, sort), [filtered, sort]);
+
+  // Flat disclosure resets to the first screen whenever the result set
+  // changes (new search / rarity / sort).
+  useEffect(() => {
+    setShown(INITIAL_FLAT);
+  }, [q, rarityFilter, sort]);
+  const visible = flatVisible(flat.length, shown);
 
   const clear = () => {
     setQ("");
@@ -253,23 +273,25 @@ export default function CatalogueBrowser({ speciesName, items }) {
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder={`Search ${speciesName} cards…`}
-            aria-label={`Search ${speciesName} cards`}
+            placeholder={`Search ${name} cards — name, number, rarity…`}
+            aria-label={`Search ${name} cards`}
             className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
           />
-          <select
-            value={setFilter}
-            onChange={(e) => setSetFilter(e.target.value)}
-            aria-label="Filter by set"
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-          >
-            <option value="">All sets</option>
-            {setOptions.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+          {!isSet && (
+            <select
+              value={setFilter}
+              onChange={(e) => setSetFilter(e.target.value)}
+              aria-label="Filter by set"
+              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            >
+              <option value="">All sets</option>
+              {setOptions.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          )}
           <select
             value={rarityFilter}
             onChange={(e) => setRarityFilter(e.target.value)}
@@ -298,8 +320,9 @@ export default function CatalogueBrowser({ speciesName, items }) {
         </div>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            {filtered.length} {filtered.length === 1 ? "card" : "cards"}
-            {isFiltering ? " match" : ` across ${setOptions.length} sets`}
+            {isSet || isFiltering
+              ? `${filtered.length} of ${items.length} ${items.length === 1 ? "card" : "cards"}`
+              : `${filtered.length} ${filtered.length === 1 ? "card" : "cards"} across ${setOptions.length} sets`}
           </p>
           <div className="flex items-center gap-3">
             {isFiltering && (
@@ -307,7 +330,7 @@ export default function CatalogueBrowser({ speciesName, items }) {
                 Clear filters
               </button>
             )}
-            {!isFiltering && (
+            {!isSet && !isFiltering && (
               <label className="flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
                 <input type="checkbox" checked={expandAll} onChange={(e) => setExpandAll(e.target.checked)} />
                 Expand all sets
@@ -317,14 +340,84 @@ export default function CatalogueBrowser({ speciesName, items }) {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {/* --- SET variant: one flat sorted grid + flat progressive disclosure --- */}
+      {isSet ? (
+        flat.length === 0 ? (
+          <p className="mt-6 text-sm text-zinc-500 dark:text-zinc-400">
+            No {name} cards match.{" "}
+            <button type="button" onClick={clear} className="font-semibold text-red-600 hover:underline">
+              Clear filters
+            </button>
+          </p>
+        ) : (
+          <>
+            <div className={GRID}>
+              {flat.map((c, i) => (
+                <div
+                  key={c.tcgplayerId ?? `${c.name}|${c.set}`}
+                  className={i >= visible ? "hidden" : undefined}
+                >
+                  <Tile
+                    card={c}
+                    speciesName={name}
+                    placement={
+                      isFiltering
+                        ? `${prefix}catalog_filtered`
+                        : i >= INITIAL_FLAT
+                          ? `${prefix}catalog_expanded`
+                          : `${prefix}catalog`
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+            {flat.length > INITIAL_FLAT && (
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                {visible < flat.length && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShown((s) => s + FLAT_STEP);
+                      track("Catalogue Expand", { set: name, placement: `${prefix}catalog_expanded`, count: flat.length });
+                    }}
+                    className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:border-zinc-400 hover:text-black dark:border-zinc-700 dark:text-zinc-200"
+                  >
+                    Show more cards ({flat.length - visible} more)
+                  </button>
+                )}
+                {visible < flat.length && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShown(flat.length);
+                      track("Catalogue Expand", { set: name, placement: `${prefix}catalog_expanded`, count: flat.length, all: true });
+                    }}
+                    className="rounded-lg px-3 py-2 text-sm font-semibold text-red-600 hover:underline dark:text-red-500"
+                  >
+                    Show all {flat.length}
+                  </button>
+                )}
+                {visible > INITIAL_FLAT && (
+                  <button
+                    type="button"
+                    onClick={() => setShown(INITIAL_FLAT)}
+                    className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-500 hover:underline dark:text-zinc-400"
+                  >
+                    Show fewer
+                  </button>
+                )}
+              </div>
+            )}
+          </>
+        )
+      ) : filtered.length === 0 ? (
         <p className="mt-6 text-sm text-zinc-500 dark:text-zinc-400">
-          No {speciesName} cards match. <button type="button" onClick={clear} className="font-semibold text-red-600 hover:underline">Clear filters</button>
+          No {name} cards match. <button type="button" onClick={clear} className="font-semibold text-red-600 hover:underline">Clear filters</button>
         </p>
       ) : isFiltering ? (
         <div className={GRID}>
           {flat.map((c) => (
-            <Tile key={c.tcgplayerId ?? `${c.name}|${c.set}`} card={c} speciesName={speciesName} placement="species_catalog_filtered" />
+            <Tile key={c.tcgplayerId ?? `${c.name}|${c.set}`} card={c} speciesName={name} placement="species_catalog_filtered" />
           ))}
         </div>
       ) : (
@@ -335,7 +428,7 @@ export default function CatalogueBrowser({ speciesName, items }) {
                 key={set}
                 set={set}
                 list={list}
-                speciesName={speciesName}
+                speciesName={name}
                 expandAll={expandAll}
                 groupHidden={!showAllSets && !expandAll && i >= INITIAL_SET_GROUPS}
               />
@@ -346,13 +439,13 @@ export default function CatalogueBrowser({ speciesName, items }) {
               type="button"
               onClick={() => {
                 setShowAllSets((v) => !v);
-                if (!showAllSets) track("Catalogue Expand", { species: speciesName, sets: groups.length });
+                if (!showAllSets) track("Catalogue Expand", { species: name, sets: groups.length });
               }}
               className="mt-8 w-full rounded-lg border border-zinc-300 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:border-zinc-400 hover:text-black dark:border-zinc-700 dark:text-zinc-200"
             >
               {showAllSets
                 ? "Show fewer sets"
-                : `Show ${groups.length - INITIAL_SET_GROUPS} more ${speciesName} sets →`}
+                : `Show ${groups.length - INITIAL_SET_GROUPS} more ${name} sets →`}
             </button>
           )}
         </>

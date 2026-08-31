@@ -16,6 +16,10 @@ import RegionRedirect from "@/components/RegionRedirect";
 import DealGrid from "@/components/DealGrid";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import SpeciesCardList from "@/components/SpeciesCardList";
+import CatalogueBrowser from "@/components/CatalogueBrowser";
+import FeaturedValueCards from "@/components/FeaturedValueCards";
+import { buildCatalogueItems } from "@/components/SpeciesCardsBySet";
+import { hasPrice } from "@/lib/money";
 import SiteFooter from "@/components/SiteFooter";
 
 const SITE_URL = "https://pokemondealfinder.com";
@@ -107,7 +111,17 @@ export default async function SetDetailPage({ params }) {
   // (IMPLEMENTATION_STATUS "A4 - three-way coverage spot-check"), not a
   // bug here.
   const showCatalog = catalogCards.length >= SET_CATALOG_MIN_CARDS;
-  const catalogDealCount = catalogCards.filter((c) => c.deal).length;
+
+  // Client catalogue browser data (search / rarity / sort / disclosure) -
+  // same shared component + tiles + ranking as the species page. Every
+  // card stays in the SSR HTML; the browser only shows / hides / reorders.
+  const catalogueItems = buildCatalogueItems(catalogCards, [slug]);
+  // "Highest-value cards in this set" - up to 12, ranked ONLY by the
+  // trustworthy market reference (never affiliate payout / random order).
+  const featuredItems = [...catalogueItems]
+    .filter((c) => hasPrice(c.refPrice))
+    .sort((a, b) => Number(b.refPrice) - Number(a.refPrice))
+    .slice(0, 12);
 
   const showSealed = sealedProducts.length >= SET_SEALED_MIN_PRODUCTS;
   const sealedDealCount = sealedProducts.filter((p) => p.deal).length;
@@ -202,27 +216,35 @@ export default async function SetDetailPage({ params }) {
           validSetSlugs={[slug]}
         />
 
+        {showCatalog && featuredItems.length >= 4 && (
+          <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+            <h2 className="text-lg font-bold text-black dark:text-zinc-50">
+              Highest-value cards in {resolved.set}
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Ranked by recent-sold market reference price. Open a card for full pricing, graded
+              values and any live deal.
+            </p>
+            <FeaturedValueCards
+              speciesName={resolved.set}
+              items={featuredItems}
+              placement="set_featured_value"
+            />
+          </section>
+        )}
+
         {showCatalog && (
           <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+            <h2 className="text-lg font-bold text-black dark:text-zinc-50">
               {catalogTruncated
                 ? `Cards in ${resolved.set} (${catalogCards.length} of ${catalogTotal})`
                 : `Every card in ${resolved.set} (${catalogTotal})`}
             </h2>
-            <p className="mt-1 text-xs text-zinc-400">
-              {catalogTruncated ? "The first " : "The full set, "}
-              {catalogTruncated ? `${catalogCards.length} cards, ` : ""}in card-number order.{" "}
-              {catalogDealCount > 0
-                ? "Cards with an active deal are shown in green; the rest carry their "
-                : "Each card carries its "}
-              PokemonPriceTracker reference price (recent sold data, not a guaranteed value) and a
-              live eBay search.
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Search by name, number or rarity; filter by rarity; sort by value or card number.
+              Reference prices are recent-sold data, not guaranteed values.
             </p>
-            <SpeciesCardList
-              label={resolved.set}
-              cards={catalogCards}
-              pageName="set_detail_catalog"
-            />
+            <CatalogueBrowser variant="set" label={resolved.set} items={catalogueItems} />
           </section>
         )}
 

@@ -7,7 +7,7 @@ import { Tile } from "@/components/CatalogueBrowser";
 // trustworthy reference price (never by anything we'd earn on). `items`
 // is built server-side (same shape SpeciesCardsBySet builds, incl. the
 // campaign-wrapped ebayHref).
-export default function FeaturedValueCards({ speciesName, items }) {
+export default function FeaturedValueCards({ speciesName, items, placement = "species_featured_value" }) {
   if (!items || items.length === 0) return null;
   return (
     <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -16,7 +16,7 @@ export default function FeaturedValueCards({ speciesName, items }) {
           key={c.tcgplayerId ?? `${c.name}|${c.set}`}
           card={c}
           speciesName={speciesName}
-          placement="species_featured_value"
+          placement={placement}
         />
       ))}
     </div>
