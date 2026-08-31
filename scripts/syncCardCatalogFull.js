@@ -17,7 +17,7 @@
 
 require("dotenv").config({ path: ".env.local" });
 const { createClient } = require("@supabase/supabase-js");
-const { downloadPrintingsExport } = require("../lib/pokemonPriceTracker");
+const { downloadPrintingsExport, pickCatalogMarketPrice } = require("../lib/pokemonPriceTracker");
 const { extractSpecies } = require("../lib/pokemonSpecies");
 
 const LANGUAGE = "english";
@@ -31,13 +31,6 @@ function db() {
   return createClient(url, key);
 }
 
-function firstPrice(...vals) {
-  for (const v of vals) {
-    const n = Number(v);
-    if (Number.isFinite(n) && n > 0) return n;
-  }
-  return null;
-}
 function firstNonEmpty(...vals) {
   for (const v of vals) if (v != null && String(v).trim() !== "") return String(v);
   return null;
@@ -97,16 +90,21 @@ async function main() {
     cur.set_id = cur.set_id ?? firstNonEmpty(r.setId);
     cur.card_number = cur.card_number ?? firstNonEmpty(r.cardNumber);
     cur.rarity = cur.rarity ?? firstNonEmpty(r.rarity);
-    cur.prices.push(
-      firstPrice(
-        r.marketNearMint,
-        r.marketPrice,
-        r.marketLightlyPlayed,
-        r.marketModeratelyPlayed,
-        r.marketHeavilyPlayed,
-        r.marketDamaged
-      )
-    );
+    // Keep the printing + full condition ladder so pickCatalogMarketPrice
+    // can pick the Unlimited printing for a dual-printing WOTC card and
+    // reject a Near Mint figure its own ladder contradicts.
+    const num = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    };
+    cur.prices.push({
+      printing: r.printing ?? null,
+      nm: num(r.marketNearMint) ?? num(r.marketPrice),
+      lp: num(r.marketLightlyPlayed),
+      mp: num(r.marketModeratelyPlayed),
+      hp: num(r.marketHeavilyPlayed),
+      dmg: num(r.marketDamaged),
+    });
     byId.set(id, cur);
   }
   log(
@@ -124,7 +122,7 @@ async function main() {
     card_type: null,
     species: extractSpecies(c.name ?? ""),
     language: LANGUAGE,
-    market_price: firstPrice(...c.prices),
+    market_price: pickCatalogMarketPrice(c.prices),
     image_url: `${CDN}/${c.tcgplayer_id}_in_200x200.jpg`,
     source: "pokemonpricetracker",
     synced_at: new Date().toISOString(),

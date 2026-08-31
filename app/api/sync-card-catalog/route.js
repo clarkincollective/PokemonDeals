@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { downloadPrintingsExport, isSentinelPrice } from "@/lib/pokemonPriceTracker";
+import { downloadPrintingsExport, pickCatalogMarketPrice } from "@/lib/pokemonPriceTracker";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 
 // Daily sync of PokemonPriceTracker's full card catalogue into our own
@@ -23,18 +23,10 @@ const CDN = "https://tcgplayer-cdn.tcgplayer.com/product";
 // First positive, non-sentinel number in the list, else null. PPT gives
 // an empty string (not 0/null) for a condition it has no data for; a card
 // can have e.g. only a Lightly Played price and no market/NM price. It
-// also emits repdigit sentinels (999 / 9999 / ...) for "no real comps" -
-// treat those as no-data too, same as sync-watchlist's classifyTier and
-// the /cards price lookups already do (this was the one place the
-// sentinel filter was missing - see docs/scanning-architecture.md).
-function firstPrice(...vals) {
-  for (const v of vals) {
-    const n = Number(v);
-    if (Number.isFinite(n) && n > 0 && !isSentinelPrice(n)) return n;
-  }
-  return null;
-}
-
+// also emits repdigit sentinels (999 / 9999 / ...) for "no real comps".
+// pickCatalogMarketPrice (lib/pokemonPriceTracker) applies the sentinel
+// filter, the 1st-Edition-vs-Unlimited choice, and the impossible-ladder
+// guard from the per-printing rows collected below.
 function firstNonEmpty(...vals) {
   for (const v of vals) if (v != null && String(v).trim() !== "") return String(v);
   return null;
@@ -80,16 +72,21 @@ export async function GET(request) {
     cur.set_id = cur.set_id ?? firstNonEmpty(r.setId);
     cur.card_number = cur.card_number ?? firstNonEmpty(r.cardNumber);
     cur.rarity = cur.rarity ?? firstNonEmpty(r.rarity);
-    cur.prices.push(
-      firstPrice(
-        r.marketNearMint,
-        r.marketPrice,
-        r.marketLightlyPlayed,
-        r.marketModeratelyPlayed,
-        r.marketHeavilyPlayed,
-        r.marketDamaged
-      )
-    );
+    // Keep the printing + full condition ladder so pickCatalogMarketPrice
+    // can (a) pick the Unlimited printing for a dual-printing WOTC card and
+    // (b) reject a Near Mint figure its own ladder contradicts.
+    const num = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    };
+    cur.prices.push({
+      printing: r.printing ?? null,
+      nm: num(r.marketNearMint) ?? num(r.marketPrice),
+      lp: num(r.marketLightlyPlayed),
+      mp: num(r.marketModeratelyPlayed),
+      hp: num(r.marketHeavilyPlayed),
+      dmg: num(r.marketDamaged),
+    });
     byId.set(id, cur);
   }
 
@@ -103,7 +100,7 @@ export async function GET(request) {
     card_type: null, // /export doesn't carry it; species null already gates non-Pokemon
     species: extractSpecies(c.name ?? ""),
     language,
-    market_price: firstPrice(...c.prices),
+    market_price: pickCatalogMarketPrice(c.prices),
     image_url: `${CDN}/${c.tcgplayer_id}_in_200x200.jpg`,
     source: "pokemonpricetracker",
     synced_at: new Date().toISOString(),

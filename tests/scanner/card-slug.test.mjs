@@ -139,12 +139,14 @@ test("pickCatalogMatch: no name match -> null; matched-but-unusable -> null", ()
   assert.equal(pickCatalogMatch(rows, "voltorb").name, "Voltorb"); // the one usable match
 });
 
-test("pickCatalogMatch: highest price wins a same-slug tie (determinism)", () => {
+test("pickCatalogMatch: same-slug tie is broken on a STABLE key, never price", () => {
   const rows = [
     { tcgplayer_id: "a", name: "Dark Houndoom", set: "X", market_price: 40, image_url: "x.jpg" },
     { tcgplayer_id: "b", name: "Dark Houndoom", set: "X", market_price: 300, image_url: "x.jpg" },
   ];
-  assert.equal(pickCatalogMatch(rows, "dark-houndoom").tcgplayer_id, "b");
+  // lowest tcgplayer_id wins - a permanent URL must not point at a
+  // different printing just because that printing got more expensive.
+  assert.equal(pickCatalogMatch(rows, "dark-houndoom").tcgplayer_id, "a");
 });
 
 test("catalogCardTitle: stays within the SEO title budget, never truncates a short name", () => {
