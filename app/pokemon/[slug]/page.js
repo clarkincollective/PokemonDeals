@@ -281,11 +281,6 @@ export default async function PokemonSpeciesPage({ params }) {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
               Every {resolved.name} card, by set ({allCards.length})
             </h2>
-            <p className="mt-1 text-xs text-zinc-400">
-              Every catalogued {resolved.name} print grouped by set, with its recent-sold market
-              reference price (not a guaranteed value). Cards with a live below-market listing show
-              that price instead; each links to its full price page.
-            </p>
             <SpeciesCardsBySet
               speciesName={resolved.name}
               cards={allCards}
