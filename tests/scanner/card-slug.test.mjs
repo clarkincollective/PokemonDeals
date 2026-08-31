@@ -4,7 +4,14 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { catalogCardSlug, splitCardSlug, isRealCardName, catalogCardTitle } from "../../lib/cardSlug.js";
+import {
+  catalogCardSlug,
+  splitCardSlug,
+  isRealCardName,
+  catalogCardTitle,
+  catalogPriceOk,
+  pickCatalogMatch,
+} from "../../lib/cardSlug.js";
 
 test("catalogCardSlug: name + set -> the same scheme card hubs use", () => {
   assert.equal(catalogCardSlug("Kakuna", "Base Set (Shadowless)"), "kakuna-base-set-shadowless");
@@ -82,6 +89,62 @@ test("isRealCardName: rejects code cards / boxes / blisters, keeps real cards", 
   ]) {
     assert.equal(isRealCardName(real), true, `should keep: ${real}`);
   }
+});
+
+test("catalogPriceOk: positive finite non-sentinel only", () => {
+  assert.equal(catalogPriceOk(12.5), true);
+  assert.equal(catalogPriceOk("40"), true);
+  assert.equal(catalogPriceOk(0), false);
+  assert.equal(catalogPriceOk(-3), false);
+  assert.equal(catalogPriceOk(null), false);
+  assert.equal(catalogPriceOk(999.99), false); // sentinel
+  assert.equal(catalogPriceOk(9999), false); // sentinel
+});
+
+// The World Championship Decks regression: a set with > 1,000 rows. The
+// caller (resolveCatalogCardUncached) now paginates and hands the FULL
+// row list to pickCatalogMatch, so a card past row 1,000 must still
+// resolve. This proves the selection logic over an oversized set.
+test("pickCatalogMatch: resolves a card that sits past the first 1,000-row page", () => {
+  const bulk = Array.from({ length: 1960 }, (_, i) => ({
+    name: `Filler ${i}`,
+    set: "World Championship Decks",
+    market_price: 1,
+    image_url: "x.jpg",
+  }));
+  // the target card at index 1500 (well past PostgREST's 1,000 cap)
+  bulk[1500] = {
+    tcgplayer_id: "999001",
+    name: "Voltorb - 2008 [Tristan Robinson]",
+    set: "World Championship Decks",
+    market_price: 3.5,
+    image_url: "voltorb.jpg",
+  };
+  const hit = pickCatalogMatch(bulk, catalogCardSlug("Voltorb - 2008 [Tristan Robinson]", "World Championship Decks").replace(/-world-championship-decks$/, ""));
+  assert.ok(hit, "card beyond row 1,000 must resolve");
+  assert.equal(hit.tcgplayer_id, "999001");
+});
+
+test("pickCatalogMatch: no name match -> null; matched-but-unusable -> null", () => {
+  const rows = [
+    { name: "Voltorb", set: "Jungle", market_price: 5, image_url: "x.jpg" },
+    { name: "Electrode", set: "Jungle", market_price: null, image_url: "x.jpg" }, // no price
+    { name: "Pikachu", set: "Jungle", market_price: 10, image_url: null }, // no image
+    { name: "Booster Pack", set: "Jungle", market_price: 4, image_url: "x.jpg" }, // not a card
+  ];
+  assert.equal(pickCatalogMatch(rows, "not-in-this-set"), null);
+  assert.equal(pickCatalogMatch(rows, "electrode"), null); // matched name, but no price
+  assert.equal(pickCatalogMatch(rows, "pikachu"), null); // matched name, but no image
+  assert.equal(pickCatalogMatch(rows, "booster-pack"), null); // matched, but not a real card
+  assert.equal(pickCatalogMatch(rows, "voltorb").name, "Voltorb"); // the one usable match
+});
+
+test("pickCatalogMatch: highest price wins a same-slug tie (determinism)", () => {
+  const rows = [
+    { tcgplayer_id: "a", name: "Dark Houndoom", set: "X", market_price: 40, image_url: "x.jpg" },
+    { tcgplayer_id: "b", name: "Dark Houndoom", set: "X", market_price: 300, image_url: "x.jpg" },
+  ];
+  assert.equal(pickCatalogMatch(rows, "dark-houndoom").tcgplayer_id, "b");
 });
 
 test("catalogCardTitle: stays within the SEO title budget, never truncates a short name", () => {
