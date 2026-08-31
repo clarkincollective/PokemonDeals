@@ -300,9 +300,17 @@ export default async function CardHubPage({ params }) {
         />
 
         <div className="mt-4 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
-          <div className="relative h-56 w-56 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:self-auto dark:bg-zinc-900">
+          <div className="relative aspect-[63/88] w-44 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:w-64 sm:self-auto dark:bg-zinc-900">
             {cheapest?.image_url ? (
-              <Image src={cheapest.image_url} alt={`${hub.name} - ${hub.set}`} fill sizes="224px" className="object-contain p-3" />
+              <Image
+                src={cheapest.image_url}
+                alt={`${hub.name} - ${hub.set}`}
+                fill
+                sizes="(max-width: 640px) 176px, 256px"
+                quality={90}
+                priority
+                className="object-contain"
+              />
             ) : (
               <CardImagePlaceholder className="h-24 w-16" />
             )}

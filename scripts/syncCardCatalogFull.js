@@ -19,10 +19,10 @@ require("dotenv").config({ path: ".env.local" });
 const { createClient } = require("@supabase/supabase-js");
 const { downloadPrintingsExport, pickCatalogMarketPrice } = require("../lib/pokemonPriceTracker");
 const { extractSpecies } = require("../lib/pokemonSpecies");
+const { catalogImageUrl } = require("../lib/cardImage");
 
 const LANGUAGE = "english";
 const UPSERT_CHUNK = 1000;
-const CDN = "https://tcgplayer-cdn.tcgplayer.com/product";
 
 function db() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -123,7 +123,7 @@ async function main() {
     species: extractSpecies(c.name ?? ""),
     language: LANGUAGE,
     market_price: pickCatalogMarketPrice(c.prices),
-    image_url: `${CDN}/${c.tcgplayer_id}_in_200x200.jpg`,
+    image_url: catalogImageUrl(c.tcgplayer_id),
     source: "pokemonpricetracker",
     synced_at: new Date().toISOString(),
   }));

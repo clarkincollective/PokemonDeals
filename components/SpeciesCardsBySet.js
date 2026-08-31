@@ -4,6 +4,7 @@ import { slugifySet } from "@/lib/slugify";
 import { cardPermanentHref } from "@/lib/speciesHub";
 import { buildEbaySearchLink } from "@/lib/ebay";
 import { hasPrice } from "@/lib/money";
+import { upgradeCatalogImage } from "@/lib/cardImage";
 import AffiliateLink from "@/components/AffiliateLink";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 
@@ -73,10 +74,11 @@ function Tile({ card, speciesName }) {
       )}
       {card.image ? (
         <Image
-          src={card.image}
+          src={upgradeCatalogImage(card.image)}
           alt={card.name}
           fill
-          sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 22vw"
+          sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 23vw"
+          quality={85}
           className="object-contain p-3 transition-transform duration-200 group-hover:scale-[1.03]"
         />
       ) : (

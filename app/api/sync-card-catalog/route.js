@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { downloadPrintingsExport, pickCatalogMarketPrice } from "@/lib/pokemonPriceTracker";
 import { extractSpecies } from "@/lib/pokemonSpecies";
+import { catalogImageUrl } from "@/lib/cardImage";
 
 // Daily sync of PokemonPriceTracker's full card catalogue into our own
 // `card_catalog` table - the browsing layer's source of "every card of a
@@ -18,7 +19,6 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 800;
 
 const UPSERT_CHUNK = 500;
-const CDN = "https://tcgplayer-cdn.tcgplayer.com/product";
 
 // First positive, non-sentinel number in the list, else null. PPT gives
 // an empty string (not 0/null) for a condition it has no data for; a card
@@ -101,7 +101,7 @@ export async function GET(request) {
     species: extractSpecies(c.name ?? ""),
     language,
     market_price: pickCatalogMarketPrice(c.prices),
-    image_url: `${CDN}/${c.tcgplayer_id}_in_200x200.jpg`,
+    image_url: catalogImageUrl(c.tcgplayer_id),
     source: "pokemonpricetracker",
     synced_at: new Date().toISOString(),
   }));

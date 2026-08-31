@@ -10,6 +10,7 @@ import AffiliateLink from "@/components/AffiliateLink";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebay";
+import { upgradeCatalogImage } from "@/lib/cardImage";
 import { formatMoney, toViewerCurrency } from "@/lib/money";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { useCurrency } from "@/components/CurrencyProvider";
@@ -300,7 +301,7 @@ export default function SearchClient({ validSetSlugs = [] }) {
                     >
                       <button onClick={() => pickCard(c)} className="relative aspect-square w-full bg-zinc-50 text-left dark:bg-zinc-900">
                         {c.imageUrl ? (
-                          <Image src={c.imageUrl} alt={c.name} fill sizes="200px" className="object-contain p-3" />
+                          <Image src={upgradeCatalogImage(c.imageUrl)} alt={c.name} fill sizes="200px" quality={85} className="object-contain p-3" />
                         ) : (
                           <CardImagePlaceholder />
                         )}
@@ -395,7 +396,7 @@ export default function SearchClient({ validSetSlugs = [] }) {
             <div className="mt-4 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
               <div className="relative h-40 w-40 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-100 sm:self-auto dark:bg-zinc-900">
                 {selected.imageUrl ? (
-                  <Image src={selected.imageUrl} alt={selected.name} fill sizes="160px" className="object-contain p-3" />
+                  <Image src={upgradeCatalogImage(selected.imageUrl)} alt={selected.name} fill sizes="240px" quality={90} className="object-contain p-3" />
                 ) : (
                   <CardImagePlaceholder />
                 )}

@@ -5,6 +5,7 @@ import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import Price from "@/components/Price";
 import { MARKETPLACE_CURRENCY, hasPrice } from "@/lib/money";
 import { buildEbaySearchLink } from "@/lib/ebay";
+import { upgradeCatalogImage } from "@/lib/cardImage";
 
 // One card tile in a catalogue grid - per species (/pokemon/[slug]) or
 // per set (/sets/[slug]). Same shell as DealCard (image-forward,
@@ -52,10 +53,11 @@ export default function SpeciesCard({
         <div className="relative block aspect-square w-full bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950">
           {card.image ? (
             <Image
-              src={card.image}
+              src={upgradeCatalogImage(card.image)}
               alt={card.name}
               fill
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+              quality={85}
               className="object-contain p-3 transition-transform duration-200 group-hover:scale-[1.03]"
             />
           ) : (

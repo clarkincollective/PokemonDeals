@@ -5,6 +5,7 @@ import { slugifySet } from "@/lib/slugify";
 import { currencyForDeal } from "@/lib/money";
 import { timeAgo, timeUntil, isWithin } from "@/lib/time";
 import { conditionLabel } from "@/lib/dealQuality";
+import { upgradeCatalogImage } from "@/lib/cardImage";
 import AffiliateLink from "@/components/AffiliateLink";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import SaveCardButton from "@/components/SaveCardButton";
@@ -84,10 +85,11 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
         >
           {deal.image_url ? (
             <Image
-              src={deal.image_url}
+              src={upgradeCatalogImage(deal.image_url)}
               alt={deal.title}
               fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              sizes="(max-width: 640px) 90vw, (max-width: 1024px) 46vw, 24vw"
+              quality={85}
               className="object-contain p-3 transition-transform duration-200 group-hover:scale-[1.03]"
             />
           ) : (

@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { MARKETPLACES } from "@/lib/ebay";
 import { searchCards, getRawPrice, getRawPriceHistory, pickMarketPrice } from "@/lib/pokemonPriceTracker";
+import { upgradeCatalogImage } from "@/lib/cardImage";
 
 // Public, read-only, on-demand - not on the cron schedule, so no
 // CRON_SECRET check. Deals come straight from our own database (never a
@@ -133,7 +134,7 @@ async function cardSearch(url) {
             name: c.name,
             set: c.setName,
             rarity: c.rarity ?? null,
-            imageUrl: c.imageCdnUrl200 ?? c.imageUrl ?? null,
+            imageUrl: upgradeCatalogImage(c.imageCdnUrl200 ?? c.imageUrl ?? null),
             marketPrice: pickMarketPrice(c.prices),
             deal: deal
               ? {

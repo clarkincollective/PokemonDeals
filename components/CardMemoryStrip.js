@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
+import { upgradeCatalogImage } from "@/lib/cardImage";
 import { formatMoney, toViewerCurrency } from "@/lib/money";
 import { useCurrency } from "@/components/CurrencyProvider";
 import {
@@ -55,7 +56,7 @@ function Tile({ card, onRemove, fx }) {
       <Link href={entryHref(card)} className="group flex flex-col gap-1.5">
         <div className="relative h-32 w-32 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
           {card.image ? (
-            <Image src={card.image} alt={card.name || "Card"} fill sizes="128px" className="object-contain p-2" />
+            <Image src={upgradeCatalogImage(card.image)} alt={card.name || "Card"} fill sizes="128px" quality={85} className="object-contain p-2" />
           ) : (
             <div className="flex h-full items-center justify-center">
               <CardImagePlaceholder className="h-14 w-10" />
