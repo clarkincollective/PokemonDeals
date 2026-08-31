@@ -331,10 +331,14 @@ test("a genuine Base Set 2 listing (with the '2') still matches", () => {
   for (const t of [
     "Charizard Base Set 2 4/130 Holo Rare 1999",
     "Pokemon Base Set 2 Charizard 004/130 Holo WOTC",
-    "Snorlax 030/130 Base Set 2 Regular",
+    "Pokemon Company Charizard 004/130 Base Set 2 2000 Regular Rare Unlimited",
   ]) {
     assert.equal(listingStillMatchesCatalogue(idDeal({ title: t })), true, t);
   }
+  assert.equal(
+    listingStillMatchesCatalogue(deal({ card_name: "Snorlax", card_set: "Base Set 2", title: "Snorlax 030/130 Base Set 2 Regular" })),
+    true
+  );
 });
 
 test("the set digit must be a STANDALONE token, not a prefix of a bigger number", () => {
