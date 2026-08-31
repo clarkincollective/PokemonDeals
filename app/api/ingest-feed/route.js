@@ -1,5 +1,11 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { MARKETPLACES, getItemsByLegacyIds, getBrowseRateLimit } from "@/lib/ebay";
+import {
+  MARKETPLACES,
+  getItemsByLegacyIds,
+  getBrowseRateLimit,
+  cardConditionDescriptorContent,
+  languageAspect,
+} from "@/lib/ebay";
 import { fetchFeed } from "@/lib/pokeFeed";
 import { getUsdRates, toUsd } from "@/lib/fx";
 import { logDiscoveryEvent, legacyIdFromListingId } from "@/lib/discoveryLog";
@@ -9,6 +15,12 @@ import {
   listingMatchesCard,
   isTrustworthyListing,
 } from "@/lib/dealMatching";
+import {
+  classifyListingCondition,
+  conditionAllowsPromotion,
+  classifyListingLanguage,
+  languageCompatible,
+} from "@/lib/dealQuality";
 
 // External discovery ingestion.
 //
@@ -203,6 +215,33 @@ export async function GET(request) {
         logFeed(false);
         continue;
       }
+
+      // QUALITY GATE - same rules as the scanner. The legacy-id fetch
+      // already returned the structured "Card Condition" descriptor and
+      // the "Language" item-specific, so this costs no extra API call.
+      // "Cheap != good deal": a Heavily-Played / Damaged card or a
+      // wrong-language print must not become a deal against a normal
+      // market reference.
+      const condition = classifyListingCondition({
+        title: listing.title,
+        ebayCondition: listing.condition,
+        descriptorContent: cardConditionDescriptorContent(listing.conditionDescriptors),
+      });
+      if (!conditionAllowsPromotion(condition, { requireExactRef: true })) {
+        counts.badCondition = (counts.badCondition ?? 0) + 1;
+        logFeed(false, { cardTcgplayerId: match.tcgplayer_id });
+        continue;
+      }
+      const listingLang = classifyListingLanguage({
+        title: listing.title,
+        itemSpecificLanguage: languageAspect(listing.localizedAspects),
+      });
+      if (!languageCompatible(listingLang, match.language)) {
+        counts.langMismatch = (counts.langMismatch ?? 0) + 1;
+        logFeed(false, { cardTcgplayerId: match.tcgplayer_id });
+        continue;
+      }
+
       const marketPrice = Number(match.market_price);
       if (!Number.isFinite(marketPrice) || marketPrice <= 0) {
         counts.noPrice++;
@@ -246,7 +285,9 @@ export async function GET(request) {
             listing.itemLocationCountry === listing.marketplace.replace("EBAY_", ""),
           market_price: marketPrice,
           discount_pct: discountPct,
-          condition: listing.condition,
+          // The classified tier (NM / Unknown here, since worse tiers were
+          // already rejected above), not eBay's bare "Ungraded".
+          condition: condition === "Unknown" ? listing.condition : condition,
           is_graded: false,
           seller_username: listing.sellerUsername,
           seller_feedback_pct: listing.sellerFeedbackPct,

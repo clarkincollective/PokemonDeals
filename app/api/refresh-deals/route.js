@@ -15,10 +15,15 @@ import {
   coreTokens,
   listingMatchesCard,
   isTrustworthyListing,
-  detectListingCondition,
   worseCondition,
   selectConditionPrice,
 } from "@/lib/dealMatching";
+import {
+  classifyListingCondition,
+  conditionAllowsPromotion,
+  classifyListingLanguage,
+  languageCompatible,
+} from "@/lib/dealQuality";
 
 // This route does real work (API calls + database writes) and must never
 // be cached by Next.js. A full priority-tier run measured at ~6.5 min
@@ -116,14 +121,19 @@ function pricedListing(listing, marketPriceUsd, rates) {
   return { totalLocal, totalUsd, discountPct: (marketPriceUsd - totalUsd) / marketPriceUsd };
 }
 
-// A raw listing priced against Near Mint whose apparent discount is at
-// least this big is "too good to be true" and gets one eBay getItem call
-// to check its real "Card Condition" descriptor before we publish it - a
-// large share of these turn out to be correctly-cheap played/damaged
-// cards, not deals (the exact fake-discount the seller never claimed in
-// the title). Below this, a missing title signal is taken at its word
-// (Near Mint) as before - a 30%-under NM card is perfectly plausible.
-const SUSPICIOUS_RAW_DISCOUNT_PCT = 0.45;
+// A would-be raw deal priced against Near Mint whose apparent discount is
+// at least this big gets one eBay getItem call to check its real
+// structured "Card Condition" descriptor before we publish it - a large
+// share of these turn out to be correctly-cheap played/damaged cards, not
+// deals (the fake-discount the seller never claimed in the title - e.g.
+// deal 24391, a "Heavily played (Poor)" card at 38% "off" NM). Lowered
+// 0.45 -> 0.25 after that class of miss; the reorder in the scan loops
+// means this only ever fires for a listing that already cleared the
+// discount + sanity-floor gates, so the call volume is bounded by the
+// number of would-be deals, not the number of candidates. Below this a
+// missing signal is still taken at its word (Near Mint) - a 10-25%-under
+// NM card is perfectly plausible.
+const SUSPICIOUS_RAW_DISCOUNT_PCT = 0.25;
 
 // getItem lookups are the scarce resource (shared ~5,000/day Browse
 // budget - see EXTENDED_CHUNKS and the pre-flight guard in GET). Cap the
@@ -132,8 +142,8 @@ const SUSPICIOUS_RAW_DISCOUNT_PCT = 0.45;
 // suspicious ones; any suspicious listing left unverified when the budget
 // runs out is HELD (not published) that cycle rather than shown on a
 // guess.
-const RAW_CONDITION_LOOKUP_PER_CARD = 2;
-const RAW_CONDITION_LOOKUP_CAP_SWEEP = 8;
+const RAW_CONDITION_LOOKUP_PER_CARD = 3;
+const RAW_CONDITION_LOOKUP_CAP_SWEEP = 12;
 
 // Decide the condition to actually price a raw listing at. `budget` is a
 // mutable { left } counter shared across one scan unit; `cache` (optional)
@@ -279,24 +289,43 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     if (!isTrustworthyListing(listing)) continue;
     if (!listingMatchesCard(listing, row)) continue;
 
-    // Price THIS listing against its own real detected condition, not a
-    // flat Near Mint assumption for every listing regardless of actual
-    // wear (see selectConditionPrice/detectListingCondition for the real
-    // bug this fixes).
-    const titleCondition = detectListingCondition(listing.title);
-    let condition = titleCondition;
+    // LANGUAGE gate: marketplace doesn't imply card language. A listing
+    // that plainly states a language other than this catalogue row's is a
+    // different, differently-priced print - never a deal on this one.
+    // (listingMatchesCard already blocks the JP<->EN case; this covers
+    // KR/CN/DE/FR/ES/IT/PT too, and Japanese rows matching a stated
+    // non-Japanese language.)
+    if (!languageCompatible(classifyListingLanguage({ title: listing.title }), row.language)) continue;
+
+    // CONDITION: price THIS listing against its own real wear, not a flat
+    // Near Mint assumption. classifyListingCondition folds the broadened
+    // damage vocabulary (altered / pin holes / water damage / inked /
+    // "(Poor)" / ...) and eBay's flat condition string on top of
+    // dealMatching's existing title parser.
+    const titleCondition = classifyListingCondition({
+      title: listing.title,
+      ebayCondition: listing.condition,
+    });
+    let condition = titleCondition === "Unknown" ? "Near Mint" : titleCondition;
+    if (!conditionAllowsPromotion(condition)) continue;
     let marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
     if (marketPrice == null) continue;
 
     let priced = pricedListing(listing, marketPrice, rates);
 
-    // Apparent big discount + seller stated no condition -> verify real
-    // wear against eBay's own "Card Condition" descriptor before trusting
-    // it (see resolveRawCondition). resolved.hold = couldn't verify this
-    // cycle, don't publish a maybe-fake.
+    // Cheap disqualifiers FIRST, so the (metered) structured-condition
+    // getItem call below only ever spends on a listing that would
+    // otherwise be published as a deal.
+    if (priced.discountPct < discountThreshold) continue;
+    if (priced.totalUsd < marketPrice * SANITY_FLOOR_PCT) continue;
+
+    // Would-be deal -> verify real wear against eBay's own structured
+    // "Card Condition" descriptor before trusting it (see
+    // resolveRawCondition). resolved.hold = couldn't verify this cycle,
+    // don't publish a maybe-fake.
     const resolved = await resolveRawCondition({
       listing,
-      titleCondition,
+      titleCondition: condition,
       provisionalDiscountPct: priced.discountPct,
       listingUsd: priced.totalUsd,
       lpPrice: marketData.byCondition?.["Lightly Played"] ?? null,
@@ -305,13 +334,13 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     if (resolved.hold) continue;
     if (resolved.condition !== condition) {
       condition = resolved.condition;
+      if (!conditionAllowsPromotion(condition)) continue;
       marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
       if (marketPrice == null) continue;
       priced = pricedListing(listing, marketPrice, rates);
+      if (priced.discountPct < discountThreshold) continue;
+      if (priced.totalUsd < marketPrice * SANITY_FLOOR_PCT) continue;
     }
-
-    if (priced.discountPct < discountThreshold) continue;
-    if (priced.totalUsd < marketPrice * SANITY_FLOOR_PCT) continue;
 
     await tryUpsert(
       dealRow({
@@ -531,19 +560,30 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
         continue;
       }
 
+      if (!languageCompatible(classifyListingLanguage({ title: listing.title }), row.language)) continue;
+
       const marketData = await cachedConditionPrices(row);
       if (!marketData) continue;
 
-      const titleCondition = detectListingCondition(listing.title);
-      let condition = titleCondition;
+      const titleCondition = classifyListingCondition({
+        title: listing.title,
+        ebayCondition: listing.condition,
+      });
+      let condition = titleCondition === "Unknown" ? "Near Mint" : titleCondition;
+      if (!conditionAllowsPromotion(condition)) continue;
       let marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
       if (marketPrice == null) continue;
 
       let priced = pricedListing(listing, marketPrice, rates);
 
+      // Cheap disqualifiers first - the getItem verification below only
+      // spends on would-be-published deals.
+      if (priced.discountPct < discountThreshold) continue;
+      if (priced.totalUsd < marketPrice * SANITY_FLOOR_PCT) continue;
+
       const resolved = await resolveRawCondition({
         listing,
-        titleCondition,
+        titleCondition: condition,
         provisionalDiscountPct: priced.discountPct,
         listingUsd: priced.totalUsd,
         lpPrice: marketData.byCondition?.["Lightly Played"] ?? null,
@@ -553,13 +593,13 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
       if (resolved.hold) continue;
       if (resolved.condition !== condition) {
         condition = resolved.condition;
+        if (!conditionAllowsPromotion(condition)) continue;
         marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
         if (marketPrice == null) continue;
         priced = pricedListing(listing, marketPrice, rates);
+        if (priced.discountPct < discountThreshold) continue;
+        if (priced.totalUsd < marketPrice * SANITY_FLOOR_PCT) continue;
       }
-
-      if (priced.discountPct < discountThreshold) continue;
-      if (priced.totalUsd < marketPrice * SANITY_FLOOR_PCT) continue;
 
       await tryUpsert(
         dealRow({
