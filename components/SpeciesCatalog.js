@@ -4,8 +4,10 @@ import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import EbaySearchLink from "@/components/EbaySearchLink";
 import SpeciesCardList from "@/components/SpeciesCardList";
-import SpeciesCardsBySet from "@/components/SpeciesCardsBySet";
+import SpeciesCardsBySet, { buildCatalogueItems } from "@/components/SpeciesCardsBySet";
+import FeaturedValueCards from "@/components/FeaturedValueCards";
 import { buildEbaySearchLink } from "@/lib/ebay";
+import { hasPrice } from "@/lib/money";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -29,6 +31,22 @@ function usd(n) {
 export default function SpeciesCatalog({ speciesName, slug, cards, stats = null, indexable = false, validSetSlugs = [] }) {
   const ebayHref = buildEbaySearchLink(`${speciesName} Pokemon card`);
   const canonical = `${SITE_URL}/pokemon/${slug}`;
+
+  // Discovery shortcut, same as the with-deals species page: the highest
+  // recent-sold-value cards we track, ranked ONLY by trustworthy
+  // reference price (never by anything we'd earn on). No live deal exists
+  // on this path, so this is NOT a "Best Deals" section - it's a
+  // truthful "here are the cards worth knowing about" list. Omitted
+  // cleanly when too few trustworthy priced cards exist.
+  const featuredItems = indexable
+    ? buildCatalogueItems(
+        [...(cards ?? [])]
+          .filter((c) => !c.deal && hasPrice(c.refPrice))
+          .sort((a, b) => Number(b.refPrice) - Number(a.refPrice))
+          .slice(0, 12),
+        validSetSlugs
+      )
+    : [];
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
@@ -131,6 +149,22 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
         >
           Search {speciesName} on eBay →
         </EbaySearchLink>
+
+        {/* Highest-value cards - same component/ranking as the with-deals
+            species page. Not a Best Deals section: there is no live
+            verified deal on this path. */}
+        {featuredItems.length >= 4 && (
+          <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+            <h2 className="text-lg font-bold text-black dark:text-zinc-50">
+              Highest-value {speciesName} cards we track
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Ranked by recent-sold market reference price. Open a card for full pricing, graded
+              values and any live deal.
+            </p>
+            <FeaturedValueCards speciesName={speciesName} items={featuredItems} />
+          </section>
+        )}
 
         {cards.length > 0 ? (
           <>
