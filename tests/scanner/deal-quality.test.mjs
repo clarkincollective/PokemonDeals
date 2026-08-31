@@ -331,8 +331,21 @@ test("a genuine Base Set 2 listing (with the '2') still matches", () => {
   for (const t of [
     "Charizard Base Set 2 4/130 Holo Rare 1999",
     "Pokemon Base Set 2 Charizard 004/130 Holo WOTC",
+    "Snorlax 030/130 Base Set 2 Regular",
   ]) {
     assert.equal(listingStillMatchesCatalogue(idDeal({ title: t })), true, t);
+  }
+});
+
+test("the set digit must be a STANDALONE token, not a prefix of a bigger number", () => {
+  // "2" must not match "225", "2000", "2007", "1999-2000"
+  for (const t of [
+    "Gyarados ex 225/198 SV01: Scarlet & Violet Base Set Holo",
+    "Hitmonchan 7/102 Holo Rare Base Set 1999-2000 English",
+    "Blastoise Expedition E-Reader Base Set 36/165 2002",
+    "Hitmonchan SWSH01: Sword & Shield Base Set 095/202",
+  ]) {
+    assert.equal(listingStillMatchesCatalogue(idDeal({ title: t })), false, t);
   }
 });
 
