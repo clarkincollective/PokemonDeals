@@ -17,7 +17,12 @@
 
 require("dotenv").config({ path: ".env.local" });
 const { createClient } = require("@supabase/supabase-js");
-const { downloadPrintingsExport, pickCatalogMarketPrice } = require("../lib/pokemonPriceTracker");
+const {
+  downloadPrintingsExport,
+  pickCatalogMarketPrice,
+  WOTC_DUAL_PRINTING_SETS,
+  getCatalogNmPrice,
+} = require("../lib/pokemonPriceTracker");
 const { extractSpecies } = require("../lib/pokemonSpecies");
 const { catalogImageUrl } = require("../lib/cardImage");
 
@@ -149,6 +154,42 @@ async function main() {
     }
     upserted += slice.length;
     log(`  chunk ${chunkNo}/${totalChunks} ok - cumulative upserted: ${upserted}/${records.length}`);
+  }
+
+  // ---- WOTC 1st-Edition/Unlimited second pass ----
+  // The printings CSV doesn't split these products, so the aggregate is
+  // the 1st-Edition figure; the unqualified /cards/<slug> identity is
+  // Unlimited. Re-derive from /cards (pickMarketPrice), paced.
+  {
+    const wotcRows = records.filter((r) => WOTC_DUAL_PRINTING_SETS.has(r.set));
+    log(`\nWOTC dual-printing second pass: ${wotcRows.length} rows`);
+    const queue = [...wotcRows];
+    let checked = 0;
+    let fixed = 0;
+    const worker = async () => {
+      let r;
+      while ((r = queue.shift())) {
+        checked++;
+        let nm;
+        try {
+          nm = await getCatalogNmPrice(String(r.tcgplayer_id), LANGUAGE);
+        } catch (e) {
+          log(`   ! ${r.tcgplayer_id} ${r.name}: ${e.message}`);
+          continue;
+        }
+        if (nm == null) continue;
+        const cur = r.market_price == null ? null : Number(r.market_price);
+        if (cur != null && Math.abs(cur - nm) / nm <= 0.02) continue;
+        const { error } = await client
+          .from("card_catalog")
+          .update({ market_price: nm })
+          .eq("tcgplayer_id", r.tcgplayer_id);
+        if (!error) fixed++;
+        if (checked % 100 === 0) log(`   ...${checked}/${wotcRows.length} (fixed ${fixed})`);
+      }
+    };
+    await Promise.all(Array.from({ length: 4 }, worker));
+    log(`WOTC second pass: checked ${checked}, corrected ${fixed}`);
   }
 
   // ---- verification ----

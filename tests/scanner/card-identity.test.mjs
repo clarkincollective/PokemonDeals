@@ -6,7 +6,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { pickCatalogMatch, catalogCardSlug } from "../../lib/cardSlug.js";
-import { pickCatalogMarketPrice, catalogRawMarketPrice } from "../../lib/pokemonPriceTracker.js";
+import {
+  pickCatalogMarketPrice,
+  catalogRawMarketPrice,
+  pickMarketPrice,
+  WOTC_DUAL_PRINTING_SETS,
+} from "../../lib/pokemonPriceTracker.js";
 
 // --- pickCatalogMarketPrice: dual-printing WOTC cards + bad-data guard ---
 
@@ -22,6 +27,52 @@ test("pickCatalogMarketPrice: prefers the Unlimited (non-1st-Edition) printing",
 
 test("pickCatalogMarketPrice: 1st-Edition-only card keeps its only price", () => {
   assert.equal(pickCatalogMarketPrice([{ printing: "1st Edition Holofoil", nm: 400 }]), 400);
+});
+
+// --- NON-HOLO 1st Edition / Unlimited (Blaine's Charmeleon class) ---
+// The prior WOTC fix's helpers key off /1st\s*edition/i, which matches
+// BOTH "1st Edition Holofoil" and the bare non-holo "1st Edition". The
+// break was upstream: the printings CSV doesn't split these products, so
+// the sync's second pass now re-derives from /cards via pickMarketPrice.
+test("pickMarketPrice: non-holo '1st Edition' primary -> the 'Unlimited' variant NM", () => {
+  // real shape from /cards for Blaine's Charmeleon (Gym Challenge, Uncommon)
+  const prices = {
+    market: 19.94, // aggregate = 1st Edition, what the CSV gives
+    primaryPrinting: "1st Edition",
+    variants: {
+      "1st Edition": { "Near Mint": { price: 19.94 }, "Lightly Played": { price: 15.8 } },
+      Unlimited: { "Near Mint": { price: 4.69 }, "Lightly Played": { price: 3.01 } },
+    },
+  };
+  assert.equal(pickMarketPrice(prices, "Near Mint"), 4.69);
+  assert.equal(catalogRawMarketPrice(prices), 4.69);
+});
+
+test("pickMarketPrice: non-holo 1st-Edition-only (no Unlimited ever) keeps its price", () => {
+  const prices = {
+    market: 30,
+    primaryPrinting: "1st Edition",
+    variants: { "1st Edition": { "Near Mint": { price: 30 } } },
+  };
+  assert.equal(pickMarketPrice(prices, "Near Mint"), 30);
+});
+
+test("pickCatalogMarketPrice: bare '1st Edition' / 'Unlimited' labels ARE distinguished", () => {
+  const entries = [
+    { printing: "1st Edition", nm: 24.98 },
+    { printing: "Unlimited", nm: 3.7 },
+  ];
+  assert.equal(pickCatalogMarketPrice(entries), 3.7);
+  assert.equal(pickCatalogMarketPrice([...entries].reverse()), 3.7);
+});
+
+test("WOTC_DUAL_PRINTING_SETS covers the 1st-Ed/Unlimited sets, not the single-printing ones", () => {
+  for (const s of ["Base Set", "Base Set (Shadowless)", "Jungle", "Fossil", "Team Rocket", "Gym Heroes", "Gym Challenge", "Neo Genesis", "Neo Destiny"]) {
+    assert.ok(WOTC_DUAL_PRINTING_SETS.has(s), s);
+  }
+  assert.equal(WOTC_DUAL_PRINTING_SETS.has("Base Set 2"), false); // Unlimited only
+  assert.equal(WOTC_DUAL_PRINTING_SETS.has("Legendary Collection"), false); // no 1st Edition
+  assert.equal(WOTC_DUAL_PRINTING_SETS.has("SV: Scarlet & Violet 151"), false);
 });
 
 test("pickCatalogMarketPrice: single-printing modern card is unchanged", () => {

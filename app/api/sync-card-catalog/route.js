@@ -1,5 +1,10 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { downloadPrintingsExport, pickCatalogMarketPrice } from "@/lib/pokemonPriceTracker";
+import {
+  downloadPrintingsExport,
+  pickCatalogMarketPrice,
+  WOTC_DUAL_PRINTING_SETS,
+  getCatalogNmPrice,
+} from "@/lib/pokemonPriceTracker";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { catalogImageUrl } from "@/lib/cardImage";
 
@@ -120,6 +125,43 @@ export async function GET(request) {
     upserted += slice.length;
   }
 
+  // Second pass: the printings CSV does not split WOTC "1st Edition" /
+  // "Unlimited" products (holo AND non-holo), so its aggregate is the
+  // 1st-Edition figure. Our unqualified /cards/<slug> identity is
+  // Unlimited by convention - re-derive market_price for those sets from
+  // /cards (prices.variants -> pickMarketPrice, the same helper the card
+  // page uses). Paced (PPT 500/min), concurrency-limited, and time-boxed
+  // so it can never kill the primary sync - partial progress is fine, the
+  // next daily run continues.
+  let wotcChecked = 0;
+  let wotcFixed = 0;
+  if (!limit) {
+    const wotcRows = records.filter((r) => WOTC_DUAL_PRINTING_SETS.has(r.set));
+    const deadline = started + (maxDuration - 120) * 1000;
+    const queue = [...wotcRows];
+    const worker = async () => {
+      while (queue.length && Date.now() < deadline) {
+        const r = queue.shift();
+        wotcChecked++;
+        let nm;
+        try {
+          nm = await getCatalogNmPrice(String(r.tcgplayer_id), language);
+        } catch {
+          continue;
+        }
+        if (nm == null) continue;
+        const cur = r.market_price == null ? null : Number(r.market_price);
+        if (cur != null && Math.abs(cur - nm) / nm <= 0.02) continue;
+        const { error } = await db
+          .from("card_catalog")
+          .update({ market_price: nm })
+          .eq("tcgplayer_id", r.tcgplayer_id);
+        if (!error) wotcFixed++;
+      }
+    };
+    await Promise.all(Array.from({ length: 4 }, worker));
+  }
+
   return Response.json({
     ok: true,
     language,
@@ -128,7 +170,9 @@ export async function GET(request) {
     upserted,
     withPrice: records.filter((r) => r.market_price != null).length,
     withSpecies: records.filter((r) => r.species != null).length,
-    creditsApprox: 0,
+    wotcChecked,
+    wotcFixed,
+    creditsApprox: wotcChecked,
     tookMs: Date.now() - started,
   });
 }
