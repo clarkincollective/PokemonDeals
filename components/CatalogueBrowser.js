@@ -26,6 +26,11 @@ import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 // hides / re-orders it. Nothing here writes to the URL. Pure view logic
 // lives in lib/catalogueView (unit-tested).
 
+// Species like Charizard / Pikachu span 60-120 sets, most with only 1-3
+// cards. Show the richest N set sections first, the rest behind one
+// button - the full list stays in the DOM (SSR) the whole time.
+const INITIAL_SET_GROUPS = 12;
+
 function usd(n) {
   return `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -160,16 +165,18 @@ export function Tile({ card, speciesName, placement }) {
 
 const GRID = "mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4";
 
-function SetGroup({ set, list, speciesName, expandAll }) {
+// EVERY tile / group is always rendered (so the full card list + all
+// /cards/[slug] links are in the SSR HTML for crawlers); "collapsed" ones
+// just get `hidden` (display:none). This is disclosure, never lazy load.
+function SetGroup({ set, list, speciesName, expandAll, groupHidden }) {
   const [open, setOpen] = useState(false);
   const small = list.length <= ALWAYS_FULL_UP_TO;
   const showAll = small || open || expandAll;
-  const shown = showAll ? list : list.slice(0, INITIAL_PER_LARGE_GROUP);
   const setSlug = list[0]?.setSlug;
   const setHasPage = list[0]?.setHasPage;
 
   return (
-    <section>
+    <section className={groupHidden ? "hidden" : undefined}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-zinc-200 pb-2 dark:border-zinc-800">
         <div className="flex items-baseline gap-2">
           <h3 className="text-base font-bold text-black dark:text-zinc-50">{set}</h3>
@@ -184,13 +191,14 @@ function SetGroup({ set, list, speciesName, expandAll }) {
         )}
       </div>
       <div className={GRID}>
-        {shown.map((c) => (
-          <Tile
-            key={c.tcgplayerId ?? `${c.name}|${c.set}`}
-            card={c}
-            speciesName={speciesName}
-            placement={showAll && !small ? "species_set_expanded" : "species_catalog"}
-          />
+        {list.map((c, i) => (
+          <div key={c.tcgplayerId ?? `${c.name}|${c.set}`} className={!showAll && i >= INITIAL_PER_LARGE_GROUP ? "hidden" : undefined}>
+            <Tile
+              card={c}
+              speciesName={speciesName}
+              placement={!small && i >= INITIAL_PER_LARGE_GROUP ? "species_set_expanded" : "species_catalog"}
+            />
+          </div>
         ))}
       </div>
       {!small && !expandAll && (
@@ -215,6 +223,7 @@ export default function CatalogueBrowser({ speciesName, items }) {
   const [rarityFilter, setRarityFilter] = useState("");
   const [sort, setSort] = useState(DEFAULT_SORT);
   const [expandAll, setExpandAll] = useState(false);
+  const [showAllSets, setShowAllSets] = useState(false);
 
   const setOptions = useMemo(() => distinctSorted(items, "set"), [items]);
   const rarityOptions = useMemo(() => distinctSorted(items, "rarity"), [items]);
@@ -319,11 +328,34 @@ export default function CatalogueBrowser({ speciesName, items }) {
           ))}
         </div>
       ) : (
-        <div className="mt-6 space-y-12">
-          {groups.map(({ set, list }) => (
-            <SetGroup key={set} set={set} list={list} speciesName={speciesName} expandAll={expandAll} />
-          ))}
-        </div>
+        <>
+          <div className="mt-6 space-y-12">
+            {groups.map(({ set, list }, i) => (
+              <SetGroup
+                key={set}
+                set={set}
+                list={list}
+                speciesName={speciesName}
+                expandAll={expandAll}
+                groupHidden={!showAllSets && !expandAll && i >= INITIAL_SET_GROUPS}
+              />
+            ))}
+          </div>
+          {groups.length > INITIAL_SET_GROUPS && !expandAll && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowAllSets((v) => !v);
+                if (!showAllSets) track("Catalogue Expand", { species: speciesName, sets: groups.length });
+              }}
+              className="mt-8 w-full rounded-lg border border-zinc-300 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:border-zinc-400 hover:text-black dark:border-zinc-700 dark:text-zinc-200"
+            >
+              {showAllSets
+                ? "Show fewer sets"
+                : `Show ${groups.length - INITIAL_SET_GROUPS} more ${speciesName} sets →`}
+            </button>
+          )}
+        </>
       )}
     </div>
   );
