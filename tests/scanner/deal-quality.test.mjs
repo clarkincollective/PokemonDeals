@@ -11,10 +11,15 @@ import {
   conditionLabel,
   classifyListingLanguage,
   languageCompatible,
+  isExactEbayDealDestination,
+  auctionEnded,
+  legacyItemId,
   isDisplayableDeal,
   disqualificationReason,
 } from "../../lib/dealQuality.js";
 
+// A well-formed deal row: exact /itm/ destination whose id matches
+// listing_id, fixed-price (no auction end). Overrides via `over`.
 const deal = (over = {}) => ({
   id: 1,
   is_active: true,
@@ -23,6 +28,12 @@ const deal = (over = {}) => ({
   condition: "Near Mint",
   card_language: "english",
   discount_pct: 0.2,
+  listing_id: "v1|168631568736|0",
+  listing_url: "https://www.ebay.com/itm/168631568736?_skw=x&hash=item1",
+  affiliate_url:
+    "https://www.ebay.com/itm/168631568736?_skw=x&hash=item1&mkevt=1&mkcid=1&campid=5339197414",
+  listing_type: "FIXED_PRICE",
+  auction_end_at: null,
   ...over,
 });
 
@@ -216,4 +227,78 @@ test("historical Unknown row cannot remain a Top Deal through the display gate",
 test("storedDealCondition worsens a stored NM by a title damage word, never upgrades", () => {
   assert.equal(storedDealCondition({ condition: "Near Mint", title: "Charizard Base Set ** Altered Pin Holes" }), "Damaged");
   assert.equal(storedDealCondition({ condition: "Heavily Played", title: "Charizard Base Set NM" }), "Heavily Played");
+});
+
+// ---------- EXACT-LISTING DESTINATION ----------
+test("legacyItemId pulls the numeric id from a stored listing_id", () => {
+  assert.equal(legacyItemId("v1|168631568736|0"), "168631568736");
+  assert.equal(legacyItemId("287326449028"), "287326449028");
+  assert.equal(legacyItemId("v1|123|4|5"), "123");
+  assert.equal(legacyItemId(null), null);
+});
+
+test("exact item-specific affiliate URL passes; /p/<epid> and /sch/ fail", () => {
+  assert.equal(isExactEbayDealDestination(deal()), true); // /itm/168631568736 matches listing_id
+  assert.equal(
+    isExactEbayDealDestination(deal({ affiliate_url: "https://www.ebay.com/p/22063031433?campid=5339197414", listing_url: "https://www.ebay.com/p/22063031433" })),
+    false
+  );
+  assert.equal(
+    isExactEbayDealDestination(deal({ affiliate_url: "https://www.ebay.com/sch/i.html?_nkw=Radiant+Charizard", listing_url: "https://www.ebay.com/sch/i.html?_nkw=x" })),
+    false
+  );
+  assert.equal(isExactEbayDealDestination(deal({ affiliate_url: "https://www.ebay.com/", listing_url: "https://www.ebay.com/" })), false);
+  assert.equal(isExactEbayDealDestination(deal({ affiliate_url: null, listing_url: null })), false);
+  assert.equal(isExactEbayDealDestination(deal({ affiliate_url: "not a url", listing_url: "also not" })), false);
+});
+
+test("CTA pointing at a DIFFERENT item id than listing_id fails", () => {
+  assert.equal(
+    isExactEbayDealDestination(deal({ affiliate_url: "https://www.ebay.com/itm/999999999999?campid=5339197414" })),
+    false
+  );
+});
+
+test("plain /itm/ listing_url is accepted when affiliate_url is missing", () => {
+  assert.equal(isExactEbayDealDestination(deal({ affiliate_url: null })), true);
+});
+
+test("the exact affiliate URL keeps campaign 5339197414 and is still exact", () => {
+  const d = deal();
+  assert.match(d.affiliate_url, /campid=5339197414/);
+  assert.equal(isExactEbayDealDestination(d), true);
+});
+
+// ---------- ENDED AUCTIONS ----------
+const HOUR = 3600 * 1000;
+test("an AUCTION past its end time is not a live deal", () => {
+  const past = new Date(Date.now() - 48 * HOUR).toISOString();
+  const future = new Date(Date.now() + 48 * HOUR).toISOString();
+  assert.equal(auctionEnded(deal({ listing_type: "AUCTION", auction_end_at: past })), true);
+  assert.equal(auctionEnded(deal({ listing_type: "AUCTION", auction_end_at: future })), false);
+  assert.equal(auctionEnded(deal({ listing_type: "FIXED_PRICE", auction_end_at: past })), false); // not an auction
+  assert.equal(auctionEnded(deal({ listing_type: "AUCTION", auction_end_at: null })), false); // unknown -> live
+
+  assert.equal(isDisplayableDeal(deal({ listing_type: "AUCTION", auction_end_at: past })), false);
+  assert.equal(isDisplayableDeal(deal({ listing_type: "AUCTION", auction_end_at: future })), true);
+});
+
+test("an ended auction / non-exact destination never falls back to /p/ - it's soft-expired", () => {
+  const past = new Date(Date.now() - 72 * HOUR).toISOString();
+  assert.equal(disqualificationReason(deal({ listing_type: "AUCTION", auction_end_at: past })), "auction_ended");
+  assert.equal(
+    disqualificationReason(deal({ affiliate_url: "https://www.ebay.com/p/22063031433", listing_url: "https://www.ebay.com/p/22063031433" })),
+    "destination:non_exact"
+  );
+});
+
+test("Buy It Now with an exact item URL is unaffected", () => {
+  assert.equal(isDisplayableDeal(deal({ listing_type: "FIXED_PRICE" })), true);
+});
+
+test("a graded deal still needs an exact destination and a live auction", () => {
+  assert.equal(isDisplayableDeal(deal({ is_graded: true, grader: "PSA", grade: "9" })), true);
+  const past = new Date(Date.now() - HOUR).toISOString();
+  assert.equal(isDisplayableDeal(deal({ is_graded: true, grader: "PSA", grade: "9", listing_type: "AUCTION", auction_end_at: past })), false);
+  assert.equal(isDisplayableDeal(deal({ is_graded: true, affiliate_url: "https://www.ebay.com/p/123", listing_url: "https://www.ebay.com/p/123" })), false);
 });

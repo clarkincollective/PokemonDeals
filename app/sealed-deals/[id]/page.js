@@ -9,6 +9,7 @@ import { currencyForDeal } from "@/lib/money";
 import Price from "@/components/Price";
 import { getSealedPriceHistory } from "@/lib/pokemonPriceTracker";
 import { shouldIndexDeal } from "@/lib/indexability";
+import { isExactEbayDealDestination, auctionEnded } from "@/lib/dealQuality";
 import { timeAgo, timeUntil } from "@/lib/time";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import SiteHeader from "@/components/SiteHeader";
@@ -77,7 +78,8 @@ export async function generateMetadata({ params }) {
   // are no longer real (a link shared or indexed before the deal
   // expired), even in a link-preview card, which never hits the page
   // component's own is_active check below.
-  if (!shouldIndexDeal(deal)) return { title: "Deal not found", robots: { index: false, follow: true } };
+  if (!shouldIndexDeal(deal) || auctionEnded(deal) || !isExactEbayDealDestination(deal))
+    return { title: "Deal not found", robots: { index: false, follow: true } };
 
   const productName = deal.sealed_watchlist?.name ?? deal.title;
   const productSet = deal.sealed_watchlist?.set;
@@ -124,7 +126,7 @@ export default async function SealedDealDetailPage({ params }) {
   // the link - a genuine correctness and trust problem, not just an SEO
   // one, but it also means Google would keep re-crawling stale content
   // instead of a clear "gone" signal.
-  if (!shouldIndexDeal(deal)) {
+  if (!shouldIndexDeal(deal) || auctionEnded(deal) || !isExactEbayDealDestination(deal)) {
     return (
       <div className="min-h-screen bg-paper">
         <SiteHeader />
