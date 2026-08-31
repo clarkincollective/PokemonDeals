@@ -4,6 +4,7 @@ import { MARKETPLACES } from "@/lib/ebay";
 import { slugifySet } from "@/lib/slugify";
 import { currencyForDeal } from "@/lib/money";
 import { timeAgo, timeUntil, isWithin } from "@/lib/time";
+import { conditionLabel } from "@/lib/dealQuality";
 import AffiliateLink from "@/components/AffiliateLink";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import SaveCardButton from "@/components/SaveCardButton";
@@ -55,9 +56,10 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
   const setHasPage = setSlug != null && Array.isArray(validSetSlugs) && validSetSlugs.includes(setSlug);
   const justFound = !isAuction && isWithin(deal.first_seen_at, JUST_FOUND_MS);
 
-  const conditionText = deal.is_graded
-    ? `${deal.grader ?? "Graded"} ${deal.grade ?? ""}`.trim()
-    : deal.condition || "Near Mint";
+  // Never default to "Near Mint". Unknown / grading-status -> "Condition
+  // not verified" (see lib/dealQuality). Grading status stays separate
+  // from physical condition.
+  const conditionText = conditionLabel(deal);
 
   return (
     <div className="group flex h-full flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950">

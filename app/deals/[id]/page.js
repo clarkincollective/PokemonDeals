@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { findCardHubByWatchlistId, resolveSpeciesByName, fetchSetSlugs, cardColsReady, withCard } from "@/lib/deals";
 import { shouldIndexDeal } from "@/lib/indexability";
+import { conditionLabel, isDisplayableDeal } from "@/lib/dealQuality";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
@@ -97,7 +98,12 @@ export async function generateMetadata({ params }) {
   // that are no longer real (e.g. a link shared or indexed before the
   // deal expired) even in a link-preview card, which never hits the
   // page component's own is_active check below.
-  if (!shouldIndexDeal(deal)) return { title: "Deal not found", robots: { index: false, follow: true } };
+  // Not active, OR still active but no longer passes the quality gate
+  // (played/damaged, wrong-language, or a physical condition we could
+  // never actually verify) - as good as not found for anyone landing
+  // here: don't repeat pricing/discount claims that aren't trustworthy.
+  if (!shouldIndexDeal(deal) || !isDisplayableDeal(deal))
+    return { title: "Deal not found", robots: { index: false, follow: true } };
 
   const cardName = deal.watchlist?.name ?? deal.title;
   const cardSet = deal.watchlist?.set;
@@ -177,12 +183,13 @@ export default async function DealDetailPage({ params }) {
 
   const deal = await loadDeal(id);
 
-  // A deactivated deal (naturally expired by the scan cycle, or corrected
-  // for bad data) is not distinguished from a nonexistent one here - both
-  // read the same to a visitor: this deal isn't available anymore, so
-  // don't keep showing it as a live, buyable page with real-looking
-  // pricing/CTAs to anyone who still has the link.
-  if (!shouldIndexDeal(deal)) {
+  // A deactivated deal (expired, or corrected for bad data), OR a still-
+  // active row that no longer passes the quality gate (played/damaged,
+  // wrong-language, unverifiable physical condition) reads the same to a
+  // visitor: not a live, trustworthy deal - so don't keep showing it with
+  // real-looking pricing/CTAs. The card's own /cards/[slug] hub still
+  // offers a plain "Find on eBay".
+  if (!shouldIndexDeal(deal) || !isDisplayableDeal(deal)) {
     return (
       <div className="min-h-screen bg-paper">
         <SiteHeader />
@@ -366,11 +373,9 @@ export default async function DealDetailPage({ params }) {
                   {deal.grader} {deal.grade}
                 </span>
               ) : (
-                deal.condition && (
-                  <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                    {deal.condition}
-                  </span>
-                )
+                <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                  {conditionLabel(deal)}
+                </span>
               )}
               <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                 {isAuction ? "Auction" : "Buy It Now"}

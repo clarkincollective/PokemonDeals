@@ -6,6 +6,9 @@ import assert from "node:assert/strict";
 import {
   classifyListingCondition,
   conditionAllowsPromotion,
+  physicalConditionOf,
+  storedDealCondition,
+  conditionLabel,
   classifyListingLanguage,
   languageCompatible,
   isDisplayableDeal,
@@ -137,4 +140,72 @@ test("inactive rows are never displayable", () => {
 
 test("clean genuine rows are untouched", () => {
   assert.equal(disqualificationReason(deal({ title: "Umbreon VMAX 215/203 Evolving Skies Alt Art English NM" })), null);
+});
+
+// ---------- UNGRADED / UNKNOWN != NEAR MINT ----------
+test("'Ungraded' (grading status) is NOT a physical condition -> Unknown", () => {
+  for (const s of ["Ungraded", "Non gradata", "Nicht bewertet", "Sin clasificar", "Used", "Unspecified", "", null]) {
+    assert.equal(physicalConditionOf(s), "Unknown", `${s}`);
+  }
+  assert.equal(physicalConditionOf("Near Mint"), "Near Mint");
+  assert.equal(physicalConditionOf("Heavily Played"), "Heavily Played");
+});
+
+test("Unknown physical condition is never promotable", () => {
+  assert.equal(conditionAllowsPromotion("Unknown"), false);
+  assert.equal(conditionAllowsPromotion(null), false);
+  assert.equal(conditionAllowsPromotion("Ungraded"), false); // not a tier
+  assert.equal(conditionAllowsPromotion("Near Mint"), true);
+});
+
+test("an Unknown / Ungraded raw row cannot be a verified deal or enter rankings", () => {
+  assert.equal(isDisplayableDeal(deal({ condition: "Ungraded" })), false);
+  assert.equal(isDisplayableDeal(deal({ condition: null })), false);
+  assert.equal(isDisplayableDeal(deal({ condition: "Non gradée" })), false);
+  assert.match(disqualificationReason(deal({ condition: "Ungraded" })), /^condition:unknown_unverified$/);
+});
+
+test("explicit structured Near Mint can still qualify", () => {
+  assert.equal(
+    classifyListingCondition({ title: "Raikou H26 Skyridge Holo Rare", descriptorContent: "Near mint or better" }),
+    "Near Mint"
+  );
+  assert.equal(isDisplayableDeal(deal({ condition: "Near Mint" })), true);
+});
+
+test("conditionDescription contradiction overrides a benign generic 'Ungraded'", () => {
+  // deal 23710 shape: title + eBay condition both benign, structured says HP
+  assert.equal(
+    classifyListingCondition({
+      title: "2003 Pokemon, Skyridge, #H26/H32 Raikou, Holo Rare",
+      ebayCondition: "Ungraded",
+      descriptorContent: "Heavily played (Poor)",
+    }),
+    "Heavily Played"
+  );
+});
+
+test("conditionLabel never says 'Near Mint' by default", () => {
+  assert.equal(conditionLabel(deal({ condition: "Ungraded" })), "Condition not verified");
+  assert.equal(conditionLabel(deal({ condition: null })), "Condition not verified");
+  assert.equal(conditionLabel(deal({ condition: "Near Mint" })), "Near Mint");
+  assert.equal(conditionLabel(deal({ condition: "Heavily Played" })), "Heavily Played");
+  assert.equal(conditionLabel({ is_graded: true, grader: "PSA", grade: "10" }), "PSA 10");
+});
+
+test("grading status stays separate from physical condition", () => {
+  // a graded slab in poor condition is still a graded deal (its grade IS
+  // the condition) - not raw-condition-gated
+  assert.equal(isDisplayableDeal(deal({ is_graded: true, grader: "PSA", grade: "1", condition: "Ungraded" })), true);
+});
+
+test("historical Unknown row cannot remain a Top Deal through the display gate", () => {
+  const legacy = { is_active: true, is_graded: false, condition: "Ungraded", card_language: "english",
+    discount_pct: 0.55, title: "2003 Pokemon, Skyridge, #H26/H32 Raikou, Holo Rare" };
+  assert.equal(isDisplayableDeal(legacy), false);
+});
+
+test("storedDealCondition worsens a stored NM by a title damage word, never upgrades", () => {
+  assert.equal(storedDealCondition({ condition: "Near Mint", title: "Charizard Base Set ** Altered Pin Holes" }), "Damaged");
+  assert.equal(storedDealCondition({ condition: "Heavily Played", title: "Charizard Base Set NM" }), "Heavily Played");
 });

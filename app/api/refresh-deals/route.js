@@ -15,7 +15,6 @@ import {
   coreTokens,
   listingMatchesCard,
   isTrustworthyListing,
-  worseCondition,
   selectConditionPrice,
 } from "@/lib/dealMatching";
 import {
@@ -23,6 +22,7 @@ import {
   conditionAllowsPromotion,
   classifyListingLanguage,
   languageCompatible,
+  isHighValueVintage,
 } from "@/lib/dealQuality";
 
 // This route does real work (API calls + database writes) and must never
@@ -158,32 +158,46 @@ async function resolveRawCondition({
   lpPrice,
   budget,
   cache,
+  highValueVintage = false,
 }) {
-  // Seller stated wear in the title - already trusted, nothing to verify.
-  if (titleCondition !== "Near Mint") return { condition: titleCondition };
-
-  // Verify when either: the headline discount is "too good to be true",
-  // OR the price is at/below the card's Lightly Played market value -
-  // "Near Mint" a whole grade below LP isn't credible (this is what a
-  // steep NM->LP price cliff looks like: e.g. Turtwig 103/130 NM $25.86,
-  // LP $7.82, and every raw listing sitting at $7-10 shown as "65% off").
-  const belowLp = lpPrice != null && listingUsd != null && listingUsd <= lpPrice * 1.1;
-  if (!(provisionalDiscountPct >= SUSPICIOUS_RAW_DISCOUNT_PCT) && !belowLp) {
-    return { condition: "Near Mint" };
+  // Seller positively stated a wear tier in the title - trusted as-is.
+  if (titleCondition !== "Near Mint" && titleCondition !== "Unknown") {
+    return { condition: titleCondition };
   }
 
-  if (cache?.has(listing.listingId)) return cache.get(listing.listingId);
+  const suspicious =
+    provisionalDiscountPct >= SUSPICIOUS_RAW_DISCOUNT_PCT ||
+    (lpPrice != null && listingUsd != null && listingUsd <= lpPrice * 1.1) ||
+    titleCondition === "Unknown" ||
+    highValueVintage;
 
-  // Suspicious, but no budget left to check - don't publish a maybe-fake.
+  // Non-suspicious modest discount, non-vintage, and the title at least
+  // implied Near Mint - the long-standing plausible default holds.
+  if (!suspicious) return { condition: "Near Mint" };
+
+  const cached = cache?.get(listing.listingId);
+  if (cached) return cached;
+
+  // Suspicious but no budget to verify - don't publish a maybe-fake.
   if (budget.left <= 0) return { hold: true };
 
   budget.left -= 1;
   let result;
   try {
     const ebayTier = await getRawCardCondition(listing.listingId, listing.marketplace);
-    // null => eBay states no card condition; fall back to the Near Mint
-    // assumption (this listing is no worse off than before the check).
-    result = { condition: worseCondition("Near Mint", ebayTier), verified: true };
+    if (ebayTier) {
+      result = { condition: ebayTier, verified: true };
+    } else if (highValueVintage || provisionalDiscountPct >= SUSPICIOUS_RAW_DISCOUNT_PCT) {
+      // eBay states no "Card Condition" and this is a high-value-vintage /
+      // steep-discount listing - we could NOT establish the physical
+      // condition, so it is Unknown, not Near Mint. It won't be published
+      // as a verified deal (conditionAllowsPromotion rejects Unknown).
+      result = { condition: "Unknown", verified: true };
+    } else {
+      // Modest discount, non-vintage, eBay silent - the Near Mint
+      // assumption is still reasonable here.
+      result = { condition: "Near Mint", verified: true };
+    }
   } catch {
     result = { hold: true };
   }
@@ -302,13 +316,19 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     // damage vocabulary (altered / pin holes / water damage / inked /
     // "(Poor)" / ...) and eBay's flat condition string on top of
     // dealMatching's existing title parser.
-    const titleCondition = classifyListingCondition({
+    // NEVER coerce Unknown -> Near Mint. A missing physical condition is
+    // not proof of Near Mint; resolveRawCondition below tries to establish
+    // it from eBay's structured data, and if it can't the listing is
+    // "Unknown" and is not published as a verified deal.
+    let condition = classifyListingCondition({
       title: listing.title,
       ebayCondition: listing.condition,
     });
-    let condition = titleCondition === "Unknown" ? "Near Mint" : titleCondition;
-    if (!conditionAllowsPromotion(condition)) continue;
-    let marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
+    // A positively-detected worse-than-LP tier can't be a green deal;
+    // "Unknown" / "Near Mint" fall through to structured verification.
+    if (condition !== "Unknown" && !conditionAllowsPromotion(condition)) continue;
+    const priceForTier = condition === "Unknown" ? "Near Mint" : condition;
+    let marketPrice = selectConditionPrice(marketData.byCondition, priceForTier, marketData.fallbackPrice);
     if (marketPrice == null) continue;
 
     let priced = pricedListing(listing, marketPrice, rates);
@@ -319,10 +339,11 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     if (priced.discountPct < discountThreshold) continue;
     if (priced.totalUsd < marketPrice * SANITY_FLOOR_PCT) continue;
 
-    // Would-be deal -> verify real wear against eBay's own structured
-    // "Card Condition" descriptor before trusting it (see
-    // resolveRawCondition). resolved.hold = couldn't verify this cycle,
-    // don't publish a maybe-fake.
+    const highValueVintage = isHighValueVintage({ set: row.set, marketPrice });
+
+    // Would-be deal -> establish real physical condition from eBay's
+    // structured "Card Condition" descriptor. resolved.hold = couldn't
+    // verify this cycle, don't publish a maybe-fake.
     const resolved = await resolveRawCondition({
       listing,
       titleCondition: condition,
@@ -330,11 +351,14 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
       listingUsd: priced.totalUsd,
       lpPrice: marketData.byCondition?.["Lightly Played"] ?? null,
       budget: rawCondBudget,
+      highValueVintage,
     });
     if (resolved.hold) continue;
+    // Unknown / played after verification -> discovered, NOT a verified
+    // deal (conditionAllowsPromotion rejects Unknown and MP/HP/Damaged).
+    if (!conditionAllowsPromotion(resolved.condition)) continue;
     if (resolved.condition !== condition) {
       condition = resolved.condition;
-      if (!conditionAllowsPromotion(condition)) continue;
       marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
       if (marketPrice == null) continue;
       priced = pricedListing(listing, marketPrice, rates);
@@ -565,13 +589,14 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
       const marketData = await cachedConditionPrices(row);
       if (!marketData) continue;
 
-      const titleCondition = classifyListingCondition({
+      // Never coerce Unknown -> Near Mint (see the priority loop).
+      let condition = classifyListingCondition({
         title: listing.title,
         ebayCondition: listing.condition,
       });
-      let condition = titleCondition === "Unknown" ? "Near Mint" : titleCondition;
-      if (!conditionAllowsPromotion(condition)) continue;
-      let marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
+      if (condition !== "Unknown" && !conditionAllowsPromotion(condition)) continue;
+      const priceForTier = condition === "Unknown" ? "Near Mint" : condition;
+      let marketPrice = selectConditionPrice(marketData.byCondition, priceForTier, marketData.fallbackPrice);
       if (marketPrice == null) continue;
 
       let priced = pricedListing(listing, marketPrice, rates);
@@ -589,11 +614,12 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
         lpPrice: marketData.byCondition?.["Lightly Played"] ?? null,
         budget: rawCondBudget,
         cache: rawCondCache,
+        highValueVintage: isHighValueVintage({ set: row.set, marketPrice }),
       });
       if (resolved.hold) continue;
+      if (!conditionAllowsPromotion(resolved.condition)) continue;
       if (resolved.condition !== condition) {
         condition = resolved.condition;
-        if (!conditionAllowsPromotion(condition)) continue;
         marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
         if (marketPrice == null) continue;
         priced = pricedListing(listing, marketPrice, rates);

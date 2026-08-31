@@ -285,9 +285,10 @@ export async function GET(request) {
             listing.itemLocationCountry === listing.marketplace.replace("EBAY_", ""),
           market_price: marketPrice,
           discount_pct: discountPct,
-          // The classified tier (NM / Unknown here, since worse tiers were
-          // already rejected above), not eBay's bare "Ungraded".
-          condition: condition === "Unknown" ? listing.condition : condition,
+          // The classified physical tier ("Near Mint" here - worse tiers
+          // AND Unknown were rejected by conditionAllowsPromotion above),
+          // never eBay's bare "Ungraded" grading-status string.
+          condition,
           is_graded: false,
           seller_username: listing.sellerUsername,
           seller_feedback_pct: listing.sellerFeedbackPct,
