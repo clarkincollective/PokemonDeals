@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { slugifySet } from "@/lib/slugify";
+import { hasPrice } from "@/lib/money";
 import { speciesSlug } from "@/lib/pokemonSpecies";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import SiteHeader from "@/components/SiteHeader";
@@ -35,6 +36,19 @@ export default function CatalogCardView({ card, analysis, setHasPage }) {
   const tcgplayerLink = buildTcgplayerLink(name, card.tcgplayerId);
   const history = analysis?.raw?.history ?? [];
   const hasAnalysis = Boolean(analysis && (analysis.raw?.history?.length || analysis.graded?.length));
+
+  // Does the live analysis carry a real, showable number? (Mirrors
+  // CardPriceSummary's own "nothing worth showing" gate.) When it doesn't -
+  // e.g. PPT's figure for this printing was rejected as contaminated
+  // (an impossible condition ladder) - we must NOT quietly fall back to
+  // the daily-synced card_catalog price, which shares that bad-data
+  // lineage: a missing price is preferable to a false one. Show an
+  // explicit "unavailable" instead.
+  const analysisHasPrice = Boolean(
+    analysis &&
+      (hasPrice(analysis.raw?.currentPrice) ||
+        (analysis.graded ?? []).some((g) => hasPrice(g.currentPrice) && g.saleCount > 0))
+  );
 
   const cardDescriptor = {
     slug,
@@ -129,29 +143,42 @@ export default function CatalogCardView({ card, analysis, setHasPage }) {
           </div>
         </div>
 
-        {/* CardPriceSummary renders from the live PPT analysis. When that
-            call returns nothing, fall back to the catalog market_price
-            (still real PPT data, just the daily-synced figure) so a
-            price-intent visitor always gets an answer. */}
-        {analysis ? (
+        {/* Live PPT analysis first. If it has no showable number, fall back
+            to the daily-synced card_catalog figure ONLY when the analysis
+            fetch itself failed (analysis == null) - never to paper over a
+            price the analysis deliberately rejected. Otherwise say so. */}
+        {analysisHasPrice ? (
           <CardPriceSummary analysis={analysis} offersCount={0} listingsLowUsd={null} />
+        ) : analysis == null && refPrice != null ? (
+          <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Price &amp; value</h2>
+            <div className="mt-3">
+              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Market reference · raw</p>
+              <p className="text-3xl font-bold text-black dark:text-zinc-50">{usd(refPrice)}</p>
+              <p className="mt-1 text-xs text-zinc-400">
+                Reference price from PokemonPriceTracker, based on recent sold data —{" "}
+                <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">
+                  how we work this out
+                </Link>
+                .
+              </p>
+            </div>
+          </section>
         ) : (
-          refPrice != null && (
-            <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Price &amp; value</h2>
-              <div className="mt-3">
-                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Market reference · raw</p>
-                <p className="text-3xl font-bold text-black dark:text-zinc-50">{usd(refPrice)}</p>
-                <p className="mt-1 text-xs text-zinc-400">
-                  Reference price from PokemonPriceTracker, based on recent sold data —{" "}
-                  <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">
-                    how we work this out
-                  </Link>
-                  .
-                </p>
-              </div>
-            </section>
-          )
+          <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Price &amp; value</h2>
+            <div className="mt-3">
+              <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Market price unavailable</p>
+              <p className="mt-1 text-xs text-zinc-400">
+                We don&apos;t have a reliable recent-sold reference for this exact printing right now. Rather
+                than show a figure we can&apos;t stand behind, we show none —{" "}
+                <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">
+                  how we work this out
+                </Link>
+                .
+              </p>
+            </div>
+          </section>
         )}
 
         <p className="mt-6 rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950">
