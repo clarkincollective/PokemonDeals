@@ -39,7 +39,15 @@ const { legacyIdFromListingId } = require("../lib/discoveryLog");
 
 const APPLY = process.argv.includes("--apply");
 const USE_API = process.argv.includes("--api");
-const API_BUDGET = Number((process.argv.find((a) => a.startsWith("--budget=")) || "").split("=")[1]) || 1500;
+const STAMP_INACTIVE = process.argv.includes("--stamp-inactive");
+const argN = (name, def) => {
+  const a = process.argv.find((x) => x.startsWith(`--${name}=`));
+  return a ? Number(a.split("=")[1]) : def;
+};
+const API_BUDGET = argN("budget", 2500);
+// Never let this run drive the shared eBay Browse quota below this floor -
+// the scanner crons (sweep floor 250, priority 600) need headroom.
+const QUOTA_RESERVE = argN("reserve", 800);
 
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const log = (...a) => console.log(...a);
@@ -81,10 +89,50 @@ async function applyDeactivations(byReason, hasReasonCol) {
   }
 }
 
+async function stampInactive(hasReasonCol) {
+  if (!hasReasonCol) return log(`(--stamp-inactive skipped: no disqualified_reason column)`);
+  // Inactive rows with no reason yet - stamp one ONLY where the stored
+  // title/condition/language re-derives a definite reason. Never fabricate:
+  // a row deactivated via a structured getItem (evidence not stored) whose
+  // stored data looks benign stays reason-less.
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await db
+      .from("deals")
+      .select("id, title, condition, is_graded, card_language, discount_pct")
+      .eq("is_active", false)
+      .is("disqualified_reason", null)
+      .range(from, from + 999);
+    if (error) throw new Error(error.message);
+    if (!data || !data.length) break;
+    rows.push(...data);
+    if (data.length < 1000) break;
+  }
+  const byReason = new Map();
+  for (const r of rows) {
+    if (r.is_graded) continue;
+    const reason = disqualificationReason(r); // stored data only
+    if (!reason || reason === "condition:unknown_unverified") continue; // don't fabricate
+    if (!byReason.has(reason)) byReason.set(reason, []);
+    byReason.get(reason).push(r.id);
+  }
+  const total = [...byReason.values()].reduce((n, a) => n + a.length, 0);
+  log(`\n===== STAMP INACTIVE (${rows.length} reason-less inactive rows) =====`);
+  for (const [k, ids] of [...byReason.entries()].sort((a, b) => b[1].length - a[1].length)) log(`   ${k}: ${ids.length}`);
+  log(`   (left reason-less, evidence unavailable from stored data: ${rows.filter((r) => !r.is_graded).length - total})`);
+  if (APPLY) {
+    for (const [reason, ids] of byReason) await updateInChunks(ids, { disqualified_reason: reason });
+    log(`   stamped ${total}`);
+  }
+}
+
 (async () => {
   const hasReasonCol = await columnExists("deals", "disqualified_reason");
   log(`disqualified_reason column: ${hasReasonCol ? "present (audit trail on)" : "ABSENT (is_active / condition only)"}`);
-  log(`rate limit: ${JSON.stringify(await getBrowseRateLimit())}`);
+  const rl = await getBrowseRateLimit();
+  log(`rate limit: ${JSON.stringify(rl)}`);
+
+  if (STAMP_INACTIVE) await stampInactive(hasReasonCol);
 
   const active = await loadActive();
   const singles = active.filter((r) => !r.is_graded);
@@ -144,9 +192,15 @@ async function applyDeactivations(byReason, hasReasonCol) {
       const bv = isHighValueVintage({ set: b.card_set, marketPrice: b.market_price }) ? 1 : 0;
       return bv - av || (b.discount_pct ?? 0) - (a.discount_pct ?? 0);
     });
-    const take = candidates.slice(0, API_BUDGET);
+    // Respect the shared Browse quota: never spend past `remaining - reserve`.
+    const quotaRoom = rl && rl.remaining != null ? Math.max(0, rl.remaining - QUOTA_RESERVE) : API_BUDGET;
+    const limit = Math.min(API_BUDGET, quotaRoom);
+    const take = candidates.slice(0, limit);
     log(`\n===== PASS 2 (structured, --api) =====`);
-    log(`suspicious survivors: ${candidates.length} | checking ${take.length} (budget ${API_BUDGET})`);
+    log(
+      `suspicious survivors: ${candidates.length} | quota room: ${quotaRoom} (remaining ${rl?.remaining ?? "?"} - reserve ${QUOTA_RESERVE}) | checking ${take.length}`
+    );
+    if (limit === 0) log(`  quota too low - run again after the ${rl?.reset ?? "next"} reset.`);
 
     const byMarket = new Map();
     for (const r of take) {
@@ -177,13 +231,19 @@ async function applyDeactivations(byReason, hasReasonCol) {
         if (reason && reason !== "condition:unknown_unverified") {
           if (!p2ByReason.has(reason)) p2ByReason.set(reason, []);
           p2ByReason.get(reason).push(r.id);
-        } else if (structuredTier === "Near Mint" || structuredTier === "Lightly Played") {
-          // structured descriptor CONFIRMS a good tier - rescue a row that
-          // pass 1 could only see as "Ungraded"/Unknown.
-          if (physicalConditionOf(r.condition) !== structuredTier) {
-            if (!p2RescueByTier.has(structuredTier)) p2RescueByTier.set(structuredTier, []);
-            p2RescueByTier.get(structuredTier).push(r.id);
+        } else if (structuredTier === "Near Mint") {
+          // structured descriptor CONFIRMS Near Mint - rescue a row pass 1
+          // could only see as "Ungraded"/Unknown.
+          if (physicalConditionOf(r.condition) !== "Near Mint") {
+            if (!p2RescueByTier.has("Near Mint")) p2RescueByTier.set("Near Mint", []);
+            p2RescueByTier.get("Near Mint").push(r.id);
           }
+        } else if (structuredTier === "Lightly Played") {
+          // Structured LP. The stored discount was computed against the NM
+          // reference, and this backfill can't reprice - so an overstated
+          // "X% below market" would remain. Conservative: hide it (Unknown)
+          // and let the scanner re-discover it against real LP pricing.
+          p2UnknownIds.push(r.id);
         } else if (
           !descriptor &&
           (isHighValueVintage({ set: r.card_set, marketPrice: r.market_price }) || (r.discount_pct ?? 0) >= 0.5)
