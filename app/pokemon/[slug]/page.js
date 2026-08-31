@@ -15,8 +15,11 @@ import RegionRedirect from "@/components/RegionRedirect";
 import DealGrid from "@/components/DealGrid";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import SpeciesCatalog from "@/components/SpeciesCatalog";
-import SpeciesCardsBySet from "@/components/SpeciesCardsBySet";
+import SpeciesCardsBySet, { buildCatalogueItems } from "@/components/SpeciesCardsBySet";
+import FeaturedValueCards from "@/components/FeaturedValueCards";
+import ShoppingContext, { RegionSuffix } from "@/components/ShoppingContext";
 import SiteFooter from "@/components/SiteFooter";
+import { hasPrice } from "@/lib/money";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -151,9 +154,11 @@ export default async function PokemonSpeciesPage({ params }) {
       fetchSpeciesDealsPage({
         speciesName: resolved.name,
         language: "english",
-        sort: "newest",
+        // Best-deals section: biggest genuine savings first (verified-only
+        // via the deal-quality gate), not just newest.
+        sort: "discount",
         page: 1,
-        pageSize: 20,
+        pageSize: 8,
       }),
       fetchSpeciesPrints(resolved.name),
       fetchSpeciesCatalog(resolved.name),
@@ -178,6 +183,18 @@ export default async function PokemonSpeciesPage({ params }) {
       : resolved.minPrice != null
         ? `$${Number(resolved.minPrice).toFixed(2)}`
         : null;
+
+  // Discovery shortcut: the highest recent-sold-value cards we track for
+  // this species, ranked ONLY by trustworthy reference price - never by
+  // anything we'd earn on. Cards already surfaced as a live deal above are
+  // excluded; a price-unavailable card can't be "highest value".
+  const featuredItems = buildCatalogueItems(
+    [...allCards]
+      .filter((c) => !c.deal && hasPrice(c.refPrice))
+      .sort((a, b) => Number(b.refPrice) - Number(a.refPrice))
+      .slice(0, 12),
+    validSetSlugs
+  );
 
   // Home → Pokemon → <Species>. Position 1 is "Deals" → "/" to match the
   // existing BreadcrumbList on /cards/[slug], /sets/[slug] and /deals/[id].
@@ -243,44 +260,82 @@ export default async function PokemonSpeciesPage({ params }) {
             ← Back to Pokemon
           </Link>
           <h1 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
-            {resolved.name} — Pokemon Card Prices &amp; Deals
+            {resolved.name} Card Prices, Deals &amp; Values
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
-            Every real below-market {resolved.name} listing on eBay right now, across{" "}
-            {resolved.printCount} {resolved.printCount === 1 ? "print" : "prints"} and{" "}
-            {resolved.setCount} {resolved.setCount === 1 ? "set" : "sets"}, checked against real
-            market pricing and real sold-listing data.
+            Verified below-market {resolved.name} listings on eBay right now, plus every {resolved.name}{" "}
+            card we track with its recent-sold market reference price — across {allCards.length}{" "}
+            {allCards.length === 1 ? "card" : "cards"} and {resolved.setCount}{" "}
+            {resolved.setCount === 1 ? "set" : "sets"}.
           </p>
-          {priceRange && (
-            <p className="mt-4 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
-              {resolved.count} active listings · {priceRange}
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            <p className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+              {allCards.length} cards · {resolved.setCount}{" "}
+              {resolved.setCount === 1 ? "set" : "sets"}
+              {priceRange ? ` · market ${priceRange}` : ""}
+              {deals.length > 0 ? ` · ${resolved.count} live listing${resolved.count === 1 ? "" : "s"}` : ""}
             </p>
-          )}
+            <ShoppingContext />
+          </div>
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
-        <h2 id="deals" className="mb-5 scroll-mt-24 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          {resolved.name} Deals
-        </h2>
+        {/* SECTION 2 - best verified deals (biggest genuine savings first) */}
+        <section>
+          <h2 id="deals" className="mb-1 scroll-mt-24 text-lg font-bold text-black dark:text-zinc-50">
+            Best {resolved.name} deals
+            <RegionSuffix />
+          </h2>
+          <p className="mb-5 text-sm text-zinc-500 dark:text-zinc-400">
+            Live eBay listings below their real market value — condition, language and variant checked.
+          </p>
 
-        {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
+          {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
 
-        <DealGrid
-          kind="species"
-          slug={slug}
-          basePath={basePath}
-          initial={{ deals, totalPages }}
-          hubCounts={hubCounts}
-          emptyLabel={`No ${resolved.name} deals match these filters right now. Try clearing a filter, or check back after the next scheduled scan.`}
-          validSetSlugs={validSetSlugs}
-        />
+          {deals.length === 0 && !error ? (
+            <p className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+              No verified below-market {resolved.name} deal right now. Browse the full catalogue below,
+              or use a card&apos;s <span className="font-semibold">Find on eBay</span> button.
+            </p>
+          ) : (
+            <DealGrid
+              kind="species"
+              slug={slug}
+              basePath={basePath}
+              initial={{ deals, totalPages }}
+              hubCounts={hubCounts}
+              defaultSort="discount"
+              emptyLabel={`No ${resolved.name} deals match these filters right now. Try clearing a filter, or check back after the next scheduled scan.`}
+              validSetSlugs={validSetSlugs}
+            />
+          )}
+        </section>
 
+        {/* SECTION 3 - highest-value discovery shortcut */}
+        {featuredItems.length >= 4 && (
+          <section className="mt-14 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+            <h2 className="text-lg font-bold text-black dark:text-zinc-50">
+              Highest-value {resolved.name} cards we track
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Ranked by recent-sold market reference price. Open a card for full pricing, graded values
+              and any live deal.
+            </p>
+            <FeaturedValueCards speciesName={resolved.name} items={featuredItems} />
+          </section>
+        )}
+
+        {/* SECTION 5 - the complete catalogue, by set, with search + progressive disclosure */}
         {allCards.length > 0 && (
-          <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+          <section className="mt-14 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+            <h2 className="text-lg font-bold text-black dark:text-zinc-50">
               Every {resolved.name} card, by set ({allCards.length})
             </h2>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Search, filter or sort — or browse by set. Market prices are recent-sold references, not
+              guaranteed values.
+            </p>
             <SpeciesCardsBySet
               speciesName={resolved.name}
               cards={allCards}
@@ -289,7 +344,7 @@ export default async function PokemonSpeciesPage({ params }) {
           </section>
         )}
 
-        <div className="mt-8 flex justify-center">
+        <div className="mt-10 flex justify-center">
           <Link
             href="/pokemon"
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"

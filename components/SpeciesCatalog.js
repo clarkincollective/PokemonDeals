@@ -2,7 +2,7 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs from "@/components/Breadcrumbs";
-import AffiliateLink from "@/components/AffiliateLink";
+import EbaySearchLink from "@/components/EbaySearchLink";
 import SpeciesCardList from "@/components/SpeciesCardList";
 import SpeciesCardsBySet from "@/components/SpeciesCardsBySet";
 import { buildEbaySearchLink } from "@/lib/ebay";
@@ -124,14 +124,13 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
           </p>
         )}
 
-        <AffiliateLink
+        <EbaySearchLink
           href={ebayHref}
-          eventName="eBay Click"
-          eventData={{ species: speciesName, page: "species_catalog" }}
+          event={{ species: speciesName, placement: "species_catalog_header", cta: "find_on_ebay" }}
           className="mt-5 inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-600 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-red-600 dark:hover:text-white"
         >
           Search {speciesName} on eBay →
-        </AffiliateLink>
+        </EbaySearchLink>
 
         {cards.length > 0 ? (
           <>

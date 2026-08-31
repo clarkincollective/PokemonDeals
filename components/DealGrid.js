@@ -67,7 +67,7 @@ function GridSkeleton() {
   );
 }
 
-export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}, emptyLabel, validSetSlugs = [] }) {
+export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}, emptyLabel, validSetSlugs = [], defaultSort = "newest" }) {
   const search = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const params = useMemo(() => parseSearch(search), [search]);
   const reqKey = params.raw;
@@ -79,7 +79,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
     let cancelled = false;
     const q = new URLSearchParams({ kind, slug });
     q.set("page", String(params.page));
-    q.set("sort", params.sort ?? "newest");
+    q.set("sort", params.sort ?? defaultSort);
     if (params.country) q.set("country", params.country);
     if (params.cardType) q.set("type", params.cardType);
     if (params.listingType) q.set("listing", params.listingType);
@@ -97,7 +97,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
     return () => {
       cancelled = true;
     };
-  }, [kind, slug, reqKey, params]);
+  }, [kind, slug, reqKey, params, defaultSort]);
 
   const loading = !params.isDefault && fetched?.key !== reqKey;
   const view = params.isDefault

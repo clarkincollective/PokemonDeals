@@ -1,0 +1,330 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { track } from "@vercel/analytics";
+import { hasPrice } from "@/lib/money";
+import { upgradeCatalogImage } from "@/lib/cardImage";
+import { useRegion, localizeEbaySearchUrl } from "@/lib/useRegion";
+import {
+  SORTS,
+  DEFAULT_SORT,
+  ALWAYS_FULL_UP_TO,
+  INITIAL_PER_LARGE_GROUP,
+  filterCards,
+  sortCards,
+  groupBySet,
+  distinctSorted,
+} from "@/lib/catalogueView";
+import AffiliateLink from "@/components/AffiliateLink";
+import CardImagePlaceholder from "@/components/CardImagePlaceholder";
+
+// The full species catalogue browser: search / set / rarity / sort
+// toolbar + progressive disclosure. Every `item` is a server prop (no
+// fetch), so the whole catalogue is in the SSR HTML; this only shows /
+// hides / re-orders it. Nothing here writes to the URL. Pure view logic
+// lives in lib/catalogueView (unit-tested).
+
+function usd(n) {
+  return `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+// Same precedence as lib/speciesHub cardPermanentHref, inlined so this
+// client bundle doesn't pull in the species-name dataset.
+function permanentHref(card) {
+  if (card.hubSlug) return `/cards/${card.hubSlug}`;
+  if (card.catalogSlug) return `/cards/${card.catalogSlug}`;
+  return null;
+}
+
+export function Tile({ card, speciesName, placement }) {
+  const region = useRegion();
+  const href = permanentHref(card);
+  const meta = [card.set, card.cardNumber && `#${card.cardNumber}`].filter(Boolean).join(" · ");
+  const isDeal = Boolean(card.deal);
+  const discountPct = card.deal?.discountPct != null ? Math.round(card.deal.discountPct * 100) : null;
+  const ev = { species: speciesName, cardCatalogId: card.tcgplayerId ?? null, placement };
+  const viewCard = () => track("View Card", { ...ev, cta: "view_card" });
+
+  const art = (
+    <div className="relative aspect-[63/88] w-full overflow-hidden rounded-t-xl bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950">
+      {isDeal && discountPct != null && (
+        <span className="absolute right-2 top-2 z-10 rounded-md bg-emerald-600 px-2 py-1 text-sm font-extrabold leading-none text-white shadow-sm">
+          −{discountPct}%
+        </span>
+      )}
+      {card.image ? (
+        <Image
+          src={upgradeCatalogImage(card.image)}
+          alt={card.name}
+          fill
+          sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 23vw"
+          quality={85}
+          className="object-contain p-3 transition-transform duration-200 group-hover:scale-[1.03]"
+        />
+      ) : (
+        <CardImagePlaceholder />
+      )}
+    </div>
+  );
+
+  return (
+    <div
+      className={`group flex h-full flex-col overflow-hidden rounded-xl border bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:bg-zinc-950 ${
+        isDeal ? "border-emerald-500/50 dark:border-emerald-500/40" : "border-zinc-200 dark:border-zinc-800"
+      }`}
+    >
+      {href ? (
+        <Link href={href} aria-label={`${card.name} card details`} onClick={viewCard}>
+          {art}
+        </Link>
+      ) : (
+        art
+      )}
+
+      <div className="flex flex-1 flex-col gap-1 p-4">
+        {href ? (
+          <Link
+            href={href}
+            onClick={viewCard}
+            className="line-clamp-2 text-[15px] font-semibold leading-snug text-zinc-900 hover:text-red-600 dark:text-zinc-50 dark:hover:text-red-500"
+          >
+            {card.name}
+          </Link>
+        ) : (
+          <p className="line-clamp-2 text-[15px] font-semibold leading-snug text-zinc-900 dark:text-zinc-50">
+            {card.name}
+          </p>
+        )}
+        <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{meta || " "}</p>
+        {card.rarity && (
+          <p className="truncate text-xs font-medium text-zinc-400 dark:text-zinc-500">{card.rarity}</p>
+        )}
+
+        <div className="mt-2">
+          {isDeal ? (
+            <>
+              {hasPrice(card.refPrice) && <p className="text-xs text-zinc-400">Market {usd(card.refPrice)}</p>}
+              <p className="text-lg font-bold text-emerald-700 dark:text-emerald-500">{usd(card.deal.cheapestUsd)}</p>
+              {discountPct != null && discountPct > 0 && (
+                <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-500">{discountPct}% below market</p>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-zinc-400">Market reference</p>
+              {hasPrice(card.refPrice) ? (
+                <p className="text-lg font-bold text-zinc-900 dark:text-zinc-50">{usd(card.refPrice)}</p>
+              ) : (
+                <p className="text-sm text-zinc-400">Price unavailable</p>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="mt-auto flex gap-2 pt-3">
+          {href && (
+            <Link
+              href={href}
+              onClick={viewCard}
+              className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-center text-xs font-semibold text-zinc-700 transition-colors hover:border-zinc-400 hover:text-black dark:border-zinc-700 dark:text-zinc-200 dark:hover:text-zinc-50"
+            >
+              View Card
+            </Link>
+          )}
+          {isDeal && card.deal.affiliateUrl ? (
+            <AffiliateLink
+              href={card.deal.affiliateUrl}
+              eventName="eBay Click"
+              eventData={{ ...ev, cta: "view_deal", marketplace: card.deal.marketplace ?? region ?? "unknown" }}
+              className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-center text-xs font-semibold text-white transition-colors hover:bg-emerald-700"
+            >
+              View Deal on eBay
+            </AffiliateLink>
+          ) : (
+            <a
+              href={localizeEbaySearchUrl(card.ebayHref, region)}
+              target="_blank"
+              rel="sponsored noopener noreferrer"
+              onClick={() => track("eBay Click", { ...ev, cta: "find_on_ebay", card: card.name, marketplace: region || "unknown" })}
+              className="flex-1 rounded-lg bg-zinc-900 px-3 py-2 text-center text-xs font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            >
+              Find on eBay
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const GRID = "mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4";
+
+function SetGroup({ set, list, speciesName, expandAll }) {
+  const [open, setOpen] = useState(false);
+  const small = list.length <= ALWAYS_FULL_UP_TO;
+  const showAll = small || open || expandAll;
+  const shown = showAll ? list : list.slice(0, INITIAL_PER_LARGE_GROUP);
+  const setSlug = list[0]?.setSlug;
+  const setHasPage = list[0]?.setHasPage;
+
+  return (
+    <section>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-zinc-200 pb-2 dark:border-zinc-800">
+        <div className="flex items-baseline gap-2">
+          <h3 className="text-base font-bold text-black dark:text-zinc-50">{set}</h3>
+          <span className="text-xs text-zinc-400">
+            {list.length} {list.length === 1 ? "card" : "cards"}
+          </span>
+        </div>
+        {setHasPage && (
+          <Link href={`/sets/${setSlug}`} className="text-xs font-semibold text-red-600 hover:underline dark:text-red-500">
+            View set →
+          </Link>
+        )}
+      </div>
+      <div className={GRID}>
+        {shown.map((c) => (
+          <Tile
+            key={c.tcgplayerId ?? `${c.name}|${c.set}`}
+            card={c}
+            speciesName={speciesName}
+            placement={showAll && !small ? "species_set_expanded" : "species_catalog"}
+          />
+        ))}
+      </div>
+      {!small && !expandAll && (
+        <button
+          type="button"
+          onClick={() => {
+            setOpen((v) => !v);
+            if (!open) track("Catalogue Expand", { species: speciesName, set, count: list.length });
+          }}
+          className="mt-3 inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 transition-colors hover:border-zinc-400 hover:text-black dark:border-zinc-700 dark:text-zinc-200"
+        >
+          {open ? "Show fewer" : `Show all ${list.length} ${set} cards →`}
+        </button>
+      )}
+    </section>
+  );
+}
+
+export default function CatalogueBrowser({ speciesName, items }) {
+  const [q, setQ] = useState("");
+  const [setFilter, setSetFilter] = useState("");
+  const [rarityFilter, setRarityFilter] = useState("");
+  const [sort, setSort] = useState(DEFAULT_SORT);
+  const [expandAll, setExpandAll] = useState(false);
+
+  const setOptions = useMemo(() => distinctSorted(items, "set"), [items]);
+  const rarityOptions = useMemo(() => distinctSorted(items, "rarity"), [items]);
+
+  const filtered = useMemo(
+    () => filterCards(items, { q, set: setFilter, rarity: rarityFilter }),
+    [items, q, setFilter, rarityFilter]
+  );
+
+  const isFiltering = Boolean(q.trim() || setFilter || rarityFilter || sort !== DEFAULT_SORT);
+  const groups = useMemo(() => groupBySet(filtered), [filtered]);
+  const flat = useMemo(() => sortCards(filtered, sort), [filtered, sort]);
+
+  const clear = () => {
+    setQ("");
+    setSetFilter("");
+    setRarityFilter("");
+    setSort(DEFAULT_SORT);
+  };
+
+  return (
+    <div className="mt-4">
+      {/* Toolbar */}
+      <div className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={`Search ${speciesName} cards…`}
+            aria-label={`Search ${speciesName} cards`}
+            className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+          />
+          <select
+            value={setFilter}
+            onChange={(e) => setSetFilter(e.target.value)}
+            aria-label="Filter by set"
+            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+          >
+            <option value="">All sets</option>
+            {setOptions.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          <select
+            value={rarityFilter}
+            onChange={(e) => setRarityFilter(e.target.value)}
+            aria-label="Filter by rarity"
+            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+          >
+            <option value="">All rarities</option>
+            {rarityOptions.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            aria-label="Sort cards"
+            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+          >
+            {Object.entries(SORTS).map(([k, v]) => (
+              <option key={k} value={k}>
+                Sort: {v.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            {filtered.length} {filtered.length === 1 ? "card" : "cards"}
+            {isFiltering ? " match" : ` across ${setOptions.length} sets`}
+          </p>
+          <div className="flex items-center gap-3">
+            {isFiltering && (
+              <button type="button" onClick={clear} className="text-xs font-semibold text-red-600 hover:underline dark:text-red-500">
+                Clear filters
+              </button>
+            )}
+            {!isFiltering && (
+              <label className="flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                <input type="checkbox" checked={expandAll} onChange={(e) => setExpandAll(e.target.checked)} />
+                Expand all sets
+              </label>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="mt-6 text-sm text-zinc-500 dark:text-zinc-400">
+          No {speciesName} cards match. <button type="button" onClick={clear} className="font-semibold text-red-600 hover:underline">Clear filters</button>
+        </p>
+      ) : isFiltering ? (
+        <div className={GRID}>
+          {flat.map((c) => (
+            <Tile key={c.tcgplayerId ?? `${c.name}|${c.set}`} card={c} speciesName={speciesName} placement="species_catalog_filtered" />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-6 space-y-12">
+          {groups.map(({ set, list }) => (
+            <SetGroup key={set} set={set} list={list} speciesName={speciesName} expandAll={expandAll} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
