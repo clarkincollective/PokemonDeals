@@ -302,9 +302,11 @@ test("regression 12766: high-value raw card just under the steep gate, null trus
   assert.equal(isVisualScreeningCandidate(escapeRow), true);
 });
 
-test("regression 12766: the high-value gate is a bounded widening, not 'screen every expensive card'", () => {
-  // exported constants are sane and the new gate genuinely sits BELOW the
-  // general steep gate (widens) but not by an unbounded amount.
+test("regression 12766 + 12750: the screening queue is a bounded widening, not 'screen every expensive card'", () => {
+  // exported constants are sane and each widening sits BELOW the general
+  // steep gate but not unbounded. The premium band (mkt>=100 & disc>=40%)
+  // is the widest - it must cover every deal the premium gate blocks so
+  // an unscreened high-risk deal can still earn a Top 10 slot after MATCH.
   assert.equal(CANDIDATE_HIGH_VALUE_USD, 300);
   assert.equal(CANDIDATE_HIGH_VALUE_DISCOUNT, 0.4);
   assert.ok(CANDIDATE_HIGH_VALUE_DISCOUNT < CANDIDATE_MIN_DISCOUNT);
@@ -313,15 +315,19 @@ test("regression 12766: the high-value gate is a bounded widening, not 'screen e
   // a genuine expensive card at a NORMAL discount is still not screened
   assert.equal(isVisualScreeningCandidate({ ...hv, discount_pct: 0.2 }), false);
   assert.equal(isVisualScreeningCandidate({ ...hv, discount_pct: 0.39 }), false);
-  // boundary: exactly at the threshold qualifies
+  // exactly at the 40% threshold, $100+ -> screened (premium band)
   assert.equal(isVisualScreeningCandidate({ ...hv, discount_pct: 0.4 }), true);
-  // a cheap card at the SAME 54.85% as 12766 is NOT pulled in by the
-  // high-value path (and 0.5485 < 0.55 so `steep` misses it too)
-  assert.equal(isVisualScreeningCandidate({ ...hv, market_price: 120, discount_pct: 0.5485 }), false);
-  // ...but a cheap card genuinely past the steep gate still screens, as before
-  assert.equal(isVisualScreeningCandidate({ ...hv, market_price: 120, discount_pct: 0.6 }), true);
-  // just below the value floor, just under steep -> not screened
-  assert.equal(isVisualScreeningCandidate({ ...hv, market_price: 250, discount_pct: 0.5 }), false);
+  assert.equal(isVisualScreeningCandidate({ ...hv, market_price: 120, discount_pct: 0.5485 }), true);
+  assert.equal(isVisualScreeningCandidate({ ...hv, market_price: 250, discount_pct: 0.5 }), true);
+  // still bounded by the $100 market floor: a sub-$100 card is never
+  // screened, no matter how steep the discount
+  assert.equal(isVisualScreeningCandidate({ ...hv, market_price: 90, discount_pct: 0.5 }), false);
+  assert.equal(isVisualScreeningCandidate({ ...hv, market_price: 90, discount_pct: 0.7 }), false);
+  // and a $100+ card short of BOTH the 40% premium floor and the 55%
+  // steep gate is still not screened
+  assert.equal(isVisualScreeningCandidate({ ...hv, market_price: 250, discount_pct: 0.35 }), false);
+  // no card at all -> can't screen (no canonical reference)
+  assert.equal(isVisualScreeningCandidate({ ...hv, card_tcgplayer_id: null, discount_pct: 0.6 }), false);
 });
 
 test("regression 12766: entering the queue via the high-value gate does NOT auto-label - a Stage-1-only UNKNOWN at 40-55% off stays visible", () => {
