@@ -119,6 +119,12 @@ export default function MethodologyPage() {
             last scan.
           </li>
           <li>
+            Reference prices are sourced in US dollars. When a listing is priced in another currency,
+            or you have selected a country, prices are converted for display using recent exchange
+            rates so every figure in a comparison shows the same currency. The percentage below market
+            is unaffected by conversion.
+          </li>
+          <li>
             Raw and graded values are never mixed. A graded card is compared only against sold comps
             for that exact grading company and grade, never a raw price with a multiplier applied.
           </li>

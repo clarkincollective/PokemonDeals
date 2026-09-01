@@ -10,6 +10,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
+import Price from "@/components/Price";
 import CardPriceSummary from "@/components/CardPriceSummary";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
@@ -20,10 +21,6 @@ import RelatedCards from "@/components/RelatedCards";
 import RecordCardView from "@/components/RecordCardView";
 
 const SITE_URL = "https://pokemondealfinder.com";
-
-function usd(n) {
-  return `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 // The catalog-backed /cards/[slug] render: a real card that currently has
 // NO live eBay deal. Identity + market reference pricing + variant/graded
@@ -176,7 +173,9 @@ export default function CatalogCardView({ card, analysis, setHasPage, relations 
             <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Price &amp; value</h2>
             <div className="mt-3">
               <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Market reference · raw</p>
-              <p className="text-3xl font-bold text-black dark:text-zinc-50">{usd(refPrice)}</p>
+              <p className="text-3xl font-bold text-black dark:text-zinc-50">
+                <Price usd={refPrice} native={{ amount: refPrice, currency: "USD" }} approxPrefix="" />
+              </p>
               <p className="mt-1 text-xs text-zinc-400">
                 Reference price from PokemonPriceTracker, based on recent sold data —{" "}
                 <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">

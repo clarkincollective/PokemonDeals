@@ -1,5 +1,11 @@
 import AffiliateLink from "@/components/AffiliateLink";
+import Price from "@/components/Price";
 import { normalizePublicText } from "@/lib/publicText";
+
+// PokemonPriceTracker's recent-sales feed carries a USD price per sale
+// (no per-sale currency in the data contract); <Price> localises it to
+// the viewer's currency after hydration so the list matches the rest of
+// the page (Phase 6A currency closeout).
 
 // Real individual eBay sold listings for the card's primary variant, from
 // PokemonPriceTracker's `primaryRecentSales` (via getFullPriceAnalysis).
@@ -58,7 +64,7 @@ export default function RecentSales({
               </p>
             </div>
             <span className="shrink-0 font-semibold text-black dark:text-zinc-50">
-              ${Number(sale.price).toFixed(2)}
+              <Price usd={sale.price} native={{ amount: Number(sale.price), currency: "USD" }} approxPrefix="" />
             </span>
           </li>
         ))}

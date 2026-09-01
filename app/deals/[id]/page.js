@@ -11,7 +11,7 @@ import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebay";
-import { currencyForDeal } from "@/lib/money";
+import { currencyForDeal, refInListingCurrency } from "@/lib/money";
 import Price from "@/components/Price";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
@@ -261,7 +261,12 @@ export default async function DealDetailPage({ params }) {
   const usdTotal = Number(deal.total_price_usd ?? deal.total_price);
   const marketUsd = Number(deal.market_price);
   const savedUsd = marketUsd - usdTotal;
-  const showRef = Number.isFinite(marketUsd) && savedUsd > 0;
+  // USD reference / savings in the listing's own currency so every money
+  // figure in the same comparison shares one currency before <Price>
+  // localises them together after hydration (lib/money.refInListingCurrency).
+  const marketNative = refInListingCurrency(marketUsd, total, usdTotal, nativeCurrency);
+  const savedNative = marketNative != null ? marketNative - total : null;
+  const showRef = Number.isFinite(marketUsd) && savedUsd > 0 && marketNative != null;
   const tcgplayerLink = buildTcgplayerLink(cardName, deal.watchlist?.justtcg_tcgplayer_id);
 
   // Structured data so a search result can show price/availability
@@ -449,7 +454,11 @@ export default async function DealDetailPage({ params }) {
                   // against, not a "was" price - so it isn't struck through.
                   <span className={`text-base text-zinc-400 ${isAuction ? "" : "line-through"}`}>
                     {isAuction && <span className="mr-1 text-xs">market ref</span>}
-                    <Price usd={marketUsd} native={{ amount: marketUsd, currency: "USD" }} approxPrefix="" />
+                    <Price
+                      usd={marketUsd}
+                      native={{ amount: marketNative, currency: nativeCurrency }}
+                      approxPrefix=""
+                    />
                   </span>
                 )}
               </div>
@@ -461,7 +470,8 @@ export default async function DealDetailPage({ params }) {
                 </p>
               ) : showRef ? (
                 <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                  You save <Price usd={savedUsd} native={{ amount: savedUsd, currency: "USD" }} /> ·{" "}
+                  You save{" "}
+                  <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}
                   {discountPct}% below market
                 </p>
               ) : (
@@ -555,7 +565,11 @@ export default async function DealDetailPage({ params }) {
               Not enough dated sales to plot a trend yet. Current{" "}
               {deal.is_graded ? "graded comp" : "market"} value is{" "}
               <span className="font-semibold text-black dark:text-zinc-50">
-                <Price usd={marketUsd} native={{ amount: marketUsd, currency: "USD" }} approxPrefix="" />
+                <Price
+                  usd={marketUsd}
+                  native={{ amount: marketNative ?? marketUsd, currency: marketNative != null ? nativeCurrency : "USD" }}
+                  approxPrefix=""
+                />
               </span>
               {" "}
               — this listing is{" "}
@@ -600,7 +614,9 @@ export default async function DealDetailPage({ params }) {
                         className="flex items-center justify-between text-sm text-zinc-600 hover:text-red-600 dark:text-zinc-300 dark:hover:text-red-400"
                       >
                         <span>{c.condition}</span>
-                        <span className="font-semibold text-black dark:text-zinc-50">${Number(c.price).toFixed(2)}</span>
+                        <span className="font-semibold text-black dark:text-zinc-50">
+                          <Price usd={c.price} native={{ amount: Number(c.price), currency: "USD" }} approxPrefix="" />
+                        </span>
                       </AffiliateLink>
                     </li>
                   ))}

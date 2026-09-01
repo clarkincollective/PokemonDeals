@@ -5,6 +5,7 @@ import SiteFooter from "@/components/SiteFooter";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbList, collectionPage, itemList } from "@/lib/jsonLd";
 import { formatScanTime } from "@/lib/time";
+import Price from "@/components/Price";
 
 export const revalidate = 900;
 
@@ -107,7 +108,11 @@ export default async function MostExpensiveCardsPage() {
                 </div>
               </div>
               <span className="shrink-0 text-sm font-bold text-black dark:text-zinc-50">
-                ${card.marketPrice.toFixed(2)}
+                <Price
+                  usd={card.marketPrice}
+                  native={{ amount: card.marketPrice, currency: "USD" }}
+                  approxPrefix=""
+                />
               </span>
             </li>
           ))}

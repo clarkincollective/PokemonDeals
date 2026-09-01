@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { MARKETPLACES } from "@/lib/ebay";
 import { slugifySet } from "@/lib/slugify";
-import { currencyForDeal } from "@/lib/money";
+import { currencyForDeal, refInListingCurrency } from "@/lib/money";
 import { timeAgo, timeUntil, isWithin } from "@/lib/time";
 import { conditionLabel } from "@/lib/dealQuality";
 import { normalizePublicText } from "@/lib/publicText";
@@ -59,13 +59,20 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
   // Rendered in the listing's own currency on the server; <Price> swaps
   // each figure to the viewer's currency after hydration (see
   // components/Price.js / CurrencyProvider). market_price / the derived
-  // "saved" are USD references; total has a native + a USD value.
+  // "saved" are USD references.
   const nativeCurrency = currencyForDeal(deal);
   const total = Number(deal.total_price);
   const usdTotal = Number(deal.total_price_usd ?? deal.total_price);
-  const market = Number(deal.market_price);
-  const saved = market - usdTotal;
-  const showRef = Number.isFinite(market) && saved > 0;
+  const marketUsd = Number(deal.market_price);
+  const savedUsd = marketUsd - usdTotal;
+  // The USD market reference / savings expressed in the LISTING's own
+  // currency, so the server render + first paint show one currency (the
+  // listing's) for both figures instead of "A$186 · market ref $237".
+  // <Price> still localises both to the viewer's currency together after
+  // hydration, from their USD values. The % is rate-invariant.
+  const marketNative = refInListingCurrency(marketUsd, total, usdTotal, nativeCurrency);
+  const savedNative = marketNative != null ? marketNative - total : null;
+  const showRef = Number.isFinite(marketUsd) && savedUsd > 0 && marketNative != null;
   const isAuction = deal.listing_type === "AUCTION";
   const isJapanese = deal.watchlist?.language === "japanese";
   const marketInfo = MARKETPLACES[deal.marketplace];
@@ -178,7 +185,11 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
               className={`tnum text-xs text-zinc-400 ${isAuction ? "" : "line-through"}`}
             >
               {isAuction ? "market ref " : "typical "}
-              <Price usd={market} native={{ amount: market, currency: "USD" }} approxPrefix="" />
+              <Price
+                usd={marketUsd}
+                native={{ amount: marketNative, currency: nativeCurrency }}
+                approxPrefix=""
+              />
             </span>
           )}
         </div>
@@ -188,7 +199,9 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           </p>
         ) : showRef ? (
           <p className="tnum text-xs font-semibold text-emerald-700 dark:text-emerald-500">
-            Save <Price usd={saved} native={{ amount: saved, currency: "USD" }} /> · {discountPct}% below market
+            Save{" "}
+            <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}
+            {discountPct}% below market
           </p>
         ) : (
           <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-500">

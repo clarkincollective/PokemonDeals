@@ -1,17 +1,17 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { useCurrency } from "@/components/CurrencyProvider";
+import { formatMoney, toViewerCurrency } from "@/lib/money";
 
 const WIDTH = 600;
 const HEIGHT = 220;
-const PADDING = { top: 16, right: 16, bottom: 28, left: 48 };
+// Slightly wider left gutter so a converted label (e.g. "A$1,851.84")
+// still fits against the axis.
+const PADDING = { top: 16, right: 16, bottom: 28, left: 58 };
 
 function formatDate(t) {
   return new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-function formatPrice(p) {
-  return `$${Number(p).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 // A single-series line chart (price over time) for one card/grade. No
@@ -20,6 +20,15 @@ function formatPrice(p) {
 export default function PriceHistoryChart({ points }) {
   const svgRef = useRef(null);
   const [hoverIndex, setHoverIndex] = useState(null);
+
+  // The points are USD-canonical PokemonPriceTracker values. Keep the
+  // plot geometry in USD (linear scale - conversion wouldn't change the
+  // shape); only the visible axis / endpoint / hover LABELS localise, so
+  // the chart matches the rest of the localised card page (Phase 6A).
+  const { viewer, rates } = useCurrency();
+  const canConvert = viewer && viewer !== "USD" && rates && rates[viewer] > 0;
+  const formatPrice = (p) =>
+    canConvert ? formatMoney(toViewerCurrency(p, viewer, rates), viewer) : formatMoney(p, "USD");
 
   const sorted = useMemo(
     () => [...(points ?? [])].filter((p) => p.p != null).sort((a, b) => a.t - b.t),

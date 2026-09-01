@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { MARKETPLACES } from "@/lib/ebay";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
-import { currencyForDeal } from "@/lib/money";
+import { currencyForDeal, refInListingCurrency } from "@/lib/money";
 import { timeAgo, timeUntil } from "@/lib/time";
 import { normalizePublicText } from "@/lib/publicText";
 import AffiliateLink from "@/components/AffiliateLink";
@@ -23,9 +23,15 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
   const nativeCurrency = currencyForDeal(deal);
   const total = Number(deal.total_price);
   const usdTotal = Number(deal.total_price_usd ?? deal.total_price);
-  const market = Number(deal.market_price);
-  const saved = market - usdTotal;
-  const showRef = Number.isFinite(market) && saved > 0;
+  const marketUsd = Number(deal.market_price);
+  const savedUsd = marketUsd - usdTotal;
+  // USD reference / savings in the listing's own currency, so the SSR /
+  // no-country / FX-down state shows one currency for both figures (see
+  // lib/money.refInListingCurrency). <Price> still localises both from
+  // their USD values after hydration; the % is rate-invariant.
+  const marketNative = refInListingCurrency(marketUsd, total, usdTotal, nativeCurrency);
+  const savedNative = marketNative != null ? marketNative - total : null;
+  const showRef = Number.isFinite(marketUsd) && savedUsd > 0 && marketNative != null;
   const tcgplayerLink = buildTcgplayerLink(productName, deal.sealed_watchlist?.tcgplayer_id);
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
@@ -92,7 +98,11 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
             {showRef && (
               <span className={`text-sm text-zinc-400 ${isAuction ? "" : "line-through"}`}>
                 {isAuction && "market ref "}
-                <Price usd={market} native={{ amount: market, currency: "USD" }} approxPrefix="" />
+                <Price
+                  usd={marketUsd}
+                  native={{ amount: marketNative, currency: nativeCurrency }}
+                  approxPrefix=""
+                />
               </span>
             )}
           </div>
@@ -102,7 +112,9 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
             </p>
           ) : showRef ? (
             <p className="text-xs font-medium text-emerald-600 dark:text-emerald-500">
-              You save <Price usd={saved} native={{ amount: saved, currency: "USD" }} /> · {discountPct}% below market
+              You save{" "}
+              <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}
+              {discountPct}% below market
             </p>
           ) : (
             <p className="text-xs font-medium text-emerald-600 dark:text-emerald-500">

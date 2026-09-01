@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { track } from "@vercel/analytics";
-import { hasPrice } from "@/lib/money";
+import { hasPrice, MARKETPLACE_CURRENCY, refInListingCurrency } from "@/lib/money";
+import Price from "@/components/Price";
 import { cardDisplayName, cardIdentityLine } from "@/lib/cardName";
 import { upgradeCatalogImage } from "@/lib/cardImage";
 import { useRegion, localizeEbaySearchUrl } from "@/lib/useRegion";
@@ -35,8 +36,11 @@ import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 // button - the full list stays in the DOM (SSR) the whole time.
 const INITIAL_SET_GROUPS = 12;
 
-function usd(n) {
-  return `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// One USD-canonical figure, localised to the viewer's currency after
+// hydration (Phase 6A currency closeout - this grid used to print raw
+// "$X" regardless of the selected country).
+function Money({ usd, native }) {
+  return <Price usd={usd} native={native ?? { amount: usd, currency: "USD" }} approxPrefix="" />;
 }
 // Same precedence as lib/speciesHub cardPermanentHref, inlined so this
 // client bundle doesn't pull in the species-name dataset.
@@ -54,6 +58,14 @@ export function Tile({ card, speciesName, placement }) {
   const isDeal = Boolean(card.deal);
   const isAuction = card.deal?.listingType === "AUCTION";
   const discountPct = card.deal?.discountPct != null ? Math.round(card.deal.discountPct * 100) : null;
+  // On a deal tile the listing price and the market reference must share
+  // one currency in every state. Express the USD reference in the deal's
+  // own currency (scan-time rate, no live FX); <Price> then localises
+  // both together after hydration.
+  const dealCcy = isDeal ? MARKETPLACE_CURRENCY[card.deal.marketplace] || "USD" : "USD";
+  const refNative = isDeal
+    ? refInListingCurrency(card.refPrice, card.deal.cheapestNative, card.deal.cheapestUsd, dealCcy)
+    : null;
   const ev = { species: speciesName, cardCatalogId: card.tcgplayerId ?? null, placement };
   const viewCard = () => track("View Card", { ...ev, cta: "view_card" });
 
@@ -115,10 +127,18 @@ export function Tile({ card, speciesName, placement }) {
         <div className="mt-2">
           {isDeal ? (
             <>
-              {hasPrice(card.refPrice) && (
-                <p className="text-xs text-zinc-400">{isAuction ? "Market ref" : "Market"} {usd(card.refPrice)}</p>
+              {hasPrice(card.refPrice) && refNative != null && (
+                <p className="text-xs text-zinc-400">
+                  {isAuction ? "Market ref " : "Market "}
+                  <Money usd={card.refPrice} native={{ amount: refNative, currency: dealCcy }} />
+                </p>
               )}
-              <p className="text-lg font-bold text-emerald-700 dark:text-emerald-500">{usd(card.deal.cheapestUsd)}</p>
+              <p className="text-lg font-bold text-emerald-700 dark:text-emerald-500">
+                <Money
+                  usd={card.deal.cheapestUsd}
+                  native={{ amount: card.deal.cheapestNative, currency: dealCcy }}
+                />
+              </p>
               {discountPct != null && discountPct > 0 && (
                 isAuction ? (
                   <p className="text-xs font-semibold text-amber-600 dark:text-amber-500">
@@ -133,7 +153,9 @@ export function Tile({ card, speciesName, placement }) {
             <>
               <p className="text-xs text-zinc-400">Market reference</p>
               {hasPrice(card.refPrice) ? (
-                <p className="text-lg font-bold text-zinc-900 dark:text-zinc-50">{usd(card.refPrice)}</p>
+                <p className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
+                  <Money usd={card.refPrice} />
+                </p>
               ) : (
                 <p className="text-sm text-zinc-400">Price unavailable</p>
               )}

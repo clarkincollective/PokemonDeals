@@ -1,11 +1,19 @@
 import MiniSparkline from "@/components/MiniSparkline";
 import AffiliateLink from "@/components/AffiliateLink";
+import Price from "@/components/Price";
 import { buildEbaySearchLink } from "@/lib/ebay";
 import { hasPrice } from "@/lib/money";
 
 function formatDate(dateString) {
   if (!dateString) return null;
   return new Date(dateString).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+// PokemonPriceTracker figures are USD-canonical; <Price> localises each
+// to the viewer's currency after hydration so this grid matches the rest
+// of the card page (Phase 6A currency closeout).
+function Money({ usd }) {
+  return <Price usd={usd} native={{ amount: usd, currency: "USD" }} approxPrefix="" />;
 }
 
 function TileContents({ label, badge, currentPrice, minPrice, maxPrice, saleCount, lastSaleDate, isLowConfidence, history, showBuyHint }) {
@@ -20,7 +28,7 @@ function TileContents({ label, badge, currentPrice, minPrice, maxPrice, saleCoun
 
       <div className="mt-1 flex items-baseline gap-1">
         <span className="text-sm font-bold text-black dark:text-zinc-50">
-          {hasPrice(currentPrice) ? `$${Number(currentPrice).toFixed(2)}` : "—"}
+          {hasPrice(currentPrice) ? <Money usd={currentPrice} /> : "—"}
         </span>
         {isLowConfidence && (
           <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400" title="Based on very few real sales - treat as a rough estimate.">
@@ -31,7 +39,7 @@ function TileContents({ label, badge, currentPrice, minPrice, maxPrice, saleCoun
 
       {hasPrice(minPrice) && hasPrice(maxPrice) && (
         <p className="text-[10px] text-zinc-400">
-          ${Number(minPrice).toFixed(2)} – ${Number(maxPrice).toFixed(2)} range
+          <Money usd={minPrice} /> – <Money usd={maxPrice} /> range
         </p>
       )}
       {saleCount != null && (

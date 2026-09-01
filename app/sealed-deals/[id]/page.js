@@ -5,7 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES } from "@/lib/ebay";
-import { currencyForDeal } from "@/lib/money";
+import { currencyForDeal, refInListingCurrency } from "@/lib/money";
 import Price from "@/components/Price";
 import { getSealedPriceHistory } from "@/lib/pokemonPriceTracker";
 import { shouldIndexDeal } from "@/lib/indexability";
@@ -152,7 +152,12 @@ export default async function SealedDealDetailPage({ params }) {
   const usdTotal = Number(deal.total_price_usd ?? deal.total_price);
   const marketUsd = Number(deal.market_price);
   const savedUsd = marketUsd - usdTotal;
-  const showRef = Number.isFinite(marketUsd) && savedUsd > 0;
+  // USD reference / savings in the listing's own currency so a comparison
+  // block never mixes AUD/USD before <Price> localises both together
+  // after hydration (lib/money.refInListingCurrency).
+  const marketNative = refInListingCurrency(marketUsd, total, usdTotal, nativeCurrency);
+  const savedNative = marketNative != null ? marketNative - total : null;
+  const showRef = Number.isFinite(marketUsd) && savedUsd > 0 && marketNative != null;
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
   const tcgplayerLink = buildTcgplayerLink(productName, watchlist?.tcgplayer_id);
@@ -265,13 +270,18 @@ export default async function SealedDealDetailPage({ params }) {
                 />
                 {showRef && (
                   <span className="text-lg text-zinc-400 line-through">
-                    <Price usd={marketUsd} native={{ amount: marketUsd, currency: "USD" }} approxPrefix="" />
+                    <Price
+                      usd={marketUsd}
+                      native={{ amount: marketNative, currency: nativeCurrency }}
+                      approxPrefix=""
+                    />
                   </span>
                 )}
               </div>
               {showRef ? (
                 <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                  You save <Price usd={savedUsd} native={{ amount: savedUsd, currency: "USD" }} /> ·{" "}
+                  You save{" "}
+                  <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}
                   {discountPct}% below market
                 </p>
               ) : (
@@ -338,7 +348,11 @@ export default async function SealedDealDetailPage({ params }) {
             <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
               Not enough dated sales to plot a trend yet. Current market value is{" "}
               <span className="font-semibold text-black dark:text-zinc-50">
-                <Price usd={marketUsd} native={{ amount: marketUsd, currency: "USD" }} approxPrefix="" />
+                <Price
+                  usd={marketUsd}
+                  native={{ amount: marketNative ?? marketUsd, currency: marketNative != null ? nativeCurrency : "USD" }}
+                  approxPrefix=""
+                />
               </span>
               {" "}
               — this listing is{" "}

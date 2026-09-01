@@ -14,8 +14,13 @@ import { hasPrice } from "@/lib/money";
 // labelled as such. The live-eBay figure is explicitly called an asking
 // price, not a value.
 
-function usd(n) {
-  return `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// Every figure in this component is a USD-canonical PokemonPriceTracker
+// reference; <Price> converts each to the viewer's currency after
+// hydration so the whole card stays one currency (the "Market value ·
+// raw" figure at the top already went through <Price>; the by-condition
+// and graded tiers below now do too - Phase 6A currency closeout).
+function Money({ usd }) {
+  return <Price usd={usd} native={{ amount: usd, currency: "USD" }} approxPrefix="" />;
 }
 
 function conditionLadder(analysis) {
@@ -91,7 +96,7 @@ export default function CardPriceSummary({
           <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
             {ladder.map((c) => (
               <span key={c.condition} className="tnum text-zinc-700 dark:text-zinc-300">
-                {c.condition} <span className="font-semibold text-black dark:text-zinc-50">{usd(c.price)}</span>
+                {c.condition} <span className="font-semibold text-black dark:text-zinc-50"><Money usd={c.price} /></span>
               </span>
             ))}
           </div>
@@ -109,7 +114,7 @@ export default function CardPriceSummary({
                 <div className="flex items-baseline justify-between gap-4">
                   <span className="font-medium text-zinc-700 dark:text-zinc-300">{g.label}</span>
                   <span className="flex items-baseline gap-2">
-                    <span className="tnum font-semibold text-black dark:text-zinc-50">{usd(g.currentPrice)}</span>
+                    <span className="tnum font-semibold text-black dark:text-zinc-50"><Money usd={g.currentPrice} /></span>
                     <span className="text-xs text-zinc-400">
                       {`${g.saleCount} sale${g.saleCount === 1 ? "" : "s"}`}
                     </span>
