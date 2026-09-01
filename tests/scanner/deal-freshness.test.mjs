@@ -55,10 +55,16 @@ test("1. an auction past its end time is not displayable (zero API cost)", () =>
   assert.equal(disqualificationReason(r), "auction_ended");
 });
 
-test("2. a future-dated auction stays eligible", () => {
+test("2. a future-dated auction stays eligible while recently seen", () => {
   const r = deal({ listing_type: "AUCTION", auction_end_at: ahead(6), last_seen_at: ago(2) });
   assert.notEqual(dealFreshness(r), "ENDED");
   assert.equal(isDisplayableDeal(r), true);
+});
+
+test("2b. a future-dated auction still goes stale on its value tier (end time is a signal, not a guarantee)", () => {
+  const r = deal({ listing_type: "AUCTION", auction_end_at: ahead(48), market_price: 500, last_seen_at: ago(90) });
+  assert.equal(dealFreshness(r), "STALE");
+  assert.equal(isDisplayableDeal(r), false);
 });
 
 test("3. a recently-seen fixed-price deal stays eligible", () => {

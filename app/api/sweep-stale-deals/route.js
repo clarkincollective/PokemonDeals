@@ -9,7 +9,8 @@ import { FRESHNESS_TTL_HOURS } from "@/lib/dealQuality";
 //        high  (market_price>=300 OR discount_pct>=0.70)   : > 72h
 //        mid   (market_price>=100 OR discount_pct>=0.55)   : > 120h
 //        low   (everything else)                           : > 168h
-//        future-dated auction: only the 168h net (end time is the real signal)
+//      Future-dated auctions get the same value tier - a stored end time
+//      is a signal, not a guarantee.
 //
 // This is the same retirement rule scanCardInMarketplace applies per
 // card, run GLOBALLY so a listing's freshness no longer depends on when
@@ -48,36 +49,23 @@ export async function GET(request) {
     q.eq("listing_type", "AUCTION").not("auction_end_at", "is", null).lt("auction_end_at", nowIso)
   );
 
-  // A row that is a still-future auction is exempt from the tight tiers
-  // (its end time is the signal); it only falls to the 168h net. Express
-  // that as: for the tight tiers, exclude future-dated auctions.
-  const notFutureAuction = (q) =>
-    q.or(`listing_type.neq.AUCTION,auction_end_at.is.null,auction_end_at.lte.${nowIso}`);
-
   // 2a. high tier: market_price>=300 OR discount_pct>=0.70, last_seen_at > 72h
   results.staleHigh = await deactivate("staleHigh", (q) =>
-    notFutureAuction(q)
-      .or("market_price.gte.300,discount_pct.gte.0.70")
-      .lt("last_seen_at", cut(FRESHNESS_TTL_HOURS.high))
+    q.or("market_price.gte.300,discount_pct.gte.0.70").lt("last_seen_at", cut(FRESHNESS_TTL_HOURS.high))
   );
 
   // 2b. mid tier: (market_price>=100 OR discount_pct>=0.55) AND NOT high, > 120h
   results.staleMid = await deactivate("staleMid", (q) =>
-    notFutureAuction(q)
+    q
       .lt("market_price", 300)
       .lt("discount_pct", 0.7)
       .or("market_price.gte.100,discount_pct.gte.0.55")
       .lt("last_seen_at", cut(FRESHNESS_TTL_HOURS.mid))
   );
 
-  // 2c. low tier / long-tail net: everything else, > 168h. Also catches a
-  //     future-dated auction whose last_seen never moved (cancelled /
-  //     relisted) - no notFutureAuction filter here on purpose.
+  // 2c. low tier / long-tail net: everything else, > 168h.
   results.staleLow = await deactivate("staleLow", (q) =>
     q.lt("market_price", 100).lt("discount_pct", 0.55).lt("last_seen_at", cut(FRESHNESS_TTL_HOURS.low))
-  );
-  results.staleAuctionTail = await deactivate("staleAuctionTail", (q) =>
-    q.eq("listing_type", "AUCTION").lt("last_seen_at", cut(FRESHNESS_TTL_HOURS.auction))
   );
 
   const total = Object.values(results).reduce((s, r) => s + (r.count ?? 0), 0);
