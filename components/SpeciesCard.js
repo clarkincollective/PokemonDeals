@@ -118,10 +118,16 @@ export default function SpeciesCard({ card, label, speciesName, pageName = "spec
                 className="tnum text-lg font-bold text-zinc-900 dark:text-zinc-50"
               />
             </div>
-            <p className="tnum text-xs font-semibold text-emerald-700 dark:text-emerald-500">
-              {card.deal.discountPct != null && `${Math.round(card.deal.discountPct * 100)}% below market · `}
-              {card.deal.count} live {card.deal.count === 1 ? "listing" : "listings"}
-            </p>
+            {isAuction ? (
+              <p className="tnum text-xs font-semibold text-amber-600 dark:text-amber-500">
+                {card.deal.discountPct != null && `Current bid · ${Math.round(card.deal.discountPct * 100)}% under market ref · can rise`}
+              </p>
+            ) : (
+              <p className="tnum text-xs font-semibold text-emerald-700 dark:text-emerald-500">
+                {card.deal.discountPct != null && `${Math.round(card.deal.discountPct * 100)}% below market · `}
+                {card.deal.count} live {card.deal.count === 1 ? "listing" : "listings"}
+              </p>
+            )}
             <div className="mt-auto flex flex-col gap-1.5 pt-2.5">
               <AffiliateLink
                 href={dealUrl}

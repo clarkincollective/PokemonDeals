@@ -445,12 +445,21 @@ export default async function DealDetailPage({ params }) {
                   className="text-2xl font-bold text-black dark:text-zinc-50"
                 />
                 {showRef && (
-                  <span className="text-base text-zinc-400 line-through">
+                  // Auction: the reference is what to read the CURRENT BID
+                  // against, not a "was" price - so it isn't struck through.
+                  <span className={`text-base text-zinc-400 ${isAuction ? "" : "line-through"}`}>
+                    {isAuction && <span className="mr-1 text-xs">market ref</span>}
                     <Price usd={marketUsd} native={{ amount: marketUsd, currency: "USD" }} approxPrefix="" />
                   </span>
                 )}
               </div>
-              {showRef ? (
+              {isAuction ? (
+                <p className="text-sm font-medium text-amber-600 dark:text-amber-500">
+                  Current bid{deal.bid_count != null ? ` · ${deal.bid_count} bids` : ""}
+                  {showRef && discountPct > 0 ? ` · ${discountPct}% under the market reference` : ""} — the
+                  final price can rise before the auction ends
+                </p>
+              ) : showRef ? (
                 <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
                   You save <Price usd={savedUsd} native={{ amount: savedUsd, currency: "USD" }} /> ·{" "}
                   {discountPct}% below market
@@ -470,11 +479,6 @@ export default async function DealDetailPage({ params }) {
                 </Link>
               </p>
             </div>
-            {isAuction && (
-              <p className="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-                Current bid{deal.bid_count != null ? ` · ${deal.bid_count} bids` : ""} - may rise before the auction ends
-              </p>
-            )}
             {deal.seller_feedback_pct != null && (
               <p className="mt-1 text-xs text-zinc-400">
                 {Number(deal.seller_feedback_pct).toFixed(1)}% seller feedback

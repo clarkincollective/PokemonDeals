@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { track } from "@vercel/analytics";
 
 // Homepage hero search with live card suggestions. Suggestions come from
 // the same /api/card-search the /search page uses (catalog browse); each
@@ -61,6 +62,9 @@ export default function HeroSearch({ popular = [] }) {
     const v = query.trim();
     if (v.length < 2) return;
     setOpen(false);
+    // Funnel step "homepage -> search". Length only, never the raw query
+    // text - matches the no-PII convention SearchClient's own event uses.
+    track("Hero Search Submit", { queryLength: v.length });
     router.push(`/search?q=${encodeURIComponent(v)}`);
   }
 

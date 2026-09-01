@@ -243,7 +243,8 @@ export default async function Home({ searchParams }) {
             Pokemon Deal Finder scans eBay listings for Pokemon TCG cards across the US, UK,
             Australia, Canada, Germany and Italy marketplaces and compares each one against its real
             market price and recent sold listings, surfacing only the genuine deals — the listings
-            meaningfully below market.{" "}
+            meaningfully below market. It&apos;s an independent price comparison, not a shop — you buy
+            from the eBay seller.{" "}
             <Link href="/methodology" className="underline hover:text-red-600 dark:hover:text-red-500">
               How we find deals
             </Link>

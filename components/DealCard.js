@@ -170,13 +170,23 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             className="tnum text-lg font-bold text-zinc-900 dark:text-zinc-50"
           />
           {showRef && (
-            <span className="tnum text-xs text-zinc-400 line-through">
-              typical{" "}
+            // Fixed price: the market reference is a "typical" figure the
+            // asking price sits below (struck through). Auction: it's a
+            // plain reference to read the CURRENT BID against - never a
+            // "was" price, since the final price can still rise.
+            <span
+              className={`tnum text-xs text-zinc-400 ${isAuction ? "" : "line-through"}`}
+            >
+              {isAuction ? "market ref " : "typical "}
               <Price usd={market} native={{ amount: market, currency: "USD" }} approxPrefix="" />
             </span>
           )}
         </div>
-        {showRef ? (
+        {isAuction ? (
+          <p className="tnum text-xs font-semibold text-amber-600 dark:text-amber-500">
+            Current bid · {discountPct}% under market ref · can rise
+          </p>
+        ) : showRef ? (
           <p className="tnum text-xs font-semibold text-emerald-700 dark:text-emerald-500">
             Save <Price usd={saved} native={{ amount: saved, currency: "USD" }} /> · {discountPct}% below market
           </p>

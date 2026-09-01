@@ -90,12 +90,17 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
               className="text-lg font-bold text-black dark:text-zinc-50"
             />
             {showRef && (
-              <span className="text-sm text-zinc-400 line-through">
+              <span className={`text-sm text-zinc-400 ${isAuction ? "" : "line-through"}`}>
+                {isAuction && "market ref "}
                 <Price usd={market} native={{ amount: market, currency: "USD" }} approxPrefix="" />
               </span>
             )}
           </div>
-          {showRef ? (
+          {isAuction ? (
+            <p className="text-xs font-medium text-amber-600 dark:text-amber-500">
+              Current bid · {discountPct}% under market ref · can rise
+            </p>
+          ) : showRef ? (
             <p className="text-xs font-medium text-emerald-600 dark:text-emerald-500">
               You save <Price usd={saved} native={{ amount: saved, currency: "USD" }} /> · {discountPct}% below market
             </p>

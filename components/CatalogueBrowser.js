@@ -115,10 +115,18 @@ export function Tile({ card, speciesName, placement }) {
         <div className="mt-2">
           {isDeal ? (
             <>
-              {hasPrice(card.refPrice) && <p className="text-xs text-zinc-400">Market {usd(card.refPrice)}</p>}
+              {hasPrice(card.refPrice) && (
+                <p className="text-xs text-zinc-400">{isAuction ? "Market ref" : "Market"} {usd(card.refPrice)}</p>
+              )}
               <p className="text-lg font-bold text-emerald-700 dark:text-emerald-500">{usd(card.deal.cheapestUsd)}</p>
               {discountPct != null && discountPct > 0 && (
-                <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-500">{discountPct}% below market</p>
+                isAuction ? (
+                  <p className="text-xs font-semibold text-amber-600 dark:text-amber-500">
+                    Current bid · {discountPct}% under ref · can rise
+                  </p>
+                ) : (
+                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-500">{discountPct}% below market</p>
+                )
               )}
             </>
           ) : (
