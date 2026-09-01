@@ -20,6 +20,7 @@ import CatalogueBrowser from "@/components/CatalogueBrowser";
 import FeaturedValueCards from "@/components/FeaturedValueCards";
 import { buildCatalogueItems } from "@/components/SpeciesCardsBySet";
 import { hasPrice } from "@/lib/money";
+import { cardTier } from "@/lib/catalogueView";
 import SiteFooter from "@/components/SiteFooter";
 
 const SITE_URL = "https://pokemondealfinder.com";
@@ -120,7 +121,9 @@ export default async function SetDetailPage({ params }) {
   // trustworthy market reference (never affiliate payout / random order).
   const featuredItems = [...catalogueItems]
     .filter((c) => hasPrice(c.refPrice))
-    .sort((a, b) => Number(b.refPrice) - Number(a.refPrice))
+    // standard cards ahead of any Jumbo / oversized / WCD specialty
+    // printing that shares this set (a no-op on a normal set).
+    .sort((a, b) => cardTier(a) - cardTier(b) || Number(b.refPrice) - Number(a.refPrice))
     .slice(0, 12);
 
   const showSealed = sealedProducts.length >= SET_SEALED_MIN_PRODUCTS;

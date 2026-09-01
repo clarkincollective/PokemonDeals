@@ -8,6 +8,7 @@ import SpeciesCardsBySet, { buildCatalogueItems } from "@/components/SpeciesCard
 import FeaturedValueCards from "@/components/FeaturedValueCards";
 import { buildEbaySearchLink } from "@/lib/ebay";
 import { hasPrice } from "@/lib/money";
+import { cardTier } from "@/lib/catalogueView";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -42,7 +43,9 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
     ? buildCatalogueItems(
         [...(cards ?? [])]
           .filter((c) => !c.deal && hasPrice(c.refPrice))
-          .sort((a, b) => Number(b.refPrice) - Number(a.refPrice))
+          // standard collectible cards fill the prime value slots first;
+          // Jumbo / oversized / WCD specialty cards only if there aren't 12
+          .sort((a, b) => cardTier(a) - cardTier(b) || Number(b.refPrice) - Number(a.refPrice))
           .slice(0, 12),
         validSetSlugs
       )

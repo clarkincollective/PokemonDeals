@@ -248,7 +248,13 @@ export default function CatalogueBrowser({ speciesName, label, items, variant = 
 
   const isFiltering = Boolean(q.trim() || setFilter || rarityFilter || sort !== DEFAULT_SORT);
   const groups = useMemo(() => groupBySet(filtered), [filtered]);
-  const flat = useMemo(() => sortCards(filtered, sort), [filtered, sort]);
+  // Relevance tier (standard cards ahead of Jumbo / oversized / WCD
+  // specialty) applies ONLY to the DEFAULT sort - an explicit Lowest
+  // price / Card number / Name A-Z choice is honoured literally.
+  const flat = useMemo(
+    () => sortCards(filtered, sort, { relevanceTier: sort === DEFAULT_SORT }),
+    [filtered, sort]
+  );
 
   // Flat disclosure resets to the first screen whenever the result set
   // changes (new search / rarity / sort).

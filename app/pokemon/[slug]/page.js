@@ -20,6 +20,7 @@ import FeaturedValueCards from "@/components/FeaturedValueCards";
 import ShoppingContext, { RegionSuffix } from "@/components/ShoppingContext";
 import SiteFooter from "@/components/SiteFooter";
 import { hasPrice } from "@/lib/money";
+import { cardTier } from "@/lib/catalogueView";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -186,12 +187,14 @@ export default async function PokemonSpeciesPage({ params }) {
 
   // Discovery shortcut: the highest recent-sold-value cards we track for
   // this species, ranked ONLY by trustworthy reference price - never by
-  // anything we'd earn on. Cards already surfaced as a live deal above are
-  // excluded; a price-unavailable card can't be "highest value".
+  // anything we'd earn on. Standard collectible cards fill these prime
+  // slots first; Jumbo / oversized / WCD specialty cards only appear here
+  // if there aren't 12 standard priced cards. Live-deal cards and
+  // price-unavailable cards are excluded.
   const featuredItems = buildCatalogueItems(
     [...allCards]
       .filter((c) => !c.deal && hasPrice(c.refPrice))
-      .sort((a, b) => Number(b.refPrice) - Number(a.refPrice))
+      .sort((a, b) => cardTier(a) - cardTier(b) || Number(b.refPrice) - Number(a.refPrice))
       .slice(0, 12),
     validSetSlugs
   );
