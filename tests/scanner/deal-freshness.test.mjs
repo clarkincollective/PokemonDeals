@@ -178,3 +178,25 @@ test("sweep: /api/sweep-stale-deals makes no eBay calls and only flips is_active
   assert.match(src, /update\(\{ is_active: false \}\)/);
   assert.match(src, /auction_end_at/); // ends the known-ended auctions
 });
+
+// --- the "N live deals" count is the shared display gate ---------------
+
+test('count: the "live deals" headline counts isDisplayableDeal rows, not a SQL approximation', () => {
+  const src = readFileSync(join(HERE, "..", "..", "lib", "deals.js"), "utf8");
+  // the summary count runs the shared gate over the bounded active set
+  assert.match(src, /countDisplayableActiveDeals/);
+  assert.match(src, /data\.filter\(isDisplayableDeal\)\.length/);
+  // and NOT the old divergent "active AND not disqualified" count query
+  assert.doesNotMatch(
+    src,
+    /count: activeDeals[\s\S]{0,400}is\("disqualified_reason", null\)/,
+    "fetchMarketDataSummary still uses a disqualified_reason SQL approximation for the count"
+  );
+});
+
+test('count: card-search "Deals found (N)" results pass through the shared display gate', () => {
+  const src = readFileSync(join(HERE, "..", "..", "app", "api", "card-search", "route.js"), "utf8");
+  assert.match(src, /import \{ isDisplayableDeal \} from "@\/lib\/dealQuality"/);
+  // every deal result set is filtered, none returned raw off is_active
+  assert.equal((src.match(/\.filter\(isDisplayableDeal\)/g) ?? []).length >= 3, true);
+});

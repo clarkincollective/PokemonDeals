@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { MARKETPLACES } from "@/lib/ebay";
 import { searchCards, getRawPrice, getRawPriceHistory, pickMarketPrice } from "@/lib/pokemonPriceTracker";
 import { upgradeCatalogImage } from "@/lib/cardImage";
+import { isDisplayableDeal } from "@/lib/dealQuality";
 
 // Public, read-only, on-demand - not on the cron schedule, so no
 // CRON_SECRET check. Deals come straight from our own database (never a
@@ -56,8 +57,11 @@ async function findExistingDeals(db, q, { country, sort }) {
     .eq("is_active", true);
   if (country && MARKETPLACES[country]) dealsQuery = dealsQuery.eq("marketplace", country);
 
-  const { data } = await sortDeals(dealsQuery, sort).limit(60);
-  return data ?? [];
+  // Over-fetch, then apply the SHARED display gate - "Deals found (N)" on
+  // the search page must mean deals a visitor can actually act on, not
+  // raw active rows (stale / ended / disqualified are dropped here).
+  const { data } = await sortDeals(dealsQuery, sort).limit(120);
+  return (data ?? []).filter(isDisplayableDeal).slice(0, 60);
 }
 
 // For one page of catalog results, finds which (if any) already have an
@@ -77,8 +81,11 @@ async function findDealsForCatalogPage(db, tcgPlayerIds, { country }) {
 
   const tcgIdByWatchlistId = new Map(watchlistRows.map((r) => [r.id, r.justtcg_tcgplayer_id]));
   let dealsQuery = db
+    // full row so the shared display gate can run - the inline "deal
+    // available" badge on a catalogue tile must only show for a deal a
+    // visitor could actually open.
     .from("deals")
-    .select("id, watchlist_id, total_price, total_price_usd, discount_pct, listing_type, affiliate_url, marketplace")
+    .select("*")
     .in(
       "watchlist_id",
       watchlistRows.map((r) => r.id)
@@ -89,7 +96,7 @@ async function findDealsForCatalogPage(db, tcgPlayerIds, { country }) {
   const { data: dealRows } = await dealsQuery.order("discount_pct", { ascending: false });
 
   // Sorted best-discount-first, so the first deal seen per card is its best.
-  for (const deal of dealRows ?? []) {
+  for (const deal of (dealRows ?? []).filter(isDisplayableDeal)) {
     const tcgId = tcgIdByWatchlistId.get(deal.watchlist_id);
     if (tcgId && !dealByTcgId.has(tcgId)) dealByTcgId.set(tcgId, deal);
   }
@@ -207,7 +214,7 @@ async function cardDetail(url, tcgplayerId) {
     if (maxPrice) dealsQuery = dealsQuery.lte("total_price", Number(maxPrice));
 
     const { data } = await dealsQuery.order("discount_pct", { ascending: false });
-    deals = data ?? [];
+    deals = (data ?? []).filter(isDisplayableDeal);
   }
 
   return Response.json({
