@@ -20,9 +20,16 @@ export const maxDuration = 120;
 
 const BATCH = 20;
 const RESCREEN_AFTER_DAYS = 21;
-// candidate scan is bounded too - we only ever look at this many active
-// rows to find BATCH unscreened/stale ones.
-const SCAN_CAP = 4000;
+// Candidate scan is bounded - we only ever look at this many active rows
+// to find BATCH unscreened/stale ones, and stop early once BATCH are in
+// hand. Rows sort checked_at-asc-nulls-first so the unscreened ones come
+// first, but a candidate is a rare shape (~3% of active deals) and only
+// ~half sit in any given 4k slice, so the cap has to comfortably exceed
+// the whole active population or the tail candidates are never reached
+// (this is how deal 12766's cohort of high-value/sub-steep listings sat
+// unscreened). Paging further only happens on runs the early pages don't
+// fill.
+const SCAN_CAP = 12000;
 const PAGE = 1000;
 
 const COLS =
