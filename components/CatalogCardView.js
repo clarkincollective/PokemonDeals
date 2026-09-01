@@ -227,6 +227,7 @@ export default function CatalogCardView({ card, analysis, setHasPage }) {
           sales={analysis?.primaryRecentSales}
           cardName={name}
           page="card_recent_sales"
+          variant={analysis?.primaryKey === "raw" ? "raw" : null}
           className="mt-6"
         />
 

@@ -5,6 +5,7 @@ import { upgradeCatalogImage } from "@/lib/cardImage";
 import { isDisplayableDeal } from "@/lib/dealQuality";
 import { cardDisplayName } from "@/lib/cardName";
 import { catalogCardSlug, catalogCardResolvable } from "@/lib/cardSlug";
+import { rerankCatalogResults } from "@/lib/searchRanking";
 
 // Public, read-only, on-demand - not on the cron schedule, so no
 // CRON_SECRET check. Deals come straight from our own database (never a
@@ -162,6 +163,46 @@ async function cardSearch(url) {
       resolveCatalogHrefs(db, tcgPlayerIds),
     ]);
 
+    const enriched = catalogPage.results.map((c) => {
+      const id = String(c.tcgPlayerId);
+      const deal = dealByTcgId.get(id);
+      const own = hrefByTcgId.get(id) ?? null;
+      // Prefer our own catalogue name/set/number/rarity (matches the
+      // /cards/[slug] page it links to); fall back to PPT's fields.
+      const name = own?.name ?? c.name;
+      const set = own?.set ?? c.setName;
+      return {
+        tcgplayerId: c.tcgPlayerId,
+        name,
+        displayName: cardDisplayName({ name }),
+        set,
+        cardNumber: own?.cardNumber ?? c.number ?? c.cardNumber ?? c.card_number ?? null,
+        rarity: own?.rarity ?? c.rarity ?? null,
+        imageUrl: upgradeCatalogImage(c.imageCdnUrl200 ?? c.imageUrl ?? null),
+        marketPrice: pickMarketPrice(c.prices),
+        // The permanent /cards/[slug] this result routes into - null
+        // when we don't own a page for this exact print.
+        cardHref: own?.href ?? null,
+        deal: deal
+          ? {
+              id: deal.id,
+              totalPrice: deal.total_price,
+              totalPriceUsd: deal.total_price_usd ?? null,
+              marketplace: deal.marketplace,
+              discountPct: deal.discount_pct,
+              listingType: deal.listing_type,
+              affiliateUrl: deal.affiliate_url,
+            }
+          : null,
+      };
+    });
+
+    // SMALL deterministic rerank of the returned page: exact name / exact
+    // set phrase / collector number win; recognised specialty prints
+    // (Jumbo, World Championship) are demoted unless the query asks for
+    // them. Ties keep the provider's fuzzy/relevance order.
+    const results = rerankCatalogResults(enriched, q);
+
     return Response.json({
       deals,
       catalog: {
@@ -169,39 +210,7 @@ async function cardSearch(url) {
         pageSize: CATALOG_PAGE_SIZE,
         total: catalogPage.total,
         hasMore: catalogPage.hasMore,
-        results: catalogPage.results.map((c) => {
-          const id = String(c.tcgPlayerId);
-          const deal = dealByTcgId.get(id);
-          const own = hrefByTcgId.get(id) ?? null;
-          // Prefer our own catalogue name/set/number/rarity (matches the
-          // /cards/[slug] page it links to); fall back to PPT's fields.
-          const name = own?.name ?? c.name;
-          const set = own?.set ?? c.setName;
-          return {
-            tcgplayerId: c.tcgPlayerId,
-            name,
-            displayName: cardDisplayName({ name }),
-            set,
-            cardNumber: own?.cardNumber ?? c.number ?? c.cardNumber ?? c.card_number ?? null,
-            rarity: own?.rarity ?? c.rarity ?? null,
-            imageUrl: upgradeCatalogImage(c.imageCdnUrl200 ?? c.imageUrl ?? null),
-            marketPrice: pickMarketPrice(c.prices),
-            // The permanent /cards/[slug] this result routes into - null
-            // when we don't own a page for this exact print.
-            cardHref: own?.href ?? null,
-            deal: deal
-              ? {
-                  id: deal.id,
-                  totalPrice: deal.total_price,
-                  totalPriceUsd: deal.total_price_usd ?? null,
-                  marketplace: deal.marketplace,
-                  discountPct: deal.discount_pct,
-                  listingType: deal.listing_type,
-                  affiliateUrl: deal.affiliate_url,
-                }
-              : null,
-          };
-        }),
+        results,
       },
     });
   } catch (err) {

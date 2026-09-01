@@ -11,18 +11,29 @@ function formatSaleDate(dateString) {
   return new Date(dateString).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
-export default function RecentSales({ sales, cardName, page = "recent_sales", limit = 8, className = "" }) {
+export default function RecentSales({
+  sales,
+  cardName,
+  page = "recent_sales",
+  limit = 8,
+  variant = null, // "raw" -> label the list as raw (ungraded) sales
+  className = "",
+}) {
   const rows = (sales ?? []).filter((s) => s && s.price != null);
   if (rows.length === 0) return null;
+
+  const heading = variant === "raw" ? "Recent raw eBay sales" : "Recent eBay sales";
+  const caption =
+    variant === "raw"
+      ? "Real individual sold listings of the raw (ungraded) card — not a market-reference estimate. Graded-slab sales are shown in the graded pricing above."
+      : "Real individual sold listings for this printing — not a market-reference estimate.";
 
   return (
     <section
       className={`rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950 ${className}`}
     >
-      <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Recent eBay sales</h2>
-      <p className="text-xs text-zinc-400">
-        Real individual sold listings for this printing — not a market-reference estimate.
-      </p>
+      <h2 className="text-sm font-semibold text-black dark:text-zinc-50">{heading}</h2>
+      <p className="text-xs text-zinc-400">{caption}</p>
       <ul className="mt-4 divide-y divide-zinc-100 dark:divide-zinc-900">
         {rows.slice(0, limit).map((sale) => (
           <li key={sale.listingId ?? `${sale.soldDate}-${sale.price}`} className="flex items-center justify-between gap-3 py-2.5">
