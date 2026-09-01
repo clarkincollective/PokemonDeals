@@ -25,8 +25,12 @@ import {
   visionPrompt,
   VERDICTS,
   CANDIDATE_MIN_DISCOUNT,
+  CANDIDATE_MIN_MARKET_USD,
   CANDIDATE_HIGH_VALUE_USD,
   CANDIDATE_HIGH_VALUE_DISCOUNT,
+  RISK_SPECIES_MIN_MARKET_USD,
+  isHighCounterfeitRiskSpecies,
+  itemPriceVsMarketGap,
 } from "../../lib/visualAuthenticity.js";
 import { visualAuthenticityReason, isDisplayableDeal, disqualificationReason } from "../../lib/dealQuality.js";
 
@@ -300,6 +304,86 @@ const escapeRow = {
 
 test("regression 12766: high-value raw card just under the steep gate, null trust signals, IS a candidate", () => {
   assert.equal(isVisualScreeningCandidate(escapeRow), true);
+});
+
+// --- regression: deal 24195 (sub-$100 chase-card counterfeit) ----------
+//
+// Deal 24195 was a gold-metal "Custom Cards" novelty of Charizard VMAX
+// SWSH261: a real card id, a clean title, market_price $47.35. It NEVER
+// entered the visual queue - market_price sat under the $100
+// CANDIDATE_MIN_MARKET_USD floor, and its TOTAL discount was only ~16%
+// because ~80% of the undercut was moved into a padded "shipping" line
+// (item price alone ~$22 USD, ~54% below market). The fix lowers the
+// value floor for a tight set of high-counterfeit-risk species and adds
+// a pre-shipping item-vs-market gap signal. It is ADDITIVE - it only
+// routes more rows to the out-of-band worker and changes no display gate.
+// Tests key on the CHARACTERISTIC (risk species + sub-$100 + shipping-
+// camouflaged undercut), never on the deal id or the card name.
+
+const deal24195Shape = {
+  is_graded: false,
+  card_tcgplayer_id: "285378",
+  card_name: "Charizard VMAX - SWSH261",
+  image_url: "https://i.ebayimg.com/images/g/rLAAAeSwFONqPFLB/s-l1600.jpg",
+  market_price: 47.35,
+  discount_pct: 0.1616, // tame headline discount ...
+  price: 30.58,
+  total_price: 55.21, // ... because shipping ($24.63) is most of the total
+  total_price_usd: 39.6966,
+  disqualified_reason: null,
+  seller_feedback_score: null,
+  image_count: null,
+  returns_accepted: null,
+};
+
+test("24195: a risk-species sub-$100 listing with a shipping-camouflaged undercut IS now a screening candidate", () => {
+  assert.equal(isHighCounterfeitRiskSpecies(deal24195Shape), true);
+  // pre-shipping item price is ~54% below market even though discount_pct is ~16%
+  assert.ok(itemPriceVsMarketGap(deal24195Shape) > 0.45);
+  assert.equal(isVisualScreeningCandidate(deal24195Shape), true);
+});
+
+test("24195: old $100 floor + tame headline discount would have rejected it (this is the escape being closed)", () => {
+  // no risk-species name -> the ordinary $100 floor applies -> rejected
+  assert.equal(
+    isVisualScreeningCandidate({ ...deal24195Shape, card_name: "Corviknight VMAX - SWSH123" }),
+    false
+  );
+});
+
+test("24195: still bounded - a NON-risk species below $100 is never screened however it is discounted", () => {
+  const generic = { ...deal24195Shape, card_name: "Wobbuffet - SV05 123/162" };
+  assert.equal(isVisualScreeningCandidate({ ...generic, discount_pct: 0.7 }), false);
+  assert.equal(isVisualScreeningCandidate({ ...generic, discount_pct: 0.9, price: 5, total_price: 50, total_price_usd: 50 }), false);
+});
+
+test("24195: a risk-species card at/above $100 is unchanged - the ordinary gates already covered it", () => {
+  const hiVal = { ...deal24195Shape, market_price: 250, discount_pct: 0.2, price: 200, total_price: 220, total_price_usd: 220 };
+  // 20% off, $250: below every ordinary trigger, and the risk-species
+  // path only extends BELOW CANDIDATE_MIN_MARKET_USD
+  assert.equal(isVisualScreeningCandidate(hiVal), false);
+  assert.ok(RISK_SPECIES_MIN_MARKET_USD < CANDIDATE_MIN_MARKET_USD);
+});
+
+test("24195: a plainly-discounted risk-species card in the $25-100 band is screened; a barely-discounted one with honest shipping is not", () => {
+  const base = { ...deal24195Shape, discount_pct: undefined };
+  // 45% off, no shipping trick -> discount arm
+  assert.equal(
+    isVisualScreeningCandidate({ ...base, discount_pct: 0.45, price: 26, total_price: 26, total_price_usd: 26, market_price: 47.35 }),
+    true
+  );
+  // 12% off, item gap ~= headline discount (no camouflage) -> not screened
+  assert.equal(
+    isVisualScreeningCandidate({ ...base, discount_pct: 0.12, price: 41, total_price: 42, total_price_usd: 42, market_price: 47.35 }),
+    false
+  );
+});
+
+test("24195: isVisualScreeningCandidate stays a pure sync predicate with the new signal", () => {
+  const started = Date.now();
+  const out = isVisualScreeningCandidate(deal24195Shape);
+  assert.equal(typeof out, "boolean");
+  assert.ok(Date.now() - started < 50);
 });
 
 test("regression 12766 + 12750: the screening queue is a bounded widening, not 'screen every expensive card'", () => {

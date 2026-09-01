@@ -20,6 +20,7 @@ import {
   megaFormAsserted,
   exMechanicAsserted,
   parseCatalogNumber,
+  setEvidenceInTitle,
 } from "../../lib/dealMatching.js";
 
 const match = (title, card) => listingMatchesCard({ title }, card);
@@ -214,6 +215,62 @@ test("parseCatalogNumber understands the real card_catalog formats", () => {
   assert.equal(parseCatalogNumber("H21/H32").prefix, "h");
   assert.equal(parseCatalogNumber("TWO"), null);
   assert.equal(parseCatalogNumber("101/102 + 102/102"), null);
+});
+
+// --- CASE 12: a card NAME that shadows its SET's words ----------------
+//
+// Regression for the "Here Comes Team Rocket! (15)" pricing failure. The
+// card name already contains every word of its set ("Team Rocket"), so
+// the old "every set token appears in the title" check was satisfied
+// purely by the card-name portion - and a listing for a DIFFERENT
+// printing that reuses the same name + collector number (Celebrations:
+// Classic Collection #15/82, a $0.90 card) matched the $27 WOTC Holo row
+// and showed as a 43-51% "deal" (live: deals 27155 / 31182 / 31243).
+// The fix keys on the CHARACTERISTIC (name shadows set + the title
+// positively names a reprint-set family the catalogue card is not in),
+// never on the card name or a deal id.
+
+const TR15 = { name: "Here Comes Team Rocket! (15)", set: "Team Rocket", card_number: "15/82" };
+
+test("12. a Celebrations: Classic Collection reprint listing does NOT match the WOTC Team Rocket #15 row", () => {
+  assert.equal(match("Here Comes Team Rocket! 15/82 Holo Celebrations: Classic Collection Pokemon NM", TR15), false);
+  assert.equal(match("Here Comes Team Rocket! Holo Classic Collection 15/82 NM", TR15), false);
+});
+
+test("12b. a genuine WOTC Team Rocket #15 listing still matches (terse titles included)", () => {
+  assert.equal(match("Here Comes Team Rocket 15/82 Team Rocket Holo Rare WOTC 2000", TR15), true);
+  assert.equal(match("Pokemon Here Comes Team Rocket! 15/82 Holo NM", TR15), true); // no set repeated - name+number carry it
+  assert.equal(match("Here Comes Team Rocket! 15/82 Holo Rare Unlimited", TR15), true);
+});
+
+test("12c. the reprint-marker rule is not name-specific - a title naming a foreign reprint family is rejected", () => {
+  // XY Evolutions regular-set cards keyword-matched against the pricier
+  // "XY Promos" prerelease-stamp row (live: deals 27302 / 30554 / 30883 /
+  // 30888 / 30948). The catalogue row's set ("XY Promos") does not name a
+  // reprint family; the listing's does -> reject (prefer no price to the
+  // wrong printing's price).
+  const promoRow = { name: "Mewtwo (XY Evolutions Prerelease)", set: "XY Promos", card_number: "103/108" };
+  assert.equal(match("Mewtwo EX Full Art XY Evolutions 103/108 Ultra Rare", promoRow), false);
+  const charRow = { name: "Charizard (XY Evolutions Prerelease)", set: "XY Promos", card_number: "11/108" };
+  assert.equal(match("2016 POKEMON XY EVOLUTIONS #11 CHARIZARD REVERSE FOIL", charRow), false);
+});
+
+test("12d. name-shadowing does NOT loosen an ordinary card - the strict set check still applies where the name does not shadow the set", () => {
+  // "Charizard" does not contain "Base"/"Set", so setEvidenceInTitle
+  // stays strict: the set must be named (or the collector number must
+  // carry it via the number-conflict gate).
+  assert.equal(match("Charizard 4/102 Base Set Shadowless Holo", { name: "Charizard", set: "Base Set Shadowless", card_number: "4/102" }), true);
+  assert.equal(match("Charizard Jungle 4/102 Holo", { name: "Charizard", set: "Base Set", card_number: "4/102" }), false);
+  // nameShadowsSet branch never touches the tokenised-title path (safe to
+  // call with a raw string in that branch)
+  assert.equal(
+    setEvidenceInTitle("Team Rocket", "Here Comes Team Rocket! (15)", "", "Here Comes Team Rocket! 15/82 Celebrations Classic Collection"),
+    false
+  );
+  assert.equal(
+    setEvidenceInTitle("Team Rocket", "Here Comes Team Rocket! (15)", "", "Here Comes Team Rocket! 15/82 Holo WOTC"),
+    true
+  );
 });
 
 // --- CASE 11: visual mismatch gate remains intact ------------------

@@ -43,6 +43,7 @@ const PAGE = 1000;
 
 const COLS =
   "id, card_name, card_set, card_tcgplayer_id, image_url, market_price, discount_pct, is_graded, " +
+  "price, total_price, total_price_usd, " +
   "disqualified_reason, seller_feedback_score, image_count, returns_accepted, " +
   "visual_authenticity_status, visual_authenticity_checked_at";
 

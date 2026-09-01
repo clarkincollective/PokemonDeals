@@ -146,6 +146,22 @@ test("12. CGC / BGS / Beckett / SGC / ACE / TAG titles are detected as graded", 
   }
 });
 
+test("12b. 'Ace Graded' / 'TAG Graded' (grader word, no adjacent digit) are detected as graded", () => {
+  // Live raw/graded leak on the "Here Comes Team Rocket! (15)" card page:
+  // "...TAG Graded 8.5..." and "...Ace Graded 3 Good..." reached the raw
+  // recent-sales list because the grade digit is not adjacent to the
+  // grader token. GRADER_MENTION_PATTERN's "<grader> grad(e/ed/ing)" arm
+  // covers them.
+  for (const t of [
+    "Here Comes Team Rocket! 15/82 Team Rocket Holo TAG Graded 8.5",
+    "Here Comes Team Rocket! 15/82 Holo Ace Graded 3 Good",
+    "Charizard 4/102 Base Set Holo ACE GRADING 9",
+  ]) {
+    assert.ok(titleLooksGraded(t), `not detected: ${t}`);
+    assert.ok(GRADER_MENTION_PATTERN.test(t), `GRADER_MENTION_PATTERN missed: ${t}`);
+  }
+});
+
 test("13. a genuinely raw sold-listing title is NOT flagged graded", () => {
   for (const t of [
     "Charizard 4/102 Base Set Holo Near Mint Unlimited",
