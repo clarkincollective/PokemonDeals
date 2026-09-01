@@ -21,6 +21,7 @@ import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import StickyDealCta from "@/components/StickyDealCta";
 import RecordCardView from "@/components/RecordCardView";
+import ListingChecks from "@/components/ListingChecks";
 import SaveCardButton from "@/components/SaveCardButton";
 import PriceAlertForm from "@/components/PriceAlertForm";
 import { emailEnabled } from "@/lib/email";
@@ -663,6 +664,7 @@ export default async function DealDetailPage({ params }) {
           </div>
         )}
 
+        <ListingChecks className="mt-8" />
       </div>
       <SiteFooter note="Card-to-listing matching is automated and not perfect - always double-check a listing's photos and description before buying." />
 

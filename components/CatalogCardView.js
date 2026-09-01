@@ -14,6 +14,7 @@ import CardPriceSummary from "@/components/CardPriceSummary";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import AffiliateLink from "@/components/AffiliateLink";
+import ListingChecks from "@/components/ListingChecks";
 import RecordCardView from "@/components/RecordCardView";
 
 const SITE_URL = "https://pokemondealfinder.com";
@@ -220,6 +221,8 @@ export default function CatalogCardView({ card, analysis, setHasPage }) {
             </div>
           </div>
         )}
+
+        <ListingChecks className="mt-6" />
 
         <div className="mt-10 flex flex-wrap gap-3">
           {spSlug && (

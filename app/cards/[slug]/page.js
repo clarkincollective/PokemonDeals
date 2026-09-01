@@ -27,6 +27,7 @@ import SaveCardButton from "@/components/SaveCardButton";
 import PriceAlertForm from "@/components/PriceAlertForm";
 import { emailEnabled } from "@/lib/email";
 import RecordCardView from "@/components/RecordCardView";
+import ListingChecks from "@/components/ListingChecks";
 import SiteFooter from "@/components/SiteFooter";
 
 // How many of the cheapest offers get the full visual DealCard treatment
@@ -543,6 +544,8 @@ export default async function CardHubPage({ params }) {
             )}
           </div>
         )}
+
+        <ListingChecks className="mt-8" />
 
         <div className="mt-8 flex justify-center">
           <Link
