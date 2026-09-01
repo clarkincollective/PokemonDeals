@@ -2,11 +2,11 @@ import { unstable_cache } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { resolveCardSlug, resolveCatalogCard, fetchCardOffers, resolveSpeciesByName, fetchCardHubs, fetchSetSlugs } from "@/lib/deals";
+import { resolveCardSlug, resolveCatalogCard, fetchCardOffers, fetchCardRelations, fetchSetSlugs } from "@/lib/deals";
 import { catalogCardTitle } from "@/lib/cardSlug";
 import { cardDisplayName } from "@/lib/cardName";
 import { catalogImageUrl } from "@/lib/cardImage";
-import { extractSpecies } from "@/lib/pokemonSpecies";
+import { cardSpeciesLink } from "@/lib/cardLinks";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES } from "@/lib/ebay";
@@ -29,6 +29,7 @@ import PriceAlertForm from "@/components/PriceAlertForm";
 import { emailEnabled } from "@/lib/email";
 import RecordCardView from "@/components/RecordCardView";
 import ListingChecks from "@/components/ListingChecks";
+import RelatedCards from "@/components/RelatedCards";
 import SiteFooter from "@/components/SiteFooter";
 
 // How many of the cheapest offers get the full visual DealCard treatment
@@ -175,30 +176,34 @@ export default async function CardHubPage({ params }) {
     // instead (Phase 4 P0). It has no offers, so no Product/Offer schema.
     const card = await resolveCatalogCard(slug);
     if (!card) notFound();
-    const [analysis, validSetSlugs] = await Promise.all([
+    const [analysis, validSetSlugs, relations] = await Promise.all([
       loadPriceAnalysis(card.tcgplayerId),
       fetchSetSlugs("english"),
+      fetchCardRelations(slug, card.name, card.set, card.species),
     ]);
     return (
       <CatalogCardView
         card={card}
         analysis={analysis}
         setHasPage={validSetSlugs.includes(slugifySet(card.set))}
+        relations={relations}
       />
     );
   }
 
-  const speciesName = extractSpecies(hub.name);
+  // The canonical Pokemon this card links to (SEO Phase 4B - one shared
+  // rule for both render paths, see lib/cardLinks). null for Trainer /
+  // Energy / any card whose name a species doesn't lead.
+  const speciesLink = cardSpeciesLink({ name: hub.name });
   // Shared display identity for the H1 / breadcrumb / Product JSON-LD /
   // OG - the exact catalogue name, only TCGplayer's "(#NN)" collector-
   // number parenthetical removed (it's on the identity line below).
   const cardName = cardDisplayName(hub);
-  const [{ deals: offers, error }, analysis, speciesHub, { hubs: allHubs }, validSetSlugs] =
+  const [{ deals: offers, error }, analysis, relations, validSetSlugs] =
     await Promise.all([
       fetchCardOffers(hub.id),
       loadPriceAnalysis(hub.tcgplayerId),
-      speciesName ? resolveSpeciesByName(speciesName) : Promise.resolve(null),
-      fetchCardHubs({ language: "english" }),
+      fetchCardRelations(slug, hub.name, hub.set, null),
       fetchSetSlugs("english"),
     ]);
   const allOffers = offers;
@@ -211,19 +216,10 @@ export default async function CardHubPage({ params }) {
   const setSlug = slugifySet(hub.set);
   const setHasPage = validSetSlugs.includes(setSlug);
 
-  // Related-card internal links (brief Phase 9: card <-> card). Both from
-  // the already-cached hub list - no extra query. Other prints of the
-  // same Pokemon, and other cards from the same set, most-listed first.
-  const relatedSpecies = speciesName
-    ? (allHubs ?? [])
-        .filter((h) => h.slug !== slug && extractSpecies(h.name) === speciesName)
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 6)
-    : [];
-  const relatedSet = (allHubs ?? [])
-    .filter((h) => h.slug !== slug && h.set === hub.set)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 6);
+  // Durable card-to-card links (SEO Phase 4B): other prints of the same
+  // Pokemon + other cards from the same set, from the whole catalogue
+  // (not just live-deal hubs), each a permanent /cards/[slug].
+  const { sameSpecies, sameSet } = relations;
 
   // The hub only exists (see fetchCardHubs) when there were 2+ active
   // listings as of the last 15-minute cache refresh - but listings sell/
@@ -283,20 +279,22 @@ export default async function CardHubPage({ params }) {
     })),
   };
 
-  // Mirrors the visible <Breadcrumbs> below (Deals -> set -> card) so the
-  // structured trail matches what a user sees, per Google's guidance.
+  // Mirrors the visible <Breadcrumbs> below (Deals -> Cards -> set ->
+  // card) so the structured trail matches what a user sees, per Google's
+  // guidance. "Cards" is the SEO Phase 4B card directory.
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Deals", item: `${SITE_URL}/` },
+      { "@type": "ListItem", position: 2, name: "Cards", item: `${SITE_URL}/cards` },
       {
         "@type": "ListItem",
-        position: 2,
+        position: 3,
         name: hub.set,
         ...(setHasPage ? { item: `${SITE_URL}/sets/${setSlug}` } : {}),
       },
-      { "@type": "ListItem", position: 3, name: `${cardName} (${hub.set})`, item: `${SITE_URL}/cards/${slug}` },
+      { "@type": "ListItem", position: 4, name: `${cardName} (${hub.set})`, item: `${SITE_URL}/cards/${slug}` },
     ],
   };
 
@@ -313,6 +311,7 @@ export default async function CardHubPage({ params }) {
         <Breadcrumbs
           items={[
             { name: "Deals", href: "/" },
+            { name: "Cards", href: "/cards" },
             { name: hub.set, href: setHasPage ? `/sets/${setSlug}` : undefined },
             { name: cardName },
           ]}
@@ -353,13 +352,13 @@ export default async function CardHubPage({ params }) {
               <span className="text-zinc-500">{hub.set}</span>
             )}
 
-            {speciesHub && (
+            {speciesLink && (
               <div className="mt-1">
                 <Link
-                  href={`/pokemon/${speciesHub.slug}`}
+                  href={`/pokemon/${speciesLink.slug}`}
                   className="text-sm text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500"
                 >
-                  All {speciesHub.name} deals →
+                  All {speciesLink.name} cards &amp; prices →
                 </Link>
               </div>
             )}
@@ -497,68 +496,13 @@ export default async function CardHubPage({ params }) {
         </div>
         )}
 
-        {(relatedSpecies.length > 0 || relatedSet.length > 0) && (
-          <div className="mt-10 grid gap-8 sm:grid-cols-2">
-            {relatedSpecies.length > 0 && (
-              <section>
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-                  Other {speciesName} cards
-                </h2>
-                <ul className="mt-3 space-y-1.5">
-                  {relatedSpecies.map((h) => (
-                    <li key={h.slug}>
-                      <Link
-                        href={`/cards/${h.slug}`}
-                        className="text-sm text-zinc-700 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500"
-                      >
-                        {h.name} <span className="text-zinc-400">· {h.set}</span>
-                      </Link>
-                    </li>
-                  ))}
-                  {speciesHub && (
-                    <li>
-                      <Link
-                        href={`/pokemon/${speciesHub.slug}`}
-                        className="text-sm font-medium text-red-600 hover:underline dark:text-red-500"
-                      >
-                        All {speciesName} cards &amp; prices →
-                      </Link>
-                    </li>
-                  )}
-                </ul>
-              </section>
-            )}
-            {relatedSet.length > 0 && (
-              <section>
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-                  More from {hub.set}
-                </h2>
-                <ul className="mt-3 space-y-1.5">
-                  {relatedSet.map((h) => (
-                    <li key={h.slug}>
-                      <Link
-                        href={`/cards/${h.slug}`}
-                        className="text-sm text-zinc-700 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500"
-                      >
-                        {h.name}
-                      </Link>
-                    </li>
-                  ))}
-                  {setHasPage && (
-                    <li>
-                      <Link
-                        href={`/sets/${setSlug}`}
-                        className="text-sm font-medium text-red-600 hover:underline dark:text-red-500"
-                      >
-                        All {hub.set} deals →
-                      </Link>
-                    </li>
-                  )}
-                </ul>
-              </section>
-            )}
-          </div>
-        )}
+        <RelatedCards
+          sameSpecies={sameSpecies}
+          sameSet={sameSet}
+          speciesLink={speciesLink}
+          setLink={setHasPage ? { name: hub.set, slug: setSlug } : null}
+          className="mt-10"
+        />
 
         <ListingChecks className="mt-8" />
 

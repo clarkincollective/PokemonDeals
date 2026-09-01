@@ -3,7 +3,7 @@ import Link from "next/link";
 import { slugifySet } from "@/lib/slugify";
 import { hasPrice } from "@/lib/money";
 import { upgradeCatalogImage } from "@/lib/cardImage";
-import { speciesSlug } from "@/lib/pokemonSpecies";
+import { cardSpeciesLink } from "@/lib/cardLinks";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { cardDisplayName } from "@/lib/cardName";
 import SiteHeader from "@/components/SiteHeader";
@@ -16,6 +16,7 @@ import PriceHistoryChart from "@/components/PriceHistoryChart";
 import RecentSales from "@/components/RecentSales";
 import AffiliateLink from "@/components/AffiliateLink";
 import ListingChecks from "@/components/ListingChecks";
+import RelatedCards from "@/components/RelatedCards";
 import RecordCardView from "@/components/RecordCardView";
 
 const SITE_URL = "https://pokemondealfinder.com";
@@ -32,7 +33,7 @@ function usd(n) {
 // card, resolveCardSlug (the deal hub) takes over the same URL and the
 // full deal-hub template (Product/Offer schema, listings grid) renders
 // instead - see app/cards/[slug]/page.js.
-export default function CatalogCardView({ card, analysis, setHasPage }) {
+export default function CatalogCardView({ card, analysis, setHasPage, relations = null }) {
   const { slug, set, cardNumber, rarity, image, species, refPrice } = card;
   // shared display identity - the ex/EX/GX/Mega/owner name kept verbatim,
   // only TCGplayer's "(#NN)" collector-number parenthetical removed (the
@@ -40,7 +41,10 @@ export default function CatalogCardView({ card, analysis, setHasPage }) {
   const name = card.displayName ?? cardDisplayName(card);
 
   const setSlug = slugifySet(set);
-  const spSlug = species ? speciesSlug(species) : null;
+  // SEO Phase 4B - one shared rule for the card -> Pokemon link, identical
+  // to the live-deal hub path. Rejects Trainer / Energy names even when
+  // the catalogue `species` column is set.
+  const speciesLink = cardSpeciesLink({ name: card.name, cardType: card.cardType, species });
   const tcgplayerLink = buildTcgplayerLink(name, card.tcgplayerId);
   const history = analysis?.raw?.history ?? [];
   const hasAnalysis = Boolean(analysis && (analysis.raw?.history?.length || analysis.graded?.length));
@@ -72,13 +76,14 @@ export default function CatalogCardView({ card, analysis, setHasPage }) {
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Deals", item: `${SITE_URL}/` },
+      { "@type": "ListItem", position: 2, name: "Cards", item: `${SITE_URL}/cards` },
       {
         "@type": "ListItem",
-        position: 2,
+        position: 3,
         name: set,
         ...(setHasPage ? { item: `${SITE_URL}/sets/${setSlug}` } : {}),
       },
-      { "@type": "ListItem", position: 3, name: `${name} (${set})`, item: `${SITE_URL}/cards/${slug}` },
+      { "@type": "ListItem", position: 4, name: `${name} (${set})`, item: `${SITE_URL}/cards/${slug}` },
     ],
   };
 
@@ -92,6 +97,7 @@ export default function CatalogCardView({ card, analysis, setHasPage }) {
         <Breadcrumbs
           items={[
             { name: "Deals", href: "/" },
+            { name: "Cards", href: "/cards" },
             { name: set, href: setHasPage ? `/sets/${setSlug}` : undefined },
             { name },
           ]}
@@ -133,13 +139,13 @@ export default function CatalogCardView({ card, analysis, setHasPage }) {
               {rarity && <span className="text-zinc-400">· {rarity}</span>}
             </p>
 
-            {spSlug && (
+            {speciesLink && (
               <div className="mt-1">
                 <Link
-                  href={`/pokemon/${spSlug}`}
+                  href={`/pokemon/${speciesLink.slug}`}
                   className="text-sm text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500"
                 >
-                  All {species} cards &amp; prices →
+                  All {speciesLink.name} cards &amp; prices →
                 </Link>
               </div>
             )}
@@ -237,15 +243,23 @@ export default function CatalogCardView({ card, analysis, setHasPage }) {
           move. Pokemon Deal Finder doesn&apos;t buy cards or guarantee any sale value.
         </p>
 
+        <RelatedCards
+          sameSpecies={relations?.sameSpecies ?? []}
+          sameSet={relations?.sameSet ?? []}
+          speciesLink={speciesLink}
+          setLink={setHasPage ? { name: set, slug: setSlug } : null}
+          className="mt-10"
+        />
+
         <ListingChecks className="mt-6" />
 
         <div className="mt-10 flex flex-wrap gap-3">
-          {spSlug && (
+          {speciesLink && (
             <Link
-              href={`/pokemon/${spSlug}`}
+              href={`/pokemon/${speciesLink.slug}`}
               className="rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-black hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
             >
-              All {species} cards &amp; prices →
+              All {speciesLink.name} cards &amp; prices →
             </Link>
           )}
           {setHasPage && (
@@ -253,14 +267,14 @@ export default function CatalogCardView({ card, analysis, setHasPage }) {
               href={`/sets/${setSlug}`}
               className="rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-black hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
             >
-              Browse {set} deals →
+              Browse {set} cards &amp; prices →
             </Link>
           )}
           <Link
-            href="/"
+            href="/cards"
             className="rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-black hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
           >
-            ← Back to All Deals
+            Browse the card database →
           </Link>
         </div>
       </div>

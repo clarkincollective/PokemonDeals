@@ -417,8 +417,9 @@ export default async function Home({ searchParams }) {
         <section className="border-b border-zinc-200 dark:border-zinc-800">
           <div className="mx-auto max-w-7xl px-6 py-10">
             <SectionHeader kicker="Know what you want" title="Browse the catalogue" />
-            <div className="mt-5 grid gap-5 sm:grid-cols-2">
+            <div className="mt-5 grid gap-5 sm:grid-cols-3">
               {[
+                { href: "/cards", title: "Card database", copy: "Every card we track, with a permanent page and real market-reference prices." },
                 { href: "/sets", title: "Browse by set", copy: "Every set with an active below-market deal, one set at a time." },
                 { href: "/pokemon", title: "Browse by Pokemon", copy: "Every deal for a species, across all its prints and sets." },
               ].map((t) => (

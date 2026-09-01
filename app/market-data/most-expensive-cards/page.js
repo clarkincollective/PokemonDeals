@@ -48,7 +48,12 @@ export default async function MostExpensiveCardsPage() {
             dateModified: lastScan,
           }),
           itemList(
-            cards.map((c) => ({ name: `${c.name} (${c.set})`, url: `/deals/${c.dealId}` }))
+            cards.map((c) => ({
+              name: `${c.name} (${c.set})`,
+              // SEO Phase 4B: prefer the permanent card page over the
+              // ephemeral listing for this evergreen "which card" list.
+              url: c.cardHasPage ? `/cards/${c.slug}` : `/deals/${c.dealId}`,
+            }))
           ),
         ]}
       />
@@ -84,7 +89,7 @@ export default async function MostExpensiveCardsPage() {
                 <span className="w-6 shrink-0 text-right text-sm font-semibold text-zinc-400">{i + 1}</span>
                 <div className="min-w-0">
                   <Link
-                    href={`/deals/${card.dealId}`}
+                    href={card.cardHasPage ? `/cards/${card.slug}` : `/deals/${card.dealId}`}
                     className="block truncate text-sm font-medium text-black hover:underline dark:text-zinc-50"
                   >
                     {card.name}
