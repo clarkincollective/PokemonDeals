@@ -195,9 +195,18 @@ test("20. no deal / matcher / authenticity / freshness logic changed", () => {
   // listingMatchesCard + the trust gate are untouched; we only ADDED a
   // title helper + export.
   assert.match(dm, /function listingMatchesCard\(/);
-  assert.match(dm, /const GRADED_CARD_PATTERN = \/\\b\(psa\|cgc\|bgs\|sgc\|ace\|tag\)/);
+  // the deal-side grader pattern is EXACTLY as it was (6 supported graders)
+  assert.match(dm, /const GRADED_CARD_PATTERN = \/\\b\(psa\|cgc\|bgs\|sgc\|ace\|tag\)\\s\*-\?\\s\*\\d\/i;/);
   assert.match(GRADED_CARD_PATTERN.source, /psa\|cgc\|bgs\|sgc\|ace\|tag/);
-  assert.match(GRADER_MENTION_PATTERN.source, /psa\|cgc\|bgs\|beckett\|sgc\|ace\|tag/);
+  // the recent-sales-only mention pattern covers the 6 + Beckett + the
+  // common off-brand slab graders
+  for (const t of ["Charizard PSA 9", "Blastoise BGS 9", "x Beckett 8", "y GMA 10", "z TQG 9.5"]) {
+    assert.ok(GRADER_MENTION_PATTERN.test(t), `GRADER_MENTION_PATTERN missed: ${t}`);
+  }
+  // ...and does NOT fire on ordinary words
+  for (const t of ["Ace Trainer Pikachu", "Pikachu & Zekrom Tag Team GX", "Mint condition raw"]) {
+    assert.ok(!GRADER_MENTION_PATTERN.test(t), `GRADER_MENTION_PATTERN false positive: ${t}`);
+  }
   const route = readFileSync(join(REPO, "app", "api", "card-search", "route.js"), "utf8");
   assert.ok((route.match(/isDisplayableDeal/g) ?? []).length >= 3, "card-search dropped an isDisplayableDeal guard");
 });
