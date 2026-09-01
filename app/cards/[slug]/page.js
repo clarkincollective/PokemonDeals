@@ -17,6 +17,7 @@ import { currencyForDeal } from "@/lib/money";
 import Price from "@/components/Price";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
+import RecentSales from "@/components/RecentSales";
 import CardPriceSummary from "@/components/CardPriceSummary";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
@@ -424,6 +425,19 @@ export default async function CardHubPage({ params }) {
             </div>
           </div>
         )}
+
+        <RecentSales
+          sales={analysis?.primaryRecentSales}
+          cardName={cardName}
+          page="card_recent_sales"
+          className="mt-6"
+        />
+
+        <p className="mt-6 text-xs leading-relaxed text-zinc-400">
+          Market-reference prices are a guide based on recent sold data, not a guaranteed sale value —
+          the real figure depends on the exact printing, condition and grade, and marketplace prices
+          move. Pokemon Deal Finder doesn&apos;t buy cards or guarantee any sale value.
+        </p>
 
         {error && (
           <p className="mt-6 rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load listings: {error}</p>

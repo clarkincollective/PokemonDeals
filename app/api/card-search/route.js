@@ -4,6 +4,7 @@ import { searchCards, getRawPrice, getRawPriceHistory, pickMarketPrice } from "@
 import { upgradeCatalogImage } from "@/lib/cardImage";
 import { isDisplayableDeal } from "@/lib/dealQuality";
 import { cardDisplayName } from "@/lib/cardName";
+import { catalogCardSlug, catalogCardResolvable } from "@/lib/cardSlug";
 
 // Public, read-only, on-demand - not on the cron schedule, so no
 // CRON_SECRET check. Deals come straight from our own database (never a
@@ -104,6 +105,36 @@ async function findDealsForCatalogPage(db, tcgPlayerIds, { country }) {
   return dealByTcgId;
 }
 
+// For a page of catalogue-search results, resolve each one to its
+// PERMANENT /cards/[slug] page - the canonical exact-printing / value
+// destination the price checker routes into (SEO Phase 3). We only own a
+// page for cards in our own card_catalog, so a result PPT knows about
+// but we don't sync just gets no card link (the UI falls back to a plain
+// eBay search for it). Matched on the exact TCGplayer id, and the slug
+// is built from OUR stored name/set so it always resolves. Also returns
+// our canonical name/set/number/rarity so the preview tile is consistent
+// with the card page it links to.
+async function resolveCatalogHrefs(db, tcgPlayerIds) {
+  const out = new Map();
+  if (tcgPlayerIds.length === 0) return out;
+  const { data } = await db
+    .from("card_catalog")
+    .select("tcgplayer_id, name, set, card_number, rarity, image_url")
+    .eq("language", "english")
+    .in("tcgplayer_id", tcgPlayerIds);
+  for (const r of data ?? []) {
+    if (!catalogCardResolvable(r)) continue;
+    out.set(String(r.tcgplayer_id), {
+      href: `/cards/${catalogCardSlug(r.name, r.set)}`,
+      name: r.name,
+      set: r.set,
+      cardNumber: r.card_number ?? null,
+      rarity: r.rarity ?? null,
+    });
+  }
+  return out;
+}
+
 // Step 1: "pikachu" -> deals we've already found, plus a paginated browse
 // of the whole matching catalog (not just a fixed top 20 - offset lets a
 // visitor page through everything).
@@ -126,7 +157,10 @@ async function cardSearch(url) {
     ]);
 
     const tcgPlayerIds = catalogPage.results.map((c) => String(c.tcgPlayerId)).filter(Boolean);
-    const dealByTcgId = await findDealsForCatalogPage(db, tcgPlayerIds, { country });
+    const [dealByTcgId, hrefByTcgId] = await Promise.all([
+      findDealsForCatalogPage(db, tcgPlayerIds, { country }),
+      resolveCatalogHrefs(db, tcgPlayerIds),
+    ]);
 
     return Response.json({
       deals,
@@ -136,16 +170,25 @@ async function cardSearch(url) {
         total: catalogPage.total,
         hasMore: catalogPage.hasMore,
         results: catalogPage.results.map((c) => {
-          const deal = dealByTcgId.get(String(c.tcgPlayerId));
+          const id = String(c.tcgPlayerId);
+          const deal = dealByTcgId.get(id);
+          const own = hrefByTcgId.get(id) ?? null;
+          // Prefer our own catalogue name/set/number/rarity (matches the
+          // /cards/[slug] page it links to); fall back to PPT's fields.
+          const name = own?.name ?? c.name;
+          const set = own?.set ?? c.setName;
           return {
             tcgplayerId: c.tcgPlayerId,
-            name: c.name,
-            displayName: cardDisplayName({ name: c.name }),
-            set: c.setName,
-            cardNumber: c.number ?? c.cardNumber ?? c.card_number ?? null,
-            rarity: c.rarity ?? null,
+            name,
+            displayName: cardDisplayName({ name }),
+            set,
+            cardNumber: own?.cardNumber ?? c.number ?? c.cardNumber ?? c.card_number ?? null,
+            rarity: own?.rarity ?? c.rarity ?? null,
             imageUrl: upgradeCatalogImage(c.imageCdnUrl200 ?? c.imageUrl ?? null),
             marketPrice: pickMarketPrice(c.prices),
+            // The permanent /cards/[slug] this result routes into - null
+            // when we don't own a page for this exact print.
+            cardHref: own?.href ?? null,
             deal: deal
               ? {
                   id: deal.id,

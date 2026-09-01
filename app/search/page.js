@@ -23,11 +23,28 @@ export async function generateMetadata({ searchParams }) {
   const params = await searchParams;
   const query = typeof params.q === "string" ? params.q.trim() : "";
   return {
-    title: "Search Any Card",
+    title: "Pokemon Card Price Checker & Value Lookup",
     description:
-      "Search any Pokemon card for instant market pricing, real sales history, and any below-market deals we've already found for it.",
+      "Search any Pokemon card by name, set or collector number to find the exact printing and check its market-reference price, per-condition values, graded prices and price history.",
     alternates: { canonical: "/search" },
+    // The bare tool page is indexable; every ?q= / filter state is not,
+    // so Google never indexes thousands of near-duplicate result URLs.
+    // follow: true still passes equity through to the /cards/[slug] pages
+    // a results page links to.
     robots: query ? { index: false, follow: true } : undefined,
+    openGraph: {
+      title: "Pokemon Card Price Checker & Value Lookup",
+      description:
+        "Find the exact printing of any Pokemon card and check its market-reference price, condition values, graded prices and price history.",
+      url: `${SITE_URL}/search`,
+      type: "website",
+    },
+    twitter: {
+      card: "summary",
+      title: "Pokemon Card Price Checker & Value Lookup",
+      description:
+        "Find the exact printing of any Pokemon card and check its market-reference price and history.",
+    },
   };
 }
 
@@ -47,14 +64,16 @@ export default async function SearchPage() {
         data={[
           breadcrumbList([
             { name: "Deals", href: "/" },
-            { name: "Search" },
+            { name: "Price Checker" },
           ]),
           {
             "@context": "https://schema.org",
-            "@type": "SearchResultsPage",
-            name: "Search Any Pokemon Card",
+            "@type": "WebPage",
+            name: "Pokemon Card Price Checker",
             url: `${SITE_URL}/search`,
-            isPartOf: { "@type": "WebSite", name: "Pokemon Deal Finder", url: SITE_URL },
+            description:
+              "Search any Pokemon card by name, set or collector number to find the exact printing and check its market-reference price, condition values, graded prices and price history.",
+            isPartOf: { "@id": `${SITE_URL}/#website` },
           },
         ]}
       />

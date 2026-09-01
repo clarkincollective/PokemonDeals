@@ -22,6 +22,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import StickyDealCta from "@/components/StickyDealCta";
 import RecordCardView from "@/components/RecordCardView";
 import ListingChecks from "@/components/ListingChecks";
+import RecentSales from "@/components/RecentSales";
 import SaveCardButton from "@/components/SaveCardButton";
 import PriceAlertForm from "@/components/PriceAlertForm";
 import { emailEnabled } from "@/lib/email";
@@ -33,10 +34,6 @@ import { DEAL_CATEGORIES, DEAL_CATEGORY_SLUGS } from "@/lib/dealCategories";
 import DealCategoryPage, { dealCategoryMetadata } from "@/components/DealCategoryPage";
 
 const SITE_URL = "https://pokemondealfinder.com";
-
-function formatSaleDate(dateString) {
-  return new Date(dateString).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
 
 // Real, live perf/cost problem found via SEO audit: this page ran fully
 // dynamic on every view (confirmed live: Cache-Control was no-store,
@@ -634,35 +631,7 @@ export default async function DealDetailPage({ params }) {
           </div>
         )}
 
-        {recentSales.length > 0 && (
-          <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
-            <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Recent eBay sales</h2>
-            <p className="text-xs text-zinc-400">Real individual sold listings, not an estimate.</p>
-            <ul className="mt-4 divide-y divide-zinc-100 dark:divide-zinc-900">
-              {recentSales.slice(0, 8).map((sale) => (
-                <li key={sale.listingId} className="flex items-center justify-between gap-3 py-2.5">
-                  <div className="min-w-0">
-                    <AffiliateLink
-                      href={sale.url}
-                      eventName="eBay Click"
-                      eventData={{ card: cardName, page: "recent_sales" }}
-                      className="line-clamp-1 block text-sm text-zinc-700 hover:underline dark:text-zinc-300"
-                    >
-                      {normalizePublicText(sale.title)}
-                    </AffiliateLink>
-                    <p className="text-xs text-zinc-400">
-                      {formatSaleDate(sale.soldDate)} &middot;{" "}
-                      {sale.listingType === "auction" ? "Auction" : "Buy It Now"}
-                    </p>
-                  </div>
-                  <span className="shrink-0 font-semibold text-black dark:text-zinc-50">
-                    ${Number(sale.price).toFixed(2)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <RecentSales sales={recentSales} cardName={cardName} page="deal_recent_sales" className="mt-6" />
 
         <ListingChecks className="mt-8" />
       </div>
