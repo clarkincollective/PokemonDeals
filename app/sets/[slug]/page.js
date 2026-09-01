@@ -7,10 +7,13 @@ import {
   fetchHubCounts,
   fetchSetCatalog,
   fetchSetSealedCatalog,
+  fetchSetSlugs,
   SET_CATALOG_MIN_CARDS,
   SET_SEALED_MIN_PRODUCTS,
 } from "@/lib/deals";
 import { setImage } from "@/lib/setImages";
+import { VINTAGE_SETS, isModernSet } from "@/lib/dealCategories";
+import { setPriceSnapshot, setSpeciesList, setEra } from "@/lib/setSummary";
 import SiteHeader from "@/components/SiteHeader";
 import RegionRedirect from "@/components/RegionRedirect";
 import DealGrid from "@/components/DealGrid";
@@ -18,6 +21,10 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import SpeciesCardList from "@/components/SpeciesCardList";
 import CatalogueBrowser from "@/components/CatalogueBrowser";
 import FeaturedValueCards from "@/components/FeaturedValueCards";
+import SetFactStrip from "@/components/SetFactStrip";
+import SetPriceSummary from "@/components/SetPriceSummary";
+import SetPokemonList from "@/components/SetPokemonList";
+import SetQuickAnswers from "@/components/SetQuickAnswers";
 import { buildCatalogueItems } from "@/components/SpeciesCardsBySet";
 import { hasPrice } from "@/lib/money";
 import { cardTier } from "@/lib/catalogueView";
@@ -27,37 +34,45 @@ const SITE_URL = "https://pokemondealfinder.com";
 
 export const revalidate = 900;
 
-// No request-time APIs on this route (page 1 is what renders server-side;
-// pagination + filters are client-side via <DealGrid> / /api/deals-page),
-// so this + an empty generateStaticParams makes it ISR-cacheable at the
-// edge instead of a full render per crawler hit.
 export async function generateStaticParams() {
   return [];
 }
 
-// Real category page targeting "<set name> deals / card values" search
-// intent. See lib/deals.js's fetchSets/resolveSetSlug for how the slug
-// maps back to a real set value - no fabricated content, just the real
-// active deals for that set plus the real card_catalog listing for it.
+// A set page targets "<set> Pokemon cards / card list / checklist /
+// prices / values / deals" intent. Two indexable paths, one template:
+//   - DEAL-BACKED:     >= SET_MIN_LISTINGS (3) live below-market deals
+//   - CATALOGUE-BACKED: >= SET_CATALOG_MIN_CARDS priced imaged cards,
+//                       even with no live deal (SEO Phase 4A)
+// See lib/deals.js resolveSetSlug / fetchCatalogSets. Nothing fabricated:
+// real active deals plus the real card_catalog listing for the set.
 export async function generateMetadata({ params }) {
   const { slug } = await params;
   const resolved = await resolveSetSlug(slug);
   if (!resolved) return { title: "Set not found", robots: { index: false, follow: true } };
 
-  const title = `${resolved.set} Card Deals`;
-  const description = `Real below-market ${resolved.set} Pokemon card deals on eBay, checked against real market pricing - ${resolved.count} active right now.`;
   const canonical = `/sets/${slug}`;
+  const catalogueOnly = Boolean(resolved.catalogue);
 
-  // One cheap extra row for a representative OG image - a real listing
-  // from this set, not a fabricated one.
-  const { deals: sample } = await fetchDealsPage({
-    table: "deals",
-    language: "english",
-    set: resolved.set,
-    page: 1,
-    pageSize: 1,
-  });
-  const image = sample[0]?.image_url;
+  // Stable, capability-not-inventory metadata: no live deal count, no
+  // volatile price range. The visible page carries the real counts.
+  const title = catalogueOnly
+    ? `${resolved.set} Card List & Prices`
+    : `${resolved.set} Card Prices & Deals`;
+  const description = catalogueOnly
+    ? `Every ${resolved.set} Pokemon card we track, with real recent-sold market references, plus the Pokemon in the set. Compare ${resolved.set} card prices and values.`
+    : `Every ${resolved.set} Pokemon card we track, with real recent-sold market references, plus current eBay listings we've identified below market. Compare ${resolved.set} card prices and deals.`;
+
+  let image = setImage(resolved.set)?.logo ?? null;
+  if (!catalogueOnly) {
+    const { deals: sample } = await fetchDealsPage({
+      table: "deals",
+      language: "english",
+      set: resolved.set,
+      page: 1,
+      pageSize: 1,
+    });
+    image = sample[0]?.image_url ?? image;
+  }
 
   return {
     title,
@@ -84,47 +99,48 @@ export default async function SetDetailPage({ params }) {
   const resolved = await resolveSetSlug(slug);
   if (!resolved) notFound();
 
+  const catalogueOnly = Boolean(resolved.catalogue);
+  const basePath = `/sets/${slug}`;
+
   const [
     { deals, totalPages, error },
     hubCounts,
-    { cards: catalogCards, totalCards: catalogTotal, truncated: catalogTruncated },
+    { cards: catalogCards, totalCards: catalogTotal, truncated: catalogTruncated, stats },
     { products: sealedProducts, totalProducts: sealedTotal, truncated: sealedTruncated },
+    validSetSlugs,
   ] = await Promise.all([
-    fetchDealsPage({
-      table: "deals",
-      language: "english",
-      set: resolved.set,
-      sort: "newest",
-      page: 1,
-      pageSize: 20,
-    }),
+    catalogueOnly
+      ? Promise.resolve({ deals: [], totalPages: 1, error: null })
+      : fetchDealsPage({
+          table: "deals",
+          language: "english",
+          set: resolved.set,
+          sort: "newest",
+          page: 1,
+          pageSize: 20,
+        }),
     fetchHubCounts({ language: "english" }),
     fetchSetCatalog(resolved.set, "english"),
     fetchSetSealedCatalog(resolved.set, "english"),
+    fetchSetSlugs("english"),
   ]);
 
-  const basePath = `/sets/${slug}`;
   const logo = setImage(resolved.set)?.logo ?? null;
+  const era = setEra(resolved.set, { vintageSets: VINTAGE_SETS, isModernSet });
 
-  // Only show the full browse grid once card_catalog actually has a
-  // meaningful slice of this set - see SET_CATALOG_MIN_CARDS. A thin
-  // grid right now is almost always the known card_catalog backfill gap
-  // (IMPLEMENTATION_STATUS "A4 - three-way coverage spot-check"), not a
-  // bug here.
-  const showCatalog = catalogCards.length >= SET_CATALOG_MIN_CARDS;
+  // A catalogue-backed set always shows the checklist + SEO sections;
+  // a deal-backed set shows them once card_catalog has a meaningful slice.
+  const showCatalog = catalogueOnly || catalogCards.length >= SET_CATALOG_MIN_CARDS;
 
-  // Client catalogue browser data (search / rarity / sort / disclosure) -
-  // same shared component + tiles + ranking as the species page. Every
-  // card stays in the SSR HTML; the browser only shows / hides / reorders.
-  const catalogueItems = buildCatalogueItems(catalogCards, [slug]);
-  // "Highest-value cards in this set" - up to 12, ranked ONLY by the
-  // trustworthy market reference (never affiliate payout / random order).
+  const catalogueItems = buildCatalogueItems(catalogCards, validSetSlugs);
   const featuredItems = [...catalogueItems]
     .filter((c) => hasPrice(c.refPrice))
-    // standard cards ahead of any Jumbo / oversized / WCD specialty
-    // printing that shares this set (a no-op on a normal set).
     .sort((a, b) => cardTier(a) - cardTier(b) || Number(b.refPrice) - Number(a.refPrice))
     .slice(0, 12);
+
+  // Set-level aggregates (real catalogue data; computed once).
+  const snapshot = setPriceSnapshot(catalogueItems);
+  const speciesInSet = setSpeciesList(catalogCards);
 
   const showSealed = sealedProducts.length >= SET_SEALED_MIN_PRODUCTS;
   const sealedDealCount = sealedProducts.filter((p) => p.deal).length;
@@ -139,10 +155,20 @@ export default async function SetDetailPage({ params }) {
     ],
   };
 
-  // ItemList of the real cards in this set (not Product - a set is a
-  // collection of many differently-priced cards). Points each card at its
-  // /cards/[slug] hub when one exists, else this set page. Bounded so a
-  // 250-card set doesn't emit a giant blob.
+  // CollectionPage for the set hub (real, no fabricated data). No
+  // Product/Offer - a set is not one purchasable item; individual
+  // /cards/[slug] pages carry Product/Offer where a live offer exists.
+  const collectionJsonLd = showCatalog
+    ? {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: `${resolved.set} Pokemon cards`,
+        description: `${resolved.set} Pokemon card checklist with real recent-sold market references and the Pokemon in the set.`,
+        url: `${SITE_URL}${basePath}`,
+        isPartOf: { "@id": `${SITE_URL}/#website` },
+      }
+    : null;
+
   const itemListJsonLd = showCatalog
     ? {
         "@context": "https://schema.org",
@@ -153,14 +179,25 @@ export default async function SetDetailPage({ params }) {
           "@type": "ListItem",
           position: i + 1,
           name: c.cardNumber ? `${c.name} (${c.cardNumber})` : c.name,
-          url: c.hubSlug ? `${SITE_URL}/cards/${c.hubSlug}` : `${SITE_URL}${basePath}`,
+          url: c.hubSlug
+            ? `${SITE_URL}/cards/${c.hubSlug}`
+            : c.catalogSlug
+              ? `${SITE_URL}/cards/${c.catalogSlug}`
+              : `${SITE_URL}${basePath}`,
         })),
       }
     : null;
 
+  const h1 = catalogueOnly
+    ? `${resolved.set} Card List & Prices`
+    : `${resolved.set} Card Prices & Deals`;
+
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      {collectionJsonLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }} />
+      )}
       {itemListJsonLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
       )}
@@ -184,49 +221,68 @@ export default async function SetDetailPage({ params }) {
           </Link>
           {logo && (
             <span className="relative mt-5 block h-12 w-40">
-              {/* Real pokemontcg.io set logo (see the /sets logo work).
-                  Fixed box so there's no layout shift; lazy by default. */}
               <Image src={logo} alt="" fill sizes="160px" className="object-contain object-left" />
             </span>
           )}
           <h1 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
-            {resolved.set} Deals
+            {h1}
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
-            Real below-market {resolved.set} listings on eBay, checked against real market pricing and
-            real sold-listing data.
+            {catalogueOnly ? (
+              <>
+                Browse every {resolved.set} card we track with its real recent-sold market reference,
+                and see which Pokemon are in the set. There is no qualifying below-market{" "}
+                {resolved.set} deal to feature right now — the checklist and prices stay available.
+              </>
+            ) : (
+              <>
+                Real below-market {resolved.set} listings on eBay checked against real market pricing,
+                plus every {resolved.set} card we track and the Pokemon in the set.
+              </>
+            )}
           </p>
+          <SetFactStrip setName={resolved.set} snapshot={snapshot} era={era} />
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
         {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
 
-        <h2
-          id="deals"
-          className="mb-5 scroll-mt-24 text-sm font-semibold uppercase tracking-wide text-zinc-400"
-        >
-          {resolved.set} Deals
-        </h2>
+        {!catalogueOnly && (
+          <>
+            <h2
+              id="deals"
+              className="mb-5 scroll-mt-24 text-sm font-semibold uppercase tracking-wide text-zinc-400"
+            >
+              {resolved.set} deals
+            </h2>
+            <DealGrid
+              kind="set"
+              slug={slug}
+              basePath={basePath}
+              initial={{ deals, totalPages }}
+              hubCounts={hubCounts}
+              emptyLabel={`No ${resolved.set} deals match these filters right now. Try clearing a filter, or check back after the next scheduled scan.`}
+              validSetSlugs={[slug]}
+            />
+          </>
+        )}
 
-        <DealGrid
-          kind="set"
-          slug={slug}
-          basePath={basePath}
-          initial={{ deals, totalPages }}
-          hubCounts={hubCounts}
-          emptyLabel={`No ${resolved.set} deals match these filters right now. Try clearing a filter, or check back after the next scheduled scan.`}
-          validSetSlugs={[slug]}
-        />
+        {snapshot && snapshot.cardCount > 0 && (
+          <div className={catalogueOnly ? "" : "mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800"}>
+            <SetPriceSummary setName={resolved.set} snapshot={snapshot} />
+          </div>
+        )}
 
         {showCatalog && featuredItems.length >= 4 && (
           <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
             <h2 className="text-lg font-bold text-black dark:text-zinc-50">
-              Highest-value cards in {resolved.set}
+              Most valuable {resolved.set} cards we track
             </h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Ranked by recent-sold market reference price. Open a card for full pricing, graded
-              values and any live deal.
+              The highest market references currently in our catalogue — not an all-time ranking.
+              Standard cards rank ahead of Jumbo / World Championship printings. Open a card for full
+              pricing, graded values and any live deal.
             </p>
             <FeaturedValueCards
               speciesName={resolved.set}
@@ -240,16 +296,19 @@ export default async function SetDetailPage({ params }) {
           <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
             <h2 className="text-lg font-bold text-black dark:text-zinc-50">
               {catalogTruncated
-                ? `Cards in ${resolved.set} (${catalogCards.length} of ${catalogTotal})`
-                : `Every card in ${resolved.set} (${catalogTotal})`}
+                ? `${resolved.set} card checklist (${catalogCards.length} of ${catalogTotal})`
+                : `${resolved.set} card checklist (${catalogTotal})`}
             </h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Search by name, number or rarity; filter by rarity; sort by value or card number.
-              Reference prices are recent-sold data, not guaranteed values.
+              Every {resolved.set} card we track. Search by name, number or rarity; filter by rarity;
+              sort by value or card number. Open a card for full pricing. Reference prices are
+              recent-sold data, not guaranteed values.
             </p>
             <CatalogueBrowser variant="set" label={resolved.set} items={catalogueItems} />
           </section>
         )}
+
+        <SetPokemonList setName={resolved.set} species={speciesInSet} />
 
         {showSealed && (
           <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
@@ -274,6 +333,13 @@ export default async function SetDetailPage({ params }) {
             />
           </section>
         )}
+
+        <SetQuickAnswers
+          setName={resolved.set}
+          snapshot={snapshot}
+          species={speciesInSet}
+          hasDeals={!catalogueOnly && deals.length > 0}
+        />
 
         <div className="mt-8 flex justify-center">
           <Link

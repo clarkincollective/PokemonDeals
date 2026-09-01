@@ -288,7 +288,10 @@ export default function MethodologyPage() {
           </li>
           <li>
             A <Link href="/sets" className="text-red-600 hover:underline dark:text-red-500">set</Link>{" "}
-            page exists, and is indexed, when the set has enough active below-market listings to browse.
+            page can also exist from catalogue data alone, with no live deal. It is intended for
+            indexing when the set has enough real, priced, catalogued cards to be a useful card
+            checklist and price reference, or when it has enough active below-market listings to
+            browse; a set below both bars keeps no page.
           </li>
           <li>
             An individual card page exists permanently even with no current deal. If there is no

@@ -75,9 +75,11 @@ export default function SetsFilterList({ sets }) {
               <span className="min-w-0 flex-1 truncate font-medium text-black dark:text-zinc-50">
                 {s.set}
               </span>
-              <span className="shrink-0 rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                {s.count}
-              </span>
+              {s.count > 0 && (
+                <span className="shrink-0 rounded-md bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
+                  {s.count}
+                </span>
+              )}
             </Link>
           ))}
         </div>
