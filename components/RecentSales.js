@@ -26,13 +26,30 @@ export default function RecentSales({
   className = "",
 }) {
   const rows = (sales ?? []).filter((s) => s && s.price != null);
-  if (rows.length === 0) return null;
-
   const heading = variant === "raw" ? "Recent raw eBay sales" : "Recent eBay sales";
   const caption =
     variant === "raw"
-      ? "Real individual sold listings of the raw (ungraded) card — not a market-reference estimate. Graded-slab sales are shown in the graded pricing above."
+      ? "Real individual sold listings that appear to match this raw printing — not a market-reference estimate. Graded slabs and other printings (reprints, 1st Edition, Japanese) are filtered out, so few or none may remain."
       : "Real individual sold listings for this printing — not a market-reference estimate.";
+
+  // Honest empty state for the raw list: after filtering out graded slabs
+  // and foreign printings there may be nothing left, and that is better
+  // than backfilling with unrelated sales. Non-raw callers (or a failed
+  // analysis load, sales == null) still render nothing.
+  if (rows.length === 0) {
+    if (variant !== "raw" || !Array.isArray(sales)) return null;
+    return (
+      <section
+        className={`rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950 ${className}`}
+      >
+        <h2 className="text-sm font-semibold text-black dark:text-zinc-50">{heading}</h2>
+        <p className="text-xs text-zinc-400">{caption}</p>
+        <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
+          No recent raw eBay sales clearly match this printing.
+        </p>
+      </section>
+    );
+  }
 
   return (
     <section

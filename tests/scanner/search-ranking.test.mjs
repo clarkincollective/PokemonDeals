@@ -172,19 +172,21 @@ test("13. a genuinely raw sold-listing title is NOT flagged graded", () => {
   }
 });
 
-test("14. the raw recent-sales list omits ambiguous grader-mentioning sales", () => {
-  // getFullPriceAnalysis filters primaryRecentSales with titleLooksGraded
-  // when no grader was requested (primaryKey null -> the raw path).
+test("14. the raw recent-sales list omits graded slabs AND foreign printings", () => {
+  // getFullPriceAnalysis filters primaryRecentSales with
+  // rawSaleMatchesPrinting when no grader was requested (primaryKey null
+  // -> the raw path). See tests/scanner/recent-sales-filter.test.mjs for
+  // the behaviour of the filter itself.
   const src = readFileSync(join(REPO, "lib", "pokemonPriceTracker.js"), "utf8");
-  assert.match(src, /if \(!primaryKey\) \{[\s\S]*primarySoldListings = primarySoldListings\.filter\(\(s\) => !titleLooksGraded\(s\.title\)\)/);
+  assert.match(src, /if \(!primaryKey\) \{[\s\S]*primarySoldListings = primarySoldListings\.filter\(\(s\) => rawSaleMatchesPrinting\(s\.title, identity\)\)/);
   assert.match(src, /require\("\.\/dealMatching"\)/);
 });
 
 test("15. the aggregate market history and individual sales stay distinctly labelled", () => {
   const rs = readFileSync(join(REPO, "components", "RecentSales.js"), "utf8");
   assert.match(rs, /Recent raw eBay sales|Recent eBay sales/);
-  assert.match(rs, /raw \(ungraded\) card/);
-  assert.match(rs, /Graded-slab sales are shown in the graded pricing above/);
+  assert.match(rs, /appear to match this raw printing/);
+  assert.match(rs, /Graded slabs and other printings .* are filtered out/);
   const card = readFileSync(join(REPO, "app", "cards", "[slug]", "page.js"), "utf8");
   assert.match(card, /Market price history/);
   assert.match(card, /variant=\{analysis\?\.primaryKey === "raw" \? "raw" : null\}/);
