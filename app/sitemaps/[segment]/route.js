@@ -3,7 +3,13 @@ import { segmentEntries, urlsetXml, SITEMAP_SEGMENTS, SITEMAP_CACHE_CONTROL } fr
 // One child sitemap per page type. Request path is /sitemaps/<segment>.xml
 // (the ".xml" is stripped); an unknown segment 404s rather than serving an
 // empty urlset.
-export const revalidate = 900;
+//
+// 300s: the stable segments (pages/sets/pokemon/cards) are backed by
+// their own longer-lived caches so this just re-serialises them; the
+// value that matters is the deal / sealed segments, where a shorter
+// window keeps a just-expired (now-noindex) listing from lingering in
+// the sitemap. Served stale-while-revalidate, so no request ever waits.
+export const revalidate = 300;
 
 export function generateStaticParams() {
   return SITEMAP_SEGMENTS.map((segment) => ({ segment: `${segment}.xml` }));

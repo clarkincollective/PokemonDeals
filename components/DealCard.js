@@ -46,6 +46,14 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
     if (fromCountry) qs.set("country", fromCountry);
     return `/deals/${deal.id}?${qs.toString()}`;
   })();
+  // SEO Phase 5: the `?from=` variant is a return-nav convenience only -
+  // the deal page ignores it server-side and canonicalises to the bare
+  // URL. nofollow it so crawlers don't spend budget fetching one
+  // `?from=` permutation per internal page that links the deal; the bare
+  // /deals/[id] is discovered from the sitemap and from /cards/[slug].
+  // Same rule the header / filter bars already apply to internal
+  // query-param links.
+  const dealRel = dealHref.includes("?") ? "nofollow" : undefined;
   const cardSet = deal.watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
   // Rendered in the listing's own currency on the server; <Price> swaps
@@ -93,6 +101,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
         </div>
         <a
           href={dealHref}
+          rel={dealRel}
           className="relative block aspect-square w-full bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950"
         >
           <DealImage
@@ -135,6 +144,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
       <div className="flex flex-1 flex-col gap-1 p-4">
         <a
           href={dealHref}
+          rel={dealRel}
           className="truncate text-[15px] font-semibold leading-snug text-zinc-900 hover:underline dark:text-zinc-50"
         >
           {cardName}
