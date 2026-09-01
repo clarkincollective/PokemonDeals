@@ -7,6 +7,7 @@ import {
   fetchSetSlugs,
 } from "@/lib/deals";
 import { DEAL_CATEGORIES, DEAL_CATEGORY_SLUGS, isModernSet } from "@/lib/dealCategories";
+import { normalizePublicText } from "@/lib/publicText";
 import SiteHeader from "@/components/SiteHeader";
 import RegionRedirect from "@/components/RegionRedirect";
 import DealGrid from "@/components/DealGrid";
@@ -97,7 +98,7 @@ export default async function DealCategoryPage({ slug }) {
             "@type": "ListItem",
             position: i + 1,
             url: `${SITE_URL}/deals/${d.id}`,
-            name: d.watchlist?.name ? `${d.watchlist.name} (${d.watchlist.set})` : d.title,
+            name: normalizePublicText(d.watchlist?.name ? `${d.watchlist.name} (${d.watchlist.set})` : d.title),
           })),
         }
       : null;

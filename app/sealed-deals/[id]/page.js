@@ -15,6 +15,7 @@ import PriceHistoryChart from "@/components/PriceHistoryChart";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
+import { normalizePublicText } from "@/lib/publicText";
 import AffiliateLink from "@/components/AffiliateLink";
 import ShareButton from "@/components/ShareButton";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -81,7 +82,7 @@ export async function generateMetadata({ params }) {
   if (!shouldIndexDeal(deal) || auctionEnded(deal) || !isExactEbayDealDestination(deal))
     return { title: "Deal not found", robots: { index: false, follow: true } };
 
-  const productName = deal.sealed_watchlist?.name ?? deal.title;
+  const productName = normalizePublicText(deal.sealed_watchlist?.name ?? deal.title);
   const productSet = deal.sealed_watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
   // Length-aware, same approach as the card hub: keep the real product
@@ -141,7 +142,7 @@ export default async function SealedDealDetailPage({ params }) {
   }
 
   const watchlist = deal.sealed_watchlist;
-  const productName = watchlist?.name ?? deal.title;
+  const productName = normalizePublicText(watchlist?.name ?? deal.title);
   const productSet = watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
   // Native currency on the server (keeps this page cacheable); <Price>
@@ -170,7 +171,7 @@ export default async function SealedDealDetailPage({ params }) {
     "@type": "Product",
     name: `${productName}${productSet ? ` - ${productSet}` : ""}`,
     image: deal.image_url ?? undefined,
-    description: deal.title,
+    description: normalizePublicText(deal.title),
     brand: { "@type": "Brand", name: "Pokemon" },
     offers: {
       "@type": "Offer",
@@ -226,7 +227,7 @@ export default async function SealedDealDetailPage({ params }) {
         <div className="mt-4 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
           <div className="relative h-56 w-56 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:self-auto dark:bg-zinc-900">
             {deal.image_url ? (
-              <Image src={deal.image_url} alt={deal.title} fill sizes="224px" className="object-contain p-3" />
+              <Image src={deal.image_url} alt={normalizePublicText(deal.title)} fill sizes="224px" className="object-contain p-3" />
             ) : (
               <CardImagePlaceholder className="h-24 w-16" />
             )}
@@ -253,7 +254,7 @@ export default async function SealedDealDetailPage({ params }) {
               <span className="font-medium text-zinc-500"> - {discountPct}% Below Market</span>
             </h1>
             {productSet && <p className="text-zinc-500">{productSet}</p>}
-            <p className="mt-1 line-clamp-2 text-sm text-zinc-400">{deal.title}</p>
+            <p className="mt-1 line-clamp-2 text-sm text-zinc-400">{normalizePublicText(deal.title)}</p>
 
             <div className="mt-4">
               <div className="flex items-baseline gap-3">

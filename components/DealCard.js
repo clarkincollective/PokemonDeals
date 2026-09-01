@@ -4,6 +4,7 @@ import { slugifySet } from "@/lib/slugify";
 import { currencyForDeal } from "@/lib/money";
 import { timeAgo, timeUntil, isWithin } from "@/lib/time";
 import { conditionLabel } from "@/lib/dealQuality";
+import { normalizePublicText } from "@/lib/publicText";
 import AffiliateLink from "@/components/AffiliateLink";
 import DealImage from "@/components/DealImage";
 import SaveCardButton from "@/components/SaveCardButton";
@@ -31,7 +32,7 @@ function discountBadgeClass(pct) {
 // `hub` is `{ count, slug }` from fetchHubCounts when this card has 2+
 // active listings, optional.
 export default function DealCard({ deal, rank, hub, pageName = "home", validSetSlugs, from, fromCountry }) {
-  const cardName = deal.watchlist?.name ?? deal.title;
+  const cardName = normalizePublicText(deal.watchlist?.name ?? deal.title);
 
   // A "return to browsing" hint for /deals/[id]: the internal page this
   // card was clicked from (+ its country filter). Read + WHITELISTED on
@@ -96,7 +97,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           <DealImage
             src={deal.image_url}
             cardTcgplayerId={deal.card_tcgplayer_id}
-            alt={deal.title}
+            alt={normalizePublicText(deal.title)}
             sizes="(max-width: 640px) 90vw, (max-width: 1024px) 46vw, 24vw"
             quality={85}
           />

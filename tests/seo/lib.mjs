@@ -112,7 +112,7 @@ export function pathOf(urlOrPath) {
 }
 
 // The authored, distinctive part of a <title> - everything before the
-// final " | Pokémon Deal Finder" template suffix. Used for the length
+// final " | Pokemon Deal Finder" template suffix. Used for the length
 // check so the shared site-name suffix doesn't count against every page.
 export function titleCore(title) {
   if (!title) return "";

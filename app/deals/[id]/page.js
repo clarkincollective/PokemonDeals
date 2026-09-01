@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { findCardHubByWatchlistId, resolveSpeciesByName, fetchSetSlugs, cardColsReady, withCard } from "@/lib/deals";
 import { shouldIndexDeal } from "@/lib/indexability";
 import { conditionLabel, isDisplayableDeal } from "@/lib/dealQuality";
+import { normalizePublicText } from "@/lib/publicText";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
@@ -105,7 +106,7 @@ export async function generateMetadata({ params }) {
   if (!shouldIndexDeal(deal) || !isDisplayableDeal(deal))
     return { title: "Deal not found", robots: { index: false, follow: true } };
 
-  const cardName = deal.watchlist?.name ?? deal.title;
+  const cardName = normalizePublicText(deal.watchlist?.name ?? deal.title);
   const cardSet = deal.watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
   // Length-aware, same approach as the card hub: keep the real card (and
@@ -233,7 +234,7 @@ export default async function DealDetailPage({ params }) {
     : analysis?.raw?.history ?? [];
   const recentSales = analysis?.primaryRecentSales ?? [];
 
-  const cardName = deal.watchlist?.name ?? deal.title;
+  const cardName = normalizePublicText(deal.watchlist?.name ?? deal.title);
   const cardSet = deal.watchlist?.set;
   // /sets/[slug] only exists for an English set that clears
   // SET_MIN_LISTINGS - gate on the real list, not just "is English".
@@ -283,7 +284,7 @@ export default async function DealDetailPage({ params }) {
     "@type": "Product",
     name: `${cardName}${cardSet ? ` - ${cardSet}` : ""}`,
     image: deal.image_url ?? undefined,
-    description: deal.title,
+    description: normalizePublicText(deal.title),
     brand: { "@type": "Brand", name: "Pokemon" },
     offers: {
       "@type": "Offer",
@@ -367,7 +368,7 @@ export default async function DealDetailPage({ params }) {
             <DealImage
               src={deal.image_url}
               cardTcgplayerId={deal.card_tcgplayer_id ?? deal.watchlist?.justtcg_tcgplayer_id}
-              alt={deal.title}
+              alt={normalizePublicText(deal.title)}
               sizes="224px"
               priority
               className="object-contain p-3"
@@ -417,7 +418,7 @@ export default async function DealDetailPage({ params }) {
                 <p className="text-zinc-500">{cardSet}</p>
               )
             )}
-            <p className="mt-1 line-clamp-2 text-sm text-zinc-400">{deal.title}</p>
+            <p className="mt-1 line-clamp-2 text-sm text-zinc-400">{normalizePublicText(deal.title)}</p>
 
             {cardHub && (
               <Link
@@ -645,7 +646,7 @@ export default async function DealDetailPage({ params }) {
                       eventData={{ card: cardName, page: "recent_sales" }}
                       className="line-clamp-1 block text-sm text-zinc-700 hover:underline dark:text-zinc-300"
                     >
-                      {sale.title}
+                      {normalizePublicText(sale.title)}
                     </AffiliateLink>
                     <p className="text-xs text-zinc-400">
                       {formatSaleDate(sale.soldDate)} &middot;{" "}

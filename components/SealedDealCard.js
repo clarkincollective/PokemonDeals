@@ -3,6 +3,7 @@ import { MARKETPLACES } from "@/lib/ebay";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { currencyForDeal } from "@/lib/money";
 import { timeAgo, timeUntil } from "@/lib/time";
+import { normalizePublicText } from "@/lib/publicText";
 import AffiliateLink from "@/components/AffiliateLink";
 import DealScoreBadge from "@/components/DealScoreBadge";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
@@ -15,7 +16,7 @@ const SITE_URL = "https://pokemondealfinder.com";
 // product has neither) - deal is a sealed_deals row joined to
 // sealed_watchlist (see app/sealed-deals/page.js).
 export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sealed" }) {
-  const productName = deal.sealed_watchlist?.name ?? deal.title;
+  const productName = normalizePublicText(deal.sealed_watchlist?.name ?? deal.title);
   const productSet = deal.sealed_watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
   // Native currency on the server; <Price> localises after hydration.
@@ -35,7 +36,7 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
         {deal.image_url ? (
           <Image
             src={deal.image_url}
-            alt={deal.title}
+            alt={normalizePublicText(deal.title)}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             className="object-contain p-3 transition-transform duration-200 group-hover:scale-[1.03]"
