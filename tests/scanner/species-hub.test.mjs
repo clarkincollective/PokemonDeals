@@ -12,14 +12,15 @@ import {
 } from "../../lib/speciesHub.js";
 import { speciesLeadsCardName } from "../../lib/pokemonSpecies.js";
 
-test("SPECIES_CATALOG_MIN_CARDS is the audit-proposed 8", () => {
-  assert.equal(SPECIES_CATALOG_MIN_CARDS, 8);
+test("SPECIES_CATALOG_MIN_CARDS is 6 (SEO Phase 2B: lowered 8 -> 6)", () => {
+  assert.equal(SPECIES_CATALOG_MIN_CARDS, 6);
 });
 
 test("speciesIndexable: at / above / below the threshold on eligibleCount", () => {
-  assert.equal(speciesIndexable({ eligibleCount: 8, cardCount: 40 }), true);
+  assert.equal(speciesIndexable({ eligibleCount: 6, cardCount: 40 }), true); // at threshold
+  assert.equal(speciesIndexable({ eligibleCount: 7, cardCount: 40 }), true);
   assert.equal(speciesIndexable({ eligibleCount: 20, cardCount: 45 }), true);
-  assert.equal(speciesIndexable({ eligibleCount: 7, cardCount: 40 }), false);
+  assert.equal(speciesIndexable({ eligibleCount: 5, cardCount: 40 }), false); // below threshold
   assert.equal(speciesIndexable({ eligibleCount: 0, cardCount: 3 }), false);
 });
 

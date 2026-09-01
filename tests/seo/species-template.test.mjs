@@ -231,11 +231,11 @@ test("15. Finizen remains noindex and out of the sitemap", () => {
   assert.ok(!sitemapPokemon.includes("/pokemon/finizen"), "Finizen appeared in the pokemon sitemap");
 });
 
-// --- 16: threshold unchanged ----------------------------------
+// --- 16: catalogue threshold is the current value ------------------
 
-test("16. SPECIES_CATALOG_MIN_CARDS is unchanged (8)", async () => {
+test("16. SPECIES_CATALOG_MIN_CARDS is 6 and SPECIES_MIN_LISTINGS is still 5", async () => {
   const sh = await import("../../lib/speciesHub.js");
-  assert.equal(sh.SPECIES_CATALOG_MIN_CARDS, 8);
+  assert.equal(sh.SPECIES_CATALOG_MIN_CARDS, 6);
   const idx = await import("../../lib/indexability.js");
   assert.equal(idx.SPECIES_MIN_LISTINGS, 5);
 });

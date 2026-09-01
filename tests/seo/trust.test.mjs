@@ -258,7 +258,7 @@ test("12. eligibility logic is untouched by this change", async () => {
   assert.equal(idx.CARD_HUB_MIN_LISTINGS, 2);
   assert.equal(idx.SET_MIN_LISTINGS, 3);
   const sh = await import("../../lib/speciesHub.js");
-  assert.equal(sh.SPECIES_CATALOG_MIN_CARDS, 8);
+  assert.equal(sh.SPECIES_CATALOG_MIN_CARDS, 6);
   const dm = await import("../../lib/dealMatching.js");
   assert.equal(dm.MIN_SELLER_FEEDBACK_PCT, 95);
   assert.equal(dm.MIN_SELLER_FEEDBACK_SCORE, 10);
