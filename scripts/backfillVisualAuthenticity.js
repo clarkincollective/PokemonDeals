@@ -1,10 +1,13 @@
-// node scripts/backfillVisualAuthenticity.js [--apply] [--all]
+// node scripts/backfillVisualAuthenticity.js [--apply] [--all] [--rescreen]
 //
 // Runs the bounded visual counterfeit screen (lib/visualAuthenticity) over
 // the current HIGH-RISK active population and reports verdicts. --apply
 // persists visual_authenticity_status/_reason/_checked_at (requires
 // scripts/sql/2026-09-01_visual_authenticity.sql to have been run).
 // Without --all it caps at 120 deals so a manual run stays bounded.
+// By default a row that already has a visual_authenticity_status is
+// skipped (only the newly-eligible unscreened rows + the forced ids run);
+// --rescreen re-runs every candidate.
 //
 // Stage 2 (vision) only fires if VISION_API_KEY / ANTHROPIC_API_KEY is set;
 // otherwise inconclusive items stay UNKNOWN.
@@ -17,8 +20,9 @@ const { visualAuthenticityReason } = require("../lib/dealQuality");
 
 const APPLY = process.argv.includes("--apply");
 const ALL = process.argv.includes("--all");
+const RESCREEN = process.argv.includes("--rescreen");
 const CAP = ALL ? Infinity : 120;
-const ALWAYS = [4220, 4247, 12286]; // confirmed counterfeits - must be in the run
+const ALWAYS = [4220, 4247, 12286, 12766]; // confirmed counterfeits - must be in the run
 
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const log = (...a) => console.log(...a);
@@ -36,7 +40,7 @@ async function fetchImage(url) {
     const { data, error } = await db
       .from("deals")
       .select(
-        "id, card_name, card_set, card_tcgplayer_id, image_url, market_price, discount_pct, is_graded, disqualified_reason, seller_feedback_score, image_count, returns_accepted"
+        "id, card_name, card_set, card_tcgplayer_id, image_url, market_price, discount_pct, is_graded, disqualified_reason, seller_feedback_score, image_count, returns_accepted, visual_authenticity_status"
       )
       .eq("is_active", true)
       .range(f, f + 999);
@@ -50,7 +54,7 @@ async function fetchImage(url) {
   const { data: forced } = await db
     .from("deals")
     .select(
-      "id, card_name, card_set, card_tcgplayer_id, image_url, market_price, discount_pct, is_graded, disqualified_reason, seller_feedback_score, image_count, returns_accepted"
+      "id, card_name, card_set, card_tcgplayer_id, image_url, market_price, discount_pct, is_graded, disqualified_reason, seller_feedback_score, image_count, returns_accepted, visual_authenticity_status"
     )
     .in("id", ALWAYS);
 
@@ -58,7 +62,9 @@ async function fetchImage(url) {
   for (const r of forced ?? []) if (!byId.has(r.id)) byId.set(r.id, r);
 
   const candidates = [...byId.values()].filter(
-    (r) => ALWAYS.includes(r.id) || isVisualScreeningCandidate(r)
+    (r) =>
+      (ALWAYS.includes(r.id) || isVisualScreeningCandidate(r)) &&
+      (RESCREEN || ALWAYS.includes(r.id) || !r.visual_authenticity_status)
   );
   log(`active deals scanned: ${rows.length}`);
   log(`visual-screening candidates: ${candidates.filter((r) => isVisualScreeningCandidate(r)).length}` +
