@@ -5,6 +5,7 @@ import { hasPrice } from "@/lib/money";
 import { upgradeCatalogImage } from "@/lib/cardImage";
 import { speciesSlug } from "@/lib/pokemonSpecies";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
+import { cardDisplayName } from "@/lib/cardName";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -30,7 +31,11 @@ function usd(n) {
 // full deal-hub template (Product/Offer schema, listings grid) renders
 // instead - see app/cards/[slug]/page.js.
 export default function CatalogCardView({ card, analysis, setHasPage }) {
-  const { slug, name, set, cardNumber, rarity, image, species, refPrice } = card;
+  const { slug, set, cardNumber, rarity, image, species, refPrice } = card;
+  // shared display identity - the ex/EX/GX/Mega/owner name kept verbatim,
+  // only TCGplayer's "(#NN)" collector-number parenthetical removed (the
+  // number is on the identity line below the H1).
+  const name = card.displayName ?? cardDisplayName(card);
 
   const setSlug = slugifySet(set);
   const spSlug = species ? speciesSlug(species) : null;

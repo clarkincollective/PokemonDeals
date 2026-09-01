@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { track } from "@vercel/analytics";
 import { hasPrice } from "@/lib/money";
+import { cardDisplayName, cardIdentityLine } from "@/lib/cardName";
 import { upgradeCatalogImage } from "@/lib/cardImage";
 import { useRegion, localizeEbaySearchUrl } from "@/lib/useRegion";
 import {
@@ -48,7 +49,8 @@ function permanentHref(card) {
 export function Tile({ card, speciesName, placement }) {
   const region = useRegion();
   const href = permanentHref(card);
-  const meta = [card.set, card.cardNumber && `#${card.cardNumber}`].filter(Boolean).join(" · ");
+  const name = card.displayName ?? cardDisplayName(card);
+  const meta = cardIdentityLine(card, { withHash: true, withRarity: false });
   const isDeal = Boolean(card.deal);
   const isAuction = card.deal?.listingType === "AUCTION";
   const discountPct = card.deal?.discountPct != null ? Math.round(card.deal.discountPct * 100) : null;
@@ -65,7 +67,7 @@ export function Tile({ card, speciesName, placement }) {
       {card.image ? (
         <Image
           src={upgradeCatalogImage(card.image)}
-          alt={card.name}
+          alt={name}
           fill
           sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 23vw"
           quality={85}
@@ -84,7 +86,7 @@ export function Tile({ card, speciesName, placement }) {
       }`}
     >
       {href ? (
-        <Link href={href} aria-label={`${card.name} card details`} onClick={viewCard}>
+        <Link href={href} aria-label={`${name} card details`} onClick={viewCard}>
           {art}
         </Link>
       ) : (
@@ -98,11 +100,11 @@ export function Tile({ card, speciesName, placement }) {
             onClick={viewCard}
             className="line-clamp-2 text-[15px] font-semibold leading-snug text-zinc-900 hover:text-red-600 dark:text-zinc-50 dark:hover:text-red-500"
           >
-            {card.name}
+            {name}
           </Link>
         ) : (
           <p className="line-clamp-2 text-[15px] font-semibold leading-snug text-zinc-900 dark:text-zinc-50">
-            {card.name}
+            {name}
           </p>
         )}
         <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{meta || " "}</p>

@@ -3,6 +3,7 @@ import { MARKETPLACES } from "@/lib/ebay";
 import { searchCards, getRawPrice, getRawPriceHistory, pickMarketPrice } from "@/lib/pokemonPriceTracker";
 import { upgradeCatalogImage } from "@/lib/cardImage";
 import { isDisplayableDeal } from "@/lib/dealQuality";
+import { cardDisplayName } from "@/lib/cardName";
 
 // Public, read-only, on-demand - not on the cron schedule, so no
 // CRON_SECRET check. Deals come straight from our own database (never a
@@ -139,7 +140,9 @@ async function cardSearch(url) {
           return {
             tcgplayerId: c.tcgPlayerId,
             name: c.name,
+            displayName: cardDisplayName({ name: c.name }),
             set: c.setName,
+            cardNumber: c.number ?? c.cardNumber ?? c.card_number ?? null,
             rarity: c.rarity ?? null,
             imageUrl: upgradeCatalogImage(c.imageCdnUrl200 ?? c.imageUrl ?? null),
             marketPrice: pickMarketPrice(c.prices),

@@ -301,7 +301,7 @@ export default function SearchClient({ validSetSlugs = [] }) {
                     >
                       <button onClick={() => pickCard(c)} className="relative aspect-square w-full bg-zinc-50 text-left dark:bg-zinc-900">
                         {c.imageUrl ? (
-                          <Image src={upgradeCatalogImage(c.imageUrl)} alt={c.name} fill sizes="200px" quality={85} className="object-contain p-3" />
+                          <Image src={upgradeCatalogImage(c.imageUrl)} alt={c.displayName ?? c.name} fill sizes="200px" quality={85} className="object-contain p-3" />
                         ) : (
                           <CardImagePlaceholder />
                         )}
@@ -312,8 +312,10 @@ export default function SearchClient({ validSetSlugs = [] }) {
                         )}
                       </button>
                       <button onClick={() => pickCard(c)} className="p-3 text-left">
-                        <p className="line-clamp-2 text-sm font-semibold text-black dark:text-zinc-50">{c.name}</p>
-                        {c.set && <p className="line-clamp-1 text-xs text-zinc-500">{c.set}</p>}
+                        <p className="line-clamp-2 text-sm font-semibold text-black dark:text-zinc-50">{c.displayName ?? c.name}</p>
+                        {(c.set || c.cardNumber || c.rarity) && (
+                          <p className="line-clamp-1 text-xs text-zinc-500">{[c.set, c.cardNumber && `#${c.cardNumber}`, c.rarity].filter(Boolean).join(" · ")}</p>
+                        )}
                         {c.marketPrice != null && (
                           <p className="mt-1 text-sm font-bold text-black dark:text-zinc-50">
                             {ccyApprox}
@@ -396,14 +398,16 @@ export default function SearchClient({ validSetSlugs = [] }) {
             <div className="mt-4 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
               <div className="relative h-40 w-40 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-100 sm:self-auto dark:bg-zinc-900">
                 {selected.imageUrl ? (
-                  <Image src={upgradeCatalogImage(selected.imageUrl)} alt={selected.name} fill sizes="240px" quality={90} className="object-contain p-3" />
+                  <Image src={upgradeCatalogImage(selected.imageUrl)} alt={selected.displayName ?? selected.name} fill sizes="240px" quality={90} className="object-contain p-3" />
                 ) : (
                   <CardImagePlaceholder />
                 )}
               </div>
               <div className="flex-1">
-                <h2 className="text-xl font-bold text-black dark:text-zinc-50">{selected.name}</h2>
-                {selected.set && <p className="text-zinc-500">{selected.set}</p>}
+                <h2 className="text-xl font-bold text-black dark:text-zinc-50">{selected.displayName ?? selected.name}</h2>
+                {(selected.set || selected.cardNumber || selected.rarity) && (
+                  <p className="text-zinc-500">{[selected.set, selected.cardNumber && `#${selected.cardNumber}`, selected.rarity].filter(Boolean).join(" · ")}</p>
+                )}
                 {detail?.marketPrice != null && (
                   <p className="mt-2 text-2xl font-bold text-black dark:text-zinc-50">
                     {ccyApprox}

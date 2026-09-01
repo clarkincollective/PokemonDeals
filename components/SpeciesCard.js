@@ -7,6 +7,7 @@ import Price from "@/components/Price";
 import { MARKETPLACE_CURRENCY, hasPrice } from "@/lib/money";
 import { buildEbaySearchLink } from "@/lib/ebay";
 import { upgradeCatalogImage } from "@/lib/cardImage";
+import { cardDisplayName, cardIdentityLine } from "@/lib/cardName";
 
 // One card tile in a catalogue grid - per set (/sets/[slug]), per species
 // (/pokemon/[slug] no-deal path) or per sealed hub. Same shell as
@@ -44,7 +45,8 @@ export default function SpeciesCard({ card, label, speciesName, pageName = "spec
       ? `/cards/${card.catalogSlug}`
       : null;
 
-  const meta = card.meta ?? [card.set, card.cardNumber, card.rarity].filter(Boolean).join(" · ");
+  const name = card.displayName ?? cardDisplayName(card);
+  const meta = card.meta ?? cardIdentityLine(card);
   // Sealed product names are self-contained; a card needs its set to
   // disambiguate prints. Prefer the server-built (campaign-wrapped) href.
   const ebayQuery = card.searchQuery ?? `${card.name} ${card.set}`;
@@ -54,7 +56,7 @@ export default function SpeciesCard({ card, label, speciesName, pageName = "spec
   const imageEl = card.image ? (
     <Image
       src={upgradeCatalogImage(card.image)}
-      alt={card.name}
+      alt={name}
       fill
       sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
       quality={85}
@@ -80,7 +82,7 @@ export default function SpeciesCard({ card, label, speciesName, pageName = "spec
         )}
         <div className="relative block aspect-square w-full bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950">
           {cardPageHref ? (
-            <Link href={cardPageHref} className="block h-full w-full" aria-label={`${card.name} — card details`}>
+            <Link href={cardPageHref} className="block h-full w-full" aria-label={`${name} — card details`}>
               {imageEl}
             </Link>
           ) : (
@@ -95,11 +97,11 @@ export default function SpeciesCard({ card, label, speciesName, pageName = "spec
             href={cardPageHref}
             className="truncate text-[15px] font-semibold leading-snug text-zinc-900 hover:text-emerald-700 dark:text-zinc-50 dark:hover:text-emerald-500"
           >
-            {card.name}
+            {name}
           </Link>
         ) : (
           <p className="truncate text-[15px] font-semibold leading-snug text-zinc-900 dark:text-zinc-50">
-            {card.name}
+            {name}
           </p>
         )}
         <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{meta || " "}</p>

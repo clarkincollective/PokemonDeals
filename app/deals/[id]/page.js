@@ -6,6 +6,7 @@ import { findCardHubByWatchlistId, resolveSpeciesByName, fetchSetSlugs, cardCols
 import { shouldIndexDeal } from "@/lib/indexability";
 import { conditionLabel, isDisplayableDeal } from "@/lib/dealQuality";
 import { normalizePublicText } from "@/lib/publicText";
+import { cardDisplayName } from "@/lib/cardName";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
@@ -106,7 +107,7 @@ export async function generateMetadata({ params }) {
   if (!shouldIndexDeal(deal) || !isDisplayableDeal(deal))
     return { title: "Deal not found", robots: { index: false, follow: true } };
 
-  const cardName = normalizePublicText(deal.watchlist?.name ?? deal.title);
+  const cardName = cardDisplayName({ name: normalizePublicText(deal.watchlist?.name ?? deal.title) });
   const cardSet = deal.watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
   // Length-aware, same approach as the card hub: keep the real card (and
@@ -234,7 +235,7 @@ export default async function DealDetailPage({ params }) {
     : analysis?.raw?.history ?? [];
   const recentSales = analysis?.primaryRecentSales ?? [];
 
-  const cardName = normalizePublicText(deal.watchlist?.name ?? deal.title);
+  const cardName = cardDisplayName({ name: normalizePublicText(deal.watchlist?.name ?? deal.title) });
   const cardSet = deal.watchlist?.set;
   // /sets/[slug] only exists for an English set that clears
   // SET_MIN_LISTINGS - gate on the real list, not just "is English".

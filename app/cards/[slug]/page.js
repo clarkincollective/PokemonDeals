@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { resolveCardSlug, resolveCatalogCard, fetchCardOffers, resolveSpeciesByName, fetchCardHubs, fetchSetSlugs } from "@/lib/deals";
 import { catalogCardTitle } from "@/lib/cardSlug";
+import { cardDisplayName } from "@/lib/cardName";
 import { catalogImageUrl } from "@/lib/cardImage";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
@@ -81,11 +82,12 @@ export async function generateMetadata({ params }) {
     // No live-deal hub - fall back to the stable card_catalog record.
     const card = await resolveCatalogCard(slug);
     if (!card) return { title: "Card not found", robots: { index: false, follow: true } };
-    const title = catalogCardTitle(card.name, card.set);
+    const dn = card.displayName ?? cardDisplayName(card);
+    const title = catalogCardTitle(dn, card.set);
     const priceStr = card.refPrice != null ? `$${card.refPrice.toFixed(2)}` : null;
     const description = priceStr
-      ? `${card.name} (${card.set}) Pokemon card value: ${priceStr} market reference from real recent sold data${card.rarity ? `, ${card.rarity}` : ""}${card.cardNumber ? ` (${card.cardNumber})` : ""}. Raw and graded (PSA/CGC/BGS) pricing, plus a TCGPlayer link.`
-      : `${card.name} (${card.set}) Pokemon card - identity, image and a TCGPlayer link. Market price currently unavailable.`;
+      ? `${dn} (${card.set}) Pokemon card value: ${priceStr} market reference from real recent sold data${card.rarity ? `, ${card.rarity}` : ""}${card.cardNumber ? ` (${card.cardNumber})` : ""}. Raw and graded (PSA/CGC/BGS) pricing, plus a TCGPlayer link.`
+      : `${dn} (${card.set}) Pokemon card - identity, image and a TCGPlayer link. Market price currently unavailable.`;
     return {
       title,
       description,
@@ -138,10 +140,11 @@ export async function generateMetadata({ params }) {
   // card number or other identifying info) - just drops the promotional
   // suffix when there's no room for it, rather than fighting a losing
   // battle against a genuinely long real title.
-  const base = `${hub.name} (${hub.set})`;
+  const hubName = cardDisplayName(hub);
+  const base = `${hubName} (${hub.set})`;
   const suffix = ` Price & Deals`;
   const title = base.length + suffix.length <= 60 ? `${base}${suffix}` : base;
-  const description = `${hub.name} (${hub.set}) Pokemon card price and value - raw and graded (PSA/CGC/BGS) prices from real sold data, plus ${hub.count} live eBay listings compared cheapest first.`;
+  const description = `${hubName} (${hub.set}) Pokemon card price and value - raw and graded (PSA/CGC/BGS) prices from real sold data, plus ${hub.count} live eBay listings compared cheapest first.`;
 
   return {
     title,
@@ -184,6 +187,10 @@ export default async function CardHubPage({ params }) {
   }
 
   const speciesName = extractSpecies(hub.name);
+  // Shared display identity for the H1 / breadcrumb / Product JSON-LD /
+  // OG - the exact catalogue name, only TCGplayer's "(#NN)" collector-
+  // number parenthetical removed (it's on the identity line below).
+  const cardName = cardDisplayName(hub);
   const [{ deals: offers, error }, analysis, speciesHub, { hubs: allHubs }, validSetSlugs] =
     await Promise.all([
       fetchCardOffers(hub.id),
@@ -238,7 +245,7 @@ export default async function CardHubPage({ params }) {
   // lists (lib/recentCards) - enough to render a tile and link back here.
   const cardDescriptor = {
     slug,
-    name: hub.name,
+    name: cardName,
     set: hub.set,
     image: canonicalImage ?? allOffers[0]?.image_url ?? null,
     price: allOffers[0]?.total_price ?? null,
@@ -260,9 +267,9 @@ export default async function CardHubPage({ params }) {
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: `${hub.name} - ${hub.set}`,
+    name: `${cardName} - ${hub.set}`,
     image: canonicalImage ?? allOffers[0]?.image_url ?? undefined,
-    description: `${hub.name} (${hub.set}) - ${allOffers.length} active eBay ${allOffers.length === 1 ? "listing" : "listings"}, compared against real market pricing.`,
+    description: `${cardName} (${hub.set}) - ${allOffers.length} active eBay ${allOffers.length === 1 ? "listing" : "listings"}, compared against real market pricing.`,
     brand: { "@type": "Brand", name: "Pokemon" },
     offers: allOffers.map((deal) => ({
       "@type": "Offer",
@@ -287,7 +294,7 @@ export default async function CardHubPage({ params }) {
         name: hub.set,
         ...(setHasPage ? { item: `${SITE_URL}/sets/${setSlug}` } : {}),
       },
-      { "@type": "ListItem", position: 3, name: `${hub.name} (${hub.set})`, item: `${SITE_URL}/cards/${slug}` },
+      { "@type": "ListItem", position: 3, name: `${cardName} (${hub.set})`, item: `${SITE_URL}/cards/${slug}` },
     ],
   };
 
@@ -305,7 +312,7 @@ export default async function CardHubPage({ params }) {
           items={[
             { name: "Deals", href: "/" },
             { name: hub.set, href: setHasPage ? `/sets/${setSlug}` : undefined },
-            { name: hub.name },
+            { name: cardName },
           ]}
         />
 
@@ -314,7 +321,7 @@ export default async function CardHubPage({ params }) {
             {canonicalImage || cheapest?.image_url ? (
               <Image
                 src={canonicalImage ?? cheapest.image_url}
-                alt={`${hub.name} - ${hub.set}`}
+                alt={`${cardName} - ${hub.set}`}
                 fill
                 sizes="(max-width: 640px) 176px, 256px"
                 quality={90}
@@ -331,7 +338,7 @@ export default async function CardHubPage({ params }) {
               {offers.length} active {offers.length === 1 ? "listing" : "listings"}
             </span>
             <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">
-              {hub.name} — {hub.set} Prices &amp; Deals
+              {cardName} — {hub.set} Prices &amp; Deals
             </h1>
             {setHasPage ? (
               <Link
