@@ -114,6 +114,69 @@ test("'top loader' / 'sleeve' / 'jumbo' packaging words do NOT make a card non-c
   }
 });
 
+test("empty / wrapper-only packaging is not a trading card", () => {
+  // deal 13152: matched Blastoise / Base Set 2, priced the $56 empty
+  // wrapper against the $152 card.
+  for (const t of [
+    'Pokemon TCG Base Set 1999 Empty Wrapper Pack "Blastoise Cover" # 2',
+    "Empty Booster Wrapper Charizard",
+    "Pokemon Booster Wrapper Only",
+    "Empty Booster Pack Wrapper",
+    "Empty Pokemon ETB Box Only",
+    "Pokémon Diamond And Pearl EMPTY PACK WRAPPER ONLY - Lucario Artwork",
+    "Pokemon - Seviper Ex Sandstorm EMPTY Wrapper Pack (No Cards)",
+    "EMPTY Pop Series 3 Set Art Booster Pack Flareon Jolteon Vaporeon Vintage",
+    "Pokemon Base Set Empty Booster Box - Charizard Artwork",
+    "Pokemon Elite Trainer Box Only (Empty) Scarlet Violet",
+    "Empty Tin Only Pokemon Charizard",
+    "Vintage Pokemon Booster Pack Wrapper Only Neo Genesis",
+  ]) {
+    assert.equal(qualifiesAsTradingCard({ title: t }), false, t);
+  }
+});
+
+test("sealed products & 'pack fresh' cards are NOT mistaken for empty packaging", () => {
+  for (const t of [
+    "Pokemon Base Set Booster Pack Factory Sealed",
+    "Pokemon Sealed Booster Pack",
+    "Pokemon Booster Box Factory Sealed",
+    "Pokemon *SEALED* Tyranitar 56/124 Cosmos Holo Rare XY Fates Collide",
+    "Pokémon Card Cleffa 20/111 25th Stamped Celebrations Pack Fresh NM",
+    "Pokémon TCG Team Rocket Mimikyu 238/217 Ascended Heroes Pack Fresh",
+    "Charizard Base Set Unlimited Holo - pulled pack fresh, mint",
+    "Blastoise Base Set 2 Holo 2/130 NM fresh from a booster pack",
+    "1st Edition Charizard Base Set - card from a sealed booster box break",
+    "Pokemon Booster Box Break - Charizard 4/102 Base Set live pull",
+    "Charizard 4/102 Base Set Holo stored in a protective wrapper for years",
+  ]) {
+    assert.equal(qualifiesAsTradingCard({ title: t }), true, t);
+  }
+});
+
+test("empty-packaging rows are non-displayable and re-derive to type:not_a_card", () => {
+  const row = {
+    id: 13152,
+    is_active: true,
+    is_graded: false,
+    title: 'Pokemon TCG Base Set 1999 Empty Wrapper Pack "Blastoise Cover" # 2',
+    condition: "Near Mint",
+    card_language: "english",
+    card_name: "Blastoise",
+    card_set: "Base Set 2",
+    market_price: 152,
+    discount_pct: 0.63,
+    listing_type: "FIXED_PRICE",
+    auction_end_at: null,
+    last_seen_at: new Date().toISOString(),
+    listing_url: "https://www.ebay.com/itm/225095766020?x=1",
+    affiliate_url: "https://www.ebay.com/itm/225095766020?x=1&campid=5",
+    disqualified_reason: null,
+    visual_authenticity_status: "MATCH",
+  };
+  assert.equal(isDisplayableDeal(row), false);
+  assert.equal(disqualificationReason(row), "type:not_a_card");
+});
+
 test("12. exact listing identity is still required after the product-type gate", () => {
   // a genuine card title still has to match the catalogue name+set
   assert.equal(
