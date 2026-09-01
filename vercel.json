@@ -5,6 +5,14 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/sweep-stale-deals",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/verify-deals",
+      "schedule": "25 * * * *"
+    },
+    {
       "path": "/api/check-alerts",
       "schedule": "15 * * * *"
     },
