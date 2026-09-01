@@ -391,7 +391,7 @@ export default async function CardHubPage({ params }) {
             </h2>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {offers.slice(0, FEATURED_OFFER_COUNT).map((deal, i) => (
-                <DealCard key={deal.id} deal={deal} rank={i + 1} pageName="card_hub" validSetSlugs={validSetSlugs} />
+                <DealCard key={deal.id} deal={deal} rank={i + 1} pageName="card_hub" validSetSlugs={validSetSlugs} from={`/cards/${slug}`} />
               ))}
             </div>
           </div>

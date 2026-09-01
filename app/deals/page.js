@@ -127,6 +127,7 @@ export default async function DealsIndexPage() {
                   hub={hubCounts[deal.watchlist_id]}
                   pageName="deals_index"
                   validSetSlugs={validSetSlugs}
+                  from="/deals"
                 />
               ))}
             </div>

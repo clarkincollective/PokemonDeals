@@ -23,6 +23,7 @@ import SaveCardButton from "@/components/SaveCardButton";
 import PriceAlertForm from "@/components/PriceAlertForm";
 import { emailEnabled } from "@/lib/email";
 import DealImage from "@/components/DealImage";
+import DealBackLink from "@/components/DealBackLink";
 import AffiliateLink from "@/components/AffiliateLink";
 import ShareButton from "@/components/ShareButton";
 import { DEAL_CATEGORIES, DEAL_CATEGORY_SLUGS } from "@/lib/dealCategories";
@@ -238,6 +239,16 @@ export default async function DealDetailPage({ params }) {
   // SET_MIN_LISTINGS - gate on the real list, not just "is English".
   const setSlugRaw = cardSet && deal.watchlist?.language !== "japanese" ? slugifySet(cardSet) : null;
   const setSlug = setSlugRaw && validSetSlugs.includes(setSlugRaw) ? setSlugRaw : null;
+
+  // Deterministic "return to browsing" destination from the deal's own
+  // data, used for a direct visit / an absent-or-invalid ?from= hint:
+  // species page (only when it's a real indexed one) -> set page -> the
+  // deals index. Never invents a species link that doesn't exist.
+  const backFallback = speciesHub
+    ? { href: `/pokemon/${speciesHub.slug}`, label: `${speciesHub.name} cards & deals` }
+    : setSlug
+      ? { href: `/sets/${setSlug}`, label: cardSet }
+      : { href: "/deals", label: "all deals" };
   const discountPct = Math.round(deal.discount_pct * 100);
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
@@ -340,6 +351,9 @@ export default async function DealDetailPage({ params }) {
       />
       <SiteHeader />
       <div className="mx-auto max-w-5xl px-6 py-10">
+        <div className="mb-3">
+          <DealBackLink fallbackHref={backFallback.href} fallbackLabel={backFallback.label} />
+        </div>
         <Breadcrumbs
           items={[
             { name: "Deals", href: "/" },

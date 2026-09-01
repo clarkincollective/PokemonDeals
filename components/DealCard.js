@@ -30,8 +30,20 @@ function discountBadgeClass(pct) {
 // `rank` shows a number badge only on ranked lists (Top 10, "Best deals").
 // `hub` is `{ count, slug }` from fetchHubCounts when this card has 2+
 // active listings, optional.
-export default function DealCard({ deal, rank, hub, pageName = "home", validSetSlugs }) {
+export default function DealCard({ deal, rank, hub, pageName = "home", validSetSlugs, from, fromCountry }) {
   const cardName = deal.watchlist?.name ?? deal.title;
+
+  // A "return to browsing" hint for /deals/[id]: the internal page this
+  // card was clicked from (+ its country filter). Read + WHITELISTED on
+  // the deal page (components/DealBackLink); a bad/absent value just
+  // yields the deterministic species/set fallback there. /deals/[id]
+  // canonical stays the bare URL, so this never creates a duplicate.
+  const dealHref = (() => {
+    if (typeof from !== "string" || !from.startsWith("/")) return `/deals/${deal.id}`;
+    const qs = new URLSearchParams({ from });
+    if (fromCountry) qs.set("country", fromCountry);
+    return `/deals/${deal.id}?${qs.toString()}`;
+  })();
   const cardSet = deal.watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
   // Rendered in the listing's own currency on the server; <Price> swaps
@@ -78,7 +90,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           />
         </div>
         <a
-          href={`/deals/${deal.id}`}
+          href={dealHref}
           className="relative block aspect-square w-full bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950"
         >
           <DealImage
@@ -120,7 +132,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
 
       <div className="flex flex-1 flex-col gap-1 p-4">
         <a
-          href={`/deals/${deal.id}`}
+          href={dealHref}
           className="truncate text-[15px] font-semibold leading-snug text-zinc-900 hover:underline dark:text-zinc-50"
         >
           {cardName}

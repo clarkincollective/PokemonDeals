@@ -135,7 +135,7 @@ export default async function BestFindsPage({ searchParams }) {
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {deals.map((deal, i) => (
-            <DealCard key={deal.id} deal={deal} rank={i + 1} hub={hubCounts[deal.watchlist_id]} pageName="best_finds" validSetSlugs={validSetSlugs} />
+            <DealCard key={deal.id} deal={deal} rank={i + 1} hub={hubCounts[deal.watchlist_id]} pageName="best_finds" validSetSlugs={validSetSlugs} from="/best-finds" />
           ))}
         </div>
 

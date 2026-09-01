@@ -138,6 +138,8 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
               hub={hubCounts[deal.watchlist_id]}
               pageName={`${kind}_detail`}
               validSetSlugs={validSetSlugs}
+              from={basePath}
+              fromCountry={params.country}
             />
           ))}
         </div>
