@@ -615,7 +615,22 @@ export default async function DealDetailPage({ params }) {
                       >
                         <span>{c.condition}</span>
                         <span className="font-semibold text-black dark:text-zinc-50">
-                          <Price usd={c.price} native={{ amount: Number(c.price), currency: "USD" }} approxPrefix="" />
+                          {(() => {
+                            // Express the USD condition price in the
+                            // listing's own currency so this block matches
+                            // the headline price on the server render too.
+                            const n = refInListingCurrency(c.price, total, usdTotal, nativeCurrency);
+                            return (
+                              <Price
+                                usd={c.price}
+                                native={{
+                                  amount: n ?? Number(c.price),
+                                  currency: n != null ? nativeCurrency : "USD",
+                                }}
+                                approxPrefix=""
+                              />
+                            );
+                          })()}
                         </span>
                       </AffiliateLink>
                     </li>
