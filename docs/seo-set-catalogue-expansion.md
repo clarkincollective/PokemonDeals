@@ -71,11 +71,44 @@ gate too. `SET_MIN_LISTINGS` stays 3.
 | Metric | Before | After |
 |---|---:|---:|
 | Total English catalogue sets | 215 | 215 |
-| Deal-backed `/sets/[slug]` pages | 147 | 147 |
-| Catalogue-backed `/sets/[slug]` pages | 0 | **60** |
-| **Indexable set pages** | **147** | **207** |
+| Deal-backed set hub URLs (`/sets/[slug]`, ≥ `SET_MIN_LISTINGS`) | 147 | 147 |
+| Catalogue-backed set hub URLs (`/sets/[slug]`, ≥ `SET_CATALOG_MIN_CARDS`, no live deal) | 0 | **60** |
+| **Total indexable set hub URLs** | **147** | **207** |
 | Below-threshold sets (no page) | 68 | **8** |
-| `/sitemaps/sets.xml` `<loc>` count | 148 | **~208** |
+| `sets` sitemap segment URL count (`/sitemaps/sets.xml`) | 147 | **207** |
+
+### Terminology & the "148 vs 147" note
+
+Two counts that are easy to conflate:
+
+- **Set hub URLs** = `/sets/[slug]` pages only. This is the `sets` sitemap
+  segment. Verified in production after this phase: `/sitemaps/sets.xml`
+  = **207** `<loc>` = **147** deal-backed (`<priority>0.7`,
+  `<changefreq>daily`) + **60** catalogue-only (`<priority>0.6`,
+  `<changefreq>weekly`). 147 + 60 = 207 exactly.
+- **`sets` sitemap segment total URLs** = the same 207. The `/sets`
+  *index* route is **not** in this segment — it lives in `STATIC_ROUTES`
+  and is emitted by `/sitemaps/pages.xml` (verified: `pages.xml` contains
+  `<loc>…/sets</loc>`; `sets.xml` does not). So there is no "+1 for the
+  index" hiding in the `sets` segment.
+
+An earlier draft of this table showed **Before: 148** and **After: ~208**
+for the sitemap row. Both were imprecise:
+
+- **After** is exactly **207**, not "~208" — corrected above.
+- **Before: 148** was one more than the 147 deal-backed hub count in the
+  same table. The `sets` segment before this phase was `fetchSets()`
+  only, filtered to `count >= SET_MIN_LISTINGS` (3) over **live** deal
+  data that is re-aggregated into `catalog_snapshot` every 15 minutes. A
+  set sitting exactly at `count === 3` drops to 2 (or a new one crosses
+  to 3) between snapshots, so the deal-backed hub count drifts ±1–2 from
+  one refresh to the next; the 148 and the 147 were simply read from two
+  different snapshots. It was **not** the `/sets` index URL being counted
+  (that route is and was in the `pages` segment, checked above) and
+  **not** a stale/alias slug (dedupe by slug is unchanged). The
+  catalogue-backed baseline is unambiguous regardless: **0** catalogue
+  hubs before, **60** after, with the deal path (`SET_MIN_LISTINGS = 3`)
+  mechanically untouched.
 
 ## The 60-set cohort
 
@@ -98,10 +131,14 @@ XY Trainer Kit: Bisharp & Wigglytuff / Latias & Latios / Sylveon &
 Noivern, SM Trainer Kit: Alolan Sandslash & Alolan Ninetales / Lycanroc &
 Alolan Raichu.
 
-**Specialty / Energy:** World Championship Decks (1588 eligible, 295
-species — a 1960-card deck-reprint grab-bag; browse grid capped at 600,
-price summary falls back to all-priced since every card is specialty-set,
-`cardTier` still applies elsewhere), SVE: Scarlet & Violet Energies (33
+**Specialty / Energy:** World Championship Decks (~1588 eligible of
+~1960 tracked — a deck-reprint grab-bag; **set-level aggregates
+[price range/median, species list, most-valuable, fact-strip count,
+quick-answer counts] are computed from the full tracked set**, not the
+600-card browse cap — see the closeout note below; the interactive
+checklist grid and the `ItemList` schema stay bounded; price summary
+falls back to all-priced since every card is specialty-set, `cardTier`
+still applies elsewhere), SVE: Scarlet & Violet Energies (33
 basic-Energy cards — real niche checklist; the "Pokemon in {set}" section
 correctly renders nothing).
 
@@ -135,3 +172,39 @@ species) — not doorway pages.
 
 Deployment date: 2026-09-01. Old threshold: n/a (no catalogue path).
 New threshold: `SET_CATALOG_MIN_CARDS = 10`.
+
+## Closeout addendum (2026-09-01) — full-set vs browse-capped aggregates
+
+**Issue.** `fetchSetCatalog` trims the returned card array to
+`SET_CATALOG_MAX_BROWSE` (600) non-deal cards so a 1,900-card set does
+not ship 1,900 tiles to the client. The Phase 4A route then computed the
+**set-level** aggregates — `setPriceSnapshot`, `setSpeciesList`, the
+most-valuable ranking, the fact-strip "N cards tracked" and the
+quick-answer counts — from that already-trimmed array. On World
+Championship Decks this reported "491 priced cards" and ~241 Pokemon
+while wording them as whole-set statistics.
+
+**Fix.** `fetchSetCatalogUncached` now computes the set-level aggregates
+from the **complete** `cards` list, before the browse trim, and returns
+them as small objects alongside the trimmed array:
+
+- `priceSnapshot` — `setPriceSnapshot(cards)` over the full set
+  (`cardCount`, `pricedCount`, `min/max/medianPrice`, `rarityCount`,
+  `specialtyPricedCount`, wholly-specialty fallback).
+- `speciesList` — `setSpeciesList(cards)` over the full set
+  (`speciesLeadsCardName`-strict; Trainer / Energy / Stadium excluded).
+- `topValueCards` — the most-valuable ranking (`cardTier` then price
+  desc) over the full set, capped at 24 rows — the only card-level data
+  beyond the browse slice that leaves the function.
+- `stats.cardCount` is the full tracked count; `stats.renderedCardCount`
+  is the trimmed grid size.
+
+`app/sets/[slug]/page.js` consumes these three directly and no longer
+calls `setPriceSnapshot` / `setSpeciesList` locally. **Browse-capped**
+data (`catalogueItems` → `CatalogueBrowser`, and `catalogCards.slice(0,
+100)` → `ItemList` schema) is unchanged and stays bounded. No full card
+array is shipped to the client; WCD HTML stays near its previous size.
+
+`SET_CATALOG_MIN_CARDS` (10) and `SET_MIN_LISTINGS` (3) are unchanged.
+No deal-matching, authenticity, freshness or premium-eligibility logic
+was touched. Regression coverage: `tests/seo/set-aggregates.test.mjs`.

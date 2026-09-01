@@ -13,7 +13,7 @@ import {
 } from "@/lib/deals";
 import { setImage } from "@/lib/setImages";
 import { VINTAGE_SETS, isModernSet } from "@/lib/dealCategories";
-import { setPriceSnapshot, setSpeciesList, setEra } from "@/lib/setSummary";
+import { setEra } from "@/lib/setSummary";
 import SiteHeader from "@/components/SiteHeader";
 import RegionRedirect from "@/components/RegionRedirect";
 import DealGrid from "@/components/DealGrid";
@@ -26,8 +26,6 @@ import SetPriceSummary from "@/components/SetPriceSummary";
 import SetPokemonList from "@/components/SetPokemonList";
 import SetQuickAnswers from "@/components/SetQuickAnswers";
 import { buildCatalogueItems } from "@/components/SpeciesCardsBySet";
-import { hasPrice } from "@/lib/money";
-import { cardTier } from "@/lib/catalogueView";
 import SiteFooter from "@/components/SiteFooter";
 
 const SITE_URL = "https://pokemondealfinder.com";
@@ -105,7 +103,15 @@ export default async function SetDetailPage({ params }) {
   const [
     { deals, totalPages, error },
     hubCounts,
-    { cards: catalogCards, totalCards: catalogTotal, truncated: catalogTruncated, stats },
+    {
+      cards: catalogCards,
+      totalCards: catalogTotal,
+      truncated: catalogTruncated,
+      stats,
+      priceSnapshot,
+      speciesList,
+      topValueCards,
+    },
     { products: sealedProducts, totalProducts: sealedTotal, truncated: sealedTruncated },
     validSetSlugs,
   ] = await Promise.all([
@@ -132,15 +138,18 @@ export default async function SetDetailPage({ params }) {
   // a deal-backed set shows them once card_catalog has a meaningful slice.
   const showCatalog = catalogueOnly || catalogCards.length >= SET_CATALOG_MIN_CARDS;
 
+  // BROWSE data - the interactive checklist grid + the bounded ItemList
+  // schema only. Capped at SET_CATALOG_MAX_BROWSE non-deal cards upstream.
   const catalogueItems = buildCatalogueItems(catalogCards, validSetSlugs);
-  const featuredItems = [...catalogueItems]
-    .filter((c) => hasPrice(c.refPrice))
-    .sort((a, b) => cardTier(a) - cardTier(b) || Number(b.refPrice) - Number(a.refPrice))
-    .slice(0, 12);
 
-  // Set-level aggregates (real catalogue data; computed once).
-  const snapshot = setPriceSnapshot(catalogueItems);
-  const speciesInSet = setSpeciesList(catalogCards);
+  // FULL-SET aggregates (SEO Phase 4A closeout) - price range/median,
+  // species list and the most-valuable ranking are computed server-side
+  // in fetchSetCatalog from the COMPLETE tracked set, before the browse
+  // cap, so a large set like World Championship Decks reports set-level
+  // numbers for the whole set, not just the 600 tiles we render.
+  const snapshot = priceSnapshot;
+  const speciesInSet = speciesList;
+  const featuredItems = buildCatalogueItems(topValueCards, validSetSlugs).slice(0, 12);
 
   const showSealed = sealedProducts.length >= SET_SEALED_MIN_PRODUCTS;
   const sealedDealCount = sealedProducts.filter((p) => p.deal).length;
