@@ -6,6 +6,14 @@
 //                                  plate, (c)2020 on a 2017 set. (inactive)
 //   COUNTERFEIT_MISMATCH  #4582   Special Delivery Pikachu SWSH074 - pink
 //                                  glitter metal plate, embossed relief text.
+//   IDENTITY_MISMATCH     #30882  genuine Ditto (Charmander) 37/113 EX
+//                                  Delta Species - the Charmander clay
+//                                  figure IS this card's official art
+//                                  (Illus. Yuka Morii). The recheck
+//                                  worker's first pass called it
+//                                  COUNTERFEIT with no construction
+//                                  evidence; corrected here. Matched to
+//                                  plain Ditto 63/113 (tcgplayer 84832).
 //   IDENTITY_MISMATCH     #30835  listing is a genuine Mega Dragonite ex
 //                                  152/217 (ME: Ascended Heroes, (c)2026);
 //                                  matched to Dragonite-EX 106/108 (XY
@@ -44,6 +52,15 @@ const ROWS = [
       "vision:human-verified COUNTERFEIT. Special Delivery Pikachu SWSH074 as a solid pink glitter " +
       "metal plate - embossed/illegible relief text, no normal print structure, no printed lower-half " +
       "rules box. Genuine SWSH074 is standard yellow paper. Same metal-plate family as 12766.",
+  },
+  {
+    id: 30882,
+    status: "IDENTITY_MISMATCH",
+    reason:
+      "vision:human-verified IDENTITY_MISMATCH (NOT counterfeit). Genuine Ditto (Charmander) 37/113 " +
+      "EX Delta Species ((c)2005, Illus. Yuka Morii, Fire, Rage) - the Charmander clay figure IS " +
+      "this card's official art. Matched to plain Ditto 63/113 (tcgplayer 84832). The recheck " +
+      "worker's first pass called it COUNTERFEIT with no construction evidence; corrected.",
   },
   {
     id: 30835,
