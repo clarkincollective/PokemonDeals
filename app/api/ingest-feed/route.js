@@ -148,7 +148,7 @@ export async function GET(request) {
   for (let from = 0; ; from += CATALOG_PAGE) {
     const { data, error } = await db
       .from("card_catalog")
-      .select('tcgplayer_id, name, "set", language, market_price')
+      .select('tcgplayer_id, name, "set", language, market_price, card_number')
       .range(from, from + CATALOG_PAGE - 1);
     if (error) return Response.json({ error: `card_catalog read: ${error.message}` }, { status: 500 });
     if (!data || data.length === 0) break;
@@ -353,7 +353,14 @@ function matchCatalog(listing, index) {
   }
   for (const row of candidates.values()) {
     if (admitsProxyOrCounterfeit(listing, { name: row.name, set: row.set })) continue;
-    if (listingMatchesCard(listing, { name: row.name, set: row.set, language: row.language })) {
+    if (
+      listingMatchesCard(listing, {
+        name: row.name,
+        set: row.set,
+        language: row.language,
+        card_number: row.card_number,
+      })
+    ) {
       return row;
     }
   }

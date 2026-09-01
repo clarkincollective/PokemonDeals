@@ -103,6 +103,30 @@ async function fetchAllRows(buildQuery) {
   return { data: all, error: null };
 }
 
+// Attach card_catalog.card_number to each watchlist row (keyed on
+// justtcg_tcgplayer_id), so listingMatchesCard can reject a listing whose
+// explicit collector number contradicts this exact printing. Best-effort:
+// a row without a catalog match keeps card_number undefined and the
+// number check simply doesn't run for it. One bounded query per scan run.
+async function attachCatalogNumbers(rows, db) {
+  const ids = [...new Set((rows ?? []).map((r) => r.justtcg_tcgplayer_id).filter(Boolean).map(String))];
+  if (ids.length === 0) return rows;
+  const byId = new Map();
+  for (let i = 0; i < ids.length; i += 500) {
+    const { data, error } = await db
+      .from("card_catalog")
+      .select("tcgplayer_id, card_number")
+      .in("tcgplayer_id", ids.slice(i, i + 500));
+    if (error) break; // pre-migration / transient - matcher just skips the number check
+    for (const c of data ?? []) if (c.card_number != null) byId.set(String(c.tcgplayer_id), c.card_number);
+  }
+  for (const r of rows ?? []) {
+    const n = byId.get(String(r.justtcg_tcgplayer_id));
+    if (n != null) r.card_number = n;
+  }
+  return rows;
+}
+
 function chunkOf(row, totalChunks) {
   let hash = 0;
   const key = String(row.id);
@@ -829,6 +853,7 @@ export async function GET(request) {
       db.from("watchlist").select("*").eq("active", true)
     );
     if (activeError) return Response.json({ error: activeError.message }, { status: 500 });
+    await attachCatalogNumbers(allActiveRows, db);
 
     // A sweep never expires/deletes anything (see runSweep), so an eBay
     // failure mid-sweep can only mean "found nothing this run" - report it
@@ -892,6 +917,8 @@ export async function GET(request) {
   if (!watchlistRows || watchlistRows.length === 0) {
     return Response.json({ scanned: 0, dealsFound: 0, message: "Watchlist is empty" });
   }
+
+  await attachCatalogNumbers(watchlistRows, db);
 
   let dealsFound = 0;
   let scanned = 0;
