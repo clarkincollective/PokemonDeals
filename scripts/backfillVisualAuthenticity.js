@@ -22,7 +22,7 @@ const APPLY = process.argv.includes("--apply");
 const ALL = process.argv.includes("--all");
 const RESCREEN = process.argv.includes("--rescreen");
 const CAP = ALL ? Infinity : 120;
-const ALWAYS = [4220, 4247, 12286, 12766]; // confirmed counterfeits - must be in the run
+const ALWAYS = [4220, 4247, 12286, 12766, 4582]; // hand-verified counterfeits - always in the run
 
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const log = (...a) => console.log(...a);
@@ -71,7 +71,7 @@ async function fetchImage(url) {
       ` (+${ALWAYS.length} forced confirmed counterfeits)`);
   log(`running: ${Math.min(candidates.length, CAP)}\n`);
 
-  const tally = { MATCH: 0, MISMATCH: 0, UNKNOWN: 0, errors: 0, hiddenUnverified: 0 };
+  const tally = { MATCH: 0, COUNTERFEIT_MISMATCH: 0, IDENTITY_MISMATCH: 0, UNKNOWN: 0, errors: 0, hiddenUnverified: 0 };
   const run = candidates.slice(0, CAP);
   for (const row of run) {
     const canonicalUrl = catalogImageUrl(row.card_tcgplayer_id);
@@ -91,10 +91,12 @@ async function fetchImage(url) {
     if (reason === "authenticity:visual_unverified") tally.hiddenUnverified++;
     const mark =
       reason === "authenticity:proxy_or_counterfeit"
-        ? " <-- MISMATCH -> counterfeit"
-        : reason === "authenticity:visual_unverified"
-          ? " (hidden: visual_unverified)"
-          : "";
+        ? " <-- COUNTERFEIT_MISMATCH -> hidden"
+        : reason === "identity:visual_mismatch"
+          ? " <-- IDENTITY_MISMATCH -> hidden"
+          : reason === "authenticity:visual_unverified"
+            ? " (hidden: visual_unverified)"
+            : "";
     log(`#${row.id} ${v.status.padEnd(8)} ${((row.discount_pct ?? 0) * 100).toFixed(0)}% $${Math.round(row.market_price)} | ${row.card_name} / ${row.card_set}${mark}`);
     log(`      ${v.reason}`);
     if (APPLY) {

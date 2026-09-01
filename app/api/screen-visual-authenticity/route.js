@@ -6,10 +6,17 @@ import { isVisualScreeningCandidate, screenDeal } from "@/lib/visualAuthenticity
 // screening). Runs on its own cron - NEVER on the Browse scan path. Each
 // invocation screens a small bounded batch of HIGH-RISK deals whose
 // listing photo has not been compared to the canonical catalogue image
-// recently, and writes a MATCH / MISMATCH / UNKNOWN verdict to
-// visual_authenticity_status. lib/dealQuality turns MISMATCH into
-// authenticity:proxy_or_counterfeit and a high-value + extreme-discount
-// UNKNOWN into authenticity:visual_unverified.
+// recently, and writes one of MATCH / COUNTERFEIT_MISMATCH /
+// IDENTITY_MISMATCH / UNKNOWN to visual_authenticity_status. lib/dealQuality
+// turns COUNTERFEIT_MISMATCH into authenticity:proxy_or_counterfeit,
+// IDENTITY_MISMATCH into identity:visual_mismatch, and a high-value +
+// extreme-discount UNKNOWN into authenticity:visual_unverified.
+//
+// ?mode=recheck-mismatch  - instead of the unscreened/stale queue, re-run
+//   the classifier over rows that currently carry a mismatch verdict
+//   (bare legacy "MISMATCH" or either split verdict). Bounded to
+//   RECHECK_BATCH. Used once after a classifier/prompt change to re-tag
+//   the existing population; safe to run repeatedly.
 //
 // Cost per run: BATCH deals x (2 small image fetches + 2 sharp decodes),
 // plus at most BATCH bounded vision calls (only when VISION_API_KEY is
@@ -19,6 +26,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 const BATCH = 20;
+const RECHECK_BATCH = 30;
+const MISMATCH_VERDICTS = ["MISMATCH", "COUNTERFEIT_MISMATCH", "IDENTITY_MISMATCH"];
 const RESCREEN_AFTER_DAYS = 21;
 // Candidate scan is bounded - we only ever look at this many active rows
 // to find BATCH unscreened/stale ones, and stop early once BATCH are in
@@ -50,32 +59,46 @@ export async function GET(request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
   const db = supabaseAdmin();
+  const recheck = new URL(request.url).searchParams.get("mode") === "recheck-mismatch";
   const staleCutoff = new Date(Date.now() - RESCREEN_AFTER_DAYS * 864e5).toISOString();
 
-  // Gather candidates: active, high-risk, unscreened or stale.
-  const candidates = [];
-  for (let from = 0; from < SCAN_CAP && candidates.length < BATCH; from += PAGE) {
+  let candidates = [];
+  if (recheck) {
+    // Re-tag the existing mismatch population against the current
+    // classifier. Oldest-checked first so repeated runs sweep forward.
     const { data, error } = await db
       .from("deals")
       .select(COLS)
-      .eq("is_active", true)
+      .in("visual_authenticity_status", MISMATCH_VERDICTS)
       .order("visual_authenticity_checked_at", { ascending: true, nullsFirst: true })
-      .range(from, from + PAGE - 1);
-    if (error) {
-      // pre-migration: the columns don't exist yet
-      return Response.json({ ok: false, stage: "select", error: error.message }, { status: 200 });
+      .limit(RECHECK_BATCH);
+    if (error) return Response.json({ ok: false, stage: "select", error: error.message }, { status: 200 });
+    candidates = data ?? [];
+  } else {
+    // Gather candidates: active, high-risk, unscreened or stale.
+    for (let from = 0; from < SCAN_CAP && candidates.length < BATCH; from += PAGE) {
+      const { data, error } = await db
+        .from("deals")
+        .select(COLS)
+        .eq("is_active", true)
+        .order("visual_authenticity_checked_at", { ascending: true, nullsFirst: true })
+        .range(from, from + PAGE - 1);
+      if (error) {
+        // pre-migration: the columns don't exist yet
+        return Response.json({ ok: false, stage: "select", error: error.message }, { status: 200 });
+      }
+      if (!data || data.length === 0) break;
+      for (const row of data) {
+        if (candidates.length >= BATCH) break;
+        if (!isVisualScreeningCandidate(row)) continue;
+        if (row.visual_authenticity_checked_at && row.visual_authenticity_checked_at > staleCutoff) continue;
+        candidates.push(row);
+      }
+      if (data.length < PAGE) break;
     }
-    if (!data || data.length === 0) break;
-    for (const row of data) {
-      if (candidates.length >= BATCH) break;
-      if (!isVisualScreeningCandidate(row)) continue;
-      if (row.visual_authenticity_checked_at && row.visual_authenticity_checked_at > staleCutoff) continue;
-      candidates.push(row);
-    }
-    if (data.length < PAGE) break;
   }
 
-  const results = { MATCH: 0, MISMATCH: 0, UNKNOWN: 0, errors: 0 };
+  const results = { MATCH: 0, COUNTERFEIT_MISMATCH: 0, IDENTITY_MISMATCH: 0, UNKNOWN: 0, errors: 0 };
   const detail = [];
   for (const row of candidates) {
     const canonicalUrl = catalogImageUrl(row.card_tcgplayer_id);
@@ -87,7 +110,7 @@ export async function GET(request) {
       verdict = { status: "UNKNOWN", reason: `worker_error:${String(e.message).slice(0, 80)}` };
     }
     results[verdict.status] = (results[verdict.status] ?? 0) + 1;
-    detail.push({ id: row.id, status: verdict.status });
+    detail.push({ id: row.id, from: row.visual_authenticity_status ?? null, status: verdict.status });
     const { error } = await db
       .from("deals")
       .update({
@@ -99,5 +122,5 @@ export async function GET(request) {
     if (error) results.errors++;
   }
 
-  return Response.json({ ok: true, screened: candidates.length, results, detail });
+  return Response.json({ ok: true, mode: recheck ? "recheck-mismatch" : "queue", screened: candidates.length, results, detail });
 }

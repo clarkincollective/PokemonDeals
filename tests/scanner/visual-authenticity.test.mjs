@@ -1,10 +1,14 @@
-// Bounded visual counterfeit screening (lib/visualAuthenticity) + its
-// wiring into the display gate. Two-stage design:
-//   Stage 1 (sharp colour/hash) - MATCH or UNKNOWN only, never MISMATCH.
-//   Stage 2 (vision, env-gated)  - MATCH / MISMATCH / UNKNOWN.
-// MISMATCH -> authenticity:proxy_or_counterfeit.
+// Bounded visual screening (lib/visualAuthenticity) + its wiring into the
+// display gate. Two-stage design:
+//   Stage 1 (sharp colour/hash) - MATCH or UNKNOWN only, never a mismatch.
+//   Stage 2 (vision, env-gated)  - MATCH / COUNTERFEIT_MISMATCH /
+//                                  IDENTITY_MISMATCH / UNKNOWN.
+// COUNTERFEIT_MISMATCH -> authenticity:proxy_or_counterfeit (fake object).
+// IDENTITY_MISMATCH    -> identity:visual_mismatch (genuine card, wrong
+//                         printing/variant than the one we matched).
 // UNKNOWN, only when vision actually ran AND high-value + extreme-discount
 //   -> authenticity:visual_unverified. A Stage-1-only UNKNOWN never hides.
+// Legacy bare "MISMATCH" (pre-taxonomy rows) still -> proxy_or_counterfeit.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -17,6 +21,9 @@ import {
   imageColorStats,
   screenDeal,
   catalogIsGoldOrMetalProduct,
+  normalizeVisionVerdict,
+  visionPrompt,
+  VERDICTS,
   CANDIDATE_MIN_DISCOUNT,
   CANDIDATE_HIGH_VALUE_USD,
   CANDIDATE_HIGH_VALUE_DISCOUNT,
@@ -42,9 +49,7 @@ test("Stage 1: confirmed METAL-PLATE counterfeits are NOT cleared as MATCH (they
     ["mewtwo", mewtwo, { name: "Mewtwo EX (98 Full Art)", set: "Next Destinies" }],
   ]) {
     const v = classifyStage1(s.canon, s.list, card);
-    assert.notEqual(v.status, "MATCH", `${name}: must not be cleared`);
-    assert.notEqual(v.status, "MISMATCH", `${name}: Stage 1 never MISMATCHes`);
-    assert.equal(v.status, "UNKNOWN");
+    assert.equal(v.status, "UNKNOWN", `${name}: Stage 1 clears nothing and accuses nothing`);
   }
 });
 
@@ -57,19 +62,18 @@ test("Stage 1: a bright straight-on GENUINE Full Art photo can be cleared as MAT
   assert.equal(v.status, "MATCH");
 });
 
-test("Stage 1: a GENUINE card in a sleeve / off-angle is UNKNOWN, never MISMATCH", async () => {
+test("Stage 1: a GENUINE card in a sleeve / off-angle is UNKNOWN or MATCH, never a mismatch", async () => {
   const v = classifyStage1(
     await imageColorStats(img("canonical-tapulele.jpg")),
     await imageColorStats(img("genuine-tapulele-sleeved.jpg")),
     { name: "Tapu Lele GX (Secret)", set: "SM - Guardians Rising" }
   );
   assert.ok(["MATCH", "UNKNOWN"].includes(v.status));
-  assert.notEqual(v.status, "MISMATCH");
 });
 
 // --- Stage 1: pure logic -------------------------------------------------
 
-test("Stage 1 never MISMATCHes on synthetic 'metal sheet' stats (that verdict is Stage 2 only)", () => {
+test("Stage 1 never accuses on synthetic 'metal sheet' stats (any mismatch verdict is Stage 2 only)", () => {
   const canon = { colorfulness: 80, meanSaturation: 0.4, meanValue: 0.6, grayFraction: 0.1, metallicHueFraction: 0.1 };
   const metalSheet = { colorfulness: 10, meanSaturation: 0.05, meanValue: 0.7, grayFraction: 0.9, metallicHueFraction: 0.6 };
   const v = classifyStage1(canon, metalSheet, { name: "Charizard", set: "Base Set" });
@@ -97,15 +101,33 @@ const counterfeitRow = {
   discount_pct: 0.63,
 };
 
-test("1-3. Stage 2 vision MISMATCH flows through to a MISMATCH verdict", async () => {
+test("Stage 2 COUNTERFEIT flows through to a COUNTERFEIT_MISMATCH verdict", async () => {
   const v = await screenDeal(
     { row: counterfeitRow, canonicalUrl: "https://tcgplayer-cdn.tcgplayer.com/product/183806_in_1000x1000.jpg" },
     {
       fetchImage: async () => img("counterfeit-pikazek.jpg"),
-      vision: async () => ({ status: "MISMATCH", reason: "vision:engraved metal plate, real card is paper Full Art" }),
+      vision: async () => ({
+        status: VERDICTS.COUNTERFEIT,
+        reason: "vision:engraved metal plate, no halftone, (c)2020 on a 2017 set",
+      }),
     }
   );
-  assert.equal(v.status, "MISMATCH");
+  assert.equal(v.status, "COUNTERFEIT_MISMATCH");
+  assert.match(v.reason, /vision:/);
+});
+
+test("Stage 2 IDENTITY_MISMATCH flows through to an IDENTITY_MISMATCH verdict (genuine card, wrong print)", async () => {
+  const v = await screenDeal(
+    { row: counterfeitRow, canonicalUrl: "x" },
+    {
+      fetchImage: async () => img("counterfeit-pikazek.jpg"),
+      vision: async () => ({
+        status: VERDICTS.IDENTITY,
+        reason: "vision:genuine paper card but set/number differ - different printing",
+      }),
+    }
+  );
+  assert.equal(v.status, "IDENTITY_MISMATCH");
   assert.match(v.reason, /vision:/);
 });
 
@@ -121,12 +143,25 @@ test("Stage 2 is NOT consulted once Stage 1 already returned MATCH", async () =>
         u === "x" ? img("canonical-umbreon-fa.jpg") : img("genuine-umbreon-fa.jpg"),
       vision: async () => {
         visionCalls++;
-        return { status: "MISMATCH", reason: "vision:should-not-be-called" };
+        return { status: VERDICTS.COUNTERFEIT, reason: "vision:should-not-be-called" };
       },
     }
   );
   assert.equal(v.status, "MATCH");
   assert.equal(visionCalls, 0);
+});
+
+test("a bare/legacy vision 'MISMATCH' (no counterfeit evidence) resolves to IDENTITY_MISMATCH, not counterfeit", async () => {
+  const v = await screenDeal(
+    { row: counterfeitRow, canonicalUrl: "x" },
+    {
+      fetchImage: async () => img("counterfeit-pikazek.jpg"),
+      // simulates visionClassify already having normalised a bare
+      // "MISMATCH" answer; the orchestrator must still route it safely
+      vision: async () => ({ status: normalizeVisionVerdict("MISMATCH"), reason: "vision:not the same card" }),
+    }
+  );
+  assert.equal(v.status, "IDENTITY_MISMATCH");
 });
 
 test("13. a failed image fetch degrades to UNKNOWN, never blocks (ingestion unaffected)", async () => {
@@ -159,11 +194,25 @@ const deal = (over) => ({
   ...over,
 });
 
-test("10. persisted MISMATCH -> authenticity:proxy_or_counterfeit, row hidden", () => {
-  const r = deal({ visual_authenticity_status: "MISMATCH", visual_authenticity_reason: "vision:metal plate" });
+test("10a. persisted COUNTERFEIT_MISMATCH -> authenticity:proxy_or_counterfeit, row hidden", () => {
+  const r = deal({ visual_authenticity_status: "COUNTERFEIT_MISMATCH", visual_authenticity_reason: "vision:metal plate, no halftone, fake (c)2020" });
   assert.equal(visualAuthenticityReason(r), "authenticity:proxy_or_counterfeit");
   assert.equal(isDisplayableDeal(r), false);
   assert.equal(disqualificationReason(r), "authenticity:proxy_or_counterfeit");
+});
+
+test("10b. persisted IDENTITY_MISMATCH -> identity:visual_mismatch, row hidden, NOT called counterfeit", () => {
+  const r = deal({ visual_authenticity_status: "IDENTITY_MISMATCH", visual_authenticity_reason: "vision:genuine card, wrong set/number" });
+  assert.equal(visualAuthenticityReason(r), "identity:visual_mismatch");
+  assert.equal(isDisplayableDeal(r), false);
+  assert.equal(disqualificationReason(r), "identity:visual_mismatch");
+  assert.notEqual(disqualificationReason(r), "authenticity:proxy_or_counterfeit");
+});
+
+test("10c. legacy bare MISMATCH still hides as counterfeit (nothing silently un-hides before the re-screen)", () => {
+  const r = deal({ visual_authenticity_status: "MISMATCH", visual_authenticity_reason: "vision:metal plate" });
+  assert.equal(visualAuthenticityReason(r), "authenticity:proxy_or_counterfeit");
+  assert.equal(isDisplayableDeal(r), false);
 });
 
 test("9/11. UNKNOWN is never counterfeit; a Stage-1-only UNKNOWN never hides even an extreme deal", () => {
@@ -313,6 +362,119 @@ test("regression 12766: isVisualScreeningCandidate stays a pure sync predicate (
 
 test("13. the display gate does no image work - visualAuthenticityReason is a pure field read", () => {
   // no throw, synchronous, on a bare object with no image / no sharp
-  const r = visualAuthenticityReason({ visual_authenticity_status: "MISMATCH", visual_authenticity_reason: "vision:x" });
-  assert.equal(r, "authenticity:proxy_or_counterfeit");
+  assert.equal(
+    visualAuthenticityReason({ visual_authenticity_status: "COUNTERFEIT_MISMATCH", visual_authenticity_reason: "vision:x" }),
+    "authenticity:proxy_or_counterfeit"
+  );
+  assert.equal(
+    visualAuthenticityReason({ visual_authenticity_status: "IDENTITY_MISMATCH", visual_authenticity_reason: "vision:x" }),
+    "identity:visual_mismatch"
+  );
+});
+
+// --- verdict taxonomy: counterfeit vs identity vs uncertain -----------
+//
+// The hardening that followed the 12766 / widened-queue work. Two failure
+// modes it fixes:
+//   (1) genuine textured/embossed/holo foils being called COUNTERFEIT
+//       (Umbreon delta 17/113 -> deals 25493/25563; Dialga EX 122/119 SR
+//       -> deal 12807). Vision read legitimate foil texture as an
+//       engraved metal plate.
+//   (2) MISMATCH conflating a physical fake with a genuine card matched
+//       to the WRONG printing (Lugia 29/115 -> matched to Lugia ex;
+//       Articuno 036/195 -> matched to Supreme Victors 148/147; deal
+//       30835 -> seller's set metadata wrong, photo shows a cheaper
+//       Ascended Heroes ex than the matched printing).
+
+test("taxonomy: normalizeVisionVerdict maps the model's answers onto the 4 verdicts", () => {
+  assert.equal(normalizeVisionVerdict("MATCH"), "MATCH");
+  assert.equal(normalizeVisionVerdict("UNKNOWN"), "UNKNOWN");
+  assert.equal(normalizeVisionVerdict("COUNTERFEIT"), "COUNTERFEIT_MISMATCH");
+  assert.equal(normalizeVisionVerdict("COUNTERFEIT_MISMATCH"), "COUNTERFEIT_MISMATCH");
+  assert.equal(normalizeVisionVerdict("IDENTITY_MISMATCH"), "IDENTITY_MISMATCH");
+  // a bare "not the same" answer is the LESS accusatory verdict, never counterfeit
+  assert.equal(normalizeVisionVerdict("MISMATCH"), "IDENTITY_MISMATCH");
+  assert.equal(normalizeVisionVerdict("WRONG_PRINTING"), "IDENTITY_MISMATCH");
+  assert.equal(normalizeVisionVerdict("banana"), null);
+});
+
+test("taxonomy: the vision prompt keeps the counterfeit guardrails", () => {
+  const p = visionPrompt({ name: "Umbreon", set: "EX Delta Species" });
+  // it must offer all four verdicts
+  for (const v of ["MATCH", "COUNTERFEIT", "IDENTITY_MISMATCH", "UNKNOWN"]) assert.ok(p.includes(v), v);
+  // counterfeit needs a COMBINATION, not one signal
+  assert.match(p, /COMBINATION/i);
+  // the non-evidence list: none of these ALONE = counterfeit
+  for (const term of ["holo", "foil sheen", "embossed genuine foil", "sleeve glare", "angled light", "rounded corners", "perspective"]) {
+    assert.ok(p.toLowerCase().includes(term.toLowerCase()), `prompt must name "${term}" as non-evidence`);
+  }
+  // wrong card but real paper -> identity, not counterfeit
+  assert.match(p, /IDENTITY_MISMATCH, not COUNTERFEIT/);
+});
+
+test("taxonomy: 12766 & 4582 (metal-plate repros) -> COUNTERFEIT_MISMATCH -> hidden as counterfeit", () => {
+  for (const id of [12766, 4582]) {
+    const r = deal({
+      id,
+      visual_authenticity_status: "COUNTERFEIT_MISMATCH",
+      visual_authenticity_reason: "vision:solid metal plate, embossed relief text, no halftone dots, fabricated copyright",
+    });
+    assert.equal(visualAuthenticityReason(r), "authenticity:proxy_or_counterfeit");
+    assert.equal(isDisplayableDeal(r), false);
+  }
+});
+
+test("taxonomy: genuine Umbreon-delta foil & Dialga-EX secret-rare foil -> MATCH/UNKNOWN, never counterfeit", () => {
+  // a MATCH verdict carries no penalty
+  const umbreon = deal({
+    visual_authenticity_status: "MATCH",
+    visual_authenticity_reason: "vision:same card; ring colour shift is holo sheen under angled light",
+  });
+  assert.equal(visualAuthenticityReason(umbreon), null);
+  assert.equal(isDisplayableDeal(umbreon), true);
+
+  // a vision-UNKNOWN below the extreme-discount band stays visible
+  const dialga = deal({
+    market_price: 987, discount_pct: 0.44,
+    visual_authenticity_status: "UNKNOWN",
+    visual_authenticity_reason: "vision:embossed full-bleed foil is normal for a 122/119 secret rare; cannot confirm print structure",
+  });
+  assert.equal(visualAuthenticityReason(dialga), null);
+  assert.equal(isDisplayableDeal(dialga), true);
+});
+
+test("taxonomy: wrong-print matches (Lugia 29/115, Articuno 036/195, deal 30835) -> identity:visual_mismatch -> hidden, not counterfeit", () => {
+  const reasons = [
+    "vision:genuine paper Lugia 29/115, but matched printing is Lugia ex 105/115",
+    "vision:genuine Silver Tempest Articuno 036/195, not the Supreme Victors 148/147 secret rare",
+    "vision:deal 30835 - genuine paper card but a cheaper regular ex printing than the matched card; seller set metadata wrong",
+  ];
+  for (const reason of reasons) {
+    const r = deal({
+      discount_pct: 0.5,
+      market_price: 400,
+      visual_authenticity_status: "IDENTITY_MISMATCH",
+      visual_authenticity_reason: reason,
+    });
+    assert.equal(visualAuthenticityReason(r), "identity:visual_mismatch");
+    assert.equal(disqualificationReason(r), "identity:visual_mismatch");
+    assert.notEqual(visualAuthenticityReason(r), "authenticity:proxy_or_counterfeit");
+    assert.equal(isDisplayableDeal(r), false);
+  }
+});
+
+test("taxonomy: UNKNOWN safety is unchanged - Stage-1-only UNKNOWN never hides, vision-UNKNOWN hides only high-value+extreme", () => {
+  const stage1only = deal({
+    visual_authenticity_status: "UNKNOWN",
+    visual_authenticity_reason: "stage1 stage1_inconclusive ratio=0.5 | vision_unavailable",
+    market_price: 500, discount_pct: 0.8,
+  });
+  assert.equal(visualAuthenticityReason(stage1only), null);
+
+  const visionExtreme = deal({
+    visual_authenticity_status: "UNKNOWN",
+    visual_authenticity_reason: "vision:cannot establish construction | stage1 ...",
+    market_price: 500, discount_pct: 0.8,
+  });
+  assert.equal(visualAuthenticityReason(visionExtreme), "authenticity:visual_unverified");
 });
