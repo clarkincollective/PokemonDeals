@@ -17,10 +17,15 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import SpeciesCatalog from "@/components/SpeciesCatalog";
 import SpeciesCardsBySet, { buildCatalogueItems } from "@/components/SpeciesCardsBySet";
 import FeaturedValueCards from "@/components/FeaturedValueCards";
+import SpeciesFactStrip from "@/components/SpeciesFactStrip";
+import SpeciesPriceSummary from "@/components/SpeciesPriceSummary";
+import SpeciesBySet from "@/components/SpeciesBySet";
+import SpeciesQuickAnswers from "@/components/SpeciesQuickAnswers";
 import ShoppingContext, { RegionSuffix } from "@/components/ShoppingContext";
 import SiteFooter from "@/components/SiteFooter";
 import { hasPrice } from "@/lib/money";
 import { cardTier } from "@/lib/catalogueView";
+import { speciesPriceSnapshot, speciesBySet } from "@/lib/speciesSummary";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -56,14 +61,11 @@ export async function generateMetadata({ params }) {
       const { stats, indexable } = await fetchSpeciesCatalog(speciesName);
       const canonical = `/pokemon/${slug}`;
       if (indexable && stats) {
-        const t = `${speciesName} Pokemon Cards — Prices & Values`;
-        const range =
-          stats.minPrice != null && stats.maxPrice != null && stats.maxPrice !== stats.minPrice
-            ? `$${stats.minPrice.toFixed(2)}–$${stats.maxPrice.toFixed(2)}`
-            : null;
-        const description = `Browse ${stats.cardCount} ${speciesName} Pokemon cards across ${stats.setCount} ${
-          stats.setCount === 1 ? "set" : "sets"
-        }, with real recent-sold market values${range ? ` from ${range}` : ""}. Live eBay deals shown when available.`;
+        // Stable, species-specific - no volatile price range in the
+        // description (it moves with the market + every catalogue sync).
+        // The visible page carries the real counts and range.
+        const t = `${speciesName} Card Prices & Value`;
+        const description = `Every ${speciesName} Pokemon card we track, with real recent-sold market references grouped by set. Compare ${speciesName} card prices and values across sets and printings.`;
         return {
           title: t,
           description,
@@ -85,9 +87,11 @@ export async function generateMetadata({ params }) {
     return { title: "Pokemon not found", robots: { index: false, follow: true } };
   }
 
-  const title = `${resolved.name} — Pokemon Card Prices & Deals`;
-  const setsPhrase = resolved.setCount === 1 ? "1 set" : `${resolved.setCount} sets`;
-  const description = `${resolved.count} active ${resolved.name} Pokemon card listings on eBay right now, across ${setsPhrase} — compared against real market pricing, cheapest first.`;
+  // Stable, species-specific metadata - no volatile live-listing count or
+  // price range (those churn every scan / sync). Counts and ranges live
+  // in the visible page body instead.
+  const title = `${resolved.name} Card Prices & Deals`;
+  const description = `Every ${resolved.name} Pokemon card we track, with real recent-sold market references by set, plus current eBay listings we've identified below market. Compare ${resolved.name} card prices, values and deals.`;
   const canonical = `/pokemon/${slug}`;
 
   // Explicit openGraph/twitter blocks - same site-wide fix as
@@ -178,12 +182,11 @@ export default async function PokemonSpeciesPage({ params }) {
 
   const basePath = `/pokemon/${slug}`;
 
-  const priceRange =
-    resolved.minPrice != null && resolved.maxPrice != null && resolved.maxPrice !== resolved.minPrice
-      ? `$${Number(resolved.minPrice).toFixed(2)} – $${Number(resolved.maxPrice).toFixed(2)}`
-      : resolved.minPrice != null
-        ? `$${Number(resolved.minPrice).toFixed(2)}`
-        : null;
+  // Species-level price snapshot + by-set coverage, computed once from the
+  // catalogue cards we already have in hand (no extra query). Shared by
+  // the price summary, the by-set table and the quick-answers block.
+  const priceSnapshot = speciesPriceSnapshot(allCards);
+  const bySetRows = speciesBySet(allCards, validSetSlugs);
 
   // Discovery shortcut: the highest recent-sold-value cards we track for
   // this species, ranked ONLY by trustworthy reference price - never by
@@ -263,19 +266,18 @@ export default async function PokemonSpeciesPage({ params }) {
             ← Back to Pokemon
           </Link>
           <h1 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
-            {resolved.name} Card Prices, Deals &amp; Values
+            {resolved.name} Card Prices &amp; Deals
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
-            Verified below-market {resolved.name} listings on eBay right now, plus every {resolved.name}{" "}
-            card we track with its recent-sold market reference price — across {allCards.length}{" "}
-            {allCards.length === 1 ? "card" : "cards"} and {resolved.setCount}{" "}
-            {resolved.setCount === 1 ? "set" : "sets"}.
+            Browse every {resolved.name} card we track across {resolved.setCount}{" "}
+            {resolved.setCount === 1 ? "set" : "sets"}, compare current market references, and check the
+            qualifying below-market eBay listings identified below.
           </p>
+          <SpeciesFactStrip speciesName={resolved.name} />
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5">
             <p className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">
               {allCards.length} cards · {resolved.setCount}{" "}
               {resolved.setCount === 1 ? "set" : "sets"}
-              {priceRange ? ` · market ${priceRange}` : ""}
               {deals.length > 0 ? ` · ${resolved.count} live listing${resolved.count === 1 ? "" : "s"}` : ""}
             </p>
             <ShoppingContext />
@@ -315,19 +317,29 @@ export default async function PokemonSpeciesPage({ params }) {
           )}
         </section>
 
-        {/* SECTION 3 - highest-value discovery shortcut */}
+        {/* Species-level price snapshot (real catalogue references, never
+            a single "the Pokemon is worth $X"). */}
+        <div className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+          <SpeciesPriceSummary speciesName={resolved.name} snapshot={priceSnapshot} />
+        </div>
+
+        {/* Most valuable cards - ranked purely by trustworthy market
+            reference; specialty (Jumbo / WCD) demoted (cardTier). */}
         {featuredItems.length >= 4 && (
-          <section className="mt-14 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+          <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
             <h2 className="text-lg font-bold text-black dark:text-zinc-50">
-              Highest-value {resolved.name} cards we track
+              Most valuable {resolved.name} cards we track
             </h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Ranked by recent-sold market reference price. Open a card for full pricing, graded values
-              and any live deal.
+              The highest market references currently in our catalogue — not an all-time ranking. Open
+              a card for full pricing, graded values and any live deal.
             </p>
             <FeaturedValueCards speciesName={resolved.name} items={featuredItems} />
           </section>
         )}
+
+        {/* By-set coverage summary (compact, above the full grid). */}
+        <SpeciesBySet speciesName={resolved.name} rows={bySetRows} />
 
         {/* SECTION 5 - the complete catalogue, by set, with search + progressive disclosure */}
         {allCards.length > 0 && (
@@ -346,6 +358,13 @@ export default async function PokemonSpeciesPage({ params }) {
             />
           </section>
         )}
+
+        <SpeciesQuickAnswers
+          speciesName={resolved.name}
+          snapshot={priceSnapshot}
+          setRows={bySetRows}
+          hasDeals={deals.length > 0}
+        />
 
         <div className="mt-10 flex justify-center">
           <Link

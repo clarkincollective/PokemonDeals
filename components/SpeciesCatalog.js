@@ -6,9 +6,14 @@ import EbaySearchLink from "@/components/EbaySearchLink";
 import SpeciesCardList from "@/components/SpeciesCardList";
 import SpeciesCardsBySet, { buildCatalogueItems } from "@/components/SpeciesCardsBySet";
 import FeaturedValueCards from "@/components/FeaturedValueCards";
+import SpeciesFactStrip from "@/components/SpeciesFactStrip";
+import SpeciesPriceSummary from "@/components/SpeciesPriceSummary";
+import SpeciesBySet from "@/components/SpeciesBySet";
+import SpeciesQuickAnswers from "@/components/SpeciesQuickAnswers";
 import { buildEbaySearchLink } from "@/lib/ebay";
 import { hasPrice } from "@/lib/money";
 import { cardTier } from "@/lib/catalogueView";
+import { speciesPriceSnapshot, speciesBySet } from "@/lib/speciesSummary";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -32,6 +37,12 @@ function usd(n) {
 export default function SpeciesCatalog({ speciesName, slug, cards, stats = null, indexable = false, validSetSlugs = [] }) {
   const ebayHref = buildEbaySearchLink(`${speciesName} Pokemon card`);
   const canonical = `${SITE_URL}/pokemon/${slug}`;
+
+  // Real species-level aggregates from the catalogue cards we already
+  // have. Only rendered on the indexable path (the noindex fallback stays
+  // lean); the fact strip is shown either way (real, compact context).
+  const priceSnapshot = indexable ? speciesPriceSnapshot(cards) : null;
+  const bySetRows = indexable ? speciesBySet(cards, validSetSlugs) : [];
 
   // Discovery shortcut, same as the with-deals species page: the highest
   // recent-sold-value cards we track, ranked ONLY by trustworthy
@@ -122,27 +133,27 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
         />
 
         <h1 className="mt-4 text-3xl font-bold tracking-tight text-black dark:text-zinc-50">
-          {indexable ? `${speciesName} Pokemon Cards — Prices & Values` : `${speciesName} Pokemon Cards`}
+          {indexable ? `${speciesName} Card Prices & Value` : `${speciesName} Pokemon Cards`}
         </h1>
 
+        <SpeciesFactStrip speciesName={speciesName} />
+
         {indexable && stats ? (
-          <>
-            <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-              Every {speciesName} Pokemon card we have catalogued — {stats.cardCount} across{" "}
-              {stats.setCount} {stats.setCount === 1 ? "set" : "sets"} — with its real recent-sold
-              market reference price. There is no below-market {speciesName} listing to feature right
-              now; this page updates automatically if the scan finds one.
-            </p>
-            <p className="mt-3 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
-              {stats.cardCount} cards · {stats.setCount} {stats.setCount === 1 ? "set" : "sets"}
-              {range ? ` · market range ${range}` : ""}
-            </p>
-          </>
+          <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+            Browse every {speciesName} Pokemon card we track across {stats.setCount}{" "}
+            {stats.setCount === 1 ? "set" : "sets"} and compare current market references. There is no
+            qualifying below-market {speciesName} deal to feature right now — the catalogue and prices
+            stay available, and this page updates automatically when a qualifying deal appears.
+          </p>
         ) : (
           <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
             No active below-market {speciesName} deal on eBay right now. Below is every {speciesName}{" "}
             card we know of, with its latest reference market price, plus a live eBay search.
           </p>
+        )}
+
+        {priceSnapshot && (
+          <SpeciesPriceSummary speciesName={speciesName} snapshot={priceSnapshot} className="mt-5" />
         )}
 
         <EbaySearchLink
@@ -153,21 +164,23 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
           Search {speciesName} on eBay →
         </EbaySearchLink>
 
-        {/* Highest-value cards - same component/ranking as the with-deals
-            species page. Not a Best Deals section: there is no live
-            verified deal on this path. */}
+        {/* Most valuable cards - same component/ranking as the with-deals
+            species page (cardTier demotes Jumbo / WCD). Not a Best Deals
+            section: there is no live verified deal on this path. */}
         {featuredItems.length >= 4 && (
           <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
             <h2 className="text-lg font-bold text-black dark:text-zinc-50">
-              Highest-value {speciesName} cards we track
+              Most valuable {speciesName} cards we track
             </h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Ranked by recent-sold market reference price. Open a card for full pricing, graded
-              values and any live deal.
+              The highest market references currently in our catalogue — not an all-time ranking. Open
+              a card for full pricing, graded values and any live deal.
             </p>
             <FeaturedValueCards speciesName={speciesName} items={featuredItems} />
           </section>
         )}
+
+        <SpeciesBySet speciesName={speciesName} rows={bySetRows} />
 
         {cards.length > 0 ? (
           <>
@@ -200,6 +213,15 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
             We don&apos;t have any {speciesName} cards catalogued yet - use the eBay search above to
             browse current listings directly.
           </p>
+        )}
+
+        {priceSnapshot && (
+          <SpeciesQuickAnswers
+            speciesName={speciesName}
+            snapshot={priceSnapshot}
+            setRows={bySetRows}
+            hasDeals={false}
+          />
         )}
 
         <div className="mt-10">
