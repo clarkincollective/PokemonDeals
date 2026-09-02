@@ -330,8 +330,11 @@ movers, no charts elsewhere, no redesign.
 - **Canonical source, zero page-time provider cost.**
   `lib/deals.js` → new `fetchCardPriceHistory(tcgplayerId)`
   (`unstable_cache`, 900 s) reads the merged spine via
-  `getCanonicalPriceHistory(supabase, …)` — **no PPT history call, no
-  eBay call**. Trends/signal/coverage computed from the full series;
+  `getCanonicalPriceHistory(supabaseAdmin(), …)` — **no PPT history call,
+  no eBay call**. Server-side admin read (public reference data;
+  `price_history` keeps RLS on with no anon policy; the read only ever
+  runs inside an ISR/cached server render). Trends/signal/coverage
+  computed from the full series;
   only a **≤180-point downsampled** set (`downsampleSeries`, first + last
   always kept) is returned for the chart, to bound the RSC payload.
   `getFullPriceAnalysis` gained `{ includeHistory }` (default `true`,
@@ -353,13 +356,10 @@ movers, no charts elsewhere, no redesign.
   `historyCoverage(series)`, `downsampleSeries(series, maxPoints)`,
   `MARKET_SIGNAL_BAND_PCT`.
 
-- **Migration — `supabase/price_history_public_read_migration.sql`
-  (NOT yet applied — owner runs it).** Adds a `for select using (true)`
-  RLS policy so the site's anon client can read `price_history` (public
-  reference data: card id, date, USD price, source). Same pattern as
-  `catalog_snapshot` / `watchlist`. Until applied, the panel degrades
-  gracefully (shows current value + "More price history is being
-  collected.", no chart).
+- **No migration.** The read uses the existing server-side admin client;
+  no schema, RLS, or policy change. If the panel ever gets no history for
+  a card it degrades gracefully (current value + "More price history is
+  being collected.", no chart).
 
 - **SEO / schema untouched.** No new route, no sitemap change, metadata
   templates unchanged (no trend % in titles/descriptions). Product/Offer

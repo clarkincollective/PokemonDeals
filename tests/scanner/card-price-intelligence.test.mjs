@@ -51,7 +51,7 @@ const rows = (pairs, source = "catalog") =>
 test("1. fetchCardPriceHistory reads the canonical spine, not a provider call", () => {
   const code = stripComments(DEALS_SRC);
   assert.match(code, /export const fetchCardPriceHistory = unstable_cache\(/);
-  assert.match(code, /getCanonicalPriceHistory\(\s*supabase\s*,/);
+  assert.match(code, /getCanonicalPriceHistory\(\s*supabaseAdmin\(\)\s*,/);
   // it must NOT reach for the provider history / ebay from this path
   const fn = code.slice(code.indexOf("fetchCardPriceHistoryUncached"), code.indexOf("card-price-history-v1"));
   assert.doesNotMatch(fn, /pokemonpricetracker|getFullPriceAnalysis|getRawPriceHistory|includeHistory|includeEbay|ebay/i);
