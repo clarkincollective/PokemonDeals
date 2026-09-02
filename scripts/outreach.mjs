@@ -195,6 +195,7 @@ function cmdShow(records, id) {
   if (r.queuedAt) console.log(`  queuedAt    : ${r.queuedAt}`);
   if (r.sentAt) console.log(`  sentAt      : ${r.sentAt}  (Instantly send evidence)`);
   if (r.syncedAt) console.log(`  syncedAt    : ${r.syncedAt}`);
+  if (r.lastTest) console.log(`  lastTest    : ${JSON.stringify(r.lastTest)}  (test-recipient redirect - prospect NOT contacted)`);
   if (r.lastError) console.log(`  lastError   : ${JSON.stringify(r.lastError)}`);
   console.log("  " + "-".repeat(72));
   console.log(`  channel     : ${p.channel}`);
@@ -277,37 +278,59 @@ async function cmdSend(records, id, { dryRun, force }) {
   );
   const res = await PROVIDER.submitLead(msg);
 
+  const isTest = Boolean(msg.meta.redirectedToTest);
+
   if (res?.accepted) {
     // The lead was ACCEPTED into the campaign - this does NOT prove an
-    // email was sent. Land on QUEUED; a later `sync` promotes to SENT
-    // only when Instantly reports real send evidence. A test-redirected
-    // submit stays APPROVED so the real submit can follow.
+    // email was sent. A REAL submit lands on QUEUED; a later `sync`
+    // promotes to SENT only on Instantly send evidence. A TEST submit
+    // (OUTREACH_TEST_RECIPIENT redirect) went to the owner's own inbox,
+    // NOT the prospect - the real record stays APPROVED and none of its
+    // delivery fields (queuedAt / sentAt / providerRef) are touched.
     r.sendLog.push({
       at: now(),
-      kind: msg.meta.redirectedToTest ? "test-submit" : "submit",
+      kind: isTest ? "test-submit" : "submit",
       provider: PROVIDER.name,
       to: msg.to,
       providerRef: res.id ?? null,
     });
-    if (!msg.meta.redirectedToTest) {
+    // A successful submission - test or real - supersedes any earlier
+    // failed attempt, so the stale error is cleared either way.
+    r.lastError = null;
+    if (isTest) {
+      // Test-safe outcome, kept OFF the real delivery fields.
+      r.lastTest = { at: now(), ok: true, to: msg.to, provider: PROVIDER.name, providerRef: res.id ?? null };
+    } else {
       r.status = "QUEUED";
       r.queuedAt = now();
       r.sentAt = null; // not sent yet - set only by `sync` on send evidence
       r.provider = PROVIDER.name;
       r.providerRef = res.id ?? null;
       r.providerMessageId = res.id ?? null; // back-compat alias
-      r.lastError = null;
     }
     writeJson(RECORDS_PATH, records);
     console.log(
-      `  ✓ ${msg.meta.redirectedToTest ? "test lead" : `"${id}"`} accepted by ${PROVIDER.name}` +
-        `${res.id ? ` (lead ${res.id})` : ""}. Status: ${r.status}.`
+      `  ✓ ${isTest ? "TEST lead" : `"${id}"`} accepted by ${PROVIDER.name}` +
+        `${res.id ? ` (lead ${res.id})` : ""}. Real record status: ${r.status}.`
     );
-    console.log(`    Instantly will send it on the campaign schedule. Confirm with:  npm run outreach -- sync ${id}\n`);
+    if (isTest) {
+      console.log(`    Test message went to ${msg.to}. The real prospect (${r.recipient}) was NOT contacted.\n`);
+    } else {
+      console.log(`    Instantly will send it on the campaign schedule. Confirm with:  npm run outreach -- sync ${id}\n`);
+    }
   } else {
     const reason = res?.reason || "unknown";
+    const detail = String(res?.detail ?? "").slice(0, 300);
+    if (isTest) {
+      // A failed TEST submission must NOT mark the real prospect FAILED
+      // or imply the real recipient was contacted - store it test-safe.
+      r.lastTest = { at: now(), ok: false, to: msg.to, provider: PROVIDER.name, reason, detail };
+      r.sendLog.push({ at: now(), kind: "test-fail", provider: PROVIDER.name, to: msg.to, reason });
+      writeJson(RECORDS_PATH, records);
+      die(`TEST submission failed (${reason}). Real record left as ${r.status}; real prospect not contacted.`);
+    }
     r.status = "FAILED";
-    r.lastError = { at: now(), provider: PROVIDER.name, reason, detail: String(res?.detail ?? "").slice(0, 300) };
+    r.lastError = { at: now(), provider: PROVIDER.name, reason, detail };
     r.sendLog.push({ at: now(), kind: "fail", provider: PROVIDER.name, to: msg.to, reason });
     writeJson(RECORDS_PATH, records);
     die(`send failed (${reason}) - record marked FAILED, not retried automatically.`);

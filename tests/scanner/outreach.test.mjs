@@ -308,13 +308,18 @@ test("16. outgoing copy is normalised to unaccented Pokemon; a preserved title i
 
 // === 17 / 18 / 19 : the first-batch records =========================
 
-test("17. a packz email record exists in DRAFT with a verified recipient", () => {
+test("17. the packz email record: verified recipient, approved-for-test, real prospect NOT sent", () => {
   const r = RECORDS.find((x) => x.id === "packz");
   assert.ok(r);
   assert.equal(r.contactType, "EMAIL");
-  assert.equal(r.status, "DRAFT");
   assert.equal(r.recipient, "support@packz.io");
   assert.match(r.body, /I run PokemonDealFinder/);
+  // owner approved it for a TEST-recipient send; the real prospect was
+  // never queued or sent (that state comes only from a NON-test submit).
+  assert.ok(["DRAFT", "APPROVED"].includes(r.status), `unexpected status ${r.status}`);
+  assert.notEqual(r.status, "QUEUED");
+  assert.notEqual(r.status, "SENT");
+  assert.ok(!r.queuedAt && !r.sentAt && !r.providerRef, "no delivery field set for the real prospect");
 });
 
 test("18. a voxbooster email record exists in DRAFT and carries snapshot placeholders (frozen at approve)", () => {
@@ -469,11 +474,15 @@ test("C17. every email record records why the public contact was appropriate", (
   }
 });
 
-test("C13/C14/C15/C20. packz + voxbooster stay DRAFT (no queuedAt/sentAt/providerRef), PPT absent, no Batch 2", () => {
+test("C13/C14/C15/C20. packz + voxbooster real prospects never queued/sent, PPT absent, no Batch 2", () => {
   const packz = RECORDS.find((r) => r.id === "packz");
   const vox = RECORDS.find((r) => r.id === "voxbooster");
+  assert.equal(vox.status, "DRAFT");
+  // packz was approved for a test-recipient send; still never a real send
+  assert.ok(["DRAFT", "APPROVED"].includes(packz.status));
   for (const r of [packz, vox]) {
-    assert.equal(r.status, "DRAFT");
+    assert.notEqual(r.status, "QUEUED");
+    assert.notEqual(r.status, "SENT");
     assert.ok(!r.queuedAt, `${r.id} has a queuedAt`);
     assert.ok(!r.sentAt, `${r.id} has a sentAt`);
     assert.ok(!r.providerRef, `${r.id} has a providerRef`);
@@ -520,4 +529,71 @@ test("C19. no new webhook: no deployed route + provider never POSTs a webhook", 
   }
   assert.doesNotMatch(PROVIDER_SRC, /\/webhooks\b/);
   assert.doesNotMatch(read("vercel.json"), /outreach|instantly|webhook/i);
+});
+
+// === TEST-MODE STATE CLEANUP (stale-error only) =====================
+
+test("TM1. a TEST submit success records lastTest and never a delivery field; only non-test sets QUEUED", () => {
+  // success branch: unconditional lastError clear, then a branch on isTest
+  assert.match(
+    CMD_SEND,
+    /if \(res\?\.accepted\)[\s\S]*?r\.lastError = null;[\s\S]*?if \(isTest\)\s*\{\s*[\s\S]*?r\.lastTest = \{ at: now\(\), ok: true[\s\S]*?\}\s*else\s*\{\s*[\s\S]*?r\.status = "QUEUED";[\s\S]*?r\.queuedAt = now\(\);[\s\S]*?r\.providerRef = res\.id/,
+    "isTest -> lastTest only; else -> QUEUED + queuedAt + providerRef"
+  );
+  // the isTest success sub-branch must NOT contain any delivery-field write
+  const testWin = CMD_SEND.match(/if \(isTest\)\s*\{\s*\n\s*\/\/[^\n]*\n\s*(r\.lastTest = [^\n]*)\n\s*\}/);
+  assert.ok(testWin, "found the isTest success sub-branch");
+  assert.doesNotMatch(testWin[0], /r\.status\s*=|r\.queuedAt|r\.sentAt\s*=|r\.providerRef\s*=|r\.provider\s*=/);
+});
+
+test("TM2. a TEST submit success clears a stale lastError from an earlier failed attempt", () => {
+  // r.lastError = null sits BEFORE the isTest branch in the success path,
+  // so a successful test submit supersedes a prior failure too.
+  assert.match(CMD_SEND, /if \(res\?\.accepted\)[\s\S]*?r\.lastError = null;[\s\S]*?if \(isTest\)/);
+});
+
+test("TM3. a FAILED TEST submit does NOT mark the real record FAILED or set lastError", () => {
+  // fail branch: isTest -> test-safe lastTest + own die(), no status/lastError
+  assert.match(
+    CMD_SEND,
+    /else \{\s*\n\s*const reason[\s\S]*?if \(isTest\)\s*\{\s*[\s\S]*?r\.lastTest = \{ at: now\(\), ok: false[\s\S]*?die\(`TEST submission failed[\s\S]*?real prospect not contacted/,
+    "test-fail path is test-safe"
+  );
+  const testFailWin = CMD_SEND.match(/if \(isTest\)\s*\{\s*\n\s*\/\/[^\n]*\n\s*\/\/[^\n]*\n\s*r\.lastTest = \{ at: now\(\), ok: false[\s\S]*?die\(`TEST submission failed[^`]*`\);\s*\n\s*\}/);
+  assert.ok(testFailWin, "found the isTest failure sub-branch");
+  assert.doesNotMatch(testFailWin[0], /r\.status = "FAILED"|r\.lastError =/);
+  // the real (non-test) failure path is still there, after the isTest guard
+  assert.match(CMD_SEND, /r\.status = "FAILED";\s*\n\s*r\.lastError = \{ at: now\(\)/);
+});
+
+test("TM4. non-test success still transitions APPROVED -> QUEUED (production behaviour unchanged)", () => {
+  assert.match(CMD_SEND, /r\.status = "QUEUED"/);
+  assert.match(CMD_SEND, /r\.queuedAt = now\(\)/);
+  // and never SENT / never a fabricated sentAt on submit
+  assert.doesNotMatch(CMD_SEND, /r\.status = "SENT"/);
+  assert.doesNotMatch(CMD_SEND, /r\.sentAt = now\(\)/);
+});
+
+test("TM5. Resend stays unreachable from the test-mode path", () => {
+  const strip = (s) => s.replace(/\/\/[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.doesNotMatch(strip(CLI), /\bsendEmail\s*\(|\bsendBatch\s*\(|from ["'][^"']*\/email(\.js)?["']/);
+});
+
+test("TM6. the current records file reflects the corrected test-mode state", () => {
+  const packz = RECORDS.find((r) => r.id === "packz");
+  // stale 401 cleared; real prospect NOT queued / sent; test outcome kept test-safe
+  assert.equal(packz.status, "APPROVED");
+  assert.equal(packz.lastError, null);
+  assert.equal(packz.queuedAt, null);
+  assert.equal(packz.sentAt, null);
+  assert.equal(packz.providerRef, null, "real prospect providerRef must not imply Packz was queued");
+  assert.ok(packz.lastTest && packz.lastTest.ok === true, "the successful test is recorded off the delivery fields");
+  assert.equal(packz.lastTest.to, "clarkincollective@gmail.com");
+  assert.notEqual(packz.lastTest.providerRef, null);
+  // Voxbooster (and the non-email records) untouched
+  const vox = RECORDS.find((r) => r.id === "voxbooster");
+  assert.equal(vox.status, "DRAFT");
+  assert.equal(vox.lastError, null);
+  assert.ok(!vox.lastTest);
+  assert.ok(!vox.queuedAt && !vox.sentAt && !vox.providerRef);
 });

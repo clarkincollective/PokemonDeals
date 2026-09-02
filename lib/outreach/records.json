@@ -14,19 +14,47 @@
     "subjectAlt": "One tool category missing from your Pokemon price-check post",
     "body": "I run PokemonDealFinder (pokemondealfinder.com), a free tool that compares live eBay Pokemon card listings against recent market references and surfaces the ones that appear to be priced below market.\n\nYour post on the best websites for checking Pokemon card prices covers the valuation and scanner side well - PriceCharting, TCGplayer, PokeScreener and the rest. The step it doesn't cover is finding listings that are currently under market in the first place.\n\nIf you ever expand the piece to include tools for that, it might be useful to readers. No worries either way.",
     "snapshot": null,
-    "status": "DRAFT",
+    "status": "APPROVED",
     "createdAt": "2026-09-02T00:00:00.000Z",
-    "approvedAt": null,
+    "approvedAt": "2026-09-02T11:13:08.544Z",
     "sentAt": null,
     "followUpAt": null,
     "repliedAt": null,
     "providerMessageId": null,
     "lastError": null,
-    "sendLog": [],
+    "sendLog": [
+      {
+        "at": "2026-09-02T11:08:33.932Z",
+        "kind": "dry-run",
+        "to": "clarkincollective@gmail.com",
+        "redirectedToTest": true
+      },
+      {
+        "at": "2026-09-02T11:09:08.299Z",
+        "kind": "fail",
+        "provider": "instantly",
+        "to": "clarkincollective@gmail.com",
+        "reason": "instantly_401"
+      },
+      {
+        "at": "2026-09-02T11:13:34.209Z",
+        "kind": "test-submit",
+        "provider": "instantly",
+        "to": "clarkincollective@gmail.com",
+        "providerRef": "01a061d3-027e-7e14-8ef9-17c67f766899"
+      }
+    ],
     "providerRef": null,
     "provider": null,
     "queuedAt": null,
-    "syncedAt": null
+    "syncedAt": null,
+    "lastTest": {
+      "at": "2026-09-02T11:13:34.209Z",
+      "ok": true,
+      "to": "clarkincollective@gmail.com",
+      "provider": "instantly",
+      "providerRef": "01a061d3-027e-7e14-8ef9-17c67f766899"
+    }
   },
   {
     "id": "voxbooster",
