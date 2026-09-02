@@ -303,6 +303,72 @@ ships.
   chase card.
 - **No user-facing page.** Pure collection.
 
+## Phase 11C — card price intelligence + decision confidence — 2026-09-03
+
+Turns the Phase 11B history foundation into the first customer-facing
+market-intelligence layer, on **`/cards/[slug]` only**. No new routes, no
+movers, no charts elsewhere, no redesign.
+
+- **`components/CardPriceIntelligence.js` (NEW)** — one compact panel
+  below `CardPriceSummary`: current market value, real 7/30/90/365-day
+  change chips (a window is rendered **only** when `trendWindows()`
+  returned non-null for it — no `0%` / `N/A` filler), one deterministic
+  market status, a "current value is X% above/below its level around N
+  days ago" line, and — when a genuine `isDisplayableDeal`-gated listing
+  sits below the reference — how far below. Coverage phrasing
+  ("Price history since January 2025." / "Price tracking recently
+  started.") is derived from the card's own series. No buy/sell/
+  undervalued/prediction language.
+
+- **Market-signal rule (documented, audited).** Basis: the **30-day
+  window only**. Audited over a ~1,100-card sample of the backfill:
+  `|30d change|` < 5% for ~55% of cards, ≥ +5% for ~31%, ≤ −5% for ~14%.
+  Rule: `Rising` ≥ +5%, `Falling` ≤ −5%, `Stable` in between,
+  **`Limited history`** when the 30-day window is null (never a 7-day
+  fallback). `MARKET_SIGNAL_BAND_PCT = 5` in `lib/priceHistory.js`.
+
+- **Canonical source, zero page-time provider cost.**
+  `lib/deals.js` → new `fetchCardPriceHistory(tcgplayerId)`
+  (`unstable_cache`, 900 s) reads the merged spine via
+  `getCanonicalPriceHistory(supabase, …)` — **no PPT history call, no
+  eBay call**. Trends/signal/coverage computed from the full series;
+  only a **≤180-point downsampled** set (`downsampleSeries`, first + last
+  always kept) is returned for the chart, to bound the RSC payload.
+  `getFullPriceAnalysis` gained `{ includeHistory }` (default `true`,
+  unchanged for `/deals/[id]`); the card page passes `false`, dropping
+  ~1 provider credit per uncached render and removing the last
+  history-endpoint dependency from card-page traffic.
+
+- **Chart reuse.** The existing `PriceHistoryChart` (client SVG, no
+  external calls) now takes the canonical downsampled points on both the
+  live-hub and catalogue render paths. `VariantPriceGrid`'s raw
+  sparkline + min/max now come from the same canonical points.
+
+- **WOTC.** Canonical series for the 11 dual-printing sets is
+  first-party (`catalog`) only by construction (the backfill wrote zero
+  `ppt_backfill` rows for them). Short history → "Limited history" /
+  "recently started", never a wrong long history. Regression-covered.
+
+- **New helpers in `lib/priceHistory.js`:** `marketSignal(trends)`,
+  `historyCoverage(series)`, `downsampleSeries(series, maxPoints)`,
+  `MARKET_SIGNAL_BAND_PCT`.
+
+- **Migration — `supabase/price_history_public_read_migration.sql`
+  (NOT yet applied — owner runs it).** Adds a `for select using (true)`
+  RLS policy so the site's anon client can read `price_history` (public
+  reference data: card id, date, USD price, source). Same pattern as
+  `catalog_snapshot` / `watchlist`. Until applied, the panel degrades
+  gracefully (shows current value + "More price history is being
+  collected.", no chart).
+
+- **SEO / schema untouched.** No new route, no sitemap change, metadata
+  templates unchanged (no trend % in titles/descriptions). Product/Offer
+  JSON-LD still describes only live offers. No Dataset / FinancialProduct
+  schema.
+
+- **Tests:** `tests/scanner/card-price-intelligence.test.mjs` (20).
+  `test:scanner` 454 + `test:seo` 331 green; `npm run build` clean.
+
 ## Phase 11B — hybrid historical price foundation — 2026-09-02
 
 Data infrastructure only (no public pages, no charts, no movers). Turns

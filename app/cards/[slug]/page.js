@@ -2,7 +2,7 @@ import { unstable_cache } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { resolveCardSlug, resolveCatalogCard, fetchCardOffers, fetchCardRelations, fetchSetSlugs } from "@/lib/deals";
+import { resolveCardSlug, resolveCatalogCard, fetchCardOffers, fetchCardRelations, fetchSetSlugs, fetchCardPriceHistory } from "@/lib/deals";
 import { catalogCardTitle } from "@/lib/cardSlug";
 import { cardDisplayName, collectorNumberFromName } from "@/lib/cardName";
 import { catalogImageUrl } from "@/lib/cardImage";
@@ -19,6 +19,7 @@ import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import RecentSales from "@/components/RecentSales";
 import CardPriceSummary from "@/components/CardPriceSummary";
+import CardPriceIntelligence from "@/components/CardPriceIntelligence";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -67,7 +68,11 @@ export async function generateStaticParams() {
 const loadPriceAnalysisUncached = async (tcgplayerId) => {
   if (!tcgplayerId) return null;
   try {
-    return await getFullPriceAnalysis(tcgplayerId, {});
+    // Phase 11C: the raw Near Mint history series is now sourced from the
+    // canonical price_history spine (fetchCardPriceHistory), so this
+    // request no longer needs includeHistory - one fewer provider credit
+    // per uncached render and no page traffic on the history endpoint.
+    return await getFullPriceAnalysis(tcgplayerId, { includeHistory: false });
   } catch (err) {
     console.error("Price analysis lookup failed:", err.message);
     return null;
@@ -190,15 +195,17 @@ export default async function CardHubPage({ params }) {
     // instead (Phase 4 P0). It has no offers, so no Product/Offer schema.
     const card = await resolveCatalogCard(slug);
     if (!card) notFound();
-    const [analysis, validSetSlugs, relations] = await Promise.all([
+    const [analysis, validSetSlugs, relations, priceHistory] = await Promise.all([
       loadPriceAnalysis(card.tcgplayerId),
       fetchSetSlugs("english"),
       fetchCardRelations(slug, card.name, card.set, card.species),
+      fetchCardPriceHistory(card.tcgplayerId),
     ]);
     return (
       <CatalogCardView
         card={card}
         analysis={analysis}
+        priceHistory={priceHistory}
         setHasPage={validSetSlugs.includes(slugifySet(card.set))}
         relations={relations}
       />
@@ -213,12 +220,13 @@ export default async function CardHubPage({ params }) {
   // OG - the exact catalogue name, only TCGplayer's "(#NN)" collector-
   // number parenthetical removed (it's on the identity line below).
   const cardName = cardDisplayName(hub);
-  const [{ deals: offers, error }, analysis, relations, validSetSlugs] =
+  const [{ deals: offers, error }, analysis, relations, validSetSlugs, priceHistory] =
     await Promise.all([
       fetchCardOffers(hub.id),
       loadPriceAnalysis(hub.tcgplayerId),
       fetchCardRelations(slug, hub.name, hub.set, null),
       fetchSetSlugs("english"),
+      fetchCardPriceHistory(hub.tcgplayerId),
     ]);
   const allOffers = offers;
   // Collector number + rarity for the visible identity line (Phase 8A /
@@ -257,7 +265,19 @@ export default async function CardHubPage({ params }) {
   // market value.
   const rangeLowUsd = offers[0] ? Number(offers[0].total_price_usd ?? offers[0].total_price) : null;
 
-  const primaryHistory = analysis?.raw?.history ?? [];
+  // Phase 11C: the chart + variant sparkline read the canonical merged
+  // price_history spine (first-party 'catalog' forward + 'ppt_backfill'
+  // prefix, WOTC = first-party only), NOT a per-request provider history
+  // call. Already downsampled + bounded server-side (fetchCardPriceHistory).
+  const chartPoints = priceHistory?.chartPoints ?? [];
+  const canonRaw = analysis?.raw
+    ? {
+        ...analysis.raw,
+        history: chartPoints,
+        minPrice: chartPoints.length ? Math.min(...chartPoints.map((p) => p.p)) : null,
+        maxPrice: chartPoints.length ? Math.max(...chartPoints.map((p) => p.p)) : null,
+      }
+    : analysis?.raw;
   const tcgplayerLink = buildTcgplayerLink(hub.name, hub.tcgplayerId);
 
   // Minimal descriptor for the viewer's local "recently viewed" / "saved"
@@ -417,6 +437,15 @@ export default async function CardHubPage({ params }) {
           listingsLowUsd={rangeLowUsd}
         />
 
+        <CardPriceIntelligence
+          marketValueUsd={analysis?.raw?.currentPrice ?? null}
+          trends={priceHistory?.trends ?? null}
+          signal={priceHistory?.signal ?? null}
+          coverage={priceHistory?.coverage ?? null}
+          cheapestListingUsd={rangeLowUsd}
+          offersCount={offers.length}
+        />
+
         {offers.length > 0 && (
           <div id="listings" className="mt-6 scroll-mt-24">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-400">
@@ -430,22 +459,25 @@ export default async function CardHubPage({ params }) {
           </div>
         )}
 
-        {primaryHistory.length >= 2 && (
+        {chartPoints.length >= 2 && (
           <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Market price history</h2>
-            <p className="text-xs text-zinc-400">Real market pricing, fetched fresh for this page.</p>
+            <p className="text-xs text-zinc-400">
+              Our first-party daily snapshots joined to reference history. Historical data availability
+              varies by card.
+            </p>
             <div className="mt-4">
-              <PriceHistoryChart points={primaryHistory} />
+              <PriceHistoryChart points={chartPoints} />
             </div>
           </div>
         )}
 
-        {analysis && (analysis.graded.length > 0 || analysis.raw.history.length > 0) && (
+        {analysis && (analysis.graded.length > 0 || chartPoints.length >= 2) && (
           <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Every variant, side by side</h2>
             <p className="text-xs text-zinc-400">Raw and every graded tier with real recorded sales.</p>
             <div className="mt-4">
-              <VariantPriceGrid raw={analysis.raw} graded={analysis.graded} cardName={hub.name} />
+              <VariantPriceGrid raw={canonRaw} graded={analysis.graded} cardName={hub.name} />
             </div>
           </div>
         )}

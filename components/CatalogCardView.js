@@ -12,6 +12,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import Price from "@/components/Price";
 import CardPriceSummary from "@/components/CardPriceSummary";
+import CardPriceIntelligence from "@/components/CardPriceIntelligence";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import RecentSales from "@/components/RecentSales";
@@ -30,7 +31,7 @@ const SITE_URL = "https://pokemondealfinder.com";
 // card, resolveCardSlug (the deal hub) takes over the same URL and the
 // full deal-hub template (Product/Offer schema, listings grid) renders
 // instead - see app/cards/[slug]/page.js.
-export default function CatalogCardView({ card, analysis, setHasPage, relations = null }) {
+export default function CatalogCardView({ card, analysis, priceHistory = null, setHasPage, relations = null }) {
   const { slug, set, cardNumber, rarity, image, species, refPrice } = card;
   // shared display identity - the ex/EX/GX/Mega/owner name kept verbatim,
   // only TCGplayer's "(#NN)" collector-number parenthetical removed (the
@@ -43,8 +44,18 @@ export default function CatalogCardView({ card, analysis, setHasPage, relations 
   // the catalogue `species` column is set.
   const speciesLink = cardSpeciesLink({ name: card.name, cardType: card.cardType, species });
   const tcgplayerLink = buildTcgplayerLink(name, card.tcgplayerId);
-  const history = analysis?.raw?.history ?? [];
-  const hasAnalysis = Boolean(analysis && (analysis.raw?.history?.length || analysis.graded?.length));
+  // Phase 11C: canonical merged price_history spine (not a provider
+  // history call). Bounded + downsampled server-side.
+  const chartPoints = priceHistory?.chartPoints ?? [];
+  const canonRaw = analysis?.raw
+    ? {
+        ...analysis.raw,
+        history: chartPoints,
+        minPrice: chartPoints.length ? Math.min(...chartPoints.map((p) => p.p)) : null,
+        maxPrice: chartPoints.length ? Math.max(...chartPoints.map((p) => p.p)) : null,
+      }
+    : analysis?.raw;
+  const hasAnalysis = Boolean(analysis && (chartPoints.length >= 2 || analysis.graded?.length));
 
   // Does the live analysis carry a real, showable number? (Mirrors
   // CardPriceSummary's own "nothing worth showing" gate.) When it doesn't -
@@ -167,7 +178,17 @@ export default function CatalogCardView({ card, analysis, setHasPage, relations 
             fetch itself failed (analysis == null) - never to paper over a
             price the analysis deliberately rejected. Otherwise say so. */}
         {analysisHasPrice ? (
-          <CardPriceSummary analysis={analysis} offersCount={0} listingsLowUsd={null} />
+          <>
+            <CardPriceSummary analysis={analysis} offersCount={0} listingsLowUsd={null} />
+            <CardPriceIntelligence
+              marketValueUsd={analysis?.raw?.currentPrice ?? null}
+              trends={priceHistory?.trends ?? null}
+              signal={priceHistory?.signal ?? null}
+              coverage={priceHistory?.coverage ?? null}
+              cheapestListingUsd={null}
+              offersCount={0}
+            />
+          </>
         ) : analysis == null && refPrice != null ? (
           <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Price &amp; value</h2>
@@ -208,12 +229,15 @@ export default function CatalogCardView({ card, analysis, setHasPage, relations 
           TCGPlayer link.
         </p>
 
-        {history.length >= 2 && (
+        {chartPoints.length >= 2 && (
           <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Market price history</h2>
-            <p className="text-xs text-zinc-400">Real market pricing, fetched fresh for this page.</p>
+            <p className="text-xs text-zinc-400">
+              Our first-party daily snapshots joined to reference history. Historical data availability
+              varies by card.
+            </p>
             <div className="mt-4">
-              <PriceHistoryChart points={history} />
+              <PriceHistoryChart points={chartPoints} />
             </div>
           </div>
         )}
@@ -223,7 +247,7 @@ export default function CatalogCardView({ card, analysis, setHasPage, relations 
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Every variant, side by side</h2>
             <p className="text-xs text-zinc-400">Raw and every graded tier with real recorded sales.</p>
             <div className="mt-4">
-              <VariantPriceGrid raw={analysis.raw} graded={analysis.graded} cardName={name} />
+              <VariantPriceGrid raw={canonRaw} graded={analysis.graded} cardName={name} />
             </div>
           </div>
         )}
