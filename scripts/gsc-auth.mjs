@@ -48,7 +48,12 @@ function loadClient() {
 function openBrowser(url) {
   try {
     if (process.platform === "win32") {
-      spawn("cmd", ["/c", "start", "", url], { detached: true, stdio: "ignore" }).unref();
+      // NOT `cmd /c start` - cmd.exe treats every "&" in the query string
+      // as a command separator, which truncates the OAuth URL after
+      // client_id and drops response_type=code (Google 400:
+      // "Required parameter is missing: response_type"). rundll32 takes
+      // the URL as one literal argument with no shell parsing.
+      spawn("rundll32", ["url.dll,FileProtocolHandler", url], { detached: true, stdio: "ignore" }).unref();
     } else if (process.platform === "darwin") {
       spawn("open", [url], { detached: true, stdio: "ignore" }).unref();
     } else {
@@ -56,6 +61,32 @@ function openBrowser(url) {
     }
   } catch {
     /* the URL is printed too; manual paste always works */
+  }
+}
+
+// Self-check: the URL actually opened MUST carry the OAuth params Google
+// requires. Guards against a future regression in URL construction and
+// against any transport (shell, copy/paste) that could mangle it.
+function assertAuthUrl(url) {
+  let u;
+  try {
+    u = new URL(url);
+  } catch {
+    return die("internal: built an unparseable authorization URL");
+  }
+  const need = {
+    response_type: "code",
+    scope: SCOPE,
+    access_type: "offline",
+    prompt: "consent",
+  };
+  for (const [k, v] of Object.entries(need)) {
+    if (u.searchParams.get(k) !== v) {
+      return die(`internal: authorization URL missing/blank ${k} (expected "${v}", got "${u.searchParams.get(k)}")`);
+    }
+  }
+  for (const k of ["client_id", "redirect_uri", "state"]) {
+    if (!u.searchParams.get(k)) return die(`internal: authorization URL missing ${k}`);
   }
 }
 
@@ -135,10 +166,15 @@ async function main() {
       state,
     }).toString();
 
-  console.log("\n  Opening your browser to authorise READ-ONLY Search Console access.");
+  assertAuthUrl(authUrl);
+
+  console.log("\n  Opening the Google OAuth consent screen (READ-ONLY Search Console).");
   console.log("  Scope: " + SCOPE);
-  console.log("\n  If the browser does not open, paste this URL into it:\n");
-  console.log("  " + authUrl + "\n");
+  console.log(
+    "\n  If the browser does not open, copy the ENTIRE line below (it is one URL, no\n" +
+      "  spaces) and paste it into your browser:\n"
+  );
+  console.log(authUrl + "\n");
   console.log(
     "  If Google shows an \"unverified app\" / \"Testing\" screen: that is expected for an\n" +
       "  External OAuth app in Testing. Sign in with the Google account that (a) has Search\n" +
