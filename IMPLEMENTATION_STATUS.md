@@ -370,10 +370,12 @@ movers, no charts elsewhere, no redesign.
     15% of it (a genuine ramp leaves a close recent prior). Needs ≥ 3
     priors, so thin/WOTC series are never flagged. → all windows withheld.
   - **(B) source disagreement** — some day carries both a `catalog` and a
-    `ppt_backfill` observation differing by ≥ 35%. Audit: on shared days
+    `ppt_backfill` observation differing by ≥ 25%. Audit: on shared days
     the two sources are within 5% for 94% of pairs / within 10% for 96%,
-    so a ≥ 35% gap means one of that card's series is unreliable
-    (~3–4% of cards). → all windows withheld.
+    and ≥ 25% for only ~3% (≈97th percentile), so that gap means we
+    should not publish a trend % for the card. ~4% of cards; withholding
+    is the safe outcome and self-resolves as first-party history accrues
+    past each window. → all windows withheld.
   - **(C) comparison-point anomaly** — a window's ~N-days-ago point is an
     isolated outlier vs both immediate neighbours (which agree). Rare
     with dense daily data (~0 in audit) but cheap insurance. → that

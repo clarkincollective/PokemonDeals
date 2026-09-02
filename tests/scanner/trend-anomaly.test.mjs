@@ -245,6 +245,6 @@ test("gate decisions and kept %s are currency-invariant", () => {
 
 test("confidence thresholds are explicit constants", () => {
   assert.equal(TREND_CONFIDENCE.spikeFactor, 1.5);
-  assert.equal(TREND_CONFIDENCE.sourceDisagreePct, 0.35);
+  assert.equal(TREND_CONFIDENCE.sourceDisagreePct, 0.25);
   assert.equal(TREND_CONFIDENCE.minPriors, 3);
 });
