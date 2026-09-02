@@ -181,33 +181,87 @@ describe("6/7/8: every ranking row links a durable card page; set & Pokemon link
   });
 });
 
-// === 11/12. most-listed: honest definition, no popularity claim ========
+// === 11/12. most-listed: display-gated count, honest definition ========
 
-describe("11/12: most-listed measures active listings, claims nothing more", () => {
+describe("11/12: most-listed counts DISPLAYABLE listings, claims nothing more", () => {
   const P = "/market-data/most-listed-cards";
 
-  test("defines the count as active listings, not sellers / popularity / sales", () => {
-    const body = pages[P].res.body;
-    assert.match(body, /active listings/i);
+  test("13. defines the count as displayable listings, not sellers / popularity / sales", () => {
+    const body = pages[P].res.body.replace(/<!--\s*-->/g, "");
+    // Phase 9A closeout: the metric is now currently-displayable listings.
+    assert.match(body, /displayable/i, "copy no longer says the count is display-gated");
+    assert.match(body, /quality checks the rest of the site uses/i);
     assert.ok(!/\bsellers\b/.test(pages[P].parsed.h1s[0] ?? ""), "H1 says 'sellers'");
-    // the row badge must not say "sellers"
     assert.ok(!/\d+\s+sellers/i.test(body), "row badge still says 'N sellers'");
-    assert.ok(!/most (popular|searched|sold|wanted)/i.test(body), "claims popularity / search / sales volume");
+    assert.match(body, /\d+\s*listings/, "row badge does not read 'N listings'");
   });
 
-  test("states the snapshot / partial-market nature and links /methodology", () => {
+  test("14. no 'most popular' / search-demand / sales-volume / whole-marketplace claim", () => {
     const body = pages[P].res.body;
-    assert.match(body, /snapshot|as of/i);
+    assert.ok(!/most (popular|searched|sold|wanted)/i.test(body), "claims popularity / search / sales volume");
+    assert.match(body, /not the whole eBay market/i, "does not disclaim the partial-market scope");
+    assert.match(body, /not distinct sellers/i);
+  });
+
+  test("15. snapshot label uses a real underlying listing time, not a render-time fake", () => {
+    const body = pages[P].res.body;
+    // source: the label is fed by fetchMostListedCards' snapshotAt
+    // (max(last_seen_at) of the scanned rows), never new Date()/Date.now().
+    const src = readFileSync(join(ROOT, "app/market-data/most-listed-cards/page.js"), "utf8");
+    assert.match(src, /const \{ cards, snapshotAt \} = await fetchMostListedCards/);
+    assert.match(src, /formatScanTime\(snapshotAt\)/);
+    assert.ok(!/new Date\(\)|Date\.now\(\)/.test(src), "page derives freshness from the clock");
+    // rendered: a parseable past timestamp next to the label
+    const m = body.match(/Listing counts as of.*?<time[^>]+dateTime="([^"]+)"/s);
+    assert.ok(m, "no <time dateTime> next to the snapshot label");
+    const ageMs = Date.now() - new Date(m[1]).getTime();
+    assert.ok(ageMs >= 0 && ageMs < 14 * 24 * 3600 * 1000, `snapshot age ${Math.round(ageMs / 86400000)}d out of range`);
     assert.match(body, /href="\/methodology"/);
   });
 
-  test("bounded ItemList (<= 100)", () => {
-    const lists = ldOfType(pages[P].parsed, "ItemList");
+  test("16. every ranked row links a permanent /cards/[slug]; a sample resolves 200 + indexable; counts are plausible", async () => {
+    const body = pages[P].res.body.replace(/<!--\s*-->/g, "");
+    const slugs = [...new Set([...body.matchAll(/href="\/cards\/([a-z0-9-]+)"/g)].map((m) => m[1]))];
+    assert.ok(slugs.length >= 50, `only ${slugs.length} distinct /cards/ links on the ranking`);
+    assert.ok(!/href="\/deals\/\d+"/.test(body), "a ranking row falls back to /deals/[id]");
+    // count badges: a real per-card displayable listing count, bounded
+    const counts = [...body.matchAll(/>\s*(\d+)\s*listings\s*</g)].map((m) => Number(m[1]));
+    assert.ok(counts.length >= 50, `only ${counts.length} count badges`);
+    assert.ok(Math.max(...counts) < 500, `implausible listing count ${Math.max(...counts)}`);
+    assert.ok(Math.min(...counts) >= 2, `a ranked card shows < 2 listings (${Math.min(...counts)})`);
+    for (const s of sample(slugs, 20)) {
+      const r = await get(`/cards/${s}`);
+      assert.equal(r.status, 200, `/cards/${s} -> ${r.status}`);
+      assert.ok(!/noindex/.test(parseHtml(r.body).robots ?? ""), `/cards/${s} is noindex`);
+    }
+  });
+
+  test("12/18/19: bounded ItemList, self-canonical, indexable (unchanged by the closeout)", () => {
+    const { parsed } = pages[P];
+    const lists = ldOfType(parsed, "ItemList");
     assert.ok(lists.length >= 1);
     for (const l of lists) {
       const n = (l.itemListElement ?? []).length;
       assert.ok(n > 0 && n <= 100, `ItemList has ${n} entries`);
     }
+    assert.equal(pathOf(parsed.canonicals[0]), P);
+    assert.ok(!/noindex/.test(parsed.robots ?? ""));
+    assert.ok(!/Pokémon/.test(pages[P].res.body), "accented Pokémon");
+  });
+});
+
+// === 17. the Most Valuable ranking is untouched by this closeout =======
+
+describe("17: Most Valuable page unchanged by the Most-Listed closeout", () => {
+  test("still the raw cross-catalogue ranking, still Top <= 100, still catalogue-sourced", () => {
+    const src = readFileSync(
+      join(ROOT, "app/market-data/most-expensive-cards/page.js"),
+      "utf8"
+    );
+    assert.match(src, /fetchTopCatalogCards\(\{ limit: RANKING_SIZE \}\)/);
+    assert.match(src, /Most Valuable Pokemon Cards by Raw Market Value/);
+    const { parsed } = pages["/market-data/most-expensive-cards"];
+    assert.match(parsed.h1s[0], /Raw Market Value/i);
   });
 });
 
