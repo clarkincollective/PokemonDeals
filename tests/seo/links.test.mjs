@@ -46,3 +46,41 @@ test("no broken internal links from the main pages", async () => {
 
   assert.deepEqual(broken, [], `broken/redirecting internal links:\n  ${broken.join("\n  ")}`);
 });
+
+// --- SEO Phase 8B: homepage internal-link equity into the entity hubs ---
+
+test("8B: the homepage links the three catalogue directories", async () => {
+  const { internalLinks } = parseHtml((await get("/")).body);
+  for (const d of ["/cards", "/pokemon", "/sets", "/search"]) {
+    assert.ok(internalLinks.some((l) => normPath(l) === d), `homepage does not link ${d}`);
+  }
+});
+
+test("8B: the homepage carries a bounded, static, server-rendered row of Pokemon + Set hub links", async () => {
+  const html = (await get("/")).body;
+  const start = html.indexOf("Popular Pokemon");
+  assert.ok(start >= 0, "no 'Popular Pokemon' browse module on the homepage");
+  const end = html.indexOf("All sets", start);
+  const mod = html.slice(start, end > start ? end + 120 : start + 8000); // the whole two-row module
+  const pk = [...new Set([...mod.matchAll(/href="(\/pokemon\/[a-z0-9-]+)"/g)].map((m) => m[1]))];
+  const st = [...new Set([...mod.matchAll(/href="(\/sets\/[a-z0-9-]+)"/g)].map((m) => m[1]))];
+  // bounded (not a link farm), but a real curated set
+  assert.ok(pk.length >= 8 && pk.length <= 16, `module /pokemon/[slug] links = ${pk.length} (want 8-16)`);
+  assert.ok(st.length >= 8 && st.length <= 12, `module /sets/[slug] links = ${st.length} (want 8-12)`);
+  // descriptive anchors, no keyword stuffing, no dynamic counts
+  const flat = mod.replace(/<!--\s*-->/g, "");
+  assert.match(flat, />Charizard cards</);
+  assert.match(flat, />Base Set card list</);
+  assert.ok(!/\bcheap\b|\bebay\b|prices values deals/i.test(mod), "keyword-stuffed anchor in the browse module");
+  assert.ok(!/cards \(\d+\)|\d+ cards</.test(mod), "dynamic count in a browse-module anchor");
+});
+
+test("8B: every curated homepage hub link resolves to an indexable 200", async () => {
+  const { internalLinks } = parseHtml((await get("/")).body);
+  const hubs = [...new Set(internalLinks.map(normPath).filter((l) => /^\/(pokemon|sets)\/[a-z0-9-]+$/.test(l)))];
+  for (const p of hubs.slice(0, 30)) {
+    const res = await get(p);
+    assert.equal(res.status, 200, `${p} -> ${res.status}`);
+    assert.ok(!/noindex/.test(parseHtml(res.body).robots ?? ""), `${p} is linked from the homepage but noindex`);
+  }
+});

@@ -23,6 +23,7 @@ import MobileStickySearch from "@/components/MobileStickySearch";
 import NewSinceVisit from "@/components/NewSinceVisit";
 import SectionHeader from "@/components/SectionHeader";
 import DealCard from "@/components/DealCard";
+import HomeBrowseLinks from "@/components/HomeBrowseLinks";
 import FilterBar from "@/components/FilterBar";
 import Pagination, { pageHref } from "@/components/Pagination";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
@@ -439,6 +440,7 @@ export default async function Home({ searchParams }) {
                 </Link>
               ))}
             </div>
+            <HomeBrowseLinks />
           </div>
         </section>
       )}
