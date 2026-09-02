@@ -41,18 +41,26 @@ test("1. card title/H1 use the stable 'Price & Value' template, never a deal-sta
   }
 });
 
-test("2. card title carries the exact identity - name + set (and number where the name/set imply one)", () => {
+test("2. card title carries the full structured collector number as #<n> (title/body parity, no dup)", () => {
   const first = results.find((x) => x.r.status === 200);
   assert.ok(first, "no card page reachable");
-  // Charizard Base Set -> the title must contain the name and the set
-  const cz = results.find((x) => x.p === "/cards/charizard-base-set" && x.r.status === 200);
-  if (cz) {
-    const core = cz.parsed.title.split(" | ")[0];
-    assert.match(core, /Charizard/);
-    assert.match(core, /Base Set/);
-    // 4/102 is the Base Set Charizard collector number - present in title OR the visible identity line
-    const body = text(cz.r.body);
-    assert.ok(/4\/102/.test(core) || /4\/102/.test(body), "Charizard Base Set: collector number 4/102 nowhere on the page");
+  for (const { p, r, parsed } of results) {
+    if (r.status !== 200) continue;
+    const core = (parsed.title ?? "").split(" | ")[0];
+    // the visible identity line's number is the source of truth
+    const noSchema = r.body.replace(/<script[^>]+application\/ld\+json[^>]*>[\s\S]*?<\/script>/gi, " ");
+    const idFrag = noSchema.slice(noSchema.search(/<h1[\s>]/), noSchema.search(/<h1[\s>]/) + 900).replace(/<[^>]+>/g, " ");
+    const m = idFrag.match(/·\s*([A-Za-z]{0,5}\d{1,4}[a-z]?(?:\/\d{1,3})?)\b/);
+    if (m) {
+      const num = m[1];
+      assert.ok(
+        core.includes(`#${num}`),
+        `${p}: identity line has ${num} but the title does not carry "#${num}": ${core}`
+      );
+    }
+    // never a duplicated number ("Foo 4/102 #4/102")
+    assert.ok(!/(\b\d{1,4}[a-z]?\/\d{1,3}\b)[\s\S]{0,6}#\1\b/.test(core), `${p}: title duplicates the collector number: ${core}`);
+    assert.ok(!/##|#(\s|\)|$)/.test(core), `${p}: malformed "#" in title: ${core}`);
   }
 });
 

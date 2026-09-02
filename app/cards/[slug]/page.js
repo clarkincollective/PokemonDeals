@@ -86,8 +86,11 @@ export async function generateMetadata({ params }) {
     const card = await resolveCatalogCard(slug);
     if (!card) return { title: "Card not found", robots: { index: false, follow: true } };
     const dn = card.displayName ?? cardDisplayName(card);
-    const title = catalogCardTitle(dn, card.set, card.cardNumber);
-    const idBits = [card.cardNumber, card.rarity].filter(Boolean).join(", ");
+    // Precedence: structured card_catalog.card_number, then a number
+    // embedded in the name (near-zero here - card_catalog is ~99% numbered).
+    const catNumber = card.cardNumber ?? collectorNumberFromName(card.name);
+    const title = catalogCardTitle(dn, card.set, catNumber);
+    const idBits = [catNumber, card.rarity].filter(Boolean).join(", ");
     const description = card.refPrice != null
       ? `${dn} (${card.set}) Pokemon card price & value${idBits ? ` — ${idBits}` : ""}. Raw Near Mint market reference and condition-by-condition prices from real recent sold data, plus a TCGPlayer link.`
       : `${dn} (${card.set}) Pokemon card${idBits ? ` — ${idBits}` : ""}. Identity, image and a TCGPlayer link. Market price currently unavailable.`;
@@ -146,13 +149,19 @@ export async function generateMetadata({ params }) {
   // Phase 8A: one STABLE card-page template regardless of current deal
   // state - the "<card> <number> price / value" intent is identical
   // whether or not a listing is live right now, and a flipping
-  // "... & Deals" / "... & Value" title churns the index. The collector
-  // number (a high-value long-tail identifier - people search "4/102")
-  // is pulled from the watchlist name where present, no extra query.
+  // "... & Deals" / "... & Value" title churns the index.
+  //
+  // Collector-number source precedence (8A closeout): the STRUCTURED full
+  // number wins over any partial pulled from the display name. The
+  // live-deal hub object carries only name + set, so read the structured
+  // number from the price-analysis record (d.cardNumber). loadPriceAnalysis
+  // is unstable_cache'd and the page component calls it too, so this adds
+  // no net billed request - just orders the same cached call first.
+  const analysis = await loadPriceAnalysis(hub.tcgplayerId);
   const hubName = cardDisplayName(hub);
-  const hubNumber = collectorNumberFromName(hub.name);
+  const hubNumber = analysis?.cardNumber ?? collectorNumberFromName(hub.name);
   const title = catalogCardTitle(hubName, hub.set, hubNumber);
-  const description = `${hubName}${hubNumber ? ` ${hubNumber}` : ""} (${hub.set}) Pokemon card price & value — raw Near Mint market reference and condition-by-condition prices from real recent sold data, graded (PSA/CGC/BGS) tiers where available, and live eBay listings compared cheapest first.`;
+  const description = `${hubName}${hubNumber ? ` #${hubNumber}` : ""} (${hub.set}) Pokemon card price & value — raw Near Mint market reference and condition-by-condition prices from real recent sold data, graded (PSA/CGC/BGS) tiers where available, and live eBay listings compared cheapest first.`;
 
   return {
     title,

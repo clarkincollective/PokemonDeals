@@ -183,3 +183,38 @@ test("catalogCardTitle: stays within the SEO title budget, never truncates a sho
   const g = catalogCardTitle("Gardevoir & Sylveon GX (205) (Alternate Full Art)", "SM - Cosmic Eclipse");
   assert.ok(g.length <= 63, `too long: ${g.length}: ${g}`);
 });
+
+test("catalogCardTitle: renders the full structured collector number as #<n>, leading zeroes kept", () => {
+  assert.equal(catalogCardTitle("Charizard", "Base Set", "004/102"), "Charizard #004/102 (Base Set) Price & Value");
+  assert.equal(catalogCardTitle("Pikachu", "Base Set", "058/102"), "Pikachu #058/102 (Base Set) Price & Value");
+  assert.equal(
+    catalogCardTitle("Here Comes Team Rocket!", "Team Rocket", "15/82"),
+    "Here Comes Team Rocket! #15/82 (Team Rocket) Price & Value"
+  );
+  // promo code
+  assert.match(catalogCardTitle("Charizard VMAX", "SWSH Black Star Promos", "SWSH261"), /^Charizard VMAX #SWSH261 \(/);
+});
+
+test("catalogCardTitle: a name already ending with the number does not duplicate it", () => {
+  assert.equal(catalogCardTitle("Charizard 4/102", "Base Set", "4/102"), "Charizard #4/102 (Base Set) Price & Value");
+  assert.equal(catalogCardTitle("Charizard - 4/102", "Base Set", "4/102"), "Charizard #4/102 (Base Set) Price & Value");
+  assert.equal(catalogCardTitle("Pikachu (58/102)", "Base Set", "58/102"), "Pikachu #58/102 (Base Set) Price & Value");
+  // a trailing YEAR that merely ends with the number's digits is NOT clipped
+  const y = catalogCardTitle("Charizard 2016 Evolutions Promo", "XY Promos", "16");
+  assert.ok(y.includes("Charizard 2016 Evolutions Promo"), y);
+  assert.ok(y.includes("#16"), y);
+});
+
+test("catalogCardTitle: no trustworthy number -> the natural name (set) form, no fabricated #", () => {
+  assert.equal(catalogCardTitle("Mew", "EX Legend Maker", null), "Mew (EX Legend Maker) Price & Value");
+  assert.ok(!catalogCardTitle("Mew", "EX Legend Maker").includes("#"));
+});
+
+test("catalogCardTitle: number survives the length squeeze longer than the set/tail", () => {
+  // long name + long set + a real number: the set and " Price & Value"
+  // tail are dropped before the number.
+  const t = catalogCardTitle("Iron Valiant ex", "SV04.5: Paldean Fates Special Set", "089/091");
+  assert.ok(t.length <= 63, `too long: ${t.length}: ${t}`);
+  assert.ok(t.includes("Iron Valiant ex"), t);
+  assert.ok(t.includes("#089/091"), t);
+});
