@@ -46,21 +46,84 @@ function ldTypes(parsed) {
   return set;
 }
 
-// stable known examples from the task's own required sample list
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Charizard always has active below-market deals; Finizen is the fixed
+// noindex example (test 15 depends on it).
 const DEAL_BACKED = "/pokemon/charizard";
-const CATALOGUE_ONLY = "/pokemon/caterpie";
 const NOINDEX = "/pokemon/finizen";
+
+// The "catalogue-only" fixture (indexable, catalogue-backed, but NO
+// active deal) is chosen AT RUN TIME from the actual template state, not
+// hardcoded - a specific Pokemon can gain a deal at any time and flip
+// into the deal-backed template (this is exactly what happened to the
+// former hardcoded /pokemon/caterpie). Candidates are very-low-value
+// commons where a "40%+ below a ~$1-3 market ref" deal essentially never
+// qualifies; the first one whose LIVE page is in the catalogue-only
+// template wins, with a sitemap fallback. CAT_NAME / CAT_SLUG are then
+// derived from that page so the assertions follow the fixture.
+const CAT_CANDIDATES = [
+  "caterpie", "weedle", "kakuna", "metapod", "pidgey", "rattata", "spearow",
+  "sentret", "hoothoot", "ledyba", "sunkern", "wurmple", "zigzagoon",
+  "bidoof", "patrat", "lillipup", "pidove", "bunnelby", "wingull", "bellsprout",
+];
+
+const CAT_TITLE_RE = /^(.+?) Card Prices & Value \| Pokemon Deal Finder$/;
+
+// A live species page is in the catalogue-only template iff: 200,
+// indexable, title/H1 use the "... Card Prices & Value" form (deal-backed
+// uses "... & Deals"), and the body carries the honest "no qualifying
+// below-market <Name> deal" line and no "Best <Name> deals" heading.
+function catalogueOnlyState(res) {
+  if (res.status !== 200) return null;
+  const p = parseHtml(res.body);
+  if (/noindex/.test(p.robots ?? "")) return null;
+  const m = (p.title ?? "").match(CAT_TITLE_RE);
+  if (!m) return null;
+  const name = m[1].trim();
+  if (!p.h1s[0] || !new RegExp(`^${esc(name)} Card Prices & Value$`).test(p.h1s[0])) return null;
+  const body = text(res.body);
+  if (!new RegExp(`no qualifying below-market ${esc(name)} deal to feature right now`, "i").test(body)) return null;
+  if (new RegExp(`Best ${esc(name)} deals`, "i").test(body)) return null;
+  return { name, parsed: p };
+}
+
+// resolved in before()
+let CATALOGUE_ONLY = null;
+let CAT_NAME = null;
+let CAT_SLUG = null;
 
 let dealRes, catRes, noindexRes, dealParsed, catParsed, noindexParsed;
 let sitemapPokemon = [];
 
 before(async () => {
-  [dealRes, catRes, noindexRes] = await Promise.all([get(DEAL_BACKED), get(CATALOGUE_ONLY), get(NOINDEX)]);
+  [dealRes, noindexRes] = await Promise.all([get(DEAL_BACKED), get(NOINDEX)]);
   dealParsed = parseHtml(dealRes.body);
-  catParsed = parseHtml(catRes.body);
   noindexParsed = parseHtml(noindexRes.body);
   const { byType } = await sitemapUrls();
   sitemapPokemon = (byType.get("pokemon") ?? []).map(pathOf);
+
+  // 1) curated low-value candidates, 2) fall back to scanning the sitemap.
+  const probeOrder = [
+    ...CAT_CANDIDATES.map((s) => `/pokemon/${s}`),
+    ...sitemapPokemon.filter((p) => !CAT_CANDIDATES.some((s) => p === `/pokemon/${s}`)),
+  ];
+  for (const path of probeOrder) {
+    const res = await get(path);
+    const state = catalogueOnlyState(res);
+    if (state) {
+      CATALOGUE_ONLY = path;
+      CAT_SLUG = path.replace("/pokemon/", "");
+      CAT_NAME = state.name;
+      catRes = res;
+      catParsed = state.parsed;
+      break;
+    }
+  }
+  assert.ok(
+    CATALOGUE_ONLY && CAT_NAME,
+    "no catalogue-only species fixture found (indexable, catalogue-backed, no active deal)"
+  );
 });
 
 // --- 1-2: species facts from trusted data, no fabrication ---------------
@@ -100,11 +163,34 @@ test("2. a species with no evolution / unknown fact fabricates nothing", async (
   }
 });
 
+// --- 2b: the dynamic catalogue-only fixture is genuinely that state ---
+
+test("2b. the catalogue-only fixture is catalogue-backed AND not deal-backed", () => {
+  // if this fails, the selection in before() is wrong and every
+  // catalogue-only template assertion below is meaningless - fail loudly
+  // here rather than silently testing the wrong template.
+  assert.ok(CATALOGUE_ONLY, "no catalogue-only fixture resolved");
+  assert.equal(catRes.status, 200);
+  assert.ok(!/noindex/.test(catParsed.robots ?? ""), `${CATALOGUE_ONLY} is noindex (not catalogue-backed)`);
+  assert.match(catParsed.title, CAT_TITLE_RE, `${CATALOGUE_ONLY} is not on the "& Value" template`);
+  assert.ok(!/ & Deals \|/.test(catParsed.title), `${CATALOGUE_ONLY} is deal-backed`);
+  assert.match(
+    text(catRes.body),
+    new RegExp(`no qualifying below-market ${esc(CAT_NAME)} deal to feature right now`, "i"),
+    "fixture body does not carry the honest no-deal line"
+  );
+  assert.ok(
+    !new RegExp(`Best ${esc(CAT_NAME)} deals`, "i").test(text(catRes.body)),
+    "fixture has a 'Best <Name> deals' section (deal-backed)"
+  );
+  assert.deepEqual(catParsed.canonicals, [`${ORIGIN}/pokemon/${CAT_SLUG}`]);
+});
+
 // --- 3-6: metadata stabilization -------------------------------------
 
 test("3. catalogue-only species metadata is stable (no counts, no ranges)", () => {
   assert.equal(catRes.status, 200);
-  assert.match(catParsed.title, /^Caterpie Card Prices & Value \| Pokemon Deal Finder$/);
+  assert.match(catParsed.title, new RegExp(`^${esc(CAT_NAME)} Card Prices & Value \\| Pokemon Deal Finder$`));
   const d = catParsed.metaDescription ?? "";
   assert.ok(d.length > 0, "no meta description");
   assert.ok(!/\$\d/.test(d), `description has a price: ${d}`);
@@ -152,17 +238,20 @@ test("7. deal-backed H1 carries deal intent", () => {
 
 test("8. catalogue-only H1 does not claim active deals", () => {
   assert.ok(catParsed.h1s.length >= 1);
-  assert.match(catParsed.h1s[0], /Caterpie Card Prices & Value/);
+  assert.match(catParsed.h1s[0], new RegExp(`^${esc(CAT_NAME)} Card Prices & Value$`));
   assert.ok(!/deals?\b/i.test(catParsed.h1s[0]), `catalogue-only H1 mentions deals: ${catParsed.h1s[0]}`);
   // body is honest about no current deal
-  assert.match(text(catRes.body), /no qualifying below-market Caterpie deal to feature right now/i);
+  assert.match(
+    text(catRes.body),
+    new RegExp(`no qualifying below-market ${esc(CAT_NAME)} deal to feature right now`, "i")
+  );
 });
 
 // --- 9-11: sections use real data + safe links -----------------------
 
 test("9. most-valuable cards link to /cards/[slug]", () => {
   const t = text(catRes.body);
-  assert.match(t, /Most valuable Caterpie cards we track/i);
+  assert.match(t, new RegExp(`Most valuable ${esc(CAT_NAME)} cards we track`, "i"));
   const cardLinks = catParsed.internalLinks.filter((l) => l.startsWith("/cards/"));
   assert.ok(cardLinks.length >= 4, `expected /cards/ links in the most-valuable grid, got ${cardLinks.length}`);
 });
@@ -199,11 +288,12 @@ test("11. by-set summary links only to existing /sets/[slug] pages", async () =>
 
 test("12. quick answers are present and use real catalogue counts", () => {
   const t = text(catRes.body);
-  assert.match(t, /Common questions about Caterpie cards/i);
-  assert.match(t, /How many Caterpie cards are there\?/i);
-  assert.match(t, /We currently track \d+ Caterpie card records? across \d+ sets?/i);
-  assert.match(t, /How much are Caterpie cards worth\?/i);
-  assert.match(t, /There is no single Caterpie card value|we can.?t give a range/i);
+  const N = esc(CAT_NAME);
+  assert.match(t, new RegExp(`Common questions about ${N} cards`, "i"));
+  assert.match(t, new RegExp(`How many ${N} cards are there\\?`, "i"));
+  assert.match(t, new RegExp(`We currently track \\d+ ${N} card records? across \\d+ sets?`, "i"));
+  assert.match(t, new RegExp(`How much are ${N} cards worth\\?`, "i"));
+  assert.match(t, new RegExp(`There is no single ${N} card value|we can.?t give a range`, "i"));
 });
 
 // --- 13-14: schema safety -----------------------------------------
@@ -244,7 +334,7 @@ test("16. SPECIES_CATALOG_MIN_CARDS is 6 and SPECIES_MIN_LISTINGS is still 5", a
 
 test("17. species canonicals are the bare /pokemon/[slug]", () => {
   assert.deepEqual(dealParsed.canonicals, [`${ORIGIN}/pokemon/charizard`]);
-  assert.deepEqual(catParsed.canonicals, [`${ORIGIN}/pokemon/caterpie`]);
+  assert.deepEqual(catParsed.canonicals, [`${ORIGIN}/pokemon/${CAT_SLUG}`]);
   assert.deepEqual(noindexParsed.canonicals, [`${ORIGIN}/pokemon/finizen`]);
 });
 
