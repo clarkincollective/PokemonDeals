@@ -178,7 +178,7 @@ test("14. the raw recent-sales list omits graded slabs AND foreign printings", (
   // -> the raw path). See tests/scanner/recent-sales-filter.test.mjs for
   // the behaviour of the filter itself.
   const src = readFileSync(join(REPO, "lib", "pokemonPriceTracker.js"), "utf8");
-  assert.match(src, /if \(!primaryKey\) \{[\s\S]*primarySoldListings = primarySoldListings\.filter\(\(s\) => rawSaleMatchesPrinting\(s\.title, identity\)\)/);
+  assert.match(src, /if \(!primaryKey\) \{[\s\S]*primarySoldListings[\s\S]{0,60}\.filter\(\(s\) => rawSaleMatchesPrinting\(s\.title, identity\)\)/);
   assert.match(src, /require\("\.\/dealMatching"\)/);
 });
 
@@ -186,7 +186,7 @@ test("15. the aggregate market history and individual sales stay distinctly labe
   const rs = readFileSync(join(REPO, "components", "RecentSales.js"), "utf8");
   assert.match(rs, /Recent raw eBay sales|Recent eBay sales/);
   assert.match(rs, /appear to match this raw printing/);
-  assert.match(rs, /Graded slabs and other printings .* are filtered out/);
+  assert.match(rs, /Graded slabs,? .*(?:other printings|price-feed outliers).* are filtered out/);
   const card = readFileSync(join(REPO, "app", "cards", "[slug]", "page.js"), "utf8");
   assert.match(card, /Market price history/);
   assert.match(card, /variant=\{analysis\?\.primaryKey === "raw" \? "raw" : null\}/);

@@ -29,7 +29,7 @@ export default function RecentSales({
   const heading = variant === "raw" ? "Recent raw eBay sales" : "Recent eBay sales";
   const caption =
     variant === "raw"
-      ? "Real individual sold listings that appear to match this raw printing — not a market-reference estimate. Graded slabs and other printings (reprints, 1st Edition, Japanese) are filtered out, so few or none may remain."
+      ? "Real individual sold listings that appear to match this raw printing — not a market-reference estimate. Graded slabs, other printings (reprints, 1st Edition, Japanese) and obvious price-feed outliers are filtered out, so few or none may remain."
       : "Real individual sold listings for this printing — not a market-reference estimate.";
 
   // Honest empty state for the raw list: after filtering out graded slabs
