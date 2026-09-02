@@ -1,9 +1,11 @@
-// SEO Phase 10D - approval-gated manual outreach sender. These pin the
-// safety properties: DRAFT can't send, only APPROVED reaches the mailer,
-// duplicates + suppression + a daily cap block sends, dry-run and test
-// mode never touch a real recipient, owner-transparent wording is
-// required, outgoing copy is unaccented "Pokemon", and the existing
-// transactional mailer is untouched. No network in these tests.
+// SEO Phase 10D (+ closeout) - approval-gated manual outreach sender.
+// These pin the safety properties: cold outreach NEVER touches the Resend
+// transactional mailer (lib/email.js); DRAFT can't send; only APPROVED
+// reaches the outreach provider adapter; duplicates + suppression + a
+// daily cap of 5 block sends; dry-run and test mode never touch a real
+// recipient; owner-transparent wording is required; outgoing copy is
+// unaccented "Pokemon"; the existing transactional mail path is
+// untouched. No network in these tests.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -22,6 +24,7 @@ import {
   DEFAULT_DAILY_CAP,
 } from "../../lib/outreach/core.js";
 import { renderMessage, withUtm } from "../../lib/outreach/render.js";
+import { getProvider, _providers } from "../../lib/outreach/provider.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
@@ -29,6 +32,8 @@ const RECORDS = JSON.parse(read("lib/outreach/records.json"));
 const CLI = read("scripts/outreach.mjs");
 const CORE = read("lib/outreach/core.js");
 const RENDER = read("lib/outreach/render.js");
+const PROVIDER_SRC = read("lib/outreach/provider.js");
+const OUTREACH_SRCS = { CORE, RENDER, CLI, PROVIDER_SRC };
 
 const emailRecord = (over = {}) => ({
   id: "t1",
@@ -104,15 +109,15 @@ test("5. the daily send cap is enforced", () => {
 
 // === 6 : dry-run makes zero provider calls ==========================
 
-test("6. the CLI dry-run path returns before any sendEmail call", () => {
+test("6. the CLI dry-run path returns before any provider send call", () => {
   const send = CLI.slice(CLI.indexOf("async function cmdSend"), CLI.indexOf("function cmdSuppress"));
   const dryIdx = send.indexOf("if (dryRun)");
-  const sendCallIdx = send.indexOf("await sendEmail(");
-  assert.ok(dryIdx > -1 && sendCallIdx > -1);
-  assert.ok(dryIdx < sendCallIdx, "dry-run branch must come before the sendEmail call");
+  const sendCallIdx = send.indexOf("await PROVIDER.send(");
+  assert.ok(dryIdx > -1 && sendCallIdx > -1, "cmdSend must have a dry-run branch and a PROVIDER.send call");
+  assert.ok(dryIdx < sendCallIdx, "dry-run branch must come before the provider send call");
   const dryBlock = send.slice(dryIdx, sendCallIdx);
-  assert.match(dryBlock, /return;/, "dry-run branch must return before sendEmail");
-  assert.doesNotMatch(dryBlock, /sendEmail\(/);
+  assert.match(dryBlock, /return;/, "dry-run branch must return before the provider call");
+  assert.doesNotMatch(dryBlock, /PROVIDER\.send\(|sendEmail\(/);
 });
 
 // === 7 : test mode redirects the recipient ==========================
@@ -141,24 +146,26 @@ test("8. a provider failure marks the record FAILED and does not auto-retry", ()
   assert.doesNotMatch(send, /for\s*\(|while\s*\(|setTimeout|retry\(/); // no retry loop in the send path
 });
 
-test("9/10. a real success stores SENT, a sentAt timestamp, and the provider message id", () => {
+test("9/10/19. a real success stores SENT, a sentAt timestamp, the provider name and the external ref", () => {
   const send = CLI.slice(CLI.indexOf("async function cmdSend"), CLI.indexOf("function cmdSuppress"));
   assert.match(send, /r\.status = "SENT"/);
   assert.match(send, /r\.sentAt = now\(\)/);
-  assert.match(send, /r\.providerMessageId = res\.id/);
-  // and lib/email.js now surfaces the Resend id
-  assert.match(read("lib/email.js"), /return \{ sent: true, id: json\?\.id \?\? null \}/);
+  assert.match(send, /r\.provider = PROVIDER\.name/);
+  assert.match(send, /r\.providerRef = res\.id/);
 });
 
 // === 11 / 12 / 13 : no client creds, no public endpoint, non-email ==
 
-test("11. outreach code never references a mail/API credential directly", () => {
-  for (const src of [CORE, RENDER, CLI]) {
-    assert.doesNotMatch(src, /RESEND_API_KEY|SMTP_|api\.resend\.com/);
+test("11. outreach code carries no mail/API credential and is not a client component", () => {
+  const strip = (s) => s.replace(/\/\/[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const [name, src] of Object.entries(OUTREACH_SRCS)) {
+    const code = strip(src);
+    assert.doesNotMatch(code, /RESEND_API_KEY|SMTP_|api\.resend\.com/, `${name} references a Resend credential`);
+    assert.doesNotMatch(code, /["']use client["']/, `${name} is a client component`);
   }
-  // it also must not be a client component
-  assert.doesNotMatch(CORE, /["']use client["']/);
-  assert.doesNotMatch(RENDER, /["']use client["']/);
+  // the Instantly key is only ever read from process.env, server-side
+  assert.match(PROVIDER_SRC, /process\.env\.INSTANTLY_API_KEY/);
+  assert.doesNotMatch(PROVIDER_SRC, /NEXT_PUBLIC_/);
 });
 
 test("12. there is no deployed outreach API route", () => {
@@ -295,4 +302,88 @@ test("withUtm is minimal and idempotent", () => {
     "https://pokemondealfinder.com/x?utm_source=outreach&utm_medium=email&utm_campaign=authority"
   );
   assert.equal(withUtm("https://x/?utm_source=a"), "https://x/?utm_source=a");
+});
+
+// === 10D CLOSEOUT: Resend isolation + compliant provider adapter =====
+
+test("C1/C16. cold outreach has ZERO code path to Resend (no import of lib/email, no sendEmail/sendBatch call)", () => {
+  for (const [name, src] of Object.entries(OUTREACH_SRCS)) {
+    // strip comments so a policy explanation ("...never uses Resend") is fine,
+    // but an actual import / call is not
+    const code = src.replace(/\/\/[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+    assert.doesNotMatch(code, /from ["'][^"']*\/email(\.js)?["']/, `${name} imports the transactional mailer`);
+    assert.doesNotMatch(code, /require\(["'][^"']*\/email/, `${name} requires the transactional mailer`);
+    assert.doesNotMatch(code, /\bsendEmail\s*\(|\bsendBatch\s*\(/, `${name} calls a Resend send helper`);
+    assert.doesNotMatch(code, /RESEND_API_KEY|api\.resend\.com/, `${name} references a Resend credential/endpoint`);
+  }
+});
+
+test("C2/C20. transactional routes still use Resend via lib/email.js (untouched)", () => {
+  for (const p of [
+    "app/api/alerts/route.js",
+    "app/api/check-alerts/route.js",
+    "app/api/send-digest/route.js",
+  ]) {
+    assert.match(read(p), /from ["']@\/lib\/email["']/, `${p} no longer imports @/lib/email`);
+  }
+  assert.match(read("app/api/check-alerts/route.js"), /\bsendEmail\b/);
+  assert.match(read("app/api/send-digest/route.js"), /\bsendBatch\b/);
+  // lib/email.js reverted to its pre-10D shape - no leftover outreach hook
+  assert.doesNotMatch(read("lib/email.js"), /outreach/i);
+});
+
+test("C3/C4. an unconfigured provider refuses; the adapter exposes the right shape", async () => {
+  const p = getProvider();
+  assert.equal(typeof p.name, "string");
+  assert.equal(typeof p.isConfigured, "function");
+  assert.equal(typeof p.send, "function");
+  // no INSTANTLY_* env in the test process -> null provider, which refuses
+  assert.equal(p.isConfigured(), false);
+  const res = await p.send({ to: "x@y.z", subject: "s", text: "t" });
+  assert.equal(res.sent, false);
+  assert.match(res.reason, /no_outreach_provider_configured/);
+  // the CLI blocks a real (non-dry-run) send when no provider is configured
+  assert.match(CLI, /!PROVIDER\.isConfigured\(\)/);
+  assert.match(CLI, /no outreach provider configured/i);
+});
+
+test("C: the Instantly adapter is the delivery layer, keyed on its own env, and returns a lead ref", () => {
+  const inst = _providers.instantlyProvider();
+  assert.equal(inst.name, "instantly");
+  assert.equal(inst.isConfigured(), false, "not configured in the test env");
+  assert.match(PROVIDER_SRC, /api\.instantly\.ai\/api\/v2/);
+  assert.match(PROVIDER_SRC, /INSTANTLY_API_KEY/);
+  assert.match(PROVIDER_SRC, /INSTANTLY_CAMPAIGN_ID/);
+  // one lead per send, to a pre-created campaign - not a bulk blast
+  assert.match(PROVIDER_SRC, /\/leads\b/);
+  assert.doesNotMatch(PROVIDER_SRC, /bulk-add|leads\/list/);
+  // success returns an id we can store as the external ref
+  assert.match(PROVIDER_SRC, /json\?\.id \?\? json\?\.lead_id/);
+});
+
+test("C6. the application daily cap is still exactly 5", () => {
+  assert.equal(DEFAULT_DAILY_CAP, 5);
+  assert.match(CORE, /DEFAULT_DAILY_CAP = 5/);
+});
+
+test("C17. every email record records why the public contact was appropriate", () => {
+  for (const r of RECORDS.filter((x) => x.contactType === "EMAIL")) {
+    assert.match(String(r.contactSourceUrl), /^https:\/\//, `${r.id} contactSourceUrl`);
+    assert.ok((r.contactSourceNote ?? "").length > 20, `${r.id} contactSourceNote`);
+    assert.match(r.contactSourceNote, /public|listed|Press|footer|verified/i, `${r.id} note names a public source`);
+  }
+  // non-email records too, for the manual audit trail
+  for (const r of RECORDS.filter((x) => x.contactType !== "EMAIL")) {
+    assert.match(String(r.contactSourceUrl), /^https:\/\//, `${r.id} contactSourceUrl`);
+  }
+});
+
+test("C13/C14/C15. packz + voxbooster stay DRAFT, PokemonPriceTracker absent, copy unchanged", () => {
+  const packz = RECORDS.find((r) => r.id === "packz");
+  const vox = RECORDS.find((r) => r.id === "voxbooster");
+  assert.equal(packz.status, "DRAFT");
+  assert.equal(vox.status, "DRAFT");
+  assert.match(packz.body, /^I run PokemonDealFinder \(pokemondealfinder\.com\), a free tool/);
+  assert.match(vox.body, /^I run PokemonDealFinder \(pokemondealfinder\.com\)\. Your Trading Card Statistics/);
+  assert.ok(!RECORDS.some((r) => /pokemonpricetracker|pokepricetracker/i.test(JSON.stringify(r))));
 });

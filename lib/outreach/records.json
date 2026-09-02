@@ -5,6 +5,8 @@
     "organisation": "packz.io",
     "targetPage": "https://packz.io/blog/pokemon-card-price-checker",
     "recipient": "support@packz.io",
+    "contactSourceUrl": "https://packz.io/blog/pokemon-card-price-checker",
+    "contactSourceNote": "Public support address shown in the packz.io site footer and linked from the target article; re-verified live 2026-09-02.",
     "contactType": "EMAIL",
     "angle": "tool-deal-discovery",
     "destinationUrl": "https://pokemondealfinder.com/",
@@ -20,7 +22,9 @@
     "repliedAt": null,
     "providerMessageId": null,
     "lastError": null,
-    "sendLog": []
+    "sendLog": [],
+    "providerRef": null,
+    "provider": null
   },
   {
     "id": "voxbooster",
@@ -28,6 +32,8 @@
     "organisation": "voxbooster.com",
     "targetPage": "https://voxbooster.com/blog/trading-card-statistics-2026/",
     "recipient": "contact@voxbooster.com",
+    "contactSourceUrl": "https://voxbooster.com/contact/",
+    "contactSourceNote": "Address listed on voxbooster.com/contact/ explicitly under 'Press & Partnerships'; re-verified live 2026-09-02.",
     "contactType": "EMAIL",
     "angle": "data-citation-raw-value-distribution",
     "destinationUrl": "https://pokemondealfinder.com/market-data/pokemon-card-value-distribution",
@@ -43,7 +49,9 @@
     "repliedAt": null,
     "providerMessageId": null,
     "lastError": null,
-    "sendLog": []
+    "sendLog": [],
+    "providerRef": null,
+    "provider": null
   },
   {
     "id": "stephen-leonard",
@@ -51,6 +59,8 @@
     "organisation": "medium.com/@steveleonard11",
     "targetPage": "https://medium.com/@steveleonard11/how-i-feed-my-sons-pok%C3%A9mon-addiction-buying-cheap-cards-using-various-amazing-free-tools-f42320875b59",
     "recipient": "https://medium.com/@steveleonard11",
+    "contactSourceUrl": "https://medium.com/@steveleonard11",
+    "contactSourceNote": "Public Medium author profile; contact is a public response on the author's own article. No email used.",
     "contactType": "MEDIUM_RESPONSE",
     "angle": "tool-workflow",
     "destinationUrl": "https://pokemondealfinder.com/",
@@ -67,7 +77,9 @@
     "providerMessageId": null,
     "lastError": null,
     "sendLog": [],
-    "note": "Non-email. Post manually as a response on the article after human review. No mail-provider send path."
+    "note": "Non-email. Post manually as a response on the article after human review. No mail-provider send path.",
+    "providerRef": null,
+    "provider": null
   },
   {
     "id": "cardrake",
@@ -75,6 +87,8 @@
     "organisation": "cardrake.com",
     "targetPage": "https://www.cardrake.com/guides/30-years-of-pokemon-tcg",
     "recipient": "https://x.com/cardrakeapp",
+    "contactSourceUrl": "https://www.cardrake.com/",
+    "contactSourceNote": "Public X account @cardrakeapp linked from the cardrake.com homepage footer (no email published). No email used.",
     "contactType": "X_DM",
     "angle": "data-citation-raw-value-distribution",
     "destinationUrl": "https://pokemondealfinder.com/market-data/pokemon-card-value-distribution",
@@ -91,6 +105,8 @@
     "providerMessageId": null,
     "lastError": null,
     "sendLog": [],
-    "note": "Non-email. Send manually as an X DM to @cardrakeapp after human review. Approximate figures used deliberately for a casual DM; not a formal citation. No mail-provider send path."
+    "note": "Non-email. Send manually as an X DM to @cardrakeapp after human review. Approximate figures used deliberately for a casual DM; not a formal citation. No mail-provider send path.",
+    "providerRef": null,
+    "provider": null
   }
 ]

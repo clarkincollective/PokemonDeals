@@ -23,7 +23,6 @@ import { dirname, join } from "node:path";
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 dotenv.config();
-import emailMod from "../lib/email.js";
 import {
   canApprove,
   canSend,
@@ -35,8 +34,10 @@ import {
   SENDABLE_CONTACT_TYPES,
 } from "../lib/outreach/core.js";
 import { renderMessage } from "../lib/outreach/render.js";
+// Cold outreach goes through a compliant outreach provider (Instantly),
+// NEVER through the project's Resend transactional mailer (lib/email.js).
+import { getProvider } from "../lib/outreach/provider.js";
 
-const { sendEmail } = emailMod;
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RECORDS_PATH = join(HERE, "..", "lib", "outreach", "records.json");
 const SUPPRESSION_PATH = join(HERE, "..", "lib", "outreach", "suppression.json");
@@ -47,16 +48,19 @@ const writeJson = (p, v) => writeFileSync(p, JSON.stringify(v, null, 2) + "\n");
 const now = () => new Date().toISOString();
 
 const CFG = {
-  fromEmail: process.env.OUTREACH_FROM_EMAIL || process.env.ALERT_FROM_EMAIL || null,
-  replyTo:
-    process.env.OUTREACH_REPLY_TO ||
-    process.env.OUTREACH_FROM_EMAIL ||
-    process.env.ALERT_FROM_EMAIL ||
-    null,
+  // Outreach identity is SEPARATE from the Resend transactional sender.
+  // No ALERT_FROM_EMAIL fallback - that address is for opt-in mail only.
+  // With Instantly the actual From is the campaign's verified mailbox;
+  // these values are recorded on the message for the audit trail and
+  // used as the reply-to hint.
+  fromEmail: process.env.OUTREACH_FROM_EMAIL || null,
+  replyTo: process.env.OUTREACH_REPLY_TO || process.env.OUTREACH_FROM_EMAIL || null,
   senderName: process.env.OUTREACH_SENDER_NAME || "James",
   testRecipient: process.env.OUTREACH_TEST_RECIPIENT || null,
   dailyCap: Number(process.env.OUTREACH_DAILY_CAP || DEFAULT_DAILY_CAP),
 };
+
+const PROVIDER = getProvider();
 
 function die(msg) {
   console.error(`\n  ✖ ${msg}\n`);
@@ -131,9 +135,12 @@ function cmdList(records) {
   console.log("");
   console.log(`  sent in last 24h: ${inWin} / cap ${CFG.dailyCap}`);
   console.log(
-    `  mail from: ${CFG.fromEmail ?? "(not configured - set OUTREACH_FROM_EMAIL or ALERT_FROM_EMAIL)"}` +
+    `  provider: ${PROVIDER.name}` +
+      (PROVIDER.isConfigured() ? " (configured)" : " (NOT configured - see the phase report)") +
       (CFG.testRecipient ? `   TEST MODE -> ${CFG.testRecipient}` : "")
   );
+  console.log(`  reply-to hint: ${CFG.replyTo ?? "(set OUTREACH_REPLY_TO)"}`);
+  console.log("  cold outreach never uses the Resend transactional mailer.");
   console.log("");
 }
 
@@ -221,7 +228,12 @@ async function cmdSend(records, id, { dryRun, force }) {
   }
   const gate = canSend(r, { records, suppression, dailyCap: CFG.dailyCap, override: force });
   if (!gate.ok) die(`cannot send "${id}": ${gate.reason}`);
-  if (!CFG.fromEmail) die("no from address - set OUTREACH_FROM_EMAIL (or ALERT_FROM_EMAIL) to an address authorised in Resend");
+  if (!dryRun && !PROVIDER.isConfigured()) {
+    die(
+      `no outreach provider configured (current: ${PROVIDER.name}). Set INSTANTLY_API_KEY and ` +
+        `INSTANTLY_CAMPAIGN_ID. Cold outreach never uses Resend. Use --dry-run to preview.`
+    );
+  }
 
   const msg = renderMessage(r, {
     senderName: CFG.senderName,
@@ -244,14 +256,11 @@ async function cmdSend(records, id, { dryRun, force }) {
     return;
   }
 
-  console.log(`\n  sending "${id}" to ${msg.to}${msg.meta.redirectedToTest ? " (TEST redirect)" : ""}...`);
-  const res = await sendEmail({
-    to: msg.to,
-    subject: msg.subject,
-    html: msg.html,
-    text: msg.text,
-    replyTo: msg.replyTo,
-  });
+  console.log(
+    `\n  handing "${id}" to provider "${PROVIDER.name}" for ${msg.to}` +
+      `${msg.meta.redirectedToTest ? " (TEST redirect)" : ""}...`
+  );
+  const res = await PROVIDER.send(msg);
 
   if (res?.sent) {
     // A real (non-test) delivery advances the record; a test delivery is
@@ -259,22 +268,28 @@ async function cmdSend(records, id, { dryRun, force }) {
     r.sendLog.push({
       at: now(),
       kind: msg.meta.redirectedToTest ? "test-send" : "send",
+      provider: PROVIDER.name,
       to: msg.to,
-      providerMessageId: res.id ?? null,
+      providerRef: res.id ?? null,
     });
     if (!msg.meta.redirectedToTest) {
       r.status = "SENT";
       r.sentAt = now();
-      r.providerMessageId = res.id ?? null;
+      r.provider = PROVIDER.name;
+      r.providerRef = res.id ?? null;
+      r.providerMessageId = res.id ?? null; // back-compat alias
       r.lastError = null;
     }
     writeJson(RECORDS_PATH, records);
-    console.log(`  ✓ ${msg.meta.redirectedToTest ? "test message" : `"${id}"`} delivered${res.id ? ` (id ${res.id})` : ""}.\n`);
+    console.log(
+      `  ✓ ${msg.meta.redirectedToTest ? "test message" : `"${id}"`} accepted by ${PROVIDER.name}` +
+        `${res.id ? ` (ref ${res.id})` : ""}.\n`
+    );
   } else {
     const reason = res?.reason || "unknown";
     r.status = "FAILED";
-    r.lastError = { at: now(), reason, detail: String(res?.detail ?? "").slice(0, 300) };
-    r.sendLog.push({ at: now(), kind: "fail", to: msg.to, reason });
+    r.lastError = { at: now(), provider: PROVIDER.name, reason, detail: String(res?.detail ?? "").slice(0, 300) };
+    r.sendLog.push({ at: now(), kind: "fail", provider: PROVIDER.name, to: msg.to, reason });
     writeJson(RECORDS_PATH, records);
     die(`send failed (${reason}) - record marked FAILED, not retried automatically.`);
   }
