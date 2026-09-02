@@ -352,9 +352,42 @@ movers, no charts elsewhere, no redesign.
   `ppt_backfill` rows for them). Short history → "Limited history" /
   "recently started", never a wrong long history. Regression-covered.
 
-- **New helpers in `lib/priceHistory.js`:** `marketSignal(trends)`,
+- **New helpers in `lib/priceHistory.js`:** `marketSignal(trends, confidence)`,
   `historyCoverage(series)`, `downsampleSeries(series, maxPoints)`,
-  `MARKET_SIGNAL_BAND_PCT`.
+  `MARKET_SIGNAL_BAND_PCT`, and (closeout) `confidentTrendWindows`,
+  `endpointAnomaly`, `sourceDisagreement`, `comparePointAnomaly`,
+  `TREND_CONFIDENCE`.
+
+- **Trend anomaly-confidence gate (closeout, 2026-09-03).** A single bad
+  observation, or a card whose two sources disagree, must not produce a
+  public Rising/Falling badge or a misleading %. `confidentTrendWindows`
+  applies three LOCAL corroboration checks over real stored observations
+  and only ever **removes** a window — it never edits, smooths,
+  interpolates, or substitutes a price; canonical `price_history` is
+  untouched.
+  - **(A) endpoint anomaly** — the latest observation is ≥ 1.5× off the
+    median of the priors within 14 days and no recent prior is within
+    15% of it (a genuine ramp leaves a close recent prior). Needs ≥ 3
+    priors, so thin/WOTC series are never flagged. → all windows withheld.
+  - **(B) source disagreement** — some day carries both a `catalog` and a
+    `ppt_backfill` observation differing by ≥ 35%. Audit: on shared days
+    the two sources are within 5% for 94% of pairs / within 10% for 96%,
+    so a ≥ 35% gap means one of that card's series is unreliable
+    (~3–4% of cards). → all windows withheld.
+  - **(C) comparison-point anomaly** — a window's ~N-days-ago point is an
+    isolated outlier vs both immediate neighbours (which agree). Rare
+    with dense daily data (~0 in audit) but cheap insurance. → that
+    window withheld.
+  - When withheld, `marketSignal` stays **"Limited history"** (never a
+    7-day fallback) with a `reason` so the panel can show a matching
+    one-liner ("Recent price readings for this card disagree — trend on
+    hold." / "A recent price reading looks unusual…"). Current market
+    value (independent PPT provenance, already guarded by
+    `catalogRawMarketPrice`) is still shown.
+  - Suppression rate on a ~400-card sample: **~3.5% of cards** (13
+    source-disagreement + 1 endpoint per 400); genuine sharp moves
+    (e.g. −94% over 30 days where both sources agree on today's price)
+    are **kept**.
 
 - **No migration.** The read uses the existing server-side admin client;
   no schema, RLS, or policy change. If the panel ever gets no history for

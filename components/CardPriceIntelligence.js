@@ -56,10 +56,22 @@ const SIGNAL_STYLE = {
 };
 
 function signalSubtext(signal) {
-  if (!signal || signal.status === "limited") return "Not enough history yet for a 30-day trend.";
+  if (!signal || signal.status === "limited") {
+    if (signal?.reason === "source-disagreement")
+      return "Recent price readings for this card disagree — trend on hold.";
+    if (signal?.reason === "endpoint-anomaly" || signal?.reason === "low-confidence")
+      return "A recent price reading looks unusual — trend on hold until it's confirmed.";
+    return "Not enough history yet for a 30-day trend.";
+  }
   const p = fmtPct(signal.changePct);
   if (signal.status === "stable") return `Roughly flat over 30 days (${p}).`;
   return `${p} over the last 30 days.`;
+}
+
+function noWindowsMessage(signal) {
+  return signal?.reason === "source-disagreement" || signal?.reason === "endpoint-anomaly" || signal?.reason === "low-confidence"
+    ? "A recent price reading is being confirmed before we show a trend."
+    : "More price history is being collected.";
 }
 
 export default function CardPriceIntelligence({
@@ -132,7 +144,7 @@ export default function CardPriceIntelligence({
           ))}
         </div>
       ) : (
-        <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">More price history is being collected.</p>
+        <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">{noWindowsMessage(signal)}</p>
       )}
 
       {posTrend && mv != null && (
