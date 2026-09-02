@@ -149,6 +149,14 @@ export default async function MarketDataPage() {
               </Link>
               .
             </p>
+            <p className="mt-4">
+              <Link
+                href="/market-data/pokemon-card-value-distribution"
+                className="text-sm font-semibold text-red-600 hover:underline dark:text-red-500"
+              >
+                See the full Pokemon card value-distribution analysis →
+              </Link>
+            </p>
           </section>
         )}
 

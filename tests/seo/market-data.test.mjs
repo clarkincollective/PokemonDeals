@@ -14,7 +14,12 @@ import { get, parseHtml, sitemapUrls, pathOf, sample } from "./lib.mjs";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
 
-const PATHS = ["/market-data", "/market-data/most-expensive-cards", "/market-data/most-listed-cards"];
+const PATHS = [
+  "/market-data",
+  "/market-data/most-expensive-cards",
+  "/market-data/most-listed-cards",
+  "/market-data/pokemon-card-value-distribution",
+];
 
 let pages = {};
 before(async () => {
@@ -285,5 +290,167 @@ describe("15: /market-data carries a reproducible first-party composition stat",
 
   test("hub stat labels do not overclaim 'sellers'", () => {
     assert.ok(!/2\+ sellers/i.test(pages[P].res.body), "hub still says '2+ sellers'");
+  });
+});
+
+// === SEO Phase 10B: the standalone value-distribution research note =====
+
+describe("10B: Pokemon Card Value Distribution research note", () => {
+  const P = "/market-data/pokemon-card-value-distribution";
+  const src = read("app/market-data/pokemon-card-value-distribution/page.js");
+
+  const num = (s) => Number(String(s).replace(/[^0-9.]/g, ""));
+  // VISIBLE text only: drop <script>/<style> (the RSC flight payload
+  // re-serialises the JSX tree and would otherwise leak "not"+" every..."
+  // as separate tokens), strip React comment markers + tags, decode the
+  // entities React emits -> one whitespace-collapsed string.
+  const text = () =>
+    pages[P].res.body
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+      .replace(/<!--\s*-->/g, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&quot;/g, '"')
+      .replace(/&#x27;/g, "'")
+      .replace(/&#x2F;/g, "/")
+      .replace(/&amp;/g, "&")
+      .replace(/\s+/g, " ");
+
+  test("1/2/3: route is 200, indexable, self-canonical", () => {
+    const { res, parsed } = pages[P];
+    assert.equal(res.status, 200, `HTTP ${res.status}`);
+    assert.ok(!/noindex/.test(parsed.robots ?? ""), "noindex");
+    assert.equal(pathOf(parsed.canonicals[0]), P, `canonical ${parsed.canonicals[0]}`);
+  });
+
+  test("4/5: exactly one sitemap occurrence, no new research/statistics/reports route family", async () => {
+    const { locs } = await sitemapUrls();
+    const mine = locs.map(pathOf).filter((l) => l === P);
+    assert.equal(mine.length, 1, `sitemap has ${mine.length} occurrences of ${P}`);
+    for (const l of locs.map(pathOf)) {
+      assert.ok(
+        !/^\/(research|statistics|reports|insights)\b/.test(l),
+        `a new research route family leaked into the sitemap: ${l}`
+      );
+    }
+    assert.ok(P.startsWith("/market-data/"), "not a child of /market-data");
+  });
+
+  test("6: stable <title>, no volatile numbers", () => {
+    const t = pages[P].parsed.title;
+    assert.match(t, /^Pokemon Card Value Distribution\b/);
+    assert.ok(!/\d/.test(t), `title carries a number: ${t}`);
+  });
+
+  test("7: exactly one H1 that identifies the analysis", () => {
+    const h1s = pages[P].parsed.h1s;
+    assert.equal(h1s.length, 1);
+    assert.match(h1s[0], /^Pokemon Card Value Distribution$/);
+  });
+
+  test("8-13: population, bands, median, set/species counts all come from fetchCatalogComposition", () => {
+    assert.match(src, /fetchCatalogComposition\(\)/);
+    assert.doesNotMatch(src, /from\("card_catalog"\)/, "page runs its own card_catalog query");
+    assert.doesNotMatch(src, /market_price/, "page reimplements the price aggregation");
+    assert.match(src, /comp\.bands\.find\(\(b\) => b\.key ===/, "bands not keyed off the aggregate");
+    assert.match(src, /comp\.pricedCards/);
+    assert.match(src, /comp\.medianReference/);
+    assert.match(src, /comp\.setCount/);
+    assert.match(src, /comp\.speciesCount/);
+  });
+
+  test("10/11: band percentages ~sum to 100 and band counts sum to the analysed population", () => {
+    const t = text();
+    const rows = [...t.matchAll(/(Under \$5|\$5 . \$25|\$25 . \$100|\$100 or more)\s+([\d.]+)%\s+([\d.]+)%\s+([\d,]+)/g)];
+    assert.equal(rows.length, 4, `found ${rows.length} band rows, want 4`);
+    const pcts = rows.map((r) => num(r[3]));
+    const counts = rows.map((r) => num(r[4]));
+    const pctSum = pcts.reduce((a, b) => a + b, 0);
+    assert.ok(Math.abs(pctSum - 100) <= 1.5, `band percentages sum to ${pctSum}`);
+    const popMatch = t.match(/of the ([\d,]+) priced English Pokemon cards in our current analysed catalogue/);
+    assert.ok(popMatch, "no analysed-population figure in the headline");
+    const pop = num(popMatch[1]);
+    assert.equal(counts.reduce((a, b) => a + b, 0), pop, `band counts should sum to ${pop}`);
+  });
+
+  test("14/15: snapshot is the real card_catalog time, never a render-time fake", () => {
+    assert.match(src, /formatDate\(comp\.snapshotAt\)/);
+    assert.ok(!/new Date\(\)|Date\.now\(\)/.test(src), "page derives freshness from the clock");
+    const m = pages[P].res.body.match(/Catalogue snapshot:\s*<time[^>]+dateTime="([^"]+)"/s);
+    assert.ok(m, "no <time dateTime> next to the snapshot label");
+    const ageMs = Date.now() - new Date(m[1]).getTime();
+    assert.ok(ageMs >= 0 && ageMs < 45 * 24 * 3600 * 1000, `snapshot age ${Math.round(ageMs / 86400000)}d out of range`);
+  });
+
+  test("16/17/18/19: raw definition visible; no graded / auction-record / all-cards overclaim", () => {
+    const t = text();
+    assert.match(t, /raw,? ungraded market reference/i);
+    assert.match(t, /not a PSA 10 . BGS . CGC graded price/i);
+    assert.match(t, /not a confirmed auction-record sale/i);
+    assert.match(t, /not every Pokemon card ever printed/i);
+    // every "all/every cards" mention must be a disclaimer ("not ..." close before it)
+    for (const m of t.matchAll(/every Pokemon card ever (made|printed)|all Pokemon cards (ever|made|printed)/gi)) {
+      const lead = t.slice(Math.max(0, m.index - 12), m.index);
+      assert.match(lead, /\bnot\s*$/i, `unqualified all-cards claim near: "...${lead}${m[0]}..."`);
+    }
+    assert.ok(!/\b(largest|definitive|complete) (pokemon card )?(study|database|history)\b/i.test(t), "definitive/largest/complete overclaim");
+    assert.ok(!/PSA\s*10 (value|price)s?\b/i.test(t), "quotes a graded slab value");
+  });
+
+  test("20/21: methodology link + citation section present", () => {
+    assert.match(pages[P].res.body, /href="\/methodology"/);
+    assert.match(text(), /Citing this analysis/);
+    assert.match(text(), /Pokemon Deal Finder, .Pokemon Card Value Distribution., catalogue snapshot/);
+  });
+
+  test("22/23: chart has visible text values and needs no charting library", () => {
+    const t = text();
+    for (const label of ["Under $5", "$25", "$100 or more"]) {
+      assert.ok(t.includes(label), `chart missing label ${label}`);
+    }
+    assert.match(t, /Raw market reference distribution of [\d,]+ priced English non-specialty Pokemon cards/);
+    assert.doesNotMatch(src, /chart\.js|recharts|\bd3\b|victory|nivo|apexcharts/i);
+    assert.match(pages[P].res.body, /<table/);
+  });
+
+  test("24/25: no CSV / API / download / Dataset / Product / Offer", () => {
+    const body = pages[P].res.body;
+    const types = new Set();
+    const walk = (n) => {
+      if (Array.isArray(n)) return n.forEach(walk);
+      if (!n || typeof n !== "object") return;
+      if (typeof n["@type"] === "string") types.add(n["@type"]);
+      for (const v of Object.values(n)) if (v && typeof v === "object") walk(v);
+    };
+    for (const b of pages[P].parsed.jsonLd) if (b.ok) walk(b.data);
+    assert.ok(!types.has("Dataset"), "Dataset schema present");
+    assert.ok(!types.has("Product"), "Product schema present");
+    assert.ok(!types.has("Offer"), "Offer schema present");
+    assert.ok(types.has("CollectionPage"), "no CollectionPage schema");
+    assert.ok(types.has("BreadcrumbList"), "no BreadcrumbList schema");
+    assert.doesNotMatch(src, /\.csv|application\/json|createObjectURL|download=/i);
+  });
+
+  test("26/27: parent /market-data links the page; homepage does not", async () => {
+    const md = parseHtml((await get("/market-data")).body);
+    assert.ok(md.internalLinks.some((l) => pathOf(l) === P), "/market-data does not link the research note");
+    const home = parseHtml((await get("/")).body);
+    assert.ok(!home.internalLinks.some((l) => pathOf(l) === P), "homepage links the research note (should not in 10B)");
+  });
+
+  test("29/30: no accented Pokemon; bounded payload; no huge link list", () => {
+    const body = pages[P].res.body;
+    assert.ok(!/Pokémon/.test(body), "accented Pokémon");
+    assert.ok(body.length < 150_000, `HTML is ${body.length} bytes (>150KB)`);
+    const links = (body.match(/href="\/[^"]*"/g) ?? []).length;
+    assert.ok(links < 60, `${links} internal links on a research note (too many)`);
+  });
+
+  test("28: existing market-data pages still self-canonical + indexable", () => {
+    for (const p of ["/market-data", "/market-data/most-expensive-cards", "/market-data/most-listed-cards"]) {
+      const parsed = pages[p].parsed;
+      assert.equal(pathOf(parsed.canonicals[0]), p);
+      assert.ok(!/noindex/.test(parsed.robots ?? ""));
+    }
   });
 });

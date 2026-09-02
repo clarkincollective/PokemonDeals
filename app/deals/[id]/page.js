@@ -113,7 +113,19 @@ export async function generateMetadata({ params }) {
   // let the title run long once the site-name template is appended.
   const titleBase = `${cardName}${cardSet ? ` (${cardSet})` : ""}`;
   const titleSuffix = ` - ${discountPct}% below market`;
-  const title = titleBase.length + titleSuffix.length <= 58 ? `${titleBase}${titleSuffix}` : titleBase;
+  // Keep the distinctive part inside Google's ~63-char display budget
+  // (tests/seo/pages.test.mjs titleCore <= 65): prefer name+set+suffix,
+  // then name+set, then drop the "(set)" parenthetical, then clip the
+  // name - only a long name+set pair (e.g. a Trainer Kit sub-name) ever
+  // reaches the last two branches.
+  const title =
+    titleBase.length + titleSuffix.length <= 58
+      ? `${titleBase}${titleSuffix}`
+      : titleBase.length <= 63
+        ? titleBase
+        : cardName.length <= 63
+          ? cardName
+          : cardName.slice(0, 62).trimEnd();
   // Real card/set context up front, not just bare price numbers - a
   // search result showing only "$74.99 vs a $214.20 market price" gives a
   // searcher no reason to click over a competing result unless they've

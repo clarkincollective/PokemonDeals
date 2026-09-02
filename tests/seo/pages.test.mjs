@@ -20,6 +20,7 @@ const STATIC_PATHS = [
   "/market-data",
   "/market-data/most-listed-cards",
   "/market-data/most-expensive-cards",
+  "/market-data/pokemon-card-value-distribution",
   "/search",
   "/about",
   "/how-it-works",
