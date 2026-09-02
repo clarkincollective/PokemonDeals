@@ -1,6 +1,16 @@
 import { slugifySet } from "@/lib/slugify";
 import { buildEbaySearchLink } from "@/lib/ebay";
+import { sortCards, DEFAULT_SORT } from "@/lib/catalogueView";
 import CatalogueBrowser from "@/components/CatalogueBrowser";
+import CatalogueLinkIndex from "@/components/CatalogueLinkIndex";
+
+// The rich (client) browser only needs the cards a shopper actually
+// engages with - it filters/sorts in memory, so every card it holds is
+// serialized into the RSC payload. Cap it at the N highest-value cards
+// (full art, prices, deals); the complete permanent-link set is the
+// always-SSR <CatalogueLinkIndex>. Species/sets at or under the cap are
+// unaffected.
+export const RICH_BROWSER_CAP = 120;
 
 // Server wrapper for the full "every <Pokemon> card" catalogue. Its only
 // job is to pre-build each card's campaign-wrapped eBay SEARCH url (that
@@ -27,7 +37,15 @@ export function buildCatalogueItems(cards, validSetSlugs = []) {
 
 export default function SpeciesCardsBySet({ speciesName, cards, validSetSlugs = [] }) {
   if (!cards || cards.length === 0) return null;
+  const items = buildCatalogueItems(cards, validSetSlugs);
+  const richItems =
+    items.length > RICH_BROWSER_CAP
+      ? sortCards(items, DEFAULT_SORT, { relevanceTier: true }).slice(0, RICH_BROWSER_CAP)
+      : items;
   return (
-    <CatalogueBrowser speciesName={speciesName} items={buildCatalogueItems(cards, validSetSlugs)} />
+    <>
+      <CatalogueBrowser speciesName={speciesName} items={richItems} totalCount={items.length} />
+      <CatalogueLinkIndex label={speciesName} cards={items} headingId="full-card-index" />
+    </>
   );
 }

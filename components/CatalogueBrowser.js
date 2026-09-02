@@ -214,6 +214,11 @@ function SetGroup({ set, list, speciesName, expandAll, groupHidden }) {
   const showAll = small || open || expandAll;
   const setSlug = list[0]?.setSlug;
   const setHasPage = list[0]?.setHasPage;
+  // Collapsed groups (past INITIAL_SET_GROUPS) and the tail of a large
+  // group render NO tiles until the user asks - the tiles are painted
+  // client-side from the in-memory prop. Every card still has a permanent
+  // link in the always-SSR <CatalogueLinkIndex> below the browser.
+  const shownTiles = groupHidden ? [] : showAll ? list : list.slice(0, INITIAL_PER_LARGE_GROUP);
 
   return (
     <section className={groupHidden ? "hidden" : undefined}>
@@ -230,17 +235,19 @@ function SetGroup({ set, list, speciesName, expandAll, groupHidden }) {
           </Link>
         )}
       </div>
-      <div className={GRID}>
-        {list.map((c, i) => (
-          <div key={c.tcgplayerId ?? `${c.name}|${c.set}`} className={!showAll && i >= INITIAL_PER_LARGE_GROUP ? "hidden" : undefined}>
-            <Tile
-              card={c}
-              speciesName={speciesName}
-              placement={!small && i >= INITIAL_PER_LARGE_GROUP ? "species_set_expanded" : "species_catalog"}
-            />
-          </div>
-        ))}
-      </div>
+      {shownTiles.length > 0 && (
+        <div className={GRID}>
+          {shownTiles.map((c, i) => (
+            <div key={c.tcgplayerId ?? `${c.name}|${c.set}`}>
+              <Tile
+                card={c}
+                speciesName={speciesName}
+                placement={!small && i >= INITIAL_PER_LARGE_GROUP ? "species_set_expanded" : "species_catalog"}
+              />
+            </div>
+          ))}
+        </div>
+      )}
       {!small && !expandAll && (
         <button
           type="button"
@@ -257,10 +264,13 @@ function SetGroup({ set, list, speciesName, expandAll, groupHidden }) {
   );
 }
 
-export default function CatalogueBrowser({ speciesName, label, items, variant = "species" }) {
+export default function CatalogueBrowser({ speciesName, label, items, variant = "species", totalCount }) {
   const name = label ?? speciesName;
   const isSet = variant === "set";
   const prefix = isSet ? "set_" : "species_";
+  // When the page capped what it handed us (large catalogue), say so -
+  // the complete list is the CatalogueLinkIndex below this browser.
+  const capped = Number.isFinite(totalCount) && totalCount > items.length;
 
   const [q, setQ] = useState("");
   const [setFilter, setSetFilter] = useState("");
@@ -358,9 +368,11 @@ export default function CatalogueBrowser({ speciesName, label, items, variant = 
         </div>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            {isSet || isFiltering
-              ? `${filtered.length} of ${items.length} ${items.length === 1 ? "card" : "cards"}`
-              : `${filtered.length} ${filtered.length === 1 ? "card" : "cards"} across ${setOptions.length} sets`}
+            {capped
+              ? `Showing ${filtered.length} highest-value of ${totalCount} ${name} cards — the full index is below`
+              : isSet || isFiltering
+                ? `${filtered.length} of ${items.length} ${items.length === 1 ? "card" : "cards"}`
+                : `${filtered.length} ${filtered.length === 1 ? "card" : "cards"} across ${setOptions.length} sets`}
           </p>
           <div className="flex items-center gap-3">
             {isFiltering && (
@@ -389,12 +401,14 @@ export default function CatalogueBrowser({ speciesName, label, items, variant = 
           </p>
         ) : (
           <>
+            {/* Only the visible slice is rendered (SSR + hydration) - "Show
+                more" bumps `shown` and paints additional tiles from the
+                in-memory `items` prop, no fetch. The complete permanent-
+                card link set lives in the always-SSR <CatalogueLinkIndex>
+                the page renders below this browser. */}
             <div className={GRID}>
-              {flat.map((c, i) => (
-                <div
-                  key={c.tcgplayerId ?? `${c.name}|${c.set}`}
-                  className={i >= visible ? "hidden" : undefined}
-                >
+              {flat.slice(0, visible).map((c, i) => (
+                <div key={c.tcgplayerId ?? `${c.name}|${c.set}`}>
                   <Tile
                     card={c}
                     speciesName={name}

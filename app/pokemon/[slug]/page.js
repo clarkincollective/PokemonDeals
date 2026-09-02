@@ -225,7 +225,10 @@ export default async function PokemonSpeciesPage({ params }) {
           "@type": "ItemList",
           name: `${resolved.name} Pokemon card prints with active deals`,
           numberOfItems: prints.length,
-          itemListElement: prints.map((p, i) => ({
+          // Bounded: the schema names the most meaningful visible prints,
+          // not every catalogue row (see the full crawlable card index in
+          // the page body).
+          itemListElement: prints.slice(0, 25).map((p, i) => ({
             "@type": "ListItem",
             position: i + 1,
             name: `${p.name} (${p.set})`,

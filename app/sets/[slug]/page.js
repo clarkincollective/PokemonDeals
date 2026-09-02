@@ -20,12 +20,14 @@ import DealGrid from "@/components/DealGrid";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import SpeciesCardList from "@/components/SpeciesCardList";
 import CatalogueBrowser from "@/components/CatalogueBrowser";
+import CatalogueLinkIndex from "@/components/CatalogueLinkIndex";
 import FeaturedValueCards from "@/components/FeaturedValueCards";
 import SetFactStrip from "@/components/SetFactStrip";
 import SetPriceSummary from "@/components/SetPriceSummary";
 import SetPokemonList from "@/components/SetPokemonList";
 import SetQuickAnswers from "@/components/SetQuickAnswers";
-import { buildCatalogueItems } from "@/components/SpeciesCardsBySet";
+import { buildCatalogueItems, RICH_BROWSER_CAP } from "@/components/SpeciesCardsBySet";
+import { sortCards, DEFAULT_SORT } from "@/lib/catalogueView";
 import SiteFooter from "@/components/SiteFooter";
 
 const SITE_URL = "https://pokemondealfinder.com";
@@ -184,7 +186,9 @@ export default async function SetDetailPage({ params }) {
         "@type": "ItemList",
         name: `${resolved.set} Pokemon cards`,
         numberOfItems: catalogCards.length,
-        itemListElement: catalogCards.slice(0, 100).map((c, i) => ({
+        // Bounded to the most meaningful visible slice - the complete
+        // crawlable checklist is the CatalogueLinkIndex in the page body.
+        itemListElement: catalogCards.slice(0, 30).map((c, i) => ({
           "@type": "ListItem",
           position: i + 1,
           name: c.cardNumber ? `${c.name} (${c.cardNumber})` : c.name,
@@ -313,7 +317,17 @@ export default async function SetDetailPage({ params }) {
               sort by value or card number. Open a card for full pricing. Reference prices are
               recent-sold data, not guaranteed values.
             </p>
-            <CatalogueBrowser variant="set" label={resolved.set} items={catalogueItems} />
+            <CatalogueBrowser
+              variant="set"
+              label={resolved.set}
+              items={
+                catalogueItems.length > RICH_BROWSER_CAP
+                  ? sortCards(catalogueItems, DEFAULT_SORT, { relevanceTier: true }).slice(0, RICH_BROWSER_CAP)
+                  : catalogueItems
+              }
+              totalCount={catalogueItems.length}
+            />
+            <CatalogueLinkIndex label={resolved.set} cards={catalogueItems} headingId="full-set-index" />
           </section>
         )}
 
