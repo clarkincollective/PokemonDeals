@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { resolveCardSlug, resolveCatalogCard, fetchCardOffers, fetchCardRelations, fetchSetSlugs } from "@/lib/deals";
 import { catalogCardTitle } from "@/lib/cardSlug";
-import { cardDisplayName } from "@/lib/cardName";
+import { cardDisplayName, collectorNumberFromName } from "@/lib/cardName";
 import { catalogImageUrl } from "@/lib/cardImage";
 import { cardSpeciesLink } from "@/lib/cardLinks";
 import { slugifySet } from "@/lib/slugify";
@@ -86,11 +86,11 @@ export async function generateMetadata({ params }) {
     const card = await resolveCatalogCard(slug);
     if (!card) return { title: "Card not found", robots: { index: false, follow: true } };
     const dn = card.displayName ?? cardDisplayName(card);
-    const title = catalogCardTitle(dn, card.set);
-    const priceStr = card.refPrice != null ? `$${card.refPrice.toFixed(2)}` : null;
-    const description = priceStr
-      ? `${dn} (${card.set}) Pokemon card value: ${priceStr} market reference from real recent sold data${card.rarity ? `, ${card.rarity}` : ""}${card.cardNumber ? ` (${card.cardNumber})` : ""}. Raw and graded (PSA/CGC/BGS) pricing, plus a TCGPlayer link.`
-      : `${dn} (${card.set}) Pokemon card - identity, image and a TCGPlayer link. Market price currently unavailable.`;
+    const title = catalogCardTitle(dn, card.set, card.cardNumber);
+    const idBits = [card.cardNumber, card.rarity].filter(Boolean).join(", ");
+    const description = card.refPrice != null
+      ? `${dn} (${card.set}) Pokemon card price & value${idBits ? ` — ${idBits}` : ""}. Raw Near Mint market reference and condition-by-condition prices from real recent sold data, plus a TCGPlayer link.`
+      : `${dn} (${card.set}) Pokemon card${idBits ? ` — ${idBits}` : ""}. Identity, image and a TCGPlayer link. Market price currently unavailable.`;
     return {
       title,
       description,
@@ -143,11 +143,16 @@ export async function generateMetadata({ params }) {
   // card number or other identifying info) - just drops the promotional
   // suffix when there's no room for it, rather than fighting a losing
   // battle against a genuinely long real title.
+  // Phase 8A: one STABLE card-page template regardless of current deal
+  // state - the "<card> <number> price / value" intent is identical
+  // whether or not a listing is live right now, and a flipping
+  // "... & Deals" / "... & Value" title churns the index. The collector
+  // number (a high-value long-tail identifier - people search "4/102")
+  // is pulled from the watchlist name where present, no extra query.
   const hubName = cardDisplayName(hub);
-  const base = `${hubName} (${hub.set})`;
-  const suffix = ` Price & Deals`;
-  const title = base.length + suffix.length <= 60 ? `${base}${suffix}` : base;
-  const description = `${hubName} (${hub.set}) Pokemon card price and value - raw and graded (PSA/CGC/BGS) prices from real sold data, plus ${hub.count} live eBay listings compared cheapest first.`;
+  const hubNumber = collectorNumberFromName(hub.name);
+  const title = catalogCardTitle(hubName, hub.set, hubNumber);
+  const description = `${hubName}${hubNumber ? ` ${hubNumber}` : ""} (${hub.set}) Pokemon card price & value — raw Near Mint market reference and condition-by-condition prices from real recent sold data, graded (PSA/CGC/BGS) tiers where available, and live eBay listings compared cheapest first.`;
 
   return {
     title,
@@ -207,6 +212,13 @@ export default async function CardHubPage({ params }) {
       fetchSetSlugs("english"),
     ]);
   const allOffers = offers;
+  // Collector number + rarity for the visible identity line (Phase 8A /
+  // §13). The live-deal hub object carries only name + set, so take the
+  // structured values from the price-analysis record (same provider call
+  // already made, no extra request), falling back to a number embedded in
+  // the watchlist name.
+  const cardCollectorNumber = analysis?.cardNumber ?? collectorNumberFromName(hub.name);
+  const cardRarity = analysis?.rarity ?? null;
   // Trusted canonical artwork for this exact product - see generateMetadata.
   const canonicalImage = catalogImageUrl(hub.tcgplayerId);
 
@@ -339,18 +351,22 @@ export default async function CardHubPage({ params }) {
               {offers.length} active {offers.length === 1 ? "listing" : "listings"}
             </span>
             <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">
-              {cardName} — {hub.set} Prices &amp; Deals
+              {cardName} — {hub.set} Price &amp; Value
             </h1>
-            {setHasPage ? (
-              <Link
-                href={`/sets/${setSlug}`}
-                className="text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500"
-              >
-                {hub.set}
-              </Link>
-            ) : (
-              <span className="text-zinc-500">{hub.set}</span>
-            )}
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-zinc-500">
+              {setHasPage ? (
+                <Link
+                  href={`/sets/${setSlug}`}
+                  className="hover:text-red-600 hover:underline dark:hover:text-red-500"
+                >
+                  {hub.set}
+                </Link>
+              ) : (
+                <span>{hub.set}</span>
+              )}
+              {cardCollectorNumber && <span className="text-zinc-400">· {cardCollectorNumber}</span>}
+              {cardRarity && <span className="text-zinc-400">· {cardRarity}</span>}
+            </p>
 
             {speciesLink && (
               <div className="mt-1">

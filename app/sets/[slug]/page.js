@@ -34,6 +34,19 @@ const SITE_URL = "https://pokemondealfinder.com";
 
 export const revalidate = 900;
 
+// One STABLE set-page title (Phase 8A) that leads with the query-proven
+// head terms - "card list", "prices", "values". A few very long set
+// names ("Legendary Treasures: Radiant Collection") would push the
+// distinctive part past ~60 chars, so trim the phrase for those rather
+// than the set name.
+function setPageTitle(set) {
+  const full = `${set} Card List, Prices & Values`;
+  if (full.length <= 60) return full;
+  const mid = `${set} Cards, Prices & Values`;
+  if (mid.length <= 62) return mid;
+  return `${set} Card Prices & Values`;
+}
+
 export async function generateStaticParams() {
   return [];
 }
@@ -53,14 +66,15 @@ export async function generateMetadata({ params }) {
   const canonical = `/sets/${slug}`;
   const catalogueOnly = Boolean(resolved.catalogue);
 
-  // Stable, capability-not-inventory metadata: no live deal count, no
-  // volatile price range. The visible page carries the real counts.
-  const title = catalogueOnly
-    ? `${resolved.set} Card List & Prices`
-    : `${resolved.set} Card Prices & Deals`;
-  const description = catalogueOnly
-    ? `Every ${resolved.set} Pokemon card we track, with real recent-sold market references, plus the Pokemon in the set. Compare ${resolved.set} card prices and values.`
-    : `Every ${resolved.set} Pokemon card we track, with real recent-sold market references, plus current eBay listings we've identified below market. Compare ${resolved.set} card prices and deals.`;
+  // Stable, capability-not-inventory metadata - the SAME title/description
+  // whether or not a qualifying deal exists (SEO Phase 8A). The head
+  // intent for a set page is "card list / checklist / prices / values"
+  // (every ranking result is a checklist or price guide), and it doesn't
+  // change because a below-market listing appeared, so the title doesn't
+  // flip. No live deal count, no volatile price range - the visible page
+  // carries the real counts.
+  const title = setPageTitle(resolved.set);
+  const description = `The complete ${resolved.set} Pokemon card checklist with real recent-sold market references, the set's most valuable cards, and the Pokemon in the set — plus current below-market eBay deals where available.`;
 
   let image = setImage(resolved.set)?.logo ?? null;
   if (!catalogueOnly) {
@@ -201,9 +215,7 @@ export default async function SetDetailPage({ params }) {
       }
     : null;
 
-  const h1 = catalogueOnly
-    ? `${resolved.set} Card List & Prices`
-    : `${resolved.set} Card Prices & Deals`;
+  const h1 = setPageTitle(resolved.set);
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
@@ -241,17 +253,15 @@ export default async function SetDetailPage({ params }) {
             {h1}
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
+            The complete {resolved.set} card checklist with real recent-sold market references, the
+            most valuable cards in the set, and the Pokemon it contains.{" "}
             {catalogueOnly ? (
               <>
-                Browse every {resolved.set} card we track with its real recent-sold market reference,
-                and see which Pokemon are in the set. There is no qualifying below-market{" "}
-                {resolved.set} deal to feature right now — the checklist and prices stay available.
+                There is no qualifying below-market {resolved.set} deal to feature right now — the
+                checklist and prices stay available.
               </>
             ) : (
-              <>
-                Real below-market {resolved.set} listings on eBay checked against real market pricing,
-                plus every {resolved.set} card we track and the Pokemon in the set.
-              </>
+              <>Below-market {resolved.set} listings on eBay we've identified are shown first.</>
             )}
           </p>
           <SetFactStrip setName={resolved.set} snapshot={snapshot} era={era} />

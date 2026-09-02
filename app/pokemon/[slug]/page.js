@@ -64,8 +64,8 @@ export async function generateMetadata({ params }) {
         // Stable, species-specific - no volatile price range in the
         // description (it moves with the market + every catalogue sync).
         // The visible page carries the real counts and range.
-        const t = `${speciesName} Card Prices & Value`;
-        const description = `Every ${speciesName} Pokemon card we track, with real recent-sold market references grouped by set. Compare ${speciesName} card prices and values across sets and printings.`;
+        const t = `${speciesName} Card Prices & Values`;
+        const description = `Every ${speciesName} Pokemon card we track, with real recent-sold market references grouped by set — compare ${speciesName} card prices and values, see the most valuable cards, and check current below-market eBay deals where available.`;
         return {
           title: t,
           description,
@@ -87,11 +87,15 @@ export async function generateMetadata({ params }) {
     return { title: "Pokemon not found", robots: { index: false, follow: true } };
   }
 
-  // Stable, species-specific metadata - no volatile live-listing count or
-  // price range (those churn every scan / sync). Counts and ranges live
-  // in the visible page body instead.
-  const title = `${resolved.name} Card Prices & Deals`;
-  const description = `Every ${resolved.name} Pokemon card we track, with real recent-sold market references by set, plus current eBay listings we've identified below market. Compare ${resolved.name} card prices, values and deals.`;
+  // Stable, species-specific metadata. The SAME title/description whether
+  // or not a qualifying deal exists right now (SEO Phase 8A): the search
+  // intent for "<pokemon> card prices / values / list" does not change
+  // because one below-market listing appeared, and a flipping title
+  // churns the index. Deals stay a prominent visible module; the title
+  // does not advertise them. No volatile count or price range - those
+  // live in the page body.
+  const title = `${resolved.name} Card Prices & Values`;
+  const description = `Every ${resolved.name} Pokemon card we track, with real recent-sold market references grouped by set — compare ${resolved.name} card prices and values, see the most valuable cards, and check current below-market eBay deals where available.`;
   const canonical = `/pokemon/${slug}`;
 
   // Explicit openGraph/twitter blocks - same site-wide fix as
@@ -269,12 +273,13 @@ export default async function PokemonSpeciesPage({ params }) {
             ← Back to Pokemon
           </Link>
           <h1 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
-            {resolved.name} Card Prices &amp; Deals
+            {resolved.name} Card Prices &amp; Values
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
-            Browse every {resolved.name} card we track across {resolved.setCount}{" "}
-            {resolved.setCount === 1 ? "set" : "sets"}, compare current market references, and check the
-            qualifying below-market eBay listings identified below.
+            Every {resolved.name} card we track across {resolved.setCount}{" "}
+            {resolved.setCount === 1 ? "set" : "sets"}, with real recent-sold market references. Compare
+            prices and values, see the most valuable {resolved.name} cards, and check the qualifying
+            below-market eBay deals identified below.
           </p>
           <SpeciesFactStrip speciesName={resolved.name} />
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5">

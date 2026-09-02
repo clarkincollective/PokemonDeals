@@ -133,7 +133,7 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
         />
 
         <h1 className="mt-4 text-3xl font-bold tracking-tight text-black dark:text-zinc-50">
-          {indexable ? `${speciesName} Card Prices & Value` : `${speciesName} Pokemon Cards`}
+          {indexable ? `${speciesName} Card Prices & Values` : `${speciesName} Pokemon Cards`}
         </h1>
 
         <SpeciesFactStrip speciesName={speciesName} />

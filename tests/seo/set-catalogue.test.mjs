@@ -116,13 +116,16 @@ test("6. set metadata is stable (no volatile live count / price range)", async (
   }
 });
 
-test("7. deal-backed set H1 carries deal intent", () => {
+test("7. set H1/title is the STABLE checklist+prices+values phrasing (Phase 8A - no deal-state flip)", () => {
   assert.ok(dealSetPath, "no deal-backed set found to sample");
-  assert.match(dealSetParsed.h1s[0] ?? "", /Card Prices & Deals$/);
+  assert.match(dealSetParsed.h1s[0] ?? "", /Card List, Prices & Values$/);
+  assert.match(dealSetParsed.title ?? "", /Card List, Prices & Values \| Pokemon Deal Finder$/);
+  // deal content stays visible on the page, just not in the H1/title
+  assert.ok(!/deals?\b/i.test(dealSetParsed.h1s[0] ?? ""), `set H1 advertises deals: ${dealSetParsed.h1s[0]}`);
 });
 
 test("8. catalogue-only set H1 is a checklist/prices intent, no deal claim", () => {
-  assert.match(catParsed.h1s[0] ?? "", /^Celebrations Card List & Prices$/);
+  assert.match(catParsed.h1s[0] ?? "", /^Celebrations Card List, Prices & Values$/);
   assert.ok(!/deals?\b/i.test(catParsed.h1s[0] ?? ""), `catalogue H1 mentions deals: ${catParsed.h1s[0]}`);
 });
 

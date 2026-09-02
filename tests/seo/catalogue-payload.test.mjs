@@ -44,8 +44,8 @@ before(async () => {
 test("1. H1 preserved on the heavy species + set page", () => {
   assert.equal(spRes.status, 200);
   assert.equal(setRes.status, 200);
-  assert.match(sp.h1s[0] ?? "", /Pikachu Card Prices/i);
-  assert.match(st.h1s[0] ?? "", /Skyridge Card Prices/i);
+  assert.match(sp.h1s[0] ?? "", /^Pikachu Card Prices & Values$/i);
+  assert.match(st.h1s[0] ?? "", /^Skyridge Card List, Prices & Values$/i);
 });
 
 test("2. canonical is the bare entity URL (unchanged)", () => {

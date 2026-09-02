@@ -53,7 +53,7 @@ before(async () => {
   }
   for (const p of sample((sm.byType.get("sets") ?? []).map(pathOf), 12)) {
     const r = await get(p);
-    if (r.status === 200 && /Card List & Prices|no qualifying below-market/i.test(text(r.body))) {
+    if (r.status === 200 && /no qualifying below-market [A-Za-z].{0,40} deal to feature right now/i.test(text(r.body))) {
       catSetPath = p;
       catSetText = text(r.body);
       break;
@@ -170,7 +170,7 @@ test("9. a catalogue-only Pokemon page does not claim an active deal", () => {
 test("10. a catalogue-only set page does not claim an active deal", () => {
   if (!catSetText) return;
   assert.ok(
-    /Card List & Prices/i.test(catSetText) || /no qualifying below-market/i.test(catSetText),
+    /no qualifying below-market/i.test(catSetText),
     `${catSetPath} is not clearly a catalogue-only set`
   );
   assert.ok(!/deal to feature right now[\s\S]{0,40}Save \$/i.test(catSetText), "catalogue-only set shows a 'Save $' claim");

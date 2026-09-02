@@ -68,20 +68,22 @@ const CAT_CANDIDATES = [
   "bidoof", "patrat", "lillipup", "pidove", "bunnelby", "wingull", "bellsprout",
 ];
 
-const CAT_TITLE_RE = /^(.+?) Card Prices & Value \| Pokemon Deal Finder$/;
+// Phase 8A: the species title/H1 is now the SAME stable
+// "... Card Prices & Values" for both deal-backed and catalogue-only
+// pages (search intent doesn't change because a deal appeared). So the
+// catalogue-only STATE is identified from the body, not the title:
+// the honest "no qualifying below-market <Name> deal to feature right
+// now" line is present and there is no "Best <Name> deals" section.
+const SPECIES_TITLE_RE = /^(.+?) Card Prices & Values \| Pokemon Deal Finder$/;
 
-// A live species page is in the catalogue-only template iff: 200,
-// indexable, title/H1 use the "... Card Prices & Value" form (deal-backed
-// uses "... & Deals"), and the body carries the honest "no qualifying
-// below-market <Name> deal" line and no "Best <Name> deals" heading.
 function catalogueOnlyState(res) {
   if (res.status !== 200) return null;
   const p = parseHtml(res.body);
   if (/noindex/.test(p.robots ?? "")) return null;
-  const m = (p.title ?? "").match(CAT_TITLE_RE);
+  const m = (p.title ?? "").match(SPECIES_TITLE_RE);
   if (!m) return null;
   const name = m[1].trim();
-  if (!p.h1s[0] || !new RegExp(`^${esc(name)} Card Prices & Value$`).test(p.h1s[0])) return null;
+  if (!p.h1s[0] || !new RegExp(`^${esc(name)} Card Prices & Values$`).test(p.h1s[0])) return null;
   const body = text(res.body);
   if (!new RegExp(`no qualifying below-market ${esc(name)} deal to feature right now`, "i").test(body)) return null;
   if (new RegExp(`Best ${esc(name)} deals`, "i").test(body)) return null;
@@ -172,8 +174,8 @@ test("2b. the catalogue-only fixture is catalogue-backed AND not deal-backed", (
   assert.ok(CATALOGUE_ONLY, "no catalogue-only fixture resolved");
   assert.equal(catRes.status, 200);
   assert.ok(!/noindex/.test(catParsed.robots ?? ""), `${CATALOGUE_ONLY} is noindex (not catalogue-backed)`);
-  assert.match(catParsed.title, CAT_TITLE_RE, `${CATALOGUE_ONLY} is not on the "& Value" template`);
-  assert.ok(!/ & Deals \|/.test(catParsed.title), `${CATALOGUE_ONLY} is deal-backed`);
+  assert.match(catParsed.title, SPECIES_TITLE_RE, `${CATALOGUE_ONLY} is not on the species price template`);
+  // catalogue-only state is now proven by the BODY (title no longer flips)
   assert.match(
     text(catRes.body),
     new RegExp(`no qualifying below-market ${esc(CAT_NAME)} deal to feature right now`, "i"),
@@ -186,11 +188,24 @@ test("2b. the catalogue-only fixture is catalogue-backed AND not deal-backed", (
   assert.deepEqual(catParsed.canonicals, [`${ORIGIN}/pokemon/${CAT_SLUG}`]);
 });
 
+test("2c. the species title/H1 is STABLE - identical for deal-backed and catalogue-only", () => {
+  // Phase 8A: a below-market listing appearing must not flip the title
+  // between "... & Value" and "... & Deals" (index churn, same intent).
+  // The authored part (before " | Pokemon Deal Finder") is what matters.
+  assert.match(dealParsed.title, SPECIES_TITLE_RE);
+  assert.match(catParsed.title, SPECIES_TITLE_RE);
+  assert.match(dealParsed.h1s[0] ?? "", /^.+ Card Prices & Values$/);
+  assert.match(catParsed.h1s[0] ?? "", /^.+ Card Prices & Values$/);
+  // the H1 (no site-name suffix) does not advertise "deals"
+  assert.ok(!/deals?\b/i.test(dealParsed.h1s[0] ?? ""), `deal-backed H1 advertises deals: ${dealParsed.h1s[0]}`);
+  assert.ok(!/deals?\b/i.test(catParsed.h1s[0] ?? ""));
+});
+
 // --- 3-6: metadata stabilization -------------------------------------
 
 test("3. catalogue-only species metadata is stable (no counts, no ranges)", () => {
   assert.equal(catRes.status, 200);
-  assert.match(catParsed.title, new RegExp(`^${esc(CAT_NAME)} Card Prices & Value \\| Pokemon Deal Finder$`));
+  assert.match(catParsed.title, new RegExp(`^${esc(CAT_NAME)} Card Prices & Values \\| Pokemon Deal Finder$`));
   const d = catParsed.metaDescription ?? "";
   assert.ok(d.length > 0, "no meta description");
   assert.ok(!/\$\d/.test(d), `description has a price: ${d}`);
@@ -199,7 +214,7 @@ test("3. catalogue-only species metadata is stable (no counts, no ranges)", () =
 
 test("4. deal-backed species metadata is stable (no counts, no ranges)", () => {
   assert.equal(dealRes.status, 200);
-  assert.match(dealParsed.title, /^Charizard Card Prices & Deals \| Pokemon Deal Finder$/);
+  assert.match(dealParsed.title, /^Charizard Card Prices & Values \| Pokemon Deal Finder$/);
   const d = dealParsed.metaDescription ?? "";
   assert.ok(d.length > 0, "no meta description");
   assert.ok(!/\$\d/.test(d), `description has a price: ${d}`);
@@ -231,14 +246,16 @@ test("6. no volatile price range in a species meta description", async () => {
 
 // --- 7-8: H1 honesty ---------------------------------------------
 
-test("7. deal-backed H1 carries deal intent", () => {
+test("7. deal-backed H1 uses the stable prices/values phrasing (no deal-state flip)", () => {
   assert.ok(dealParsed.h1s.length >= 1);
-  assert.match(dealParsed.h1s[0], /Charizard Card Prices & Deals/);
+  assert.match(dealParsed.h1s[0], /^Charizard Card Prices & Values$/);
+  // deal content is still visible on the page, just not in the H1
+  assert.match(text(dealRes.body), /Best Charizard deals/i);
 });
 
 test("8. catalogue-only H1 does not claim active deals", () => {
   assert.ok(catParsed.h1s.length >= 1);
-  assert.match(catParsed.h1s[0], new RegExp(`^${esc(CAT_NAME)} Card Prices & Value$`));
+  assert.match(catParsed.h1s[0], new RegExp(`^${esc(CAT_NAME)} Card Prices & Values$`));
   assert.ok(!/deals?\b/i.test(catParsed.h1s[0]), `catalogue-only H1 mentions deals: ${catParsed.h1s[0]}`);
   // body is honest about no current deal
   assert.match(
