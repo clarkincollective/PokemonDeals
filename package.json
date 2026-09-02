@@ -18,7 +18,8 @@
     "outreach:send": "node scripts/outreach.mjs send",
     "outreach:sync": "node scripts/outreach.mjs sync",
     "gsc:auth": "node scripts/gsc-auth.mjs",
-    "gsc:test": "node scripts/gsc-test.mjs"
+    "gsc:test": "node scripts/gsc-test.mjs",
+    "history:backfill": "node scripts/ppt-history-backfill.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",

@@ -162,6 +162,15 @@ export async function GET(request) {
     await Promise.all(Array.from({ length: 4 }, worker));
   }
 
+  // SEO Phase 11B - first-party forward history. Snapshot TODAY's
+  // printing-corrected canonical price for the WHOLE priced English
+  // catalogue into price_history (source='catalog'). This is a pure
+  // DB -> DB copy of the state this job just wrote (read back so the WOTC
+  // second-pass fixes are included) - ZERO extra PPT credits, ZERO eBay
+  // calls. Idempotent per (card, condition, source, day). Best-effort:
+  // a failure here is reported, never thrown.
+  const snap = limit ? { written: 0, error: "skipped (limit pass)" } : await snapshotCatalogHistory(db, language);
+
   return Response.json({
     ok: true,
     language,
@@ -173,6 +182,57 @@ export async function GET(request) {
     wotcChecked,
     wotcFixed,
     creditsApprox: wotcChecked,
+    priceHistorySnapshotRows: snap.written,
+    priceHistorySnapshotError: snap.error,
     tookMs: Date.now() - started,
   });
+}
+
+// Repdigit "no data" sentinels PPT emits - kept in sync with
+// lib/pokemonPriceTracker SENTINEL_PRICES.
+const SNAPSHOT_SENTINELS = new Set([999, 999.99, 9999, 9999.99, 99999, 99999.99]);
+const SNAPSHOT_CHUNK = 1000;
+
+async function snapshotCatalogHistory(db, language) {
+  const observed_on = new Date().toISOString().slice(0, 10);
+  let written = 0;
+  let scanned = 0;
+  for (let from = 0; ; from += SNAPSHOT_CHUNK) {
+    const { data, error } = await db
+      .from("card_catalog")
+      .select("tcgplayer_id, name, set, card_number, market_price")
+      .eq("language", language)
+      .not("market_price", "is", null)
+      .gt("market_price", 0)
+      .range(from, from + SNAPSHOT_CHUNK - 1);
+    if (error) return { written, error: error.message };
+    if (!data || data.length === 0) break;
+    scanned += data.length;
+
+    const chunk = [];
+    for (const r of data) {
+      const p = Number(r.market_price);
+      if (!Number.isFinite(p) || p <= 0 || SNAPSHOT_SENTINELS.has(p)) continue;
+      chunk.push({
+        tcgplayer_id: String(r.tcgplayer_id),
+        name: r.name ?? "",
+        set: r.set ?? "",
+        card_number: r.card_number ?? null,
+        language,
+        condition: "Near Mint",
+        source: "catalog",
+        price: p,
+        observed_on,
+      });
+    }
+    if (chunk.length) {
+      const { error: upErr } = await db
+        .from("price_history")
+        .upsert(chunk, { onConflict: "tcgplayer_id,condition,source,observed_on" });
+      if (upErr) return { written, error: upErr.message };
+      written += chunk.length;
+    }
+    if (data.length < SNAPSHOT_CHUNK) break;
+  }
+  return { written, error: null };
 }

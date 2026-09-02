@@ -303,6 +303,107 @@ ships.
   chase card.
 - **No user-facing page.** Pure collection.
 
+## Phase 11B — hybrid historical price foundation — 2026-09-02
+
+Data infrastructure only (no public pages, no charts, no movers). Turns
+the existing forward-only `price_history` collection into a **hybrid**
+series: a one-time PokemonPriceTracker Business raw-history **prefix** +
+the permanent first-party daily-snapshot **forward** history.
+
+- **Schema extension — `supabase/price_history_hybrid_migration.sql`
+  (NOT yet applied — owner runs it in the SQL Editor).** Non-destructive:
+  two nullable columns + one index on the existing table, no data
+  rewrite.
+
+  | column | notes |
+  | --- | --- |
+  | `source_observed_at` | `timestamptz`, provenance — the provider's own point timestamp for a `ppt_backfill` row (distinct from `observed_at`, our ingest time) |
+  | `card_number` | denormalised, parity with the first-party snapshot writer |
+
+  The existing unique key `(tcgplayer_id, condition, source, observed_on)`
+  already keeps a `ppt_backfill` point and a `catalog` snapshot for the
+  **same card + day** as two distinct rows — provenance is never blurred.
+
+- **`source` values now in use:** `'catalog'` = first-party daily
+  snapshot of the printing-corrected `card_catalog.market_price`;
+  `'ppt_backfill'` = one-time import of PPT Business raw Near Mint daily
+  market-reference history.
+
+- **Forward snapshot expanded — `app/api/sync-card-catalog/route.js`.**
+  After the daily free `/export` refresh + WOTC second pass, a new
+  `snapshotCatalogHistory()` reads `card_catalog` **back from the DB**
+  (so WOTC printing fixes are included) and upserts today's price for the
+  **whole priced English catalogue** (~24.5k cards) into `price_history`
+  as `source='catalog'`. Zero extra PPT credits, zero eBay calls,
+  idempotent per day, best-effort (`priceHistorySnapshotError` in the
+  response, never throws). The `?limit=` test pass skips it. This
+  supersedes the narrower `sync-watchlist` writer (which still runs and
+  writes an idempotent subset — same key, harmless).
+
+- **One-time backfill — `scripts/ppt-history-backfill.mjs`
+  (`npm run history:backfill`).** Bounded, resumable
+  (`.secrets/ppt-history-cursor.json`), idempotent.
+  `--dry-run` / `--limit N` / `--resume` / `--credit-budget N` /
+  `--cohort watchlist|deals|catalog`. Default cohort = priced English
+  watchlist minus the 11 WOTC dual-printing sets ≈ **4,449 cards × 2
+  credits ≈ 8,900 PPT credits** one-time. Pulls `GET /cards?...
+  &includeHistory=true&days=730` (NOT `maxDataPoints` — verified to cost
+  3 credits and return identical data). Per point: `isValidHistoryPrice`
+  rejects sentinels / non-positive / non-finite; malformed dates
+  rejected; `source='ppt_backfill'`. `preflightSchema()` aborts before
+  spending a single credit if the migration is unapplied.
+  **DO NOT run the full backfill without owner approval.**
+
+- **WOTC exclusion.** The 11 dual-printing sets
+  (`WOTC_DUAL_PRINTING_SETS`, exported from `lib/pokemonPriceTracker.js`)
+  are excluded from the PPT backfill — PPT's `priceHistory.conditions`
+  for them is a 1st-Ed/Unlimited **blend**. Their history grows from the
+  clean first-party catalogue snapshots only (`card_catalog.market_price`
+  is already printing-corrected for these).
+
+- **Merge read path — `lib/priceHistory.js` (`getCanonicalPriceHistory`,
+  `mergeHistoryRows`).** One canonical point per calendar day, oldest →
+  newest, sentinels dropped, **first-party (`catalog`) wins a same-day
+  conflict**, bounded to the newest `maxPoints` (default 800). Pure,
+  fully unit-tested. **Not wired to any public page.**
+
+- **Trend windows — `trendOverWindow` / `trendWindows`.** 7d / 30d / 90d
+  / 365d, each with a tolerance (±2 / ±5 / ±10 / ±21 days). Returns
+  `null` when there is no real observation within tolerance of the
+  comparison date — no forward-fill, no interpolation, no fabricated
+  continuity.
+
+- **Max real depth verified:** PPT Business raw history goes back
+  ~19 months (oldest ≈ 2025-01-27 for Base Set Charizard) regardless of
+  `days` / `maxDataPoints`. "Unlimited history window" removes the
+  *retrieval* ceiling, not a real storage depth. ~350 real points max
+  per card.
+
+- **Storage:** ~350 B/row. Full-catalogue forward series ≈ 3 GB/yr
+  (~$1/mo incremental on Supabase Pro at the 5-year mark). A
+  daily→weekly thinning policy after 90 days is a documented future
+  option, not implemented.
+
+- **Graded / PSA / CGC / BGS history, eBay sold-list history,
+  population, velocity** → documented as **Phase 11C / 11D**, deliberately
+  NOT in this raw canonical spine.
+
+- **Tests:** `tests/scanner/price-history.test.mjs` — 18 tests covering
+  the 20 §18 assertions (real observations only, sentinel/invalid
+  rejection, WOTC exclusion + WOTC first-party coverage, idempotency,
+  merge chronology, first-party-wins, per-window trend sufficiency, no
+  graded/eBay-Browse usage, no public route / sitemap change / dataset,
+  server-side credentials). Full `test:scanner` (434) + `test:seo` (331)
+  green; `npm run build` clean.
+
+- **Tiny validation run:** `--dry-run` (0 credits) confirmed the 4,449
+  cohort + ~8,900 credit estimate. `--limit 3` (~6 credits) confirmed
+  cohort build, WOTC exclusion, PPT fetch + parse (839 real Near Mint
+  points across 3 cards, 0 sentinel, 0 invalid); the upsert failed
+  closed on the absent columns (migration pending) — `preflightSchema()`
+  was added afterwards so the next run aborts before spending credits.
+  Cursor left clean (`doneIds: []`).
+
 ### Workstream B — UX / conversion close-out — DONE
 
 The original UX/psychology audit document was not recoverable. P0 was
