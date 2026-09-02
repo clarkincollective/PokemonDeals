@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { MARKETPLACES } from "@/lib/ebay";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
-import { currencyForDeal, refInListingCurrency } from "@/lib/money";
+import { currencyForDeal, refInListingCurrency, dealTotalUsd } from "@/lib/money";
 import { timeAgo, timeUntil } from "@/lib/time";
 import { normalizePublicText } from "@/lib/publicText";
 import AffiliateLink from "@/components/AffiliateLink";
@@ -138,7 +138,7 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
           <ShareButton
             url={`${SITE_URL}/sealed-deals/${deal.id}`}
             title={`${productName} - ${discountPct}% below market`}
-            text={`${productName}${productSet ? ` (${productSet})` : ""} - $${Number(deal.total_price).toFixed(2)}, ${discountPct}% below market on Pokemon Deal Finder`}
+            text={`${productName}${productSet ? ` (${productSet})` : ""}${dealTotalUsd(deal) ? ` - $${dealTotalUsd(deal).toFixed(2)},` : " -"} ${discountPct}% below market on Pokemon Deal Finder`}
             className="rounded-md px-2.5"
           />
           <AffiliateLink

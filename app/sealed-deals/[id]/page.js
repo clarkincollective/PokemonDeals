@@ -5,7 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES } from "@/lib/ebay";
-import { currencyForDeal, refInListingCurrency } from "@/lib/money";
+import { currencyForDeal, refInListingCurrency, dealTotalUsd } from "@/lib/money";
 import Price from "@/components/Price";
 import { getSealedPriceHistory } from "@/lib/pokemonPriceTracker";
 import { shouldIndexDeal } from "@/lib/indexability";
@@ -92,10 +92,13 @@ export async function generateMetadata({ params }) {
   const titleSuffix = ` - ${discountPct}% below market`;
   const title = titleBase.length + titleSuffix.length <= 58 ? `${titleBase}${titleSuffix}` : titleBase;
   // Real product/set context up front, not just bare price numbers - see
-  // app/deals/[id]/page.js's identical reasoning.
-  const description = `${productName}${productSet ? ` (${productSet})` : ""} for $${Number(
-    deal.total_price
-  ).toFixed(2)} - ${discountPct}% below the $${Number(deal.market_price).toFixed(2)} real market price on eBay.`;
+  // app/deals/[id]/page.js's identical reasoning. Both figures are USD
+  // (dealTotalUsd + the USD market_price) so a non-USD listing isn't
+  // rendered as "$685" beside a "$558" USD market price.
+  const listingUsd = dealTotalUsd(deal);
+  const marketUsd = Number(deal.market_price);
+  const forClause = listingUsd ? ` for $${listingUsd.toFixed(2)}` : "";
+  const description = `${productName}${productSet ? ` (${productSet})` : ""}${forClause} - ${discountPct}% below the $${marketUsd.toFixed(2)} real market price on eBay.`;
 
   return {
     title,
@@ -330,7 +333,7 @@ export default async function SealedDealDetailPage({ params }) {
               <ShareButton
                 url={`${SITE_URL}/sealed-deals/${deal.id}`}
                 title={`${productName} - ${discountPct}% below market`}
-                text={`${productName}${productSet ? ` (${productSet})` : ""} - $${Number(deal.total_price).toFixed(2)}, ${discountPct}% below market on Pokemon Deal Finder`}
+                text={`${productName}${productSet ? ` (${productSet})` : ""}${dealTotalUsd(deal) ? ` - $${dealTotalUsd(deal).toFixed(2)},` : " -"} ${discountPct}% below market on Pokemon Deal Finder`}
                 label="Share"
                 className="rounded-lg px-4 py-2"
               />

@@ -303,6 +303,48 @@ ships.
   chase card.
 - **No user-facing page.** Pure collection.
 
+## Phase 12A — currency & financial-display integrity — 2026-09-03
+
+Audit + hardening of every monetary comparison. **The Phase 6A
+architecture is sound** — the hydrating UI (`refInListingCurrency` +
+`<Price>`) already renders every listing↔reference↔savings block in one
+currency on SSR and localises them together on hydration, and trend %s
+are currency-invariant. One class of defect confirmed and fixed.
+
+- **Root cause:** `deal.total_price` is an untyped **native-currency**
+  number. Six *region-agnostic string builders* prefixed it with a
+  literal `$` and put it next to the **USD** `deal.market_price` —
+  rendering e.g. a CAD listing as `"$685"` beside a `"$558"` USD market
+  price (a mixed, sometimes self-contradictory `<meta>` / OG / Twitter /
+  search snippet, and Web-Share / alert-email text).
+
+- **Fix:** new `dealTotalUsd(deal)` in `lib/money.js` → the USD-canonical
+  asking price (`total_price_usd`, or `total_price` only when the listing
+  is USD, else `null`). All region-agnostic strings now use it with `$`
+  so **both** figures in the sentence are genuinely USD; the "for $X"
+  clause is dropped when the USD total is unknown rather than guessed.
+  - `app/deals/[id]/page.js` — meta `description` (→ OG + Twitter) and
+    `ShareButton` text
+  - `app/sealed-deals/[id]/page.js` — same two
+  - `components/SealedDealCard.js` — `ShareButton` text
+  - `app/api/check-alerts/route.js` — alert email now shows the native
+    price with its **own** symbol (`symbolFor(currencyForDeal(cheapest))`),
+    matching `send-digest`'s existing correct pattern; alert *matching*
+    logic untouched
+  - `app/cards/[slug]/page.js` — `PriceAlertForm suggestedPrice` aligned
+    to the USD value (was native), matching `/deals/[id]`
+
+- **Not changed** (verified correct): `DealCard`, `deals/[id]` visible
+  price block, `CardPriceSummary`, `CardPriceIntelligence`,
+  `VariantPriceGrid`, `PriceHistoryChart`, `RecentSales`,
+  `SearchClient`, `CardMemoryStrip`, `CatalogueBrowser`, `SpeciesCard`,
+  set/species summaries, `send-digest`. No new route, no sitemap change,
+  no `hreflang`, no regional URLs, canonical stays bare. No affiliate /
+  EPN / TCGPlayer link change.
+
+- **Tests:** `tests/scanner/currency-integrity.test.mjs` (20). Full
+  `test:scanner` 490 + `test:seo` 331 green; `npm run build` clean.
+
 ## Phase 11C — card price intelligence + decision confidence — 2026-09-03
 
 Turns the Phase 11B history foundation into the first customer-facing

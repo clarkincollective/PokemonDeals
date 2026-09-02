@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { resolveCardSlug, fetchCardOffers } from "@/lib/deals";
 import { emailEnabled, sendEmail } from "@/lib/email";
+import { currencyForDeal, symbolFor } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -43,6 +44,11 @@ export async function GET() {
     const cheapest = offers?.[0];
     if (!cheapest) continue;
     const price = Number(cheapest.total_price);
+    // `total_price` is the listing's NATIVE currency - label it with the
+    // matching symbol, not a bare "$", so a non-USD listing isn't shown
+    // as "$80" next to a "% below [USD] market" line. (Alert matching is
+    // unchanged - it still compares the native `price`.)
+    const money = `${symbolFor(currencyForDeal(cheapest))}${price.toFixed(2)}`;
     const belowMarket = Number(cheapest.discount_pct) >= DISCOUNT_FLOOR;
 
     for (const a of group) {
@@ -55,9 +61,9 @@ export async function GET() {
       const cardUrl = `${SITE_URL}/cards/${slug}`;
       const res = await sendEmail({
         to: a.email,
-        subject: `${a.card_name} is now $${price.toFixed(2)}`,
-        text: `${a.card_name} has a listing at $${price.toFixed(2)} (${Math.round(cheapest.discount_pct * 100)}% below market).\n\nSee it: ${cardUrl}\n\nStop these emails: ${unsub}`,
-        html: `<p><strong>${escapeHtml(a.card_name)}</strong> has a listing at <strong>$${price.toFixed(2)}</strong> (${Math.round(cheapest.discount_pct * 100)}% below market).</p>
+        subject: `${a.card_name} is now ${money}`,
+        text: `${a.card_name} has a listing at ${money} (${Math.round(cheapest.discount_pct * 100)}% below market).\n\nSee it: ${cardUrl}\n\nStop these emails: ${unsub}`,
+        html: `<p><strong>${escapeHtml(a.card_name)}</strong> has a listing at <strong>${escapeHtml(money)}</strong> (${Math.round(cheapest.discount_pct * 100)}% below market).</p>
 <p><a href="${cardUrl}">See it on Pokemon Deal Finder</a></p>
 <p style="color:#888;font-size:12px"><a href="${unsub}" style="color:#888">Stop these emails</a></p>`,
       });

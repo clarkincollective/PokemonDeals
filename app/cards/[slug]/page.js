@@ -424,7 +424,7 @@ export default async function CardHubPage({ params }) {
                 <PriceAlertForm
                   cardSlug={slug}
                   cardName={hub.name}
-                  suggestedPrice={cheapest?.total_price ?? null}
+                  suggestedPrice={cheapest ? (cheapest.total_price_usd ?? cheapest.total_price) : null}
                 />
               )}
             </div>

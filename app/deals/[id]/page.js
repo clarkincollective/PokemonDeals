@@ -11,7 +11,7 @@ import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebay";
-import { currencyForDeal, refInListingCurrency } from "@/lib/money";
+import { currencyForDeal, refInListingCurrency, dealTotalUsd } from "@/lib/money";
 import Price from "@/components/Price";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
@@ -131,9 +131,18 @@ export async function generateMetadata({ params }) {
   // searcher no reason to click over a competing result unless they've
   // already scanned the title; naming the card again in the snippet does
   // that work for them.
-  const description = `${cardName}${cardSet ? ` (${cardSet})` : ""} for $${Number(deal.total_price).toFixed(
-    2
-  )} - ${discountPct}% below the $${Number(deal.market_price).toFixed(2)} real market price on eBay.`;
+  //
+  // Both figures here are USD: `market_price` is a USD reference and
+  // `dealTotalUsd` is the listing's USD-canonical total (NOT the native
+  // `total_price`, which would render a non-USD listing as "$685" beside
+  // the "$558" USD market price - a mixed, sometimes self-contradictory
+  // snippet). The "for $X" clause is dropped when the USD total is
+  // unknown rather than guessed. metadata is region-agnostic, so USD is
+  // the right canonical unit even though the page localises on hydration.
+  const listingUsd = dealTotalUsd(deal);
+  const marketUsd = Number(deal.market_price);
+  const forClause = listingUsd ? ` for $${listingUsd.toFixed(2)}` : "";
+  const description = `${cardName}${cardSet ? ` (${cardSet})` : ""}${forClause} - ${discountPct}% below the $${marketUsd.toFixed(2)} real market price on eBay.`;
 
   return {
     title,
@@ -534,7 +543,7 @@ export default async function DealDetailPage({ params }) {
               <ShareButton
                 url={`${SITE_URL}/deals/${deal.id}`}
                 title={`${cardName} - ${discountPct}% below market`}
-                text={`${cardName}${cardSet ? ` (${cardSet})` : ""} - $${Number(deal.total_price).toFixed(2)}, ${discountPct}% below market on Pokemon Deal Finder`}
+                text={`${cardName}${cardSet ? ` (${cardSet})` : ""}${dealTotalUsd(deal) ? ` - $${dealTotalUsd(deal).toFixed(2)},` : " -"} ${discountPct}% below market on Pokemon Deal Finder`}
                 label="Share"
                 className="rounded-lg px-4 py-2"
               />
