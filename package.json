@@ -11,7 +11,11 @@
     "test:seo": "node tests/seo/run.mjs",
     "test:scanner": "node --test \"tests/scanner/*.test.mjs\"",
     "fetch-card": "node scripts/fetchCardPrice.js",
-    "seed-watchlist": "node scripts/seedWatchlist.js"
+    "seed-watchlist": "node scripts/seedWatchlist.js",
+    "outreach": "node scripts/outreach.mjs",
+    "outreach:list": "node scripts/outreach.mjs list",
+    "outreach:approve": "node scripts/outreach.mjs approve",
+    "outreach:send": "node scripts/outreach.mjs send"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",
