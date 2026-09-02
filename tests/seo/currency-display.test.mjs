@@ -115,8 +115,10 @@ test("6. the catalogue browser tile localises (used to print raw $ regardless of
 
 test("7. /market-data/most-expensive-cards localises its ranked prices", () => {
   const src = read("app/market-data/most-expensive-cards/page.js");
-  assert.ok(!/\$\{card\.marketPrice\.toFixed/.test(src));
-  assert.match(src, /<Price\s+usd=\{card\.marketPrice\}/);
+  // SEO Phase 9A: the ranking is now the card_catalog raw market
+  // reference (card.refPrice), not a deal-scoped market_price.
+  assert.ok(!/\$\{card\.(refPrice|marketPrice)\.toFixed/.test(src), "raw $ toFixed on a ranked price");
+  assert.match(src, /<Price\s+usd=\{card\.refPrice\}/);
 });
 
 test("8. the CatalogCardView 'market reference' fallback localises", () => {

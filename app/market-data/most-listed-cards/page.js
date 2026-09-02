@@ -10,7 +10,7 @@ export const revalidate = 900;
 
 const TITLE = "Most-Listed Pokemon Cards";
 const DESCRIPTION =
-  "Real Pokemon cards with the most sellers competing on price at once - ranked by currently active eBay listing count, not an estimate.";
+  "Pokemon cards with the most active eBay listings we're tracking at once - ranked by current listing count, a live snapshot. Not a measure of how often a card is searched or sold.";
 
 export const metadata = {
   title: TITLE,
@@ -56,10 +56,20 @@ export default async function MostListedCardsPage() {
           <h1 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
             Most-Listed Pokemon Cards
           </h1>
-          <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
-            Top {top.length} cards by real, currently active eBay listing count - the more sellers
-            competing, the more likely you are to find a genuine below-market price. Click any card to
-            compare every active listing side by side.
+          <p className="mt-3 max-w-2xl text-base text-zinc-600 dark:text-zinc-400">
+            The {top.length} cards with the most simultaneously active eBay listings in the catalogue
+            we track. More listings usually means more price competition - a better chance of a
+            genuine below-market price. This counts <strong>active listings</strong> we&apos;re
+            tracking right now, not distinct sellers, and not how often a card is searched for or
+            sold.
+          </p>
+          <p className="mt-2 max-w-2xl text-xs text-zinc-500">
+            A live snapshot of the single-card listings our scanner currently tracks across six
+            marketplaces; it is not the whole eBay market.{" "}
+            <Link href="/methodology" className="font-medium text-red-600 hover:underline dark:text-red-500">
+              Methodology
+            </Link>
+            .
           </p>
           {updated && (
             <p className="mt-2 text-xs text-zinc-500">
@@ -85,7 +95,7 @@ export default async function MostListedCardsPage() {
                   </div>
                 </div>
                 <span className="shrink-0 rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                  {hub.count} sellers
+                  {hub.count} listings
                 </span>
               </Link>
             </li>

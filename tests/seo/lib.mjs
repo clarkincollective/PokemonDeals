@@ -44,13 +44,15 @@ function stripTags(s) {
 
 function decodeEntities(s) {
   return s
-    .replace(/&amp;/g, "&")
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&mdash;/g, "—")
+    .replace(/&middot;/g, "·")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&mdash;/g, "—")
-    .replace(/&middot;/g, "·");
+    .replace(/&amp;/g, "&");
 }
 
 // Parse the SEO-relevant bits out of a rendered HTML document.
