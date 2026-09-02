@@ -26,6 +26,7 @@ const STATIC_PATHS = [
   "/how-it-works",
   "/methodology",
   "/affiliate-disclosure",
+  "/privacy",
   "/contact",
   "/guides",
   "/guides/card-condition-grading",

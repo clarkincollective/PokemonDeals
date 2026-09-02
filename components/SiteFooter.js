@@ -14,6 +14,7 @@ const LINKS = [
   { href: "/methodology", label: "Methodology" },
   { href: "/guides", label: "Guides" },
   { href: "/affiliate-disclosure", label: "Affiliate Disclosure" },
+  { href: "/privacy", label: "Privacy" },
   { href: "/contact", label: "Contact" },
 ];
 
