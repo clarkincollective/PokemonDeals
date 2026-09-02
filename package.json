@@ -15,7 +15,8 @@
     "outreach": "node scripts/outreach.mjs",
     "outreach:list": "node scripts/outreach.mjs list",
     "outreach:approve": "node scripts/outreach.mjs approve",
-    "outreach:send": "node scripts/outreach.mjs send"
+    "outreach:send": "node scripts/outreach.mjs send",
+    "outreach:sync": "node scripts/outreach.mjs sync"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",

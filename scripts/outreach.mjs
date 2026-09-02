@@ -1,21 +1,26 @@
-// SEO Phase 10D - approval-gated manual outreach CLI.
+// SEO Phase 10D (+ final closeout) - approval-gated manual outreach CLI.
 //
 //   npm run outreach:list
 //   npm run outreach -- show <id>
 //   npm run outreach:approve -- <id>
-//   npm run outreach:send -- <id> [--dry-run]
+//   npm run outreach:send -- <id> [--dry-run]   (submits one lead to Instantly -> QUEUED)
+//   npm run outreach:sync -- <id>               (QUEUED -> SENT only on real Instantly send evidence)
 //   npm run outreach -- suppress <domain> [reason...]
 //   npm run outreach -- unsuppress <domain>
-//   npm run outreach -- replied <id>        (mark a reply received)
-//   npm run outreach -- dnc <id>            (mark DO_NOT_CONTACT + suppress)
+//   npm run outreach -- replied <id>            (mark a reply received)
+//   npm run outreach -- dnc <id>               (mark DO_NOT_CONTACT + suppress)
 //
 // Runs LOCALLY, server-side, by the site owner. There is no deployed API,
-// no background job, no follow-up automation, and no bulk import. Sending
-// goes through the project's existing Resend wrapper (lib/email.js).
+// no background job, no follow-up automation, and no bulk import. Cold
+// outreach delivery goes through the compliant provider adapter
+// (lib/outreach/provider.js -> Instantly) - NEVER the Resend
+// transactional mailer.
 //
-// Real sends require: status APPROVED  ->  an explicit `send` command.
-// If OUTREACH_TEST_RECIPIENT is set, every send is redirected there and
-// the subject is prefixed [TEST].
+// Flow: DRAFT -> approve -> APPROVED -> send (one lead created in the
+// pre-built Instantly campaign) -> QUEUED -> sync (Instantly confirms the
+// email step executed) -> SENT. A provider failure -> FAILED.
+// If OUTREACH_TEST_RECIPIENT is set, a send is redirected there and the
+// subject is prefixed [TEST]; the record stays APPROVED.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -27,7 +32,8 @@ import {
   canApprove,
   canSend,
   isSuppressed,
-  sentInWindow,
+  submissionsInWindow,
+  applySyncResult,
   resolveBody,
   bodyNeedsSnapshot,
   DEFAULT_DAILY_CAP,
@@ -131,9 +137,12 @@ function cmdList(records) {
         r.recipient
     );
   }
-  const inWin = sentInWindow(records);
+  const inWin = submissionsInWindow(records);
   console.log("");
-  console.log(`  sent in last 24h: ${inWin} / cap ${CFG.dailyCap}`);
+  console.log("  DRAFT = not approved   APPROVED = ready   QUEUED = lead accepted by Instantly,");
+  console.log("  not yet confirmed sent   SENT = Instantly confirmed the email went out");
+  console.log("");
+  console.log(`  submissions (QUEUED+SENT) in last 24h: ${inWin} / cap ${CFG.dailyCap}`);
   console.log(
     `  provider: ${PROVIDER.name}` +
       (PROVIDER.isConfigured() ? " (configured)" : " (NOT configured - see the phase report)") +
@@ -181,6 +190,12 @@ function cmdShow(records, id) {
   console.log(`  destination : ${r.destinationUrl}`);
   console.log(`  angle       : ${r.angle}`);
   if (r.snapshot) console.log(`  snapshot    : ${JSON.stringify(r.snapshot)}`);
+  if (r.provider) console.log(`  provider    : ${r.provider}`);
+  if (r.providerRef) console.log(`  providerRef : ${r.providerRef}`);
+  if (r.queuedAt) console.log(`  queuedAt    : ${r.queuedAt}`);
+  if (r.sentAt) console.log(`  sentAt      : ${r.sentAt}  (Instantly send evidence)`);
+  if (r.syncedAt) console.log(`  syncedAt    : ${r.syncedAt}`);
+  if (r.lastError) console.log(`  lastError   : ${JSON.stringify(r.lastError)}`);
   console.log("  " + "-".repeat(72));
   console.log(`  channel     : ${p.channel}`);
   if (p.to) console.log(`  to          : ${p.to}`);
@@ -257,24 +272,27 @@ async function cmdSend(records, id, { dryRun, force }) {
   }
 
   console.log(
-    `\n  handing "${id}" to provider "${PROVIDER.name}" for ${msg.to}` +
+    `\n  submitting "${id}" to provider "${PROVIDER.name}" as a lead for ${msg.to}` +
       `${msg.meta.redirectedToTest ? " (TEST redirect)" : ""}...`
   );
-  const res = await PROVIDER.send(msg);
+  const res = await PROVIDER.submitLead(msg);
 
-  if (res?.sent) {
-    // A real (non-test) delivery advances the record; a test delivery is
-    // logged but the record stays APPROVED so the real send can follow.
+  if (res?.accepted) {
+    // The lead was ACCEPTED into the campaign - this does NOT prove an
+    // email was sent. Land on QUEUED; a later `sync` promotes to SENT
+    // only when Instantly reports real send evidence. A test-redirected
+    // submit stays APPROVED so the real submit can follow.
     r.sendLog.push({
       at: now(),
-      kind: msg.meta.redirectedToTest ? "test-send" : "send",
+      kind: msg.meta.redirectedToTest ? "test-submit" : "submit",
       provider: PROVIDER.name,
       to: msg.to,
       providerRef: res.id ?? null,
     });
     if (!msg.meta.redirectedToTest) {
-      r.status = "SENT";
-      r.sentAt = now();
+      r.status = "QUEUED";
+      r.queuedAt = now();
+      r.sentAt = null; // not sent yet - set only by `sync` on send evidence
       r.provider = PROVIDER.name;
       r.providerRef = res.id ?? null;
       r.providerMessageId = res.id ?? null; // back-compat alias
@@ -282,9 +300,10 @@ async function cmdSend(records, id, { dryRun, force }) {
     }
     writeJson(RECORDS_PATH, records);
     console.log(
-      `  ✓ ${msg.meta.redirectedToTest ? "test message" : `"${id}"`} accepted by ${PROVIDER.name}` +
-        `${res.id ? ` (ref ${res.id})` : ""}.\n`
+      `  ✓ ${msg.meta.redirectedToTest ? "test lead" : `"${id}"`} accepted by ${PROVIDER.name}` +
+        `${res.id ? ` (lead ${res.id})` : ""}. Status: ${r.status}.`
     );
+    console.log(`    Instantly will send it on the campaign schedule. Confirm with:  npm run outreach -- sync ${id}\n`);
   } else {
     const reason = res?.reason || "unknown";
     r.status = "FAILED";
@@ -325,6 +344,32 @@ function cmdMark(records, id, status) {
   console.log(`\n  ✓ "${id}" -> ${status}\n`);
 }
 
+// Ask Instantly whether a QUEUED lead's campaign email has actually been
+// sent, then promote QUEUED -> SENT / FAILED / DO_NOT_CONTACT accordingly.
+// SENT is set ONLY on real Instantly send evidence
+// (Lead.timestamp_last_contact / status_summary step-executed); until then
+// the record stays QUEUED.
+async function cmdSync(records, id) {
+  const r = find(records, id);
+  if (r.status !== "QUEUED") {
+    return console.log(`\n  "${id}" is ${r.status}, not QUEUED - nothing to sync.\n`);
+  }
+  if (!r.providerRef) die(`"${id}" has no providerRef - was it ever submitted?`);
+  if (!PROVIDER.isConfigured()) {
+    die(`no outreach provider configured (${PROVIDER.name}) - cannot query Instantly. Set INSTANTLY_API_KEY.`);
+  }
+  console.log(`\n  querying ${PROVIDER.name} for lead ${r.providerRef}...`);
+  const reading = await PROVIDER.getLeadStatus(r.providerRef);
+  if (!reading?.ok) die(`sync failed: ${reading?.reason ?? "unknown"} ${reading?.detail ?? ""}`.trim());
+
+  const { patch, note, suppress } = applySyncResult(r, reading, { now });
+  if (patch) Object.assign(r, patch);
+  r.sendLog.push({ at: now(), kind: "sync", provider: PROVIDER.name, reading, result: r.status });
+  writeJson(RECORDS_PATH, records);
+  if (suppress) cmdSuppress(r.recipient.includes("@") ? r.recipient : r.organisation, ["unsubscribed via Instantly"]);
+  console.log(`  ${note}\n  status: ${r.status}${r.sentAt ? `  sentAt: ${r.sentAt}` : ""}\n`);
+}
+
 // --- dispatch --------------------------------------------------------
 
 async function main() {
@@ -343,6 +388,8 @@ async function main() {
       return cmdApprove(records, args[0]);
     case "send":
       return cmdSend(records, args[0], { dryRun: flags.has("--dry-run"), force: flags.has("--force") });
+    case "sync":
+      return cmdSync(records, args[0]);
     case "suppress":
       return cmdSuppress(args[0], args.slice(1));
     case "unsuppress":
@@ -352,7 +399,7 @@ async function main() {
     case "dnc":
       return cmdMark(records, args[0], "DO_NOT_CONTACT");
     default:
-      die(`unknown command "${cmd}". Commands: list, show, approve, send, suppress, unsuppress, replied, dnc`);
+      die(`unknown command "${cmd}". Commands: list, show, approve, send, sync, suppress, unsuppress, replied, dnc`);
   }
 }
 

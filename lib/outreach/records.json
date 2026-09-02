@@ -24,7 +24,9 @@
     "lastError": null,
     "sendLog": [],
     "providerRef": null,
-    "provider": null
+    "provider": null,
+    "queuedAt": null,
+    "syncedAt": null
   },
   {
     "id": "voxbooster",
@@ -51,7 +53,9 @@
     "lastError": null,
     "sendLog": [],
     "providerRef": null,
-    "provider": null
+    "provider": null,
+    "queuedAt": null,
+    "syncedAt": null
   },
   {
     "id": "stephen-leonard",
@@ -79,7 +83,9 @@
     "sendLog": [],
     "note": "Non-email. Post manually as a response on the article after human review. No mail-provider send path.",
     "providerRef": null,
-    "provider": null
+    "provider": null,
+    "queuedAt": null,
+    "syncedAt": null
   },
   {
     "id": "cardrake",
@@ -107,6 +113,8 @@
     "sendLog": [],
     "note": "Non-email. Send manually as an X DM to @cardrakeapp after human review. Approximate figures used deliberately for a casual DM; not a formal citation. No mail-provider send path.",
     "providerRef": null,
-    "provider": null
+    "provider": null,
+    "queuedAt": null,
+    "syncedAt": null
   }
 ]

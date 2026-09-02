@@ -16,15 +16,17 @@ import {
   canApprove,
   canSend,
   isSuppressed,
-  sentInWindow,
-  alreadySentTo,
+  submissionsInWindow,
+  alreadyContacted,
+  applySyncResult,
   resolveBody,
   normalizeSpelling,
   ownershipLanguageOk,
+  STATUSES,
   DEFAULT_DAILY_CAP,
 } from "../../lib/outreach/core.js";
 import { renderMessage, withUtm } from "../../lib/outreach/render.js";
-import { getProvider, _providers } from "../../lib/outreach/provider.js";
+import { getProvider, _providers, normaliseLeadStatus } from "../../lib/outreach/provider.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
@@ -64,18 +66,26 @@ test("2. an APPROVED email record passes the send gate (reaches the mailer adapt
   assert.equal(canSend(emailRecord(), {}).ok, true);
 });
 
-// === 3 : duplicate SENT recipient/target blocked ====================
+// === 3 : duplicate SENT *or QUEUED* recipient/target blocked ========
 
-test("3. a second initial email to the same recipient + target page is blocked", () => {
-  const sent = emailRecord({ id: "prev", status: "SENT", sentAt: new Date().toISOString() });
-  const next = emailRecord({ id: "dup" });
-  assert.equal(alreadySentTo(next, [sent, next]), true);
-  const gate = canSend(next, { records: [sent, next] });
-  assert.equal(gate.ok, false);
-  assert.match(gate.reason, /duplicate/);
+test("3/C9. a second initial email is blocked while the first is SENT or QUEUED", () => {
+  for (const st of ["SENT", "QUEUED"]) {
+    const first = emailRecord({
+      id: "prev",
+      status: st,
+      sentAt: st === "SENT" ? new Date().toISOString() : null,
+      queuedAt: st === "QUEUED" ? new Date().toISOString() : null,
+    });
+    const next = emailRecord({ id: "dup" });
+    assert.equal(alreadyContacted(next, [first, next]), true, `alreadyContacted for ${st}`);
+    const gate = canSend(next, { records: [first, next] });
+    assert.equal(gate.ok, false, `canSend blocked for ${st}`);
+    assert.match(gate.reason, /duplicate/);
+  }
   // a different target page to the same recipient is NOT a duplicate
+  const q = emailRecord({ id: "prev", status: "QUEUED", queuedAt: new Date().toISOString() });
   const other = emailRecord({ id: "other", targetPage: "https://example.com/other" });
-  assert.equal(canSend(other, { records: [sent, other] }).ok, true);
+  assert.equal(canSend(other, { records: [q, other] }).ok, true);
 });
 
 // === 4 : DO_NOT_CONTACT + suppression blocked =======================
@@ -90,34 +100,37 @@ test("4. DO_NOT_CONTACT status and a suppressed domain both block sending", () =
   assert.equal(canApprove(emailRecord({ status: "DRAFT" }), { suppression: supp }).ok, false);
 });
 
-// === 5 : daily cap ==================================================
+// === 5 : daily cap counts QUEUED + SENT ============================
 
-test("5. the daily send cap is enforced", () => {
+test("5/C10. the daily cap counts QUEUED + SENT submissions, not just sent", () => {
   const now = Date.now();
+  // a full window of QUEUED-only records (queuedAt, no sentAt)
   const recent = Array.from({ length: DEFAULT_DAILY_CAP }, (_, i) => ({
-    id: `s${i}`,
-    sentAt: new Date(now - i * 1000).toISOString(),
+    id: `q${i}`,
+    status: "QUEUED",
+    queuedAt: new Date(now - i * 1000).toISOString(),
+    sentAt: null,
   }));
-  assert.equal(sentInWindow(recent, { now }), DEFAULT_DAILY_CAP);
+  assert.equal(submissionsInWindow(recent, { now }), DEFAULT_DAILY_CAP);
   const gate = canSend(emailRecord({ id: "capped" }), { records: recent, now });
   assert.equal(gate.ok, false);
   assert.match(gate.reason, /daily_cap/);
-  // an old send outside the 24h window does not count
-  const old = [{ id: "o", sentAt: new Date(now - 48 * 3600 * 1000).toISOString() }];
-  assert.equal(sentInWindow(old, { now }), 0);
+  // an old submission outside the 24h window does not count
+  const old = [{ id: "o", queuedAt: new Date(now - 48 * 3600 * 1000).toISOString() }];
+  assert.equal(submissionsInWindow(old, { now }), 0);
 });
 
 // === 6 : dry-run makes zero provider calls ==========================
 
-test("6. the CLI dry-run path returns before any provider send call", () => {
+test("6/C14. the CLI dry-run path returns before any provider submit call", () => {
   const send = CLI.slice(CLI.indexOf("async function cmdSend"), CLI.indexOf("function cmdSuppress"));
   const dryIdx = send.indexOf("if (dryRun)");
-  const sendCallIdx = send.indexOf("await PROVIDER.send(");
-  assert.ok(dryIdx > -1 && sendCallIdx > -1, "cmdSend must have a dry-run branch and a PROVIDER.send call");
-  assert.ok(dryIdx < sendCallIdx, "dry-run branch must come before the provider send call");
+  const sendCallIdx = send.indexOf("await PROVIDER.submitLead(");
+  assert.ok(dryIdx > -1 && sendCallIdx > -1, "cmdSend must have a dry-run branch and a PROVIDER.submitLead call");
+  assert.ok(dryIdx < sendCallIdx, "dry-run branch must come before the provider submit call");
   const dryBlock = send.slice(dryIdx, sendCallIdx);
   assert.match(dryBlock, /return;/, "dry-run branch must return before the provider call");
-  assert.doesNotMatch(dryBlock, /PROVIDER\.send\(|sendEmail\(/);
+  assert.doesNotMatch(dryBlock, /PROVIDER\.(submitLead|send|getLeadStatus)\(|sendEmail\(/);
 });
 
 // === 7 : test mode redirects the recipient ==========================
@@ -137,21 +150,80 @@ test("7. test mode delivers only to the test mailbox and preserves the real reci
   assert.doesNotMatch(real.subject, /\[TEST\]/);
 });
 
-// === 8 / 9 / 10 : failure + success bookkeeping =====================
+// === 8 / 9 / 10 : failure + submit + sync bookkeeping ===============
 
-test("8. a provider failure marks the record FAILED and does not auto-retry", () => {
-  const send = CLI.slice(CLI.indexOf("async function cmdSend"), CLI.indexOf("function cmdSuppress"));
-  assert.match(send, /r\.status = "FAILED"/);
-  assert.match(send, /not retried automatically/i);
-  assert.doesNotMatch(send, /for\s*\(|while\s*\(|setTimeout|retry\(/); // no retry loop in the send path
+const CMD_SEND = CLI.slice(CLI.indexOf("async function cmdSend"), CLI.indexOf("function cmdSuppress"));
+const CMD_SYNC = CLI.slice(CLI.indexOf("async function cmdSync"), CLI.indexOf("// --- dispatch"));
+
+test("8/C13. a provider CREATE-LEAD failure marks the record FAILED and does not auto-retry", () => {
+  assert.match(CMD_SEND, /res\?\.accepted/);
+  assert.match(CMD_SEND, /r\.status = "FAILED"/);
+  assert.match(CMD_SEND, /not retried automatically/i);
+  assert.doesNotMatch(CMD_SEND, /for\s*\(|while\s*\(|setTimeout|retry\(/);
 });
 
-test("9/10/19. a real success stores SENT, a sentAt timestamp, the provider name and the external ref", () => {
-  const send = CLI.slice(CLI.indexOf("async function cmdSend"), CLI.indexOf("function cmdSuppress"));
-  assert.match(send, /r\.status = "SENT"/);
-  assert.match(send, /r\.sentAt = now\(\)/);
-  assert.match(send, /r\.provider = PROVIDER\.name/);
-  assert.match(send, /r\.providerRef = res\.id/);
+test("C5/C6/C7/C8. a successful create-lead lands on QUEUED (not SENT); queuedAt set; sentAt stays null", () => {
+  assert.match(CMD_SEND, /r\.status = "QUEUED"/);
+  assert.match(CMD_SEND, /r\.queuedAt = now\(\)/);
+  assert.match(CMD_SEND, /r\.sentAt = null/);
+  assert.doesNotMatch(CMD_SEND, /r\.status = "SENT"/, "cmdSend must NOT set SENT");
+  assert.doesNotMatch(CMD_SEND, /r\.sentAt = now\(\)/, "cmdSend must NOT stamp sentAt with the local clock");
+  // provider name + external lead ref stored
+  assert.match(CMD_SEND, /r\.provider = PROVIDER\.name/);
+  assert.match(CMD_SEND, /r\.providerRef = res\.id/);
+});
+
+test("C4/C11/C12. only `sync` promotes QUEUED->SENT, via applySyncResult on Instantly evidence", () => {
+  assert.match(CMD_SYNC, /await PROVIDER\.getLeadStatus\(r\.providerRef\)/);
+  assert.match(CMD_SYNC, /applySyncResult\(r, reading/);
+  // cmdSync never fabricates a sentAt; it only merges the patch
+  assert.doesNotMatch(CMD_SYNC, /r\.sentAt = now\(\)/);
+  assert.match(CMD_SYNC, /Object\.assign\(r, patch\)/);
+});
+
+test("C11/C12. applySyncResult: QUEUED -> SENT only on real send evidence; sentAt = the provider timestamp", () => {
+  const q = () => emailRecord({ id: "q", status: "QUEUED", providerRef: "lead_1", queuedAt: "2026-09-02T09:00:00.000Z" });
+
+  // no evidence yet -> stays QUEUED, no sentAt
+  let r = applySyncResult(q(), { ok: true, sent: false, sentAt: null });
+  assert.equal(r.patch.status, undefined);
+  assert.match(r.note, /no send evidence/i);
+
+  // Instantly reports a real send timestamp -> SENT with THAT timestamp
+  r = applySyncResult(q(), { ok: true, sent: true, sentAt: "2026-09-02T09:07:11.000Z" });
+  assert.equal(r.patch.status, "SENT");
+  assert.equal(r.patch.sentAt, "2026-09-02T09:07:11.000Z"); // provider evidence, not local clock
+
+  // bounce -> FAILED ; unsubscribe -> DO_NOT_CONTACT (+ suppress)
+  assert.equal(applySyncResult(q(), { ok: true, bounced: true }).patch.status, "FAILED");
+  const u = applySyncResult(q(), { ok: true, unsubscribed: true });
+  assert.equal(u.patch.status, "DO_NOT_CONTACT");
+  assert.equal(u.suppress, true);
+
+  // a non-QUEUED record is never touched
+  assert.equal(applySyncResult(emailRecord({ status: "SENT" }), { ok: true, sent: true, sentAt: "x" }).patch, null);
+});
+
+test("C1. normaliseLeadStatus maps the documented Instantly Lead fields to send evidence", () => {
+  // timestamp_last_contact non-null => sent
+  let e = normaliseLeadStatus({ status: 1, timestamp_last_contact: "2026-09-02T09:07:00.000Z" });
+  assert.equal(e.sent, true);
+  assert.equal(e.sentAt, "2026-09-02T09:07:00.000Z");
+  // status_summary step-executed timestamp is preferred when present
+  e = normaliseLeadStatus({
+    status: 1,
+    timestamp_last_contact: "2026-09-02T09:07:00.000Z",
+    status_summary: { lastStep: { timestamp_executed: "2026-09-02T09:06:30.000Z" } },
+  });
+  assert.equal(e.sentAt, "2026-09-02T09:06:30.000Z");
+  // freshly created lead, nothing sent
+  e = normaliseLeadStatus({ status: 1 });
+  assert.equal(e.sent, false);
+  assert.equal(e.sentAt, null);
+  // Instantly status enums: -1 bounced, -2 unsubscribed
+  assert.equal(normaliseLeadStatus({ status: -1, timestamp_last_contact: "x" }).bounced, true);
+  assert.equal(normaliseLeadStatus({ status: -1, timestamp_last_contact: "x" }).sent, false);
+  assert.equal(normaliseLeadStatus({ status: -2 }).unsubscribed, true);
 });
 
 // === 11 / 12 / 13 : no client creds, no public endpoint, non-email ==
@@ -332,33 +404,52 @@ test("C2/C20. transactional routes still use Resend via lib/email.js (untouched)
   assert.doesNotMatch(read("lib/email.js"), /outreach/i);
 });
 
-test("C3/C4. an unconfigured provider refuses; the adapter exposes the right shape", async () => {
+test("C3/C4. an unconfigured provider refuses submit + status; the adapter exposes the right shape", async () => {
   const p = getProvider();
   assert.equal(typeof p.name, "string");
   assert.equal(typeof p.isConfigured, "function");
-  assert.equal(typeof p.send, "function");
+  assert.equal(typeof p.submitLead, "function");
+  assert.equal(typeof p.getLeadStatus, "function");
   // no INSTANTLY_* env in the test process -> null provider, which refuses
   assert.equal(p.isConfigured(), false);
-  const res = await p.send({ to: "x@y.z", subject: "s", text: "t" });
-  assert.equal(res.sent, false);
-  assert.match(res.reason, /no_outreach_provider_configured/);
-  // the CLI blocks a real (non-dry-run) send when no provider is configured
+  const sub = await p.submitLead({ to: "x@y.z", subject: "s", text: "t" });
+  assert.equal(sub.accepted, false);
+  assert.match(sub.reason, /no_outreach_provider_configured/);
+  const st = await p.getLeadStatus("lead_x");
+  assert.equal(st.ok, false);
+  // the CLI blocks a real (non-dry-run) submit when no provider is configured
   assert.match(CLI, /!PROVIDER\.isConfigured\(\)/);
   assert.match(CLI, /no outreach provider configured/i);
 });
 
-test("C: the Instantly adapter is the delivery layer, keyed on its own env, and returns a lead ref", () => {
+test("C1/C2/C3. the Instantly create-lead payload uses ONLY documented V2 fields", () => {
   const inst = _providers.instantlyProvider();
   assert.equal(inst.name, "instantly");
   assert.equal(inst.isConfigured(), false, "not configured in the test env");
-  assert.match(PROVIDER_SRC, /api\.instantly\.ai\/api\/v2/);
-  assert.match(PROVIDER_SRC, /INSTANTLY_API_KEY/);
-  assert.match(PROVIDER_SRC, /INSTANTLY_CAMPAIGN_ID/);
-  // one lead per send, to a pre-created campaign - not a bulk blast
-  assert.match(PROVIDER_SRC, /\/leads\b/);
-  assert.doesNotMatch(PROVIDER_SRC, /bulk-add|leads\/list/);
-  // success returns an id we can store as the external ref
-  assert.match(PROVIDER_SRC, /json\?\.id \?\? json\?\.lead_id/);
+  const submit = PROVIDER_SRC.slice(
+    PROVIDER_SRC.indexOf("async submitLead(msg) {"),
+    PROVIDER_SRC.indexOf("async getLeadStatus(ref) {")
+  );
+  assert.ok(submit.length > 100, "found the submitLead method body");
+  // base + auth
+  assert.match(PROVIDER_SRC, /const INSTANTLY_BASE = "https:\/\/api\.instantly\.ai\/api\/v2"/);
+  assert.match(PROVIDER_SRC, /Authorization: `Bearer \$\{apiKey\}`/);
+  // documented field names: campaign (NOT campaign_id), custom_variables
+  // (NOT personalization / payload / variables), skip_if_in_campaign
+  assert.match(submit, /campaign:\s*campaignId/);
+  assert.doesNotMatch(submit, /campaign_id\s*:/);
+  assert.match(submit, /custom_variables:\s*\{/);
+  // no undocumented alias as an object key (custom_variables is fine)
+  assert.doesNotMatch(submit, /(^|[\s{,])(personalization|payload|variables)\s*:/m);
+  assert.match(submit, /skip_if_in_campaign:\s*true/);
+  // exactly one lead per submit; no bulk / list endpoints
+  assert.match(submit, /fetch\(`\$\{INSTANTLY_BASE\}\/leads`/);
+  assert.doesNotMatch(PROVIDER_SRC, /bulk-add|leads\/list|\/leads\/list/);
+  // the custom-variable names the pre-built campaign step references
+  assert.match(submit, /outreach_subject:/);
+  assert.match(submit, /outreach_body:/);
+  // getLeadStatus reads GET /leads/:id
+  assert.match(PROVIDER_SRC, /fetch\(`\$\{INSTANTLY_BASE\}\/leads\/\$\{encodeURIComponent\(ref\)\}`/);
 });
 
 test("C6. the application daily cap is still exactly 5", () => {
@@ -378,12 +469,55 @@ test("C17. every email record records why the public contact was appropriate", (
   }
 });
 
-test("C13/C14/C15. packz + voxbooster stay DRAFT, PokemonPriceTracker absent, copy unchanged", () => {
+test("C13/C14/C15/C20. packz + voxbooster stay DRAFT (no queuedAt/sentAt/providerRef), PPT absent, no Batch 2", () => {
   const packz = RECORDS.find((r) => r.id === "packz");
   const vox = RECORDS.find((r) => r.id === "voxbooster");
-  assert.equal(packz.status, "DRAFT");
-  assert.equal(vox.status, "DRAFT");
+  for (const r of [packz, vox]) {
+    assert.equal(r.status, "DRAFT");
+    assert.ok(!r.queuedAt, `${r.id} has a queuedAt`);
+    assert.ok(!r.sentAt, `${r.id} has a sentAt`);
+    assert.ok(!r.providerRef, `${r.id} has a providerRef`);
+  }
   assert.match(packz.body, /^I run PokemonDealFinder \(pokemondealfinder\.com\), a free tool/);
   assert.match(vox.body, /^I run PokemonDealFinder \(pokemondealfinder\.com\)\. Your Trading Card Statistics/);
   assert.ok(!RECORDS.some((r) => /pokemonpricetracker|pokepricetracker/i.test(JSON.stringify(r))));
+  // no Batch 2: still exactly the four 10D records
+  assert.deepEqual(
+    RECORDS.map((r) => r.id).sort(),
+    ["cardrake", "packz", "stephen-leonard", "voxbooster"]
+  );
+});
+
+test("C: the state machine gained QUEUED between APPROVED and SENT", () => {
+  assert.deepEqual(STATUSES, [
+    "DRAFT",
+    "APPROVED",
+    "QUEUED",
+    "SENT",
+    "REPLIED",
+    "FAILED",
+    "DO_NOT_CONTACT",
+  ]);
+  // CLI list explains QUEUED vs SENT to the owner
+  assert.match(CLI, /QUEUED = lead accepted by Instantly/);
+  assert.match(CLI, /SENT = Instantly confirmed the email went out/);
+});
+
+test("C19. no new webhook: no deployed route + provider never POSTs a webhook", () => {
+  for (const p of [
+    "app/api/outreach/route.js",
+    "app/api/outreach-webhook/route.js",
+    "app/api/instantly/route.js",
+    "app/api/instantly-webhook/route.js",
+    "app/api/webhooks/route.js",
+  ]) {
+    let exists = false;
+    try {
+      readFileSync(join(ROOT, p));
+      exists = true;
+    } catch {}
+    assert.equal(exists, false, `${p} must not exist`);
+  }
+  assert.doesNotMatch(PROVIDER_SRC, /\/webhooks\b/);
+  assert.doesNotMatch(read("vercel.json"), /outreach|instantly|webhook/i);
 });
