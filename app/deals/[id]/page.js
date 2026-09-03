@@ -21,6 +21,7 @@ import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import StickyDealCta from "@/components/StickyDealCta";
 import RecordCardView from "@/components/RecordCardView";
+import DetailViewAnalytics from "@/components/analytics/DetailViewAnalytics";
 import ListingChecks from "@/components/ListingChecks";
 import RecentSales from "@/components/RecentSales";
 import SaveCardButton from "@/components/SaveCardButton";
@@ -375,6 +376,7 @@ export default async function DealDetailPage({ params }) {
           currency: currencyForDeal(deal),
         }}
       />
+      <DetailViewAnalytics kind="deal" contentId={deal.id} />
       <SiteHeader />
       <div className="mx-auto max-w-5xl px-6 py-10">
         <div className="mb-3">

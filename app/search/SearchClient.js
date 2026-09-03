@@ -5,6 +5,10 @@ import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { track } from "@vercel/analytics";
+import { capture } from "@/lib/analytics/client";
+import { EVENTS } from "@/lib/analytics/events";
+import { classifyQueryIntent } from "@/lib/analytics/intent";
+import { resultCountBand, latencyBand } from "@/lib/analytics/props";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import DealCard from "@/components/DealCard";
@@ -42,12 +46,25 @@ export default function SearchClient({ validSetSlugs = [] }) {
   const [searchSort, setSearchSort] = useState("discount");
 
   const inputRef = useRef(null);
+  const focusedRef = useRef(false);
+  const startedRef = useRef(false);
 
   useEffect(() => {
     const trimmed = initialQuery.trim();
     if (trimmed.length >= 2) loadSearch(trimmed, 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // search_started: first meaningful input in an interaction.
+  useEffect(() => {
+    const v = query.trim();
+    if (v.length >= 2 && !startedRef.current) {
+      startedRef.current = true;
+      capture(EVENTS.SEARCH_STARTED, { source: "search_page" });
+    } else if (v.length === 0) {
+      startedRef.current = false;
+    }
+  }, [query]);
 
   // Search-as-you-type: debounced so it isn't a request per keystroke,
   // and never for a query under 2 chars.
@@ -69,6 +86,15 @@ export default function SearchClient({ validSetSlugs = [] }) {
     // Analytics: the query LENGTH and page, never the raw text (matches
     // the site's existing no-PII convention).
     track("Price Checker Search", { queryLength: q.length, page, country: sc || "any", sort: ss });
+    const intent = classifyQueryIntent(q);
+    capture(EVENTS.SEARCH_REQUEST, {
+      source: "search_page",
+      page,
+      country: sc || "any",
+      sort: ss,
+      ...intent,
+    });
+    const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
     try {
       const params = new URLSearchParams({ q, page: String(page), sort: ss });
       if (sc) params.set("country", sc);
@@ -77,6 +103,24 @@ export default function SearchClient({ validSetSlugs = [] }) {
       if (!res.ok) throw new Error(body.error ?? "Search failed");
       setDeals(body.deals);
       setCatalog(body.catalog);
+
+      const elapsed = (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0;
+      const catalogCount = Number(body?.catalog?.total ?? body?.catalog?.results?.length ?? 0);
+      const dealCount = Array.isArray(body?.deals) ? body.deals.length : 0;
+      const common = {
+        source: "search_page",
+        page,
+        latency_band: latencyBand(elapsed),
+        result_count_band: resultCountBand(catalogCount),
+        has_deal_results: dealCount > 0,
+        deal_count_band: resultCountBand(dealCount),
+        ...intent,
+      };
+      if (catalogCount === 0 && dealCount === 0) {
+        capture(EVENTS.SEARCH_NO_RESULT, common);
+      } else {
+        capture(EVENTS.SEARCH_RESULTS_SHOWN, common);
+      }
     } catch (err) {
       setSearchError(err.message);
       setDeals(null);
@@ -89,7 +133,10 @@ export default function SearchClient({ validSetSlugs = [] }) {
   function runSearch(e) {
     e?.preventDefault();
     const q = query.trim();
-    if (q.length >= 2) loadSearch(q, 1);
+    if (q.length >= 2) {
+      capture(EVENTS.SEARCH_SUBMITTED, { source: "search_page", via: "form", ...classifyQueryIntent(q) });
+      loadSearch(q, 1);
+    }
   }
   function goToPage(page) {
     if (lastQuery) loadSearch(lastQuery, page);
@@ -132,6 +179,12 @@ export default function SearchClient({ validSetSlugs = [] }) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => {
+                if (!focusedRef.current) {
+                  focusedRef.current = true;
+                  capture(EVENTS.HERO_SEARCH_FOCUS, { source: "search_page" });
+                }
+              }}
               placeholder="e.g. Charizard 4/102"
               autoComplete="off"
               enterKeyHint="search"
@@ -248,8 +301,19 @@ export default function SearchClient({ validSetSlugs = [] }) {
               and printing.
             </p>
             <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {deals.map((deal) => (
-                <div key={deal.id} onClick={() => track("Price Checker Deal Click", { deal: deal.id })}>
+              {deals.map((deal, i) => (
+                <div
+                  key={deal.id}
+                  onClick={() => {
+                    track("Price Checker Deal Click", { deal: deal.id });
+                    capture(EVENTS.SEARCH_RESULT_CLICKED, {
+                      surface: "deal",
+                      rank: i + 1,
+                      content_id: String(deal.id),
+                      deal_id: deal.id,
+                    });
+                  }}
+                >
                   <DealCard deal={deal} pageName="price_checker" validSetSlugs={validSetSlugs} />
                 </div>
               ))}
@@ -274,10 +338,11 @@ export default function SearchClient({ validSetSlugs = [] }) {
             ) : (
               <>
                 <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                  {catalog.results.map((c) => (
+                  {catalog.results.map((c, i) => (
                     <ResultTile
                       key={c.tcgplayerId}
                       c={c}
+                      rank={i + 1}
                       ccyApprox={ccyApprox}
                       inDisplayCcy={inDisplayCcy}
                     />
@@ -331,7 +396,7 @@ export default function SearchClient({ validSetSlugs = [] }) {
 // One exact-printing preview. The WHOLE tile is a link to the permanent
 // /cards/[slug] page when we own one; otherwise it's a non-link tile with
 // a plain eBay-search fallback so it isn't a dead end.
-function ResultTile({ c, ccyApprox, inDisplayCcy }) {
+function ResultTile({ c, rank, ccyApprox, inDisplayCcy }) {
   const meta = [c.set, c.cardNumber && `#${c.cardNumber}`, c.rarity].filter(Boolean).join(" · ");
   const price =
     c.marketPrice != null ? (
@@ -380,7 +445,15 @@ function ResultTile({ c, ccyApprox, inDisplayCcy }) {
     return (
       <Link
         href={c.cardHref}
-        onClick={() => track("Price Checker Result Click", { slug: c.cardHref, hasDeal: Boolean(c.deal) })}
+        onClick={() => {
+          track("Price Checker Result Click", { slug: c.cardHref, hasDeal: Boolean(c.deal) });
+          capture(EVENTS.SEARCH_RESULT_CLICKED, {
+            surface: "catalog",
+            rank,
+            has_deal: Boolean(c.deal),
+            card_slug: typeof c.cardHref === "string" ? c.cardHref.replace(/^\/cards\//, "") : undefined,
+          });
+        }}
         className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950"
       >
         {inner}

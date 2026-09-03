@@ -28,6 +28,7 @@ import FilterBar from "@/components/FilterBar";
 import Pagination, { pageHref } from "@/components/Pagination";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import CardMemoryStrip from "@/components/CardMemoryStrip";
+import HomepageAnalytics from "@/components/analytics/HomepageAnalytics";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -102,12 +103,12 @@ function shuffled(array) {
 // renderer-nofollowed `/?maxPrice=` filter URLs. $100+ has no dedicated
 // route - it stays a plain filter link.
 const START_HERE = [
-  { href: "/deals/under-25", label: "Under $25" },
-  { href: "/deals/under-50", label: "Under $50" },
-  { href: "/?minPrice=100", label: "$100+" },
-  { href: "/sealed-deals", label: "Sealed" },
-  { href: "/deals/graded", label: "Graded" },
-  { href: "/japanese-cards", label: "Japanese" },
+  { href: "/deals/under-25", label: "Under $25", chip: "under_25" },
+  { href: "/deals/under-50", label: "Under $50", chip: "under_50" },
+  { href: "/?minPrice=100", label: "$100+", chip: "over_100" },
+  { href: "/sealed-deals", label: "Sealed", chip: "sealed" },
+  { href: "/deals/graded", label: "Graded", chip: "graded", graded: true },
+  { href: "/japanese-cards", label: "Japanese", chip: "japanese" },
 ];
 
 export default async function Home({ searchParams }) {
@@ -225,6 +226,11 @@ export default async function Home({ searchParams }) {
       <SiteHeader />
       <MobileStickySearch />
       <RegionRedirect />
+      <HomepageAnalytics
+        variant={showPromo ? "promo" : page > 1 ? "paged" : "filtered"}
+        page={page}
+        hasFilters={anyFilter}
+      />
 
       {/* HERO - name the job, big search, entry chips, live proof */}
       <header className="border-b border-zinc-200 dark:border-zinc-800">
@@ -262,6 +268,8 @@ export default async function Home({ searchParams }) {
                 key={t.href}
                 href={t.href}
                 rel={t.href.includes("?") ? "nofollow" : undefined}
+                data-analytics-click="start_here_clicked"
+                data-analytics-props={JSON.stringify({ section: "hero", chip: t.chip, ...(t.graded ? { graded_entry: true, source: "start_here" } : {}) })}
                 className="rounded-full border border-zinc-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-zinc-700 transition-colors hover:border-red-300 hover:text-red-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:text-red-500"
               >
                 {t.label}
@@ -294,7 +302,7 @@ export default async function Home({ searchParams }) {
 
       {/* BEST DEALS RIGHT NOW - the proof, first thing after the hero */}
       {showPromo && bestFinds.length > 0 && (
-        <section className="border-b border-zinc-200 dark:border-zinc-800">
+        <section data-analytics-section="best_deals" className="border-b border-zinc-200 dark:border-zinc-800">
           <div className="mx-auto max-w-7xl px-6 py-10">
             <SectionHeader
               kicker="The find"
@@ -304,7 +312,7 @@ export default async function Home({ searchParams }) {
             />
             <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {bestFinds.map((deal, i) => (
-                <DealCard key={deal.id} deal={deal} rank={i + 1} hub={hubCounts[deal.watchlist_id]} pageName="home_best" validSetSlugs={validSetSlugs} />
+                <DealCard key={deal.id} deal={deal} rank={i + 1} hub={hubCounts[deal.watchlist_id]} pageName="home_best" validSetSlugs={validSetSlugs} analytics={{ section: "best_deals", rank: i + 1 }} />
               ))}
             </div>
           </div>
@@ -324,7 +332,7 @@ export default async function Home({ searchParams }) {
 
       {/* ENDING SOON */}
       {showPromo && endingSoon.length > 0 && (
-        <section className="border-b border-zinc-200 bg-sunk dark:border-zinc-800">
+        <section data-analytics-section="ending_soon" className="border-b border-zinc-200 bg-sunk dark:border-zinc-800">
           <div className="mx-auto max-w-7xl px-6 py-10">
             <SectionHeader
               kicker="Real urgency"
@@ -333,8 +341,8 @@ export default async function Home({ searchParams }) {
               actionHref="/?listing=AUCTION&sort=ending"
             />
             <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-              {endingSoon.map((deal) => (
-                <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_ending" validSetSlugs={validSetSlugs} />
+              {endingSoon.map((deal, i) => (
+                <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_ending" validSetSlugs={validSetSlugs} analytics={{ section: "ending_soon", rank: i + 1 }} />
               ))}
             </div>
           </div>
@@ -343,7 +351,7 @@ export default async function Home({ searchParams }) {
 
       {/* JUST ADDED */}
       {showPromo && freshFinds.length > 0 && (
-        <section className="border-b border-zinc-200 dark:border-zinc-800">
+        <section data-analytics-section="just_added" className="border-b border-zinc-200 dark:border-zinc-800">
           <div className="mx-auto max-w-7xl px-6 py-10">
             <SectionHeader
               kicker="Fresh"
@@ -355,8 +363,8 @@ export default async function Home({ searchParams }) {
               <NewSinceVisit timestamps={freshFinds.map((d) => d.first_seen_at)} />
             </div>
             <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-              {freshFinds.map((deal) => (
-                <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_fresh" validSetSlugs={validSetSlugs} />
+              {freshFinds.map((deal, i) => (
+                <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_fresh" validSetSlugs={validSetSlugs} analytics={{ section: "just_added", rank: i + 1 }} />
               ))}
             </div>
           </div>
@@ -365,7 +373,7 @@ export default async function Home({ searchParams }) {
 
       {/* MOST ACTIVE LISTINGS (by count of active listing rows - not distinct sellers) */}
       {showPromo && topHubs.length > 0 && (
-        <section className="border-b border-zinc-200 bg-sunk dark:border-zinc-800">
+        <section data-analytics-section="most_active" className="border-b border-zinc-200 bg-sunk dark:border-zinc-800">
           <div className="mx-auto max-w-7xl px-6 py-10">
             <SectionHeader
               kicker="Compare prices"
@@ -374,10 +382,12 @@ export default async function Home({ searchParams }) {
               actionHref="/market-data/most-listed-cards"
             />
             <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-              {topHubs.map((hub) => (
+              {topHubs.map((hub, i) => (
                 <Link
                   key={hub.id}
                   href={`/cards/${hub.slug}`}
+                  data-analytics-click="most_active_clicked"
+                  data-analytics-props={JSON.stringify({ section: "most_active", card_slug: hub.slug, content_id: hub.slug, rank: i + 1 })}
                   className="group flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950"
                 >
                   <div className="relative aspect-square w-full bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950">
@@ -416,18 +426,20 @@ export default async function Home({ searchParams }) {
 
       {/* BROWSE - two big category entry tiles */}
       {showPromo && (
-        <section className="border-b border-zinc-200 dark:border-zinc-800">
+        <section data-analytics-section="browse" className="border-b border-zinc-200 dark:border-zinc-800">
           <div className="mx-auto max-w-7xl px-6 py-10">
             <SectionHeader kicker="Know what you want" title="Browse the catalogue" />
             <div className="mt-5 grid gap-5 sm:grid-cols-3">
               {[
-                { href: "/cards", title: "Card database", copy: "Every card we track, with a permanent page and real market-reference prices." },
-                { href: "/sets", title: "Browse by set", copy: "Set checklists with market-reference prices and the set's most valuable cards — plus any current below-market deals." },
-                { href: "/pokemon", title: "Browse by Pokemon", copy: "Card prices and values for a species across all its prints and sets — plus any current below-market deals." },
+                { href: "/cards", event: "browse_catalogue_clicked", title: "Card database", copy: "Every card we track, with a permanent page and real market-reference prices." },
+                { href: "/sets", event: "browse_sets_clicked", title: "Browse by set", copy: "Set checklists with market-reference prices and the set's most valuable cards — plus any current below-market deals." },
+                { href: "/pokemon", event: "browse_pokemon_clicked", title: "Browse by Pokemon", copy: "Card prices and values for a species across all its prints and sets — plus any current below-market deals." },
               ].map((t) => (
                 <Link
                   key={t.href}
                   href={t.href}
+                  data-analytics-click={t.event}
+                  data-analytics-props={JSON.stringify({ section: "browse" })}
                   className="group flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950"
                 >
                   <div>
@@ -446,28 +458,35 @@ export default async function Home({ searchParams }) {
       )}
 
       {/* ALL DEALS grid + sort/filter toolbar */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-12">
+      <main data-analytics-section="all_deals" className="mx-auto w-full max-w-7xl flex-1 px-6 py-12">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
           <SectionHeader
             kicker={anyFilter ? "Filtered" : "Everything"}
             title={anyFilter ? "Filtered deals" : "All deals"}
           />
           {(useStableList || page > 1) && (
-            <Link href="/" className="text-sm font-medium text-zinc-500 hover:text-red-600 dark:hover:text-red-500">
+            <Link
+              href="/"
+              data-analytics-click="filter_cleared"
+              data-analytics-props={JSON.stringify({ facet: "all", context: "all_deals" })}
+              className="text-sm font-medium text-zinc-500 hover:text-red-600 dark:hover:text-red-500"
+            >
               Clear filters
             </Link>
           )}
         </div>
 
-        <FilterBar
-          params={params}
-          country={country}
-          cardType={cardType}
-          listingType={listingType}
-          maxPrice={maxPrice}
-          minPrice={minPrice}
-          sort={sort}
-        />
+        <div data-analytics-filter-bar="all_deals">
+          <FilterBar
+            params={params}
+            country={country}
+            cardType={cardType}
+            listingType={listingType}
+            maxPrice={maxPrice}
+            minPrice={minPrice}
+            sort={sort}
+          />
+        </div>
 
         {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
 
@@ -500,7 +519,7 @@ export default async function Home({ searchParams }) {
       </main>
 
       {/* HOW IT WORKS + FAQ - two balanced columns on the tinted ground */}
-      <section id="how-it-works" className="border-t border-zinc-200 bg-sunk dark:border-zinc-800">
+      <section id="how-it-works" data-analytics-section="how_it_works" className="border-t border-zinc-200 bg-sunk dark:border-zinc-800">
         <div className="mx-auto grid max-w-7xl gap-12 px-6 py-14 lg:grid-cols-2">
           <div>
             <SectionHeader
@@ -548,7 +567,7 @@ export default async function Home({ searchParams }) {
       </section>
 
       {/* GUIDES */}
-      <section className="border-t border-zinc-200 dark:border-zinc-800">
+      <section data-analytics-section="guides" className="border-t border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-14">
           <SectionHeader kicker="Learn the market" title="Buying guides" actionLabel="All guides" actionHref="/guides" />
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

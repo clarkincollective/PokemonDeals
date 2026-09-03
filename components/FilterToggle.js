@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { capture } from "@/lib/analytics/client";
+import { EVENTS } from "@/lib/analytics/events";
 
 // Collapse/expand wrapper for the filter rows. Below `lg` the rows are
 // clutter on a page someone's actively scrolling, so they stay behind a
@@ -9,12 +11,21 @@ import { useState } from "react";
 // filtering (especially region) is one click, not two.
 export default function FilterToggle({ defaultOpen, activeCount = 0, children }) {
   const [open, setOpen] = useState(defaultOpen);
+  const openedOnce = useRef(false);
 
   return (
     <div>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() =>
+          setOpen((o) => {
+            if (!o && !openedOnce.current) {
+              openedOnce.current = true;
+              capture(EVENTS.FILTER_OPENED, { context: "all_deals" });
+            }
+            return !o;
+          })
+        }
         aria-expanded={open}
         className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-700 lg:hidden dark:text-zinc-400 dark:hover:text-zinc-200"
       >

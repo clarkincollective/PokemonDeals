@@ -29,6 +29,7 @@ import SaveCardButton from "@/components/SaveCardButton";
 import PriceAlertForm from "@/components/PriceAlertForm";
 import { emailEnabled } from "@/lib/email";
 import RecordCardView from "@/components/RecordCardView";
+import DetailViewAnalytics from "@/components/analytics/DetailViewAnalytics";
 import ListingChecks from "@/components/ListingChecks";
 import RelatedCards from "@/components/RelatedCards";
 import SiteFooter from "@/components/SiteFooter";
@@ -346,6 +347,7 @@ export default async function CardHubPage({ params }) {
       )}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <RecordCardView card={cardDescriptor} />
+      <DetailViewAnalytics kind="card" contentId={slug} />
       <SiteHeader />
 
       <div className="mx-auto max-w-5xl px-6 py-10">

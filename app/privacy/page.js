@@ -4,11 +4,11 @@ import SiteFooter from "@/components/SiteFooter";
 
 const SITE_URL = "https://pokemondealfinder.com";
 const CONTACT_EMAIL = "pokemondealfinder@gmail.com";
-const LAST_UPDATED = "2 September 2026";
+const LAST_UPDATED = "3 September 2026";
 
 const TITLE = "Privacy Policy";
 const DESCRIPTION =
-  "How Pokemon Deal Finder handles data: server logs, privacy-oriented analytics, browser local storage, optional price-alert emails, affiliate links, and a private read-only Google Search Console integration.";
+  "How Pokemon Deal Finder handles data: server logs, anonymous cookieless analytics, browser local storage, optional price-alert emails, affiliate links, and a private read-only Google Search Console integration.";
 
 export const metadata = {
   title: TITLE,
@@ -65,6 +65,22 @@ export default function PrivacyPolicyPage() {
           cookies and do not track you across other websites. We see totals and trends, not
           individuals.
         </p>
+        <h3 className={h3}>Product analytics (PostHog)</h3>
+        <p className={p}>
+          To understand which parts of the site actually help people find a deal, we use PostHog for
+          anonymous product analytics, running in fully cookieless mode. It stores nothing in your
+          browser — no cookies, no local storage, no session storage — and it builds no user profile.
+          It cannot recognise you across days. We record simple interaction events (a page or section
+          was viewed, a link or filter was clicked, a search returned results or none), along with
+          your device type, a coarse country, and any campaign tag on the link you arrived from.
+        </p>
+        <p className={p}>
+          We never send your search text, your email address, form contents, or anything you type —
+          only structural facts about a search (for example &ldquo;two words, mentioned a grade,
+          mentioned a price&rdquo;). Analytics data is processed by PostHog on servers in the European
+          Union. If your browser sends a Global Privacy Control or Do Not Track signal, this analytics
+          does not run at all. It is also entirely disabled unless a project key is configured.
+        </p>
 
         <h2 className={h2}>Storage in your browser</h2>
         <p className={p}>
@@ -78,6 +94,7 @@ export default function PrivacyPolicyPage() {
         </ul>
         <p className={p}>
           You can clear all of this at any time by clearing site data for {SITE_URL} in your browser.
+          The product analytics described above stores nothing in your browser at all.
         </p>
 
         <h2 className={h2}>Affiliate links</h2>
@@ -182,6 +199,7 @@ export default function PrivacyPolicyPage() {
         <h2 className={h2}>Service providers we rely on</h2>
         <ul className={ul}>
           <li>Vercel — website hosting, plus the analytics and speed-insights described above.</li>
+          <li>PostHog (EU) — anonymous, cookieless product analytics described above.</li>
           <li>Supabase — the database that stores the site&apos;s catalogue, deal data, and any price-alert / newsletter records.</li>
           <li>Resend — sends the confirmation, price-alert, and weekly-digest emails.</li>
           <li>Impact.com — administers the TCGPlayer affiliate program and the affiliate attribution tag.</li>

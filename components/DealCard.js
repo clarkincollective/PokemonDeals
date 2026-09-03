@@ -6,6 +6,7 @@ import { timeAgo, timeUntil, isWithin } from "@/lib/time";
 import { conditionLabel } from "@/lib/dealQuality";
 import { normalizePublicText } from "@/lib/publicText";
 import { cardDisplayName } from "@/lib/cardName";
+import { priceBandUsd, discountBand, listingTypeProp, rawVsGraded } from "@/lib/analytics/props";
 import AffiliateLink from "@/components/AffiliateLink";
 import DealImage from "@/components/DealImage";
 import SaveCardButton from "@/components/SaveCardButton";
@@ -33,7 +34,7 @@ function discountBadgeClass(pct) {
 // `rank` shows a number badge only on ranked lists (Top 10, "Best deals").
 // `hub` is `{ count, slug }` from fetchHubCounts when this card has 2+
 // active listings, optional.
-export default function DealCard({ deal, rank, hub, pageName = "home", validSetSlugs, from, fromCountry }) {
+export default function DealCard({ deal, rank, hub, pageName = "home", validSetSlugs, from, fromCountry, analytics }) {
   const cardName = cardDisplayName({ name: normalizePublicText(deal.watchlist?.name ?? deal.title) });
 
   // A "return to browsing" hint for /deals/[id]: the internal page this
@@ -90,8 +91,35 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
   // from physical condition.
   const conditionText = conditionLabel(deal);
 
+  // Phase 13A - structural, non-PII payload for the discovery-lane
+  // impression + click events. Only emitted when a lane opts in by
+  // passing `analytics={{ section }}` (the big "All deals" grid does not,
+  // by design - we don't instrument every catalogue card).
+  const analyticsPayload = analytics?.section
+    ? {
+        section: analytics.section,
+        deal_id: deal.id,
+        content_id: String(deal.id),
+        rank: analytics.rank ?? rank ?? undefined,
+        listing_type: listingTypeProp(deal.listing_type),
+        raw_vs_graded: rawVsGraded(deal.is_graded),
+        price_band_usd: priceBandUsd(usdTotal),
+        discount_band: discountBand(discountPct),
+        country: deal.marketplace ? String(deal.marketplace).replace("EBAY_", "") : "unknown",
+      }
+    : null;
+  const analyticsAttrs = analyticsPayload
+    ? {
+        "data-analytics-deal": JSON.stringify(analyticsPayload),
+        "data-analytics-deal-impression": JSON.stringify(analyticsPayload),
+      }
+    : {};
+
   return (
-    <div className="group flex h-full flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950">
+    <div
+      {...analyticsAttrs}
+      className="group flex h-full flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950"
+    >
       <div className="relative">
         <div className="absolute bottom-2 right-2 z-10">
           <SaveCardButton
@@ -244,8 +272,14 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
               discountPct,
               listingType: deal.listing_type,
               isGraded: deal.is_graded,
+              usdTotal,
               page: pageName,
             }}
+            analyticsProps={
+              analyticsPayload
+                ? { ...analyticsPayload, origin_section: analyticsPayload.section }
+                : { origin_section: pageName, deal_id: deal.id, content_id: String(deal.id) }
+            }
             className="block rounded-lg bg-zinc-900 px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-red-600 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-red-600 dark:hover:text-white"
           >
             {isAuction ? "Bid on eBay →" : "Check deal on eBay →"}

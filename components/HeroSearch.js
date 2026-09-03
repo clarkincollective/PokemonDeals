@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
+import { capture } from "@/lib/analytics/client";
+import { EVENTS } from "@/lib/analytics/events";
+import { classifyQueryIntent } from "@/lib/analytics/intent";
 
 // Homepage hero search with live card suggestions. Suggestions come from
 // the same /api/card-search the /search page uses (catalog browse); each
@@ -17,8 +20,22 @@ export default function HeroSearch({ popular = [] }) {
   const [loading, setLoading] = useState(false);
   const rootRef = useRef(null);
   const abortRef = useRef(null);
+  const focusedRef = useRef(false);
+  const startedRef = useRef(false);
 
   const queryLongEnough = q.trim().length >= 2;
+
+  // search_started: first meaningful input in an interaction; resets when
+  // the box is cleared so a fresh query counts as a fresh interaction.
+  useEffect(() => {
+    const v = q.trim();
+    if (v.length >= 2 && !startedRef.current) {
+      startedRef.current = true;
+      capture(EVENTS.SEARCH_STARTED, { source: "hero" });
+    } else if (v.length === 0) {
+      startedRef.current = false;
+    }
+  }, [q]);
 
   useEffect(() => {
     const query = q.trim();
@@ -58,13 +75,16 @@ export default function HeroSearch({ popular = [] }) {
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open]);
 
-  function go(query) {
+  function go(query, via = "form") {
     const v = query.trim();
     if (v.length < 2) return;
     setOpen(false);
     // Funnel step "homepage -> search". Length only, never the raw query
     // text - matches the no-PII convention SearchClient's own event uses.
     track("Hero Search Submit", { queryLength: v.length });
+    // PostHog: explicit submit only, with STRUCTURAL intent flags derived
+    // locally - never the query string itself.
+    capture(EVENTS.SEARCH_SUBMITTED, { source: "hero", via, ...classifyQueryIntent(v) });
     router.push(`/search?q=${encodeURIComponent(v)}`);
   }
 
@@ -116,7 +136,13 @@ export default function HeroSearch({ popular = [] }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKeyDown}
-            onFocus={() => queryLongEnough && results.length > 0 && setOpen(true)}
+            onFocus={() => {
+              if (!focusedRef.current) {
+                focusedRef.current = true;
+                capture(EVENTS.HERO_SEARCH_FOCUS, { source: "hero" });
+              }
+              if (queryLongEnough && results.length > 0) setOpen(true);
+            }}
             autoComplete="off"
             placeholder="Search a card, a set, or &quot;booster box&quot;…"
             className="w-full rounded-xl border border-zinc-300 bg-white py-3.5 pl-11 pr-4 text-base text-zinc-900 shadow-card outline-none transition-colors focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
@@ -138,7 +164,7 @@ export default function HeroSearch({ popular = [] }) {
                 <button
                   type="button"
                   onMouseEnter={() => setActive(i)}
-                  onClick={() => go(r.name)}
+                  onClick={() => go(r.name, "autocomplete")}
                   className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${
                     i === active ? "bg-zinc-100 dark:bg-zinc-900" : ""
                   }`}
@@ -179,7 +205,12 @@ export default function HeroSearch({ popular = [] }) {
           <span className="font-medium text-zinc-400">Most listed:</span>
           {popular.map((p, i) => (
             <span key={p.slug}>
-              <a href={`/cards/${p.slug}`} className="hover:text-red-600 hover:underline dark:hover:text-red-500">
+              <a
+                href={`/cards/${p.slug}`}
+                data-analytics-click="hero_suggestion_clicked"
+                data-analytics-props={JSON.stringify({ section: "hero", rank: i + 1, card_slug: p.slug, content_id: p.slug })}
+                className="hover:text-red-600 hover:underline dark:hover:text-red-500"
+              >
                 {p.name}
               </a>
               {i < popular.length - 1 && <span className="ml-2 text-zinc-300 dark:text-zinc-700">·</span>}
