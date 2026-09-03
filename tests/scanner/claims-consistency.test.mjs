@@ -101,8 +101,14 @@ test("4. /pokemon/[slug] 'every card we track across N sets' uses the CATALOGUE 
   // the compact fact strip pairs the catalogue card count with the catalogue set count
   assert.match(src, /\{allCards\.length\} cards . \{priceSnapshot\.setCount\}/);
   assert.doesNotMatch(src, /\{allCards\.length\} cards . \{resolved\.setCount\}/);
-  // the live-listing clause still uses resolved.count (a listing count)
-  assert.match(src, /\$\{resolved\.count\} live listing/);
+  // Phase 13B.3.2: the live-deal clause is an explicit CARD count (the
+  // grid deduplicates listings to one tile per card - Phase 12C:
+  // listing != card), taken from the exact display-gated stat that shares
+  // the grid's canonical membership rule - NOT the old raw
+  // watchlist-linked `resolved.count` mislabelled as "listings".
+  assert.match(src, /\{dealStats\.dealCards\} card\$\{dealStats\.dealCards === 1 \? "" : "s"\} with a live deal/);
+  assert.doesNotMatch(src, /\$\{resolved\.count\} live listing/);
+  assert.doesNotMatch(src, /resolved\.count/); // no longer used on the page at all
   // both the header and the quick-answers block read from the same snapshot
   const qa = read("components/SpeciesQuickAnswers.js");
   assert.match(qa, /card \{cardCount === 1 \? "record" : "records"\} across/);

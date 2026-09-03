@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import {
   resolveSpeciesSlug,
   fetchSpeciesDealsPage,
+  fetchSpeciesDealStats,
   fetchSpeciesPrints,
   fetchSpeciesCatalog,
   fetchCardHubs,
@@ -158,7 +159,7 @@ export default async function PokemonSpeciesPage({ params }) {
     );
   }
 
-  const [{ deals, totalPages, error }, { prints }, { cards: allCards }, validSetSlugs] =
+  const [{ deals, totalPages, error }, dealStats, { prints }, { cards: allCards }, validSetSlugs] =
     await Promise.all([
       fetchSpeciesDealsPage({
         speciesName: resolved.name,
@@ -169,6 +170,10 @@ export default async function PokemonSpeciesPage({ params }) {
         page: 1,
         pageSize: 8,
       }),
+      // 13B.3.2 - exact, display-gated, deduped live-deal counts under the
+      // same canonical membership rule the grid uses, so the visible
+      // count can't disagree with the grid.
+      fetchSpeciesDealStats(resolved.name, "english"),
       fetchSpeciesPrints(resolved.name),
       fetchSpeciesCatalog(resolved.name),
       fetchSetSlugs("english"),
@@ -177,10 +182,12 @@ export default async function PokemonSpeciesPage({ params }) {
 
   // The "N listings" line on each DealCard - derived from `prints` (which
   // already carries per-print hub slug + active listing count for this
-  // species) rather than a separate full card-hubs scan.
+  // species) rather than a separate full card-hubs scan. Feed-discovered
+  // prints have no watchlist_id and no /cards hub, so they're excluded
+  // here (no badge) but still counted in dealStats and the grid.
   const hubCounts = Object.fromEntries(
     prints
-      .filter((p) => p.hubSlug && p.count >= 2)
+      .filter((p) => p.watchlistId != null && p.hubSlug && p.count >= 2)
       .map((p) => [p.watchlistId, { count: p.count, slug: p.hubSlug }])
   );
 
@@ -222,17 +229,18 @@ export default async function PokemonSpeciesPage({ params }) {
   // many differently-priced prints, so it isn't a single item). Points at
   // each print's /cards/[slug] hub, or its /sets/[slug] when the print has
   // no hub (fewer than 2 simultaneous listings).
+  // Bounded: the schema names the most meaningful prints (canonical
+  // species membership, same rule as the deal grid - 13B.3.2), not every
+  // catalogue row. numberOfItems reflects what's actually listed.
+  const printItems = prints.slice(0, 25);
   const itemListJsonLd =
-    prints.length > 0
+    printItems.length > 0
       ? {
           "@context": "https://schema.org",
           "@type": "ItemList",
           name: `${resolved.name} Pokemon card prints with active deals`,
-          numberOfItems: prints.length,
-          // Bounded: the schema names the most meaningful visible prints,
-          // not every catalogue row (see the full crawlable card index in
-          // the page body).
-          itemListElement: prints.slice(0, 25).map((p, i) => ({
+          numberOfItems: printItems.length,
+          itemListElement: printItems.map((p, i) => ({
             "@type": "ListItem",
             position: i + 1,
             name: `${p.name} (${p.set})`,
@@ -284,13 +292,21 @@ export default async function PokemonSpeciesPage({ params }) {
           <SpeciesFactStrip speciesName={resolved.name} />
           {/* Two distinct populations, labelled as such: the CATALOGUE
               (every card we track, and the sets it spans) and, separately,
-              the count of LIVE below-market listings right now. Never one
-              "N sets" number standing for both. */}
+              the count of cards that have a LIVE below-market deal right
+              now. The deal count is the exact deduped, display-gated tile
+              count from fetchSpeciesDealStats - the same canonical
+              membership + dedupe the grid below uses - so "N cards with a
+              live deal" always matches the grid (13B.3.2). The grid
+              collapses multiple listings of one card to one tile, so this
+              is a CARD count, not a listing count (Phase 12C:
+              listing != card). */}
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5">
             <p className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">
               {allCards.length} cards · {priceSnapshot.setCount}{" "}
               {priceSnapshot.setCount === 1 ? "catalogue set" : "catalogue sets"}
-              {deals.length > 0 ? ` · ${resolved.count} live listing${resolved.count === 1 ? "" : "s"}` : ""}
+              {dealStats.dealCards > 0
+                ? ` · ${dealStats.dealCards} card${dealStats.dealCards === 1 ? "" : "s"} with a live deal`
+                : ""}
             </p>
             <ShoppingContext />
           </div>
