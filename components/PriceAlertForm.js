@@ -71,15 +71,23 @@ export default function PriceAlertForm({ cardSlug, cardName, suggestedPrice }) {
         placeholder="you@email.com"
         className="min-w-0 flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
       />
-      <input
-        type="number"
-        min="0"
-        step="0.01"
-        value={target}
-        onChange={(e) => setTarget(e.target.value)}
-        placeholder={suggestedPrice ? `≤ $${Number(suggestedPrice).toFixed(0)}` : "target $ (optional)"}
-        className="w-32 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-      />
+      {/* Target is entered, stored and compared in USD (no FX at entry) -
+          the "$ … USD" adornment makes the unit explicit rather than
+          leaving a bare number. */}
+      <div className="relative w-36">
+        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-zinc-400">$</span>
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          value={target}
+          onChange={(e) => setTarget(e.target.value)}
+          placeholder={suggestedPrice ? Number(suggestedPrice).toFixed(0) : "target"}
+          aria-label="Target price in US dollars"
+          className="w-full rounded-lg border border-zinc-300 bg-white py-2 pl-6 pr-9 text-sm outline-none focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+        />
+        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-zinc-400">USD</span>
+      </div>
       <button
         type="submit"
         disabled={status === "sending"}
@@ -98,7 +106,8 @@ export default function PriceAlertForm({ cardSlug, cardName, suggestedPrice }) {
         Also send me a weekly email of the site&apos;s best deals (optional)
       </label>
       <p className="w-full text-xs text-zinc-400">
-        One confirmation email, then only when it matches. No target = any below-market listing.
+        Target in USD (compared against each listing&apos;s total incl. shipping). One confirmation
+        email, then only when it matches. No target = any below-market listing.
       </p>
     </form>
   );

@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { resolveCardSlug, fetchCardOffers } from "@/lib/deals";
 import { emailEnabled, sendEmail } from "@/lib/email";
 import { currencyForDeal, symbolFor } from "@/lib/money";
+import { evaluateAlert, listingTotalUsd } from "@/lib/alertMatch";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -20,9 +21,13 @@ export async function GET() {
   const started = Date.now();
   const db = supabaseAdmin();
 
+  // `select("*")` so this keeps working whether or not the
+  // target_price_usd column (price_alerts_usd_migration.sql) has been
+  // applied yet: absent -> `a.target_price_usd` is undefined -> the
+  // legacy-target rows below are treated as dormant, exactly as intended.
   const { data: alerts, error } = await db
     .from("price_alerts")
-    .select("id, email, card_slug, card_name, target_price, token, last_notified_at, last_notified_deal_id")
+    .select("*")
     .eq("confirmed", true);
   if (error) return Response.json({ ok: false, error: error.message }, { status: 200 });
   if (!alerts?.length) return Response.json({ ok: true, checked: 0, sent: 0 });
@@ -41,29 +46,42 @@ export async function GET() {
     const hub = await resolveCardSlug(slug);
     if (!hub) continue;
     const { deals: offers } = await fetchCardOffers(hub.id);
+    // offers is sorted cheapest-first by USD total, so offers[0] is the
+    // USD-cheapest acquisition (item + shipping).
     const cheapest = offers?.[0];
     if (!cheapest) continue;
-    const price = Number(cheapest.total_price);
-    // `total_price` is the listing's NATIVE currency - label it with the
-    // matching symbol, not a bare "$", so a non-USD listing isn't shown
-    // as "$80" next to a "% below [USD] market" line. (Alert matching is
-    // unchanged - it still compares the native `price`.)
-    const money = `${symbolFor(currencyForDeal(cheapest))}${price.toFixed(2)}`;
-    const belowMarket = Number(cheapest.discount_pct) >= DISCOUNT_FLOOR;
+    const listingUsd = listingTotalUsd(cheapest);
+    const nativePrice = Number(cheapest.total_price);
+    const nativeMoney = `${symbolFor(currencyForDeal(cheapest))}${nativePrice.toFixed(2)}`;
+    const discPct = Math.round(Number(cheapest.discount_pct) * 100);
 
     for (const a of group) {
-      const matches = a.target_price != null ? price <= Number(a.target_price) : belowMarket;
-      if (!matches) continue;
+      // Same-unit contract (lib/alertMatch): USD listing total vs USD
+      // threshold, or discount % when there's no target. A bare legacy
+      // `target_price` stays dormant (no email) until re-set.
+      const { matched } = evaluateAlert(a, cheapest, { discountFloor: DISCOUNT_FLOOR });
+      if (!matched) continue;
       if (a.last_notified_deal_id === cheapest.id) continue;
       if (a.last_notified_at && now - new Date(a.last_notified_at).getTime() < RENOTIFY_COOLDOWN_MS) continue;
 
+      const targetUsd = a.target_price_usd != null ? Number(a.target_price_usd) : null;
+
       const unsub = `${SITE_URL}/api/alerts?token=${a.token}&action=unsubscribe`;
       const cardUrl = `${SITE_URL}/cards/${slug}`;
+      // Targeted alert -> the comparison is USD, so show it in USD on both
+      // sides. Untargeted -> show the listing in its own currency + the
+      // rate-invariant %, matching the weekly digest.
+      const usdLine = `$${listingUsd.toFixed(2)} USD`;
+      const subject = targetUsd != null ? `${a.card_name} is now ${usdLine}` : `${a.card_name} is now ${nativeMoney}`;
+      const bodyLine =
+        targetUsd != null
+          ? `Current price: ${usdLine} · Your target: $${targetUsd.toFixed(2)} USD (${discPct}% below market).`
+          : `${a.card_name} has a listing at ${nativeMoney} (${discPct}% below market).`;
       const res = await sendEmail({
         to: a.email,
-        subject: `${a.card_name} is now ${money}`,
-        text: `${a.card_name} has a listing at ${money} (${Math.round(cheapest.discount_pct * 100)}% below market).\n\nSee it: ${cardUrl}\n\nStop these emails: ${unsub}`,
-        html: `<p><strong>${escapeHtml(a.card_name)}</strong> has a listing at <strong>${escapeHtml(money)}</strong> (${Math.round(cheapest.discount_pct * 100)}% below market).</p>
+        subject,
+        text: `${bodyLine}\n\nSee it: ${cardUrl}\n\nStop these emails: ${unsub}`,
+        html: `<p><strong>${escapeHtml(a.card_name)}</strong> — ${escapeHtml(bodyLine)}</p>
 <p><a href="${cardUrl}">See it on Pokemon Deal Finder</a></p>
 <p style="color:#888;font-size:12px"><a href="${unsub}" style="color:#888">Stop these emails</a></p>`,
       });

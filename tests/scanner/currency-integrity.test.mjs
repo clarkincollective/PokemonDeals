@@ -91,12 +91,16 @@ test("Web-Share text (card + sealed deal pages, sealed card) never labels native
   }
 });
 
-test("alert email labels the native listing price with its own symbol, not a bare $", () => {
+test("alert email: no bare $ on a native amount; comparison is single-currency", () => {
   const src = read("app/api/check-alerts/route.js");
+  // untargeted line uses the listing's OWN symbol
   assert.match(src, /symbolFor\(currencyForDeal\(cheapest\)\)/);
-  assert.match(src, /is now \$\{money\}/);
-  // no bare "$${price.toFixed" left
+  assert.match(src, /const nativeMoney = /);
+  // targeted line is USD on BOTH sides (see alert-currency.test.mjs for full coverage)
+  assert.match(src, /Current price: \$\{usdLine\} . Your target: \$\$\{targetUsd\.toFixed\(2\)\} USD/);
+  // the old bug shapes are gone
   assert.doesNotMatch(src, /\$\$\{price\.toFixed\(2\)\}/);
+  assert.doesNotMatch(src, /price <= Number\(a\.target_price\)/);
 });
 
 // === the hydrating UI comparison block is single-currency ========

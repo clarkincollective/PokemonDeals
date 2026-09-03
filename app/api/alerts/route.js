@@ -25,7 +25,11 @@ export async function POST(request) {
   const cardName = String(body.cardName ?? "").trim();
   const wantsNewsletter = body.newsletter === true;
   const targetRaw = body.targetPrice;
-  const targetPrice =
+  // The form asks for this explicitly in USD (no client-side FX, no
+  // conversion) and it is stored + compared as USD -
+  // deals.total_price_usd <= target_price_usd. See
+  // supabase/price_alerts_usd_migration.sql.
+  const targetPriceUsd =
     targetRaw != null && targetRaw !== "" && Number.isFinite(Number(targetRaw)) && Number(targetRaw) > 0
       ? Number(targetRaw)
       : null;
@@ -50,16 +54,19 @@ export async function POST(request) {
   const token = existing?.token ?? cryptoToken();
 
   if (existing) {
-    await db
+    // Clear any stale legacy `target_price` so a re-set never leaves a
+    // row half-legacy (which the cron would treat as dormant).
+    const { error } = await db
       .from("price_alerts")
-      .update({ card_name: cardName, target_price: targetPrice })
+      .update({ card_name: cardName, target_price_usd: targetPriceUsd, target_price: null })
       .eq("id", existing.id);
+    if (error) return Response.json({ ok: false, reason: "db_error" }, { status: 500 });
   } else {
     const { error } = await db.from("price_alerts").insert({
       email,
       card_slug: cardSlug,
       card_name: cardName,
-      target_price: targetPrice,
+      target_price_usd: targetPriceUsd,
       token,
     });
     if (error) return Response.json({ ok: false, reason: "db_error" }, { status: 500 });
@@ -88,8 +95,8 @@ export async function POST(request) {
   }
 
   const confirmUrl = `${SITE_URL}/api/alerts?token=${token}&action=confirm`;
-  const targetLine = targetPrice
-    ? `at or below $${targetPrice.toFixed(2)}`
+  const targetLine = targetPriceUsd
+    ? `at or below $${targetPriceUsd.toFixed(2)} USD`
     : `below its market price`;
   const send = await sendEmail({
     to: email,

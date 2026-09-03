@@ -342,8 +342,41 @@ are currency-invariant. One class of defect confirmed and fixed.
   no `hreflang`, no regional URLs, canonical stays bare. No affiliate /
   EPN / TCGPlayer link change.
 
-- **Tests:** `tests/scanner/currency-integrity.test.mjs` (20). Full
-  `test:scanner` 490 + `test:seo` 331 green; `npm run build` clean.
+### Closeout — alert-target currency contract — 2026-09-03
+
+`price_alerts.target_price` was a **unitless** `numeric`; the cron
+compared it against a listing's **native** `total_price` (whichever of
+the 6 marketplace currencies had the cheapest listing that run) — an
+undefined-unit comparison that could trigger / miss alerts on non-US
+markets.
+
+- **Contract:** thresholds are **USD**. `evaluateAlert()`
+  (`lib/alertMatch.js`, pure): `listingTotalUsd(cheapest) <=
+  target_price_usd` (USD total **incl. shipping**); no target →
+  `discount_pct >= 0.10` (a %, currency-free).
+- **Form / API:** the target input now shows `$ … USD` explicitly
+  (`aria-label`, helper text); `/api/alerts` stores the entered number
+  **directly** as `target_price_usd` — **no FX at entry, no conversion**,
+  so there is no FX failure mode.
+- **Migration — `supabase/price_alerts_usd_migration.sql` (MUST be
+  applied; feature is live in prod).** One nullable column
+  `target_price_usd` + comments. Non-destructive. **Until applied, new
+  alert creation fails** (`/api/alerts` → `db_error`); the cron and
+  existing alerts are safe (`check-alerts` uses `select("*")`).
+- **Legacy rows (audit: exactly 1 — `kabutops-9-fossil`, `target 12`,
+  confirmed):** unprovable unit → **fail closed**. A row with
+  `target_price` set and `target_price_usd` null is **dormant** — the
+  cron skips it (no email, no fall-through to "any below-market") until
+  the subscriber re-submits the form. No threshold reinterpreted, no
+  notification state touched, so no mass-retrigger.
+- **Email:** targeted alert → `Current price: $X USD · Your target: $Y
+  USD` (single currency); untargeted → native symbol + `%` (matches
+  `send-digest`). Dedup (`last_notified_deal_id` + 20 h cooldown)
+  unchanged. No affiliate/EPN change.
+- **Tests:** `tests/scanner/alert-currency.test.mjs` (21) — six-market
+  matrix, exact boundary, shipping, legacy dormancy + revival, FX-safe,
+  fail-closed, email/dedup/affiliate guards. `test:scanner` 510 +
+  `test:seo` 331 green; build clean.
 
 ## Phase 11C — card price intelligence + decision confidence — 2026-09-03
 
