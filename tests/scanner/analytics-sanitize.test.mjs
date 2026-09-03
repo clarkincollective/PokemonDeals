@@ -94,6 +94,54 @@ test("before_send strips $set / $set_once (no person profiles)", () => {
   assert.ok(!("$set_once" in out));
 });
 
+// 13A.3 regression: before_send MUST NOT delete or rewrite PostHog's own
+// reserved properties. `token` is required for ingestion - if before_send
+// removes it, posthog-js silently drops the whole event (no error,
+// is_capturing() stays true, nothing hits the network). This is the exact
+// shape posthog-js attaches to a real event.
+test("before_send leaves PostHog reserved props ($*, token, distinct_id) untouched", () => {
+  const out = run({
+    event: EVENTS.HOMEPAGE_VIEW,
+    properties: {
+      token: "phc_realprojecttoken",
+      distinct_id: "$posthog_cookieless",
+      $lib: "web",
+      $lib_version: "1.425.1",
+      $current_url: "https://pokemondealfinder.com/?utm_source=tiktok",
+      $device_id: "abc",
+      $geoip_city_name: "Brisbane",
+      $insert_id: "xyz",
+      // our own structural props alongside
+      variant: "promo",
+      page: 1,
+      listing_type: "AUCTION",
+    },
+  });
+  assert.ok(out, "event must not be dropped");
+  assert.equal(out.properties.token, "phc_realprojecttoken", "token must survive");
+  assert.equal(out.properties.distinct_id, "$posthog_cookieless", "distinct_id must survive");
+  assert.equal(out.properties.$lib, "web");
+  assert.equal(out.properties.$device_id, "abc");
+  assert.equal(out.properties.$geoip_city_name, "Brisbane");
+  assert.equal(out.properties.$insert_id, "xyz");
+  // $current_url still gets its querystring stripped (value replace, not delete)
+  assert.equal(out.properties.$current_url, "https://pokemondealfinder.com/");
+  // our own props still pass through
+  assert.equal(out.properties.variant, "promo");
+  assert.equal(out.properties.listing_type, "AUCTION");
+});
+
+test("before_send still deletes a forbidden key when it's one of OUR (non-reserved) props", () => {
+  const out = run({
+    event: EVENTS.SEARCH_REQUEST,
+    properties: { token: "phc_keepme", email: "a@b.com", query: "pikachu", grader_token: "psa" },
+  });
+  assert.equal(out.properties.token, "phc_keepme", "reserved token kept");
+  assert.ok(!("email" in out.properties), "our forbidden key removed");
+  assert.ok(!("query" in out.properties), "our forbidden key removed");
+  assert.equal(out.properties.grader_token, "psa");
+});
+
 test("before_send is null-safe", () => {
   assert.equal(run(null), null);
 });
