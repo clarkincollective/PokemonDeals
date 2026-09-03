@@ -547,6 +547,7 @@ function SearchInterpretation({ interpreted, resolution, exact, dealCount }) {
   const notApplied = resolution?.recognized_not_applied ?? [];
   const dealFilters = resolution?.deals_filters_applied ?? [];
   const refOnly = resolution?.catalogue_is_reference_only;
+  const mismatch = resolution?.subject_collector_mismatch ?? null;
   const scopedButEmpty =
     resolution?.deals_scoped && dealFilters.length > 0 && (resolution?.deals_match_count ?? dealCount) === 0;
 
@@ -564,6 +565,34 @@ function SearchInterpretation({ interpreted, resolution, exact, dealCount }) {
             </span>
           ))}
         </p>
+      )}
+
+      {mismatch && (
+        <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-50/70 p-3 dark:bg-amber-950/30">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+            Number doesn&apos;t match that card
+          </p>
+          <p className="mt-0.5 text-sm text-zinc-700 dark:text-zinc-200">
+            {mismatch.belongs_to ? (
+              <>
+                No {mismatch.subject} card is <span className="font-mono">#{mismatch.collector_number}</span>.
+                That number is{" "}
+                <Link
+                  href={`/cards/${mismatch.belongs_to.card_slug}`}
+                  className="font-semibold text-amber-800 underline hover:text-amber-900 dark:text-amber-300"
+                >
+                  {mismatch.belongs_to.name} · {mismatch.belongs_to.set}
+                </Link>{" "}
+                <span className="text-zinc-500">(suggestion)</span>.
+              </>
+            ) : (
+              <>
+                No card matches <span className="font-mono">#{mismatch.collector_number}</span>. Showing{" "}
+                {mismatch.subject} results below.
+              </>
+            )}
+          </p>
+        </div>
       )}
 
       {exact && (

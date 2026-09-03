@@ -413,7 +413,9 @@ async function cardSearch(url) {
         sort: intent.sort,
       },
       resolution: {
-        mode: resolution.mode, // exact_card | species | catalogue | local_broad | provider_fallback
+        // exact_card | species | catalogue | local_broad | provider_fallback | subject_collector_mismatch
+        mode: resolution.mode,
+        rendered_mode: resolution.rendered_mode ?? resolution.mode,
         confidence: resolution.confidence,
         is_exact: intent.is_exact,
         resolved_via: resolution.resolved_via,
@@ -424,6 +426,10 @@ async function cardSearch(url) {
         catalogue_is_reference_only: intent.result_mode === "deals",
         recognized_modifiers: recognized,
         recognized_not_applied: notApplied,
+        // 13B.2.1 - the query named a subject AND a collector number, but
+        // no card of that subject carries that number. The number's real
+        // owner is offered as a suggestion, never as the resolved result.
+        subject_collector_mismatch: resolution.subject_collector_mismatch ?? null,
         ambiguities: intent.ambiguities,
       },
       exact,
