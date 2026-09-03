@@ -9,6 +9,7 @@ import { rerankCatalogResults } from "@/lib/searchRanking";
 import { parseSearchIntent } from "@/lib/searchIntent";
 import { resolveSearchIntent, createSupabaseLookup } from "@/lib/searchResolve";
 import { speciesSlug } from "@/lib/pokemonSpecies";
+import { readSearchFilters, mergeIntentWithFilters, searchFiltersToQuery } from "@/lib/searchFacets";
 
 // Public, read-only, on-demand - not on the cron schedule, so no
 // CRON_SECRET check. Deals come straight from our own database (never a
@@ -319,11 +320,18 @@ async function cardSearch(url) {
   const debug = IS_DEV;
   const db = supabaseAdmin();
 
+  // 13B.4.1 - structured facet state from the URL. These refine the
+  // subject; they never re-identify it (the resolver reads only
+  // intent.subject). Merged AFTER parse, BEFORE resolve/scope.
+  const urlFilters = readSearchFilters(url.searchParams);
+
   const timing = {};
   try {
-    // 1. parse (pure, deterministic)
+    // 1. parse (pure, deterministic) + overlay the explicit URL facets
     let m = performance.now();
-    const intent = parseSearchIntent(q);
+    const rawIntent = parseSearchIntent(q);
+    const merged = mergeIntentWithFilters(rawIntent, urlFilters);
+    const intent = merged.intent;
     timing.parse_ms = Math.round(performance.now() - m);
 
     // 2. local identity resolution (card_catalog first)
@@ -432,6 +440,16 @@ async function cardSearch(url) {
         catalogue_is_reference_only: intent.result_mode === "deals",
         recognized_modifiers: recognized,
         recognized_not_applied: notApplied,
+        // 13B.4.1 - the reconciled structured-facet state (text + URL),
+        // any normalisation notes, and which facets came from the URL.
+        // `effective_filters` is the canonical current filter state the
+        // /search UI renders chips + the /pokemon link from.
+        effective_filters: merged.activeFilters,
+        filter_notes: merged.notes,
+        filters_from_url: merged.filtersFromUrl,
+        pokemon_link_query: intent.subject.species
+          ? searchFiltersToQuery(merged.activeFilters)
+          : null,
         // 13B.2.1 - the query named a subject AND a collector number, but
         // no card of that subject carries that number. The number's real
         // owner is offered as a suggestion, never as the resolved result.
