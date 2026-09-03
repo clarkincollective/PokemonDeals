@@ -71,8 +71,22 @@ test("2. reprint / shared-identity sets are suppressed (provider can't resolve p
 });
 
 test("5. a single-printing modern set is NOT flagged as shared identity", () => {
-  for (const set of ["SV07: Stellar Crown", "SWSH12: Silver Tempest", "SM - Team Up", "XY - Flashfire"]) {
+  for (const set of [
+    "SV07: Stellar Crown", "SWSH12: Silver Tempest", "SM - Team Up", "XY - Flashfire",
+    "SWSH12: Silver Tempest Trainer Gallery", "Generations: Radiant Collection",
+    "SV: Prismatic Evolutions",
+  ]) {
     assert.equal(isSharedGradedIdentity(set, "Foo ex"), false, set);
+  }
+});
+
+test("5b. WOTC-era sets are caught by pattern even when the provider's setName varies", () => {
+  for (const set of [
+    "Base Set", "Base Set (Unlimited)", "Base Set 1st Edition", "Pokemon Base Set",
+    "Pokemon Jungle", "Fossil (Unlimited)", "EX Team Rocket Returns", "Gym Heroes",
+    "Neo Genesis", "Neo Destiny 1st Edition",
+  ]) {
+    assert.equal(isSharedGradedIdentity(set, "Charizard"), true, set);
   }
 });
 
