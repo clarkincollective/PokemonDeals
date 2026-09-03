@@ -16,7 +16,7 @@ function Money({ usd }) {
   return <Price usd={usd} native={{ amount: usd, currency: "USD" }} approxPrefix="" />;
 }
 
-function TileContents({ label, badge, currentPrice, minPrice, maxPrice, saleCount, lastSaleDate, isLowConfidence, history, showBuyHint }) {
+function TileContents({ label, badge, currentPrice, minPrice, maxPrice, saleCount, lastSaleDate, confidence, history, showBuyHint }) {
   return (
     <>
       <div className="flex items-center justify-between gap-1">
@@ -30,9 +30,9 @@ function TileContents({ label, badge, currentPrice, minPrice, maxPrice, saleCoun
         <span className="text-sm font-bold text-black dark:text-zinc-50">
           {hasPrice(currentPrice) ? <Money usd={currentPrice} /> : "—"}
         </span>
-        {isLowConfidence && (
-          <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400" title="Based on very few real sales - treat as a rough estimate.">
-            low confidence
+        {confidence === "limited" && (
+          <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400" title="Passed the graded-integrity checks but on a small recent sample - treat as a rough guide.">
+            limited data
           </span>
         )}
       </div>
@@ -126,7 +126,7 @@ export default function VariantPriceGrid({ raw, graded, activeKey, cardName }) {
           maxPrice={g.maxPrice}
           saleCount={g.saleCount}
           lastSaleDate={g.lastSaleDate}
-          isLowConfidence={g.isLowConfidence}
+          confidence={g.confidence}
           history={g.history}
         />
       ))}

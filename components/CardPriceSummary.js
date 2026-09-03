@@ -120,19 +120,32 @@ export default function CardPriceSummary({
                     </span>
                   </span>
                 </div>
-                {g.isLowConfidence && (
-                  // Its own line, not appended to the sale count - this flags
-                  // that the PRICE is a statistical outlier / wide-spread
-                  // estimate, which is unrelated to how many sales there were.
+                {g.confidence === "limited" && (
+                  // Passed the integrity gate but on a small recent sample -
+                  // real, just thin. Not the same as "outlier".
                   <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-500">
-                    Price outlier — treat with caution
+                    Limited recent sales — treat as a rough guide
                   </p>
                 )}
               </li>
             ))}
           </ul>
+          {analysis?.gradedSuppressedCount > 0 && (
+            <p className="mt-1.5 text-xs text-zinc-400">
+              Other graded tiers didn&apos;t have enough reliable recent sales for this exact printing to show a price.
+            </p>
+          )}
           <p className="mt-1.5 text-xs text-zinc-400">
-            Every graded and raw tier with its own price history is further down.
+            Every shown graded tier has its own price history further down.
+          </p>
+        </div>
+      )}
+
+      {graded.length === 0 && analysis?.gradedSuppressedCount > 0 && (
+        <div className="mt-5">
+          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Graded</p>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            No graded tier has enough reliable recent sales for this exact printing to show a price.
           </p>
         </div>
       )}

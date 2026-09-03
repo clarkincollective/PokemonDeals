@@ -303,6 +303,68 @@ ships.
   chase card.
 - **No user-facing page.** Pure collection.
 
+## Phase 12B — graded price integrity & confidence — 2026-09-03
+
+**Audit** (179 cards, 1,823 graded tiers, live PPT `includeEbay`): provider
+graded data is **not public-display quality by default** — 79% of tiers
+provider-flagged low-confidence, **median 2 sales/tier**, 39% single-sale,
+**44% priced BELOW raw NM** (incl. 109 PSA/BGS/CGC 9-10 tiers, impossible
+for one printing), order-of-magnitude blends on shared-identity cards
+(Fossil Shellder "PSA 10 $152" on 39 sales for a $0.45 raw card). PPT's
+per-grade eBay buckets are keyed on **name + collector number only** — no
+printing/edition/language field.
+
+**`lib/gradedConfidence.js` (NEW) — `gradedTierConfidence(tier, ctx)`**
+→ `{ level: "high" | "limited" | "low", reasons }`. Deterministic,
+server-side, currency-invariant (ratios + counts). Never fabricates,
+interpolates, forces a ladder, or invents a value — it only decides
+show / show-with-a-note / suppress. A tier is **`low` (suppressed)** if
+any of: unrecognized grader (only PSA/BGS/CGC/SGC kept); the set/name is a
+**shared-printing identity** (11 WOTC dual-printing sets + Base Set 2,
+Legendary Collection, Evolutions, Celebrations, promo/prerelease/staff/
+winner name-reuse) — provider can't resolve the printing → fail closed;
+`< 3` real sales; provider low-confidence; last sale `> 365d`; internal
+low→high spread `> 8×`; a **9/9.5/10 tier priced below raw NM**; or an
+**extreme price (`> 40× raw`) on a thin sample (`≤ 5`) with no sibling
+tier within 3×**. Passes all → `high` (`≥ 8` sales) or `limited` (3-7).
+**Magnitude alone never suppresses** (§16): a 30× PSA 10 with 36 real
+sales on a clean printing is kept (Radiant Collection Charizard).
+
+**Wiring:**
+- `getFullPriceAnalysis` — after `coherentGradedTiers`, scores each tier
+  and drops `level:"low"`; returns `gradedSuppressedCount`. Survivors
+  carry `confidence` + `confidenceReasons`.
+- `getGradedPrice` (scanner reference for graded deals) — same gate;
+  **returns `null` for a `low` bucket** → the scanner doesn't publish
+  that deal. A PSA 9 listing is still priced against the `psa9` bucket
+  only (`gradeKey(grader, grade)` — unchanged), never PSA 10 / a
+  different grader.
+- `CardPriceSummary` — "Limited recent sales" note on `limited` tiers;
+  "Other graded tiers didn't have enough reliable recent sales for this
+  exact printing to show a price" when `gradedSuppressedCount > 0`;
+  "No graded tier has enough reliable recent sales…" when all suppressed.
+- `VariantPriceGrid` — `limited` tiles show "limited data".
+
+**Untouched:** raw NM price, Phase 11B history, Phase 11C trend/anomaly
+logic, condition ladders, deal-detection, currency (Phase 12A), Product
+JSON-LD (`offers` = live listings only, never a graded price), routes,
+sitemap.
+
+**Second source:** **not needed for classification** — weak/incoherent
+data can be identified internally. A second provider would improve
+*coverage* (actually pricing the hidden shared-identity printings), not
+the trust decision. Optional narrowly-scoped 12B.1 provider-QA experiment
+recommended; **no purchase**.
+
+**Data-quality baseline** (for future regression monitoring): of graded
+cards, ~44% keep ≥1 tier; ~12% of raw provider tiers pass. Suppression
+reasons (audit sample): provider-low 1438, insufficient-sales 979,
+printing-identity 584, unrecognized-grader 229, 9-10-below-raw 141,
+wide-spread 52, extreme-outlier 12, stale 4.
+
+**Tests:** `tests/scanner/graded-confidence.test.mjs` (21). `test:scanner`
+531 + `test:seo` 331 green; `npm run build` clean.
+
 ## Phase 12A — currency & financial-display integrity — 2026-09-03
 
 Audit + hardening of every monetary comparison. **The Phase 6A
