@@ -191,8 +191,11 @@ test("11. search results route into permanent /cards/[slug] pages", () => {
 test("12. the exact-card page keeps the market reference above the deal/listings context", () => {
   const src = read("app/cards/[slug]/page.js");
   const iSummary = src.indexOf("<CardPriceSummary");
-  const iListings = src.indexOf('id="listings"');
-  assert.ok(iSummary > 0 && iListings > 0 && iSummary < iListings, "CardPriceSummary must render before the listings grid");
+  // 13B.4.2: the live-listings area (with the id="listings" anchor + the
+  // structured deal filters) is now the <CardDealFilters> client
+  // component; the market-reference summary must still render before it.
+  const iListings = src.indexOf("<CardDealFilters");
+  assert.ok(iSummary > 0 && iListings > 0 && iSummary < iListings, "CardPriceSummary must render before the listings area");
 });
 
 test("13. affiliate links keep rel=\"sponsored\"", () => {

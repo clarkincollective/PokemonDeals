@@ -895,6 +895,19 @@ function speciesDealsHref(interpreted, resolution) {
   return qs ? `/pokemon/${slug}?${qs}` : `/pokemon/${slug}`;
 }
 
+// 13B.4.2 - the exact-card destination carries the collector's CURRENT
+// normalised structured filters (never the raw query text), so
+// Search -> exact card -> filtered listings is one continuous refine.
+function exactCardHref(exact, resolution) {
+  const base = `/cards/${exact.card_slug}`;
+  const src = resolution?.filter_query ?? null;
+  if (!src) return base;
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(src)) if (v != null && v !== "") p.set(k, String(v));
+  const qs = p.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
 // A compact, truthful summary of how the query was parsed and resolved,
 // plus exact-card destination + zero-result relaxation.
 function SearchInterpretation({ interpreted, resolution, exact, dealCount, onRelax }) {
@@ -985,7 +998,7 @@ function SearchInterpretation({ interpreted, resolution, exact, dealCount, onRel
             </p>
           </div>
           <Link
-            href={`/cards/${exact.card_slug}`}
+            href={exactCardHref(exact, resolution)}
             className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
           >
             Price &amp; value →

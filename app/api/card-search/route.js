@@ -447,6 +447,11 @@ async function cardSearch(url) {
         effective_filters: merged.activeFilters,
         filter_notes: merged.notes,
         filters_from_url: merged.filtersFromUrl,
+        // The normalised structured filters as a plain query object, for
+        // building the shareable /pokemon/[slug] and /cards/[slug] links
+        // that carry the collector's current refine state (never raw
+        // query text). `pokemon_link_query` kept for the 13B.4.1 client.
+        filter_query: searchFiltersToQuery(merged.activeFilters),
         pokemon_link_query: intent.subject.species
           ? searchFiltersToQuery(merged.activeFilters)
           : null,

@@ -1,9 +1,11 @@
 import {
   fetchDealsPage,
   fetchSpeciesDealsPage,
+  fetchCardDealsPage,
   fetchSets,
   resolveSetSlug,
   resolveSpeciesSlug,
+  resolveCardSlug,
 } from "@/lib/deals";
 import { DEAL_CATEGORIES, isModernSet } from "@/lib/dealCategories";
 
@@ -54,6 +56,25 @@ export async function GET(request) {
         speciesName: resolved.name,
         language: "english",
         ...filters,
+        ...gradedFilters,
+      });
+      return Response.json(r);
+    }
+    // 13B.4.2 - the FILTERED live-listing view for one exact /cards/[slug].
+    // Scoped to the canonical card identity; provider-free; same
+    // graded/grader/grade/price/listing contract as species.
+    if (kind === "card") {
+      const resolved = await resolveCardSlug(slug);
+      if (!resolved) return Response.json({ deals: [], error: "not found" }, { status: 404 });
+      const r = await fetchCardDealsPage({
+        watchlistId: resolved.id,
+        tcgplayerId: resolved.tcgplayerId,
+        country: filters.country,
+        cardType: filters.cardType,
+        listingType: filters.listingType,
+        maxPrice: filters.maxPrice,
+        minPrice: filters.minPrice,
+        sort: u.searchParams.get("sort") || "price_asc",
         ...gradedFilters,
       });
       return Response.json(r);

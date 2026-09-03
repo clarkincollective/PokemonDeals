@@ -12,9 +12,8 @@ import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES } from "@/lib/ebay";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import SiteHeader from "@/components/SiteHeader";
-import DealCard from "@/components/DealCard";
+import CardDealFilters from "@/components/CardDealFilters";
 import { currencyForDeal } from "@/lib/money";
-import Price from "@/components/Price";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import RecentSales from "@/components/RecentSales";
@@ -448,18 +447,17 @@ export default async function CardHubPage({ params }) {
           offersCount={offers.length}
         />
 
-        {offers.length > 0 && (
-          <div id="listings" className="mt-6 scroll-mt-24">
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-              {offers.length > FEATURED_OFFER_COUNT ? `Best ${FEATURED_OFFER_COUNT} Prices` : "Active Listings"}
-            </h2>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {offers.slice(0, FEATURED_OFFER_COUNT).map((deal, i) => (
-                <DealCard key={deal.id} deal={deal} rank={i + 1} pageName="card_hub" validSetSlugs={validSetSlugs} from={`/cards/${slug}`} />
-              ))}
-            </div>
-          </div>
-        )}
+        {/* 13B.4.2 - the live-listings area. Structured deal filters
+            (type / grader / grade / price / listing / country / sort) are
+            client-driven off the URL; the card identity above is never
+            affected. Provider-free (Supabase). */}
+        <CardDealFilters
+          slug={slug}
+          initial={allOffers}
+          validSetSlugs={validSetSlugs}
+          featuredCount={FEATURED_OFFER_COUNT}
+          totalActive={allOffers.length}
+        />
 
         {chartPoints.length >= 2 && (
           <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
@@ -500,59 +498,6 @@ export default async function CardHubPage({ params }) {
 
         {error && (
           <p className="mt-6 rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load listings: {error}</p>
-        )}
-
-        {!error && allOffers.length === 0 && (
-          <p className="mt-6 text-zinc-500">No active listings right now - check back after the next scheduled scan.</p>
-        )}
-
-        {offers.length > FEATURED_OFFER_COUNT && (
-        <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
-          <h2 className="text-sm font-semibold text-black dark:text-zinc-50">All {offers.length} active listings</h2>
-          <p className="text-xs text-zinc-400">Every real, currently active eBay listing for this exact card - cheapest first.</p>
-
-          <ul className="mt-4 divide-y divide-zinc-100 dark:divide-zinc-900">
-            {offers.map((deal) => {
-              const marketInfo = MARKETPLACES[deal.marketplace];
-              return (
-                <li key={deal.id} className="flex items-center justify-between gap-4 py-3">
-                  <div className="min-w-0 flex-1">
-                    <Link href={`/deals/${deal.id}`} className="line-clamp-1 block text-sm text-zinc-700 hover:underline dark:text-zinc-300">
-                      {deal.title}
-                    </Link>
-                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-400">
-                      {marketInfo && <span title={marketInfo.label}>{marketInfo.flag}</span>}
-                      {deal.is_graded ? (
-                        <span>
-                          {deal.grader} {deal.grade}
-                        </span>
-                      ) : (
-                        deal.condition && <span>{deal.condition}</span>
-                      )}
-                      <span>{deal.listing_type === "AUCTION" ? "Auction" : "Buy It Now"}</span>
-                      {deal.seller_feedback_pct != null && <span>{Number(deal.seller_feedback_pct).toFixed(1)}% feedback</span>}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <Price
-                      usd={deal.total_price_usd ?? deal.total_price}
-                      native={{ amount: Number(deal.total_price), currency: currencyForDeal(deal) }}
-                      className="font-semibold text-black dark:text-zinc-50"
-                    />
-                    <AffiliateLink
-                      href={deal.affiliate_url}
-                      eventName="eBay Click"
-                      eventData={{ card: hub.name, page: "card_hub" }}
-                      className="rounded-lg bg-black px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-                    >
-                      View →
-                    </AffiliateLink>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
         )}
 
         <RelatedCards
