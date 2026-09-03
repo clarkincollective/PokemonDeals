@@ -523,11 +523,31 @@ function ResultTile({ c, rank, ccyApprox, inDisplayCcy }) {
 
 // ---------------------------------------------------------- 13B.2 UI
 
+// 13B.3 - turn the parsed structural modifiers into a /pokemon/[slug]
+// query string, so "View all matching <species> deals" carries the
+// collector's graded / grader / grade / price / listing intent forward.
+// Structural values only - never the raw query text.
+function speciesDealsHref(i) {
+  if (!i?.species_slug) return null;
+  const p = new URLSearchParams();
+  if (i.format === "graded") p.set("type", "graded");
+  else if (i.format === "raw") p.set("type", "raw");
+  if (i.grader) p.set("grader", i.grader);
+  if (i.grade != null) p.set("grade", String(i.grade));
+  if (i.listing_type === "AUCTION") p.set("listing", "AUCTION");
+  else if (i.listing_type === "BIN") p.set("listing", "BIN");
+  if (i.price_max != null) p.set("maxPrice", String(i.price_max));
+  if (i.price_min != null) p.set("minPrice", String(i.price_min));
+  const qs = p.toString();
+  return qs ? `/pokemon/${i.species_slug}?${qs}` : `/pokemon/${i.species_slug}`;
+}
+
 // A compact, truthful summary of how the query was parsed and resolved.
 // No filter/faceting UI yet (that is 13B.4) - this only communicates
 // interpretation + an exact-card destination when one exists.
 function SearchInterpretation({ interpreted, resolution, exact, dealCount }) {
   const i = interpreted ?? {};
+  const speciesHref = !exact ? speciesDealsHref(i) : null;
   const chips = [];
   if (i.species) chips.push(i.species);
   else if (i.card_name) chips.push(i.card_name);
@@ -610,6 +630,18 @@ function SearchInterpretation({ interpreted, resolution, exact, dealCount }) {
             className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
           >
             Price &amp; value →
+          </Link>
+        </div>
+      )}
+
+      {speciesHref && i.species && (
+        <div className="mt-3">
+          <Link
+            href={speciesHref}
+            rel="nofollow"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+          >
+            View all matching {i.species} deals →
           </Link>
         </div>
       )}

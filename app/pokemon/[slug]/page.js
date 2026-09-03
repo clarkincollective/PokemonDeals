@@ -323,6 +323,7 @@ export default async function PokemonSpeciesPage({ params }) {
               initial={{ deals, totalPages }}
               hubCounts={hubCounts}
               defaultSort="discount"
+              subjectLabel={resolved.name}
               emptyLabel={`No ${resolved.name} deals match these filters right now. Try clearing a filter, or check back after the next scheduled scan.`}
               validSetSlugs={validSetSlugs}
             />

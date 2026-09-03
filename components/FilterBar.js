@@ -1,5 +1,6 @@
 import { MARKETPLACES } from "@/lib/ebay";
 import FilterToggle from "@/components/FilterToggle";
+import { GRADER_CHOICES, GRADE_CHOICES } from "@/lib/dealFilters";
 
 // Builds a link that changes one filter while keeping the others intact,
 // or removes it entirely if the same value is clicked again (toggle).
@@ -31,6 +32,41 @@ export function priceFilterHref(currentParams, key, value, basePath) {
     params.delete(otherKey);
   }
   params.delete("page"); // see filterHref - reset to page 1 on any filter change
+  const qs = params.toString();
+  return qs ? `${basePath}?${qs}` : basePath;
+}
+
+// 13B.3 - a grader/grade pill implies graded: it sets type=graded as well
+// as its own key, so the state can never be "PSA + raw". Toggling it off
+// leaves type=graded in place (use the Graded pill to leave graded).
+export function gradedFilterHref(currentParams, key, value, basePath) {
+  const params = new URLSearchParams(currentParams);
+  if (params.get(key) === value) params.delete(key);
+  else params.set(key, value);
+  params.set("type", "graded");
+  params.delete("page");
+  const qs = params.toString();
+  return qs ? `${basePath}?${qs}` : basePath;
+}
+
+// Toggling the Graded pill OFF must also drop grader + grade (they depend
+// on it); toggling it ON just sets type=graded.
+export function typeFilterHref(currentParams, value, basePath) {
+  const params = new URLSearchParams(currentParams);
+  if (params.get("type") === value) {
+    params.delete("type");
+    if (value === "graded") {
+      params.delete("grader");
+      params.delete("grade");
+    }
+  } else {
+    params.set("type", value);
+    if (value === "raw") {
+      params.delete("grader");
+      params.delete("grade");
+    }
+  }
+  params.delete("page");
   const qs = params.toString();
   return qs ? `${basePath}?${qs}` : basePath;
 }
@@ -129,6 +165,34 @@ export function PriceFilterRow({ params, maxPrice, minPrice, basePath = "/" }) {
   );
 }
 
+// 13B.3 - grader + grade pills, shown only when Graded is the active card
+// type (section 7: when Raw is selected these disappear). Each pill also
+// forces type=graded so the combination is always coherent.
+export function GradingFilterRow({ params, cardType, grader, grade, basePath = "/" }) {
+  const gradedActive = cardType === "graded" || grader != null || grade != null;
+  if (!gradedActive) return null;
+  return (
+    <div>
+      <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+        Grading
+      </span>
+      <ScrollRow>
+        {GRADER_CHOICES.map((g) => (
+          <FilterPill key={g} href={gradedFilterHref(params, "grader", g, basePath)} active={grader === g}>
+            {g}
+          </FilterPill>
+        ))}
+        <span className="mx-1 w-px shrink-0 self-stretch bg-zinc-200 dark:bg-zinc-800" aria-hidden="true" />
+        {GRADE_CHOICES.map((g) => (
+          <FilterPill key={g} href={gradedFilterHref(params, "grade", g, basePath)} active={String(grade) === g}>
+            {`Grade ${g}`}
+          </FilterPill>
+        ))}
+      </ScrollRow>
+    </div>
+  );
+}
+
 const SORT_OPTIONS = [
   { value: "discount", label: "Biggest discount" },
   { value: "price_asc", label: "Price: low to high" },
@@ -159,8 +223,33 @@ export function SortRow({ params, sort, basePath = "/", defaultValue }) {
   );
 }
 
-export default function FilterBar({ params, country, cardType, listingType, maxPrice, minPrice, sort, basePath = "/" }) {
-  const activeCount = [country, cardType, listingType, maxPrice, minPrice, sort].filter((v) => v != null).length;
+export default function FilterBar({
+  params,
+  country,
+  cardType,
+  grader,
+  grade,
+  showGrading = false,
+  listingType,
+  maxPrice,
+  minPrice,
+  sort,
+  basePath = "/",
+}) {
+  const activeCount = [
+    country,
+    cardType,
+    showGrading ? grader : null,
+    showGrading ? grade : null,
+    listingType,
+    maxPrice,
+    minPrice,
+    sort,
+  ].filter((v) => v != null).length;
+
+  // Older links / other grids emit ?listing=FIXED_PRICE; the Pokemon page
+  // also accepts ?listing=BIN. Treat either as the same active state.
+  const binActive = listingType === "FIXED_PRICE" || listingType === "BIN";
 
   return (
     <div className="mb-8 lg:rounded-xl lg:border lg:border-zinc-200 lg:bg-white lg:p-4 lg:shadow-card dark:lg:border-zinc-800 dark:lg:bg-zinc-950">
@@ -175,15 +264,21 @@ export default function FilterBar({ params, country, cardType, listingType, maxP
               Card &amp; listing
             </span>
             <ScrollRow>
-              <FilterPill href={filterHref(params, "type", "raw", basePath)} active={cardType === "raw"}>
+              <FilterPill
+                href={showGrading ? typeFilterHref(params, "raw", basePath) : filterHref(params, "type", "raw", basePath)}
+                active={cardType === "raw"}
+              >
                 Raw
               </FilterPill>
-              <FilterPill href={filterHref(params, "type", "graded", basePath)} active={cardType === "graded"}>
+              <FilterPill
+                href={showGrading ? typeFilterHref(params, "graded", basePath) : filterHref(params, "type", "graded", basePath)}
+                active={cardType === "graded"}
+              >
                 Graded
               </FilterPill>
               <FilterPill
-                href={filterHref(params, "listing", "FIXED_PRICE", basePath)}
-                active={listingType === "FIXED_PRICE"}
+                href={filterHref(params, "listing", showGrading ? "BIN" : "FIXED_PRICE", basePath)}
+                active={binActive}
               >
                 Buy It Now
               </FilterPill>
@@ -195,6 +290,16 @@ export default function FilterBar({ params, country, cardType, listingType, maxP
               </FilterPill>
             </ScrollRow>
           </div>
+
+          {showGrading && (
+            <GradingFilterRow
+              params={params}
+              cardType={cardType}
+              grader={grader}
+              grade={grade}
+              basePath={basePath}
+            />
+          )}
 
           <PriceFilterRow params={params} maxPrice={maxPrice} minPrice={minPrice} basePath={basePath} />
         </div>

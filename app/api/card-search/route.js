@@ -8,6 +8,7 @@ import { catalogCardSlug, catalogCardResolvable } from "@/lib/cardSlug";
 import { rerankCatalogResults } from "@/lib/searchRanking";
 import { parseSearchIntent } from "@/lib/searchIntent";
 import { resolveSearchIntent, createSupabaseLookup } from "@/lib/searchResolve";
+import { speciesSlug } from "@/lib/pokemonSpecies";
 
 // Public, read-only, on-demand - not on the cron schedule, so no
 // CRON_SECRET check. Deals come straight from our own database (never a
@@ -400,6 +401,11 @@ async function cardSearch(url) {
         collector_number: intent.subject.collector_number,
         set: intent.subject.set,
         species: intent.subject.species,
+        // 13B.3 - lets the search UI build a "View all matching <species>
+        // deals" link to /pokemon/<slug> that carries the parsed
+        // graded/grader/grade/price/listing modifiers (structural only,
+        // never the raw query text).
+        species_slug: intent.subject.species ? speciesSlug(intent.subject.species) : null,
         card_name: intent.subject.card_name,
         format: intent.format,
         grader: intent.grader,

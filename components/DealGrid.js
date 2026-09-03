@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
 import Pagination from "@/components/Pagination";
+import { AppliedFilters, FilterNotes, FilteredEmptyState } from "@/components/DealFilterChips";
+import { hasActiveDealFilters, normalizeDealFilters } from "@/lib/dealFilters";
 
 // The filterable, paginated deal grid for /sets/[slug] and
 // /pokemon/[slug]. Those pages render page 1 (no filters) server-side and
@@ -41,6 +43,9 @@ function parseSearch(search) {
   const p = {
     country: get("country"),
     cardType: get("type"),
+    // 13B.3 graded scoping (Pokemon page)
+    grader: get("grader"),
+    grade: get("grade"),
     listingType: get("listing"),
     maxPrice: num("maxPrice"),
     minPrice: num("minPrice"),
@@ -49,8 +54,20 @@ function parseSearch(search) {
     raw: sp.toString(),
     obj: Object.fromEntries(sp.entries()),
   };
-  p.isDefault =
-    p.page === 1 && !p.country && !p.cardType && !p.listingType && !p.maxPrice && !p.minPrice && !p.sort;
+  // A non-default state (must fetch a filtered slice) is: page > 1, a
+  // country or sort override, or any recognised deal filter. Malformed
+  // filter values (grade=999, maxPrice=-5, grader=INVALID) normalise away
+  // to nothing, so they correctly leave the page on its server-rendered
+  // default.
+  const dealFilterActive = hasActiveDealFilters({
+    type: sp.get("type"),
+    grader: sp.get("grader"),
+    grade: sp.get("grade"),
+    listing: sp.get("listing"),
+    minPrice: sp.get("minPrice"),
+    maxPrice: sp.get("maxPrice"),
+  });
+  p.isDefault = p.page === 1 && !p.country && !p.sort && !dealFilterActive;
   return p;
 }
 
@@ -67,10 +84,32 @@ function GridSkeleton() {
   );
 }
 
-export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}, emptyLabel, validSetSlugs = [], defaultSort = "newest" }) {
+export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}, emptyLabel, validSetSlugs = [], defaultSort = "newest", subjectLabel }) {
   const search = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const params = useMemo(() => parseSearch(search), [search]);
   const reqKey = params.raw;
+
+  // Graded scoping (grader / grade + the dependent UI) is a Pokemon-page
+  // concern only - set / category grids are unchanged.
+  const showGrading = kind === "species";
+
+  // The EFFECTIVE (normalised) filter state drives which pills read as
+  // active - so a contradictory URL like ?type=raw&grader=PSA lights the
+  // Graded pill (matching the note + chips), not Raw. hrefs still build
+  // off the raw params.obj so toggles operate on the real URL.
+  const norm = showGrading
+    ? normalizeDealFilters({
+        type: params.cardType,
+        grader: params.grader,
+        grade: params.grade,
+        listing: params.listingType,
+        minPrice: params.obj.minPrice,
+        maxPrice: params.obj.maxPrice,
+      })
+    : null;
+  const effType = norm ? (norm.type === "all" ? null : norm.type) : params.cardType;
+  const effGrader = norm ? norm.grader : params.grader;
+  const effGrade = norm ? norm.grade : params.grade;
 
   const [fetched, setFetched] = useState(null); // { key, deals, totalPages, error }
 
@@ -82,6 +121,8 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
     q.set("sort", params.sort ?? defaultSort);
     if (params.country) q.set("country", params.country);
     if (params.cardType) q.set("type", params.cardType);
+    if (showGrading && params.grader) q.set("grader", params.grader);
+    if (showGrading && params.grade) q.set("grade", params.grade);
     if (params.listingType) q.set("listing", params.listingType);
     if (params.maxPrice) q.set("maxPrice", String(params.maxPrice));
     if (params.minPrice) q.set("minPrice", String(params.minPrice));
@@ -97,7 +138,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
     return () => {
       cancelled = true;
     };
-  }, [kind, slug, reqKey, params, defaultSort]);
+  }, [kind, slug, reqKey, params, defaultSort, showGrading]);
 
   const loading = !params.isDefault && fetched?.key !== reqKey;
   const view = params.isDefault
@@ -106,13 +147,31 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
       ? { deals: [], totalPages: 1, error: null }
       : { deals: fetched.deals, totalPages: fetched.totalPages, error: fetched.error };
 
+  // "This is a filtered query" - drives the empty state (relaxation
+  // actions vs. the plain default label) and whether to show chips.
+  const filtered = hasActiveDealFilters({
+    type: params.cardType,
+    grader: params.grader,
+    grade: params.grade,
+    listing: params.listingType,
+    minPrice: params.obj.minPrice,
+    maxPrice: params.obj.maxPrice,
+  });
+
   return (
     <>
-      <div className="mb-8">
+      {/* Structural filter analytics (existing FILTER_APPLIED / SORT_CHANGED
+          / COUNTRY_CHANGED events, via the global delegation in
+          AnalyticsBootstrap) - scoped to the Pokemon page added in 13B.3;
+          set / category grids are left exactly as they were. */}
+      <div className="mb-8" {...(showGrading ? { "data-analytics-filter-bar": "" } : {})}>
         <FilterBar
           params={params.obj}
           country={params.country}
-          cardType={params.cardType}
+          cardType={showGrading ? effType : params.cardType}
+          grader={showGrading ? effGrader : undefined}
+          grade={showGrading ? effGrade : undefined}
+          showGrading={showGrading}
           listingType={params.listingType}
           maxPrice={params.maxPrice}
           minPrice={params.minPrice}
@@ -121,6 +180,15 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
         />
       </div>
 
+      {showGrading && <FilterNotes params={params.obj} />}
+      {showGrading && filtered && (
+        <AppliedFilters
+          params={params.obj}
+          basePath={basePath}
+          resultCount={loading ? undefined : view.deals.length}
+        />
+      )}
+
       {view.error && (
         <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {view.error}</p>
       )}
@@ -128,7 +196,15 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
       {loading ? (
         <GridSkeleton />
       ) : !view.error && view.deals.length === 0 ? (
-        <p className="text-zinc-500">{emptyLabel}</p>
+        showGrading && filtered ? (
+          <FilteredEmptyState
+            params={params.obj}
+            basePath={basePath}
+            subjectLabel={subjectLabel ?? "matching"}
+          />
+        ) : (
+          <p className="text-zinc-500">{emptyLabel}</p>
+        )
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {view.deals.map((deal) => (

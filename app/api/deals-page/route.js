@@ -32,6 +32,13 @@ export async function GET(request) {
     page: Math.max(1, Number(u.searchParams.get("page")) || 1),
     pageSize: 20,
   };
+  // 13B.3 - graded scoping is a Pokemon-page (kind=species) concern only.
+  // Raw values; planDealFilters (inside fetchSpeciesDealsPage) validates
+  // and resolves any contradiction.
+  const gradedFilters = {
+    grader: u.searchParams.get("grader") || null,
+    grade: u.searchParams.get("grade") || null,
+  };
 
   try {
     if (kind === "set") {
@@ -43,7 +50,12 @@ export async function GET(request) {
     if (kind === "species") {
       const resolved = await resolveSpeciesSlug(slug);
       if (!resolved) return Response.json({ deals: [], totalPages: 1, error: "not found" }, { status: 404 });
-      const r = await fetchSpeciesDealsPage({ speciesName: resolved.name, language: "english", ...filters });
+      const r = await fetchSpeciesDealsPage({
+        speciesName: resolved.name,
+        language: "english",
+        ...filters,
+        ...gradedFilters,
+      });
       return Response.json(r);
     }
     if (kind === "category") {
