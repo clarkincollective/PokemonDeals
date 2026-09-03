@@ -39,6 +39,9 @@ export default function SearchClient({ validSetSlugs = [] }) {
   const [lastQuery, setLastQuery] = useState(null);
   const [deals, setDeals] = useState(null);
   const [catalog, setCatalog] = useState(null);
+  const [interpreted, setInterpreted] = useState(null); // 13B.2: parsed modifiers
+  const [resolution, setResolution] = useState(null); // 13B.2: how the query resolved
+  const [exactMatch, setExactMatch] = useState(null); // 13B.2: the one exact card, if any
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState(null);
 
@@ -48,6 +51,13 @@ export default function SearchClient({ validSetSlugs = [] }) {
   const inputRef = useRef(null);
   const focusedRef = useRef(false);
   const startedRef = useRef(false);
+  // 13B.2 request control: abort superseded searches; only the newest
+  // request may touch results/loading/error state.
+  const abortRef = useRef(null);
+  const reqIdRef = useRef(0);
+
+  // abort any in-flight search on unmount
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   useEffect(() => {
     const trimmed = initialQuery.trim();
@@ -78,6 +88,13 @@ export default function SearchClient({ validSetSlugs = [] }) {
   }, [query]);
 
   async function loadSearch(q, page, overrides = {}) {
+    // supersede any in-flight request
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
+    const myId = ++reqIdRef.current;
+    const isCurrent = () => myId === reqIdRef.current;
+
     setLastQuery(q);
     setSearching(true);
     setSearchError(null);
@@ -98,11 +115,15 @@ export default function SearchClient({ validSetSlugs = [] }) {
     try {
       const params = new URLSearchParams({ q, page: String(page), sort: ss });
       if (sc) params.set("country", sc);
-      const res = await fetch(`/api/card-search?${params.toString()}`);
+      const res = await fetch(`/api/card-search?${params.toString()}`, { signal: ac.signal });
       const body = await res.json();
+      if (!isCurrent()) return; // a newer search has started - drop this response
       if (!res.ok) throw new Error(body.error ?? "Search failed");
       setDeals(body.deals);
       setCatalog(body.catalog);
+      setInterpreted(body.interpreted ?? null);
+      setResolution(body.resolution ?? null);
+      setExactMatch(body.exact ?? null);
 
       const elapsed = (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0;
       const catalogCount = Number(body?.catalog?.total ?? body?.catalog?.results?.length ?? 0);
@@ -114,6 +135,9 @@ export default function SearchClient({ validSetSlugs = [] }) {
         result_count_band: resultCountBand(catalogCount),
         has_deal_results: dealCount > 0,
         deal_count_band: resultCountBand(dealCount),
+        // 13B.2 structural resolution flags (no raw text)
+        resolved_subject_kind: body?.resolution?.mode === "provider_fallback" ? "none" : body?.interpreted?.subject_kind ?? "none",
+        search_resolution_mode: body?.resolution?.mode ?? "unknown",
         ...intent,
       };
       if (catalogCount === 0 && dealCount === 0) {
@@ -122,11 +146,15 @@ export default function SearchClient({ validSetSlugs = [] }) {
         capture(EVENTS.SEARCH_RESULTS_SHOWN, common);
       }
     } catch (err) {
+      if (err?.name === "AbortError" || !isCurrent()) return; // superseded - no user-facing error
       setSearchError(err.message);
       setDeals(null);
       setCatalog(null);
+      setInterpreted(null);
+      setResolution(null);
+      setExactMatch(null);
     } finally {
-      setSearching(false);
+      if (isCurrent()) setSearching(false);
     }
   }
 
@@ -287,6 +315,18 @@ export default function SearchClient({ validSetSlugs = [] }) {
             </div>
             {searching && <span className="pb-2 text-xs text-zinc-400">Updating…</span>}
           </div>
+        )}
+
+        {/* 13B.2 - what we understood + how it resolved. Truth-preserving:
+            grading/price/listing filters apply to the DEALS; the reference
+            list below is every printing, not "PSA 10 cards". */}
+        {hasResults && (interpreted || exactMatch) && (
+          <SearchInterpretation
+            interpreted={interpreted}
+            resolution={resolution}
+            exact={exactMatch}
+            dealCount={deals?.length ?? 0}
+          />
         )}
 
         {/* Below-market deals we've already found - a SECONDARY surface,
@@ -477,6 +517,97 @@ function ResultTile({ c, rank, ccyApprox, inDisplayCcy }) {
           Find on eBay →
         </AffiliateLink>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------- 13B.2 UI
+
+// A compact, truthful summary of how the query was parsed and resolved.
+// No filter/faceting UI yet (that is 13B.4) - this only communicates
+// interpretation + an exact-card destination when one exists.
+function SearchInterpretation({ interpreted, resolution, exact, dealCount }) {
+  const i = interpreted ?? {};
+  const chips = [];
+  if (i.species) chips.push(i.species);
+  else if (i.card_name) chips.push(i.card_name);
+  if (i.set) chips.push(i.set);
+  if (i.collector_number) chips.push(`#${i.collector_number}`);
+  if (i.format === "graded") chips.push("graded");
+  if (i.format === "raw") chips.push("raw");
+  if (i.grader) chips.push(i.grader);
+  if (i.grade != null) chips.push(`grade ${i.grade}`);
+  if (i.condition) chips.push(i.condition);
+  if (i.listing_type === "AUCTION") chips.push("auction");
+  if (i.listing_type === "BIN") chips.push("Buy It Now");
+  if (i.language === "japanese") chips.push("Japanese");
+  if (i.price_max != null) chips.push(`under $${i.price_max}`);
+  if (i.price_min != null) chips.push(`over $${i.price_min}`);
+
+  const notApplied = resolution?.recognized_not_applied ?? [];
+  const dealFilters = resolution?.deals_filters_applied ?? [];
+  const refOnly = resolution?.catalogue_is_reference_only;
+  const scopedButEmpty =
+    resolution?.deals_scoped && dealFilters.length > 0 && (resolution?.deals_match_count ?? dealCount) === 0;
+
+  return (
+    <div className="mb-8 rounded-xl border border-zinc-200 bg-white p-4 text-sm dark:border-zinc-800 dark:bg-zinc-950">
+      {chips.length > 0 && (
+        <p className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Understood</span>
+          {chips.map((c, k) => (
+            <span
+              key={k}
+              className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+            >
+              {c}
+            </span>
+          ))}
+        </p>
+      )}
+
+      {exact && (
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-emerald-600/30 bg-emerald-50/60 p-3 dark:bg-emerald-950/30">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+              Exact match
+            </p>
+            <p className="mt-0.5 font-semibold text-zinc-900 dark:text-zinc-50">
+              {exact.name} <span className="font-normal text-zinc-500">· {exact.set}</span>
+            </p>
+          </div>
+          <Link
+            href={`/cards/${exact.card_slug}`}
+            className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+          >
+            Price &amp; value →
+          </Link>
+        </div>
+      )}
+
+      {refOnly && dealFilters.length > 0 && !scopedButEmpty && (
+        <p className="mt-2 text-xs text-zinc-500">
+          The filters above ({dealFilters.join(" · ")}) apply to the <strong>live deals</strong> below. The
+          card reference list shows every printing.
+        </p>
+      )}
+
+      {scopedButEmpty && (
+        <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-500">
+          No live deals match {chips.join(" · ")} right now. The card reference below shows the printings; try
+          removing a filter or check back after the next scan.
+        </p>
+      )}
+
+      {notApplied.some((n) => n.surface === "catalogue" && n.modifier === "language") && (
+        <p className="mt-2 text-xs text-zinc-500">
+          Japanese card lookups aren&apos;t in this catalogue yet —{" "}
+          <Link href="/japanese-cards" className="text-red-600 hover:underline dark:text-red-500">
+            browse Japanese deals
+          </Link>
+          .
+        </p>
+      )}
     </div>
   );
 }
