@@ -308,7 +308,9 @@ test("12. quick answers are present and use real catalogue counts", () => {
   const N = esc(CAT_NAME);
   assert.match(t, new RegExp(`Common questions about ${N} cards`, "i"));
   assert.match(t, new RegExp(`How many ${N} cards are there\\?`, "i"));
-  assert.match(t, new RegExp(`We currently track \\d+ ${N} card records? across \\d+ sets?`, "i"));
+  // Phase 12C: "catalogue set(s)" - the label is scoped so it can't be
+  // confused with the count of sets that currently have live listings.
+  assert.match(t, new RegExp(`We currently track \\d+ ${N} card records? across \\d+ catalogue sets?`, "i"));
   assert.match(t, new RegExp(`How much are ${N} cards worth\\?`, "i"));
   assert.match(t, new RegExp(`There is no single ${N} card value|we can.?t give a range`, "i"));
 });

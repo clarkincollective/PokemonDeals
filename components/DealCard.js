@@ -26,7 +26,8 @@ function discountBadgeClass(pct) {
 // One deal in a grid. Answers four questions fast, with ONE action:
 //   what is it        -> image + name + set + condition
 //   is it a good deal -> tiered discount badge + price / typical / saved
-//   can I trust it    -> "N sellers" (real hub count) + recency
+//   can I trust it    -> "N listings" (real active-listing hub count - NOT
+//                        distinct sellers, which eBay's data doesn't give us) + recency
 //   what if I click   -> a single full-width "Check deal on eBay ->" CTA
 //
 // `rank` shows a number badge only on ranked lists (Top 10, "Best deals").
@@ -223,7 +224,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                     href={`/cards/${hub.slug}`}
                     className="font-semibold text-zinc-500 hover:text-red-600 hover:underline dark:text-zinc-400 dark:hover:text-red-500"
                   >
-                    {hub.count} sellers
+                    {hub.count} {hub.count === 1 ? "listing" : "listings"}
                   </Link>
                   {" · "}
                 </>

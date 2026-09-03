@@ -10,7 +10,7 @@ export const revalidate = 900;
 
 const TITLE = "Browse Pokemon Cards by Generation";
 const DESCRIPTION =
-  "Every Pokemon, grouped by generation. The ones with active below-market card deals on eBay right now link straight to their current listings across all sets and prints.";
+  "Every Pokemon, grouped by generation. Each links to that species' card prices and values across all its sets and prints, plus any current below-market eBay listings.";
 
 const GENERATION_REGIONS = {
   1: "Kanto",

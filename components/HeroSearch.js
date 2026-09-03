@@ -176,7 +176,7 @@ export default function HeroSearch({ popular = [] }) {
 
       {popular.length > 0 && (
         <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-zinc-500 dark:text-zinc-400">
-          <span className="font-medium text-zinc-400">Popular now:</span>
+          <span className="font-medium text-zinc-400">Most listed:</span>
           {popular.map((p, i) => (
             <span key={p.slug}>
               <a href={`/cards/${p.slug}`} className="hover:text-red-600 hover:underline dark:hover:text-red-500">

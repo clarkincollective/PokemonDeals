@@ -35,7 +35,7 @@ export default function SpeciesQuickAnswers({ speciesName, snapshot, setRows, ha
         <span className="font-semibold text-black dark:text-zinc-50">{cardCount}</span> {speciesName}{" "}
         card {cardCount === 1 ? "record" : "records"} across{" "}
         <span className="font-semibold text-black dark:text-zinc-50">{setCount}</span>{" "}
-        {setCount === 1 ? "set" : "sets"}. That is the catalogue of {speciesName} cards we price and
+        {setCount === 1 ? "catalogue set" : "catalogue sets"}. That is the catalogue of {speciesName} cards we price and
         monitor for deals — not necessarily every {speciesName} card ever printed.
       </p>
 

@@ -303,6 +303,55 @@ ships.
   chase card.
 - **No user-facing page.** Pure collection.
 
+## Phase 12C — public truth, claims & statistics consistency — 2026-09-03
+
+Site-wide audit of public factual claims. **Most of the site was already
+accurate** — `/methodology` and `/how-it-works` already describe the
+catalogue-backed architecture, distinguish "last seen" from "verified",
+and use "market reference" (never "average"/"median"); `/cards`, `/sets`,
+`/about`, `/market-data/most-listed-cards` copy is current. Four confirmed
+issues, all fixed with wording changes (no data/query change, no new
+helper needed):
+
+1. **"sellers" over-claim** (eBay data gives no unique-seller id) — the
+   card-hub active-**listing** count was labelled "sellers" in 3 places:
+   `DealCard` footer badge (site-wide), the homepage "Most sellers
+   competing" section title, and its card badge. → all now
+   "N listing(s)" / "Cards with the most active listings".
+2. **"Popular now:"** in `HeroSearch` — the list is the top card hubs by
+   current active-listing count, not a behavioural popularity signal. →
+   "**Most listed:**".
+3. **Homepage browse tiles** still described `/sets` and `/pokemon` as
+   deal-only ("Every set with an active below-market deal…"). → now
+   "Set checklists with market-reference prices…" / "Card prices and
+   values for a species…".
+4. **`/pokemon/[slug]` set count** — the header said "*N cards · N sets*"
+   pairing the **catalogue** card count with the **deal-bearing** set
+   count (`resolved.setCount`), so "79 cards · 13 sets" contradicted the
+   quick-answers "79 records across 51 sets". → header + quick-answers
+   both now use `priceSnapshot.setCount` (catalogue) and label it
+   "**catalogue set(s)**"; the live-listing count stays its own clause
+   (`resolved.count`).
+
+Also: `/pokemon` index metadata reworded to mention prices/values, not
+just deals.
+
+**Not changed** (audited, correct): methodology publication rules,
+freshness terminology, market-reference language, set-page counts,
+authenticity language (no "guaranteed authentic" anywhere), structured
+data (Product/Offer = live listings only; no seller count; no graded
+price), `most-listed-cards` (already disclaims "not distinct sellers").
+
+**Terminology contract** (documented in the report + enforced by tests):
+`card` = `card_catalog` row; `listing` = active `deals` row; **never**
+infer `seller` count from listing count; `catalogue set` vs `set with
+live deals` are distinct and separately labelled; `market reference` =
+one provider recent-sold estimate (not an average/median we compute).
+
+**Tests:** `tests/scanner/claims-consistency.test.mjs` (12) — source-level
+guards against every regression above + no-new-route. `test:scanner` 544
++ `test:seo` 331 green; `npm run build` clean.
+
 ## Phase 12B — graded price integrity & confidence — 2026-09-03
 
 **Audit** (179 cards, 1,823 graded tiers, live PPT `includeEbay`): provider

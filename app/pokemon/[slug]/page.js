@@ -175,9 +175,9 @@ export default async function PokemonSpeciesPage({ params }) {
       cardHubsWarm,
     ]);
 
-  // The "N sellers" line on each DealCard - derived from `prints` (which
-  // already carries per-print hub slug + active count for this species)
-  // rather than a separate full card-hubs scan.
+  // The "N listings" line on each DealCard - derived from `prints` (which
+  // already carries per-print hub slug + active listing count for this
+  // species) rather than a separate full card-hubs scan.
   const hubCounts = Object.fromEntries(
     prints
       .filter((p) => p.hubSlug && p.count >= 2)
@@ -276,16 +276,20 @@ export default async function PokemonSpeciesPage({ params }) {
             {resolved.name} Card Prices &amp; Values
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
-            Every {resolved.name} card we track across {resolved.setCount}{" "}
-            {resolved.setCount === 1 ? "set" : "sets"}, with real recent-sold market references. Compare
-            prices and values, see the most valuable {resolved.name} cards, and check the qualifying
-            below-market eBay deals identified below.
+            Every {resolved.name} card we track across {priceSnapshot.setCount}{" "}
+            {priceSnapshot.setCount === 1 ? "catalogue set" : "catalogue sets"}, with real recent-sold
+            market references. Compare prices and values, see the most valuable {resolved.name} cards,
+            and check the qualifying below-market eBay deals identified below.
           </p>
           <SpeciesFactStrip speciesName={resolved.name} />
+          {/* Two distinct populations, labelled as such: the CATALOGUE
+              (every card we track, and the sets it spans) and, separately,
+              the count of LIVE below-market listings right now. Never one
+              "N sets" number standing for both. */}
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5">
             <p className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">
-              {allCards.length} cards · {resolved.setCount}{" "}
-              {resolved.setCount === 1 ? "set" : "sets"}
+              {allCards.length} cards · {priceSnapshot.setCount}{" "}
+              {priceSnapshot.setCount === 1 ? "catalogue set" : "catalogue sets"}
               {deals.length > 0 ? ` · ${resolved.count} live listing${resolved.count === 1 ? "" : "s"}` : ""}
             </p>
             <ShoppingContext />

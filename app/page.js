@@ -363,13 +363,13 @@ export default async function Home({ searchParams }) {
         </section>
       )}
 
-      {/* MOST SELLERS COMPETING */}
+      {/* MOST ACTIVE LISTINGS (by count of active listing rows - not distinct sellers) */}
       {showPromo && topHubs.length > 0 && (
         <section className="border-b border-zinc-200 bg-sunk dark:border-zinc-800">
           <div className="mx-auto max-w-7xl px-6 py-10">
             <SectionHeader
               kicker="Compare prices"
-              title="Most sellers competing"
+              title="Cards with the most active listings"
               actionLabel="Compare all"
               actionHref="/market-data/most-listed-cards"
             />
@@ -393,7 +393,7 @@ export default async function Home({ searchParams }) {
                       <CardImagePlaceholder />
                     )}
                     <span className="absolute right-1.5 top-1.5 rounded-md bg-zinc-900/85 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                      {hub.count} sellers
+                      {hub.count} {hub.count === 1 ? "listing" : "listings"}
                     </span>
                   </div>
                   <div className="p-2.5">
@@ -422,8 +422,8 @@ export default async function Home({ searchParams }) {
             <div className="mt-5 grid gap-5 sm:grid-cols-3">
               {[
                 { href: "/cards", title: "Card database", copy: "Every card we track, with a permanent page and real market-reference prices." },
-                { href: "/sets", title: "Browse by set", copy: "Every set with an active below-market deal, one set at a time." },
-                { href: "/pokemon", title: "Browse by Pokemon", copy: "Every deal for a species, across all its prints and sets." },
+                { href: "/sets", title: "Browse by set", copy: "Set checklists with market-reference prices and the set's most valuable cards — plus any current below-market deals." },
+                { href: "/pokemon", title: "Browse by Pokemon", copy: "Card prices and values for a species across all its prints and sets — plus any current below-market deals." },
               ].map((t) => (
                 <Link
                   key={t.href}
