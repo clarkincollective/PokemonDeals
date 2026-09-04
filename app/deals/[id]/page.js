@@ -693,6 +693,9 @@ export default async function DealDetailPage({ params }) {
 
         <ListingChecks className="mt-8" />
       </div>
+      {/* 13B.7.1 - reserve space so the fixed mobile CTA never covers the
+          footer links / affiliate disclosure at the page bottom. */}
+      <div className="h-16 lg:hidden" aria-hidden="true" />
       <SiteFooter note="Card-to-listing matching is automated and not perfect - always double-check a listing's photos and description before buying." />
 
       <StickyDealCta

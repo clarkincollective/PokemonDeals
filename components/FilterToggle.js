@@ -27,7 +27,10 @@ export default function FilterToggle({ defaultOpen, activeCount = 0, children })
           })
         }
         aria-expanded={open}
-        className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-700 lg:hidden dark:text-zinc-400 dark:hover:text-zinc-200"
+        // 13B.7.1 - real tap target (>= WCAG 2.5.8's 24px; ~44px here) for
+        // the primary mobile way into the filters. -my-1.5 keeps the
+        // visual position where it was.
+        className="-my-1.5 flex min-h-[44px] items-center gap-1.5 py-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-700 lg:hidden dark:text-zinc-400 dark:hover:text-zinc-200"
       >
         Filters
         {!open && activeCount > 0 && (

@@ -278,7 +278,7 @@ export default function CardDealFilters({
                   id="cd-country"
                   value={country}
                   onChange={(e) => applyFacets({ country: e.target.value || null }, { action: e.target.value ? "apply" : "remove" })}
-                  className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                  className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                 >
                   <option value="">Any</option>
                   {Object.entries(MARKETPLACES).map(([id, info]) => (
@@ -296,7 +296,7 @@ export default function CardDealFilters({
                   id="cd-sort"
                   value={sort}
                   onChange={(e) => applyFacets({ sort: e.target.value === "price_asc" ? null : e.target.value }, { action: "apply" })}
-                  className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                  className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                 >
                   <option value="price_asc">Price: low to high</option>
                   <option value="price_desc">Price: high to low</option>
@@ -326,7 +326,7 @@ export default function CardDealFilters({
                   aria-label="Grader"
                   value={effective.grader ?? ""}
                   onChange={(e) => applyFacets({ grader: e.target.value || null }, { action: e.target.value ? "apply" : "remove" })}
-                  className="shrink-0 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
+                  className="shrink-0 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-base font-medium sm:text-xs dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
                 >
                   <option value="">Any grader</option>
                   {GRADER_CHOICES.map((g) => (
@@ -339,7 +339,7 @@ export default function CardDealFilters({
                   aria-label="Grade"
                   value={effective.grade ?? ""}
                   onChange={(e) => applyFacets({ grade: e.target.value || null }, { action: e.target.value ? "apply" : "remove" })}
-                  className="shrink-0 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
+                  className="shrink-0 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-base font-medium sm:text-xs dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
                 >
                   <option value="">Any grade</option>
                   {GRADE_CHOICES.map((g) => (

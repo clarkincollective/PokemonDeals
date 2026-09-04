@@ -485,7 +485,9 @@ export default function SearchClient({
               placeholder="e.g. Charizard 4/102"
               autoComplete="off"
               enterKeyHint="search"
-              className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              // 13B.7.1 - >=16px on mobile so iOS Safari doesn't auto-zoom
+              // the viewport on focus (matches the homepage HeroSearch).
+              className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-base outline-none focus:border-red-500 sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
             />
             <button
               type="submit"
@@ -807,7 +809,7 @@ function SearchFilters({
                 id="pc-country"
                 value={country}
                 onChange={(e) => onFacet({ country: e.target.value || null }, { action: e.target.value ? "apply" : "remove" })}
-                className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               >
                 <option value="">Any</option>
                 {Object.entries(MARKETPLACES).map(([id, info]) => (
@@ -825,7 +827,7 @@ function SearchFilters({
                 id="pc-sort"
                 value={sort}
                 onChange={(e) => onFacet({ sort: e.target.value === "discount" ? null : e.target.value }, { action: "apply" })}
-                className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               >
                 <option value="discount">Best discount</option>
                 <option value="price_asc">Price: low to high</option>
@@ -853,7 +855,7 @@ function SearchFilters({
                 aria-label="Grader"
                 value={effective.grader ?? ""}
                 onChange={(e) => onFacet({ grader: e.target.value || null }, { action: e.target.value ? "apply" : "remove" })}
-                className="shrink-0 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
+                className="shrink-0 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-base font-medium sm:text-xs dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
               >
                 <option value="">Any grader</option>
                 {GRADER_CHOICES.map((g) => (
@@ -866,7 +868,7 @@ function SearchFilters({
                 aria-label="Grade"
                 value={effective.grade ?? ""}
                 onChange={(e) => onFacet({ grade: e.target.value || null }, { action: e.target.value ? "apply" : "remove" })}
-                className="shrink-0 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
+                className="shrink-0 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-base font-medium sm:text-xs dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
               >
                 <option value="">Any grade</option>
                 {GRADE_CHOICES.map((g) => (

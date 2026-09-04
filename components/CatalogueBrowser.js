@@ -323,14 +323,14 @@ export default function CatalogueBrowser({ speciesName, label, items, variant = 
             onChange={(e) => setQ(e.target.value)}
             placeholder={`Search ${name} cards — name, number, rarity…`}
             aria-label={`Search ${name} cards`}
-            className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
           />
           {!isSet && (
             <select
               value={setFilter}
               onChange={(e) => setSetFilter(e.target.value)}
               aria-label="Filter by set"
-              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+              className="rounded-lg border border-zinc-300 px-3 py-2 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
             >
               <option value="">All sets</option>
               {setOptions.map((s) => (
@@ -344,7 +344,7 @@ export default function CatalogueBrowser({ speciesName, label, items, variant = 
             value={rarityFilter}
             onChange={(e) => setRarityFilter(e.target.value)}
             aria-label="Filter by rarity"
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            className="rounded-lg border border-zinc-300 px-3 py-2 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
           >
             <option value="">All rarities</option>
             {rarityOptions.map((r) => (
@@ -357,7 +357,7 @@ export default function CatalogueBrowser({ speciesName, label, items, variant = 
             value={sort}
             onChange={(e) => setSort(e.target.value)}
             aria-label="Sort cards"
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            className="rounded-lg border border-zinc-300 px-3 py-2 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
           >
             {Object.entries(SORTS).map(([k, v]) => (
               <option key={k} value={k}>
