@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { computeAggregates } from "@/lib/catalogAggregates";
+import { buildSetVocabularyFromRows, buildCatalogSetsFromRows } from "@/lib/setCatalogAggregates";
 
 // Recomputes the per-catalogue aggregates (sets / card hubs / species
 // hubs) and stores them in catalog_snapshot, so the read path in
@@ -59,12 +60,54 @@ export async function GET() {
     return Response.json({ ok: false, stage: "upsert", error: upsertError.message }, { status: 200 });
   }
 
+  // 13B.6.3 - one card_catalog scan -> the deterministic set structures
+  // the /search cold path used to rebuild per cold cache (a ~24-request
+  // full scan x2). Independent of the deal snapshots above: a failure
+  // here leaves them intact and the read path falls back to the live
+  // scan.
+  let setVocabulary = [];
+  let catalogSets = [];
+  let catalogRows = 0;
+  let setSnapshotError = null;
+  try {
+    const cat = [];
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await db
+        .from("card_catalog")
+        .select("set, set_id, name, tcgplayer_id, market_price, image_url")
+        .eq("language", "english")
+        .not("set", "is", null)
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) throw new Error(error.message);
+      if (!data || data.length === 0) break;
+      cat.push(...data);
+      if (data.length < PAGE_SIZE) break;
+    }
+    catalogRows = cat.length;
+    setVocabulary = buildSetVocabularyFromRows(cat);
+    catalogSets = buildCatalogSetsFromRows(cat.filter((r) => r.market_price != null && r.market_price > 0 && r.image_url));
+    const { error: setUpsertError } = await db.from("catalog_snapshot").upsert(
+      [
+        { kind: "setVocabulary", data: setVocabulary, updated_at },
+        { kind: "catalogSets", data: catalogSets, updated_at },
+      ],
+      { onConflict: "kind" }
+    );
+    if (setUpsertError) throw new Error(setUpsertError.message);
+  } catch (err) {
+    setSnapshotError = err.message;
+  }
+
   return Response.json({
     ok: true,
     scannedRows: rows.length,
     sets: sets.length,
     cardHubs: cardHubs.length,
     speciesHubs: speciesHubs.length,
+    catalogRows,
+    setVocabulary: setVocabulary.length,
+    catalogSets: catalogSets.length,
+    setSnapshotError,
     ms: Date.now() - started,
   });
 }

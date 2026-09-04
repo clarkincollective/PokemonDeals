@@ -67,10 +67,14 @@ export default async function SearchPage({ searchParams }) {
   const sort = typeof first(sp.sort) === "string" ? first(sp.sort) : null;
   const filters = readSearchFilters(sp);
 
+  // 13B.6.3 - one fetchSetSlugs pass shared by the SearchClient prop AND
+  // the engine's set-link resolution (passed as a promise so the two run
+  // in parallel).
+  const validSetSlugsPromise = fetchSetSlugs("english");
   const [validSetSlugs, searchResult] = await Promise.all([
-    fetchSetSlugs("english"),
+    validSetSlugsPromise,
     q.length >= 2
-      ? runCardSearch({ q, page: 1, country, sort, filters }).catch(() => null)
+      ? runCardSearch({ q, page: 1, country, sort, filters, validSetSlugs: validSetSlugsPromise }).catch(() => null)
       : Promise.resolve(null),
   ]);
 
