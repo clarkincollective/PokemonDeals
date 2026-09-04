@@ -26,6 +26,7 @@ import {
   GRADER_CHOICES,
   GRADE_CHOICES,
 } from "@/lib/dealFilters";
+import { speciesDealsHref, exactCardHref, setDealsHref, intersectionCopy } from "@/lib/searchNav";
 
 // SEO Phase 3 - the Pokemon Card Price Checker front door.
 //
@@ -461,7 +462,14 @@ export default function SearchClient({ validSetSlugs = [] }) {
             resolution={resolution}
             exact={exactMatch}
             dealCount={deals?.length ?? 0}
+            catalogCount={catalog?.total ?? catalog?.results?.length ?? 0}
             onRelax={(drop) => applyFacets(Object.fromEntries(drop.map((k) => [k, null])), { action: "remove" })}
+            onSearchWithoutSet={(species) => {
+              setQuery(species);
+              const p = new URLSearchParams(window.location.search);
+              p.set("q", species);
+              navigate(p);
+            }}
           />
         )}
 
@@ -501,16 +509,28 @@ export default function SearchClient({ validSetSlugs = [] }) {
               Card price reference
               {catalog.total != null && ` (${catalog.total.toLocaleString()} matching)`}
             </h2>
-            <p className="mt-1 text-xs text-zinc-400" aria-live="polite">
-              Every printing that matches the subject — filters above refine the <strong>live deals</strong>,
-              not this reference list.
-            </p>
+            {!noCatalogHits && (
+              <p className="mt-1 text-xs text-zinc-400" aria-live="polite">
+                {resolution?.mode === "species_set" && interpreted?.species && interpreted?.set
+                  ? `Every ${interpreted.species} printing in ${interpreted.set}. `
+                  : "Every printing that matches the subject — "}
+                filters above refine the <strong>live deals</strong>, not this reference list.
+              </p>
+            )}
 
             {noCatalogHits ? (
-              <p className="mt-3 max-w-lg text-sm text-zinc-500">
-                No exact card found for &ldquo;{urlQ}&rdquo;. Try the Pokemon name, the set name,
-                or the collector number (for example <span className="font-medium">4/102</span>).
-              </p>
+              resolution?.mode === "species_set_no_match" && interpreted?.species && interpreted?.set ? (
+                <p className="mt-3 max-w-lg text-sm text-zinc-500">
+                  No <span className="font-medium">{interpreted.species}</span> card appears in{" "}
+                  <span className="font-medium">{interpreted.set}</span> in our catalogue — see the
+                  options above to widen the search.
+                </p>
+              ) : (
+                <p className="mt-3 max-w-lg text-sm text-zinc-500">
+                  No exact card found for &ldquo;{urlQ}&rdquo;. Try the Pokemon name, the set name,
+                  or the collector number (for example <span className="font-medium">4/102</span>).
+                </p>
+              )
             ) : (
               <>
                 <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
@@ -869,65 +889,21 @@ function ResultTile({ c, rank, ccyApprox, inDisplayCcy }) {
 
 // ---------------------------------------------------------- 13B.2 / 13B.3 UI
 
-// Build the /pokemon/[slug] link that carries the CURRENT normalized
-// structured intent (never the raw query text). Prefers the API's
-// authoritative `pokemon_link_query`; falls back to the interpreted
-// modifiers for older responses.
-function speciesDealsHref(interpreted, resolution) {
-  const slug = interpreted?.species_slug;
-  if (!slug) return null;
-  const src = resolution?.pokemon_link_query ?? null;
-  const p = new URLSearchParams();
-  if (src) {
-    for (const [k, v] of Object.entries(src)) if (v != null && v !== "") p.set(k, String(v));
-  } else {
-    const i = interpreted;
-    if (i.format === "graded") p.set("type", "graded");
-    else if (i.format === "raw") p.set("type", "raw");
-    if (i.grader) p.set("grader", i.grader);
-    if (i.grade != null) p.set("grade", String(i.grade));
-    if (i.listing_type === "AUCTION") p.set("listing", "AUCTION");
-    else if (i.listing_type === "BIN") p.set("listing", "BIN");
-    if (i.price_max != null) p.set("maxPrice", String(i.price_max));
-    if (i.price_min != null) p.set("minPrice", String(i.price_min));
-  }
-  const qs = p.toString();
-  return qs ? `/pokemon/${slug}?${qs}` : `/pokemon/${slug}`;
-}
-
-// 13B.4.2 - the exact-card destination carries the collector's CURRENT
-// normalised structured filters (never the raw query text), so
-// Search -> exact card -> filtered listings is one continuous refine.
-function exactCardHref(exact, resolution) {
-  const base = `/cards/${exact.card_slug}`;
-  const src = resolution?.filter_query ?? null;
-  if (!src) return base;
-  const p = new URLSearchParams();
-  for (const [k, v] of Object.entries(src)) if (v != null && v !== "") p.set(k, String(v));
-  const qs = p.toString();
-  return qs ? `${base}?${qs}` : base;
-}
-
-// 13B.4.3 - "Browse <set> deals" carries the same normalised filters to
-// the permanent /sets/<slug> page. Only when the route confirmed a real
-// set page exists (resolution.set_link).
-function setDealsHref(resolution) {
-  const base = resolution?.set_link;
-  if (!base) return null;
-  const src = resolution?.filter_query ?? null;
-  if (!src) return base;
-  const p = new URLSearchParams();
-  for (const [k, v] of Object.entries(src)) if (v != null && v !== "") p.set(k, String(v));
-  const qs = p.toString();
-  return qs ? `${base}?${qs}` : base;
-}
+// speciesDealsHref / exactCardHref / setDealsHref + intersectionCopy live
+// in lib/searchNav.js (pure, unit-tested).
 
 // A compact, truthful summary of how the query was parsed and resolved,
 // plus exact-card destination + zero-result relaxation.
-function SearchInterpretation({ interpreted, resolution, exact, dealCount, onRelax }) {
+function SearchInterpretation({ interpreted, resolution, exact, dealCount, catalogCount = 0, onRelax, onSearchWithoutSet }) {
   const i = interpreted ?? {};
   const speciesHref = !exact ? speciesDealsHref(i, resolution) : null;
   const setHref = !exact ? setDealsHref(resolution) : null;
+  // 13B.5.3 - species × set intersection states. The set constraint is a
+  // real filter on the card universe, so any link that drops it broadens
+  // the result and must SAY so (labels come from intersectionCopy).
+  const copy = intersectionCopy({ mode: resolution?.mode, species: i.species, set: i.set });
+  const { isSpeciesSet, isNoMatch, hasSetConstraint } = copy;
+  const dealsHere = resolution?.deals_match_count ?? dealCount ?? 0;
   const chips = [];
   if (i.species) chips.push(i.species);
   else if (i.card_name) chips.push(i.card_name);
@@ -972,6 +948,59 @@ function SearchInterpretation({ interpreted, resolution, exact, dealCount, onRel
             </span>
           ))}
         </p>
+      )}
+
+      {/* 13B.5.3 - species × set: keep BOTH constraints visible as a
+          sentence, not just two floating chips. */}
+      {copy.headline && (
+        <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-200">
+          Showing <strong>{i.species}</strong> cards in <strong>{i.set}</strong>
+          {catalogCount > 1 ? ` — ${catalogCount} matching printings` : ""}.
+        </p>
+      )}
+
+      {/* 13B.5.3 - the catalogue itself says the subject is not in the set.
+          This is a stronger fact than "no deals" - a matching card does
+          not exist here at all. Nothing was broadened. */}
+      {isNoMatch && copy.noMatchLine && (
+        <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-50/70 p-3 dark:bg-amber-950/30">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+            Not in this set
+          </p>
+          <p className="mt-0.5 text-sm text-zinc-700 dark:text-zinc-200">
+            Our catalogue has no <strong>{i.species}</strong> card in <strong>{i.set}</strong>. Nothing
+            was broadened. To widen the search:
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {speciesHref && copy.broadenSpeciesLabel && (
+              <Link
+                href={speciesHref}
+                rel="nofollow"
+                className="rounded-lg border border-zinc-300 bg-white px-2.5 py-1 text-xs font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+              >
+                {copy.broadenSpeciesLabel}
+              </Link>
+            )}
+            {setHref && copy.broadenSetLabel && (
+              <Link
+                href={setHref}
+                rel="nofollow"
+                className="rounded-lg border border-zinc-300 bg-white px-2.5 py-1 text-xs font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+              >
+                {copy.broadenSetLabel}
+              </Link>
+            )}
+            {onSearchWithoutSet && copy.dropSetLabel && (
+              <button
+                type="button"
+                onClick={() => onSearchWithoutSet(i.species)}
+                className="rounded-lg border border-zinc-300 bg-white px-2.5 py-1 text-xs font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+              >
+                {copy.dropSetLabel}
+              </button>
+            )}
+          </div>
+        </div>
       )}
 
       {mismatch && (
@@ -1021,28 +1050,39 @@ function SearchInterpretation({ interpreted, resolution, exact, dealCount, onRel
         </div>
       )}
 
-      {speciesHref && i.species && (
+      {speciesHref && copy.broadenSpeciesLabel && !isNoMatch && (
         <div className="mt-3">
           <Link
             href={speciesHref}
             rel="nofollow"
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
           >
-            View all matching {i.species} deals →
+            {copy.broadenSpeciesLabel}
           </Link>
         </div>
       )}
 
-      {setHref && i.set && (
+      {setHref && copy.broadenSetLabel && !isNoMatch && (
         <div className="mt-3">
           <Link
             href={setHref}
             rel="nofollow"
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
           >
-            Browse {i.set} deals →
+            {copy.broadenSetLabel}
           </Link>
         </div>
+      )}
+
+      {/* 13B.5.3 - a valid intersection with matching catalogue cards but
+          no live deal right now. Distinct from "not in this set" above and
+          from the filtered-empty state below. */}
+      {isSpeciesSet && catalogCount > 0 && dealsHere === 0 && !scopedButEmpty && (
+        <p className="mt-3 text-xs text-zinc-500">
+          {catalogCount === 1 ? "A matching" : `${catalogCount} matching`} {i.species}{" "}
+          {catalogCount === 1 ? "card exists" : "cards exist"} in {i.set}, but no live deal is below
+          market right now. The reference {catalogCount === 1 ? "card" : "cards"} below stay available.
+        </p>
       )}
 
       {refOnly && dealFilters.length > 0 && !scopedButEmpty && (
