@@ -81,7 +81,11 @@ test("the search-as-you-type effect skips its first run (empty initial query is 
   assert.ok(armedIdx > -1 && clearIdx > armedIdx, "the armed guard must precede the q-empty branch");
 });
 
-test("initial `query` state is empty (SSR-safe), not derived from a URL hook", () => {
-  assert.match(clientSrc, /const \[query, setQuery\] = useState\(""\)/);
-  assert.ok(!/useState\(urlQ\)/.test(clientSrc), "query must not initialise from urlQ (hydration mismatch)");
+test("initial `query` state is a server PROP, never a URL hook", () => {
+  // 13B.6.2 - `query` seeds from the initialQuery prop (identical on the
+  // SSR + hydration render). Still SSR-safe; still not window.location /
+  // useSearchParams during render.
+  assert.match(clientSrc, /const \[query, setQuery\] = useState\(initialQuery \|\| ""\)/);
+  assert.ok(!/useState\(urlQ\)/.test(clientSrc), "query must not initialise from urlQ");
+  assert.ok(!/\buseSearchParams\s*\(/.test(clientSrc));
 });

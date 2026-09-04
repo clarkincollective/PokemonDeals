@@ -138,7 +138,7 @@ test("14. species / set / card / search / deal surfaces import the shared helper
     "app/cards/[slug]/page.js", // /cards/[slug] hub path (H1 + Product JSON-LD)
     "components/DealCard.js", // deal grids
     "app/deals/[id]/page.js", // /deals/[id]
-    "app/api/card-search/route.js", // search
+    "lib/searchEngine.js", // search (13B.6.2 - the shared /search engine)
   ];
   for (const f of files) {
     const src = readFileSync(join(HERE, "..", "..", f), "utf8");

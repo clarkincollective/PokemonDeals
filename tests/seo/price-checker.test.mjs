@@ -125,10 +125,12 @@ test("8. a result's deal field is only set for a real, actionable deal", () => {
     assert.ok(typeof r.deal.affiliateUrl === "string" && r.deal.affiliateUrl.length > 0, "deal without an affiliate url");
     assert.ok(typeof r.deal.discountPct === "number", "deal without a discount pct");
   }
-  // the API filters both deal paths through isDisplayableDeal
-  const src = readFileSync(join(REPO, "app", "api", "card-search", "route.js"), "utf8");
+  // the search engine (13B.6.2 - lib/searchEngine.js, shared by the API
+  // route and the server-rendered initial result) filters both deal
+  // paths through isDisplayableDeal.
+  const src = readFileSync(join(REPO, "lib", "searchEngine.js"), "utf8");
   assert.equal((src.match(/\.filter\(isDisplayableDeal\)/g) ?? []).length >= 2, true,
-    "card-search no longer filters deals through isDisplayableDeal");
+    "search engine no longer filters deals through isDisplayableDeal");
 });
 
 // --- 9: raw vs graded separation on /cards/[slug] ----------
@@ -245,7 +247,13 @@ test("19. no deal / matcher / authenticity / freshness logic was changed", () =>
 // --- 20: search API only surfaces displayable deals ---
 
 test("20. the search API filters deals through isDisplayableDeal on every path", () => {
-  const src = readFileSync(join(REPO, "app", "api", "card-search", "route.js"), "utf8");
-  assert.ok((src.match(/isDisplayableDeal/g) ?? []).length >= 3, "card-search dropped an isDisplayableDeal guard");
-  assert.match(src, /import \{ isDisplayableDeal \} from "@\/lib\/dealQuality"/);
+  // 13B.6.2 - the search engine moved to lib/searchEngine.js; the API
+  // route (card-detail path) still filters too.
+  const engine = readFileSync(join(REPO, "lib", "searchEngine.js"), "utf8");
+  const route = readFileSync(join(REPO, "app", "api", "card-search", "route.js"), "utf8");
+  const total =
+    (engine.match(/isDisplayableDeal/g) ?? []).length + (route.match(/isDisplayableDeal/g) ?? []).length;
+  assert.ok(total >= 3, `card-search dropped an isDisplayableDeal guard (found ${total})`);
+  assert.match(engine, /import \{ isDisplayableDeal \} from "@\/lib\/dealQuality"/);
+  assert.match(route, /runCardSearch/);
 });

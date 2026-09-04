@@ -225,6 +225,8 @@ test("20. no deal / matcher / authenticity / freshness logic changed", () => {
   for (const t of ["Ace Trainer Pikachu", "Pikachu & Zekrom Tag Team GX", "Mint condition raw"]) {
     assert.ok(!GRADER_MENTION_PATTERN.test(t), `GRADER_MENTION_PATTERN false positive: ${t}`);
   }
-  const route = readFileSync(join(REPO, "app", "api", "card-search", "route.js"), "utf8");
-  assert.ok((route.match(/isDisplayableDeal/g) ?? []).length >= 3, "card-search dropped an isDisplayableDeal guard");
+  // 13B.6.2 - the search engine moved to lib/searchEngine.js (shared by
+  // the API route and the server-rendered initial deep-link result).
+  const engine = readFileSync(join(REPO, "lib", "searchEngine.js"), "utf8");
+  assert.ok((engine.match(/isDisplayableDeal/g) ?? []).length >= 3, "search engine dropped an isDisplayableDeal guard");
 });

@@ -26,6 +26,7 @@ import {
   GRADE_CHOICES,
 } from "@/lib/dealFilters";
 import { speciesDealsHref, exactCardHref, setDealsHref, intersectionCopy } from "@/lib/searchNav";
+import { searchStateKey } from "@/lib/searchFacets";
 
 // SEO Phase 3 - the Pokemon Card Price Checker front door.
 //
@@ -58,6 +59,23 @@ function subscribe(cb) {
   };
 }
 
+// 13B.6.2 - the deterministic key for the CURRENT live URL state, matched
+// against the key the server rendered its initial result for.
+function currentStateKey() {
+  const p = new URLSearchParams(window.location.search);
+  return searchStateKey({
+    q: p.get("q"),
+    type: p.get("type"),
+    grader: p.get("grader"),
+    grade: p.get("grade"),
+    minPrice: p.get("minPrice"),
+    maxPrice: p.get("maxPrice"),
+    listing: p.get("listing"),
+    country: p.get("country"),
+    sort: p.get("sort"),
+  });
+}
+
 // filter_dimension for the structural FILTER_APPLIED event (§17 - never
 // the card / Pokemon subject, only which knob moved).
 const DIMENSION = {
@@ -71,7 +89,16 @@ const DIMENSION = {
   sort: "sort",
 };
 
-export default function SearchClient({ validSetSlugs = [] }) {
+export default function SearchClient({
+  validSetSlugs = [],
+  // 13B.6.2 - the server render of a deep link ran runCardSearch() and
+  // handed the result here, so the browser makes ZERO /api/card-search
+  // calls for this unchanged initial state. initialSearchKey is the
+  // deterministic key of the URL state the server rendered for.
+  initialQuery = "",
+  initialSearchState = null,
+  initialSearchKey = null,
+}) {
   const { viewer, rates } = useCurrency();
   const displayCcy = viewer || "USD";
   const ccyApprox = displayCcy !== "USD" ? "≈ " : "";
@@ -103,14 +130,17 @@ export default function SearchClient({ validSetSlugs = [] }) {
     [rawSearch] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  // Starts "" for an SSR-safe hydration render; seeded from the real URL
-  // in a mount effect below so a deep link's term shows in the box.
-  const [query, setQuery] = useState("");
-  const [deals, setDeals] = useState(null);
-  const [catalog, setCatalog] = useState(null);
-  const [interpreted, setInterpreted] = useState(null);
-  const [resolution, setResolution] = useState(null);
-  const [exactMatch, setExactMatch] = useState(null);
+  // `initialQuery` is a server PROP (identical on the SSR + hydration
+  // render), so seeding from it is hydration-safe - unlike reading
+  // window.location during render, which is what 13B.6.1 removed.
+  const [query, setQuery] = useState(initialQuery || "");
+  // 13B.6.2 - seed the result state from the server-rendered search so
+  // the first paint already shows results (no client round-trip).
+  const [deals, setDeals] = useState(() => initialSearchState?.deals ?? null);
+  const [catalog, setCatalog] = useState(() => initialSearchState?.catalog ?? null);
+  const [interpreted, setInterpreted] = useState(() => initialSearchState?.interpreted ?? null);
+  const [resolution, setResolution] = useState(() => initialSearchState?.resolution ?? null);
+  const [exactMatch, setExactMatch] = useState(() => initialSearchState?.exact ?? null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState(null);
 
@@ -121,6 +151,13 @@ export default function SearchClient({ validSetSlugs = [] }) {
   // search-as-you-type effect skips its first run so the empty initial
   // `query` is never mistaken for the user clearing the box.
   const typeEffectArmed = useRef(false);
+  // 13B.6.2 - the URL state the server already searched. Consumed once by
+  // the trigger effect so it doesn't re-fetch the seeded result.
+  const servedKeyRef = useRef(initialSearchState ? initialSearchKey : null);
+  // becomes true once a real (post-hydration) URL has been observed, so
+  // the pre-hydration rawSearch="" render never wipes the seeded result.
+  const urlActiveRef = useRef(false);
+  const initialAnalyticsRef = useRef(false);
   // 13B.2 request control: abort superseded searches; only the newest
   // request may touch results/loading/error state.
   const abortRef = useRef(null);
@@ -128,11 +165,12 @@ export default function SearchClient({ validSetSlugs = [] }) {
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  // 13B.6.1 - seed the visible query box from the real URL on mount (the
-  // initial render is intentionally URL-agnostic for hydration safety).
+  // `query` is seeded from the initialQuery prop; this only corrects it
+  // in the unlikely event the prop and the live URL disagree.
   useEffect(() => {
     const q = (new URLSearchParams(window.location.search).get("q") ?? "").trim();
-    if (q) setQuery(q);
+    if (q && q !== query) setQuery(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Back/Forward: resync the visible input to whatever q the URL now has
@@ -276,11 +314,59 @@ export default function SearchClient({ validSetSlugs = [] }) {
     }
   }
 
+  // 13B.6.2 - the structural funnel events for the SERVER-rendered
+  // initial search (loadSearch fires them for client searches; the
+  // server path skips loadSearch, so emit here - exactly once).
+  function emitInitialSearchAnalytics() {
+    if (initialAnalyticsRef.current || !initialSearchState) return;
+    initialAnalyticsRef.current = true;
+    const q0 = (initialQuery ?? "").trim();
+    if (q0.length < 2) return;
+    const cur = new URLSearchParams(window.location.search);
+    const sc = cur.get("country") || "";
+    const ss = cur.get("sort") || "discount";
+    const intent = classifyQueryIntent(q0);
+    track("Price Checker Search", { queryLength: q0.length, page: 1, country: sc || "any", sort: ss });
+    capture(EVENTS.SEARCH_REQUEST, { source: "search_page", page: 1, country: sc || "any", sort: ss, ...intent });
+    const catalogCount = Number(
+      initialSearchState?.catalog?.total ?? initialSearchState?.catalog?.results?.length ?? 0
+    );
+    const dealCount = Array.isArray(initialSearchState?.deals) ? initialSearchState.deals.length : 0;
+    const common = {
+      source: "search_page",
+      page: 1,
+      latency_band: latencyBand(initialSearchState?._timing?.total_server_ms ?? 0),
+      result_count_band: resultCountBand(catalogCount),
+      has_deal_results: dealCount > 0,
+      deal_count_band: resultCountBand(dealCount),
+      resolved_subject_kind:
+        initialSearchState?.resolution?.mode === "provider_fallback"
+          ? "none"
+          : initialSearchState?.interpreted?.subject_kind ?? "none",
+      search_resolution_mode: initialSearchState?.resolution?.mode ?? "unknown",
+      has_active_filters: (initialSearchState?.resolution?.filters_from_url ?? []).length > 0,
+      ...intent,
+    };
+    if (catalogCount === 0 && dealCount === 0) capture(EVENTS.SEARCH_NO_RESULT, common);
+    else capture(EVENTS.SEARCH_RESULTS_SHOWN, common);
+  }
+
   // run a search whenever ANY part of the URL state changes
   useEffect(() => {
     if (urlQ.length >= 2) {
+      urlActiveRef.current = true;
+      // 13B.6.2 - the server already searched THIS exact state. Consume
+      // the served key once and skip the redundant fetch; any later
+      // change flows through loadSearch() normally.
+      if (servedKeyRef.current && currentStateKey() === servedKeyRef.current) {
+        servedKeyRef.current = null;
+        emitInitialSearchAnalytics();
+        return;
+      }
       loadSearch();
-    } else {
+    } else if (urlActiveRef.current) {
+      // a real transition to an empty query (user cleared the box) - not
+      // the pre-hydration rawSearch="" render, which must keep any seed.
       abortRef.current?.abort();
       setDeals(null);
       setCatalog(null);
@@ -358,7 +444,10 @@ export default function SearchClient({ validSetSlugs = [] }) {
     resolution?.effective_filters ?? normalizeDealFilters(urlFilterState);
   const filterNotes = resolution?.filter_notes ?? normalizeDealFilters(urlFilterState).notes;
   const filtersScoped = resolution ? resolution.deals_scoped !== false : true;
-  const chips = appliedFilterChips(urlFilterState);
+  // 13B.6.2 - prefer the server-reconciled filter state so the applied
+  // chips are right on the first (server-rendered) paint, before the
+  // post-hydration URL sync populates urlFilterState.
+  const chips = appliedFilterChips(resolution?.effective_filters ?? urlFilterState);
   const activeCount =
     chips.length + (country ? 1 : 0) + (sort && sort !== "discount" ? 1 : 0);
 

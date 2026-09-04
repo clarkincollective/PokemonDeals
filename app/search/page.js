@@ -2,6 +2,8 @@ import SearchClient from "./SearchClient";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbList } from "@/lib/jsonLd";
 import { fetchSetSlugs } from "@/lib/deals";
+import { runCardSearch } from "@/lib/searchEngine";
+import { readSearchFilters, searchStateKey } from "@/lib/searchFacets";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -48,15 +50,46 @@ export async function generateMetadata({ searchParams }) {
 }
 
 // SearchClient reads its URL state from window.location AFTER mount
-// (13B.6.1), not from useSearchParams(), so this route no longer needs a
-// Suspense boundary and no longer depends on request-time search params.
-// It is still marked dynamic: the server render calls fetchSetSlugs()
-// and the page must ship real, indexable content (H1 + intro + JSON-LD)
-// in the initial HTML rather than a client-only blank.
+// (13B.6.1), not from useSearchParams(), so this route needs no Suspense
+// boundary. It is `dynamic` because it reads request-time search params:
+// 13B.6.2 - for a deep link with a real `q`, the initial search runs
+// HERE (runCardSearch, the same engine /api/card-search uses) and its
+// result is handed to SearchClient, so the browser makes zero
+// /api/card-search calls for the unchanged initial state. Typing / facet
+// / sort / country changes and Back/Forward stay client-driven.
 export const dynamic = "force-dynamic";
 
-export default async function SearchPage() {
-  const validSetSlugs = await fetchSetSlugs("english");
+export default async function SearchPage({ searchParams }) {
+  const sp = (await searchParams) ?? {};
+  const first = (v) => (Array.isArray(v) ? v[0] : v);
+  const q = (typeof first(sp.q) === "string" ? first(sp.q) : "").trim();
+  const country = typeof first(sp.country) === "string" ? first(sp.country) : null;
+  const sort = typeof first(sp.sort) === "string" ? first(sp.sort) : null;
+  const filters = readSearchFilters(sp);
+
+  const [validSetSlugs, searchResult] = await Promise.all([
+    fetchSetSlugs("english"),
+    q.length >= 2
+      ? runCardSearch({ q, page: 1, country, sort, filters }).catch(() => null)
+      : Promise.resolve(null),
+  ]);
+
+  const initialSearchState = searchResult?.ok ? searchResult.body : null;
+  const initialSearchKey =
+    q.length >= 2
+      ? searchStateKey({
+          q,
+          type: filters.type,
+          grader: filters.grader,
+          grade: filters.grade,
+          minPrice: filters.minPrice,
+          maxPrice: filters.maxPrice,
+          listing: filters.listing,
+          country,
+          sort,
+        })
+      : null;
+
   return (
     <>
       <JsonLd
@@ -76,7 +109,12 @@ export default async function SearchPage() {
           },
         ]}
       />
-      <SearchClient validSetSlugs={validSetSlugs} />
+      <SearchClient
+        validSetSlugs={validSetSlugs}
+        initialQuery={q}
+        initialSearchState={initialSearchState}
+        initialSearchKey={initialSearchState ? initialSearchKey : null}
+      />
     </>
   );
 }

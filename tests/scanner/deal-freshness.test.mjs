@@ -195,8 +195,17 @@ test('count: the "live deals" headline counts isDisplayableDeal rows, not a SQL 
 });
 
 test('count: card-search "Deals found (N)" results pass through the shared display gate', () => {
-  const src = readFileSync(join(HERE, "..", "..", "app", "api", "card-search", "route.js"), "utf8");
+  // 13B.6.2 - the search itself lives in lib/searchEngine.js (shared by
+  // the API route and the server-rendered initial deep-link result).
+  const src = readFileSync(join(HERE, "..", "..", "lib", "searchEngine.js"), "utf8");
   assert.match(src, /import \{ isDisplayableDeal \} from "@\/lib\/dealQuality"/);
-  // every deal result set is filtered, none returned raw off is_active
-  assert.equal((src.match(/\.filter\(isDisplayableDeal\)/g) ?? []).length >= 3, true);
+  const route = readFileSync(join(HERE, "..", "..", "app", "api", "card-search", "route.js"), "utf8");
+  // every deal result set (scoped deals, provider-catalogue deals,
+  // card-detail deals) is filtered - none returned raw off is_active.
+  const total =
+    (src.match(/\.filter\(isDisplayableDeal\)/g) ?? []).length +
+    (route.match(/\.filter\(isDisplayableDeal\)/g) ?? []).length;
+  assert.ok(total >= 3, `expected >=3 isDisplayableDeal gates across the search surface, found ${total}`);
+  // the API route delegates the search itself to the shared engine
+  assert.match(route, /runCardSearch/);
 });
