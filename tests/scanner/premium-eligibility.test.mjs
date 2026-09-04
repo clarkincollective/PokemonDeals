@@ -137,14 +137,21 @@ test("10. a premium-high-risk unscreened deal is a visual-screening candidate (q
 
 // --- 11-12: ranking + normal surfaces unchanged --------------
 
-test("11. Best Finds ranking still works - premiumDisplayable filters, the sort/limit is unchanged", () => {
+test("11. Best Finds still runs the premium gate; flagship lane is now BIN-only + composite-ranked (13C.2)", () => {
   const src = readFileSync(join(HERE, "..", "..", "lib", "deals.js"), "utf8");
-  // the 3 premium fetchers filter with premiumDisplayable; ordering/limit lines untouched
+  // the 3 premium fetchers still filter with premiumDisplayable
   assert.equal((src.match(/premiumDisplayable\(data\)/g) ?? []).length, 3);
   assert.match(src, /function premiumDisplayable\(rows\)/);
   assert.match(src, /\.filter\(isPremiumDealEligible\)/);
-  // fetchBestFinds still orders by discount and slices to `limit`
-  assert.match(src, /\.order\("discount_pct", \{ ascending: false \}\)\.limit\(200\)/);
+  // fetchBestFinds: FIXED_PRICE only (no auctions in the flagship lane),
+  // deterministic composite ordering via lib/flagshipRanking, no raw
+  // discount_pct sort as the final order.
+  assert.match(src, /fetchBestFindsUncached[\s\S]{0,900}\.eq\("listing_type", "FIXED_PRICE"\)/);
+  assert.match(src, /rankFlagshipDeals\(premiumDisplayable\(data\), \{/);
+  assert.ok(
+    !/fetchBestFindsUncached[\s\S]{0,1400}\.order\("discount_pct"[\s\S]{0,40}\.limit\(200\)\s*;?\s*\n\s*if \(error/.test(src),
+    "the old discount-desc-then-slice ranking must be gone from fetchBestFinds"
+  );
 });
 
 test("12. normal deal surfaces still use the plain display gate", () => {

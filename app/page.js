@@ -331,8 +331,10 @@ export default async function Home({ searchParams }) {
       {showPromo && bestFinds.length > 0 && (
         <section id="best-deals" data-analytics-section="best_deals" className="scroll-mt-24 border-b border-zinc-200 dark:border-zinc-800">
           <div className="mx-auto max-w-7xl px-6 py-10">
+            {/* 13C.2 - flagship lane is Buy It Now only (auctions have
+                their own lane below); the kicker states that plainly. */}
             <SectionHeader
-              kicker="The find"
+              kicker="Buy it now · below market"
               title="Best deals right now"
               actionLabel="See top 10"
               actionHref="/best-finds"

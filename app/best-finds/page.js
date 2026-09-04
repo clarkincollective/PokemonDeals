@@ -102,11 +102,15 @@ export default async function BestFindsPage({ searchParams }) {
             🔥 Today&apos;s Best Finds
           </span>
           <h1 className="mt-3 text-2xl font-bold text-black dark:text-zinc-50">
-            Top 10 {type === "graded" ? "graded" : "raw"} deals right now
+            Top 10 {type === "graded" ? "graded" : "raw"} Buy It Now deals right now
           </h1>
           <p className="mt-2 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
-            Higher-value cards with the biggest real discounts below market price, ranked highest
-            discount first. Each stays on this list until a better deal replaces it.
+            Higher-value cards you can buy now for the most below a trustworthy market reference -
+            ranked on how far below market and how much you actually save. Auctions have their own{" "}
+            <Link href="/deals/auctions" className="underline hover:text-red-600 dark:hover:text-red-500">
+              ending-soon list
+            </Link>
+            . Each card stays here until a better deal replaces it.
           </p>
 
           <TypeToggle params={params} type={type} />
