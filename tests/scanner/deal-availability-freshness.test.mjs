@@ -109,6 +109,18 @@ test("1e. verify-deals: the Just-Added-candidate priority rank is distinct from 
   assert.notEqual(justAddedRank, highValueRank, "justAddedCandidate must not share a rank tier with highValue");
 });
 
+test("1f. verify-deals: within the Just-Added tier, the tie-break favors the NEWEST discovery, not the oldest", () => {
+  // Found live post-migration: fetchFreshFinds queries the newest N rows
+  // (ORDER BY first_seen_at DESC). A staleness-descending tie-break favors
+  // the OLDEST candidate within the 48h window (closest to falling out of
+  // its own freshness TTL) - the opposite of what that query needs
+  // verified first. Confirmed live: 299/470 rows in the 48h window were
+  // verified, but 0 of the newest 72 fetchFreshFinds actually reads.
+  const src = readFileSync(join(HERE, "..", "..", "app", "api", "verify-deals", "route.js"), "utf8");
+  const tieBreakSrc = src.slice(src.indexOf("const tieBreak = (r)"), src.indexOf("pool.sort("));
+  assert.match(tieBreakSrc, /justAddedCandidate\(r\)\s*\?\s*discoveryAgeHours\(r,\s*now\)/, "justAddedCandidate rows must tie-break on discoveryAgeHours ascending (newest first)");
+});
+
 // --- 2: a sold/ended listing cannot be premium-eligible regardless of score
 
 test("2. is_active=false (the outcome of a definitive SOLD/ENDED verification) can never be premium-eligible", () => {

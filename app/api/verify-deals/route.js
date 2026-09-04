@@ -140,7 +140,23 @@ export async function GET(request) {
     if (midValue(r)) return 3;
     return 4;
   };
-  pool.sort((a, b) => rank(a) - rank(b) || staleness(b) - staleness(a));
+  // P0.2 fix #2 (found live, same session): giving justAddedCandidate its
+  // own tier (above) was necessary but not sufficient. fetchFreshFinds
+  // queries the NEWEST N rows in the discovery window (ORDER BY
+  // first_seen_at DESC) - but the staleness-descending tie-break used for
+  // every other tier prioritizes candidates CLOSEST TO GOING STALE, which
+  // for two rows both inside the 48h Just Added window means the OLDER one
+  // (closer to falling out of its freshness TTL) wins, not the newer one
+  // fetchFreshFinds actually wants verified first. Confirmed live: 299/470
+  // rows in the 48h window got verified, but 0 of the newest 72 (exactly
+  // what fetchFreshFinds queries) - verification was working backwards
+  // from "about to expire", the opposite direction from "just discovered".
+  // Within the Just-Added tier specifically, sort by discovery recency
+  // (newest first) instead - that tier's whole purpose is getting brand-
+  // new discoveries verified before a visitor ever sees the lane, not
+  // protecting older rows from expiring (the other tiers already do that).
+  const tieBreak = (r) => (justAddedCandidate(r) ? discoveryAgeHours(r, now) : -staleness(r));
+  pool.sort((a, b) => rank(a) - rank(b) || tieBreak(a) - tieBreak(b));
 
   const batch = pool.slice(0, BATCH);
   const out = { ACTIVE: 0, ENDED: 0, SOLD: 0, UNKNOWN: 0 };
