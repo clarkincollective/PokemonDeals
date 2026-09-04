@@ -132,7 +132,11 @@ export default async function Home({ searchParams }) {
   const minPriceParam = typeof params.minPrice === "string" ? Number(params.minPrice) : null;
   const minPrice = Number.isFinite(minPriceParam) && minPriceParam > 0 ? minPriceParam : null;
 
-  const PAGE_SIZE = 24;
+  // 13C.3 - the homepage's unfiltered page-1 grid is a PREVIEW of the
+  // broader deal pool, not the full browser: 9 cards then a "Browse all
+  // deals" link into the paginated list. Filtered / sorted / page-2+
+  // views (useStableList) keep the full LIST_PAGE_SIZE from fetchDealsPage.
+  const HOME_PREVIEW_SIZE = 9;
   const pageParam = typeof params.page === "string" ? Number(params.page) : 1;
   const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
 
@@ -164,8 +168,8 @@ export default async function Home({ searchParams }) {
     useStableList ? Promise.resolve({ data: null, error: null }) : fetchDealsPool(filters),
     useStableList ? fetchDealsPage({ table: "deals", ...filters, sort: sort ?? "newest", page }) : Promise.resolve(null),
     showPromo ? fetchHomepageFlagshipDeals({ limit: 4, country }) : Promise.resolve({ deals: [] }),
-    showPromo ? fetchAuctionsEndingSoon({ limit: 6, country }) : Promise.resolve({ deals: [] }),
-    showPromo ? fetchFreshFinds({ limit: 6, country }) : Promise.resolve({ deals: [] }),
+    showPromo ? fetchAuctionsEndingSoon({ limit: 3, country }) : Promise.resolve({ deals: [] }),
+    showPromo ? fetchFreshFinds({ limit: 3, country }) : Promise.resolve({ deals: [] }),
     fetchLastScanTime({ table: "deals", language: "english" }),
     showPromo ? fetchCardHubs({ language: "english" }) : Promise.resolve({ hubs: [] }),
     fetchHubCounts({ language: "english" }),
@@ -188,7 +192,7 @@ export default async function Home({ searchParams }) {
       seen.add(d.watchlist_id);
       deduped.push(d);
     }
-    deals = shuffled(deduped.slice(0, 400)).slice(0, PAGE_SIZE);
+    deals = shuffled(deduped.slice(0, 400)).slice(0, HOME_PREVIEW_SIZE);
   }
 
   const topHubs = cardHubsResult.hubs.slice(0, 6);
@@ -372,10 +376,10 @@ export default async function Home({ searchParams }) {
             <SectionHeader
               kicker="Real urgency"
               title="Auctions ending soon"
-              actionLabel="See all"
+              actionLabel="See all auctions"
               actionHref="/?listing=AUCTION&sort=ending"
             />
-            <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {endingSoon.map((deal, i) => (
                 <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_ending" validSetSlugs={validSetSlugs} analytics={{ section: "ending_soon", rank: i + 1 }} />
               ))}
@@ -384,115 +388,10 @@ export default async function Home({ searchParams }) {
         </section>
       )}
 
-      {/* JUST ADDED */}
-      {showPromo && freshFinds.length > 0 && (
-        <section data-analytics-section="just_added" className="border-b border-zinc-200 dark:border-zinc-800">
-          <div className="mx-auto max-w-7xl px-6 py-10">
-            <SectionHeader
-              kicker="Fresh"
-              title="Just added"
-              actionLabel="Browse newest"
-              actionHref="/?sort=newest"
-            />
-            <div className="mt-2">
-              <NewSinceVisit timestamps={freshFinds.map((d) => d.first_seen_at)} />
-            </div>
-            <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-              {freshFinds.map((deal, i) => (
-                <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_fresh" validSetSlugs={validSetSlugs} analytics={{ section: "just_added", rank: i + 1 }} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* MOST ACTIVE LISTINGS (by count of active listing rows - not distinct sellers) */}
-      {showPromo && topHubs.length > 0 && (
-        <section data-analytics-section="most_active" className="border-b border-zinc-200 bg-sunk dark:border-zinc-800">
-          <div className="mx-auto max-w-7xl px-6 py-10">
-            <SectionHeader
-              kicker="Compare prices"
-              title="Cards with the most active listings"
-              actionLabel="Compare all"
-              actionHref="/market-data/most-listed-cards"
-            />
-            <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-              {topHubs.map((hub, i) => (
-                <Link
-                  key={hub.id}
-                  href={`/cards/${hub.slug}`}
-                  data-analytics-click="most_active_clicked"
-                  data-analytics-props={JSON.stringify({ section: "most_active", card_slug: hub.slug, content_id: hub.slug, rank: i + 1 })}
-                  className="group flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950"
-                >
-                  <div className="relative aspect-square w-full bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950">
-                    {hub.image ? (
-                      <Image
-                        src={hub.image}
-                        alt={`${hub.name} - ${hub.set}`}
-                        fill
-                        sizes="(max-width: 640px) 50vw, 16vw"
-                        className="object-contain p-2 transition-transform duration-200 group-hover:scale-[1.03]"
-                      />
-                    ) : (
-                      <CardImagePlaceholder />
-                    )}
-                    <span className="absolute right-1.5 top-1.5 rounded-md bg-zinc-900/85 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                      {hub.count} {hub.count === 1 ? "listing" : "listings"}
-                    </span>
-                  </div>
-                  <div className="p-2.5">
-                    <p className="line-clamp-1 text-xs font-semibold text-zinc-900 dark:text-zinc-50">{hub.name}</p>
-                    <p className="line-clamp-1 text-[11px] text-zinc-500">{hub.set}</p>
-                    <p className="tnum mt-1 text-xs font-bold text-zinc-900 dark:text-zinc-50">
-                      from{" "}
-                      <Price
-                        usd={hub.cheapestPrice}
-                        native={{ amount: hub.cheapestPrice, currency: "USD" }}
-                      />
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* BROWSE - two big category entry tiles */}
-      {showPromo && (
-        <section data-analytics-section="browse" className="border-b border-zinc-200 dark:border-zinc-800">
-          <div className="mx-auto max-w-7xl px-6 py-10">
-            <SectionHeader kicker="Know what you want" title="Browse the catalogue" />
-            <div className="mt-5 grid gap-5 sm:grid-cols-3">
-              {[
-                { href: "/cards", event: "browse_catalogue_clicked", title: "Card database", copy: "Every card we track, with a permanent page and real market-reference prices." },
-                { href: "/sets", event: "browse_sets_clicked", title: "Browse by set", copy: "Set checklists with market-reference prices and the set's most valuable cards — plus any current below-market deals." },
-                { href: "/pokemon", event: "browse_pokemon_clicked", title: "Browse by Pokemon", copy: "Card prices and values for a species across all its prints and sets — plus any current below-market deals." },
-              ].map((t) => (
-                <Link
-                  key={t.href}
-                  href={t.href}
-                  data-analytics-click={t.event}
-                  data-analytics-props={JSON.stringify({ section: "browse" })}
-                  className="group flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950"
-                >
-                  <div>
-                    <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{t.title}</p>
-                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{t.copy}</p>
-                  </div>
-                  <span className="text-xl text-zinc-300 transition-colors group-hover:text-red-600 dark:text-zinc-600">
-                    →
-                  </span>
-                </Link>
-              ))}
-            </div>
-            <HomeBrowseLinks />
-          </div>
-        </section>
-      )}
-
-      {/* ALL DEALS grid + sort/filter toolbar */}
+      {/* ALL DEALS grid + sort/filter toolbar. 13C.3 - moved up to right
+          after Best Deals + Auctions so the main filterable browse is not
+          buried behind catalogue sections; the unfiltered page-1 grid is
+          a 9-card PREVIEW into the paginated list, not 24 cards. */}
       <main data-analytics-section="all_deals" className="mx-auto w-full max-w-7xl flex-1 px-6 py-12">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
           <SectionHeader
@@ -552,6 +451,127 @@ export default async function Home({ searchParams }) {
           <Pagination page={page} totalPages={totalPages} params={params} basePath="/" />
         )}
       </main>
+
+      {/* JUST ADDED - 13C.3: a compact 3-card freshness preview, moved
+          below All Deals (it is a "what's new" footnote to browsing, not
+          a headline lane). "N new since your last visit" is a
+          returning-visitor hook; "Browse newest" uses the existing
+          ?sort=newest, no new route. */}
+      {showPromo && freshFinds.length > 0 && (
+        <section data-analytics-section="just_added" className="border-b border-zinc-200 bg-sunk dark:border-zinc-800">
+          <div className="mx-auto max-w-7xl px-6 py-10">
+            <SectionHeader
+              kicker="Fresh"
+              title="Just added"
+              actionLabel="Browse newest"
+              actionHref="/?sort=newest"
+            />
+            <div className="mt-2">
+              <NewSinceVisit timestamps={freshFinds.map((d) => d.first_seen_at)} />
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {freshFinds.map((deal, i) => (
+                <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_fresh" validSetSlugs={validSetSlugs} analytics={{ section: "just_added", rank: i + 1 }} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* EXPLORE POKEMON CARDS - 13C.3: one catalogue/discovery surface
+          that merges the old "Cards with the most active listings" and
+          "Browse the catalogue" lanes (adjacent sections doing
+          overlapping jobs). Every internal link and click event from both
+          is preserved; only the standalone section + its impression event
+          (`most_active`) is folded into `browse`. */}
+      {showPromo && (
+        <section data-analytics-section="browse" className="border-b border-zinc-200 dark:border-zinc-800">
+          <div className="mx-auto max-w-7xl px-6 py-10">
+            <SectionHeader kicker="Know what you want" title="Explore Pokemon cards" />
+
+            <div className="mt-5 grid gap-5 sm:grid-cols-3">
+              {[
+                { href: "/cards", event: "browse_catalogue_clicked", title: "Card database", copy: "Every card we track, with a permanent page and real market-reference prices." },
+                { href: "/sets", event: "browse_sets_clicked", title: "Browse by set", copy: "Set checklists with market-reference prices and the set's most valuable cards — plus any current below-market deals." },
+                { href: "/pokemon", event: "browse_pokemon_clicked", title: "Browse by Pokemon", copy: "Card prices and values for a species across all its prints and sets — plus any current below-market deals." },
+              ].map((t) => (
+                <Link
+                  key={t.href}
+                  href={t.href}
+                  data-analytics-click={t.event}
+                  data-analytics-props={JSON.stringify({ section: "browse" })}
+                  className="group flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950"
+                >
+                  <div>
+                    <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{t.title}</p>
+                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{t.copy}</p>
+                  </div>
+                  <span className="text-xl text-zinc-300 transition-colors group-hover:text-red-600 dark:text-zinc-600">
+                    →
+                  </span>
+                </Link>
+              ))}
+            </div>
+
+            {topHubs.length > 0 && (
+              <div className="mt-8">
+                <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                    Cards with the most active listings
+                  </h3>
+                  <Link
+                    href="/market-data/most-listed-cards"
+                    className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600 transition-colors hover:border-red-300 hover:text-red-600 dark:border-zinc-800 dark:text-zinc-300 dark:hover:border-red-800 dark:hover:text-red-500"
+                  >
+                    Compare all →
+                  </Link>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+                  {topHubs.map((hub, i) => (
+                    <Link
+                      key={hub.id}
+                      href={`/cards/${hub.slug}`}
+                      data-analytics-click="most_active_clicked"
+                      data-analytics-props={JSON.stringify({ section: "most_active", card_slug: hub.slug, content_id: hub.slug, rank: i + 1 })}
+                      className="group flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950"
+                    >
+                      <div className="relative aspect-square w-full bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950">
+                        {hub.image ? (
+                          <Image
+                            src={hub.image}
+                            alt={`${hub.name} - ${hub.set}`}
+                            fill
+                            sizes="(max-width: 640px) 50vw, 16vw"
+                            className="object-contain p-2 transition-transform duration-200 group-hover:scale-[1.03]"
+                          />
+                        ) : (
+                          <CardImagePlaceholder />
+                        )}
+                        <span className="absolute right-1.5 top-1.5 rounded-md bg-zinc-900/85 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                          {hub.count} {hub.count === 1 ? "listing" : "listings"}
+                        </span>
+                      </div>
+                      <div className="p-2.5">
+                        <p className="line-clamp-1 text-xs font-semibold text-zinc-900 dark:text-zinc-50">{hub.name}</p>
+                        <p className="line-clamp-1 text-[11px] text-zinc-500">{hub.set}</p>
+                        <p className="tnum mt-1 text-xs font-bold text-zinc-900 dark:text-zinc-50">
+                          from{" "}
+                          <Price
+                            usd={hub.cheapestPrice}
+                            native={{ amount: hub.cheapestPrice, currency: "USD" }}
+                          />
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <HomeBrowseLinks />
+          </div>
+        </section>
+      )}
 
       {/* Plain-language summary for text-only crawlers: what the tool does
           and which marketplaces it covers. 13C.1 - moved here from the

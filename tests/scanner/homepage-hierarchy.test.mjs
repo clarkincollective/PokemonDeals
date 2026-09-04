@@ -72,3 +72,84 @@ test("Impact tag renders via next/script beforeInteractive - one DOM id, not a r
   );
   assert.ok(layout.includes("utt.impactcdn.com/P-A7555826"), "the Impact UTT snippet itself is unchanged");
 });
+
+// ===================================================================
+// Phase 13C.3 - below-the-fold consolidation. Deliberate section order,
+// compact preview counts, and no loss of internal-link / filter value.
+// ===================================================================
+
+test("13C.3 - homepage section order: flagship -> auctions -> All Deals -> Just Added -> Explore -> support", () => {
+  const order = [
+    'data-analytics-section="best_deals"',
+    'data-analytics-section="ending_soon"',
+    'data-analytics-section="all_deals"',
+    'data-analytics-section="just_added"',
+    'data-analytics-section="browse"',      // "Explore Pokemon cards" (merged)
+    'id="how-it-works"',
+    'data-analytics-section="guides"',
+  ];
+  const positions = order.map((m) => idx(page, m));
+  for (let i = 1; i < positions.length; i++) {
+    assert.ok(positions[i] > positions[i - 1], `${order[i]} must come after ${order[i - 1]}`);
+  }
+});
+
+test("13C.3 - flagship stays first commercial lane; auctions before any supporting content", () => {
+  assert.ok(idx(page, 'data-analytics-section="best_deals"') < idx(page, 'data-analytics-section="ending_soon"'));
+  assert.ok(idx(page, 'data-analytics-section="ending_soon"') < idx(page, 'id="how-it-works"'));
+  // flagship unchanged: Buy It Now selector, 4 tiles
+  assert.match(page, /fetchHomepageFlagshipDeals\(\{ limit: 4/);
+});
+
+test("13C.3 - preview lanes are compacted (auctions 3, just-added 3, All Deals page-1 preview 9)", () => {
+  assert.match(page, /fetchAuctionsEndingSoon\(\{ limit: 3/, "auctions homepage preview is 3 cards");
+  assert.match(page, /fetchFreshFinds\(\{ limit: 3/, "just-added homepage preview is 3 cards");
+  assert.match(page, /const HOME_PREVIEW_SIZE = 9;/, "All Deals unfiltered page-1 renders a 9-card preview");
+  assert.match(page, /\.slice\(0, HOME_PREVIEW_SIZE\)/);
+  // the deeper paths still exist
+  assert.match(page, /actionHref="\/\?listing=AUCTION&sort=ending"/, "'See all auctions' path retained");
+  assert.match(page, /actionHref="\/\?sort=newest"/, "'Browse newest' path retained");
+  assert.ok(page.includes("Browse all deals"), "'Browse all deals' link into the paginated list retained");
+});
+
+test("13C.3 - All Deals keeps its FilterBar + pagination on the homepage", () => {
+  assert.match(page, /data-analytics-filter-bar="all_deals"/);
+  assert.match(page, /<FilterBar\b/);
+  assert.match(page, /<Pagination\b/);
+  // and it sits BEFORE the catalogue/explore section (a primary browse tool, not buried)
+  assert.ok(idx(page, 'data-analytics-section="all_deals"') < idx(page, 'title="Explore Pokemon cards"'));
+});
+
+test("13C.3 - Most Listed + Browse-catalogue merged into one 'Explore Pokemon cards' section, links + events preserved", () => {
+  // exactly one section carries data-analytics-section="browse" now
+  assert.equal((page.match(/data-analytics-section="browse"/g) ?? []).length, 1);
+  // the old standalone most_active section is gone
+  assert.ok(!page.includes('data-analytics-section="most_active"'), "the standalone most_active section must be merged away");
+  assert.match(page, /title="Explore Pokemon cards"/);
+  // truthful terminology kept
+  assert.match(page, /Cards with the most active listings/);
+  assert.ok(!/most popular/i.test(page), "must not call listing volume 'popular'");
+  // every click event from both old lanes survives
+  for (const ev of ["most_active_clicked", "browse_catalogue_clicked", "browse_sets_clicked", "browse_pokemon_clicked"]) {
+    assert.ok(page.includes(`"${ev}"`), `click event ${ev} preserved`);
+  }
+});
+
+test("13C.3 - homepage still links every major destination (no internal-link loss)", () => {
+  // accept href="X" (Link/anchor), href: "X" (data object), actionHref="X" (SectionHeader)
+  const linked = (path) =>
+    new RegExp(`(?:href="${path}"|href: "${path}"|actionHref="${path}")`).test(page);
+  for (const path of ["/cards", "/sets", "/pokemon", "/best-finds", "/methodology", "/guides", "/market-data/most-listed-cards"]) {
+    assert.ok(linked(path), `homepage must still link ${path}`);
+  }
+  // HomeBrowseLinks (Popular Pokemon / Key sets rows) still rendered
+  assert.match(page, /<HomeBrowseLinks \/>/);
+});
+
+test("13C.3 - no flagship / auction ranking helper touched from the homepage", () => {
+  // page.js does not import or call the ranking primitives directly
+  assert.ok(!/flagshipRanking|rankFlagshipDeals/.test(page));
+  // auction lane still ordered by end time in lib/deals.js (guard lives in flagship-ranking.test.mjs);
+  // here just assert the homepage didn't add a sort/limit override
+  assert.ok(!/fetchAuctionsEndingSoon\([^)]*sort/.test(page), "homepage must not re-sort the auction lane");
+});
