@@ -33,7 +33,20 @@
 // session, and never add them as NEXT_PUBLIC_*.
 
 import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
+import { config as loadDotenv } from "dotenv";
 import { loadCredentials, MissingCredentialsError, buildHomepageQuery, runPostHogQuery, rowsFromResponse } from "./reporting/query.mjs";
+
+// 13C.6.1 - the other scripts/ tools in this repo load credentials from
+// .env.local the same way; this CLI does too (never .env.example, never
+// committed). Loading dotenv here - not in reporting/query.mjs - keeps
+// the pure/testable modules free of any file-system or process.env
+// side effect beyond the explicit loadCredentials(env) call they accept.
+// quiet:true - dotenv's own "injected env" banner goes to stdout by
+// default, which would corrupt --json mode's stdout contract (this tool
+// promises pure parseable JSON on stdout for piping/automation).
+if (existsSync(".env.local")) loadDotenv({ path: ".env.local", quiet: true });
+else loadDotenv({ quiet: true });
 import { aggregateRows, buildReport } from "./reporting/aggregate.mjs";
 import { formatText } from "./reporting/format.mjs";
 
