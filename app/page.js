@@ -111,6 +111,16 @@ const START_HERE = [
   { href: "/japanese-cards", label: "Japanese", chip: "japanese" },
 ];
 
+// 13C.1 - concrete example queries under the hero search. These teach the
+// search grammar (species, collector number, set + Pokemon, graded
+// intent) by example rather than with instructional prose, and each is a
+// real /search deep link.
+const SEARCH_EXAMPLES = [
+  "PSA 10 Pikachu",
+  "Charizard 4/102",
+  "Evolving Skies Umbreon",
+];
+
 export default async function Home({ searchParams }) {
   const params = await searchParams;
   const country = typeof params.country === "string" ? params.country : null;
@@ -234,32 +244,51 @@ export default async function Home({ searchParams }) {
 
       {/* HERO - name the job, big search, entry chips, live proof */}
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-10 lg:py-14">
-          <h1 className="max-w-2xl text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl dark:text-zinc-50">
+        <div className="mx-auto max-w-7xl px-6 py-8 lg:py-12">
+          <h1 className="max-w-2xl text-3xl font-bold tracking-tight text-zinc-900 sm:text-5xl dark:text-zinc-50">
             Pokemon Card Deals — Underpriced Cards on eBay
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
             Every listing checked against real sold prices. The junk filtered out. Free.
           </p>
 
-          {/* Plain-language summary for text-only crawlers: what the tool
-              does and which marketplaces it covers, stated once near the
-              top rather than left to be inferred from the UI. Facts match
-              /how-it-works and /methodology exactly. */}
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
-            Pokemon Deal Finder scans eBay listings for Pokemon TCG cards across the US, UK,
-            Australia, Canada, Germany and Italy marketplaces and compares each one against its real
-            market price and recent sold listings, surfacing only the genuine deals — the listings
-            meaningfully below market. It&apos;s an independent price comparison, not a shop — you buy
-            from the eBay seller.{" "}
-            <Link href="/methodology" className="underline hover:text-red-600 dark:hover:text-red-500">
-              How we find deals
-            </Link>
-            .
-          </p>
-
+          {/* 13C.1 - the two homepage jobs, side by side and immediate:
+              SEARCH a specific card (the big box below) or DISCOVER what
+              we've already found (the button). The longer "what is this"
+              explanation now lives lower on the page, near How it works,
+              so it never gates the first action. */}
           <div className="mt-6">
             <HeroSearch popular={popularSearches} />
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <a
+              href="#best-deals"
+              data-analytics-click="discover_deals_clicked"
+              data-analytics-props={JSON.stringify({ section: "hero" })}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+            >
+              Browse today&apos;s deals
+              <span aria-hidden="true">↓</span>
+            </a>
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
+              or try a search:{" "}
+              {SEARCH_EXAMPLES.map((q, i) => (
+                <span key={q}>
+                  <Link
+                    href={`/search?q=${encodeURIComponent(q)}`}
+                    data-analytics-click="hero_example_clicked"
+                    data-analytics-props={JSON.stringify({ section: "hero", rank: i + 1 })}
+                    className="font-medium text-zinc-600 underline-offset-2 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500"
+                  >
+                    {q}
+                  </Link>
+                  {i < SEARCH_EXAMPLES.length - 1 && (
+                    <span className="mx-1.5 text-zinc-300 dark:text-zinc-700">·</span>
+                  )}
+                </span>
+              ))}
+            </p>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
@@ -296,13 +325,11 @@ export default async function Home({ searchParams }) {
         </div>
       </header>
 
-      {/* The viewer's own locally-saved / recently-viewed cards. Renders
-          nothing for first-time visitors and on the server. */}
-      {showPromo && <CardMemoryStrip />}
-
-      {/* BEST DEALS RIGHT NOW - the proof, first thing after the hero */}
+      {/* BEST DEALS RIGHT NOW - the proof, first thing after the hero.
+          13C.1 - `id`/`scroll-mt` so the hero "Browse today's deals ↓"
+          jump lands with the heading clear of the sticky header. */}
       {showPromo && bestFinds.length > 0 && (
-        <section data-analytics-section="best_deals" className="border-b border-zinc-200 dark:border-zinc-800">
+        <section id="best-deals" data-analytics-section="best_deals" className="scroll-mt-24 border-b border-zinc-200 dark:border-zinc-800">
           <div className="mx-auto max-w-7xl px-6 py-10">
             <SectionHeader
               kicker="The find"
@@ -329,6 +356,12 @@ export default async function Home({ searchParams }) {
           </p>
         </div>
       )}
+
+      {/* The viewer's own locally-saved / recently-viewed cards. Renders
+          nothing for first-time visitors and on the server. 13C.1 - moved
+          below the first deal lane so a returning visitor's private strip
+          never sits between a new visitor and the first real deal. */}
+      {showPromo && <CardMemoryStrip />}
 
       {/* ENDING SOON */}
       {showPromo && endingSoon.length > 0 && (
@@ -517,6 +550,30 @@ export default async function Home({ searchParams }) {
           <Pagination page={page} totalPages={totalPages} params={params} basePath="/" />
         )}
       </main>
+
+      {/* Plain-language summary for text-only crawlers: what the tool does
+          and which marketplaces it covers. 13C.1 - moved here from the
+          hero so it no longer sits between the visitor and the first
+          action; still server-rendered and visible, and it reads
+          naturally as the lead-in to "How it works". Facts match
+          /how-it-works and /methodology exactly. */}
+      {showPromo && (
+        <section className="border-t border-zinc-200 dark:border-zinc-800">
+          <div className="mx-auto max-w-3xl px-6 py-10">
+            <p className="text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+              Pokemon Deal Finder scans eBay listings for Pokemon TCG cards across the US, UK,
+              Australia, Canada, Germany and Italy marketplaces and compares each one against its real
+              market price and recent sold listings, surfacing only the genuine deals — the listings
+              meaningfully below market. It&apos;s an independent price comparison, not a shop — you
+              buy from the eBay seller.{" "}
+              <Link href="/methodology" className="underline hover:text-red-600 dark:hover:text-red-500">
+                How we find deals
+              </Link>
+              .
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* HOW IT WORKS + FAQ - two balanced columns on the tinted ground */}
       <section id="how-it-works" data-analytics-section="how_it_works" className="border-t border-zinc-200 bg-sunk dark:border-zinc-800">
