@@ -6,9 +6,11 @@ import { FRESHNESS_TTL_HOURS } from "@/lib/dealQuality";
 //
 //   1. Known-ended auctions  (auction_end_at <= now)          -> is_active=false
 //   2. Stale listings, value/discount tiered by last_seen_at  -> is_active=false
-//        high  (market_price>=300 OR discount_pct>=0.70)   : > 72h
-//        mid   (market_price>=100 OR discount_pct>=0.55)   : > 120h
-//        low   (everything else)                           : > 168h
+//        (tiers/hours come from lib/dealQuality.FRESHNESS_TTL_HOURS - see
+//        P0.2 (2026-09-05) there for why these were tightened from
+//        72h/120h/168h to 24h/36h/48h: production sampling found a
+//        meaningful fraction of listings already sold well before the old
+//        TTL boundary)
 //      Future-dated auctions get the same value tier - a stored end time
 //      is a signal, not a guarantee.
 //

@@ -40,6 +40,11 @@ const deal = (over = {}) => ({
   listing_type: "FIXED_PRICE",
   auction_end_at: null,
   last_seen_at: ago(2),
+  // P0.2: isPremiumDealEligible now also requires a recent EXACT eBay
+  // verification (lib/dealQuality.isExactVerifiedFresh), separate from
+  // last_seen_at - fresh by default here so every pre-existing test in
+  // this file keeps testing the ONE thing it names, not availability.
+  exact_verified_at: ago(2),
   listing_id: "v1|123456789012|0",
   listing_url: "https://www.ebay.com/itm/123456789012?x=1",
   affiliate_url: "https://www.ebay.com/itm/123456789012?x=1&campid=5",

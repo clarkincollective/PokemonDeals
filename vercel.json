@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/verify-deals",
-      "schedule": "25 * * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/check-alerts",

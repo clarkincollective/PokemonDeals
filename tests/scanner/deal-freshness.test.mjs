@@ -75,24 +75,33 @@ test("3. a recently-seen fixed-price deal stays eligible", () => {
 // --- 4: tiered stale TTL --------------------------------------------
 
 test("4. a stale fixed-price deal drops from promotion per the value/discount tier", () => {
-  // low tier: > 168h
-  assert.equal(isStale(deal({ market_price: 20, discount_pct: 0.3, last_seen_at: ago(150) })), false);
-  assert.equal(isStale(deal({ market_price: 20, discount_pct: 0.3, last_seen_at: ago(170) })), true);
-  assert.equal(isDisplayableDeal(deal({ market_price: 20, discount_pct: 0.3, last_seen_at: ago(170) })), false);
+  // P0.2 (2026-09-05): tiers tightened from 72h/120h/168h to 24h/36h/48h -
+  // production evidence (docs/p02-availability-incident.md) found a
+  // meaningful share of listings already sold well before the old
+  // boundary. These probe values bracket the CURRENT tier hours, whatever
+  // they are, rather than hardcoding a specific tier number twice.
+  const justUnder = (tier) => FRESHNESS_TTL_HOURS[tier] - 5;
+  const justOver = (tier) => FRESHNESS_TTL_HOURS[tier] + 5;
 
-  // mid tier: market >= 100  -> 120h
-  assert.equal(isStale(deal({ market_price: 150, last_seen_at: ago(100) })), false);
-  assert.equal(isStale(deal({ market_price: 150, last_seen_at: ago(130) })), true);
+  // low tier
+  assert.equal(isStale(deal({ market_price: 20, discount_pct: 0.3, last_seen_at: ago(justUnder("low")) })), false);
+  assert.equal(isStale(deal({ market_price: 20, discount_pct: 0.3, last_seen_at: ago(justOver("low")) })), true);
+  assert.equal(isDisplayableDeal(deal({ market_price: 20, discount_pct: 0.3, last_seen_at: ago(justOver("low")) })), false);
 
-  // high tier: market >= 300 OR discount >= 70%  -> 72h
-  assert.equal(isStale(deal({ market_price: 500, last_seen_at: ago(60) })), false);
-  assert.equal(isStale(deal({ market_price: 500, last_seen_at: ago(80) })), true);
-  assert.equal(isStale(deal({ market_price: 40, discount_pct: 0.75, last_seen_at: ago(80) })), true);
+  // mid tier: market >= 100
+  assert.equal(isStale(deal({ market_price: 150, last_seen_at: ago(justUnder("mid")) })), false);
+  assert.equal(isStale(deal({ market_price: 150, last_seen_at: ago(justOver("mid")) })), true);
 
-  assert.equal(disqualificationReason(deal({ market_price: 500, last_seen_at: ago(80) })), "freshness:stale");
-  // tiers are ordered tight -> loose
+  // high tier: market >= 300 OR discount >= 70%
+  assert.equal(isStale(deal({ market_price: 500, last_seen_at: ago(justUnder("high")) })), false);
+  assert.equal(isStale(deal({ market_price: 500, last_seen_at: ago(justOver("high")) })), true);
+  assert.equal(isStale(deal({ market_price: 40, discount_pct: 0.75, last_seen_at: ago(justOver("high")) })), true);
+
+  assert.equal(disqualificationReason(deal({ market_price: 500, last_seen_at: ago(justOver("high")) })), "freshness:stale");
+  // tiers are ordered tight -> loose, and stay well under the old week-long ceiling
   assert.ok(FRESHNESS_TTL_HOURS.high < FRESHNESS_TTL_HOURS.mid);
   assert.ok(FRESHNESS_TTL_HOURS.mid < FRESHNESS_TTL_HOURS.low);
+  assert.ok(FRESHNESS_TTL_HOURS.low <= 72, "low tier must stay far tighter than the pre-P0.2 168h");
   assert.equal(freshnessTierTtl(deal({ market_price: 500 })), FRESHNESS_TTL_HOURS.high);
   assert.equal(freshnessTierTtl(deal({ market_price: 150 })), FRESHNESS_TTL_HOURS.mid);
   assert.equal(freshnessTierTtl(deal({ market_price: 20, discount_pct: 0.3 })), FRESHNESS_TTL_HOURS.low);

@@ -212,14 +212,51 @@ export default async function DealDetailPage({ params }) {
   // real-looking pricing/CTAs. The card's own /cards/[slug] hub still
   // offers a plain "Find on eBay".
   if (!shouldIndexDeal(deal) || !isDisplayableDeal(deal)) {
+    // P0.2: truthful expiry, not a dead end. `deal` (if a row exists at
+    // all) still carries its card identity even once inactive/stale, so a
+    // real "not this exact listing anymore, but here's what to do next"
+    // page is possible without ever showing the old listing as an active
+    // purchase opportunity or auto-redirecting anywhere.
+    const cardName = deal ? cardDisplayName({ name: normalizePublicText(deal.watchlist?.name ?? deal.title) }) : null;
+    const cardSet = deal?.watchlist?.set ?? null;
+    const cardHub = deal?.watchlist_id ? await findCardHubByWatchlistId(deal.watchlist_id) : null;
+    const searchQuery = cardName ? `${cardName}${cardSet ? ` ${cardSet}` : ""}` : null;
+    const ebaySearchUrl = searchQuery ? buildEbaySearchLink(searchQuery, deal?.marketplace) : null;
     return (
       <div className="min-h-screen bg-paper">
         <SiteHeader />
         <div className="mx-auto max-w-2xl px-6 py-16 text-center">
-          <p className="text-zinc-500">Couldn&apos;t find that deal - it may have expired.</p>
-          <Link href="/" className="mt-4 inline-block text-sm font-medium underline">
-            Back to all deals
-          </Link>
+          <h1 className="text-xl font-bold text-black dark:text-zinc-50">
+            {deal ? "This deal has ended" : "Deal not found"}
+          </h1>
+          <p className="mt-2 text-sm text-zinc-500">
+            {deal
+              ? `The listing${cardName ? ` for ${cardName}` : ""} is no longer available, sold, or no longer meets our listing checks - it's not a live purchase opportunity anymore.`
+              : "That deal doesn't exist, or has expired."}
+          </p>
+          <div className="mt-6 flex flex-col items-center gap-3">
+            {cardHub && (
+              <Link
+                href={`/cards/${cardHub.slug}`}
+                className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+              >
+                See current listings for this card →
+              </Link>
+            )}
+            {ebaySearchUrl && (
+              <AffiliateLink
+                href={ebaySearchUrl}
+                eventName="eBay Search Click"
+                eventData={{ page: "expired_deal" }}
+                className="text-sm font-medium text-red-600 hover:underline dark:text-red-500"
+              >
+                See current listings on eBay →
+              </AffiliateLink>
+            )}
+            <Link href="/" className="text-sm font-medium underline">
+              Back to all deals
+            </Link>
+          </div>
         </div>
       </div>
     );
