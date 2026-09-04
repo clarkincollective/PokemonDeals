@@ -16,10 +16,49 @@ const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const ORIGIN = "https://pokemondealfinder.com";
 const ACCENTED = /pokémon/i;
 
-// stable cohort members (docs/seo-set-catalogue-expansion.md)
-const CATALOGUE_SETS = ["/sets/swsh01-sword-shield-base-set", "/sets/celebrations", "/sets/pokemon-go", "/sets/mcdonald-s-promos-2014", "/sets/champion-s-path"];
 const BELOW_THRESHOLD = "/sets/kids-wb-promos"; // 2 eligible -> stays noindex, no page
 const SPECIALTY_SET = "/sets/world-championship-decks";
+
+const esc = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// The "catalogue-only" set fixture (an indexable set hub with NO
+// qualifying live deal) is chosen AT RUN TIME from the real sitemap, not
+// hardcoded: a set can gain a qualifying below-market deal at any time and
+// flip into the deal-backed template - exactly what happened to the
+// former hardcoded /sets/celebrations fixture. Curated low-deal-likelihood
+// promo / boxset sets are probed first (a "40%+ below a market ref" deal
+// essentially never qualifies for these); a full sitemap scan is the
+// fallback. CAT_NAME / CAT_SLUG / CAT_PATH are then derived from the page
+// that wins, so every former Celebrations-specific assertion is generic.
+const CAT_CANDIDATES = [
+  "/sets/mcdonald-s-promos-2014", "/sets/mcdonald-s-promos-2015", "/sets/mcdonald-s-promos-2016",
+  "/sets/mcdonald-s-promos-2017", "/sets/mcdonald-s-promos-2018", "/sets/mcdonald-s-promos-2019",
+  "/sets/mcdonald-s-promos-2021", "/sets/mcdonald-s-promos-2022", "/sets/mcdonald-s-promos-2023",
+  "/sets/southern-islands", "/sets/wizards-black-star-promos", "/sets/nintendo-black-star-promos",
+  "/sets/pop-series-1", "/sets/pop-series-2", "/sets/pop-series-3", "/sets/pop-series-4",
+  "/sets/pop-series-5", "/sets/dp-black-star-promos", "/sets/hgss-black-star-promos",
+  "/sets/np-black-star-promos", "/sets/best-of-game", "/sets/legendary-collection",
+];
+
+// Phase 8A parallel: the set H1/title is the SAME stable
+// "<Set> Card List, Prices & Values" for deal-backed AND catalogue-only
+// pages. The catalogue-only STATE is read from the BODY: the honest
+// "no qualifying below-market <Set> deal to feature right now" line is
+// present and there is no "<Set> deals" H2 / id="deals" deal module.
+const CATSET_H1_RE = /^(.+?) Card List, Prices & Values$/;
+
+function catalogueOnlyState(res) {
+  if (res.status !== 200) return null;
+  const p = parseHtml(res.body);
+  if (/noindex/.test(p.robots ?? "")) return null;
+  const m = (p.h1s[0] ?? "").match(CATSET_H1_RE);
+  if (!m) return null;
+  const name = m[1].trim();
+  const body = text(res.body);
+  if (!new RegExp(`no qualifying below-market ${esc(name)} deal to feature right now`, "i").test(body)) return null;
+  if (new RegExp(`${esc(name)} deals</h2>`, "i").test(res.body) || /id="deals"/i.test(res.body)) return null;
+  return { name, parsed: p };
+}
 
 function text(html) {
   return html
@@ -49,12 +88,16 @@ function ldTypes(parsed) {
 }
 
 let catRes, catParsed, dealSetPath, dealSetParsed, setSitemap;
+// runtime-resolved catalogue-only set fixture
+let CAT_PATH = null, CAT_SLUG = null, CAT_NAME = null;
+// the curated candidates that actually have an indexable hub - a small
+// dynamic stand-in for the old hardcoded CATALOGUE_SETS cohort
+let CATALOGUE_SETS = [];
 
 before(async () => {
-  catRes = await get(CATALOGUE_SETS[1]); // Celebrations
-  catParsed = parseHtml(catRes.body);
   const sm = await sitemapUrls();
   setSitemap = (sm.byType.get("sets") ?? []).map(pathOf);
+
   // a deal-backed set = one in the sitemap that shows a "deals" module
   for (const p of sample(setSitemap, 10)) {
     const r = await get(p);
@@ -63,6 +106,41 @@ before(async () => {
       dealSetParsed = parseHtml(r.body);
       break;
     }
+  }
+
+  // the catalogue-only fixture: curated low-deal-likelihood sets first,
+  // then a full sitemap scan. First page whose LIVE state is genuinely
+  // catalogue-only (indexable hub, honest "no qualifying deal" line, no
+  // deal module) wins.
+  const probeOrder = [
+    ...CAT_CANDIDATES.filter((p) => setSitemap.includes(p)),
+    ...setSitemap.filter((p) => !CAT_CANDIDATES.includes(p)),
+  ];
+  for (const path of probeOrder) {
+    const res = await get(path);
+    const state = catalogueOnlyState(res);
+    if (state) {
+      CAT_PATH = path;
+      CAT_SLUG = path.replace("/sets/", "");
+      CAT_NAME = state.name;
+      catRes = res;
+      catParsed = state.parsed;
+      break;
+    }
+  }
+  assert.ok(
+    CAT_PATH && CAT_NAME,
+    "no catalogue-only set fixture found: no sitemap set hub is currently in the " +
+      "indexable-but-no-qualifying-deal state. If every set now has a qualifying " +
+      "deal this invariant needs a synthetic fixture rather than a live one."
+  );
+
+  // indexable curated candidates -> the dynamic CATALOGUE_SETS cohort used
+  // by the metadata-stability / index-linking assertions below.
+  CATALOGUE_SETS = [CAT_PATH];
+  for (const p of CAT_CANDIDATES) {
+    if (p !== CAT_PATH && setSitemap.includes(p)) CATALOGUE_SETS.push(p);
+    if (CATALOGUE_SETS.length >= 4) break;
   }
 });
 
@@ -101,8 +179,11 @@ test("4. a below-threshold set stays out of the index and the sitemap", async ()
 
 test("5. a catalogue-only set does not claim live deals", () => {
   const t = text(catRes.body);
-  assert.match(t, /no qualifying below-market Celebrations deal to feature right now/i);
-  assert.ok(!/Celebrations deals<\/h2>/i.test(catRes.body), "catalogue-only set rendered a deals module");
+  assert.match(t, new RegExp(`no qualifying below-market ${esc(CAT_NAME)} deal to feature right now`, "i"));
+  assert.ok(
+    !new RegExp(`${esc(CAT_NAME)} deals</h2>`, "i").test(catRes.body) && !/id="deals"/i.test(catRes.body),
+    `catalogue-only set ${CAT_PATH} rendered a deals module`
+  );
 });
 
 // --- 6-8: stable metadata + H1 intent ----------------------
@@ -125,7 +206,7 @@ test("7. set H1/title is the STABLE checklist+prices+values phrasing (Phase 8A -
 });
 
 test("8. catalogue-only set H1 is a checklist/prices intent, no deal claim", () => {
-  assert.match(catParsed.h1s[0] ?? "", /^Celebrations Card List, Prices & Values$/);
+  assert.match(catParsed.h1s[0] ?? "", new RegExp(`^${esc(CAT_NAME)} Card List, Prices & Values$`));
   assert.ok(!/deals?\b/i.test(catParsed.h1s[0] ?? ""), `catalogue H1 mentions deals: ${catParsed.h1s[0]}`);
 });
 
@@ -133,14 +214,14 @@ test("8. catalogue-only set H1 is a checklist/prices intent, no deal claim", () 
 
 test("9. the card checklist links to /cards/[slug]", () => {
   const t = text(catRes.body);
-  assert.match(t, /Celebrations card checklist/i);
+  assert.match(t, new RegExp(`${esc(CAT_NAME)} card checklist`, "i"));
   const cardLinks = catParsed.internalLinks.filter((l) => /^\/cards\/[^/]+$/.test(l));
   assert.ok(cardLinks.length >= 6, `expected /cards/ links in the checklist, got ${cardLinks.length}`);
 });
 
 test("10. the Pokemon-in-set section links valid /pokemon/[slug]", async () => {
   const t = text(catRes.body);
-  assert.match(t, /Pokemon in Celebrations/i);
+  assert.match(t, new RegExp(`Pokemon in ${esc(CAT_NAME)}`, "i"));
   const pkLinks = catParsed.internalLinks.filter((l) => /^\/pokemon\/[^/]+$/.test(l));
   assert.ok(pkLinks.length >= 5, `expected /pokemon/ links, got ${pkLinks.length}`);
   for (const l of sample(pkLinks, 4)) {
@@ -164,7 +245,12 @@ test("11. Trainer / Energy names are excluded from the Pokemon section", async (
 });
 
 test("12. no Pokemon x Set URL pattern is created", async () => {
-  for (const p of ["/sets/celebrations/charizard", "/sets/celebrations/rare", "/sets/celebrations/pokemon/charizard", "/sets/pokemon-go/under-50"]) {
+  for (const p of [
+    `/sets/${CAT_SLUG}/charizard`,
+    `/sets/${CAT_SLUG}/rare`,
+    `/sets/${CAT_SLUG}/pokemon/charizard`,
+    `/sets/${CAT_SLUG}/under-50`,
+  ]) {
     const r = await get(p);
     assert.ok(r.status === 404, `${p} -> ${r.status} (a set x facet URL universe must not exist)`);
   }
@@ -196,7 +282,7 @@ test("13. specialty-set price rules are preserved (WCD range not thrown away, ca
 
 test("14. no fabricated complete-set valuation anywhere", () => {
   const t = text(catRes.body);
-  assert.ok(!/Celebrations is worth \$/i.test(t), "page states a single set value");
+  assert.ok(!new RegExp(`${esc(CAT_NAME)} is worth \\$`, "i").test(t), "page states a single set value");
   assert.ok(!/complete set value|full set value|set value: \$/i.test(t), "page implies a complete-set valuation");
   assert.match(t, /not a valuation of the complete set|not a complete-set valuation/i);
 });
@@ -220,11 +306,11 @@ test("16. no Product / Offer / Review / AggregateRating on a catalogue-only set"
 // --- 17-18: canonical + sitemap parity ------------------
 
 test("17. set canonical is the bare /sets/[slug] under filters/params", async () => {
-  assert.deepEqual(catParsed.canonicals, [`${ORIGIN}/sets/celebrations`]);
+  assert.deepEqual(catParsed.canonicals, [`${ORIGIN}/sets/${CAT_SLUG}`]);
   for (const q of ["?country=EBAY_GB", "?rarity=Rare", "?sort=value", "?page=2"]) {
-    const r = await get(`/sets/celebrations${q}`);
+    const r = await get(`/sets/${CAT_SLUG}${q}`);
     if (r.status !== 200) continue;
-    assert.deepEqual(parseHtml(r.body).canonicals, [`${ORIGIN}/sets/celebrations`], `canonical drifted for ${q}`);
+    assert.deepEqual(parseHtml(r.body).canonicals, [`${ORIGIN}/sets/${CAT_SLUG}`], `canonical drifted for ${q}`);
   }
 });
 
@@ -251,13 +337,13 @@ test("19. /sets index exposes the new catalogue-backed set hubs", async () => {
 });
 
 test("20. a card in a newly-qualifying set links to that set hub", async () => {
-  // a Celebrations card page should now link /sets/celebrations
+  // a card on the catalogue-only set page should link back to its set hub
   const cardLink = catParsed.internalLinks.find((l) => /^\/cards\//.test(l));
-  assert.ok(cardLink, "no card link found on the Celebrations set page");
+  assert.ok(cardLink, `no card link found on the ${CAT_PATH} set page`);
   const card = await get(cardLink);
   if (card.status === 200) {
-    assert.ok(parseHtml(card.body).internalLinks.includes("/sets/celebrations"),
-      `${cardLink} does not link back to /sets/celebrations`);
+    assert.ok(parseHtml(card.body).internalLinks.includes(`/sets/${CAT_SLUG}`),
+      `${cardLink} does not link back to /sets/${CAT_SLUG}`);
   }
 });
 
@@ -271,7 +357,7 @@ test("21. /methodology describes the catalogue-backed set path", async () => {
 });
 
 test("22. set pages contain no accented \"Pokemon\"", () => {
-  assert.ok(!ACCENTED.test(catRes.body), "Celebrations set page has an accented \"Pokémon\"");
+  assert.ok(!ACCENTED.test(catRes.body), `${CAT_PATH} set page has an accented "Pokemon"`);
 });
 
 test("23. no deal / matcher / authenticity / freshness logic changed", () => {

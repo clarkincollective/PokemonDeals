@@ -10,7 +10,7 @@ import { parseSearchIntent } from "@/lib/searchIntent";
 import { resolveSearchIntent, createSupabaseLookup } from "@/lib/searchResolve";
 import { speciesSlug } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
-import { resolveSetSlug } from "@/lib/deals";
+import { resolveSetSlug, fetchSetSearchVocabulary } from "@/lib/deals";
 import { readSearchFilters, mergeIntentWithFilters, searchFiltersToQuery } from "@/lib/searchFacets";
 
 // Public, read-only, on-demand - not on the cron schedule, so no
@@ -327,11 +327,23 @@ async function cardSearch(url) {
   // intent.subject). Merged AFTER parse, BEFORE resolve/scope.
   const urlFilters = readSearchFilters(url.searchParams);
 
+  // 13B.5.1 - the full canonical set vocabulary from card_catalog, so the
+  // parser recognises any real set standalone (not just the ~50 curated
+  // SET_PHRASES) and a bare set query resolves locally instead of hitting
+  // the price provider. Cached; a load failure degrades to curated-only.
+  let knownSets = [];
+  try {
+    const vocab = await fetchSetSearchVocabulary();
+    knownSets = vocab?.sets ?? [];
+  } catch {
+    /* curated SET_PHRASES still cover the high-signal sets */
+  }
+
   const timing = {};
   try {
     // 1. parse (pure, deterministic) + overlay the explicit URL facets
     let m = performance.now();
-    const rawIntent = parseSearchIntent(q);
+    const rawIntent = parseSearchIntent(q, { knownSets });
     const merged = mergeIntentWithFilters(rawIntent, urlFilters);
     const intent = merged.intent;
     timing.parse_ms = Math.round(performance.now() - m);
@@ -425,6 +437,7 @@ async function cardSearch(url) {
         subject_kind: intent.subject.kind,
         collector_number: intent.subject.collector_number,
         set: intent.subject.set,
+        set_id: intent.subject.set_id,
         species: intent.subject.species,
         // 13B.3 - lets the search UI build a "View all matching <species>
         // deals" link to /pokemon/<slug> that carries the parsed
@@ -445,7 +458,7 @@ async function cardSearch(url) {
         sort: intent.sort,
       },
       resolution: {
-        // exact_card | species | catalogue | local_broad | provider_fallback | subject_collector_mismatch
+        // exact_card | species | set | catalogue | local_broad | provider_fallback | subject_collector_mismatch
         mode: resolution.mode,
         rendered_mode: resolution.rendered_mode ?? resolution.mode,
         confidence: resolution.confidence,
