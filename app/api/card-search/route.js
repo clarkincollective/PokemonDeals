@@ -359,16 +359,23 @@ async function cardSearch(url) {
     // resolver's candidate ids for species/name so the catalogue isn't
     // queried twice.
     m = performance.now();
-    // full subject scope: exact -> [id]; species/local_broad -> resolver's
-    // complete id list; else the route re-queries in subjectTcgIds.
+    // full subject scope: exact -> [id]; species / species_set /
+    // local_broad -> resolver's complete id list; else the route
+    // re-queries in subjectTcgIds.
     const resolvedIds = Array.isArray(resolution.subject_ids) && resolution.subject_ids.length
       ? resolution.subject_ids
       : null;
-    const scopedDeals = await findScopedDeals(db, intent, {
-      countryParam: country,
-      sortParam: sort,
-      resolvedIds,
-    });
+    // 13B.5.2 - a resolved species ∩ set with NO matching card is a
+    // truthful empty. Never let subjectTcgIds broaden it back to
+    // all-species / all-set membership.
+    const scopedDeals =
+      resolution.mode === "species_set_no_match"
+        ? { deals: [], scoped: true, applied: [] }
+        : await findScopedDeals(db, intent, {
+            countryParam: country,
+            sortParam: sort,
+            resolvedIds,
+          });
     timing.supabase_deals_ms = Math.round(performance.now() - m);
 
     // 3b. catalogue: local when resolved, provider only on fallback
@@ -458,7 +465,8 @@ async function cardSearch(url) {
         sort: intent.sort,
       },
       resolution: {
-        // exact_card | species | set | catalogue | local_broad | provider_fallback | subject_collector_mismatch
+        // exact_card | species | species_set | species_set_no_match | set |
+        // catalogue | local_broad | provider_fallback | subject_collector_mismatch
         mode: resolution.mode,
         rendered_mode: resolution.rendered_mode ?? resolution.mode,
         confidence: resolution.confidence,
