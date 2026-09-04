@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import SearchClient from "./SearchClient";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbList } from "@/lib/jsonLd";
@@ -48,12 +47,12 @@ export async function generateMetadata({ searchParams }) {
   };
 }
 
-// Reading useSearchParams() in SearchClient (for the homepage hero
-// search box's ?q= handoff) makes this route depend on request-time
-// data, which forces Next to bail out to blank client-side-only
-// rendering if it tries to statically prerender the page. Marking it
-// dynamic instead makes it render fully on the server per request, so
-// the page still ships real, indexable content in the initial HTML.
+// SearchClient reads its URL state from window.location AFTER mount
+// (13B.6.1), not from useSearchParams(), so this route no longer needs a
+// Suspense boundary and no longer depends on request-time search params.
+// It is still marked dynamic: the server render calls fetchSetSlugs()
+// and the page must ship real, indexable content (H1 + intro + JSON-LD)
+// in the initial HTML rather than a client-only blank.
 export const dynamic = "force-dynamic";
 
 export default async function SearchPage() {
@@ -77,9 +76,7 @@ export default async function SearchPage() {
           },
         ]}
       />
-      <Suspense fallback={null}>
-        <SearchClient validSetSlugs={validSetSlugs} />
-      </Suspense>
+      <SearchClient validSetSlugs={validSetSlugs} />
     </>
   );
 }

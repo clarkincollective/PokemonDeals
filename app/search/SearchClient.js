@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { track } from "@vercel/analytics";
@@ -46,6 +45,10 @@ import { speciesDealsHref, exactCardHref, setDealsHref, intersectionCopy } from 
 const FACET_KEYS = ["type", "grader", "grade", "minPrice", "maxPrice", "listing"];
 const ALL_URL_KEYS = [...FACET_KEYS, "country", "sort", "q", "page"];
 
+// Stable empty snapshot for useSyncExternalStore's server/hydration path
+// (must be referentially stable or the store re-renders forever).
+const EMPTY_SEARCH = () => "";
+
 function subscribe(cb) {
   window.addEventListener("popstate", cb);
   window.addEventListener("pdf:search-nav", cb);
@@ -74,20 +77,15 @@ export default function SearchClient({ validSetSlugs = [] }) {
   const ccyApprox = displayCcy !== "USD" ? "≈ " : "";
   const inDisplayCcy = (usd) => formatMoney(toViewerCurrency(usd, displayCcy, rates), displayCcy);
 
-  // The URL as it was on the server render - the stable snapshot for
-  // useSyncExternalStore's SSR path. After mount, window.location is the
-  // source of truth.
-  const serverParams = useSearchParams();
-  const serverSearch = useMemo(() => {
-    const s = serverParams.toString();
-    return s ? `?${s}` : "";
-  }, [serverParams]);
-
-  const rawSearch = useSyncExternalStore(
-    subscribe,
-    () => window.location.search,
-    () => serverSearch
-  );
+  // 13B.6.1 - URL state is CLIENT-only. The server render (and the
+  // matching hydration render) always sees an empty snapshot, so this
+  // route hydrates in React's initial pass like every other page. The
+  // previous version seeded getServerSnapshot from useSearchParams(),
+  // which put SearchClient inside a Suspense boundary whose hydration
+  // React 19 deferred until a user interaction - the search request
+  // never fired on a fresh deep link. `window.location` is read right
+  // after mount (below) to run the deep link's search.
+  const rawSearch = useSyncExternalStore(subscribe, () => window.location.search, EMPTY_SEARCH);
   const sp = useMemo(() => new URLSearchParams(rawSearch), [rawSearch]);
 
   const urlQ = (sp.get("q") ?? "").trim();
@@ -105,7 +103,9 @@ export default function SearchClient({ validSetSlugs = [] }) {
     [rawSearch] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  const [query, setQuery] = useState(urlQ);
+  // Starts "" for an SSR-safe hydration render; seeded from the real URL
+  // in a mount effect below so a deep link's term shows in the box.
+  const [query, setQuery] = useState("");
   const [deals, setDeals] = useState(null);
   const [catalog, setCatalog] = useState(null);
   const [interpreted, setInterpreted] = useState(null);
@@ -117,12 +117,23 @@ export default function SearchClient({ validSetSlugs = [] }) {
   const inputRef = useRef(null);
   const focusedRef = useRef(false);
   const startedRef = useRef(false);
+  // 13B.6.1 - the query box is seeded from the URL in a mount effect; the
+  // search-as-you-type effect skips its first run so the empty initial
+  // `query` is never mistaken for the user clearing the box.
+  const typeEffectArmed = useRef(false);
   // 13B.2 request control: abort superseded searches; only the newest
   // request may touch results/loading/error state.
   const abortRef = useRef(null);
   const reqIdRef = useRef(0);
 
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  // 13B.6.1 - seed the visible query box from the real URL on mount (the
+  // initial render is intentionally URL-agnostic for hydration safety).
+  useEffect(() => {
+    const q = (new URLSearchParams(window.location.search).get("q") ?? "").trim();
+    if (q) setQuery(q);
+  }, []);
 
   // Back/Forward: resync the visible input to whatever q the URL now has
   // (filter navigations set `query` themselves, so this is a no-op then).
@@ -295,6 +306,10 @@ export default function SearchClient({ validSetSlugs = [] }) {
   // Search-as-you-type: debounced, and it REPLACES history (no entry per
   // keystroke). Filter changes push; a submit pushes.
   useEffect(() => {
+    if (!typeEffectArmed.current) {
+      typeEffectArmed.current = true;
+      return; // skip the mount run; the pre-seed "" is not a user edit
+    }
     const q = query.trim();
     const curQ = (new URLSearchParams(window.location.search).get("q") ?? "").trim();
     if (q === curQ) return;
