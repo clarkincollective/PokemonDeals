@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
-  fetchBestFinds,
+  fetchHomepageFlagshipDeals,
   fetchAuctionsEndingSoon,
   fetchDealsPool,
   fetchDealsPage,
@@ -152,7 +152,7 @@ export default async function Home({ searchParams }) {
   const [
     { data: pool, error: poolError },
     dealsPageResult,
-    { deals: bestFinds },
+    { deals: flagshipDeals },
     { deals: endingSoon },
     { deals: freshFinds },
     lastRefreshed,
@@ -163,7 +163,7 @@ export default async function Home({ searchParams }) {
   ] = await Promise.all([
     useStableList ? Promise.resolve({ data: null, error: null }) : fetchDealsPool(filters),
     useStableList ? fetchDealsPage({ table: "deals", ...filters, sort: sort ?? "newest", page }) : Promise.resolve(null),
-    showPromo ? fetchBestFinds({ limit: 4, country }) : Promise.resolve({ deals: [] }),
+    showPromo ? fetchHomepageFlagshipDeals({ limit: 4, country }) : Promise.resolve({ deals: [] }),
     showPromo ? fetchAuctionsEndingSoon({ limit: 6, country }) : Promise.resolve({ deals: [] }),
     showPromo ? fetchFreshFinds({ limit: 6, country }) : Promise.resolve({ deals: [] }),
     fetchLastScanTime({ table: "deals", language: "english" }),
@@ -328,7 +328,7 @@ export default async function Home({ searchParams }) {
       {/* BEST DEALS RIGHT NOW - the proof, first thing after the hero.
           13C.1 - `id`/`scroll-mt` so the hero "Browse today's deals ↓"
           jump lands with the heading clear of the sticky header. */}
-      {showPromo && bestFinds.length > 0 && (
+      {showPromo && flagshipDeals.length > 0 && (
         <section id="best-deals" data-analytics-section="best_deals" className="scroll-mt-24 border-b border-zinc-200 dark:border-zinc-800">
           <div className="mx-auto max-w-7xl px-6 py-10">
             {/* 13C.2 - flagship lane is Buy It Now only (auctions have
@@ -340,7 +340,7 @@ export default async function Home({ searchParams }) {
               actionHref="/best-finds"
             />
             <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {bestFinds.map((deal, i) => (
+              {flagshipDeals.map((deal, i) => (
                 <DealCard key={deal.id} deal={deal} rank={i + 1} hub={hubCounts[deal.watchlist_id]} pageName="home_best" validSetSlugs={validSetSlugs} analytics={{ section: "best_deals", rank: i + 1 }} />
               ))}
             </div>

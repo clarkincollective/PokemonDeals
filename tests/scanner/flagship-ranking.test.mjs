@@ -138,19 +138,82 @@ test("the flagship lane holds at most `limit` tiles and never pads", () => {
   assert.equal(rankFlagshipDeals([], { freshnessOf: FRESH, limit: 4 }).length, 0);
 });
 
-// --- integration-shape guards on lib/deals.js ---------------------------
+// --- integration-shape guards on lib/deals.js --------------------------
 
-test("fetchBestFinds is BIN-only + rankFlagshipDeals; auction lane stays auction-capable; All Deals untouched", () => {
+test("shared flagship selection is BIN-only + rankFlagshipDeals; auction lane stays auction-capable; All Deals untouched", () => {
   const src = read("lib/deals.js");
-  // flagship
-  assert.match(src, /fetchBestFindsUncached[\s\S]{0,1000}\.eq\("listing_type", "FIXED_PRICE"\)/);
-  assert.match(src, /rankFlagshipDeals\(premiumDisplayable\(data\), \{/);
+  // the Buy It Now contract is applied ONCE, in the shared candidate query
+  assert.match(src, /const FLAGSHIP_BUY_NOW_LISTING_TYPE = "FIXED_PRICE"/);
+  assert.match(src, /function flagshipCandidateQuery[\s\S]{0,700}\.eq\("listing_type", FLAGSHIP_BUY_NOW_LISTING_TYPE\)/);
+  assert.match(src, /function selectFlagshipDeals[\s\S]{0,400}rankFlagshipDeals\(premiumDisplayable\(data\), \{/);
   // auction lane unchanged - still queries AUCTION and orders by end time
   assert.match(src, /fetchAuctionsEndingSoonUncached[\s\S]{0,600}\.eq\("listing_type", "AUCTION"\)/);
   assert.match(src, /fetchAuctionsEndingSoonUncached[\s\S]{0,1200}\.order\("auction_end_at", \{ ascending: true \}\)/);
-  // All Deals / pool / pagination never import the flagship ranker
+  // All Deals / pool / pagination never touch the flagship ranker
   assert.ok(!/fetchDealsPoolUncached[\s\S]{0,1500}rankFlagshipDeals/.test(src));
   assert.ok(!/fetchDealsPageUncached[\s\S]{0,2500}rankFlagshipDeals/.test(src));
+});
+
+// --- 13C.2.1: each surface has its OWN explicit contract --------------
+
+test("13C.2.1 - three distinct public selectors, one shared ranking primitive", () => {
+  const src = read("lib/deals.js");
+  for (const fn of ["fetchHomepageFlagshipDeals", "fetchBestFinds", "fetchDigestDeals"]) {
+    assert.match(src, new RegExp(`export const ${fn} = unstable_cache\\(`), `${fn} must be its own public export`);
+  }
+  // distinct cache keys so one surface's revalidation can't touch another
+  for (const key of ['"homepage-flagship"', '"best-finds"', '"digest-deals"']) {
+    assert.ok(src.includes(key), `missing distinct cache key ${key}`);
+  }
+  // the ranking formula lives in exactly one place - lib/flagshipRanking,
+  // via the single shared selectFlagshipDeals. No second rankFlagshipDeals
+  // call, no re-implemented discount/saving math in lib/deals.js.
+  assert.equal((src.match(/rankFlagshipDeals\(/g) ?? []).length, 1, "rankFlagshipDeals must be called from exactly one shared place");
+  assert.ok(!/discountComponent|savingComponent|Math\.log10\(1 \+/.test(src), "ranking math must not be duplicated into lib/deals.js");
+});
+
+test("13C.2.1 - the digest pins 'no auctions' INDEPENDENTLY of the homepage flagship", () => {
+  const src = read("lib/deals.js");
+  // fetchDigestDeals re-asserts the buy-now listing type itself, so a
+  // future change to selectFlagshipDeals / flagshipCandidateQuery cannot
+  // silently let auctions into the email.
+  const digest = src.match(/export const fetchDigestDeals = unstable_cache\([\s\S]*?\n\);/);
+  assert.ok(digest, "fetchDigestDeals export not found");
+  assert.match(
+    digest[0],
+    /\.filter\(\(d\) => d\.listing_type === FLAGSHIP_BUY_NOW_LISTING_TYPE\)/,
+    "the digest must independently filter to the buy-now listing type"
+  );
+});
+
+test("13C.2.1 - callers wired to their intended selector", () => {
+  const home = read("app/page.js");
+  assert.match(home, /fetchHomepageFlagshipDeals\(\{ limit: 4/);
+  assert.ok(!/fetchBestFinds\b/.test(home), "homepage must not call the generic fetchBestFinds");
+
+  const bf = read("app/best-finds/page.js");
+  assert.match(bf, /fetchBestFinds\(\{ limit: 10/);
+
+  const digest = read("app/api/send-digest/route.js");
+  assert.match(digest, /import \{ fetchDigestDeals \} from "@\/lib\/deals"/);
+  assert.match(digest, /fetchDigestDeals\(\{ limit: DEAL_COUNT \}\)/);
+  assert.ok(!/fetchBestFinds\b/.test(digest), "digest must not call fetchBestFinds");
+});
+
+test("13C.2.1 - digest email renders a plain purchase price + '% below market', no auction-only framing", () => {
+  // strip comments so the guard checks RENDERED strings, not prose
+  const code = read("app/api/send-digest/route.js")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("\n")
+    .filter((l) => !l.trim().startsWith("//"))
+    .join("\n");
+  // rows show total_price and "% below market" - fine for a fixed price
+  assert.match(code, /% below market/);
+  // must NOT carry auction-bid framing (would be a lie for a BIN row and
+  // the digest is BIN-only anyway)
+  assert.ok(!/current bid|can rise|Bid on eBay|ending in|auction ends/i.test(code), "digest email must not use auction-bid wording");
+  // and it must not tell the reader to 'Buy now at $X' as if we sell it
+  assert.ok(!/buy now at|purchase for \$|checkout/i.test(code));
 });
 
 test("no user-facing 'Deal Score' / ranking number is rendered", () => {

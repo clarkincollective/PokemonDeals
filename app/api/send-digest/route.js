@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { fetchBestFinds } from "@/lib/deals";
+import { fetchDigestDeals } from "@/lib/deals";
 import { emailEnabled, sendBatch } from "@/lib/email";
 import { currencyForDeal, formatMoney } from "@/lib/money";
 
@@ -13,6 +13,11 @@ const DEAL_COUNT = 8;
 // Weekly cron: emails confirmed newsletter subscribers the week's best
 // below-market deals. Dormant without RESEND_API_KEY. Guarded so a
 // double-fire within 6 days is a no-op.
+//
+// 13C.2.1 - the digest is DELIBERATELY Buy It Now only (fetchDigestDeals,
+// which pins that contract independently of the homepage flagship). Each
+// row below renders `total_price` as a plain price the recipient can pay,
+// so an auction's current bid must never appear here.
 export async function GET(request) {
   if (request.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -34,7 +39,7 @@ export async function GET(request) {
   }
 
   const [{ deals }, { data: subs, error: subErr }] = await Promise.all([
-    fetchBestFinds({ limit: DEAL_COUNT }),
+    fetchDigestDeals({ limit: DEAL_COUNT }),
     db
       .from("newsletter_subscribers")
       .select("email, token")
