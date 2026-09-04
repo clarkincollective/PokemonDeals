@@ -24,9 +24,9 @@
 //   - never requests or prints person/session/card/Pokemon/listing/query
 //     data - only the aggregate counts the Phase 13A/13C taxonomy already
 //     approves (scripts/reporting/homepageEvents.mjs)
-//   - defaults its window to the start of the clean measurement window
-//     (see CLEAN_WINDOW_START below) so a stale pre-fix number can't
-//     silently leak into a 13C.6 decision
+//   - defaults its window to CURRENT_PRODUCT_MEASUREMENT_START (below) so
+//     a stale pre-fix, or pre-recovery, number can't silently leak into a
+//     13C.6 decision
 //
 // Add your own credentials to a local, gitignored env file (e.g.
 // .env.local) or your shell environment - never paste them into a chat
@@ -50,16 +50,41 @@ else loadDotenv({ quiet: true });
 import { aggregateRows, buildReport } from "./reporting/aggregate.mjs";
 import { formatText } from "./reporting/format.mjs";
 
-// 2026-09-04T20:18:17Z - the production deploy (dpl_ARKnvBTmHn2GQMYrLjdjhWumS48U,
-// Phase 13C.5.1) at which every homepage-funnel fix (13C.5 + 13C.5.1) was
-// simultaneously live. Data from before this instant reflects a broken
-// or incomplete funnel (dropped Discover/example events, double-counted
-// affiliate clicks, missing mobile section impressions, no sticky-search
-// events) and must not be used for a 13C.6 decision.
-export const CLEAN_WINDOW_START = "2026-09-04T20:18:17Z";
+// Phase 13C.6.2 - TWO distinct timestamps, deliberately kept separate and
+// both preserved (neither one erases the other):
+//
+//   ANALYTICS_INSTRUMENTATION_START - when event instrumentation itself
+//   became complete and trustworthy. The production deploy
+//   (dpl_ARKnvBTmHn2GQMYrLjdjhWumS48U, Phase 13C.5.1) at which every
+//   homepage-funnel measurement fix (13C.5 + 13C.5.1) was simultaneously
+//   live. Data from before this instant reflects a broken/incomplete
+//   MEASUREMENT (dropped Discover/example events, double-counted
+//   affiliate clicks, missing mobile section impressions, no sticky-
+//   search events) - a measurement-integrity boundary, not a product
+//   one. Kept here purely as a documented historical fact.
+//
+//   CURRENT_PRODUCT_MEASUREMENT_START - when the CURRENT product state
+//   became the one worth measuring. P0.2 (2026-09-04) fixed a real
+//   stale/sold-deal leakage bug and materially changed deal eligibility:
+//   the availability-integrity code deployed at 2026-09-04T22:23:25Z,
+//   Best Deals/Auctions recovered at 2026-09-04T22:55:22Z, and Just Added
+//   (plus the final homepage-wide healthy state) recovered at
+//   2026-09-04T23:20:02Z. Data between the two timestamps above mixes
+//   pre-fix and recovering-lane inventory with the stable post-fix
+//   product - not comparable to what a visitor sees today. This is the
+//   constant future 13C.6 analysis should default to.
+export const ANALYTICS_INSTRUMENTATION_START = "2026-09-04T20:18:17Z";
+export const CURRENT_PRODUCT_MEASUREMENT_START = "2026-09-04T23:20:02Z";
+// The two intermediate P0.2 milestones, named here only so the warning
+// text below can cite them precisely - not exported/reused elsewhere,
+// so this is documentation, not a second copy of a "the" timestamp.
+const P0_2_DEPLOY_START = "2026-09-04T22:23:25Z";
+const P0_2_BEST_DEALS_AUCTIONS_RECOVERED = "2026-09-04T22:55:22Z";
+
+const PRODUCT_STATE = "POST-P0.2 AVAILABILITY INTEGRITY";
 
 function parseArgs(argv) {
-  const out = { from: CLEAN_WINDOW_START, to: new Date().toISOString(), json: false };
+  const out = { from: CURRENT_PRODUCT_MEASUREMENT_START, to: new Date().toISOString(), json: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--json") out.json = true;
@@ -73,9 +98,14 @@ function parseArgs(argv) {
 function printHelp() {
   console.log(`node scripts/reportHomepageConversion.mjs [--from ISO] [--to ISO] [--json]
 
-  --from ISO   window start (default: clean measurement window start, ${CLEAN_WINDOW_START})
+  --from ISO   window start (default: current-product measurement start, ${CURRENT_PRODUCT_MEASUREMENT_START})
   --to   ISO   window end   (default: now)
   --json       print the aggregate report as JSON only (no text report)
+
+Historical instrumentation became complete at ${ANALYTICS_INSTRUMENTATION_START}
+(Phase 13C.5/13C.5.1), but P0.2 changed deal-eligibility criteria on
+2026-09-04 - an earlier --from is still permitted for diagnostic/
+historical analysis, and prints a warning rather than being blocked.
 
 Requires POSTHOG_PERSONAL_API_KEY and POSTHOG_PROJECT_ID in the environment.
 Never pass credentials as CLI flags.`);
@@ -88,11 +118,25 @@ async function main() {
     return;
   }
 
-  if (Date.parse(args.from) < Date.parse(CLEAN_WINDOW_START)) {
+  // Two separate warning tiers, deliberately worded differently - neither
+  // one blocks the query, both are diagnostic-only.
+  if (Date.parse(args.from) < Date.parse(ANALYTICS_INSTRUMENTATION_START)) {
     console.warn(
-      `WARNING: --from (${args.from}) is BEFORE the clean measurement window start (${CLEAN_WINDOW_START}).\n` +
-        "         Data before that instant reflects a known-broken/incomplete homepage funnel\n" +
-        "         (see Phase 13C.5 / 13C.5.1) and should not be used for a 13C.6 decision.\n"
+      `WARNING: --from (${args.from}) is BEFORE analytics instrumentation was complete (${ANALYTICS_INSTRUMENTATION_START}).\n` +
+        "         Data before that instant reflects a known-broken/incomplete MEASUREMENT\n" +
+        "         (see Phase 13C.5 / 13C.5.1) - dropped events, double-counted clicks, missing\n" +
+        "         impressions - independent of any product change.\n"
+    );
+  } else if (Date.parse(args.from) < Date.parse(CURRENT_PRODUCT_MEASUREMENT_START)) {
+    console.warn(
+      `WARNING: --from (${args.from}) is BEFORE the current product state (${CURRENT_PRODUCT_MEASUREMENT_START}).\n` +
+        `         Analytics instrumentation was complete from ${ANALYTICS_INSTRUMENTATION_START}, but P0.2 (a\n` +
+        `         stale/sold-deal-leakage fix) changed deal-eligibility criteria: the availability-\n` +
+        `         integrity code deployed at ${P0_2_DEPLOY_START}, and homepage premium lanes then\n` +
+        `         went through a recovery period (Best Deals/Auctions ${P0_2_BEST_DEALS_AUCTIONS_RECOVERED},\n` +
+        `         Just Added/full homepage ${CURRENT_PRODUCT_MEASUREMENT_START}).\n` +
+        "         Data in this window mixes pre-fix and recovering-lane inventory with the stable\n" +
+        "         current product - do not mix it into a current-product conversion decision.\n"
     );
   }
   if (Number.isNaN(Date.parse(args.from)) || Number.isNaN(Date.parse(args.to))) {
@@ -142,7 +186,13 @@ async function main() {
 
   const rows = rowsFromResponse(response);
   const metrics = aggregateRows(rows);
-  const report = buildReport(metrics, { from: args.from, to: args.to });
+  const report = buildReport(metrics, {
+    from: args.from,
+    to: args.to,
+    instrumentationStart: ANALYTICS_INSTRUMENTATION_START,
+    currentProductStart: CURRENT_PRODUCT_MEASUREMENT_START,
+    productState: PRODUCT_STATE,
+  });
 
   if (args.json) {
     console.log(JSON.stringify(report, null, 2));
@@ -152,8 +202,8 @@ async function main() {
 }
 
 // Only run when invoked directly (`node scripts/reportHomepageConversion.mjs`),
-// never as a side effect of another module importing CLEAN_WINDOW_START /
-// parseArgs / etc. for testing.
+// never as a side effect of another module importing
+// CURRENT_PRODUCT_MEASUREMENT_START / parseArgs / etc. for testing.
 const isMain = (() => {
   try {
     return process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];

@@ -24,6 +24,12 @@ export function formatText(report) {
   out.push("POKEMONDEALFINDER HOMEPAGE CONVERSION REPORT");
   out.push(line());
   out.push(`Measurement window: ${report.window.from}  ->  ${report.window.to}`);
+  if (report.measurementContext?.productState) {
+    out.push(`Product state:      ${report.measurementContext.productState}`);
+  }
+  if (report.measurementContext?.instrumentationStart) {
+    out.push(`Historical instrumentation start: ${report.measurementContext.instrumentationStart}`);
+  }
   out.push(`Generated:          ${report.window.generatedAt}`);
   out.push(`Homepage views:     ${report.homepageViews}`);
   out.push("");

@@ -26,7 +26,7 @@ import {
   MIN_QCA_FOR_QCA_COMPARISON,
 } from "../../scripts/reporting/aggregate.mjs";
 import { formatText } from "../../scripts/reporting/format.mjs";
-import { CLEAN_WINDOW_START } from "../../scripts/reportHomepageConversion.mjs";
+import { ANALYTICS_INSTRUMENTATION_START, CURRENT_PRODUCT_MEASUREMENT_START } from "../../scripts/reportHomepageConversion.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
@@ -80,25 +80,44 @@ const FIXTURE_RESPONSE = {
   ],
 };
 
-function reportFromFixture() {
+function reportFromFixture(overrides = {}) {
   const rows = rowsFromResponse(FIXTURE_RESPONSE);
   const metrics = aggregateRows(rows);
-  return buildReport(metrics, { from: CLEAN_WINDOW_START, to: "2026-09-11T00:00:00Z" });
+  return buildReport(metrics, { from: CURRENT_PRODUCT_MEASUREMENT_START, to: "2026-09-11T00:00:00Z", ...overrides });
 }
 
-// === 1. clean window default =======================================
+// === 1. current-product measurement default (13C.6.2) ================
 
-test("13C.6.0 - default --from is the clean measurement window start", () => {
-  assert.equal(CLEAN_WINDOW_START, "2026-09-04T20:18:17Z");
+test("13C.6.2 - default --from is the current-product measurement start, not the older instrumentation start", () => {
+  assert.equal(CURRENT_PRODUCT_MEASUREMENT_START, "2026-09-04T23:20:02Z");
   const cli = read("scripts/reportHomepageConversion.mjs");
-  assert.match(cli, /from:\s*CLEAN_WINDOW_START/);
+  assert.match(cli, /from:\s*CURRENT_PRODUCT_MEASUREMENT_START/);
   assert.match(cli, /to:\s*new Date\(\)\.toISOString\(\)/);
 });
 
-test("13C.6.0 - a --from before the clean window triggers a clear warning, not a silent include", () => {
+test("13C.6.2 - the original analytics instrumentation start remains documented and exported, never erased", () => {
+  assert.equal(ANALYTICS_INSTRUMENTATION_START, "2026-09-04T20:18:17Z");
+  // and it is strictly before the current-product start - the two concepts
+  // are ordered and distinct, not aliases of each other
+  assert.ok(Date.parse(ANALYTICS_INSTRUMENTATION_START) < Date.parse(CURRENT_PRODUCT_MEASUREMENT_START));
+  const cli = read("scripts/reportHomepageConversion.mjs");
+  assert.match(cli, /export const ANALYTICS_INSTRUMENTATION_START = "2026-09-04T20:18:17Z"/);
+});
+
+test("13C.6.2 - a --from before the current-product start triggers a clear warning, never a silent include or a block", () => {
   const cli = read("scripts/reportHomepageConversion.mjs");
   assert.match(cli, /WARNING: --from/);
-  assert.match(cli, /Date\.parse\(args\.from\) < Date\.parse\(CLEAN_WINDOW_START\)/);
+  assert.match(cli, /Date\.parse\(args\.from\) < Date\.parse\(ANALYTICS_INSTRUMENTATION_START\)/);
+  assert.match(cli, /Date\.parse\(args\.from\) < Date\.parse\(CURRENT_PRODUCT_MEASUREMENT_START\)/);
+  // both warning branches explain themselves without ever exiting/blocking
+  assert.doesNotMatch(cli.slice(cli.indexOf("WARNING: --from"), cli.indexOf("async function main")), /process\.exit/);
+});
+
+test("13C.6.2 - the pre-current-product warning cites both P0.2 milestones and the exact recovery timestamp", () => {
+  const cli = read("scripts/reportHomepageConversion.mjs");
+  assert.match(cli, /2026-09-04T22:23:25Z/); // P0.2 deploy
+  assert.match(cli, /2026-09-04T22:55:22Z/); // Best Deals/Auctions recovered
+  assert.match(cli, /P0\.2/);
 });
 
 // === 2. credential contract =========================================
@@ -260,7 +279,7 @@ test("13C.6.0 - a zero denominator renders N/A, never Infinity or a misleading 0
   assert.equal(ratePer(5, 0), "N/A");
   assert.equal(ratePer(0, 0), "N/A");
   assert.equal(ratePer(0, 100), "0.0");
-  const empty = buildReport(aggregateRows([]), { from: CLEAN_WINDOW_START, to: "2026-09-11T00:00:00Z" });
+  const empty = buildReport(aggregateRows([]), { from: CURRENT_PRODUCT_MEASUREMENT_START, to: "2026-09-11T00:00:00Z" });
   assert.equal(empty.justAdded.clickRatePer1000, "N/A");
   assert.equal(empty.allDeals.filterRatePer1000, "N/A");
   const text = formatText(empty);
@@ -279,6 +298,47 @@ test("13C.6.0 - --json prints only the aggregate report object, no text banner",
   for (const bad of ["distinct_id", "person", "\"q\":", "card_name", "affiliate_url", "$ip"]) {
     assert.ok(!json.includes(bad), `serialized report must not contain ${bad}`);
   }
+});
+
+// === 10b. measurementContext (13C.6.2) ================================
+
+test("13C.6.2 - the report (and its --json form) carries a correct, non-identity measurementContext", () => {
+  const report = reportFromFixture({
+    instrumentationStart: ANALYTICS_INSTRUMENTATION_START,
+    currentProductStart: CURRENT_PRODUCT_MEASUREMENT_START,
+    productState: "POST-P0.2 AVAILABILITY INTEGRITY",
+  });
+  assert.equal(report.measurementContext.instrumentationStart, "2026-09-04T20:18:17Z");
+  assert.equal(report.measurementContext.currentProductStart, "2026-09-04T23:20:02Z");
+  assert.equal(report.measurementContext.productState, "POST-P0.2 AVAILABILITY INTEGRITY");
+  assert.equal(report.window.from, CURRENT_PRODUCT_MEASUREMENT_START);
+  const json = JSON.stringify(report);
+  assert.doesNotThrow(() => JSON.parse(json));
+  assert.match(json, /"currentProductStart":"2026-09-04T23:20:02Z"/);
+  // still no identity/session data anywhere in the JSON
+  for (const bad of ["distinct_id", "person", "\"q\":", "card_name", "affiliate_url", "$ip"]) {
+    assert.ok(!json.includes(bad), `serialized report must not contain ${bad}`);
+  }
+});
+
+test("13C.6.2 - the CLI wires the real constants into buildReport, not a re-typed literal", () => {
+  const cli = read("scripts/reportHomepageConversion.mjs");
+  const callSite = cli.slice(cli.indexOf("buildReport(metrics"));
+  assert.match(callSite, /instrumentationStart:\s*ANALYTICS_INSTRUMENTATION_START/);
+  assert.match(callSite, /currentProductStart:\s*CURRENT_PRODUCT_MEASUREMENT_START/);
+  assert.match(callSite, /productState:\s*PRODUCT_STATE/);
+});
+
+test("13C.6.2 - the text report header shows the current window, product state, and historical instrumentation start concisely", () => {
+  const report = reportFromFixture({
+    instrumentationStart: ANALYTICS_INSTRUMENTATION_START,
+    currentProductStart: CURRENT_PRODUCT_MEASUREMENT_START,
+    productState: "POST-P0.2 AVAILABILITY INTEGRITY",
+  });
+  const text = formatText(report);
+  assert.match(text, /Measurement window: 2026-09-04T23:20:02Z/);
+  assert.match(text, /POST-P0\.2 AVAILABILITY INTEGRITY/);
+  assert.match(text, /Historical instrumentation start: 2026-09-04T20:18:17Z/);
 });
 
 // === 11. no write operations =========================================

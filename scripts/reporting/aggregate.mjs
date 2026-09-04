@@ -128,7 +128,16 @@ export function aggregateRows(rows) {
 
 // Builds the full report object (aggregate-only; safe to JSON.stringify
 // verbatim - no person/session data ever enters this object).
-export function buildReport(m, { from, to, generatedAt = new Date().toISOString() } = {}) {
+//
+// instrumentationStart / currentProductStart / productState (13C.6.2) are
+// pass-through documentation, not computed here - the CLI (the one place
+// that owns those dates) supplies them, so this module stays free of any
+// hardcoded date and fully driven by its arguments, as every other value
+// here already is.
+export function buildReport(
+  m,
+  { from, to, generatedAt = new Date().toISOString(), instrumentationStart = null, currentProductStart = null, productState = null } = {}
+) {
   const searchStarts = m.heroSearchStarted + m.stickySearchStarted;
   const searchSubmits = m.heroSearchSubmitted + m.stickySearchSubmitted;
 
@@ -212,6 +221,7 @@ export function buildReport(m, { from, to, generatedAt = new Date().toISOString(
 
   return {
     window: { from, to, generatedAt },
+    measurementContext: { instrumentationStart, currentProductStart, productState },
     homepageViews: m.homepageViews,
     searchVsDiscover,
     bestDeals,
