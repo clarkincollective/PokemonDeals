@@ -908,11 +908,26 @@ function exactCardHref(exact, resolution) {
   return qs ? `${base}?${qs}` : base;
 }
 
+// 13B.4.3 - "Browse <set> deals" carries the same normalised filters to
+// the permanent /sets/<slug> page. Only when the route confirmed a real
+// set page exists (resolution.set_link).
+function setDealsHref(resolution) {
+  const base = resolution?.set_link;
+  if (!base) return null;
+  const src = resolution?.filter_query ?? null;
+  if (!src) return base;
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(src)) if (v != null && v !== "") p.set(k, String(v));
+  const qs = p.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
 // A compact, truthful summary of how the query was parsed and resolved,
 // plus exact-card destination + zero-result relaxation.
 function SearchInterpretation({ interpreted, resolution, exact, dealCount, onRelax }) {
   const i = interpreted ?? {};
   const speciesHref = !exact ? speciesDealsHref(i, resolution) : null;
+  const setHref = !exact ? setDealsHref(resolution) : null;
   const chips = [];
   if (i.species) chips.push(i.species);
   else if (i.card_name) chips.push(i.card_name);
@@ -1014,6 +1029,18 @@ function SearchInterpretation({ interpreted, resolution, exact, dealCount, onRel
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
           >
             View all matching {i.species} deals →
+          </Link>
+        </div>
+      )}
+
+      {setHref && i.set && (
+        <div className="mt-3">
+          <Link
+            href={setHref}
+            rel="nofollow"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+          >
+            Browse {i.set} deals →
           </Link>
         </div>
       )}

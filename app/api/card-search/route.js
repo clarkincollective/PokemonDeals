@@ -9,6 +9,8 @@ import { rerankCatalogResults } from "@/lib/searchRanking";
 import { parseSearchIntent } from "@/lib/searchIntent";
 import { resolveSearchIntent, createSupabaseLookup } from "@/lib/searchResolve";
 import { speciesSlug } from "@/lib/pokemonSpecies";
+import { slugifySet } from "@/lib/slugify";
+import { resolveSetSlug } from "@/lib/deals";
 import { readSearchFilters, mergeIntentWithFilters, searchFiltersToQuery } from "@/lib/searchFacets";
 
 // Public, read-only, on-demand - not on the cron schedule, so no
@@ -397,6 +399,21 @@ async function cardSearch(url) {
       });
     }
 
+    // 13B.4.3 - when the query names a real set, offer a "Browse <set>
+    // deals" link that carries the current normalised structured filters
+    // (never the raw query text). Only when a real /sets/<slug> page
+    // exists (resolveSetSlug reads the cached catalog-sets snapshot).
+    let setSlug = null;
+    let setLink = null;
+    if (intent.subject.set) {
+      setSlug = slugifySet(intent.subject.set);
+      try {
+        if (await resolveSetSlug(setSlug)) setLink = `/sets/${setSlug}`;
+      } catch {
+        /* leave setLink null */
+      }
+    }
+
     timing.total_server_ms = Math.round(performance.now() - tStart);
 
     const body = {
@@ -414,6 +431,7 @@ async function cardSearch(url) {
         // graded/grader/grade/price/listing modifiers (structural only,
         // never the raw query text).
         species_slug: intent.subject.species ? speciesSlug(intent.subject.species) : null,
+        set_slug: setSlug,
         card_name: intent.subject.card_name,
         format: intent.format,
         grader: intent.grader,
@@ -452,6 +470,8 @@ async function cardSearch(url) {
         // that carry the collector's current refine state (never raw
         // query text). `pokemon_link_query` kept for the 13B.4.1 client.
         filter_query: searchFiltersToQuery(merged.activeFilters),
+        // 13B.4.3 - /sets/<slug> when the query named a real set page.
+        set_link: setLink,
         pokemon_link_query: intent.subject.species
           ? searchFiltersToQuery(merged.activeFilters)
           : null,

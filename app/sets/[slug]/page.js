@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import {
   resolveSetSlug,
   fetchDealsPage,
+  fetchSetDealsPage,
   fetchHubCounts,
   fetchSetCatalog,
   fetchSetSealedCatalog,
@@ -133,10 +134,9 @@ export default async function SetDetailPage({ params }) {
   ] = await Promise.all([
     catalogueOnly
       ? Promise.resolve({ deals: [], totalPages: 1, error: null })
-      : fetchDealsPage({
-          table: "deals",
+      : fetchSetDealsPage({
+          setName: resolved.set,
           language: "english",
-          set: resolved.set,
           sort: "newest",
           page: 1,
           pageSize: 20,
@@ -285,6 +285,7 @@ export default async function SetDetailPage({ params }) {
               basePath={basePath}
               initial={{ deals, totalPages }}
               hubCounts={hubCounts}
+              subjectLabel={resolved.set}
               emptyLabel={`No ${resolved.set} deals match these filters right now. Try clearing a filter, or check back after the next scheduled scan.`}
               validSetSlugs={[slug]}
             />

@@ -1,6 +1,7 @@
 import {
   fetchDealsPage,
   fetchSpeciesDealsPage,
+  fetchSetDealsPage,
   fetchCardDealsPage,
   fetchSets,
   resolveSetSlug,
@@ -46,7 +47,14 @@ export async function GET(request) {
     if (kind === "set") {
       const resolved = await resolveSetSlug(slug);
       if (!resolved) return Response.json({ deals: [], totalPages: 1, error: "not found" }, { status: 404 });
-      const r = await fetchDealsPage({ table: "deals", language: "english", set: resolved.set, ...filters });
+      // 13B.4.3 - shared filter contract + canonical set card-identity scope
+      // (pulls in feed-discovered deals); grader/grade like species/card.
+      const r = await fetchSetDealsPage({
+        setName: resolved.set,
+        language: "english",
+        ...filters,
+        ...gradedFilters,
+      });
       return Response.json(r);
     }
     if (kind === "species") {

@@ -89,9 +89,11 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
   const params = useMemo(() => parseSearch(search), [search]);
   const reqKey = params.raw;
 
-  // Graded scoping (grader / grade + the dependent UI) is a Pokemon-page
-  // concern only - set / category grids are unchanged.
-  const showGrading = kind === "species";
+  // The shared structured deal-filter contract (grader / grade + the
+  // dependent UI, chips, notes, relaxation empty state, filter analytics).
+  // Species (13B.3) + set (13B.4.3). Category grids stay on the plain
+  // FilterBar.
+  const showGrading = kind === "species" || kind === "set";
 
   // The EFFECTIVE (normalised) filter state drives which pills read as
   // active - so a contradictory URL like ?type=raw&grader=PSA lights the
