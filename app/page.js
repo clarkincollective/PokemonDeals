@@ -432,7 +432,10 @@ export default async function Home({ searchParams }) {
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {deals?.map((deal) => (
-            <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} validSetSlugs={validSetSlugs} />
+            // 13C.5 - `home_all_deals` so an affiliate_click from this grid
+            // is attributable to the homepage All Deals lane, not the
+            // bare "home" catch-all shared with /cards, /sets, /deals grids.
+            <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} validSetSlugs={validSetSlugs} pageName="home_all_deals" />
           ))}
         </div>
 

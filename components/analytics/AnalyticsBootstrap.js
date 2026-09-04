@@ -101,6 +101,14 @@ export default function AnalyticsBootstrap() {
       }
 
       if (dealEl) {
+        // 13C.5 - the lane click event (best_deal_clicked / ending_soon_clicked
+        // / just_added_clicked) means "opened the deal detail from lane X".
+        // The affiliate CTA inside the same card fires its own
+        // affiliate_click (with origin_section); without this guard a CTA
+        // click bubbled to the card root and double-counted as a lane
+        // click too, making "card click -> affiliate click" ratios
+        // un-computable.
+        if (target.closest('a[rel~="sponsored"]')) return;
         try {
           props = JSON.parse(dealEl.getAttribute("data-analytics-deal") || "{}");
         } catch {

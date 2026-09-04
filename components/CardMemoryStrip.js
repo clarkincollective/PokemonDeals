@@ -116,7 +116,15 @@ export default function CardMemoryStrip() {
   const recentOnly = recent.filter((c) => !savedKeys.has(c.key));
 
   return (
-    <section className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
+    // 13C.5 - the strip is client-only and renders nothing (returns null
+    // above) unless the viewer actually has saved / recently-viewed
+    // cards, so this section marker produces a homepage_section_impression
+    // ONLY when the returning-visitor lane is genuinely shown - never a
+    // phantom impression for a first-time visitor.
+    <section
+      data-analytics-section="recently_viewed"
+      className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black"
+    >
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8">
         <Row title="Your saved cards" cards={saved} onClear={clearSaved} onRemove={removeSaved} fx={fx} />
         <Row title="Recently viewed" cards={recentOnly} onClear={clearRecent} onRemove={removeRecent} fx={fx} />

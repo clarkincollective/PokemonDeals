@@ -17,18 +17,28 @@ const ANALYTICS_ACTIVE = analyticsEnabled();
 // Lane CLICKS are handled globally by AnalyticsBootstrap via delegation.
 export default function HomepageAnalytics({ variant = "promo", page = 1, hasFilters = false }) {
   const started = useRef(false);
+  // 13C.5 - the once-gate lives in a ref, NOT inside the effect: a
+  // StrictMode / future remount tore down the IntersectionObserver in the
+  // cleanup and then `started.current` (its old job) made the whole effect
+  // bail on the re-mount, so impressions + scroll depth were never rebuilt.
+  // Now the effect always (re)builds the observers per mount, while the
+  // ref-held gate keeps every impression firing exactly once for the page.
+  const gateRef = useRef(null);
+  if (gateRef.current === null) gateRef.current = makeOnceGate();
 
   useEffect(() => {
-    if (!ANALYTICS_ACTIVE || started.current) return;
-    started.current = true;
+    if (!ANALYTICS_ACTIVE) return;
+    const gate = gateRef.current;
 
-    capture(EVENTS.HOMEPAGE_VIEW, {
-      variant, // "promo" | "filtered" | "paged"
-      page,
-      has_filters: Boolean(hasFilters),
-    });
-
-    const gate = makeOnceGate();
+    // homepage_view: exactly once per page, independent of remounts.
+    if (!started.current) {
+      started.current = true;
+      capture(EVENTS.HOMEPAGE_VIEW, {
+        variant, // "promo" | "filtered" | "paged"
+        page,
+        has_filters: Boolean(hasFilters),
+      });
+    }
 
     // --- impressions ---
     let io = null;
@@ -36,8 +46,21 @@ export default function HomepageAnalytics({ variant = "promo", page = 1, hasFilt
       io = new IntersectionObserver(
         (entries) => {
           for (const entry of entries) {
-            if (!entry.isIntersecting || entry.intersectionRatio < 0.4) continue;
+            if (!entry.isIntersecting) continue;
             const el = entry.target;
+            // A section wrapper is often much TALLER than the viewport
+            // (best_deals ~2300px, all_deals ~5000px on mobile), so its
+            // intersectionRatio (visible area / element area) can never
+            // reach 0.4 - the impression would never fire. For sections,
+            // count it as seen once ~half of MIN(section height, screen
+            // height) is visible; deal cards / filter bar are small, so
+            // the plain 0.4 ratio still works for them.
+            const isSection = el.hasAttribute("data-analytics-section");
+            const seen = isSection
+              ? entry.intersectionRect.height >=
+                0.5 * Math.min(entry.boundingClientRect.height || 0, window.innerHeight || 1)
+              : entry.intersectionRatio >= 0.4;
+            if (!seen) continue;
 
             const section = el.getAttribute("data-analytics-section");
             if (section && gate.take(`section:${section}`)) {
@@ -63,7 +86,10 @@ export default function HomepageAnalytics({ variant = "promo", page = 1, hasFilt
             io.unobserve(el);
           }
         },
-        { threshold: [0, 0.4, 0.75] }
+        // dense thresholds so the callback re-fires as more of a tall
+        // section scrolls in (its ratio may never reach 0.4) and the
+        // viewport-relative `seen` check above gets a chance to pass.
+        { threshold: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.75, 0.9, 1] }
       );
 
       const targets = document.querySelectorAll(
