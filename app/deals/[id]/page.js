@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { findCardHubByWatchlistId, resolveSpeciesByName, fetchSetSlugs, cardColsReady, withCard } from "@/lib/deals";
 import { shouldIndexDeal } from "@/lib/indexability";
 import { conditionLabel, isDisplayableDeal } from "@/lib/dealQuality";
@@ -69,8 +69,19 @@ const loadDealUncached = async (id) => {
   // watchlist row); fall back to the watchlist embed until the
   // deals_feed_discovery migration runs. withCard() normalises either shape
   // so everything below can keep reading deal.watchlist?.name etc.
+  //
+  // P0.2: this MUST use the admin (service-role) client, not the public
+  // `supabase` client. RLS only grants public SELECT on `is_active = true`
+  // rows (supabase/deals_schema.sql), so a deactivated (sold/ended) deal
+  // was previously invisible to this query entirely - `deal` came back
+  // null, and the page could only ever render the generic "not found"
+  // text, never the truthful "this deal has ended" state with real card
+  // context (card name, hub link) the brief requires. This is server-only
+  // (a Server Component data loader, never shipped to the browser), so
+  // reading past RLS here is safe - nothing below this call exposes
+  // anything beyond what the page already renders for a live deal.
   const ready = await cardColsReady();
-  const { data } = await supabase
+  const { data } = await supabaseAdmin()
     .from("deals")
     .select(ready ? "*" : "*, watchlist:watchlist_id (name, set, justtcg_tcgplayer_id, language)")
     .eq("id", id)

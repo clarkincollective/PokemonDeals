@@ -249,7 +249,11 @@ test("13. the expired-deal branch never renders an active-purchase CTA for the o
   const first = src.indexOf("if (!shouldIndexDeal(deal) || !isDisplayableDeal(deal))");
   const branchStart = src.indexOf("if (!shouldIndexDeal(deal) || !isDisplayableDeal(deal))", first + 1);
   assert.ok(branchStart > first, "expected a second occurrence (the rendered page branch)");
-  const branchEnd = src.indexOf("\n  }\n", branchStart);
+  // Anchor on the next distinctive comment AFTER the branch, rather than
+  // counting braces (the branch's own JSX contains several "\n  }\n"-shaped
+  // lines that would false-match a naive search).
+  const branchEnd = src.indexOf("// cardHub is only non-null when", branchStart);
+  assert.ok(branchEnd > branchStart);
   const branch = src.slice(branchStart, branchEnd);
   assert.doesNotMatch(branch, /href=\{deal\.affiliate_url\}/, "must not link the old listing as if still buyable");
   assert.doesNotMatch(branch, /View Deal|Bid Now/i, "must not reuse the live-deal CTA copy");
@@ -257,6 +261,23 @@ test("13. the expired-deal branch never renders an active-purchase CTA for the o
   assert.match(branch, /ended|expired|not found/i);
   // a truthful path forward is offered
   assert.match(branch, /current listings|Back to all deals/i);
+});
+
+// --- 13b: the deal-detail loader can actually see a deactivated deal -----
+
+test("13b. loadDeal uses the admin client, not the RLS-limited public client, so a deactivated deal is fetchable", () => {
+  // RLS only grants public SELECT on is_active=true rows
+  // (supabase/deals_schema.sql) - the public `supabase` client used here
+  // would make a deactivated deal invisible entirely (data: null),
+  // collapsing test 13's "This deal has ended" branch back into the
+  // generic "Deal not found" text with no card context, for the single
+  // most common real case (an actually sold/deactivated deal).
+  const src = readFileSync(join(HERE, "..", "..", "app", "deals", "[id]", "page.js"), "utf8");
+  const fnStart = src.indexOf("const loadDealUncached");
+  const fnEnd = src.indexOf("\n};", fnStart);
+  const fn = src.slice(fnStart, fnEnd);
+  assert.match(fn, /supabaseAdmin\(\)/);
+  assert.doesNotMatch(fn, /\bsupabase\s*\n?\s*\.from\("deals"\)/, "must not use the RLS-limited public client");
 });
 
 // --- 14: 13C ranking/section/layout contract untouched by this phase ---
