@@ -98,17 +98,48 @@ test("the mobile Filters toggle is a real tap target", () => {
 });
 
 // ===== sticky mobile CTA must not bury the footer (§14) ==========
+// 13B.7.2 - a genuine 375/390 render proved the 13B.7.1 spacer was
+// placed BEFORE <SiteFooter>, so it only padded content-to-footer and
+// left every footer link covered by the ~65px fixed bar. The spacer
+// must sit AFTER the footer and be tall enough to clear the bar.
 
-test("pages with a fixed mobile deal CTA reserve bottom space for it", () => {
+test("pages with a fixed mobile deal CTA reserve bottom space AFTER the footer", () => {
   for (const f of ["app/cards/[slug]/page.js", "app/deals/[id]/page.js"]) {
     const src = read(f);
     assert.match(src, /StickyDealCta/);
-    assert.match(
-      src,
-      /h-1[26] lg:hidden|pb-\[?\d\d/,
-      `${f}: needs a bottom spacer so StickyDealCta doesn't cover the footer`
+    const spacer = src.match(/<div className="h-(\d\d) lg:hidden" aria-hidden="true" \/>/);
+    assert.ok(spacer, `${f}: needs an "h-NN lg:hidden" spacer for StickyDealCta`);
+    assert.ok(Number(spacer[1]) >= 20, `${f}: bottom spacer must be >= h-20 to clear the ~65px CTA bar`);
+    const footerIdx = src.indexOf("<SiteFooter");
+    const spacerIdx = src.indexOf(spacer[0]);
+    assert.ok(
+      footerIdx !== -1 && spacerIdx > footerIdx,
+      `${f}: the spacer must come AFTER <SiteFooter> or it won't uncover the footer links`
     );
   }
+});
+
+// ===== unlabeled controls surfaced by the 375/390 render (§13) ====
+// 13B.7.2 - the homepage had two <input> with no <label> and no
+// aria-label (the hero search and the mobile sticky search bar).
+
+test("the homepage hero + mobile sticky search inputs have an accessible name", () => {
+  for (const f of ["components/HeroSearch.js", "components/MobileStickySearch.js"]) {
+    assert.match(
+      read(f),
+      /aria-label="Search Pokemon cards by name, set or collector number"/,
+      `${f}: search input needs an aria-label (no visible <label>)`
+    );
+  }
+  // the mobile sticky bar is mobile-only, so its input must be >= 16px
+  // outright (no sm: step-down to hide behind)
+  assert.match(read("components/MobileStickySearch.js"), /pl-10 pr-3 text-base/);
+});
+
+test("the /search input can shrink inside its flex row (no button overflow at 375)", () => {
+  // flex-1 alone keeps `min-width: auto` (the input's intrinsic content
+  // width), which pushed the submit button 22px off-screen at 375.
+  assert.match(read("app/search/SearchClient.js"), /className="min-w-0 flex-1 rounded-lg border/);
 });
 
 // ===== DealCard identity legibility (§10/§11) ====================

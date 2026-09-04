@@ -521,21 +521,21 @@ export default async function CardHubPage({ params }) {
       </div>
 
       {cheapest && (
-        <>
-          <StickyDealCta
-            href={cheapest.affiliate_url}
-            priceUsd={cheapest.total_price_usd ?? cheapest.total_price}
-            priceNative={{ amount: Number(cheapest.total_price), currency: currencyForDeal(cheapest) }}
-            ctaLabel={cheapest.listing_type === "AUCTION" ? "Bid on eBay →" : "Check on eBay →"}
-            eventData={{ card: hub.name, marketplace: cheapest.marketplace, page: "card_hub" }}
-          />
-          {/* 13B.7.1 - reserve space so the fixed mobile CTA never covers
-              the footer links / affiliate disclosure at the page bottom. */}
-          <div className="h-16 lg:hidden" aria-hidden="true" />
-        </>
+        <StickyDealCta
+          href={cheapest.affiliate_url}
+          priceUsd={cheapest.total_price_usd ?? cheapest.total_price}
+          priceNative={{ amount: Number(cheapest.total_price), currency: currencyForDeal(cheapest) }}
+          ctaLabel={cheapest.listing_type === "AUCTION" ? "Bid on eBay →" : "Check on eBay →"}
+          eventData={{ card: hub.name, marketplace: cheapest.marketplace, page: "card_hub" }}
+        />
       )}
 
       <SiteFooter note="Card-to-listing matching is automated and not perfect - always double-check a listing's photos and description before buying." />
+
+      {/* 13B.7.2 - reserved strip BELOW the footer so the fixed mobile
+          CTA (~65px) never covers the footer nav / affiliate disclosure
+          when scrolled to the bottom. */}
+      {cheapest && <div className="h-20 lg:hidden" aria-hidden="true" />}
     </div>
   );
 }

@@ -39,8 +39,11 @@ export default function MobileStickySearch() {
         <input
           type="text"
           name="q"
+          aria-label="Search Pokemon cards by name, set or collector number"
           placeholder="Search a card or set…"
-          className="w-full rounded-lg border border-zinc-300 bg-white py-2.5 pl-10 pr-3 text-sm text-zinc-900 outline-none focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+          // 13B.7.2 - >=16px so iOS Safari doesn't auto-zoom on focus
+          // (this bar is mobile-only, so no sm: step-down needed).
+          className="w-full rounded-lg border border-zinc-300 bg-white py-2.5 pl-10 pr-3 text-base text-zinc-900 outline-none focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
         />
       </form>
     </div>
