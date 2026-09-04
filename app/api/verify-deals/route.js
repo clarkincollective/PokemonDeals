@@ -126,10 +126,19 @@ export async function GET(request) {
 
   const rank = (r) => {
     if (endsSoon(r)) return 0;
+    // P0.2 fix (found live, post-migration): this MUST be its own tier,
+    // never tied with highValue. A brand-new discovery has a near-zero
+    // staleness ratio by definition, so sharing a tie-break sorted by
+    // "closest to going stale" (below) meant highValue rows - which
+    // accumulate staleness over days - always won the tie and starved
+    // Just Added candidates out of every batch. Confirmed live: after 15
+    // verification runs, isPremiumDealEligible had recovered site-wide,
+    // but zero of the 72 candidates within fetchFreshFinds' own 48h/
+    // English/watchlist-scoped query had been reached.
     if (justAddedCandidate(r)) return 1;
-    if (highValue(r)) return 1;
-    if (midValue(r)) return 2;
-    return 3;
+    if (highValue(r)) return 2;
+    if (midValue(r)) return 3;
+    return 4;
   };
   pool.sort((a, b) => rank(a) - rank(b) || staleness(b) - staleness(a));
 
