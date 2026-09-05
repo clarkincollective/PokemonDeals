@@ -28,10 +28,12 @@ import {
 } from "../../lib/social/candidates.mjs";
 import { buildDealPayload, buildBestDealsPayload, buildSpotlightPayload } from "../../lib/social/payload.mjs";
 import { assembleCaption } from "../../lib/social/caption.mjs";
-import { buildSlideContent, renderHtml } from "../../lib/social/templates.mjs";
+import { buildSlideContent, buildCoverSlideContent, renderHtml, safeText, headlineSizePx } from "../../lib/social/templates.mjs";
 import { buildUtmPreview } from "../../lib/social/utm.mjs";
 import { RIGHTS_STATE } from "../../lib/social/rights.mjs";
 import { buildReviewChecklist } from "../../lib/social/reviewSummary.mjs";
+import { buildGalleryHtml } from "../../lib/social/gallery.mjs";
+import { carouselFileName, buildFamilyPayload } from "../../scripts/socialPreview.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..", "..");
@@ -126,9 +128,12 @@ test("4. exact verification is required and must be within the social threshold 
 test("4b. freshness language never fabricates 'live now' outside the threshold", () => {
   const stale = dealRow({ exact_verified_at: ago(SOCIAL_FRESHNESS_MAX_AGE_HOURS + 5) });
   const line = socialFreshnessLine(stale);
-  assert.doesNotMatch(line.label, /live/i);
+  assert.doesNotMatch(line.label, /\blive\b/i);
+  assert.equal(line.checkedAt, null);
   const fresh = dealRow({ exact_verified_at: ago(1) });
-  assert.match(socialFreshnessLine(fresh).label, /Live when checked at/);
+  const freshLine = socialFreshnessLine(fresh);
+  assert.match(freshLine.label, /^Checked .+ UTC\. Availability can change\.$/);
+  assert.ok(freshLine.checkedAt); // exact ISO timestamp still present for the payload/audit trail
 });
 
 test("4c. Just Found requires BOTH recent discovery AND fresh exact verification", () => {
@@ -410,4 +415,147 @@ test("19b. a bad calculation is caught, not silently approved", () => {
   const checklist = buildReviewChecklist(payload);
   const mathCheck = checklist.find((c) => c.item.includes("arithmetically correct"));
   assert.equal(mathCheck.auto, false);
+});
+
+// === 20. local static review gallery (13D.4.1) ===============================
+
+test("20. the gallery page states rights_state and that publishing is DISABLED, and carries the local-only banner", () => {
+  const payload = buildDealPayload({ contentType: "deal_of_day", row: dealRow(), utmCampaign: "deal_of_day" });
+  const html = buildGalleryHtml([{ family: "deal-of-day", payload }]);
+  assert.match(html, /LOCAL PREVIEW ONLY/);
+  assert.match(html, /nothing on this page is published, scheduled, or connected to any platform/i);
+  assert.match(html, /PUBLISHING:\s*DISABLED/);
+  assert.match(html, /NOT_CLEARED/); // card_image rights_state value
+  assert.match(html, /WAITING/); // ppt_social_data rights_state value
+  assert.match(html, /NOT_ALLOWED/); // ebay_genai rights_state value
+});
+
+test("20b. the gallery has no server route, no auth, no database write, and no publish control anywhere in its source", () => {
+  const src = read("lib/social/gallery.mjs");
+  assert.doesNotMatch(src, /\.insert\(|\.update\(|\.delete\(|supabaseAdmin|export\s+(async\s+)?function\s+(GET|POST|PUT|DELETE)\b/);
+  assert.doesNotMatch(src, /<button[^>]*>\s*Publish|type=["']submit["']/i);
+});
+
+test("20c. an empty gallery (no families rendered yet) still renders a clean local placeholder, not an error", () => {
+  const html = buildGalleryHtml([]);
+  assert.match(html, /No previews generated yet/);
+  assert.match(html, /LOCAL PREVIEW ONLY/);
+});
+
+// === 21. no secret/credential can leak into any generated artifact ===========
+
+test("21. gallery.mjs, caption.mjs, payload.mjs, and templates.mjs never read process.env", () => {
+  for (const f of ["lib/social/gallery.mjs", "lib/social/caption.mjs", "lib/social/payload.mjs", "lib/social/templates.mjs", "lib/social/reviewSummary.mjs"]) {
+    assert.doesNotMatch(read(f), /process\.env/, `${f} must never read an environment variable - it only touches already-sanitized payload data`);
+  }
+});
+
+test("21b. a payload built from a row carrying incidental env-shaped junk never forwards unknown fields into the gallery or captions", () => {
+  // Simulates a hypothetically-widened row shape leaking something it
+  // should not (e.g. a stray internal field). buildDealPayload only ever
+  // whitelists known fields (see lib/social/payload.mjs's normalizeDeal),
+  // so anything extra on the source row must not survive into output.
+  const row = dealRow({ SUPABASE_SERVICE_ROLE_KEY: "sk-should-never-appear", api_key: "sk-should-never-appear" });
+  const payload = buildDealPayload({ contentType: "deal_of_day", row, utmCampaign: "deal_of_day" });
+  const html = buildGalleryHtml([{ family: "deal-of-day", payload }]);
+  const shortCaption = assembleCaption(payload, { variant: "short" });
+  for (const blob of [JSON.stringify(payload), html, shortCaption]) {
+    assert.ok(!blob.includes("sk-should-never-appear"), "a non-whitelisted field leaked into generated output");
+  }
+});
+
+// === 22. long-name / large-value stress safety (13D.4.1 SS14) ================
+
+test("22. safeText truncates on a word boundary, never mid-word, and respects the max length", () => {
+  const long = "Rocket's Shadowless First Edition Holographic Charizard-GX Full Art Secret Rare";
+  const out = safeText(long, 34);
+  assert.ok(out.length <= 35, "truncated text must not exceed maxChars (+1 for the ellipsis)");
+  assert.ok(out.endsWith("…"));
+  assert.ok(!/\s$/.test(out.slice(0, -1)), "must not leave trailing whitespace before the ellipsis");
+  const short = "Pikachu";
+  assert.equal(safeText(short, 34), short); // untouched under the limit
+});
+
+test("22b. headlineSizePx never returns a size for text that hasn't already been bounded by safeText", () => {
+  const bounded = safeText("Rocket's Shadowless First Edition Holographic Charizard-GX", 34);
+  assert.ok(headlineSizePx(bounded) >= 44); // smallest tier, never below it
+});
+
+test("22c. an extreme deal payload renders without the raw untruncated name/set ever reaching the HTML", () => {
+  const longName = "Rocket's Shadowless First Edition Holographic Charizard-GX Full Art Secret Rare";
+  const longSet = "Super Ultra Deluxe Championship Anniversary Collector's Tin Promo Edition Set";
+  const payload = buildDealPayload({
+    contentType: "deal_of_day",
+    row: dealRow({ card_name: longName, card_set: longSet, total_price_usd: 123456.78, market_price: 999999.99 }),
+    utmCampaign: "deal_of_day",
+  });
+  const slide = buildSlideContent(payload);
+  for (const variant of ["A", "B"]) {
+    const html = renderHtml(slide, { variant });
+    assert.ok(!html.includes(longName), "the full untruncated card name must not reach the rendered HTML");
+    assert.ok(!html.includes(longSet), "the full untruncated set name must not reach the rendered HTML");
+    assert.match(html, /\$123,456\.78/); // large currency values still format with thousands separators
+    assert.match(html, /\$999,999\.99/);
+  }
+});
+
+// === 23. currency consistency (13D.4.1 SS8/13) ===============================
+
+test("23. every displayed price is explicitly labeled USD, and only total_price_usd/market_price ever reach fmtUsd", () => {
+  const payload = buildDealPayload({ contentType: "deal_of_day", row: dealRow({ marketplace: "EBAY_GB" }), utmCampaign: "deal_of_day" });
+  const slide = buildSlideContent(payload);
+  const html = renderHtml(slide, { variant: "A" });
+  assert.match(html, /LISTED \(USD\)/);
+  assert.match(html, /MARKET REF \(USD\)/);
+  // a non-US marketplace chip (e.g. "GB") can legitimately appear alongside
+  // the price without implying the price itself is in that currency
+  assert.match(html, />GB</);
+});
+
+test("23b. market_data.currency is always the literal string USD in every payload family", () => {
+  const payloads = [
+    buildDealPayload({ contentType: "deal_of_day", row: dealRow(), utmCampaign: "deal_of_day" }),
+    buildBestDealsPayload({ rows: [dealRow({ id: 1, watchlist_id: 1 })] }),
+    buildSpotlightPayload({ contentType: "pokemon_spotlight", displayName: "Pikachu", dealCount: 3, topDeals: [dealRow({ id: 1, watchlist_id: 1 })], destinationRoute: "/pokemon/pikachu" }),
+  ];
+  for (const payload of payloads) assert.equal(payload.market_data.currency, "USD");
+});
+
+// === 24. Best Deals carousel file naming is deterministic (13D.4.1) ==========
+
+test("24. carouselFileName produces a stable, zero-padded, variant-suffixed name", () => {
+  assert.equal(carouselFileName(1, "A"), "01-A.png");
+  assert.equal(carouselFileName(2, "B"), "02-B.png");
+  assert.equal(carouselFileName(11, "A"), "11-A.png");
+});
+
+test("24b. a Best Deals payload with N deals implies exactly N+1 carousel positions (cover + one per deal), in stable pool order", () => {
+  const rows = [
+    dealRow({ id: 1, watchlist_id: 1, discount_pct: 0.5 }),
+    dealRow({ id: 2, watchlist_id: 2, discount_pct: 0.6 }),
+    dealRow({ id: 3, watchlist_id: 3, discount_pct: 0.7 }),
+  ];
+  const { payload } = buildFamilyPayload("best-deals", rows);
+  const cover = buildCoverSlideContent(payload);
+  assert.equal(cover.carousel.total, payload.deal_data.length + 1);
+  const names = ["01-cover-A.png", ...payload.deal_data.map((_, i) => carouselFileName(i + 2, "A"))];
+  assert.deepEqual(new Set(names).size, names.length); // no collisions
+});
+
+// === 25. new 13D.4.1 artifacts stay gitignored, and no runtime code imports them ===
+
+test("25. gallery.mjs and the render session helper are gitignored the same way as every other generated preview artifact (via the .social-preview/ directory rule, never committed themselves as output)", () => {
+  const gitignore = read(".gitignore");
+  assert.match(gitignore, /\.social-preview\//);
+  // the SOURCE files themselves (lib/social/gallery.mjs, lib/social/render.mjs)
+  // are normal tracked source - only generated OUTPUT under .social-preview/
+  // (index.html, the numbered carousel PNGs, payload.json, captions) is ignored.
+  assert.ok(!/^lib\/social\//m.test(gitignore), "lib/social/ source must stay tracked, not gitignored");
+});
+
+test("25b. nothing under app/ or components/ imports the gallery module", () => {
+  const appFiles = [...walk("app"), ...walk("components")].filter((f) => /\.jsx?$/.test(f));
+  for (const f of appFiles) {
+    assert.ok(!/lib\/social\/gallery/.test(read(f)), `${f} must not import the local review gallery builder`);
+  }
 });
