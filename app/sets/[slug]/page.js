@@ -156,7 +156,7 @@ export default async function SetDetailPage({ params }) {
 
   // BROWSE data - the interactive checklist grid + the bounded ItemList
   // schema only. Capped at SET_CATALOG_MAX_BROWSE non-deal cards upstream.
-  const catalogueItems = buildCatalogueItems(catalogCards, validSetSlugs);
+  const catalogueItems = buildCatalogueItems(catalogCards, validSetSlugs, "set");
 
   // FULL-SET aggregates (SEO Phase 4A closeout) - price range/median,
   // species list and the most-valuable ranking are computed server-side
@@ -165,7 +165,7 @@ export default async function SetDetailPage({ params }) {
   // numbers for the whole set, not just the 600 tiles we render.
   const snapshot = priceSnapshot;
   const speciesInSet = speciesList;
-  const featuredItems = buildCatalogueItems(topValueCards, validSetSlugs).slice(0, 12);
+  const featuredItems = buildCatalogueItems(topValueCards, validSetSlugs, "set").slice(0, 12);
 
   const showSealed = sealedProducts.length >= SET_SEALED_MIN_PRODUCTS;
   const sealedDealCount = sealedProducts.filter((p) => p.deal).length;

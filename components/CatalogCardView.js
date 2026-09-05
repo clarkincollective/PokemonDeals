@@ -247,7 +247,7 @@ export default function CatalogCardView({ card, analysis, priceHistory = null, s
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Every variant, side by side</h2>
             <p className="text-xs text-zinc-400">Raw and every graded tier with real recorded sales.</p>
             <div className="mt-4">
-              <VariantPriceGrid raw={canonRaw} graded={analysis.graded} cardName={name} />
+              <VariantPriceGrid raw={canonRaw} graded={analysis.graded} cardName={name} surface="card" />
             </div>
           </div>
         )}

@@ -205,7 +205,12 @@ test("13. affiliate links keep rel=\"sponsored\"", () => {
 });
 
 test("14. the direct exact-listing eBay destination is preserved (affiliate_url / exact /itm/ URL gate)", () => {
-  assert.match(read("components/DealCard.js"), /href=\{deal\.affiliate_url\}/);
+  // Phase: eBay affiliate sub-ID attribution - deal.affiliate_url is
+  // re-wrapped (wrapEbayAffiliateUrl only ever sets query params; it
+  // never touches host/pathname) before reaching the CTA.
+  const dealCardSrc = read("components/DealCard.js");
+  assert.match(dealCardSrc, /wrapEbayAffiliateUrl\(deal\.affiliate_url,/);
+  assert.match(dealCardSrc, /href=\{affiliateHref\}/);
   // SpeciesCard only treats a card as a deal tile when it carries an
   // exact /itm/ listing URL - that gate must still be there
   assert.match(read("components/SpeciesCard.js"), /itm\\\/\\d\+/);

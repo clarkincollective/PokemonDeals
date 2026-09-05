@@ -174,7 +174,12 @@ test("12. a GBP deal tile shows the reference in GBP (£), not USD, on the serve
 
 test("13. affiliate links unchanged - rel=sponsored + real affiliate_url / exact-item destination", () => {
   assert.match(read("components/AffiliateLink.js"), /rel="sponsored/);
-  assert.match(read("components/DealCard.js"), /href=\{deal\.affiliate_url\}/);
+  // Phase: eBay affiliate sub-ID attribution - deal.affiliate_url is now
+  // re-wrapped (adding only the customid param; destination host/path
+  // unchanged) before reaching the CTA, rather than passed through raw.
+  const dealCardSrc = read("components/DealCard.js");
+  assert.match(dealCardSrc, /wrapEbayAffiliateUrl\(deal\.affiliate_url,/);
+  assert.match(dealCardSrc, /href=\{affiliateHref\}/);
   for (const f of COMPARISON_COMPONENTS) {
     const src = read(f);
     assert.ok(!/marketplace:\s*viewer|marketplace:\s*displayCcy/.test(src), `${f} lets display currency touch marketplace routing`);

@@ -35,7 +35,7 @@ function usd(n) {
 // species is not one purchasable item; individual /cards/[slug] pages
 // carry Product/Offer where a live offer actually exists (P0).
 export default function SpeciesCatalog({ speciesName, slug, cards, stats = null, indexable = false, validSetSlugs = [] }) {
-  const ebayHref = buildEbaySearchLink(`${speciesName} Pokemon card`);
+  const ebayHref = buildEbaySearchLink(`${speciesName} Pokemon card`, undefined, "pokemon");
   const canonical = `${SITE_URL}/pokemon/${slug}`;
 
   // Real species-level aggregates from the catalogue cards we already
@@ -58,7 +58,8 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
           // Jumbo / oversized / WCD specialty cards only if there aren't 12
           .sort((a, b) => cardTier(a) - cardTier(b) || Number(b.refPrice) - Number(a.refPrice))
           .slice(0, 12),
-        validSetSlugs
+        validSetSlugs,
+        "pokemon"
       )
     : [];
 

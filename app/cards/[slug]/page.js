@@ -9,7 +9,7 @@ import { catalogImageUrl } from "@/lib/cardImage";
 import { cardSpeciesLink } from "@/lib/cardLinks";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
-import { MARKETPLACES } from "@/lib/ebay";
+import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebay";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import SiteHeader from "@/components/SiteHeader";
 import CardDealFilters from "@/components/CardDealFilters";
@@ -477,7 +477,7 @@ export default async function CardHubPage({ params }) {
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Every variant, side by side</h2>
             <p className="text-xs text-zinc-400">Raw and every graded tier with real recorded sales.</p>
             <div className="mt-4">
-              <VariantPriceGrid raw={canonRaw} graded={analysis.graded} cardName={hub.name} />
+              <VariantPriceGrid raw={canonRaw} graded={analysis.graded} cardName={hub.name} surface="card" />
             </div>
           </div>
         )}
@@ -522,7 +522,7 @@ export default async function CardHubPage({ params }) {
 
       {cheapest && (
         <StickyDealCta
-          href={cheapest.affiliate_url}
+          href={wrapEbayAffiliateUrl(cheapest.affiliate_url, { surface: "card" })}
           priceUsd={cheapest.total_price_usd ?? cheapest.total_price}
           priceNative={{ amount: Number(cheapest.total_price), currency: currencyForDeal(cheapest) }}
           ctaLabel={cheapest.listing_type === "AUCTION" ? "Bid on eBay →" : "Check on eBay →"}

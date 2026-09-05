@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
-import { MARKETPLACES } from "@/lib/ebay";
+import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebay";
 import { currencyForDeal, refInListingCurrency, dealTotalUsd } from "@/lib/money";
 import Price from "@/components/Price";
 import { getSealedPriceHistory } from "@/lib/pokemonPriceTracker";
@@ -309,7 +309,7 @@ export default async function SealedDealDetailPage({ params }) {
 
             <div className="mt-5 flex flex-wrap gap-3">
               <AffiliateLink
-                href={deal.affiliate_url}
+                href={wrapEbayAffiliateUrl(deal.affiliate_url, { surface: "deal_page" })}
                 eventName="eBay Click"
                 eventData={{
                   product: productName,

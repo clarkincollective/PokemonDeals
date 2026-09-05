@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { MARKETPLACES } from "@/lib/ebay";
+import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebay";
+import { surfaceForPageName } from "@/lib/affiliateSurfaces";
 import { slugifySet } from "@/lib/slugify";
 import { currencyForDeal, refInListingCurrency } from "@/lib/money";
 import { timeAgo, timeUntil, isWithin } from "@/lib/time";
@@ -36,6 +37,10 @@ function discountBadgeClass(pct) {
 // active listings, optional.
 export default function DealCard({ deal, rank, hub, pageName = "home", validSetSlugs, from, fromCountry, analytics }) {
   const cardName = cardDisplayName({ name: normalizePublicText(deal.watchlist?.name ?? deal.title) });
+  // EPN sub-ID attribution: a fixed, privacy-safe surface enum derived
+  // from the existing pageName taxonomy (never the card/deal identity) -
+  // see lib/affiliateSurfaces.js.
+  const affiliateHref = wrapEbayAffiliateUrl(deal.affiliate_url, { surface: surfaceForPageName(pageName) });
 
   // A "return to browsing" hint for /deals/[id]: the internal page this
   // card was clicked from (+ its country filter). Read + WHITELISTED on
@@ -264,7 +269,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
 
         <div className="mt-auto pt-2.5">
           <AffiliateLink
-            href={deal.affiliate_url}
+            href={affiliateHref}
             eventName="eBay Click"
             eventData={{
               card: cardName,

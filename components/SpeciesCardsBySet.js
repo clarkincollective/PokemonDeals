@@ -1,5 +1,5 @@
 import { slugifySet } from "@/lib/slugify";
-import { buildEbaySearchLink } from "@/lib/ebay";
+import { buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebay";
 import { sortCards, DEFAULT_SORT } from "@/lib/catalogueView";
 import CatalogueBrowser from "@/components/CatalogueBrowser";
 import CatalogueLinkIndex from "@/components/CatalogueLinkIndex";
@@ -26,18 +26,26 @@ export const RICH_BROWSER_CAP = 120;
 // (slugifySet is cheap; the campaign-wrapped eBay search url needs the
 // server-only EBAY_CAMPAIGN_ID). Shared with the page's featured-value
 // section so both build tiles identically.
-export function buildCatalogueItems(cards, validSetSlugs = []) {
+// `surface` is the caller's fixed EPN attribution surface (see
+// lib/affiliateSurfaces.js) - this helper is shared by /pokemon/[slug]
+// ("pokemon") and /sets/[slug] ("set"), so it can't assume its own
+// context and must be told.
+export function buildCatalogueItems(cards, validSetSlugs = [], surface) {
   return (cards ?? []).map((c) => ({
     ...c,
     setSlug: slugifySet(c.set),
     setHasPage: validSetSlugs.includes(slugifySet(c.set)),
-    ebayHref: buildEbaySearchLink([c.name, c.cardNumber, c.set].filter(Boolean).join(" ")),
+    ebayHref: buildEbaySearchLink([c.name, c.cardNumber, c.set].filter(Boolean).join(" "), undefined, surface),
+    // c.deal.affiliateUrl (when a card carries a live verified deal) is
+    // re-wrapped here too, server-side - the client <CatalogueBrowser>
+    // this feeds cannot do it itself (EBAY_CAMPAIGN_ID is server-only).
+    deal: c.deal ? { ...c.deal, affiliateUrl: wrapEbayAffiliateUrl(c.deal.affiliateUrl, { surface }) } : c.deal,
   }));
 }
 
 export default function SpeciesCardsBySet({ speciesName, cards, validSetSlugs = [] }) {
   if (!cards || cards.length === 0) return null;
-  const items = buildCatalogueItems(cards, validSetSlugs);
+  const items = buildCatalogueItems(cards, validSetSlugs, "pokemon");
   const richItems =
     items.length > RICH_BROWSER_CAP
       ? sortCards(items, DEFAULT_SORT, { relevanceTier: true }).slice(0, RICH_BROWSER_CAP)

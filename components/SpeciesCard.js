@@ -5,7 +5,8 @@ import EbaySearchLink from "@/components/EbaySearchLink";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import Price from "@/components/Price";
 import { MARKETPLACE_CURRENCY, hasPrice } from "@/lib/money";
-import { buildEbaySearchLink } from "@/lib/ebay";
+import { buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebay";
+import { surfaceForPageName } from "@/lib/affiliateSurfaces";
 import { upgradeCatalogImage } from "@/lib/cardImage";
 import { cardDisplayName, cardIdentityLine } from "@/lib/cardName";
 
@@ -29,13 +30,17 @@ import { cardDisplayName, cardIdentityLine } from "@/lib/cardName";
 // tracking; `speciesName` is accepted as its old name.
 export default function SpeciesCard({ card, label, speciesName, pageName = "species_card" }) {
   const context = label ?? speciesName;
+  // EPN sub-ID attribution - see components/DealCard.js's identical comment.
+  const surface = surfaceForPageName(pageName);
 
   // A card only counts as a DEAL tile when it carries the exact verified
   // /itm/ listing URL. Anything else -> render as a no-deal card (Find on
-  // eBay), never a stale "See deal".
+  // eBay), never a stale "See deal". The identity check runs on the raw
+  // stored URL (unaffected by query-param rewriting); the affiliate wrap
+  // happens after, at render time.
   const dealUrl =
     typeof card.deal?.affiliateUrl === "string" && /\.ebay\.[^/]+\/itm\/\d+/.test(card.deal.affiliateUrl)
-      ? card.deal.affiliateUrl
+      ? wrapEbayAffiliateUrl(card.deal.affiliateUrl, { surface })
       : null;
   const isDeal = Boolean(dealUrl);
 
@@ -50,7 +55,12 @@ export default function SpeciesCard({ card, label, speciesName, pageName = "spec
   // Sealed product names are self-contained; a card needs its set to
   // disambiguate prints. Prefer the server-built (campaign-wrapped) href.
   const ebayQuery = card.searchQuery ?? `${card.name} ${card.set}`;
-  const searchHref = card.ebayHref ?? buildEbaySearchLink(ebayQuery);
+  // card.ebayHref, when present, was pre-built server-side deep in the
+  // shared catalogue data layer (lib/deals.js) without page-surface
+  // context available at that layer - it deliberately resolves to the
+  // "other" surface rather than guessing. The local buildEbaySearchLink
+  // fallback below has real page context and gets the real surface.
+  const searchHref = card.ebayHref ?? buildEbaySearchLink(ebayQuery, undefined, surface);
   const isAuction = card.deal?.listingType === "AUCTION";
 
   const imageEl = card.image ? (

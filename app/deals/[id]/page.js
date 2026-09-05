@@ -10,7 +10,7 @@ import { cardDisplayName } from "@/lib/cardName";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
-import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebay";
+import { MARKETPLACES, buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebay";
 import { currencyForDeal, refInListingCurrency, dealTotalUsd } from "@/lib/money";
 import Price from "@/components/Price";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
@@ -232,7 +232,7 @@ export default async function DealDetailPage({ params }) {
     const cardSet = deal?.watchlist?.set ?? null;
     const cardHub = deal?.watchlist_id ? await findCardHubByWatchlistId(deal.watchlist_id) : null;
     const searchQuery = cardName ? `${cardName}${cardSet ? ` ${cardSet}` : ""}` : null;
-    const ebaySearchUrl = searchQuery ? buildEbaySearchLink(searchQuery, deal?.marketplace) : null;
+    const ebaySearchUrl = searchQuery ? buildEbaySearchLink(searchQuery, deal?.marketplace, "deal_page") : null;
     return (
       <div className="min-h-screen bg-paper">
         <SiteHeader />
@@ -568,7 +568,7 @@ export default async function DealDetailPage({ params }) {
 
             <div className="mt-5 flex flex-wrap gap-3">
               <AffiliateLink
-                href={deal.affiliate_url}
+                href={wrapEbayAffiliateUrl(deal.affiliate_url, { surface: "deal_page" })}
                 eventName="eBay Click"
                 eventData={{
                   card: cardName,
@@ -662,7 +662,7 @@ export default async function DealDetailPage({ params }) {
               Raw and every graded tier with real recorded sales - the highlighted tile is this listing.
             </p>
             <div className="mt-4">
-              <VariantPriceGrid raw={analysis.raw} graded={analysis.graded} activeKey={analysis.primaryKey} cardName={cardName} />
+              <VariantPriceGrid raw={analysis.raw} graded={analysis.graded} activeKey={analysis.primaryKey} cardName={cardName} surface="deal_page" />
             </div>
           </div>
         )}
@@ -679,7 +679,7 @@ export default async function DealDetailPage({ params }) {
                   {analysis.conditionBreakdown.map((c) => (
                     <li key={c.condition}>
                       <AffiliateLink
-                        href={buildEbaySearchLink(`${cardName} ${c.condition}`)}
+                        href={buildEbaySearchLink(`${cardName} ${c.condition}`, undefined, "deal_page")}
                         eventName="eBay Click"
                         eventData={{ card: cardName, page: "condition_breakdown", condition: c.condition }}
                         className="flex items-center justify-between text-sm text-zinc-600 hover:text-red-600 dark:text-zinc-300 dark:hover:text-red-400"
@@ -749,7 +749,7 @@ export default async function DealDetailPage({ params }) {
       <div className="h-20 lg:hidden" aria-hidden="true" />
 
       <StickyDealCta
-        href={deal.affiliate_url}
+        href={wrapEbayAffiliateUrl(deal.affiliate_url, { surface: "deal_page" })}
         priceUsd={usdTotal}
         priceNative={{ amount: total, currency: nativeCurrency }}
         ctaLabel={isAuction ? "Bid on eBay →" : "Check on eBay →"}

@@ -210,7 +210,8 @@ export default async function PokemonSpeciesPage({ params }) {
       .filter((c) => !c.deal && hasPrice(c.refPrice))
       .sort((a, b) => cardTier(a) - cardTier(b) || Number(b.refPrice) - Number(a.refPrice))
       .slice(0, 12),
-    validSetSlugs
+    validSetSlugs,
+    "pokemon"
   );
 
   // Home → Pokemon → <Species>. Position 1 is "Deals" → "/" to match the

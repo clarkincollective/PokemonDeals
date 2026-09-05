@@ -1,5 +1,6 @@
 import Image from "next/image";
-import { MARKETPLACES } from "@/lib/ebay";
+import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebay";
+import { surfaceForPageName } from "@/lib/affiliateSurfaces";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { currencyForDeal, refInListingCurrency, dealTotalUsd } from "@/lib/money";
 import { timeAgo, timeUntil } from "@/lib/time";
@@ -33,6 +34,8 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
   const savedNative = marketNative != null ? marketNative - total : null;
   const showRef = Number.isFinite(marketUsd) && savedUsd > 0 && marketNative != null;
   const tcgplayerLink = buildTcgplayerLink(productName, deal.sealed_watchlist?.tcgplayer_id);
+  // EPN sub-ID attribution - see components/DealCard.js's identical comment.
+  const affiliateHref = wrapEbayAffiliateUrl(deal.affiliate_url, { surface: surfaceForPageName(pageName) });
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
 
@@ -142,7 +145,7 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
             className="rounded-md px-2.5"
           />
           <AffiliateLink
-            href={deal.affiliate_url}
+            href={affiliateHref}
             eventName="eBay Click"
             eventData={{
               product: productName,

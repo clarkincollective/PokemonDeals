@@ -8,7 +8,7 @@ import Price from "@/components/Price";
 import AffiliateLink from "@/components/AffiliateLink";
 import { capture } from "@/lib/analytics/client";
 import { EVENTS } from "@/lib/analytics/events";
-import { MARKETPLACES } from "@/lib/ebay";
+import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebay";
 import { currencyForDeal } from "@/lib/money";
 import {
   appliedFilterChips,
@@ -450,7 +450,7 @@ export default function CardDealFilters({
                           className="font-semibold text-black dark:text-zinc-50"
                         />
                         <AffiliateLink
-                          href={deal.affiliate_url}
+                          href={wrapEbayAffiliateUrl(deal.affiliate_url, { surface: "card" })}
                           eventName="eBay Click"
                           eventData={{ page: "card_hub" }}
                           className="rounded-lg bg-black px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"

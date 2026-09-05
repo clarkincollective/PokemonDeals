@@ -61,7 +61,7 @@ function TileContents({ label, badge, currentPrice, minPrice, maxPrice, saleCoun
 // tracked eBay search for that specific grade - a visitor comparing
 // variants who decides they'd rather have a different one should still
 // leave through an affiliate-tracked link, not a dead end.
-function Tile({ label, isActive, searchQuery, eventData, ...contentProps }) {
+function Tile({ label, isActive, searchQuery, eventData, surface, ...contentProps }) {
   const className = `block rounded-lg border p-3 text-left transition-colors ${
     isActive
       ? "border-red-400 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20"
@@ -78,7 +78,7 @@ function Tile({ label, isActive, searchQuery, eventData, ...contentProps }) {
 
   return (
     <AffiliateLink
-      href={buildEbaySearchLink(searchQuery)}
+      href={buildEbaySearchLink(searchQuery, undefined, surface)}
       eventName="eBay Click"
       eventData={eventData}
       className={className}
@@ -92,7 +92,11 @@ function Tile({ label, isActive, searchQuery, eventData, ...contentProps }) {
 // sales) side by side, each with its own real price history sparkline -
 // activeKey (either "raw" or a grade key like "psa10") highlights whichever
 // variant the deal being viewed actually is.
-export default function VariantPriceGrid({ raw, graded, activeKey, cardName }) {
+// `surface` is the caller's fixed EPN attribution surface (see
+// lib/affiliateSurfaces.js) - this component is shared across
+// /cards/[slug] ("card") and /deals/[id] ("deal_page"), so it can't
+// assume its own context and must be told.
+export default function VariantPriceGrid({ raw, graded, activeKey, cardName, surface }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
       <Tile
@@ -101,6 +105,7 @@ export default function VariantPriceGrid({ raw, graded, activeKey, cardName }) {
         isActive={activeKey === "raw"}
         searchQuery={cardName}
         eventData={{ card: cardName, page: "variant_grid", variant: "raw" }}
+        surface={surface}
         currentPrice={raw.currentPrice}
         minPrice={raw.minPrice}
         maxPrice={raw.maxPrice}
@@ -121,6 +126,7 @@ export default function VariantPriceGrid({ raw, graded, activeKey, cardName }) {
           isActive={activeKey === g.key}
           searchQuery={`${cardName} ${g.label}`}
           eventData={{ card: cardName, page: "variant_grid", variant: g.key }}
+          surface={surface}
           currentPrice={g.currentPrice}
           minPrice={g.minPrice}
           maxPrice={g.maxPrice}

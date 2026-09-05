@@ -983,7 +983,7 @@ function ResultTile({ c, rank, ccyApprox, inDisplayCcy }) {
       {inner}
       <div className="px-3 pb-3">
         <AffiliateLink
-          href={buildEbaySearchLink(`${c.name} ${c.set ?? ""}`.trim())}
+          href={buildEbaySearchLink(`${c.name} ${c.set ?? ""}`.trim(), undefined, "search")}
           eventName="eBay Click"
           eventData={{ card: c.name, page: "price_checker_no_page" }}
           className="block rounded-lg border border-zinc-200 px-3 py-1.5 text-center text-xs font-semibold text-zinc-700 transition-colors hover:border-zinc-300 dark:border-zinc-700 dark:text-zinc-300"
