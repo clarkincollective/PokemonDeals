@@ -1,8 +1,10 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { classifyTokenLookup, writeSucceeded } from "@/lib/newsletterFlow";
 
 export const dynamic = "force-dynamic";
 
 const SITE_URL = "https://pokemondealfinder.com";
+const INFRA_ERROR_MESSAGE = "Something went wrong on our end. Please try again in a few minutes.";
 
 // GET /api/newsletter?token=...&action=confirm|unsubscribe
 // Used by links in the weekly digest and (future) a standalone signup.
@@ -13,25 +15,32 @@ export async function GET(request) {
   if (!token) return html("Missing token.", 400);
 
   const db = supabaseAdmin();
-  const { data: row } = await db
-    .from("newsletter_subscribers")
-    .select("id, email")
-    .eq("token", token)
-    .maybeSingle();
-  if (!row) return html("This link is no longer valid.", 404);
+  // A genuine "this token doesn't exist" (expired/already-used/bad link)
+  // must read differently from "the database/table itself is broken" -
+  // conflating the two (see the P1 audit) means a real infrastructure
+  // failure gets reported to the visitor as if their link were merely
+  // stale, which is false and hides the failure from anyone watching.
+  const lookup = classifyTokenLookup(
+    await db.from("newsletter_subscribers").select("id, email").eq("token", token).maybeSingle()
+  );
+  if (lookup.kind === "infra_error") return html(INFRA_ERROR_MESSAGE, 500);
+  if (lookup.kind === "not_found") return html("This link is no longer valid.", 404);
+  const row = lookup.row;
 
   if (action === "unsubscribe") {
-    await db
+    const unsubResult = await db
       .from("newsletter_subscribers")
       .update({ unsubscribed_at: new Date().toISOString() })
       .eq("id", row.id);
+    if (!writeSucceeded(unsubResult)) return html(INFRA_ERROR_MESSAGE, 500);
     return html("You've been unsubscribed from the weekly deals email.");
   }
 
-  await db
+  const confirmResult = await db
     .from("newsletter_subscribers")
     .update({ confirmed: true, confirmed_at: new Date().toISOString(), unsubscribed_at: null })
     .eq("id", row.id);
+  if (!writeSucceeded(confirmResult)) return html(INFRA_ERROR_MESSAGE, 500);
   return html("You're subscribed to the weekly Pokemon deals email.");
 }
 

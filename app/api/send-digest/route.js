@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { fetchDigestDeals } from "@/lib/deals";
 import { emailEnabled, sendBatch } from "@/lib/email";
 import { currencyForDeal, formatMoney } from "@/lib/money";
+import { digestSubscriberQueryStatus } from "@/lib/newsletterFlow";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -38,7 +39,7 @@ export async function GET(request) {
     return Response.json({ ok: true, skipped: "sent_recently", lastSentAt: state?.data?.lastSentAt });
   }
 
-  const [{ deals }, { data: subs, error: subErr }] = await Promise.all([
+  const [{ deals }, subsResult] = await Promise.all([
     fetchDigestDeals({ limit: DEAL_COUNT }),
     db
       .from("newsletter_subscribers")
@@ -46,7 +47,12 @@ export async function GET(request) {
       .eq("confirmed", true)
       .is("unsubscribed_at", null),
   ]);
-  if (subErr) return Response.json({ ok: false, error: subErr.message }, { status: 200 });
+  const { data: subs, error: subErr } = subsResult;
+  // A genuine query/database failure must never look like a normal
+  // "nothing to send" run to anything watching cron status by HTTP code
+  // (see the P1 audit - a 200 here is exactly what let the
+  // newsletter_subscribers schema drift stay invisible for days).
+  if (subErr) return Response.json({ ok: false, error: subErr.message }, { status: digestSubscriberQueryStatus(subsResult) });
   if (!subs?.length) return Response.json({ ok: true, sent: 0, note: "no subscribers" });
   if (!deals?.length) return Response.json({ ok: true, sent: 0, note: "no deals to send" });
 

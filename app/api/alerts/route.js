@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { emailEnabled, sendEmail } from "@/lib/email";
+import { newsletterOptInStatus } from "@/lib/newsletterFlow";
 
 export const dynamic = "force-dynamic";
 
@@ -72,26 +73,39 @@ export async function POST(request) {
     if (error) return Response.json({ ok: false, reason: "db_error" }, { status: 500 });
   }
 
-  // Separate marketing consent - a distinct table, distinct opt-in.
-  // Created unconfirmed here; the same confirm click below activates it.
+  // Separate marketing consent - a distinct table, distinct opt-in. Created
+  // unconfirmed here; the same confirm click below activates it. This is
+  // intentionally optional and best-effort relative to the price alert
+  // itself: a newsletter failure must never fail the alert the visitor
+  // actually asked for (see the P1 audit's acceptance criteria), but it
+  // also must never be reported back as "subscribed" when it silently
+  // wasn't - the previous version discarded every error here, which is
+  // exactly how the newsletter_subscribers schema drift stayed invisible.
+  let lookupError = null;
+  let existingSub = null;
+  let insertError = null;
+  let updateError = null;
   if (wantsNewsletter) {
-    const { data: sub } = await db
-      .from("newsletter_subscribers")
-      .select("id, confirmed")
-      .eq("email", email)
-      .maybeSingle();
-    if (!sub) {
-      await db
-        .from("newsletter_subscribers")
-        .insert({ email, token: cryptoToken(), source: "price_alert_form" });
-    } else if (sub.confirmed) {
+    const lookupResult = await db.from("newsletter_subscribers").select("id, confirmed").eq("email", email).maybeSingle();
+    lookupError = lookupResult.error;
+    existingSub = lookupResult.data;
+    if (lookupError) {
+      console.error("[alerts] newsletter lookup failed:", lookupError.message);
+    } else if (!existingSub) {
+      const insertResult = await db.from("newsletter_subscribers").insert({ email, token: cryptoToken(), source: "price_alert_form" });
+      insertError = insertResult.error;
+      if (insertError) console.error("[alerts] newsletter insert failed:", insertError.message);
+    } else if (existingSub.confirmed) {
       // if they re-tick it after unsubscribing, resubscribe
-      await db.from("newsletter_subscribers").update({ unsubscribed_at: null }).eq("id", sub.id);
+      const updateResult = await db.from("newsletter_subscribers").update({ unsubscribed_at: null }).eq("id", existingSub.id);
+      updateError = updateResult.error;
+      if (updateError) console.error("[alerts] newsletter resubscribe failed:", updateError.message);
     }
   }
+  const newsletterStatus = newsletterOptInStatus({ requested: wantsNewsletter, lookupError, existing: existingSub, insertError, updateError });
 
   if (existing?.confirmed) {
-    return Response.json({ ok: true, status: "already_confirmed" });
+    return Response.json({ ok: true, status: "already_confirmed", ...(wantsNewsletter ? { newsletter: newsletterStatus } : {}) });
   }
 
   const confirmUrl = `${SITE_URL}/api/alerts?token=${token}&action=confirm`;
@@ -110,7 +124,7 @@ export async function POST(request) {
   if (!send.sent) {
     return Response.json({ ok: false, reason: send.reason ?? "send_failed" }, { status: 502 });
   }
-  return Response.json({ ok: true, status: "confirmation_sent" });
+  return Response.json({ ok: true, status: "confirmation_sent", ...(wantsNewsletter ? { newsletter: newsletterStatus } : {}) });
 }
 
 // GET /api/alerts?token=...&action=confirm|unsubscribe

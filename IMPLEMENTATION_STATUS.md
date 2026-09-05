@@ -2375,3 +2375,13 @@ Mitigations applied (deploy pending): **pre-flight quota guard** — `getBrowseR
 **Real fix (process, not code):** request a Browse API rate-limit increase in the eBay Developer portal — the app's affiliate use is exactly the intended Buy-API case. See the doc.
 
 Does not affect any SEO-page code; existing active deals serve normally via the rotation pool regardless.
+
+## Supabase Pro readiness audit + newsletter_subscribers P1 closeout — 2026-09-05
+
+**Audit finding:** a read-only Supabase Pro production-readiness audit found that `supabase/newsletter_migration.sql` was committed to the repo but had **never been run against production** — `public.newsletter_subscribers` did not exist (confirmed via a live `PGRST205` read, re-confirmed a second time before this fix). Three code paths depended on it and silently mishandled the missing table: the newsletter opt-in checkbox on price-alert signup always claimed success, the confirm/unsubscribe links reported a genuine infrastructure failure as "this link is no longer valid," and the weekly digest cron returned HTTP 200 on a real query failure.
+
+**Code fix shipped (this closeout):** new `lib/newsletterFlow.js` (pure decision helpers, no I/O) wired into `app/api/alerts/route.js`, `app/api/newsletter/route.js`, and `app/api/send-digest/route.js` so a genuine database/infrastructure failure is never reported as success or as "invalid token" — see `tests/scanner/newsletter-schema-drift-p1.test.mjs` (25 tests). This is a pure application-code fix; it does not by itself create the missing table.
+
+**Schema fix — MIGRATION APPLIED: ⬜ NOT YET CONFIRMED.** `supabase/newsletter_migration.sql` is unchanged and was already correct; no new migration was written. Applying it requires pasting it into the Supabase Dashboard → SQL Editor (no automated/authenticated write path was available in the session that found or fixed this). **Once applied, replace this line with:** `supabase/newsletter_migration.sql verified applied in production on <date/time UTC>, confirmed via a read-only PGRST205-gone check.` Until that's done, the underlying schema drift persists even though the application code now degrades honestly instead of silently.
+
+See the full audit (Supabase Pro readiness audit, 2026-09-05) and `docs/supabase-recovery-runbook.md` for the broader backup/RLS/index/retention findings — none of which required a code change.
