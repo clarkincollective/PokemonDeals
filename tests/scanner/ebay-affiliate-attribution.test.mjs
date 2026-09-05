@@ -53,6 +53,19 @@ test("2. affiliateSurface rejects anything not on the fixed allowlist", () => {
   assert.equal(affiliateSurface({ toString: () => "home_best" }), "other"); // must be a real string, not stringifiable
 });
 
+test("2c. customid is set even when EBAY_CAMPAIGN_ID is unavailable in this execution context - live bug found on /search (SearchClient is \"use client\", so DealCard's wrapEbayAffiliateUrl call runs in the BROWSER, where server-only env vars are undefined) - the URL already carries a real campid from wherever it was first built, so a client-side call must still be able to fix customid without a fresh campaignId", () => {
+  const original = process.env.EBAY_CAMPAIGN_ID;
+  try {
+    delete process.env.EBAY_CAMPAIGN_ID;
+    const alreadyWrapped = "https://www.ebay.com/itm/123456789012?hash=item1&mkevt=1&mkcid=1&mkrid=711-53200-19255-0&campid=5339197414&customid=&toolid=10049";
+    const url = new URL(wrapEbayAffiliateUrl(alreadyWrapped, { surface: "search" }));
+    assert.equal(url.searchParams.get("customid"), "search"); // fixed, not left blank
+    assert.equal(url.searchParams.get("campid"), "5339197414"); // untouched, not blanked out either
+  } finally {
+    process.env.EBAY_CAMPAIGN_ID = original;
+  }
+});
+
 test("2b. wrapEbayAffiliateUrl with no surface, or a bogus one, still sets a valid customid (never blank, never the raw value)", () => {
   assert.equal(new URL(wrapEbayAffiliateUrl(ITEM_URL)).searchParams.get("customid"), "other");
   assert.equal(new URL(wrapEbayAffiliateUrl(ITEM_URL, {})).searchParams.get("customid"), "other");
