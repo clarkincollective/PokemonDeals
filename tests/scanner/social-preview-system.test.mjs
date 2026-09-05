@@ -251,20 +251,33 @@ test("9b. lib/social/render.mjs never references an image URL field", () => {
   assert.ok(!/image_url|ebayimg/.test(src));
 });
 
-// === 10. PPT-derived history/movement templates do not exist while rights are WAITING ===
+// === 10. PPT price-HISTORY templates still do not exist (13E.1: PPT
+//         social DATA is now cleared, so an aggregate market_snapshot of
+//         TODAY's pool is allowed - but movers / grade-spread / raw-vs-
+//         graded / biggest-losers all need PPT price-history or explicit
+//         grade-comparison data and remain unbuilt / fail-closed) =========
 
-test("10. no market-mover / raw-vs-graded / grade-spread / price-history template exists anywhere in lib/social", () => {
-  const blockedFamilies = /market_movers|raw_vs_graded|grade_spread|price_history|market_snapshot|biggest_losers/i;
+test("10. no PPT price-history / movers / grade-spread / raw-vs-graded template exists anywhere in lib/social", () => {
+  const blockedFamilies = /\bmarket_movers\b|\braw_vs_graded\b|\bgrade_spread\b|\bprice_history\b|\bbiggest_losers\b/i;
   for (const f of SOCIAL_FILES) {
-    assert.doesNotMatch(read(f), blockedFamilies, `${f} must not implement a PPT-history-dependent template while rights are WAITING`);
+    assert.doesNotMatch(read(f), blockedFamilies, `${f} must not implement a PPT-price-history-dependent template`);
   }
 });
 
-test("10b. rights_state.ppt_social_data is WAITING, and nothing marks it APPROVED", () => {
-  assert.equal(RIGHTS_STATE.ppt_social_data, "WAITING");
-  for (const f of SOCIAL_FILES) {
-    assert.doesNotMatch(read(f), /ppt_social_data:\s*["']APPROVED["']/);
-  }
+test("10b. the only market-intelligence content type is market_snapshot, and it derives ONLY from the current deal pool (no PPT history import, no price_history table)", () => {
+  const src = read("lib/social/marketSnapshot.mjs");
+  assert.doesNotMatch(src, /priceHistory|price_history|getCanonicalPriceHistory|getFullPriceAnalysis|pokemonPriceTracker/i);
+  // it reads the same fields every other family uses off an already-fetched pool
+  assert.match(src, /socialBinPool/);
+  assert.match(src, /discount_pct/);
+});
+
+test("10c. rights_state.ppt_social_data is CLEARED (owner-confirmed, 13E.1) - and card-image rights stay separately NOT_CLEARED", () => {
+  assert.equal(RIGHTS_STATE.ppt_social_data, "CLEARED");
+  assert.equal(RIGHTS_STATE.card_image, "NOT_CLEARED");
+  assert.equal(RIGHTS_STATE.ebay_seller_images, "NOT_CLEARED");
+  assert.equal(RIGHTS_STATE.ebay_genai, "NOT_ALLOWED"); // no EPN AI Tools approval
+  assert.equal(RIGHTS_STATE.publishing, "DISABLED");
 });
 
 // === 11. GenAI is never used ================================================
@@ -362,9 +375,9 @@ test("15. UTM preview values are fixed enums only - no card/Pokemon/set/eBay/use
 
 // === 16. every payload includes a fully-populated rights_state ===============
 
-test("16. every generated payload includes the exact four-key rights_state, unambiguous", () => {
+test("16. every generated payload includes the exact five-key rights_state (13E.1 added ebay_seller_images as a distinct capability), unambiguous", () => {
   const payload = buildDealPayload({ contentType: "deal_of_day", row: dealRow(), utmCampaign: "deal_of_day" });
-  assert.deepEqual(Object.keys(payload.rights_state).sort(), ["card_image", "ebay_genai", "ppt_social_data", "publishing"]);
+  assert.deepEqual(Object.keys(payload.rights_state).sort(), ["card_image", "ebay_genai", "ebay_seller_images", "ppt_social_data", "publishing"]);
   for (const v of Object.values(payload.rights_state)) assert.equal(typeof v, "string");
 });
 
@@ -419,15 +432,15 @@ test("19b. a bad calculation is caught, not silently approved", () => {
 
 // === 20. local static review gallery (13D.4.1) ===============================
 
-test("20. the gallery page states rights_state and that publishing is DISABLED, and carries the local-only banner", () => {
+test("20. the gallery page states the per-capability rights_state, that publishing is DISABLED, and carries the no-platform banner", () => {
   const payload = buildDealPayload({ contentType: "deal_of_day", row: dealRow(), utmCampaign: "deal_of_day" });
   const html = buildGalleryHtml([{ family: "deal-of-day", payload }]);
-  assert.match(html, /LOCAL PREVIEW ONLY/);
-  assert.match(html, /nothing on this page is published, scheduled, or connected to any platform/i);
-  assert.match(html, /PUBLISHING:\s*DISABLED/);
-  assert.match(html, /NOT_CLEARED/); // card_image rights_state value
-  assert.match(html, /WAITING/); // ppt_social_data rights_state value
-  assert.match(html, /NOT_ALLOWED/); // ebay_genai rights_state value
+  assert.match(html, /PUBLISHING DISABLED/);
+  assert.match(html, /published, scheduled, or connected to Instagram, TikTok, or any platform/i);
+  assert.match(html, /NOT_CLEARED/); // card_image / ebay_seller_images
+  assert.match(html, /CLEARED/); // ppt_social_data (now owner-cleared)
+  assert.match(html, /NOT_ALLOWED/); // ebay_genai
+  assert.match(html, /ebay_seller_images/); // the new distinct capability row is shown
 });
 
 test("20b. the gallery has no server route, no auth, no database write, and no publish control anywhere in its source", () => {
@@ -436,10 +449,10 @@ test("20b. the gallery has no server route, no auth, no database write, and no p
   assert.doesNotMatch(src, /<button[^>]*>\s*Publish|type=["']submit["']/i);
 });
 
-test("20c. an empty gallery (no families rendered yet) still renders a clean local placeholder, not an error", () => {
+test("20c. an empty gallery (no candidates today) still renders a clean local placeholder, not an error", () => {
   const html = buildGalleryHtml([]);
-  assert.match(html, /No previews generated yet/);
-  assert.match(html, /LOCAL PREVIEW ONLY/);
+  assert.match(html, /No candidate posts today/i);
+  assert.match(html, /PUBLISHING DISABLED/);
 });
 
 // === 21. no secret/credential can leak into any generated artifact ===========
