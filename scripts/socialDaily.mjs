@@ -44,27 +44,52 @@ import { createRenderer } from "../lib/social/render.mjs";
 import { buildReviewChecklist, formatReviewSummary } from "../lib/social/reviewSummary.mjs";
 import { buildDailyGalleryHtml } from "../lib/social/gallery.mjs";
 import { loadPostHistory, savePostHistory, buildCooldownKeys } from "../lib/social/cooldown.mjs";
+// Phase 13E.2 - approved generated-background support. This import chain
+// touches NO network and NO OpenAI: assets.mjs only reads the local
+// manifest + PNG files that `npm run social:assets` produced and a human
+// approved earlier. `social:daily` makes zero image-generation calls.
+import { loadAssetManifest, resolveBackgroundForPost } from "../lib/social/assets.mjs";
 
 const OUT_ROOT = path.join(process.cwd(), ".social-preview");
 const DAILY_DIR = path.join(OUT_ROOT, "daily");
 
-async function renderCandidate(entry, renderer) {
+async function renderCandidate(entry, renderer, assetManifest) {
   const outDir = path.join(DAILY_DIR, entry.family);
   mkdirSync(outDir, { recursive: true });
   const slide = buildSlideContent(entry.payload);
+
+  // Version A: the current deterministic Mode-B creative (unchanged).
   const pngFiles = [];
   for (const variant of ["A", "B"]) {
     const p = path.join(outDir, `creative-${variant}.png`);
     await renderer.renderToPng(renderHtml(slide, { variant }), p);
     pngFiles.push(path.relative(OUT_ROOT, p).replace(/\\/g, "/"));
   }
+
+  // Version B: the SAME deterministic overlay over an approved, evergreen,
+  // data-free generated background - ONLY if one is approved & on disk
+  // for this family. No approved asset -> nothing extra, Mode B stands
+  // (SS15 fallback). The background image never carried any real fact.
+  let enhanced = null;
+  const bg = assetManifest ? resolveBackgroundForPost(entry.payload, { manifest: assetManifest }) : null;
+  if (bg && existsSync(bg.absFile)) {
+    const files = [];
+    for (const variant of ["A", "B"]) {
+      const p = path.join(outDir, `creative-enhanced-${variant}.png`);
+      await renderer.renderToPng(renderHtml(slide, { variant, background: bg }), p);
+      files.push(path.relative(OUT_ROOT, p).replace(/\\/g, "/"));
+    }
+    enhanced = { assetId: bg.assetId, category: bg.category, style: bg.style, zone: bg.zone, sourceFile: bg.file, rotationKey: bg.rotationKey, pngFiles: files, thumb: files[0] };
+    writeFileSync(path.join(outDir, "asset.json"), JSON.stringify(enhanced, null, 2), "utf8");
+  }
+
   const captions = assemblePlatformCaptions(entry.payload);
   const hashtags = buildHashtags(entry.payload);
   writeFileSync(path.join(outDir, "caption-instagram.txt"), captions.instagram, "utf8");
   writeFileSync(path.join(outDir, "caption-tiktok.txt"), captions.tiktok, "utf8");
   writeFileSync(path.join(outDir, "hashtags.txt"), hashtags.join(" "), "utf8");
   writeFileSync(path.join(outDir, "payload.json"), JSON.stringify(entry.payload, null, 2), "utf8");
-  return { ...entry, captions, hashtags, pngFiles, thumb: pngFiles[0] };
+  return { ...entry, captions, hashtags, pngFiles, thumb: pngFiles[0], enhanced };
 }
 
 async function generate() {
@@ -79,12 +104,17 @@ async function generate() {
   rmSync(DAILY_DIR, { recursive: true, force: true });
   mkdirSync(DAILY_DIR, { recursive: true });
 
+  // Load the approved generated-asset manifest ONCE (local file read; no
+  // network, no OpenAI). A missing/invalid manifest is fine - every post
+  // just falls back to Mode B.
+  const { manifest: assetManifest } = loadAssetManifest();
+
   const rendered = [];
   if (batch.selected.length) {
     const renderer = await createRenderer();
     try {
       for (const entry of batch.selected) {
-        rendered.push(await renderCandidate(entry, renderer));
+        rendered.push(await renderCandidate(entry, renderer, assetManifest));
       }
     } finally {
       await renderer.close();
@@ -96,6 +126,7 @@ async function generate() {
       family: r.family,
       payload: r.payload,
       thumb: r.thumb,
+      enhanced: r.enhanced, // null unless an approved generated background was used
       captions: r.captions,
       hashtags: r.hashtags,
       reasonSelected: r.reasonSelected,
@@ -120,10 +151,24 @@ async function generate() {
     console.log(`  [${r.family}] ${r.payload.content_type}`);
     console.log(`     why: ${r.reasonSelected}`);
     console.log(`     hashtags: ${r.hashtags.join(" ")}`);
+    console.log(`     creative A: deterministic Mode B`);
+    console.log(
+      r.enhanced
+        ? `     creative B: background-enhanced (asset ${r.enhanced.assetId}) — owner picks A or B in the gallery`
+        : `     creative B: none (no approved generated background for this family — Mode B stands)`
+    );
     const fails = buildReviewChecklist(r.payload).filter((c) => c.auto === false);
     if (fails.length) console.log(`     ⚠ auto-check FAILS: ${fails.map((c) => c.item).join("; ")}`);
     console.log("");
   }
+
+  const enhancedCount = rendered.filter((r) => r.enhanced).length;
+  console.log(
+    enhancedCount
+      ? `Generated backgrounds used on ${enhancedCount}/${rendered.length} post(s). The AI-enhanced version is never auto-preferred — compare A vs B in the gallery.`
+      : `No approved generated backgrounds in rotation yet — every post is deterministic Mode B. Run "npm run social:assets" to build the library.`
+  );
+  console.log("");
 
   if (batch.rejected.length) {
     console.log(`Families with no post today (${batch.rejected.length}):`);

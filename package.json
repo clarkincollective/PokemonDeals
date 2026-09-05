@@ -21,7 +21,8 @@
     "gsc:test": "node scripts/gsc-test.mjs",
     "history:backfill": "node scripts/ppt-history-backfill.mjs",
     "social:preview": "node scripts/socialPreview.mjs",
-    "social:daily": "node scripts/socialDaily.mjs"
+    "social:daily": "node scripts/socialDaily.mjs",
+    "social:assets": "node scripts/socialAssets.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",

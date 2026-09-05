@@ -1,0 +1,1078 @@
+{
+  "_note": "Phase 13E.2 generated-asset manifest. See docs/social-asset-library.md.",
+  "spec_version": "13e2-v1",
+  "generator": "scripts/socialAssets.mjs",
+  "updated": "2026-09-05",
+  "boundary": "Image generation receives ZERO live eBay / PPT / card / price / listing / user data. Prompts are evergreen and built only from lib/social/assetPrompts.mjs. The deterministic HTML renderer overlays all real facts AFTER generation.",
+  "qa_checks": [
+    "generated_background",
+    "copyright_risk",
+    "brand_fit",
+    "text_legibility",
+    "ai_artifact"
+  ],
+  "status_values": [
+    "planned",
+    "generated",
+    "approved",
+    "rejected"
+  ],
+  "counts": {
+    "planned": 30,
+    "generated": 0,
+    "approved": 0,
+    "rejected": 0
+  },
+  "assets": [
+    {
+      "id": "auction_watch__A",
+      "category": "auction_watch",
+      "variant": "A",
+      "sample": false,
+      "style": "dark_market_intelligence",
+      "zone": "D",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "LOWER EVIDENCE ZONE",
+      "safe_zones": {
+        "zone": "D",
+        "name": "LOWER EVIDENCE ZONE",
+        "clear": [
+          [
+            48,
+            800,
+            984,
+            500
+          ]
+        ],
+        "text": {
+          "headline": "top",
+          "metric": "upper-mid",
+          "footer": "lower block"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "auction_watch__B",
+      "category": "auction_watch",
+      "variant": "B",
+      "sample": false,
+      "style": "abstract_market",
+      "zone": "C",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "CENTER METRIC ZONE",
+      "safe_zones": {
+        "zone": "C",
+        "name": "CENTER METRIC ZONE",
+        "clear": [
+          [
+            80,
+            360,
+            920,
+            620
+          ]
+        ],
+        "text": {
+          "headline": "above the band",
+          "metric": "dead centre",
+          "footer": "below the band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "auction_watch__C",
+      "category": "auction_watch",
+      "variant": "C",
+      "sample": false,
+      "style": "clean_editorial",
+      "zone": "A",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "TOP TEXT ZONE",
+      "safe_zones": {
+        "zone": "A",
+        "name": "TOP TEXT ZONE",
+        "clear": [
+          [
+            48,
+            40,
+            984,
+            460
+          ]
+        ],
+        "text": {
+          "headline": "top band, 64-96px",
+          "metric": "upper-mid",
+          "footer": "bottom band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "collector_education__A",
+      "category": "collector_education",
+      "variant": "A",
+      "sample": false,
+      "style": "collector_desk",
+      "zone": "A",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "TOP TEXT ZONE",
+      "safe_zones": {
+        "zone": "A",
+        "name": "TOP TEXT ZONE",
+        "clear": [
+          [
+            48,
+            40,
+            984,
+            460
+          ]
+        ],
+        "text": {
+          "headline": "top band, 64-96px",
+          "metric": "upper-mid",
+          "footer": "bottom band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "collector_education__B",
+      "category": "collector_education",
+      "variant": "B",
+      "sample": false,
+      "style": "clean_editorial",
+      "zone": "B",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "LEFT TEXT ZONE",
+      "safe_zones": {
+        "zone": "B",
+        "name": "LEFT TEXT ZONE",
+        "clear": [
+          [
+            48,
+            120,
+            520,
+            1110
+          ]
+        ],
+        "text": {
+          "headline": "left column top",
+          "metric": "left column mid",
+          "footer": "bottom band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "collector_education__C",
+      "category": "collector_education",
+      "variant": "C",
+      "sample": false,
+      "style": "abstract_market",
+      "zone": "D",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "LOWER EVIDENCE ZONE",
+      "safe_zones": {
+        "zone": "D",
+        "name": "LOWER EVIDENCE ZONE",
+        "clear": [
+          [
+            48,
+            800,
+            984,
+            500
+          ]
+        ],
+        "text": {
+          "headline": "top",
+          "metric": "upper-mid",
+          "footer": "lower block"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "deal_intelligence__A",
+      "category": "deal_intelligence",
+      "variant": "A",
+      "sample": true,
+      "style": "abstract_market",
+      "zone": "C",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "CENTER METRIC ZONE",
+      "safe_zones": {
+        "zone": "C",
+        "name": "CENTER METRIC ZONE",
+        "clear": [
+          [
+            80,
+            360,
+            920,
+            620
+          ]
+        ],
+        "text": {
+          "headline": "above the band",
+          "metric": "dead centre",
+          "footer": "below the band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "deal_intelligence__B",
+      "category": "deal_intelligence",
+      "variant": "B",
+      "sample": true,
+      "style": "clean_editorial",
+      "zone": "A",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "TOP TEXT ZONE",
+      "safe_zones": {
+        "zone": "A",
+        "name": "TOP TEXT ZONE",
+        "clear": [
+          [
+            48,
+            40,
+            984,
+            460
+          ]
+        ],
+        "text": {
+          "headline": "top band, 64-96px",
+          "metric": "upper-mid",
+          "footer": "bottom band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "deal_intelligence__C",
+      "category": "deal_intelligence",
+      "variant": "C",
+      "sample": false,
+      "style": "dark_market_intelligence",
+      "zone": "D",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "LOWER EVIDENCE ZONE",
+      "safe_zones": {
+        "zone": "D",
+        "name": "LOWER EVIDENCE ZONE",
+        "clear": [
+          [
+            48,
+            800,
+            984,
+            500
+          ]
+        ],
+        "text": {
+          "headline": "top",
+          "metric": "upper-mid",
+          "footer": "lower block"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "just_found__A",
+      "category": "just_found",
+      "variant": "A",
+      "sample": true,
+      "style": "clean_editorial",
+      "zone": "A",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "TOP TEXT ZONE",
+      "safe_zones": {
+        "zone": "A",
+        "name": "TOP TEXT ZONE",
+        "clear": [
+          [
+            48,
+            40,
+            984,
+            460
+          ]
+        ],
+        "text": {
+          "headline": "top band, 64-96px",
+          "metric": "upper-mid",
+          "footer": "bottom band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "just_found__B",
+      "category": "just_found",
+      "variant": "B",
+      "sample": true,
+      "style": "abstract_market",
+      "zone": "B",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "LEFT TEXT ZONE",
+      "safe_zones": {
+        "zone": "B",
+        "name": "LEFT TEXT ZONE",
+        "clear": [
+          [
+            48,
+            120,
+            520,
+            1110
+          ]
+        ],
+        "text": {
+          "headline": "left column top",
+          "metric": "left column mid",
+          "footer": "bottom band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "just_found__C",
+      "category": "just_found",
+      "variant": "C",
+      "sample": false,
+      "style": "collector_desk",
+      "zone": "D",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "LOWER EVIDENCE ZONE",
+      "safe_zones": {
+        "zone": "D",
+        "name": "LOWER EVIDENCE ZONE",
+        "clear": [
+          [
+            48,
+            800,
+            984,
+            500
+          ]
+        ],
+        "text": {
+          "headline": "top",
+          "metric": "upper-mid",
+          "footer": "lower block"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "market_watch__A",
+      "category": "market_watch",
+      "variant": "A",
+      "sample": true,
+      "style": "dark_market_intelligence",
+      "zone": "D",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "LOWER EVIDENCE ZONE",
+      "safe_zones": {
+        "zone": "D",
+        "name": "LOWER EVIDENCE ZONE",
+        "clear": [
+          [
+            48,
+            800,
+            984,
+            500
+          ]
+        ],
+        "text": {
+          "headline": "top",
+          "metric": "upper-mid",
+          "footer": "lower block"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "market_watch__B",
+      "category": "market_watch",
+      "variant": "B",
+      "sample": true,
+      "style": "abstract_market",
+      "zone": "C",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "CENTER METRIC ZONE",
+      "safe_zones": {
+        "zone": "C",
+        "name": "CENTER METRIC ZONE",
+        "clear": [
+          [
+            80,
+            360,
+            920,
+            620
+          ]
+        ],
+        "text": {
+          "headline": "above the band",
+          "metric": "dead centre",
+          "footer": "below the band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "market_watch__C",
+      "category": "market_watch",
+      "variant": "C",
+      "sample": false,
+      "style": "clean_editorial",
+      "zone": "A",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "TOP TEXT ZONE",
+      "safe_zones": {
+        "zone": "A",
+        "name": "TOP TEXT ZONE",
+        "clear": [
+          [
+            48,
+            40,
+            984,
+            460
+          ]
+        ],
+        "text": {
+          "headline": "top band, 64-96px",
+          "metric": "upper-mid",
+          "footer": "bottom band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "pokemon_watch__A",
+      "category": "pokemon_watch",
+      "variant": "A",
+      "sample": true,
+      "style": "collector_desk",
+      "zone": "B",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "LEFT TEXT ZONE",
+      "safe_zones": {
+        "zone": "B",
+        "name": "LEFT TEXT ZONE",
+        "clear": [
+          [
+            48,
+            120,
+            520,
+            1110
+          ]
+        ],
+        "text": {
+          "headline": "left column top",
+          "metric": "left column mid",
+          "footer": "bottom band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "pokemon_watch__B",
+      "category": "pokemon_watch",
+      "variant": "B",
+      "sample": true,
+      "style": "clean_editorial",
+      "zone": "A",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "TOP TEXT ZONE",
+      "safe_zones": {
+        "zone": "A",
+        "name": "TOP TEXT ZONE",
+        "clear": [
+          [
+            48,
+            40,
+            984,
+            460
+          ]
+        ],
+        "text": {
+          "headline": "top band, 64-96px",
+          "metric": "upper-mid",
+          "footer": "bottom band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "pokemon_watch__C",
+      "category": "pokemon_watch",
+      "variant": "C",
+      "sample": false,
+      "style": "abstract_market",
+      "zone": "C",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "CENTER METRIC ZONE",
+      "safe_zones": {
+        "zone": "C",
+        "name": "CENTER METRIC ZONE",
+        "clear": [
+          [
+            80,
+            360,
+            920,
+            620
+          ]
+        ],
+        "text": {
+          "headline": "above the band",
+          "metric": "dead centre",
+          "footer": "below the band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "raw_vs_graded__A",
+      "category": "raw_vs_graded",
+      "variant": "A",
+      "sample": false,
+      "style": "clean_editorial",
+      "zone": "C",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "CENTER METRIC ZONE",
+      "safe_zones": {
+        "zone": "C",
+        "name": "CENTER METRIC ZONE",
+        "clear": [
+          [
+            80,
+            360,
+            920,
+            620
+          ]
+        ],
+        "text": {
+          "headline": "above the band",
+          "metric": "dead centre",
+          "footer": "below the band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "raw_vs_graded__B",
+      "category": "raw_vs_graded",
+      "variant": "B",
+      "sample": false,
+      "style": "collector_desk",
+      "zone": "B",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "LEFT TEXT ZONE",
+      "safe_zones": {
+        "zone": "B",
+        "name": "LEFT TEXT ZONE",
+        "clear": [
+          [
+            48,
+            120,
+            520,
+            1110
+          ]
+        ],
+        "text": {
+          "headline": "left column top",
+          "metric": "left column mid",
+          "footer": "bottom band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "raw_vs_graded__C",
+      "category": "raw_vs_graded",
+      "variant": "C",
+      "sample": false,
+      "style": "dark_market_intelligence",
+      "zone": "D",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "LOWER EVIDENCE ZONE",
+      "safe_zones": {
+        "zone": "D",
+        "name": "LOWER EVIDENCE ZONE",
+        "clear": [
+          [
+            48,
+            800,
+            984,
+            500
+          ]
+        ],
+        "text": {
+          "headline": "top",
+          "metric": "upper-mid",
+          "footer": "lower block"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "search_discovery__A",
+      "category": "search_discovery",
+      "variant": "A",
+      "sample": false,
+      "style": "abstract_market",
+      "zone": "B",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "LEFT TEXT ZONE",
+      "safe_zones": {
+        "zone": "B",
+        "name": "LEFT TEXT ZONE",
+        "clear": [
+          [
+            48,
+            120,
+            520,
+            1110
+          ]
+        ],
+        "text": {
+          "headline": "left column top",
+          "metric": "left column mid",
+          "footer": "bottom band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "search_discovery__B",
+      "category": "search_discovery",
+      "variant": "B",
+      "sample": false,
+      "style": "clean_editorial",
+      "zone": "A",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "TOP TEXT ZONE",
+      "safe_zones": {
+        "zone": "A",
+        "name": "TOP TEXT ZONE",
+        "clear": [
+          [
+            48,
+            40,
+            984,
+            460
+          ]
+        ],
+        "text": {
+          "headline": "top band, 64-96px",
+          "metric": "upper-mid",
+          "footer": "bottom band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "search_discovery__C",
+      "category": "search_discovery",
+      "variant": "C",
+      "sample": false,
+      "style": "collector_desk",
+      "zone": "C",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "CENTER METRIC ZONE",
+      "safe_zones": {
+        "zone": "C",
+        "name": "CENTER METRIC ZONE",
+        "clear": [
+          [
+            80,
+            360,
+            920,
+            620
+          ]
+        ],
+        "text": {
+          "headline": "above the band",
+          "metric": "dead centre",
+          "footer": "below the band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "set_watch__A",
+      "category": "set_watch",
+      "variant": "A",
+      "sample": true,
+      "style": "abstract_market",
+      "zone": "B",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "LEFT TEXT ZONE",
+      "safe_zones": {
+        "zone": "B",
+        "name": "LEFT TEXT ZONE",
+        "clear": [
+          [
+            48,
+            120,
+            520,
+            1110
+          ]
+        ],
+        "text": {
+          "headline": "left column top",
+          "metric": "left column mid",
+          "footer": "bottom band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "set_watch__B",
+      "category": "set_watch",
+      "variant": "B",
+      "sample": true,
+      "style": "collector_desk",
+      "zone": "D",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "LOWER EVIDENCE ZONE",
+      "safe_zones": {
+        "zone": "D",
+        "name": "LOWER EVIDENCE ZONE",
+        "clear": [
+          [
+            48,
+            800,
+            984,
+            500
+          ]
+        ],
+        "text": {
+          "headline": "top",
+          "metric": "upper-mid",
+          "footer": "lower block"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "set_watch__C",
+      "category": "set_watch",
+      "variant": "C",
+      "sample": false,
+      "style": "clean_editorial",
+      "zone": "A",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "TOP TEXT ZONE",
+      "safe_zones": {
+        "zone": "A",
+        "name": "TOP TEXT ZONE",
+        "clear": [
+          [
+            48,
+            40,
+            984,
+            460
+          ]
+        ],
+        "text": {
+          "headline": "top band, 64-96px",
+          "metric": "upper-mid",
+          "footer": "bottom band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "trust_verification__A",
+      "category": "trust_verification",
+      "variant": "A",
+      "sample": false,
+      "style": "clean_editorial",
+      "zone": "C",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "CENTER METRIC ZONE",
+      "safe_zones": {
+        "zone": "C",
+        "name": "CENTER METRIC ZONE",
+        "clear": [
+          [
+            80,
+            360,
+            920,
+            620
+          ]
+        ],
+        "text": {
+          "headline": "above the band",
+          "metric": "dead centre",
+          "footer": "below the band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "trust_verification__B",
+      "category": "trust_verification",
+      "variant": "B",
+      "sample": false,
+      "style": "dark_market_intelligence",
+      "zone": "D",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "LOWER EVIDENCE ZONE",
+      "safe_zones": {
+        "zone": "D",
+        "name": "LOWER EVIDENCE ZONE",
+        "clear": [
+          [
+            48,
+            800,
+            984,
+            500
+          ]
+        ],
+        "text": {
+          "headline": "top",
+          "metric": "upper-mid",
+          "footer": "lower block"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    },
+    {
+      "id": "trust_verification__C",
+      "category": "trust_verification",
+      "variant": "C",
+      "sample": false,
+      "style": "collector_desk",
+      "zone": "A",
+      "aspect_ratio": "4:5",
+      "render_size": "1024x1536",
+      "composition": "TOP TEXT ZONE",
+      "safe_zones": {
+        "zone": "A",
+        "name": "TOP TEXT ZONE",
+        "clear": [
+          [
+            48,
+            40,
+            984,
+            460
+          ]
+        ],
+        "text": {
+          "headline": "top band, 64-96px",
+          "metric": "upper-mid",
+          "footer": "bottom band"
+        }
+      },
+      "status": "planned",
+      "file": null,
+      "prompt_spec_version": "13e2-v1",
+      "generated_date": null,
+      "approved_date": null,
+      "qa": null,
+      "notes": ""
+    }
+  ]
+}

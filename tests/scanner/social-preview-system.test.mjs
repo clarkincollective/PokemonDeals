@@ -259,7 +259,14 @@ test("9b. lib/social/render.mjs never references an image URL field", () => {
 
 test("10. no PPT price-history / movers / grade-spread / raw-vs-graded template exists anywhere in lib/social", () => {
   const blockedFamilies = /\bmarket_movers\b|\braw_vs_graded\b|\bgrade_spread\b|\bprice_history\b|\bbiggest_losers\b/i;
+  // 13E.2: lib/social/assetPrompts.mjs + assets.mjs carry a `raw_vs_graded`
+  // token as the id of an EVERGREEN, DATA-FREE image-background category
+  // (a blank card next to a blank slab shape) - it is not a PPT-history
+  // template and reaches no live data. Those two modules are checked
+  // separately (they must stay pure) in tests/scanner/social-asset-library.test.mjs.
+  const ASSET_PACK = new Set(["lib/social/assetPrompts.mjs", "lib/social/assets.mjs"]);
   for (const f of SOCIAL_FILES) {
+    if (ASSET_PACK.has(f)) continue;
     assert.doesNotMatch(read(f), blockedFamilies, `${f} must not implement a PPT-price-history-dependent template`);
   }
 });
@@ -280,13 +287,32 @@ test("10c. rights_state.ppt_social_data is CLEARED (owner-confirmed, 13E.1) - an
   assert.equal(RIGHTS_STATE.publishing, "DISABLED");
 });
 
-// === 11. GenAI is never used ================================================
+// === 11. GenAI is confined to ONE place, image-only, data-free =============
+// 13E.2: an OpenAI IMAGE call is permitted, but ONLY in
+// scripts/socialAssets.mjs, ONLY to produce evergreen non-data-bearing
+// brand backgrounds. It must never appear in the render/caption path, in
+// lib/social/*, in social:daily, or in social:preview - and no GenAI
+// TEXT provider may appear anywhere.
 
-test("11. no GenAI provider is imported or called anywhere in lib/social or the CLI", () => {
-  const forbidden = /openai|anthropic|@google\/generative|gemini|chatcompletion|createCompletion|generateContent/i;
-  for (const f of SOCIAL_FILES) {
-    assert.doesNotMatch(read(f), forbidden, `${f} must not reference a GenAI provider`);
+test("11. no GenAI provider is imported or CALLED anywhere in lib/social, social:daily, or social:preview", () => {
+  // a real SDK import / endpoint / call - NOT a bare mention of the word
+  // "OpenAI" in a header comment explaining the boundary
+  const forbiddenCall =
+    /from ["'](openai|@anthropic-ai\/sdk|@google\/generative-ai)["']|require\(["'](openai|@anthropic-ai\/sdk)["']\)|api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com|\b(chatCompletion|createCompletion|generateContent|images\.generate)\b/i;
+  const scanned = SOCIAL_FILES.concat(["scripts/socialDaily.mjs"]);
+  for (const f of scanned) {
+    assert.doesNotMatch(read(f), forbiddenCall, `${f} must not import or call a GenAI provider`);
   }
+});
+
+test("11b. the OpenAI image call lives ONLY in scripts/socialAssets.mjs and is image-only", () => {
+  const src = read("scripts/socialAssets.mjs");
+  assert.match(src, /api\.openai\.com\/v1\/images\/generations/); // images endpoint
+  assert.doesNotMatch(src, /chat\/completions|responses|generateContent/i); // never a text/LLM call
+  // exactly one fetch in the whole asset pipeline
+  assert.equal((src.match(/\bfetch\s*\(/g) || []).length, 1);
+  // it reads the key from the environment only
+  assert.match(src, /process\.env\.OPENAI_API_KEY/);
 });
 
 // === 12. publishing is impossible ============================================
