@@ -43,12 +43,20 @@ import {
   assetId,
 } from "../lib/social/assetPrompts.mjs";
 import { GENERATED_ASSET_DIR, MANIFEST_PATH, QA_CHECKS, validateAssetEntry } from "../lib/social/assets.mjs";
+import {
+  OPENAI_IMAGE_MODEL,
+  OPENAI_IMAGE_REQUEST_SIZE,
+  OPENAI_IMAGE_DOCS_URL,
+} from "../lib/social/imageModelConfig.mjs";
 
 const ROOT = process.cwd();
 const PROMPT_OUT_DIR = path.join(ROOT, ".social-preview", "asset-prompts"); // gitignored - not committed to the public repo (SS13)
 const OPENAI_IMAGES_ENDPOINT = "https://api.openai.com/v1/images/generations";
-const OPENAI_MODEL = "gpt-image-1";
-const RENDER_SIZE = "1024x1536"; // closest portrait to 4:5 the API offers
+// 13E.2.1 - model + size come from the single source of truth
+// (lib/social/imageModelConfig.mjs, verified against ${OPENAI_IMAGE_DOCS_URL}).
+// OPENAI_IMAGE_MODEL env var overrides for a pinned rollback only.
+const IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL || OPENAI_IMAGE_MODEL;
+const RENDER_SIZE = OPENAI_IMAGE_REQUEST_SIZE;
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
@@ -56,12 +64,13 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 
 function emptyManifest() {
   return {
-    _note: "Phase 13E.2 generated-asset manifest. See docs/social-asset-library.md.",
+    _note: "Phase 13E.2 / 13E.2.1 generated-BACKGROUND manifest. See docs/social-asset-library.md + docs/social-card-artwork.md.",
     spec_version: PROMPT_SPEC_VERSION,
     generator: "scripts/socialAssets.mjs",
+    image_model: IMAGE_MODEL,
     updated: todayIso(),
     boundary:
-      "Image generation receives ZERO live eBay / PPT / card / price / listing / user data. Prompts are evergreen and built only from lib/social/assetPrompts.mjs. The deterministic HTML renderer overlays all real facts AFTER generation.",
+      "Image generation receives ZERO live eBay / PPT / card / price / listing / user data and NO real card image or URL. Prompts are evergreen, built only from lib/social/assetPrompts.mjs, and explicitly forbid drawing any card / creature / product shape (the hero zone stays empty). The real canonical card artwork (Version C) and the real site screenshot (Version D) are composited by the deterministic renderer AFTER generation - never by the model.",
     qa_checks: [...QA_CHECKS],
     status_values: ["planned", "generated", "approved", "rejected"],
     counts: { planned: 0, generated: 0, approved: 0, rejected: 0 },
@@ -162,7 +171,7 @@ async function generateImageB64(prompt) {
   const res = await fetch(OPENAI_IMAGES_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model: OPENAI_MODEL, prompt, size: RENDER_SIZE, n: 1 }),
+    body: JSON.stringify({ model: IMAGE_MODEL, prompt, size: RENDER_SIZE, n: 1 }),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -224,13 +233,15 @@ async function cmdGenerate(args) {
     return;
   }
 
-  // Probe the key BEFORE doing anything, so we stop cleanly (SS19/SS21).
+  // Probe the key BEFORE doing anything, so we stop cleanly (SS16/SS19/SS23).
   if (!process.env.OPENAI_API_KEY) {
-    console.log("OPENAI_API_KEY is not configured in this environment.\n");
-    console.log("The asset architecture and the full prompt pack are ready:");
-    console.log(`  - prompt pack:   lib/social/assetPrompts.mjs  (spec ${PROMPT_SPEC_VERSION})`);
+    console.log("OPENAI API READY — KEY REQUIRED\n");
+    console.log("OPENAI_API_KEY is not configured in this environment. Everything that");
+    console.log("does not require generation is already in place:");
+    console.log(`  - prompt pack:   lib/social/assetPrompts.mjs  (spec ${PROMPT_SPEC_VERSION}, no-fake-card rules)`);
+    console.log(`  - model config:  lib/social/imageModelConfig.mjs  (model ${IMAGE_MODEL}, size ${RENDER_SIZE})`);
     console.log(`  - manifest:      ${MANIFEST_PATH}  (${m.assets.length} planned variants)`);
-    console.log(`  - renderer:      lib/social/assets.mjs + templates.mjs background support`);
+    console.log(`  - renderer:      Versions A / B / C (real canonical card) / D (brand ad) all wired`);
     console.log("\nTo generate the first-pass sample later, set OPENAI_API_KEY (server/local");
     console.log("env var only - never commit it, never paste it into chat) and re-run:");
     console.log("  npm run social:assets -- generate --sample\n");

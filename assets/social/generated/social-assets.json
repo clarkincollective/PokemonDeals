@@ -1,9 +1,10 @@
 {
-  "_note": "Phase 13E.2 generated-asset manifest. See docs/social-asset-library.md.",
-  "spec_version": "13e2-v1",
+  "_note": "Phase 13E.2 / 13E.2.1 generated-BACKGROUND manifest. See docs/social-asset-library.md + docs/social-card-artwork.md.",
+  "spec_version": "13e2.1-v1",
   "generator": "scripts/socialAssets.mjs",
+  "image_model": "gpt-image-2",
   "updated": "2026-09-05",
-  "boundary": "Image generation receives ZERO live eBay / PPT / card / price / listing / user data. Prompts are evergreen and built only from lib/social/assetPrompts.mjs. The deterministic HTML renderer overlays all real facts AFTER generation.",
+  "boundary": "Image generation receives ZERO live eBay / PPT / card / price / listing / user data and NO real card image or URL. Prompts are evergreen, built only from lib/social/assetPrompts.mjs, and explicitly forbid drawing any card / creature / product shape (the hero zone stays empty). The real canonical card artwork (Version C) and the real site screenshot (Version D) are composited by the deterministic renderer AFTER generation - never by the model.",
   "qa_checks": [
     "generated_background",
     "copyright_risk",
@@ -51,9 +52,9 @@
           "footer": "lower block"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -86,9 +87,9 @@
           "footer": "below the band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -121,9 +122,9 @@
           "footer": "bottom band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -156,9 +157,9 @@
           "footer": "bottom band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -191,9 +192,9 @@
           "footer": "bottom band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -226,9 +227,9 @@
           "footer": "lower block"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -261,9 +262,9 @@
           "footer": "below the band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -296,9 +297,9 @@
           "footer": "bottom band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -331,9 +332,9 @@
           "footer": "lower block"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -366,9 +367,9 @@
           "footer": "bottom band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -401,9 +402,9 @@
           "footer": "bottom band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -436,9 +437,9 @@
           "footer": "lower block"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -471,9 +472,9 @@
           "footer": "lower block"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -506,9 +507,9 @@
           "footer": "below the band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -541,9 +542,9 @@
           "footer": "bottom band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -576,9 +577,9 @@
           "footer": "bottom band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -611,9 +612,9 @@
           "footer": "bottom band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -646,9 +647,9 @@
           "footer": "below the band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -681,9 +682,9 @@
           "footer": "below the band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -716,9 +717,9 @@
           "footer": "bottom band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -751,9 +752,9 @@
           "footer": "lower block"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -786,9 +787,9 @@
           "footer": "bottom band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -821,9 +822,9 @@
           "footer": "bottom band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -856,9 +857,9 @@
           "footer": "below the band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -891,9 +892,9 @@
           "footer": "bottom band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -926,9 +927,9 @@
           "footer": "lower block"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -961,9 +962,9 @@
           "footer": "bottom band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -996,9 +997,9 @@
           "footer": "below the band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -1031,9 +1032,9 @@
           "footer": "lower block"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,
@@ -1066,9 +1067,9 @@
           "footer": "bottom band"
         }
       },
+      "prompt_spec_version": "13e2.1-v1",
       "status": "planned",
       "file": null,
-      "prompt_spec_version": "13e2-v1",
       "generated_date": null,
       "approved_date": null,
       "qa": null,

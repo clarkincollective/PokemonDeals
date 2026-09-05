@@ -248,8 +248,14 @@ the owner chooses. Publishing stays manual and disabled.
 
 - The OpenAI call exists in exactly one place: `generateImageB64()` in
   `scripts/socialAssets.mjs`, a `fetch` to
-  `https://api.openai.com/v1/images/generations` (`model: gpt-image-1`,
-  `size: 1024x1536`). No SDK dependency added.
+  `https://api.openai.com/v1/images/generations`. The model + size come
+  from the single source of truth `lib/social/imageModelConfig.mjs` —
+  **13E.2.1: `gpt-image-2`** (current SOTA per the official docs, audited
+  2026-09-06; `gpt-image-1` was 13E.2's value), `size: 1024x1536`,
+  overridable via `OPENAI_IMAGE_MODEL`. No SDK dependency added. See
+  [`docs/social-card-artwork.md`](./social-card-artwork.md) for the
+  three-layer renderer, real card artwork (Version C), Version D, and the
+  strengthened no-fake-card prompts (`prompt_spec_version` `13e2.1-v1`).
 - The key is read from `process.env.OPENAI_API_KEY` only — never a file,
   never a prompt, never a CLI arg. It is never logged, never written to
   the manifest or any generated file. On API error only the API's own

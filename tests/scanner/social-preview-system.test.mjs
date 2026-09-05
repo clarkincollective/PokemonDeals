@@ -279,10 +279,10 @@ test("10b. the only market-intelligence content type is market_snapshot, and it 
   assert.match(src, /discount_pct/);
 });
 
-test("10c. rights_state.ppt_social_data is CLEARED (owner-confirmed, 13E.1) - and card-image rights stay separately NOT_CLEARED", () => {
+test("10c. rights_state: ppt_social_data + card_image CLEARED (13E.1 / 13E.2.1); seller images + GenAI + publishing still locked", () => {
   assert.equal(RIGHTS_STATE.ppt_social_data, "CLEARED");
-  assert.equal(RIGHTS_STATE.card_image, "NOT_CLEARED");
-  assert.equal(RIGHTS_STATE.ebay_seller_images, "NOT_CLEARED");
+  assert.equal(RIGHTS_STATE.card_image, "CLEARED"); // 13E.2.1 - canonical catalogue artwork (Version C)
+  assert.equal(RIGHTS_STATE.ebay_seller_images, "NOT_CLEARED"); // separate; seller photos never composited
   assert.equal(RIGHTS_STATE.ebay_genai, "NOT_ALLOWED"); // no EPN AI Tools approval
   assert.equal(RIGHTS_STATE.publishing, "DISABLED");
 });
@@ -337,13 +337,22 @@ test("12c. no social platform API client or SDK is imported anywhere in the soci
   }
 });
 
-test("12d. no fetch()/network call of any kind exists in the social system (database + local file/Chrome I/O only)", () => {
+test("12d. the social system makes no fetch()/publish call; its only network calls are the DB read and (13E.2.1) a host-locked canonical image GET", () => {
   for (const f of SOCIAL_FILES) {
-    if (f.endsWith("db.mjs")) continue; // Supabase client call is the one intentional exception - reads the database, not a network publish
+    if (f.endsWith("db.mjs")) continue; // Supabase client call - reads the database, not a network publish
     if (f.endsWith("render.mjs")) continue; // spawns local Chrome + writes a local file - no network call
+    if (f.endsWith("cardArtwork.mjs")) continue; // 13E.2.1 - a GET to the TCGplayer product CDN ONLY (host-locked, cached by id); asserted below
     const src = read(f);
     assert.doesNotMatch(src, /\bfetch\(/, `${f} must not make a network call`);
   }
+  // cardArtwork.mjs: no fetch(), no OpenAI, no eBay; its https.get is
+  // guarded to the one canonical host and nowhere else.
+  const ca = read("lib/social/cardArtwork.mjs");
+  assert.doesNotMatch(ca, /\bfetch\(/);
+  assert.doesNotMatch(ca, /api\.openai\.com|api\.ebay\.com|graph\.facebook|api\.buffer/i);
+  assert.match(ca, /isCanonicalImageUrl\(url\)\)\s*return reject|refusing to fetch non-canonical host/);
+  assert.match(ca, /tcgplayer-cdn\.tcgplayer\.com/);
+  assert.doesNotMatch(ca, /i\.ebayimg\.com["'][^)]*get|https\.get\([^)]*ebay/i);
 });
 
 // === 13. caption content: no guarantee/urgency language, CTA stays internal ===
@@ -440,7 +449,7 @@ test("19. the review checklist auto-verifies math, freshness, image rights, disc
   const byItem = Object.fromEntries(checklist.map((c) => [c.item, c]));
   assert.equal(byItem["Discount %/$ calculation is arithmetically correct"].auto, true);
   assert.equal(byItem["Freshness/verification timestamp is current"].auto, true);
-  assert.equal(byItem["Image rights safe (Mode B in force, no card image used)"].auto, true);
+  assert.equal(byItem["Image rights safe (no eBay seller photo; Version C uses cleared canonical artwork only)"].auto, true);
   assert.equal(byItem["Disclosure present in caption and creative"].auto, true);
   assert.equal(byItem["Destination route is correct for this content type"].auto, true);
   // never auto-approves identity/spelling/CTA/prediction/trademark - those stay human-only

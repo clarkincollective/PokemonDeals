@@ -132,7 +132,7 @@ test("2c. assertDataFree ALLOWS the pack's own brand-prohibition sentence (it na
 
 // === 3. copyright / IP boundary is in every prompt =====================
 
-test("3. every family prompt carries the full IP + no-text prohibition", () => {
+test("3. every family prompt carries the full IP + no-text + NO-CARD-DRAWING prohibition (13E.2.1)", () => {
   for (const family of ASSET_FAMILIES) {
     const { prompt } = buildAssetPrompt({ family });
     assert.match(prompt, /Poke Ball/);
@@ -140,7 +140,15 @@ test("3. every family prompt carries the full IP + no-text prohibition", () => {
     assert.match(prompt, /Nintendo, The Pokemon Company/);
     assert.match(prompt, /eBay logos or branding/);
     assert.match(prompt, /NO TEXT of any kind rendered inside the image/);
-    assert.match(prompt, /Generic card-like objects are allowed ONLY as clearly original blank forms/);
+    // 13E.2.1 SS7 - emphatic no-fake-card rules + reserved empty hero zone
+    assert.match(prompt, /DO NOT DRAW A TRADING CARD/);
+    assert.match(prompt, /DO NOT DRAW CARD ARTWORK OR A CARD FACE/);
+    assert.match(prompt, /DO NOT DRAW CREATURES, MONSTERS, OR POKEMON-LIKE CHARACTERS/);
+    assert.match(prompt, /RESERVED HERO ZONE/);
+    assert.match(prompt, /LEAVE THE RESERVED HERO ZONE COMPLETELY EMPTY/);
+    // the old "blank card silhouettes are allowed" permission is GONE
+    assert.doesNotMatch(prompt, /allowed ONLY as clearly original blank forms/);
+    assert.doesNotMatch(prompt, /fanned stack of blank cards/);
     assert.doesNotMatch(prompt, /imitate|in the style of official Pokemon/i);
   }
 });

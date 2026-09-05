@@ -224,8 +224,8 @@ test("5b. every daily payload carries the full 5-key per-capability rights_state
   for (const s of batch.selected) {
     assert.deepEqual(Object.keys(s.payload.rights_state).sort(), ["card_image", "ebay_genai", "ebay_seller_images", "ppt_social_data", "publishing"]);
     assert.equal(s.payload.rights_state.publishing, "DISABLED");
-    assert.equal(s.payload.rights_state.card_image, "NOT_CLEARED"); // Mode B
-    assert.equal(s.payload.rights_state.ebay_seller_images, "NOT_CLEARED");
+    assert.equal(s.payload.rights_state.card_image, "CLEARED"); // 13E.2.1 - canonical artwork cleared (Version C)
+    assert.equal(s.payload.rights_state.ebay_seller_images, "NOT_CLEARED"); // seller photos still never composited
     assert.equal(s.payload.rights_state.ebay_genai, "NOT_ALLOWED"); // no EPN AI Tools approval
   }
 });

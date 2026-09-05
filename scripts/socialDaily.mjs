@@ -35,11 +35,11 @@ import { config as loadDotenv } from "dotenv";
 if (existsSync(".env.local")) loadDotenv({ path: ".env.local", quiet: true });
 else loadDotenv({ quiet: true });
 
-import { fetchActiveDealPool } from "../lib/social/db.mjs";
+import { fetchActiveDealPool, fetchCatalogRows } from "../lib/social/db.mjs";
 import { buildDailyBatch, DAILY_FAMILIES } from "../lib/social/dailyMix.mjs";
 import { assemblePlatformCaptions } from "../lib/social/caption.mjs";
 import { buildHashtags } from "../lib/social/hashtags.mjs";
-import { buildSlideContent, renderHtml } from "../lib/social/templates.mjs";
+import { buildSlideContent, renderHtml, pathToFileUrl } from "../lib/social/templates.mjs";
 import { createRenderer } from "../lib/social/render.mjs";
 import { buildReviewChecklist, formatReviewSummary } from "../lib/social/reviewSummary.mjs";
 import { buildDailyGalleryHtml } from "../lib/social/gallery.mjs";
@@ -49,11 +49,33 @@ import { loadPostHistory, savePostHistory, buildCooldownKeys } from "../lib/soci
 // manifest + PNG files that `npm run social:assets` produced and a human
 // approved earlier. `social:daily` makes zero image-generation calls.
 import { loadAssetManifest, resolveBackgroundForPost } from "../lib/social/assets.mjs";
+// Phase 13E.2.1 - LAYER 2 (real canonical card artwork) + Version D
+// (brand-ad architecture). cardArtwork.mjs may make ONE kind of network
+// call - a GET to the TCGplayer product CDN, host-locked, cached by id -
+// and nothing else; it never touches OpenAI or eBay.
+import { RIGHTS_STATE } from "../lib/social/rights.mjs";
+import { resolveCardArtwork, resolveMultiCardArtwork, CARD_ART_CACHE_DIR } from "../lib/social/cardArtwork.mjs";
+import { resolveBrandScreenshot } from "../lib/social/brandAd.mjs";
+
+// Deterministic Version-C presentation per family (docs/social-card-artwork.md SS8).
+const CARD_PRESENTATION_FOR = {
+  deal_of_day: "card_metric_panel",
+  just_found: "center_card",
+  pokemon_spotlight: "multi_card",
+  set_spotlight: "multi_card",
+};
+
+// tcgplayer ids a candidate needs for its Version C (single or multi).
+function candidateTcgIds(payload) {
+  const dd = payload.deal_data;
+  const arr = Array.isArray(dd) ? dd : dd ? [dd] : [];
+  return arr.map((d) => d?.card_tcgplayer_id).filter((v) => v != null && String(v).trim() !== "").map(String);
+}
 
 const OUT_ROOT = path.join(process.cwd(), ".social-preview");
 const DAILY_DIR = path.join(OUT_ROOT, "daily");
 
-async function renderCandidate(entry, renderer, assetManifest) {
+async function renderCandidate(entry, renderer, assetManifest, catalogById = {}) {
   const outDir = path.join(DAILY_DIR, entry.family);
   mkdirSync(outDir, { recursive: true });
   const slide = buildSlideContent(entry.payload);
@@ -83,13 +105,117 @@ async function renderCandidate(entry, renderer, assetManifest) {
     writeFileSync(path.join(outDir, "asset.json"), JSON.stringify(enhanced, null, 2), "utf8");
   }
 
+  // Version C: the SAME deterministic overlay + the REAL canonical card
+  // artwork (Layer 2). Only when card_image is CLEARED AND the exact
+  // printing verifies. Any doubt -> fail closed, C is simply not produced
+  // and A/B stand (SS4, SS19).
+  let cardVersion = null;
+  let cardVersionFailed = null;
+  if (RIGHTS_STATE.card_image === "CLEARED") {
+    const family = entry.payload.content_type;
+    const dd = entry.payload.deal_data;
+    const bgForC = bg && existsSync(bg.absFile) ? bg : null;
+    if (family === "pokemon_spotlight" || family === "set_spotlight") {
+      const res = await resolveMultiCardArtwork(Array.isArray(dd) ? dd : [], {
+        rightsState: RIGHTS_STATE,
+        catalogRowFor: (id) => catalogById[String(id)] ?? null,
+        cacheDir: CARD_ART_CACHE_DIR,
+        min: 2,
+        max: 4,
+      });
+      if (res.status === "ready") {
+        const cardArtwork = { presentation: "multi_card", cards: res.cards.map((c) => ({ fileUrl: pathToFileUrl(c.localPath) })) };
+        const files = [];
+        for (const variant of ["A", "B"]) {
+          const p = path.join(outDir, `creative-card-${variant}.png`);
+          await renderer.renderToPng(renderHtml(slide, { variant, background: bgForC, cardArtwork }), p);
+          files.push(path.relative(OUT_ROOT, p).replace(/\\/g, "/"));
+        }
+        cardVersion = {
+          presentation: "multi_card",
+          provider: res.provider,
+          cards: res.cards.map((c) => ({ tcgplayerId: c.tcgplayerId, sourceUrl: c.sourceUrl, printingMatch: c.printingMatch })),
+          printingMatch: { ok: true, reason: `${res.cards.length} distinct exact printings verified` },
+          background: bgForC ? bgForC.assetId : null,
+          pngFiles: files,
+          thumb: files[0],
+        };
+      } else {
+        cardVersionFailed = { reason: res.reason, provider: res.provider, skipped: res.skipped };
+      }
+    } else if (family === "deal_of_day" || family === "just_found") {
+      const deal = Array.isArray(dd) ? dd[0] : dd;
+      const res = await resolveCardArtwork(deal, {
+        rightsState: RIGHTS_STATE,
+        catalogRow: catalogById[String(deal?.card_tcgplayer_id)] ?? null,
+        cacheDir: CARD_ART_CACHE_DIR,
+      });
+      if (res.status === "ready") {
+        const cardArtwork = { presentation: CARD_PRESENTATION_FOR[family] || "center_card", card: { fileUrl: pathToFileUrl(res.localPath) } };
+        const files = [];
+        for (const variant of ["A", "B"]) {
+          const p = path.join(outDir, `creative-card-${variant}.png`);
+          await renderer.renderToPng(renderHtml(slide, { variant, background: bgForC, cardArtwork }), p);
+          files.push(path.relative(OUT_ROOT, p).replace(/\\/g, "/"));
+        }
+        cardVersion = {
+          presentation: cardArtwork.presentation,
+          provider: res.provider,
+          tcgplayerId: res.printingMatch.tcgplayerId,
+          sourceUrl: res.sourceUrl,
+          cardNumber: res.printingMatch.cardNumber ?? null,
+          printingMatch: { ok: res.printingMatch.ok, reason: res.printingMatch.reason },
+          cached: res.cached,
+          background: bgForC ? bgForC.assetId : null,
+          pngFiles: files,
+          thumb: files[0],
+        };
+      } else {
+        cardVersionFailed = { reason: res.reason, provider: res.provider };
+      }
+    } else {
+      // market_snapshot is an AGGREGATE - no single exact printing to
+      // show (SS13). Version C is intentionally not produced for it.
+      cardVersionFailed = { reason: "market_snapshot is an aggregate view - no single exact printing; Version C not applicable", provider: "n/a" };
+    }
+    if (cardVersion) writeFileSync(path.join(outDir, "card-version.json"), JSON.stringify(cardVersion, null, 2), "utf8");
+  } else {
+    cardVersionFailed = { reason: `card_image rights = ${RIGHTS_STATE.card_image} (not CLEARED)`, provider: "n/a" };
+  }
+
+  // Version D: brand ad = OpenAI/Mode-B background + a REAL site
+  // screenshot + deterministic frame. NEVER captured in the daily loop -
+  // only wired if a real screenshot is already cached (SS17).
+  let brandAd = null;
+  const shot = resolveBrandScreenshot({ route: "/" });
+  if (shot.status === "ready") {
+    const cardArtworkNone = null;
+    const p = path.join(outDir, "creative-brandad.png");
+    await renderer.renderToPng(
+      renderHtml(slide, {
+        variant: "A",
+        background: bg && existsSync(bg.absFile) ? bg : null,
+        brandAd: {
+          screenshot: { fileUrl: pathToFileUrl(shot.screenshotPath) },
+          headline: "Compare every Pokemon card deal against real market pricing",
+          sub: "Live eBay listings, checked against a real reference. Free.",
+          urlLabel: "pokemondealfinder.com",
+        },
+      }),
+      p
+    );
+    brandAd = { status: "ready", route: shot.route, origin: shot.origin, pngFiles: [path.relative(OUT_ROOT, p).replace(/\\/g, "/")], thumb: path.relative(OUT_ROOT, p).replace(/\\/g, "/") };
+  } else {
+    brandAd = { status: "unavailable", reason: shot.reason };
+  }
+
   const captions = assemblePlatformCaptions(entry.payload);
   const hashtags = buildHashtags(entry.payload);
   writeFileSync(path.join(outDir, "caption-instagram.txt"), captions.instagram, "utf8");
   writeFileSync(path.join(outDir, "caption-tiktok.txt"), captions.tiktok, "utf8");
   writeFileSync(path.join(outDir, "hashtags.txt"), hashtags.join(" "), "utf8");
   writeFileSync(path.join(outDir, "payload.json"), JSON.stringify(entry.payload, null, 2), "utf8");
-  return { ...entry, captions, hashtags, pngFiles, thumb: pngFiles[0], enhanced };
+  return { ...entry, captions, hashtags, pngFiles, thumb: pngFiles[0], enhanced, cardVersion, cardVersionFailed, brandAd };
 }
 
 async function generate() {
@@ -109,12 +235,27 @@ async function generate() {
   // just falls back to Mode B.
   const { manifest: assetManifest } = loadAssetManifest();
 
+  // Phase 13E.2.1 - resolve card_catalog rows for ONLY the ids the day's
+  // selected candidates need (never a catalogue-wide read), so
+  // cardArtwork.mjs can verify each Version C is the exact matched
+  // printing. One batched read.
+  let catalogById = {};
+  if (RIGHTS_STATE.card_image === "CLEARED" && batch.selected.length) {
+    const ids = [...new Set(batch.selected.flatMap((e) => candidateTcgIds(e.payload)))];
+    try {
+      const { byId, error: catErr } = await fetchCatalogRows(ids);
+      if (!catErr) catalogById = byId;
+    } catch {
+      /* a failed catalogue read just means Version C falls back to URL self-consistency only */
+    }
+  }
+
   const rendered = [];
   if (batch.selected.length) {
     const renderer = await createRenderer();
     try {
       for (const entry of batch.selected) {
-        rendered.push(await renderCandidate(entry, renderer, assetManifest));
+        rendered.push(await renderCandidate(entry, renderer, assetManifest, catalogById));
       }
     } finally {
       await renderer.close();
@@ -127,6 +268,9 @@ async function generate() {
       payload: r.payload,
       thumb: r.thumb,
       enhanced: r.enhanced, // null unless an approved generated background was used
+      cardVersion: r.cardVersion, // Version C: real canonical card artwork
+      cardVersionFailed: r.cardVersionFailed, // why C is unavailable (fail-closed reason)
+      brandAd: r.brandAd, // Version D
       captions: r.captions,
       hashtags: r.hashtags,
       reasonSelected: r.reasonSelected,
@@ -154,8 +298,23 @@ async function generate() {
     console.log(`     creative A: deterministic Mode B`);
     console.log(
       r.enhanced
-        ? `     creative B: background-enhanced (asset ${r.enhanced.assetId}) — owner picks A or B in the gallery`
+        ? `     creative B: background-enhanced (asset ${r.enhanced.assetId}) — owner picks A/B/C in the gallery`
         : `     creative B: none (no approved generated background for this family — Mode B stands)`
+    );
+    if (r.cardVersion) {
+      const c = r.cardVersion;
+      console.log(
+        `     creative C: REAL canonical card artwork — ${c.presentation}, ${c.provider}` +
+          (c.tcgplayerId ? `, tcgplayer #${c.tcgplayerId}` : c.cards ? `, ${c.cards.length} cards` : "") +
+          ` — printing match: ${c.printingMatch.ok ? "PASS" : "FAIL"}`
+      );
+    } else {
+      console.log(`     creative C: not produced — ${r.cardVersionFailed?.reason ?? "unavailable"} (fail closed, A/B stand)`);
+    }
+    console.log(
+      r.brandAd?.status === "ready"
+        ? `     creative D: brand ad with real ${r.brandAd.origin} screenshot`
+        : `     creative D: architecture ready — ${r.brandAd?.reason ?? "no cached screenshot"} (capture step is separate)`
     );
     const fails = buildReviewChecklist(r.payload).filter((c) => c.auto === false);
     if (fails.length) console.log(`     ⚠ auto-check FAILS: ${fails.map((c) => c.item).join("; ")}`);
@@ -163,10 +322,16 @@ async function generate() {
   }
 
   const enhancedCount = rendered.filter((r) => r.enhanced).length;
+  const cardCount = rendered.filter((r) => r.cardVersion).length;
   console.log(
     enhancedCount
-      ? `Generated backgrounds used on ${enhancedCount}/${rendered.length} post(s). The AI-enhanced version is never auto-preferred — compare A vs B in the gallery.`
+      ? `Generated backgrounds used on ${enhancedCount}/${rendered.length} post(s). The AI-enhanced version is never auto-preferred — compare A vs B vs C in the gallery.`
       : `No approved generated backgrounds in rotation yet — every post is deterministic Mode B. Run "npm run social:assets" to build the library.`
+  );
+  console.log(
+    RIGHTS_STATE.card_image === "CLEARED"
+      ? `Real canonical card artwork (Version C) rendered for ${cardCount}/${rendered.length} post(s); the rest fell back closed to Mode B.`
+      : `card_image rights are ${RIGHTS_STATE.card_image} — no Version C.`
   );
   console.log("");
 
