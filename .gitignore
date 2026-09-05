@@ -28,6 +28,11 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Phase 13D.4 - local-only social content preview output (PNGs, captions,
+# payload JSON). Never committed - this is dev/review scratch output, not
+# a build artifact or published content.
+/.social-preview/
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
