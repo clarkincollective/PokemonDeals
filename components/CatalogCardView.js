@@ -256,6 +256,7 @@ export default function CatalogCardView({ card, analysis, priceHistory = null, s
           sales={analysis?.primaryRecentSales}
           cardName={name}
           page="card_recent_sales"
+          surface="card"
           variant={analysis?.primaryKey === "raw" ? "raw" : null}
           className="mt-6"
         />

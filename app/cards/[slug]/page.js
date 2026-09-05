@@ -486,6 +486,7 @@ export default async function CardHubPage({ params }) {
           sales={analysis?.primaryRecentSales}
           cardName={cardName}
           page="card_recent_sales"
+          surface="card"
           variant={analysis?.primaryKey === "raw" ? "raw" : null}
           className="mt-6"
         />

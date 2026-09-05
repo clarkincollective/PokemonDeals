@@ -737,7 +737,7 @@ export default async function DealDetailPage({ params }) {
           </div>
         )}
 
-        <RecentSales sales={recentSales} cardName={cardName} page="deal_recent_sales" className="mt-6" />
+        <RecentSales sales={recentSales} cardName={cardName} page="deal_recent_sales" surface="deal_page" className="mt-6" />
 
         <ListingChecks className="mt-8" />
       </div>

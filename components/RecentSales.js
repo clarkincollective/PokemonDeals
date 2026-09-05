@@ -1,6 +1,7 @@
 import AffiliateLink from "@/components/AffiliateLink";
 import Price from "@/components/Price";
 import { normalizePublicText } from "@/lib/publicText";
+import { wrapEbayAffiliateUrl } from "@/lib/ebay";
 
 // PokemonPriceTracker's recent-sales feed carries a USD price per sale
 // (no per-sale currency in the data contract); <Price> localises it to
@@ -21,6 +22,7 @@ export default function RecentSales({
   sales,
   cardName,
   page = "recent_sales",
+  surface, // fixed EPN attribution surface (lib/affiliateSurfaces.js) - see below
   limit = 8,
   variant = null, // "raw" -> label the list as raw (ungraded) sales
   className = "",
@@ -63,7 +65,15 @@ export default function RecentSales({
             <div className="min-w-0">
               {sale.url ? (
                 <AffiliateLink
-                  href={sale.url}
+                  // sale.url was already affiliate-wrapped upstream by
+                  // lib/pokemonPriceTracker.js's normalizeSoldListings
+                  // (shared/cached, no page-surface context there - see
+                  // that function's own comment). Re-applying the known
+                  // surface here, at the actual render boundary, is the
+                  // same idempotent customid-only overwrite used
+                  // throughout this feature - no cache-key change, no
+                  // extra fetch.
+                  href={wrapEbayAffiliateUrl(sale.url, { surface })}
                   eventName="eBay Click"
                   eventData={{ card: cardName, page }}
                   className="line-clamp-1 block text-sm text-zinc-700 hover:underline dark:text-zinc-300"

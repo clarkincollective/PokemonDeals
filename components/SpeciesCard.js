@@ -55,12 +55,18 @@ export default function SpeciesCard({ card, label, speciesName, pageName = "spec
   // Sealed product names are self-contained; a card needs its set to
   // disambiguate prints. Prefer the server-built (campaign-wrapped) href.
   const ebayQuery = card.searchQuery ?? `${card.name} ${card.set}`;
-  // card.ebayHref, when present, was pre-built server-side deep in the
-  // shared catalogue data layer (lib/deals.js) without page-surface
-  // context available at that layer - it deliberately resolves to the
-  // "other" surface rather than guessing. The local buildEbaySearchLink
-  // fallback below has real page context and gets the real surface.
-  const searchHref = card.ebayHref ?? buildEbaySearchLink(ebayQuery, undefined, surface);
+  // card.ebayHref may have been pre-built upstream (e.g. buildCatalogueItems,
+  // or a sealed-catalogue fetch in lib/deals.js) - possibly without this
+  // page's surface, or without any surface at all, since a shared/cached
+  // data function doesn't always know which page will render its output.
+  // SpeciesCard is the actual presentation-layer CTA boundary and DOES
+  // know its real surface (via pageName), so it always re-applies it here
+  // - the same idempotent overwrite-only-the-customid-param pattern used
+  // everywhere else in this feature - rather than trusting an upstream
+  // value to already be correct. No new data fetch, no cache-key change.
+  const searchHref = card.ebayHref
+    ? wrapEbayAffiliateUrl(card.ebayHref, { surface })
+    : buildEbaySearchLink(ebayQuery, undefined, surface);
   const isAuction = card.deal?.listingType === "AUCTION";
 
   const imageEl = card.image ? (

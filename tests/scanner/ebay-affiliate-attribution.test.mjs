@@ -251,6 +251,89 @@ test("every currently-used pageName in the mapping table resolves to a real surf
   }
 });
 
+// === "other" leakage closeout (found live on /sets/[slug], /cards/[slug],
+//     /deals/[id]): a PRE-BUILT ebayHref/affiliate url from a shared/cached
+//     data layer must never survive to the final CTA unresurfaced - the
+//     presentation-layer component (SpeciesCard, RecentSales) must always
+//     re-apply ITS OWN known surface, overriding whatever (or nothing) the
+//     upstream value carried. =========================================
+
+test("closeout 1/2/3: a pre-built href with no surface, or the wrong one, is corrected to the real page surface at the final render boundary", () => {
+  // Simulates exactly what SpeciesCard/RecentSales receive: an
+  // already-built eBay URL from a shared data layer, carrying "other"
+  // (or nothing) because that layer has no page context.
+  const preBuilt = wrapEbayAffiliateUrl(ITEM_URL); // no surface given upstream -> "other"
+  assert.equal(new URL(preBuilt).searchParams.get("customid"), "other");
+
+  for (const [pageSurface, label] of [["set", "set page"], ["card", "card page"], ["deal_page", "deal page"]]) {
+    const final = wrapEbayAffiliateUrl(preBuilt, { surface: pageSurface });
+    assert.equal(new URL(final).searchParams.get("customid"), pageSurface, `${label}: must correct "other" to "${pageSurface}"`);
+  }
+});
+
+test("closeout 4: a known page's own surface is never left as other once the final wrap is applied", () => {
+  for (const surface of ["set", "card", "deal_page"]) {
+    const url = new URL(wrapEbayAffiliateUrl(ITEM_URL, { surface }));
+    assert.notEqual(url.searchParams.get("customid"), "other");
+  }
+});
+
+test("closeout 5: other still works correctly for a genuinely unknown/unmapped context", () => {
+  assert.equal(new URL(wrapEbayAffiliateUrl(ITEM_URL, { surface: "totally_unknown_surface" })).searchParams.get("customid"), "other");
+  assert.equal(new URL(wrapEbayAffiliateUrl(ITEM_URL)).searchParams.get("customid"), "other");
+});
+
+test("closeout 6/7/8: re-applying the known surface over a pre-built href changes ONLY customid - no duplicate customid, no duplicate campid, every other param intact", () => {
+  const preBuilt = wrapEbayAffiliateUrl(ITEM_URL); // upstream wrap, "other", real campid baked in
+  const final = new URL(wrapEbayAffiliateUrl(preBuilt, { surface: "card" }));
+  assert.equal(final.searchParams.getAll("customid").length, 1);
+  assert.equal(final.searchParams.getAll("campid").length, 1);
+  assert.equal(final.searchParams.get("campid"), "5339197414");
+  assert.equal(final.searchParams.get("mkevt"), "1");
+  assert.equal(final.searchParams.get("mkcid"), "1");
+  assert.equal(final.searchParams.get("mkrid"), "711-53200-19255-0");
+  assert.equal(final.searchParams.get("toolid"), "10049");
+  assert.equal(final.pathname, "/itm/123456789012"); // destination unchanged
+});
+
+test("closeout 9: marketplace localization is unaffected by re-applying the known surface", () => {
+  const preBuilt = buildEbaySearchLink("Charizard", "EBAY_US"); // no surface upstream
+  const final = wrapEbayAffiliateUrl(preBuilt, { surface: "set" });
+  const localized = new URL(localizeEbaySearchUrl(final, "EBAY_AU"));
+  assert.equal(localized.hostname, "www.ebay.com.au");
+  assert.equal(localized.searchParams.get("customid"), "set");
+});
+
+test("closeout 10: the fix touches only presentation-layer render points, not the cached data layer - no new cache-key/route/card/listing identity is introduced", () => {
+  // The actual data-fetching functions (buildCatalogueItems, the sealed-
+  // catalogue fetch, normalizeSoldListings) are untouched: only the final
+  // render components (SpeciesCard, RecentSales) now re-wrap what they
+  // receive. Confirmed by source inspection - no unstable_cache call site
+  // gained a new argument, and neither component makes a network call.
+  for (const f of ["components/SpeciesCard.js", "components/RecentSales.js"]) {
+    const src = read(f);
+    assert.doesNotMatch(src, /unstable_cache|fetch\(|supabaseAdmin|supabase\.from/);
+  }
+});
+
+test("closeout 11: search/query/card/deal identity remains structurally absent from customid after the fix (same closed allowlist)", () => {
+  assert.equal(affiliateSurface("Charizard 4/102"), "other");
+  assert.equal(affiliateSurface("deal_page_31909"), "other");
+  assert.equal(affiliateSurface("card_pikachu-v"), "other");
+});
+
+test("closeout 12: no PostHog identifier is read by the newly-touched render components", () => {
+  for (const f of ["components/SpeciesCard.js", "components/RecentSales.js"]) {
+    assert.doesNotMatch(read(f), /distinct_id|posthog\.|capture\(/i);
+  }
+});
+
+test("closeout 13/14: no new eBay API call or OAuth scope was introduced by this closeout", () => {
+  for (const f of ["components/SpeciesCard.js", "components/RecentSales.js"]) {
+    assert.doesNotMatch(read(f), /fetch\(|oauth2\/token|api_scope/);
+  }
+});
+
 test("an unmapped/unknown pageName resolves to other, not a crash or a guess", () => {
   assert.equal(surfaceForPageName("sealed_hub"), "other");
   assert.equal(surfaceForPageName("japanese_cards"), "other");
