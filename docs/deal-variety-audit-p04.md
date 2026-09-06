@@ -720,3 +720,207 @@ gate regression. No threshold, reference gate, or scanner setting was touched.
 ## Not done (deferred, as scoped)
 
 P0.4.2 scanner allocation, GSC audit, 13E.5, Reddit, publishing.
+
+---
+
+# P0.4.2 - Scanner allocation + long-tail inventory depth (implemented)
+
+Scope: **scan-target allocation only.** No deal-qualification threshold,
+market-reference confidence, P0.3.1 multi-card / language / grade guards,
+exact-printing matching, availability gates, counterfeit/risk rules, price
+calculations, affiliate logic, P0.4.1 homepage logic, SEO or publishing is
+touched. It re-shapes WHICH already-qualified cards get scanned and HOW
+OFTEN, inside the SAME Browse-call envelope. **Zero new Browse calls.**
+
+## The old shape (removed)
+
+| Lane | Old cadence | Problem |
+|---|---|---|
+| `tier=priority` | 26 cards x 6 marketplaces, every 6h (4 runs/day) | ~4,368 Browse calls / 7d on **17 real printings** - sweep already covers these; pure re-confirmation |
+| `tier=extended` | 8,383 cards hash-chunked into 5, ONE (chunk,country) per day | a given extended card re-scanned **~once / 30 days / market** -> its deals expire and are never re-found |
+| cron entries | 31 (1 priority + 30 monthly extended) | |
+
+## The new shape - one evidence-based priority queue
+
+`lib/scanAllocator.js` (pure, deterministic, 28 unit tests). `tier=priority`
+and `tier=extended` are **merged**; the `watchlist.tier` column is now
+advisory. `vercel.json` calls **`?tier=allocated&country=EBAY_XX` twice a
+day per marketplace** (6 cron entries, 12 runs/day). Each run asks the
+allocator which cards to scan in that one marketplace, from
+`scan_target_state` (one row per (card,market): `last_searched_at`,
+`last_deal_at`, `searches_since_deal`, `consecutive_no_new`,
+`last_unique_listings`, `expired_deal_boost_until`), within a **quota-safe
+budget**.
+
+### State (deterministic, evidence-based)
+
+| State | Rule | Revisit cadence |
+|---|---|---|
+| **HOT** | real deal here in the last 5d, or >=8 distinct listings last search | ~1.5d |
+| **WARM** | deal in the last 21d, or >=3 distinct listings | ~4d |
+| **NORMAL** | otherwise | ~12d |
+| **LONG_TAIL** | not searched here for >=18d, or never searched (checked FIRST so an overdue card always surfaces) | ~21d |
+| **DECAY** | `consecutive_no_new >= 4` AND `searches_since_deal >= 6` -> a HOT/WARM card that keeps coming back empty is forced down to NORMAL | |
+
+### Every run is split three ways (so all goals hold regardless of backlog)
+
+| Lane | Share | Ranked by | Guarantees |
+|---|---|---|---|
+| **HOT reserve** | 16% | priority score | a proven producer keeps its fast revisit even while a long-tail backlog clears |
+| **EXPLORE** | 62% | pure least-recently-searched (never-searched first), **no yield input** | long-tail fairness - nothing starves; a "newly hot" card that historically produced nothing is still discoverable |
+| **EXPLOIT** | remainder | blended score `0.5*overdue + 0.32*yield + 0.18*state` (+0.6 expired-boost) | productive cards float up as the backlog clears |
+
+Deterministic tiebreak: `card_tcgplayer_id`. Same inputs -> same selection,
+same order.
+
+### Quota safety (§13)
+
+`budgetForRun` = `min(TARGET_BUDGET_BASE(125) x marketplace_weight, remaining
+- floor(1200), RUN_HARD_CAP(380))`. It **never spends past `remaining -
+floor`**, **never grows because more targets exist**, and returns **0** when
+there is no headroom - the run then does nothing and the next cron slot
+resumes. `RATE_LIMIT_FLOORS.allocated = 1200`.
+
+### Marketplace allocation (§8)
+
+Weights from the P0.4 audit's measured supply + yield (US ~62% of deals, GB
+carries the external board):
+
+| | US | GB | AU | CA | DE | IT |
+|---|---|---|---|---|---|---|
+| weight | 1.6 | 1.2 | 1.05 | 1.05 | 0.95 | 0.9 |
+
+Spread is deliberately modest (US/IT <= 2.2x). Every marketplace has 2 runs
+a day and a hard exploration floor (`MIN_TARGETS_PER_RUN = 40`) - none is
+silently starved. High-weight markets (US/GB) are cron-scheduled AFTER the
+~07:00 UTC Browse-quota reset so they get full budget.
+
+## §7 - recently-expired good-deal recheck
+
+When `sweep-stale-deals` deactivates a **strong** deal
+(`discount_pct >= 0.20` AND `market_price >= $60`, capped at 150/sweep), it
+sets `scan_target_state.expired_deal_boost_until = now + 10 days` for that
+exact **printing x marketplace**. The allocator adds `+0.6` to that
+printing's score for 10 days - it re-checks for **NEW** listings (never the
+dead listing), obeys the same run budget, expires on its own, and cannot
+become a permanent tier (bounded count, bounded window).
+
+## §9 - adaptive external-feed re-verify cooldown
+
+P0.3.2's flat 20h `RECENT_VERIFY_HOURS` was shorter than how long a stale
+reject sits on the (near-static) discovery board (~972 listings/week
+re-verified >=2x). `lib/ingestFeedQueue.cooldownHoursFor` now:
+
+| candidate | cooldown |
+|---|---|
+| seen once, no deal | 20h (unchanged) |
+| **twice-failed, never a deal** | **84h** |
+| ever became a deal | 20h (a real state change here must not be missed) |
+
+## §10 - external-lane lot/bundle prefilter
+
+`prefilterBoardCandidate` drops obvious lot / bundle / multi-quantity /
+repack / mystery listings (deterministic title regex on the board hint)
+**before** the expensive Browse verify - the external lane's measured yield
+is ~1.1% and these are effectively never a single-card deal. Fails open
+(no title -> the Browse call still decides).
+
+## §14 - observability
+
+`scan_allocation_runs` (one row per allocated run): marketplace, budget,
+`by_state`, `by_lane`, explore/exploit/boosted counts, browse_calls,
+deals_found, new_printings, p95_days_since_search of the pool,
+never_searched_in_pool, rate_limit_remaining. Plus per-(card,market)
+`scan_target_state`. Both writes are **best-effort** - a failure never
+fails a scan (mirrors `logDiscoveryEvent`).
+
+## §16 - fail-safe rollout
+
+`SCAN_ALLOCATOR=off`, OR `scan_target_state` unreadable (migration not
+applied / transient), -> the allocated branch falls back to **exactly the
+old extended-chunk behaviour** for that country-day (`chunk = ((UTC day of
+month - 1) % 5) + 1`, `tier='extended'` filter). So the deploy is safe
+before the migration runs, the old allocator is one env var away, and the
+new allocator **fails closed to safe quota behaviour**. Not a permanent
+second implementation - a bounded deployment safety net.
+
+## Before -> after: 30-day replay (`scripts/_p042sim.mjs`)
+
+Live production watchlist (8,409 targets) + 7 days of `discovery_events`,
+replayed 30 days under a **matched daily Browse envelope**.
+
+| Metric | CURRENT | NEW | change |
+|---|---|---|---|
+| Browse calls / day (tiered allocation) | 1,724 | **1,688** | -2% (same envelope) |
+| redundant <1d-fresh re-scans / 30d | 14,171 | **101** | **-99%** |
+| priority-card searches / 7d / (card,market) pair | ~112 | **1.2** | the 26-card over-scan is gone |
+| **p50 days since last search** (end state) | 16 | **11** | fresher |
+| **p95 days since last search** (end state) | 30 | **23** | fresher long tail |
+| **max days since last search** (end state) | 30 | **26** | |
+| **% (card,market) pairs >18d unsearched** | 44.8% | **19.1%** | |
+| distinct printings searched / 7d | 6,334 | 5,513 | see note |
+| watchlist coverage / 30d | 100% | 100% | full rotation preserved |
+| productive (card,market) pairs reached | 1,674 | 1,669 | no deal-opportunity loss |
+| NEW selection mix / 30d | - | explore 35,766 / exploit 14,874; by-state hot 6.1k / warm 8.7k / long_tail 35.6k | |
+
+Marketplace Browse calls / 30d: US 11,503 -> 12,000, GB 8,042 -> 9,000,
+AU 8,042 -> 7,860, CA 8,042 -> 7,860, DE 8,042 -> 7,140, IT 8,042 -> 6,780.
+
+**Note on 7d "distinct printings searched" (6,334 -> 5,513):** the old chunk
+model does big weekly *bursts* (~1,677 cards in one run) then leaves them
+untouched for 30 days; the new allocator spreads the same budget evenly, so
+a 7-day snapshot flatters the burst model while the 30-day steady state
+flatters the allocator (nothing sits >26 days, `p95` 30 -> 23,
+`>18d-unsearched` 45% -> 19%). The **productive** coverage - printings that
+actually produced a scan-logged deal - is unchanged. This is the intended
+trade: even, fresh long-tail coverage instead of stale bursts.
+
+### Simulated options (`EXPLORE_RATIO`)
+
+| option | explore share | p95 days-since-search | HOT revisit | verdict |
+|---|---|---|---|---|
+| CONSERVATIVE | 0.50 | ~27 | fastest | modest tail gain |
+| **BALANCED (chosen)** | **0.62** | **~23** | ~1.5d for HOT-due | clear tail gain, HOT cadence intact |
+| AGGRESSIVE | 0.78 | ~19 | slower | best tail, HOT revisit slips |
+
+## §17 tests / build
+
+- `npm run test:scanner` - **1336 / 1336 pass** (28 new in
+  `tests/scanner/scan-allocator-p042.test.mjs`; deterministic selection,
+  no starvation under budget, HOT decay, expired-boost expiry, quota-floor
+  protection, marketplace floors, adaptive cooldown, lot prefilter, source
+  guards).
+- `npm run test:seo` - **330 / 331** (the 1 failure is the pre-existing
+  `lib/deals.js` set-aggregates flake from section 14, untouched by P0.4.2).
+- `npm run build` - **Compiled successfully, 44/44 static pages.**
+
+## §18 production verification - PENDING
+
+The migration (`supabase/scan_allocator_migration.sql`) must be applied
+before the allocator activates; until then every `?tier=allocated` run
+falls back to the old extended-chunk behaviour (safe). After the migration
++ first allocated cron:
+
+- **PENDING**: allocator executing / quota protection active / target
+  breadth increasing / marketplace queues populated / old 26-card
+  over-scan reduced - all read from `scan_allocation_runs` +
+  `scan_target_state` + the run response JSON.
+- **PENDING (7-30d)**: `p95_days_since_search` trending toward ~23, live
+  active-deal pool depth, external-lane calls-saved from §9/§10.
+
+## §9 P0.3.2 updated verdict: **HEALTHY**
+
+The re-verify churn is now addressed at the root: the WATCH item from the
+P0.4 audit (20h skip < board dwell) is fixed by the adaptive cooldown
+(stable twice-failed rejects back off to 84h) plus the lot prefilter.
+Estimated ~1,000 avoidable Browse calls/week reclaimed; production
+confirmation PENDING.
+
+## What was NOT changed
+
+Deal threshold (0.1), reference-sanity, condition pricing, language /
+collector-number / grade matching, seller-trust floor,
+proxy/counterfeit filter, the P0.4.1 homepage, SEO, publishing, the
+sweep lane, and the eBay Browse-quota floor/guard. The allocator picks
+targets; `scanCardInMarketplace`'s gate chain runs on each exactly as
+before.

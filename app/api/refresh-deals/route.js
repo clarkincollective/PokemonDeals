@@ -28,6 +28,7 @@ import {
   languageCompatible,
   isHighValueVintage,
 } from "@/lib/dealQuality";
+import { allocateScanTargets, nextTargetState, budgetForRun } from "@/lib/scanAllocator";
 
 // This route does real work (API calls + database writes) and must never
 // be cached by Next.js. A full priority-tier run measured at ~6.5 min
@@ -583,7 +584,11 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
       .lt("last_seen_at", graceCutoff);
   }
 
-  return dealsFound;
+  // P0.4.2 - the allocator (tier=allocated) needs the per-search
+  // signals to update scan_target_state; other callers just read
+  // `.dealsFound`. `uniqueListings` = distinct listings this search
+  // returned (turnover signal).
+  return { dealsFound, uniqueListings: listings.length };
 }
 
 // Inverted index: token -> watchlist rows containing it. Lets sweep mode
@@ -833,9 +838,17 @@ export async function GET(request) {
   // headroom for the cheap, user-facing sweep: the extended tier (just
   // confirm/expire duty) yields first, the sweep last. A failed meta-call
   // returns null -> proceed rather than block on it.
-  const RATE_LIMIT_FLOORS = { sweep: 250, priority: 600, extended: 1500, default: 250 };
+  const RATE_LIMIT_FLOORS = { sweep: 250, priority: 600, extended: 1500, allocated: 1200, default: 250 };
   const floorKey =
-    mode === "sweep" ? "sweep" : tier === "extended" ? "extended" : tier === "priority" ? "priority" : "default";
+    mode === "sweep"
+      ? "sweep"
+      : tier === "allocated"
+        ? "allocated"
+        : tier === "extended"
+          ? "extended"
+          : tier === "priority"
+            ? "priority"
+            : "default";
   const rl = await getBrowseRateLimit();
   // Surfaced in every response below so the real daily Browse ceiling is
   // observable (the eBay dashboard doesn't expose the number) - lets the
@@ -887,48 +900,141 @@ export async function GET(request) {
   // days so the full tier gets covered in every country roughly every 10
   // days.
   const chunk = url.searchParams.get("chunk");
-  // ?country=EBAY_GB - a single marketplace, used both by tier=extended
-  // and by sweep mode above.
+  // ?country=EBAY_GB - a single marketplace, used by tier=extended, sweep
+  // mode above, AND tier=allocated (which requires it).
   const countryParam = url.searchParams.get("country");
   // ?countries=EBAY_GB,EBAY_AU,EBAY_CA,EBAY_DE - an explicit list,
   // overrides everything else.
   const countriesParam = url.searchParams.get("countries");
 
-  const { data: watchlistRowsRaw, error: watchlistError } = await fetchAllRows(() => {
-    let q = db.from("watchlist").select("*").eq("active", true);
-    if (tier) q = q.eq("tier", tier);
-    return q;
-  });
-  const watchlistRows = chunk
-    ? (watchlistRowsRaw ?? []).filter((row) => chunkOf(row, EXTENDED_CHUNKS) === chunk)
-    : watchlistRowsRaw;
+  // ===================================================================
+  // P0.4.2 - tier=allocated : ONE deterministic evidence-based priority
+  // queue (lib/scanAllocator) replaces the static 26-card priority tier
+  // AND the ~30-day extended chunk rotation, within the SAME Browse-call
+  // envelope. vercel.json calls `?tier=allocated&country=EBAY_XX` twice a
+  // day per marketplace.
+  //
+  // Fail-safe: with SCAN_ALLOCATOR=off, OR if scan_target_state can't be
+  // read (migration not applied / transient), this branch falls back to
+  // EXACTLY the old extended-chunk behaviour for that country-day - so a
+  // deploy is safe before the migration runs, and the old allocator stays
+  // one env var away.
+  // ===================================================================
+  const allocatedMode = tier === "allocated";
+  const allocatorEnabled = allocatedMode && process.env.SCAN_ALLOCATOR !== "off";
+  let allocation = null; // { selected, summary } when the allocator ran
+  let allocatorFallback = null; // reason string when it fell back
 
-  // eBay's ~5,000/day request cap, split two ways now that sweep mode (see
-  // above) handles fast new-deal discovery cheaply and separately:
-  // - Priority (~21 hand-picked cards, all 6 countries, every 6h via
-  //   vercel.json): confirms/expires their existing deals.
-  // - Extended (~4,900 English auto-synced cards): one country at a time,
-  //   split into EXTENDED_CHUNKS pieces per country, rotating through all
-  //   6 countries over ~30 days - also just confirm/expiry duty now, since
-  //   sweep already finds new ones fast. The GET() pre-flight guard skips
-  //   this run entirely on days the daily budget is already tight.
-  const marketplaceIds = countriesParam
-    ? countriesParam.split(",").filter((id) => MARKETPLACES[id])
-    : countryParam && MARKETPLACES[countryParam]
-      ? [countryParam]
-      : tier === "extended"
-        ? ["EBAY_US"]
-        : Object.keys(MARKETPLACES);
+  let watchlistRowsRaw = null;
+  let watchlistError = null;
+  {
+    const res = await fetchAllRows(() => {
+      let q = db.from("watchlist").select("*").eq("active", true);
+      // allocated merges priority + extended; every other tier keeps its filter.
+      if (tier && !allocatedMode) q = q.eq("tier", tier);
+      return q;
+    });
+    watchlistRowsRaw = res.data;
+    watchlistError = res.error;
+  }
+
+  let watchlistRows;
+  let allocatedCountry = null;
+  if (allocatedMode) {
+    allocatedCountry = countryParam && MARKETPLACES[countryParam] ? countryParam : null;
+    if (!allocatedCountry) {
+      return Response.json({ error: "tier=allocated requires a valid &country=EBAY_XX" }, { status: 400 });
+    }
+    const active = (watchlistRowsRaw ?? []).filter((r) => r.justtcg_tcgplayer_id);
+
+    let stateByCard = null;
+    if (allocatorEnabled) {
+      try {
+        const st = await fetchAllRows(() =>
+          db
+            .from("scan_target_state")
+            .select("card_tcgplayer_id,last_searched_at,last_deal_at,searches_total,searches_since_deal,consecutive_no_new,last_unique_listings,expired_deal_boost_until")
+            .eq("marketplace", allocatedCountry)
+        );
+        if (st.error) throw new Error(st.error.message);
+        stateByCard = new Map((st.data ?? []).map((r) => [String(r.card_tcgplayer_id), r]));
+      } catch (e) {
+        stateByCard = null;
+        allocatorFallback = `scan_target_state unavailable (${e.message})`;
+      }
+    } else {
+      allocatorFallback = "SCAN_ALLOCATOR=off";
+    }
+
+    if (stateByCard) {
+      const targets = active.map((r) => ({
+        ...(stateByCard.get(String(r.justtcg_tcgplayer_id)) ?? {}),
+        card_tcgplayer_id: String(r.justtcg_tcgplayer_id),
+        _row: r,
+      }));
+      const budget = budgetForRun({
+        marketplace: allocatedCountry,
+        rateLimitRemaining,
+        floor: RATE_LIMIT_FLOORS.allocated,
+        requested: url.searchParams.get("targets") ? Number(url.searchParams.get("targets")) : null,
+      });
+      allocation = allocateScanTargets({ targets, marketplace: allocatedCountry, now: Date.now(), budget });
+      watchlistRows = allocation.selected.map((s) => s._row).filter(Boolean);
+    } else {
+      // FALLBACK: the old extended-chunk behaviour for this country-day.
+      const dayOfMonth = new Date().getUTCDate();
+      const fbChunk = String(((dayOfMonth - 1) % EXTENDED_CHUNKS) + 1);
+      watchlistRows = active.filter((r) => r.tier === "extended" && chunkOf(r, EXTENDED_CHUNKS) === fbChunk);
+    }
+  } else {
+    watchlistRows = chunk
+      ? (watchlistRowsRaw ?? []).filter((row) => chunkOf(row, EXTENDED_CHUNKS) === chunk)
+      : watchlistRowsRaw;
+  }
+
+  // Which marketplaces each card in this run is scanned in. tier=allocated
+  // is always exactly one (the run's country); everything else is
+  // unchanged.
+  const marketplaceIds = allocatedMode
+    ? [allocatedCountry]
+    : countriesParam
+      ? countriesParam.split(",").filter((id) => MARKETPLACES[id])
+      : countryParam && MARKETPLACES[countryParam]
+        ? [countryParam]
+        : tier === "extended"
+          ? ["EBAY_US"]
+          : Object.keys(MARKETPLACES);
 
   if (watchlistError) {
     return Response.json({ error: watchlistError.message }, { status: 500 });
   }
 
   if (!watchlistRows || watchlistRows.length === 0) {
-    return Response.json({ scanned: 0, dealsFound: 0, message: "Watchlist is empty" });
+    return Response.json({
+      scanned: 0,
+      dealsFound: 0,
+      message: allocatedMode ? "allocator selected no targets (quota floor?)" : "Watchlist is empty",
+      ...(allocatedMode ? { tier: "allocated", country: allocatedCountry, allocatorFallback, budget: allocation?.summary?.budget ?? 0 } : {}),
+    });
   }
 
   await attachCatalogNumbers(watchlistRows, db);
+
+  // P0.4.2 - per-(card,market) scan signals, collected for the
+  // scan_target_state upsert + the scan_allocation_runs summary. Only
+  // populated for tier=allocated when the allocator ran.
+  const scanSignals = allocatorEnabled && allocation ? [] : null;
+  const onCardScanned =
+    scanSignals != null
+      ? (row, mkt, result) => {
+          scanSignals.push({
+            card_tcgplayer_id: String(row.justtcg_tcgplayer_id),
+            marketplace: mkt,
+            dealsFound: result.dealsFound || 0,
+            uniqueListings: result.uniqueListings || 0,
+          });
+        }
+      : null;
 
   let dealsFound = 0;
   let scanned = 0;
@@ -976,7 +1082,7 @@ export async function GET(request) {
       marketplaceIds.map(async (marketplaceId) => {
         scanned++;
         try {
-          dealsFound += await scanCardInMarketplace(
+          const r = await scanCardInMarketplace(
             row,
             marketplaceId,
             marketData,
@@ -985,6 +1091,8 @@ export async function GET(request) {
             rates,
             tier || "manual"
           );
+          dealsFound += r.dealsFound;
+          if (typeof onCardScanned === "function") onCardScanned(row, marketplaceId, r);
         } catch (err) {
           errors.push(`${row.name} (${marketplaceId}): ${err.message}`);
         }
@@ -1004,11 +1112,74 @@ export async function GET(request) {
   }
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
+  // P0.4.2 - persist the allocator's per-target state + one run summary.
+  // Best-effort: a write failure here never fails the scan (mirrors
+  // logDiscoveryEvent). Only runs for tier=allocated when the allocator ran.
+  let allocationSummary = null;
+  if (scanSignals && allocation) {
+    try {
+      const mkt = marketplaceIds[0];
+      // one signal per (card, market) - the run scanned each card once here.
+      // The allocator's selected objects already carry the card's prior
+      // scan_target_state (merged in when the run started), so they are the
+      // `prev` for nextTargetState.
+      const byCard = new Map();
+      for (const s of scanSignals) byCard.set(s.card_tcgplayer_id, s);
+      const prevById = new Map(allocation.selected.map((t) => [String(t.card_tcgplayer_id), t]));
+      const now = Date.now();
+      const rows = [];
+      let newPrintings = 0;
+      for (const [cardId, sig] of byCard) {
+        const prev = prevById.get(cardId) ?? null;
+        if (!prev || prev.last_searched_at == null) newPrintings++;
+        rows.push(
+          nextTargetState(prev, {
+            cardTcgplayerId: cardId,
+            marketplace: mkt,
+            uniqueListings: sig.uniqueListings,
+            dealsFound: sig.dealsFound,
+            now,
+          })
+        );
+      }
+      for (let i = 0; i < rows.length; i += 500) {
+        const { error } = await db
+          .from("scan_target_state")
+          .upsert(rows.slice(i, i + 500), { onConflict: "card_tcgplayer_id,marketplace" });
+        if (error) throw new Error(error.message);
+      }
+      const s = allocation.summary;
+      allocationSummary = {
+        marketplace: mkt,
+        budget: s.budget,
+        eligible_targets: s.eligible_targets,
+        targets_selected: watchlistRows.length,
+        by_state: s.by_state,
+        by_lane: s.by_lane,
+        explore_count: s.explore_count,
+        exploit_count: s.exploit_count,
+        boosted_count: s.boosted_count,
+        browse_calls: scanned,
+        deals_found: dealsFound,
+        new_printings: newPrintings,
+        p95_days_since_search: s.p95_days_since_search_pool,
+        never_searched_in_pool: s.never_searched_in_pool,
+        rate_limit_remaining: rateLimitRemaining,
+      };
+      await db.from("scan_allocation_runs").insert({ ...allocationSummary, ran_at: new Date().toISOString() });
+    } catch (e) {
+      errors.push(`scan_target_state/allocation_runs write skipped: ${e.message}`);
+    }
+  }
+
   return Response.json({
     scanned,
     dealsFound,
     errors,
     rateLimitRemaining,
     scannedAt: new Date().toISOString(),
+    ...(allocatedMode
+      ? { tier: "allocated", country: allocatedCountry, allocatorFallback, allocation: allocationSummary }
+      : {}),
   });
 }

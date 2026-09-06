@@ -148,24 +148,38 @@ export async function GET(request) {
   //     RECENT_VERIFY_HOURS is skipped BEFORE the Browse call - accepted,
   //     rejected, failed-match, failed-quality-gate, every marketplace.
   //     After the window it is eligible again (no blacklist).
-  const externalHistory = new Map(); // listingKey -> latest occurred_at ms
+  // P0.4.2 §9 - per key: latest verification time + how many times it has
+  // been verified + whether it ever became a deal. partitionCandidates
+  // uses this for the ADAPTIVE cooldown (a stable twice-failed reject
+  // backs off ~84h instead of the flat 20h).
+  const externalHistory = new Map(); // listingKey -> { lastMs, count, becameDeal }
   for (let i = 0; i < candidateKeys.length; i += 200) {
     const chunk = candidateKeys.slice(i, i + 200);
     const { data: rows } = await db
       .from("discovery_events")
-      .select("listing_key, occurred_at")
+      .select("listing_key, occurred_at, became_deal")
       .eq("source", "external")
       .in("listing_key", chunk);
     for (const r of rows ?? []) {
       const ms = Date.parse(r.occurred_at);
       if (!Number.isFinite(ms)) continue;
-      const prev = externalHistory.get(r.listing_key);
-      if (prev == null || ms > prev) externalHistory.set(r.listing_key, ms);
+      const prev = externalHistory.get(r.listing_key) ?? { lastMs: 0, count: 0, becameDeal: false };
+      externalHistory.set(r.listing_key, {
+        lastMs: Math.max(prev.lastMs, ms),
+        count: prev.count + 1,
+        becameDeal: prev.becameDeal || Boolean(r.became_deal),
+      });
     }
   }
 
   // 3. Partition + order + cap.
-  const part = partitionCandidates({ feedItems: supportedItems, externalHistory, freshDealKeys, recentCutoffMs });
+  const part = partitionCandidates({
+    feedItems: supportedItems,
+    externalHistory,
+    freshDealKeys,
+    recentCutoffMs,
+    now: Date.now(),
+  });
   const toVerify = allocateVerifyBudget({
     neverSeen: part.neverSeen,
     dueRecheck: part.dueRecheck,
@@ -382,6 +396,8 @@ export async function GET(request) {
     dedupedInBatch: part.dedupedInBatch,
     skippedAlreadyFreshDeal: part.skippedFreshDeal,
     skippedRecentlyVerified: part.skippedRecentlyVerified,
+    skippedStableReject: part.skippedStableReject,
+    skippedPrefilter: part.skippedPrefilter,
     neverSeenQueued: part.neverSeen.length,
     dueRecheckQueued: part.dueRecheck.length,
     queuedForVerify,
@@ -403,6 +419,8 @@ export async function GET(request) {
     dedupedInBatch: part.dedupedInBatch,
     skippedAlreadyFreshDeal: part.skippedFreshDeal,
     skippedRecentlyVerified: part.skippedRecentlyVerified,
+    skippedStableReject: part.skippedStableReject,
+    skippedPrefilter: part.skippedPrefilter,
     alreadyFresh: seenListingIds.size, // legacy field name
     newDiscovered: newCount,
     neverSeenQueued: part.neverSeen.length,

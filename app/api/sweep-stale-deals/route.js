@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { FRESHNESS_TTL_HOURS } from "@/lib/dealQuality";
+import { EXPIRED_BOOST_DAYS } from "@/lib/scanAllocator";
 
 // LOCAL-ONLY deal-freshness sweep. NO eBay Browse calls. Runs often and
 // cheaply off stored timestamps:
@@ -38,11 +39,32 @@ export async function GET(request) {
   const cut = (h) => new Date(Date.now() - h * H).toISOString();
   const results = {};
 
+  // §7 - a genuinely strong deal that just expired is a signal that this
+  // EXACT printing recently produced a real opportunity. Give it a bounded
+  // score boost in the allocator so it re-checks for NEW listings for a
+  // little while. Never the dead listing; expires on its own; capped per
+  // sweep so it can never become another permanent priority tier.
+  const EXPIRE_BOOST_MIN_DISCOUNT = 0.2;
+  const EXPIRE_BOOST_MIN_MARKET = 60; // ignore sub-$60 bulk churn
+  const EXPIRE_BOOST_CAP = 150;
+  const boostPairs = new Map(); // `${cardId}|${mkt}` -> true
+
   async function deactivate(label, applyFilters) {
     let q = db.from("deals").update({ is_active: false }).eq("is_active", true);
     q = applyFilters(q);
-    const { data, error } = await q.select("id");
+    const { data, error } = await q.select("id, card_tcgplayer_id, marketplace, discount_pct, market_price");
     if (error) return { label, error: error.message };
+    for (const d of data ?? []) {
+      if (boostPairs.size >= EXPIRE_BOOST_CAP) break;
+      if (
+        d.card_tcgplayer_id &&
+        d.marketplace &&
+        Number(d.discount_pct) >= EXPIRE_BOOST_MIN_DISCOUNT &&
+        Number(d.market_price) >= EXPIRE_BOOST_MIN_MARKET
+      ) {
+        boostPairs.set(`${d.card_tcgplayer_id}|${d.marketplace}`, true);
+      }
+    }
     return { label, count: data?.length ?? 0 };
   }
 
@@ -70,6 +92,28 @@ export async function GET(request) {
     q.lt("market_price", 100).lt("discount_pct", 0.55).lt("last_seen_at", cut(FRESHNESS_TTL_HOURS.low))
   );
 
+  // Apply the §7 recently-expired boost. Best-effort: a write failure
+  // (table missing / transient) never fails the freshness sweep.
+  let boosted = 0;
+  if (boostPairs.size > 0) {
+    const until = new Date(Date.now() + EXPIRED_BOOST_DAYS * 24 * H).toISOString();
+    const rows = [...boostPairs.keys()].map((k) => {
+      const [card_tcgplayer_id, marketplace] = k.split("|");
+      return { card_tcgplayer_id, marketplace, expired_deal_boost_until: until, updated_at: nowIso };
+    });
+    try {
+      for (let i = 0; i < rows.length; i += 500) {
+        const { error } = await db
+          .from("scan_target_state")
+          .upsert(rows.slice(i, i + 500), { onConflict: "card_tcgplayer_id,marketplace" });
+        if (error) throw new Error(error.message);
+      }
+      boosted = rows.length;
+    } catch {
+      boosted = 0; // scan_target_state not migrated yet - silently skip
+    }
+  }
+
   const total = Object.values(results).reduce((s, r) => s + (r.count ?? 0), 0);
-  return Response.json({ ok: true, sweptAt: nowIso, total, results });
+  return Response.json({ ok: true, sweptAt: nowIso, total, results, expiredDealBoost: boosted });
 }

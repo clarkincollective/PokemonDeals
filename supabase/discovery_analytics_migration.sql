@@ -23,7 +23,7 @@ create table if not exists discovery_events (
   listing_key   text        not null,
   marketplace   text        not null,
   source        text        not null,          -- 'scan' | 'external'
-  search_type   text,                          -- 'sweep' | 'priority' | 'extended' | 'external'
+  search_type   text,                          -- 'sweep' | 'priority' | 'extended' | 'allocated' | 'external'
   card_tcgplayer_id text,                      -- matched card when known (null = no confident match)
   became_deal   boolean     not null default false,  -- passed every gate -> upserted into deals
   discount_pct  numeric,                       -- our computed discount at this sighting (null unless became_deal)
