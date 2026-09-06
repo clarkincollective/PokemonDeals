@@ -1,0 +1,543 @@
+# SEO-GSC-1 — Google Search Console indexation + organic visibility audit
+
+**Date:** 2026-09-06
+**Property:** `https://pokemondealfinder.com/` (URL-prefix, permission `siteOwner`)
+**Data source:** live Google Search Console API (read-only OAuth,
+`webmasters.readonly`) via `scripts/gsc-auth.mjs` / `scripts/gsc-test.mjs`
+/ `scripts/_gscAudit.mjs`. Also live production HTML fetches and the
+project database.
+
+Labels used throughout:
+**[GSC]** = fact from Search Console · **[PROD]** = fact from live
+production / repo · **[INFER]** = inference · **[REC]** = recommendation
+(not implemented — this phase is diagnostic).
+
+---
+
+## 0. Headline
+
+**[GSC]** The property has **13 days of data** (first date 2026-08-25;
+sitemap submitted 2026-08-26). All-time: **3 clicks, ~590–680
+impressions**. There is effectively **no history to compare against** —
+the previous 28-day window is empty.
+
+**[INFER]** This is a brand-new, near-zero-authority domain that Google
+began crawling ~2 weeks ago. The external audit's premises are **false**:
+there IS a sitemap (index + 6 children, 26k URLs, 0 errors, downloaded
+yesterday) and the pages ARE server-rendered (full HTML + structured data
+to Googlebot). Its *observation* — the deep catalogue is mostly not
+indexed yet — is **correct**, but the cause is **new-domain crawl
+rationing**, not a technical defect. 173 distinct `/cards/` pages are
+already receiving impressions.
+
+---
+
+## 1. GSC property
+
+| | |
+|---|---|
+| **[GSC]** property | `https://pokemondealfinder.com/` (URL-prefix) |
+| permission | `siteOwner` |
+| also on the account | `https://interviewready.madethis.app/` (unrelated — not used) |
+| connection | works; access token auto-refreshed from the stored refresh token |
+| latest data date | 2026-09-06 (with `dataState=all`); ~2026-09-03 for finalised |
+| earliest data date | **2026-08-25** |
+| sitemaps known to Google | `https://pokemondealfinder.com/sitemap.xml` (index), submitted 2026-08-26, last downloaded **2026-09-05 20:02Z**, `isSitemapsIndex=true`, warnings 0, errors 0, contents `web submitted 26074 / indexed 0` |
+| property/domain mismatch | none |
+
+**[INFER]** `indexed: 0` in the Sitemaps API is a long-deprecated field
+that the API returns as 0 for essentially every property; it is **not**
+evidence that zero pages are indexed (URL Inspection below shows many
+indexed pages). The reliable signals are `lastDownloaded` (fresh),
+`errors: 0`, and the impression data.
+
+---
+
+## 2. Organic performance snapshot
+
+**[GSC]** (`searchAnalytics/query`, `dataState=all`)
+
+| window | dates | clicks | impressions | CTR | avg pos |
+|---|---|---:|---:|---:|---:|
+| Last 7 days | 2026-08-31 → 09-06 | 3 | 428 | 0.70% | — |
+| Last 28 days | 2026-08-10 → 09-06 | 3 | 591 | 0.51% | — |
+| Previous 28 days | 2026-07-13 → 08-09 | **0** | **0** | — | — |
+| Last 3 months | 2026-06-08 → 09-06 | 3 | 591 | 0.51% | — |
+| Max (16 mo) | 2025-05-01 → 09-06 | 3 | 591 | 0.51% | — |
+
+- **28d vs previous 28d:** clicks 0 → 3 (n/a), impressions 0 → 591 (n/a).
+  No baseline exists.
+- **[GSC]** Impressions are accelerating: **428 of the 591** all-time
+  impressions fall in the **last 7 days**. Trajectory is a normal
+  new-site ramp, not a decline.
+- **[GSC]** Only page with clicks: the homepage (3 clicks, pos ~5.4).
+
+---
+
+## 3. Route-family performance
+
+**[GSC]** Page-dimension pull, 2026-08-20 → 09-06 (682 impr / 3 clicks /
+**261 distinct pages with ≥1 impression**):
+
+| route family | pages w/ impressions | impressions | clicks | CTR | avg pos | best pos |
+|---|---:|---:|---:|---:|---:|---:|
+| `/cards/` | **173** | 312 | 0 | 0% | 24.0 | 1 |
+| `/deals/[id]` | 47 | 132 | 0 | 0% | 16.7 | 2 |
+| `/guides/` | 5 | 96 | 0 | 0% | 35.6 | 6 |
+| `/` (+ param variants) | 14 | 43 | 3 | 6.98% | 5.4 | 1 |
+| `/sets/` | 10 | 36 | 0 | 0% | 45.1 | 4 |
+| `/pokemon/` | 4 | 31 | 0 | 0% | 60.7 | 48 |
+| `/about` | 1 | 10 | 0 | 0% | 5.6 | 5.6 |
+| `/methodology` | 1 | 7 | 0 | 0% | 2.7 | 2.7 |
+| `/search` | 1 | 6 | 0 | 0% | 16.7 | 16.7 |
+| `/best-finds` | 2 | 4 | 0 | 0% | 54 | 48 |
+| `/deals/under-25` | 1 | 2 | 0 | 0% | 7 | 7 |
+| `/privacy` | 1 | 2 | 0 | 0% | 6.5 | 6.5 |
+| `/sealed-deals/` | 1 | 1 | 0 | 0% | 3 | 3 |
+
+**[GSC]** The catalogue (`/cards/`) is the **largest** impression family
+by pages and by volume — it is *not* invisible. `/deals/[id]` is second.
+`/pokemon/` and `/sets/` are barely present (4 and 10 pages).
+
+---
+
+## 4. Indexation / coverage
+
+**[GSC — tool limitation]** The Search Console API exposes **no aggregate
+Pages/Indexing (Coverage) report.** Available: `searchAnalytics/query`,
+`sitemaps.list`, and **URL Inspection (one URL at a time)**. Aggregate
+per-reason counts cannot be pulled; the URL Inspection sample below is the
+substitute.
+
+**[GSC]** URL Inspection sample (2026-09-06):
+
+| URL | verdict | coverageState | lastCrawl | Google canonical |
+|---|---|---|---|---|
+| `/` | PASS | **Submitted and indexed** | — | self |
+| `/sets` | PASS | **Submitted and indexed** | — | — |
+| `/guides` | PASS | **Submitted and indexed** | — | — |
+| `/guides/how-pokemon-card-prices-work` | PASS | Submitted and indexed | — | — |
+| `/guides/card-condition-grading` | PASS | Submitted and indexed | — | — |
+| `/cards/pikachu-v-full-art-swsh04-vivid-voltage` | PASS | Submitted and indexed | 2026-09-02 | self (== user) |
+| `/cards/houndoom-ex-full-art-xy-breakthrough` | PASS | Submitted and indexed | — | — |
+| `/cards/kakuna-base-set-shadowless` | PASS | Submitted and indexed | — | — |
+| `/cards/radiant-charizard-020-159-prize-pack-series-cards` | PASS | Submitted and indexed | — | — |
+| `/deals/21270` | PASS | Submitted and indexed | 2026-08-28 | self |
+| `/deals/6486` | PASS | Submitted and indexed | 2026-08-27 | self |
+| `/pokemon` (index) | NEUTRAL | **Discovered – currently not indexed** | null | — |
+| `/cards` (index) | NEUTRAL | **Discovered – currently not indexed** | null | — |
+| `/cards/charizard-base-set` | NEUTRAL | **Discovered – currently not indexed** | **null** | — |
+| `/pokemon/charizard` | NEUTRAL | Discovered – currently not indexed *(was "unknown" 10 min earlier)* | null | — |
+| `/pokemon/pikachu` | NEUTRAL | Discovered – currently not indexed | null | — |
+| `/pokemon/lickitung`, `/pokemon/houndoom` | NEUTRAL | Discovered – currently not indexed | null | — |
+| `/sets/base-set`, `/sets/aquapolis` | NEUTRAL | Discovered – currently not indexed | null | — |
+| `/sets/sv08-surging-sparks` | NEUTRAL | URL is unknown to Google | null | — |
+
+**[GSC]** Every indexed page checked: `robotsTxtState=ALLOWED`,
+`pageFetchState=SUCCESSFUL`, `indexingState=INDEXING_ALLOWED`,
+`crawledAs=MOBILE`, Google-chosen canonical **==** user-declared
+canonical. **No** robots-blocked, noindex, soft-404, redirect, canonical,
+or server-error exclusions were observed on any catalogue URL.
+
+**[INFER]** The non-indexed catalogue URLs are all
+**"Discovered – currently not indexed" with `lastCrawl = null`** — Google
+has the URL (from the sitemap) but **has not fetched it yet**. That is a
+crawl-scheduling state, not a quality rejection or a technical block. On a
+13-day-old domain with a 26k-URL sitemap this is the expected state for
+the long tail.
+
+---
+
+## 5. Representative URL inspection
+
+Covered in §4. Highlights:
+
+- **[GSC]** `/cards/pikachu-v-full-art-swsh04-vivid-voltage` is indexed,
+  last crawled 2026-09-02, **referred by another card page**
+  (`/cards/talonflame-v-swsh04-vivid-voltage`) → card→card internal links
+  (RelatedCards) are being followed and are passing equity.
+- **[GSC]** `/cards/charizard-base-set` (a flagship page) — discovered,
+  **never crawled**; the only referring URL GSC reports is a homepage
+  filter permutation `/?listing=FIXED_PRICE&page=2&country=EBAY_GB`.
+- **[GSC]** `/pokemon/charizard` — discovered ~today, never crawled, **no
+  referring URLs reported** despite the `/pokemon` index linking it.
+- **[GSC]** `/pokemon/pikachu` — discovered, never crawled, referring URL
+  is `/deals/17642` (a churny deal page).
+- **[GSC]** `/deals/21270`, `/deals/6486` — indexed; **not** in any
+  sitemap (`sitemap: none`); referred by homepage param URLs /
+  `/best-finds`. **[PROD]** both now return
+  `<meta robots="noindex, follow">` + "This deal has ended" — they are
+  expired and will drop on Google's next recrawl.
+
+---
+
+## 6. Sitemap verification
+
+**[PROD]** Live architecture (all fetched 2026-09-06):
+
+| sitemap | HTTP | `<loc>` count | `<lastmod>` |
+|---|---|---:|---|
+| `/sitemap.xml` (index) | 200 | 6 children | — |
+| `/sitemaps/pages.xml` | 200 | 31 | — |
+| `/sitemaps/sets.xml` | 200 | 208 | — |
+| `/sitemaps/pokemon.xml` | 200 | 910 | none |
+| `/sitemaps/cards.xml` | 200 | **23,619** | none |
+| `/sitemaps/deals.xml` | 200 | 865 | on every entry |
+| `/sitemaps/sealed-deals.xml` | 200 | 551 | — |
+| **total** | | **26,182** | |
+
+- **[PROD]** All route families represented. `pages.xml` includes home,
+  9 deal-category landings, 3 catalogue landings, `/japanese-cards`,
+  `/sealed-deals`, `/search`, `/guides` + the **4 guides**, 6 info pages,
+  `/market-data` + 3.
+- **[PROD/INFER]** Noindex URLs are excluded: `card_catalog` holds
+  **29,342** rows but `cards.xml` has **23,619** → ~5,723 price-less /
+  thin cards are correctly `noindex` and omitted (matches the card-hub
+  `generateMetadata` "too thin to index" gate). Expired `/deals/[id]` are
+  absent (865 live vs 24,472 all-time deal rows).
+- **[GSC]** Google processed the index: `lastDownloaded 2026-09-05`,
+  errors 0, warnings 0, submitted 26,074 (≈ the 26,182 live, minus churn).
+- **[INFER]** No submitted-vs-indexed discrepancy can be read from the API
+  (the field is always 0). No discrepancy is *implied* by any other
+  signal — crawling is simply in progress.
+
+**Verdict: HEALTHY.** Do not rebuild. One structural weakness (§17): a
+single flat 23,619-URL `cards.xml` with no `<lastmod>`/`<priority>` gives
+Google no signal about which cards to crawl first.
+
+---
+
+## 7. Robots / meta robots / canonical
+
+**[PROD]**
+
+```
+robots.txt:
+  User-Agent: *
+  Allow: /
+  Disallow: /api/
+  Sitemap: https://pokemondealfinder.com/sitemap.xml
+```
+
+| URL | HTTP | meta robots | canonical |
+|---|---|---|---|
+| `/cards/charizard-base-set` | 200 | *(none = index)* | self |
+| `/pokemon/charizard` | 200 | *(none)* | self |
+| `/sets/base-set` | 200 | *(none)* | self |
+| `/guides/how-pokemon-card-prices-work` | 200 | *(none)* | self |
+| `/deals/6486` (expired) | 200 | `noindex, follow` | *(none)* |
+| non-existent guide slug | 404 | `noindex` | — |
+
+**Verdict: HEALTHY.** Catalogue is crawlable and indexable; expired deals
+and thin pages correctly `noindex,follow`; canonicals are self-referential
+and Google agrees on every indexed page checked.
+
+---
+
+## 8. Raw HTML / SSR verification
+
+**[PROD]** Fetched with a Googlebot UA, **no JavaScript executed**:
+
+| URL | HTTP | raw bytes | `<title>` | `<h1>` | JSON-LD | internal `<a href="/…">` |
+|---|---|---:|---|---|---|---:|
+| `/cards/charizard-base-set` | 200 | 141 KB | "Charizard #004/102 (Base Set) Price & Value \| …" | "Charizard — Base Set Price & Value" | Product, Offer, Breadcrumb, Brand, Organization, WebSite | 60 |
+| `/pokemon/charizard` | 200 | 636 KB | "Charizard Card Prices & Values \| …" | "Charizard Card Prices & Values" | ItemList, Breadcrumb, Organization, WebSite | 529 |
+| `/sets/base-set` | 200 | 426 KB | "Base Set Card List, Prices & Values \| …" | "Base Set Card List, Prices & Values" | CollectionPage, ItemList, Breadcrumb | 364 |
+| `/guides/how-pokemon-card-prices-work` | 200 | 55 KB | "How Pokemon Card Prices Are Determined \| …" | "How Pokemon Card Prices Are Determined" | (article/org) | — |
+
+Every catalogue page's raw HTML contains its identity (name / set /
+number), descriptive content, price/offer data (Product + Offer JSON-LD
+on `/cards/`), structured data, and a large internal-link block —
+**before any client hydration.**
+
+**Verdict: HEALTHY (SSR/ISR).** The "suspected client-side rendering"
+claim is disproven.
+
+---
+
+## 9. Top queries
+
+**[GSC]** 2026-08-20 → 09-06, `query` dimension — 165 queries produced
+203 impressions (the ~480 remaining impressions have the query withheld
+by Google as anonymised). **0 clicks on any keyed query.** Top by
+impressions:
+
+| query | impr | pos | theme |
+|---|---:|---:|---|
+| arcanine shadowless | 5 | 13 | card identity |
+| lickitung aquapolis | 4 | 9.5 | card identity |
+| pokemon card ratings | 4 | 76.5 | guide/info |
+| shadowless arcanine | 4 | 24 | card identity |
+| base set charizard worth | 3 | 43.3 | card value |
+| glaceon 171 promo | 3 | 10 | card identity |
+| what are vintage pokemon cards | 3 | 57.7 | guide/info |
+| absol ex silver border | 2 | 10 | card identity |
+| houndoom ex price | 2 | 51.5 | card value |
+| how much is a houndoom pokemon card worth | 2 | 65 | card value |
+| how much is riolu worth | 2 | 39.5 | card value |
+| ninetales pokemon card value | 2 | 46 | card value |
+| pokemon grades explained | 2 | 60.5 | guide/info |
+| sword and shield promo cards list | 2 | 62.5 | set/list |
+| every dragonite pokemon card / all dragonite cards list | 2 / 1 | 67 / 80 | set/list |
+| mewtwo ex - me: 30th celebration | 2 | 11.5 | card identity |
+
+Theme grouping of the 165 keyed queries:
+
+| theme | approx share | maps to |
+|---|---|---|
+| **CARD PRICE / VALUE INTENT** ("X worth", "X price", "how much is X") | ~35% | `/cards/[slug]`, `/pokemon/[species]` |
+| **CARD IDENTITY** ("arcanine shadowless", "glaceon 171 promo", "m gardevoir ex 79/114") | ~35% | `/cards/[slug]` |
+| **SET / LIST INTENT** ("all dragonite cards list", "sword and shield promo cards list") | ~10% | `/pokemon/[species]`, `/sets/[slug]` |
+| **GUIDE / INFORMATIONAL** ("pokemon grades explained", "what are vintage pokemon cards", "all pokemon card conditions") | ~15% | `/guides/*` |
+| **DEAL INTENT** ("… deal", "cheap …", "… below market") | **~0%** | `/`, `/deals/*` |
+| **BRAND** ("pokemon deal finder") | **0%** | `/` |
+
+**[INFER]** Search demand reaching the site today is **card-value /
+card-identity / grading-info**, not deal-hunting and not brand. That
+aligns with `/cards/`, `/pokemon/` and `/guides/` — exactly the families
+that most need crawl help.
+
+Queries in striking range (**pos 4–20**, keyed): `lickitung aquapolis`
+(9.5), `glaceon 171 promo` (10), `absol ex silver border` (10),
+`mewtwo ex - me: 30th celebration` (11.5), `arcanine shadowless` (13),
+`value` (20). All 1–5 impressions.
+
+---
+
+## 10. High-impression / low-CTR opportunities
+
+**[GSC/INFER]** Not evaluable yet. The only page with impressions in a
+click-capable position **and** meaningful volume is the **homepage**
+(43 impr, pos 5.4, 3 clicks, CTR 7%). Every other page is either pos > 15
+or has < 10 impressions — CTR is ~0 because of position and sample size,
+not because of weak titles/meta. Re-evaluate once pages hold page-1
+positions with double-digit impressions.
+
+The `/guides/card-condition-grading` page (79 impr, pos ~55–90 across ~26
+queries) is the clearest *future* title/CTR + content candidate, but it
+needs to climb from page 6–9 first — that's a ranking problem, not a CTR
+problem.
+
+---
+
+## 11. Striking-distance pages (pos ~4–20, ≥2 impressions)
+
+**[GSC]** 53 pages qualify. Top:
+
+| URL | theme | impr | clicks | pos |
+|---|---|---:|---:|---:|
+| `/deals/21270` | expired deal | 32 | 0 | 16.5 |
+| `/` | home | 24 | 3 | 5.4 |
+| `/about` | info | 10 | 0 | 5.6 |
+| `/deals/8269` | expired deal | 10 | 0 | 8.9 |
+| `/cards/houndoom-ex-full-art-xy-breakthrough` | card | 8 | 0 | 16 |
+| `/cards/pikachu-ex-xy124-xy-promos` | card | 7 | 0 | 8.1 |
+| `/cards/popplio-045-me-mega-evolution-promo` | card | 7 | 0 | 13.9 |
+| `/cards/moltres-12-fossil` | card | 5 | 0 | 7.2 |
+| `/cards/kangaskhan-5-jungle` | card | 5 | 0 | 10.2 |
+| `/cards/radiant-charizard-020-159-prize-pack-series-cards` | card | 3 | 0 | 4.0 |
+| `/cards/pikachu-v-full-art-swsh04-vivid-voltage` | card | 4 | 0 | 5.3 |
+| `/deals/29316` | expired deal | 3 | 0 | 4.0 |
+| `/sets` | hub | 3 | 0 | 6.3 |
+| `/cards/kakuna-base-set-shadowless` | card | 3 | 0 | 6.7 |
+| … 39 more `/cards/*` at pos 6–19, 2 impr each | | | | |
+
+**[INFER]** ~45 of the 53 are `/cards/[slug]` pages ranking pos 4–19 for
+exact-card queries with 0 clicks — because volume is tiny and the domain
+has no trust to earn a click at those positions. These are the seeds of
+the eventual opportunity, not a fixable gap today.
+
+---
+
+## 12. Zero-visibility catalogue — indexable vs receiving impressions
+
+**[PROD] indexable (sitemap) · [GSC] receiving ≥1 impression in the ~17-day
+window (all data the property has):**
+
+| family | indexable URLs | w/ ≥1 impression | **penetration** | indexed in sample |
+|---|---:|---:|---:|---|
+| `/cards/` | 23,619 | 173 | **0.73%** | mixed (high-interest cards yes; flagship `charizard-base-set` not yet crawled) |
+| `/pokemon/` | 910 | 4 (`dragonite` 22, `cleffa` 6, `electrode` 2, `growlithe` 1) | **0.44%** | none in sample; index page not crawled |
+| `/sets/` | 208 | 10 (`sv10-destined-rivals` 16, …) | **4.8%** | index page indexed; most set pages not crawled |
+| `/guides/` | 4 | 4 (+ `/guides` index) | ~100% | all indexed |
+| `/deals/[id]` | 865 live | 47 | 5.4% | some indexed (incl. expired, pending recrawl) |
+| `/sealed-deals/` | 551 | 1 | 0.2% | — |
+
+**[INFER]** "Indexed ≠ receiving impressions" holds strongly here, but the
+dominant explanation is **not crawled yet** (URL Inspection: `lastCrawl =
+null` on the deep tail), layered on **13 days of data** and **~zero
+domain authority**. Penetration will only be a meaningful metric after
+several more weeks of crawling.
+
+---
+
+## 13. Content-quality signal
+
+**[PROD]** Compared an indexed card page
+(`/cards/pikachu-v-full-art-swsh04-vivid-voltage`) with a
+discovered-not-indexed one (`/cards/charizard-base-set`): **structurally
+identical** — same template, both full SSR HTML, both with real title/H1,
+Product+Offer JSON-LD, price/condition data, 60+ internal links, price
+history. The non-indexed one simply has not been crawled.
+
+The ~5,723 `card_catalog` rows **excluded** from the sitemap (no
+trustworthy market price) *are* genuinely thin — and they are already
+`noindex` and omitted. That gate is working.
+
+**Content quality verdict: NOT PROVEN as a blocker.** No evidence that
+template thinness is causing non-indexation of the sitemap'd catalogue.
+(Re-test once a representative sample of `/cards/` and `/pokemon/` pages
+has actually been crawled and *then* excluded — only that would implicate
+content.)
+
+---
+
+## 14. Internal-link discovery
+
+**[PROD]** raw-HTML link fan-out:
+
+| page | links out |
+|---|---|
+| `/pokemon` (index) | **1,025** `/pokemon/[species]` links (all of them) |
+| `/sets` (index) | **208** `/sets/[slug]` links (all of them) |
+| `/cards` (index) | 24 `/cards/` + 24 `/pokemon/` + 24 `/sets/` (paginated browse, not a full hub) |
+| `/` (home) | `/sets` `/pokemon` `/guides` (×3 each), `/cards`, `/deals`, `/best-finds`, `/japanese-cards`, `/sealed-deals`, ~40 specific `/sets/[slug]`, ~4 specific `/cards/[slug]` |
+| `/cards/[slug]` | ~60 internal links incl. RelatedCards (card→card) |
+
+- **[GSC]** No **orphans** in the classic sense — `/pokemon` links every
+  species, `/sets` links every set, card→card links are followed
+  (`pikachu-v-full-art` was discovered via `talonflame-v`).
+- **[GSC — the real gap]** `/pokemon` index and `/cards` index are
+  **"Discovered – currently not indexed" (never crawled)**. The species
+  tree therefore currently has **no crawled parent**, so `/pokemon/[species]`
+  pages are only reachable via the raw sitemap. `/pokemon/charizard`
+  reports **zero referring URLs**.
+- **[GSC]** The referring URLs Google *does* record for deep pages are
+  churny / parameterised (`/?listing=FIXED_PRICE&page=2&country=EBAY_GB`,
+  `/?maxPrice=50&page=2`, `/deals/17642`) — low-value, partly `nofollow`,
+  and (for deal links) disappearing on expiry.
+
+**Internal-linking verdict: P1.** Not broken, but the crawl-equity path
+to the deep catalogue runs through (a) two un-crawled index pages and
+(b) ephemeral deal/param links.
+
+---
+
+## 15. Deal-URL crawl behaviour
+
+**[GSC]** 47 `/deals/[id]` pages received impressions (132 total). A few
+expired IDs (6486, 8269, 12603, 21270) are **still indexed**, last
+crawled 2026-08-27/28, `sitemap: none`.
+**[PROD]** All expired deal pages return `<meta robots="noindex, follow">`
++ "This deal has ended"; `deals.xml` contains only the 865 currently-live
+deals.
+**[INFER]** The mechanism to shed expired deal URLs works
+(noindex,follow + sitemap removal); the lingering indexed ones are simple
+recrawl lag and will drop. There is **no evidence** that deal URLs are
+consuming crawl budget at the expense of the stable catalogue — deal
+pages are a small minority of impressions and the catalogue is being
+discovered in parallel.
+
+**Verdict: HEALTHY.**
+
+---
+
+## 16. Guides opportunity
+
+**[GSC]** guide performance (~17 days):
+
+| guide | impr | avg pos | notable queries (pos) |
+|---|---:|---:|---|
+| `/guides/card-condition-grading` | **79** | ~64 | "pokemon card ratings" (76), "pokemon grades explained" (60), "pokemon card condition guide" (78), "grade 9 pokemon card meaning" (68), "what is a grade 7 pokemon card" (59), "how to check the grade on a pokemon card" (56) — **~26 distinct condition/grading queries** |
+| `/guides/raw-vs-graded-pokemon-cards` | 7 | 40.6 | "graded vs ungraded pokemon cards" (44), "raw vs graded" (54) |
+| `/guides/vintage-vs-modern-pokemon-cards` | 7 | 43.4 | "what are vintage pokemon cards" (57.7) |
+| `/guides/how-pokemon-card-prices-work` | 2 | 24 | "how do pokemon cards get their value" (38) |
+| `/guides` (index) | 1 | 6 | — |
+
+**[INFER] evidence-backed guide opportunities:**
+1. **Card condition & grading** — clear, broad demand (79 impr / ~26
+   queries on one page). Strengthen/expand this cluster: grade-scale
+   explainer ("what is a grade 7/8/9"), "how to check a card's grade",
+   PSA vs CGC vs BGS.
+2. **"How much is my card worth" / how card values are set** — matches
+   the dominant query theme (§9) and the existing pricing guide (pos 24
+   already).
+3. **Set / "all X cards" list intent** ("all dragonite cards list",
+   "sword and shield promo cards list") — currently landing on
+   `/pokemon/[species]` and `/sets/[slug]` at pos 60–80; a guide is
+   likely the wrong tool, but it confirms the species/set pages target
+   real demand.
+
+Do not create guides in this phase.
+
+---
+
+## 17. Root-cause ranking
+
+| area | verdict | basis |
+|---|---|---|
+| Technical indexation | **HEALTHY** | 200s, `INDEXING_ALLOWED`, `pageFetchState=SUCCESSFUL`, canonical agreement on every indexed URL |
+| Sitemap discovery | **HEALTHY** | index + 6 children all 200, 0 errors, downloaded 2026-09-05, 26k URLs, noindex excluded |
+| Robots | **HEALTHY** | `Allow: /`, only `/api/` blocked |
+| Canonicalisation | **HEALTHY** | self-canonical; Google canonical == user canonical on all indexed samples |
+| SSR / raw HTML | **HEALTHY** | full server HTML + Product/Offer/ItemList JSON-LD + link blocks to Googlebot, no JS needed |
+| Domain authority / backlinks | **P0** | 13-day-old domain, no brand queries, no external signals — the actual gate on how much of a 26k sitemap Google will crawl |
+| Crawl-budget pressure | **P1** | 23,619-URL flat `cards.xml`, no `<lastmod>`/`<priority>` on cards/pokemon → no crawl-priority signal; deep tail all `lastCrawl=null` |
+| Internal linking | **P1** | `/pokemon` + `/cards` index pages not yet crawled → species tree has no crawled parent; deep-page referrers are churny param/deal URLs |
+| Catalogue content depth | **NOT PROVEN** | indexed vs non-indexed card pages structurally identical; thin priceless cards already excluded |
+| Title / meta CTR | **NOT PROVEN** | positions too deep + volume too low; only the homepage has clicks |
+| Thin programmatic pages | **HEALTHY / NOT PROVEN** | ~5,723 price-less cards already `noindex` + sitemap-excluded |
+| Guide coverage | **P1 (opportunity)** | only 4 guides; grading guide shows 79 impr / ~26 queries of unmet demand |
+| Deal-URL crawl behaviour | **HEALTHY** | noindex,follow on expiry + sitemap removal working; no evidence of catalogue harm |
+
+**Biggest bottleneck:** a **new, zero-authority domain** whose 26k-URL
+sitemap Google is crawling slowly and without priority guidance. Nothing
+technical is broken.
+
+---
+
+## 18. Priority opportunities (evidence-backed, NOT implemented)
+
+| # | opportunity | expected impact | confidence | effort | GSC evidence | proposed next action |
+|---|---|---|---|---|---|---|
+| 1 | **Get `/pokemon` & `/cards` index pages crawled + indexed** (they're the crawled parents the species/card tree lacks) | Medium — unlocks a crawl path to 910 species + a browse path to 23.6k cards | High | Low | both = "Discovered – not indexed", `lastCrawl null`; `/sets` index *is* indexed and 10 set pages already surface | request indexing on both; add prominent homepage/header links to `/pokemon` (currently only text links ×3); trim the 1,025-link `/pokemon` page to a paginated/grouped structure Google will actually crawl through |
+| 2 | **Add crawl-priority signals to the catalogue sitemaps** | Medium — steers limited crawl to the cards that can rank | High | Low–Med | 23,619 URLs in one file, no `<lastmod>`/`<priority>`; deep tail all `lastCrawl null` | split `cards.xml` into shards (e.g. by set or by value band), add `<lastmod>` (price-history updated date) and `<priority>` weighted by market value / watchlist presence |
+| 3 | **Strengthen the card-condition/grading guide cluster** | Medium — one page already pulls 79 impr / ~26 queries at pos 55–90 | High | Med | §16 table | expand grade-scale coverage, add "how to check a card's grade" + "PSA vs CGC vs BGS"; interlink with `/guides` index and card pages |
+| 4 | **Point stable internal links at high-value species/sets** | Low–Med — replaces churny/param referrers with durable equity | Med | Low | deep-page referrers are `/?…param…` and expiring `/deals/[id]` | on `/cards/[slug]` and `/deals/[id]`, link the card's species hub and set hub in-body (not just breadcrumb); add a "popular species / popular sets" block to the homepage |
+| 5 | **Earn 3–10 authoritative backlinks** | High — the real crawl-budget gate | High (mechanism) / Low (control) | High | 0 brand queries, 0 referring domains implied, new domain | (out of scope this phase — 13E.5 / outreach) note as the #1 dependency |
+| 6 | **`/pokemon/[species]` "all X cards" intent** | Low–Med | Med | Low | "all dragonite cards list", "every dragonite pokemon card", "sword and shield promo cards list" at pos 60–80 hitting `/pokemon/dragonite`, `/sets/…promo…` | ensure these pages' `<title>`/H1 include "all … cards / card list" phrasing; verify the full card list is in SSR HTML |
+| 7 | **Homepage is the only converting page — protect & extend it** | Low (absolute) | High | Low | `/` = 3/3 clicks, pos 5.4 | keep; add internal links from `/` deeper into `/cards` value pages so equity flows |
+| 8 | **Expired-deal recrawl hygiene** | Low | Med | Low | `/deals/6486` etc. still indexed post-expiry | optional: 410 (not 200+noindex) for long-expired deal IDs to speed removal — low priority, current handling is acceptable |
+| 9 | **Re-baseline in 4–6 weeks** | — (measurement) | High | Low | only 13 days of data; impressions 0→428/wk | re-run `scripts/_gscAudit.mjs` for the same families; compare penetration + `lastCrawl` coverage |
+| 10 | **Submit child sitemaps individually in GSC** | Low | Med | Very low | only the index is submitted; per-child coverage not visible | add `/sitemaps/cards.xml`, `/sitemaps/pokemon.xml`, `/sitemaps/sets.xml` as separate submissions for per-family reporting |
+
+---
+
+## 19. Manual GSC actions genuinely required
+
+**None are strictly required** — nothing is broken. Two are *useful* and
+low-effort:
+
+1. **Submit the child sitemaps individually** (`/sitemaps/cards.xml`,
+   `pokemon.xml`, `sets.xml`) alongside the index, so GSC reports
+   coverage per family.
+2. **Request indexing** for `/pokemon` and `/cards` (the un-crawled index
+   pages) to seed the crawl path.
+
+Everything else is a code/content change (opportunities §18), to be
+scheduled in a later phase — not this one.
+
+---
+
+## Appendix — tooling
+
+- `scripts/gsc-auth.mjs` / `scripts/gsc-test.mjs` — existing local
+  read-only OAuth (`.secrets/gsc-oauth-client.json`,
+  `.secrets/gsc-token.json`; git-ignored; never deployed). **Auth works**
+  — access token auto-refreshed from the stored refresh token this
+  session.
+- `scripts/_gscAudit.mjs` — new read-only helper: `perf` (Search
+  Analytics), `sitemaps` (list), `inspect` / `inspect-file` (URL
+  Inspection API). No write scope, no Search Console mutation.
+- Raw data captured: `scripts/_gsc_pages.json`, `_gsc_queries.json`,
+  `_gsc_page_query.json`, `_gsc_inspect*.json` (git-ignored scratch).
