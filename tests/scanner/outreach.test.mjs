@@ -250,9 +250,15 @@ test("12. there is no deployed outreach API route", () => {
 });
 
 test("13. a non-email contact type can never reach the mail provider", () => {
-  for (const ct of ["MEDIUM_RESPONSE", "X_DM"]) {
-    assert.equal(canSend(emailRecord({ contactType: ct }), {}).ok, false);
-    assert.equal(canApprove(emailRecord({ contactType: ct, status: "DRAFT" }), {}).ok, false);
+  // WEB_FORM (SEO-GSC-5) is tracked for the audit trail but, like
+  // MEDIUM_RESPONSE / X_DM, is NOT in SENDABLE_CONTACT_TYPES.
+  for (const ct of ["MEDIUM_RESPONSE", "X_DM", "WEB_FORM"]) {
+    const send = canSend(emailRecord({ contactType: ct, status: "APPROVED" }), {});
+    assert.equal(send.ok, false, `canSend ${ct}`);
+    assert.equal(send.reason, "not_an_email_record", `canSend ${ct} reason`);
+    const appr = canApprove(emailRecord({ contactType: ct, status: "DRAFT" }), {});
+    assert.equal(appr.ok, false, `canApprove ${ct}`);
+    assert.equal(appr.reason, "not_an_email_record", `canApprove ${ct} reason`);
   }
   // the CLI send command bails early for non-email records
   assert.match(CLI, /no mail-provider send path/);
@@ -333,14 +339,61 @@ test("18. a voxbooster email record exists in DRAFT and carries snapshot placeho
   assert.match(r.body, /priced,? English,? non-specialty cards/i, "keeps the population qualifier");
 });
 
-test("19. PokemonPriceTracker is NOT in this batch", () => {
-  assert.ok(
-    !RECORDS.some(
-      (r) => /pokemonpricetracker|pokepricetracker/i.test(`${r.id} ${r.organisation} ${r.recipient}`)
-    ),
-    "no PokemonPriceTracker record in batch 1"
+test("19. SEO-GSC-5 Batch 1: the expected records exist and NONE is queued or sent", () => {
+  assert.deepEqual(
+    RECORDS.map((r) => r.id).sort(),
+    [
+      "cardrake",
+      "delightfultcg",
+      "packz",
+      "pokemonpricetracker",
+      "pokemonwizard",
+      "raidertraders",
+      "stephen-leonard",
+      "voxbooster",
+    ],
+    "exactly the 10D records + the 4 new SEO-GSC-5 records"
   );
-  assert.equal(RECORDS.length, 4);
+  // SEO-GSC-5 added a real email prospect (PokemonPriceTracker) - but only
+  // as a DRAFT. It must never carry a delivery field or a non-DRAFT status.
+  const ppt = RECORDS.find((r) => r.id === "pokemonpricetracker");
+  assert.equal(ppt.contactType, "EMAIL");
+  assert.equal(ppt.status, "DRAFT");
+  assert.equal(ppt.recipient, "pokepricetracker@proton.me");
+  assert.ok(!ppt.approvedAt && !ppt.queuedAt && !ppt.sentAt && !ppt.providerRef);
+  // the whole file: nothing was approved / queued / sent by this phase
+  for (const r of RECORDS) {
+    assert.ok(!["QUEUED", "SENT"].includes(r.status), `${r.id} status ${r.status}`);
+    assert.ok(!r.queuedAt && !r.sentAt && !r.providerRef, `${r.id} has a delivery field`);
+  }
+  // packz keeps the one pre-existing APPROVED-for-test state; everything
+  // else is DRAFT.
+  for (const r of RECORDS) {
+    assert.ok(
+      r.id === "packz" ? ["DRAFT", "APPROVED"].includes(r.status) : r.status === "DRAFT",
+      `${r.id} unexpected status ${r.status}`
+    );
+  }
+});
+
+test("19b. the SEO-GSC-5 contact-form + DM prospects are non-sendable and name their manual route", () => {
+  const byId = Object.fromEntries(RECORDS.map((r) => [r.id, r]));
+  const expected = {
+    delightfultcg: "WEB_FORM",
+    pokemonwizard: "WEB_FORM",
+    raidertraders: "X_DM",
+  };
+  for (const [id, ct] of Object.entries(expected)) {
+    const r = byId[id];
+    assert.ok(r, `${id} exists`);
+    assert.equal(r.contactType, ct, `${id} contactType`);
+    assert.equal(r.status, "DRAFT", `${id} status`);
+    // not in the sendable set -> both gates refuse it
+    assert.equal(canApprove({ ...r, status: "DRAFT" }, {}).reason, "not_an_email_record", `${id} canApprove`);
+    assert.equal(canSend({ ...r, status: "APPROVED" }, {}).reason, "not_an_email_record", `${id} canSend`);
+    // the record spells out that a human posts it by hand
+    assert.match(r.note ?? "", /by hand|manual|NO mail-provider send path/i, `${id} note`);
+  }
 });
 
 // === 20 : existing transactional email untouched ===================
@@ -360,9 +413,12 @@ test("non-email records in the batch stay DRAFT and name their manual channel", 
   const cr = RECORDS.find((r) => r.id === "cardrake");
   assert.equal(sl.contactType, "MEDIUM_RESPONSE");
   assert.equal(cr.contactType, "X_DM");
-  for (const r of [sl, cr]) {
-    assert.equal(r.status, "DRAFT");
-    assert.match(r.note ?? "", /manual|by hand|No mail-provider/i);
+  // EVERY non-email record (10D + SEO-GSC-5) must be a DRAFT that spells
+  // out its by-hand channel and confirms it has no mail-provider path.
+  for (const r of RECORDS.filter((x) => x.contactType !== "EMAIL")) {
+    assert.equal(r.status, "DRAFT", `${r.id} status`);
+    assert.match(r.note ?? "", /manual|by hand|No mail-provider send path/i, `${r.id} note`);
+    assert.equal(canSend({ ...r, status: "APPROVED" }, {}).reason, "not_an_email_record", `${r.id} canSend`);
   }
 });
 
@@ -474,7 +530,7 @@ test("C17. every email record records why the public contact was appropriate", (
   }
 });
 
-test("C13/C14/C15/C20. packz + voxbooster real prospects never queued/sent, PPT absent, no Batch 2", () => {
+test("C13/C14/C15/C20. the 10D prospects (packz + voxbooster) are unchanged by SEO-GSC-5", () => {
   const packz = RECORDS.find((r) => r.id === "packz");
   const vox = RECORDS.find((r) => r.id === "voxbooster");
   assert.equal(vox.status, "DRAFT");
@@ -487,14 +543,14 @@ test("C13/C14/C15/C20. packz + voxbooster real prospects never queued/sent, PPT 
     assert.ok(!r.sentAt, `${r.id} has a sentAt`);
     assert.ok(!r.providerRef, `${r.id} has a providerRef`);
   }
+  // bodies + recipients + target pages are byte-for-byte the 10D copy
   assert.match(packz.body, /^I run PokemonDealFinder \(pokemondealfinder\.com\), a free tool/);
+  assert.equal(packz.recipient, "support@packz.io");
+  assert.equal(packz.targetPage, "https://packz.io/blog/pokemon-card-price-checker");
   assert.match(vox.body, /^I run PokemonDealFinder \(pokemondealfinder\.com\)\. Your Trading Card Statistics/);
-  assert.ok(!RECORDS.some((r) => /pokemonpricetracker|pokepricetracker/i.test(JSON.stringify(r))));
-  // no Batch 2: still exactly the four 10D records
-  assert.deepEqual(
-    RECORDS.map((r) => r.id).sort(),
-    ["cardrake", "packz", "stephen-leonard", "voxbooster"]
-  );
+  // SEO-GSC-5 only *enriched* packz with pure-metadata leaf fields - no gate reads them
+  assert.equal(packz.tier, "A");
+  assert.equal(packz.linkAcquired, false);
 });
 
 test("C: the state machine gained QUEUED between APPROVED and SENT", () => {

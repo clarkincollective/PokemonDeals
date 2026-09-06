@@ -537,3 +537,76 @@ SEO-GSC-1 baseline (0 referring signals, 0 brand queries).
 
 **No outreach was sent. No directory submitted. No Reddit post. No DM. No
 account created. This phase ends here.**
+
+---
+
+## SEO-GSC-5 — Batch 1 (first outreach batch: prepared, NOT sent)
+
+Date prepared: **2026-09-07**. Every prospect below was re-verified live on
+that date (site exists, exact page exists, page supports the stated angle,
+our target page returns 200, contact route is publicly published). This is
+CONTACT VERIFICATION + PROSPECT VALIDATION + DRAFT CREATION only.
+
+**Nothing was approved, queued, submitted, posted, or sent. No account was
+created. Nothing left the machine.**
+
+### Batch 1 — full prospect table
+
+| # | domain | exact page (evidence) | our target URL | angle | contact route | contact source (published) | deliverability | tier / score | record | status |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | packz.io | `/blog/pokemon-card-price-checker` — "best price checker" roundup (PriceCharting, TCGplayer, PokeScreener…); no deal-finding entry | `/` | RESOURCE_GAP (E) — the deal-finding category the roundup omits | editorial email `support@packz.io` | `https://packz.io/blog/pokemon-card-price-checker` — address in site footer + linked from the article | VERIFIED_PUBLIC | A / 78 | `packz` (pre-existing, 10D) | **APPROVED for a *test-recipient* send only** — real prospect never queued/sent. Enriched this phase with metadata leaf fields only. |
+| 2 | pokemonpricetracker.com | `/blog/posts/pokemon-card-slabs-psa-vs-cgc-vs-bgs-2026-guide` — compares PSA/CGC/BGS by value retention; **no systematic "what each grade 1–10 means"** | `/guides/pokemon-card-grading-scale` | GUIDE_CITATION (D) — companion "what the number means" explainer | editorial email `pokepricetracker@proton.me` | `https://www.pokemonpricetracker.com/contact` — mailto link in the page footer beside the site's X / Discord links | VERIFIED_PUBLIC (Proton MX; brand mailbox, not a role alias; from official page) | B / 75 | `pokemonpricetracker` (**new**) | **DRAFT** |
+| 3 | delightfultcg.com | `/blogs/articles/best-apps-to-track-your-pokemon-card-collection-value` — "Best App to Track Pokemon Card Collection Value 2026"; ranks 7 valuation tools; **no deal-finding category**; links out to none of them | `/deals/under-25` (+ `/`) | RESOURCE_GAP (E) — a tool for the opposite side of the trade | **contact form only** (`/pages/contact`) | `https://delightfultcg.com/pages/contact` — form fields only, **no email published anywhere on the page** | CONTACT_FORM_ONLY | A / 80 | `delightfultcg` (**new**, `WEB_FORM`) | **DRAFT** — planning record; **not** in the mail-send path |
+| 4 | pokemonwizard.com | `/stats` — "The TCG Market, At a Glance": self-published market index, trending sets, top movers | `/market-data/pokemon-card-value-distribution` | DATA_CITATION (C) — a complementary raw-value-distribution figure | **contact form only** (`/contact`) | `https://www.pokemonwizard.com/contact` — form fields only, **no email published** | CONTACT_FORM_ONLY | C / 58 | `pokemonwizard` (**new**, `WEB_FORM`) | **DRAFT** — planning record; **not** in the mail-send path |
+| 5 | raidertraders.com | `/flip-pokemon-cards/` — "How to Find Underpriced Pokémon Cards on eBay (And What to Look For)" | `/deals/under-25` | TOOL_DISCOVERY (A) — the tool that automates the manual method | **X DM** to `@raidertradershq` | `https://raidertraders.com/` — official X account linked from the site footer (same handle on TikTok/IG/FB/Reddit); no email on site | NO_SAFE_CONTACT (email) → social DM | B / 70 | `raidertraders` (**new**, `X_DM`) | **DRAFT** — planning record; **not** in the mail-send path |
+
+### EMAIL DRAFTS (may enter the send pipeline later, after human approval)
+
+- **`packz`** → `support@packz.io` — pre-existing 10D record; already APPROVED for a **test-recipient** send; the real prospect has never been queued or sent. This phase added only pure-metadata leaf fields (`prospectType`, `tier`, `score`, `evidenceUrl`, `checkedAt`, null `link*` block). Body / recipient / target page / status **unchanged**.
+- **`pokemonpricetracker`** → `pokepricetracker@proton.me` — **new DRAFT.** 95-word tailored email; ownership-transparent ("I run PokemonDealFinder"); no "backlink"/"partnership"/"link exchange" language; one resource, one reader benefit, low-pressure close. Angle re-verified: their grading post compares companies, not grades — our scale page is a genuine companion, not a competitor.
+
+### FORM DRAFTS (contact form only — a human pastes the text; never touches Instantly)
+
+- **`delightfultcg`** (`WEB_FORM`) — paste target: `https://delightfultcg.com/pages/contact`. Text is the pitch a human submits by hand after review. `canApprove` / `canSend` both return `not_an_email_record`, so it can never reach the mail provider.
+- **`pokemonwizard`** (`WEB_FORM`) — paste target: `https://www.pokemonwizard.com/contact`. Pitch references a live figure; the real numbers must be frozen from `/market-data/pokemon-card-value-distribution` before any submission.
+- **`raidertraders`** (`X_DM`) — DM target: `@raidertradershq`. Reviewer note recorded on the record: RaiderTrader publishes its own editorial "Flip Score" deal rankings — weigh competitor overlap before contacting.
+
+### COMMUNITY (research only — NO account, NO post, NO DM this phase)
+
+| site | exact area | current self-promo rules (as visible) | recommended approach |
+|---|---|---|---|
+| **pokebeach.com** | `/forums/threads/pokemon-tcg-resources-and-links.108554/` — long-running "Resources and Links" thread (site runs since 2003; top-tier hobby authority) | Forum-wide rules: no advertising / self-promotion in posts or signatures without staff permission; the resources thread itself is curated by member contribution over time | Register a member account; participate genuinely for **several weeks** (answer questions, join set/price discussions) before ever mentioning the tool; when contributing to the resources thread, disclose ownership in the post. No gatekeeper email — contribution *is* the channel. Not an outreach record. |
+| **elitefourum.com** | `/t/list-of-pokemon-tcg-resources/49904` — maintained resource list (last updated 2026-06) with "Guides" and "External Databases" sections | Community forum; self-promotion tolerated only from established members contributing in good faith; maintainer accepts reader-suggested resources **in-thread** | Same pattern: join, contribute, then suggest `/guides/card-condition-grading` for the "Guides" section with an ownership disclosure. Deal-finder link is a stretch there; lead with the grading guide. Not an outreach record. |
+
+*Neither was turned into an email/records.json entry — §16 keeps community participation as a separate, human, account-based workflow.*
+
+### REJECTED for Batch 1 (with reason)
+
+| domain | why rejected |
+|---|---|
+| **tcgrader.com** | Re-verification on 2026-09-07 found a **full competing grading-content cluster**: "Pokémon Card Ratings Explained: What Each Grade From 1 to 10 Actually Means", "How to Grade Pokémon Cards at Home", "Centering vs Corners vs Edges vs Surface". Our grading-scale / condition guides duplicate content they already own — no truthful citation gap. Overrides its SEO-GSC-4 optimism (was ranked #7 / #25). |
+| **tcginvest.io** | Operates its own below-market / "deal" tooling category — a direct competitor for the deal-finder. The RESOURCE_GAP angle ("the category your roundup is missing") is not truthful here. |
+| **rarecandy.com** | Closed ecosystem — promotes only its own first-party tools, no history of linking out editorially. Revisit only with a data-citation angle later. |
+| **PokéBeach / Elite Fourum** | Not rejected as prospects — moved to the COMMUNITY workflow above (no published professional editorial-contact email; the legitimate route is member participation, not a cold email). |
+
+### Top 3 send candidates for manual review (§15)
+
+| rank | prospect | route | our target URL | angle | why it's a candidate |
+|---|---|---|---|---|---|
+| 1 | **packz.io** (`packz`) | email `support@packz.io` | `https://pokemondealfinder.com/` | RESOURCE_GAP — deal-finding category the price-checker roundup omits | Exact roundup, exact gap, verified contact, personalised copy already written and test-validated. Closest to send; only needs a human's real-send approval. |
+| 2 | **pokemonpricetracker.com** (`pokemonpricetracker`) | email `pokepricetracker@proton.me` | `https://pokemondealfinder.com/guides/pokemon-card-grading-scale` | GUIDE_CITATION — "what each grade means" companion to their PSA/CGC/BGS post | Verified public editorial email; genuine content gap (they compare companies, not grades); existing reference-price relationship to build on; high topical fit. |
+| 3 | **delightfultcg.com** (`delightfultcg`) | **contact form** `/pages/contact` (manual submit — not the mail pipeline) | `https://pokemondealfinder.com/deals/under-25` | RESOURCE_GAP — a tool for the side of the trade the roundup ignores | Page-1 ranking roundup for the exact query set the tool wants visibility in; a mention there is a link *and* buyer referral traffic. Lower link odds (they link out to nothing today) but highest audience value of the form set. |
+
+Personalization quality note: all three drafts name the specific article, state one specific reader benefit, offer exactly one resource, disclose ownership in the first sentence, and avoid every banned phrase ("huge fan", "game-changing", "partnership opportunity", "link exchange", "SEO backlink"). None mentions wanting a backlink.
+
+### Outreach safety re-verification (§17)
+
+`node --test tests/scanner/*.test.mjs` — **1389 / 1389 pass**. Verified this phase:
+
+- DRAFT cannot send; APPROVED is required for a send; the daily cap is still exactly **5**, counted at QUEUE time.
+- Duplicate protection (same recipient + target page in QUEUED/SENT/REPLIED) and the suppression list still block.
+- `WEB_FORM` (added this phase) is **not** in `SENDABLE_CONTACT_TYPES` → `canApprove` and `canSend` both return `not_an_email_record`, identical to `MEDIUM_RESPONSE` / `X_DM`. A contact-form or DM record can never reach Instantly.
+- Cold outreach still has zero code path to the Resend transactional mailer.
+- QUEUED ≠ SENT — only `applySyncResult` on real Instantly send evidence promotes to SENT.
+- Ownership-transparency guard still rejects "I'm a user of…" framing and requires an explicit "I/we run PokemonDealFinder".
+- Every Batch-1 record: `status` is `DRAFT` (except the pre-existing `packz` = `APPROVED`-for-test); no `queuedAt`, `sentAt`, or `providerRef` on any record.

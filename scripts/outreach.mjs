@@ -189,6 +189,21 @@ function cmdShow(records, id) {
   console.log(`  target page : ${r.targetPage}`);
   console.log(`  destination : ${r.destinationUrl}`);
   console.log(`  angle       : ${r.angle}`);
+  if (r.contactSourceUrl) console.log(`  contact via : ${r.contactSourceUrl}`);
+  if (r.prospectType || r.tier || r.score != null || r.checkedAt) {
+    console.log(
+      "  qualifier   : " +
+        [
+          r.prospectType,
+          r.tier && `tier ${r.tier}`,
+          r.score != null && `score ${r.score}`,
+          r.checkedAt && `checked ${r.checkedAt}`,
+        ]
+          .filter(Boolean)
+          .join("   ")
+    );
+  }
+  if (r.linkAcquired) console.log(`  link        : ${r.linkUrl ?? "(acquired)"} -> ${r.linkTargetUrl ?? "?"}`);
   if (r.snapshot) console.log(`  snapshot    : ${JSON.stringify(r.snapshot)}`);
   if (r.provider) console.log(`  provider    : ${r.provider}`);
   if (r.providerRef) console.log(`  providerRef : ${r.providerRef}`);
