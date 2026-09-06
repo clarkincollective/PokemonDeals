@@ -8,7 +8,8 @@ import {
 } from "@/lib/ebay";
 import { fetchFeed } from "@/lib/pokeFeed";
 import { getUsdRates, toUsd } from "@/lib/fx";
-import { logDiscoveryEvent, legacyIdFromListingId } from "@/lib/discoveryLog";
+import { logDiscoveryEvent, legacyIdFromListingId, discoveryListingKey } from "@/lib/discoveryLog";
+import { candidateKey, partitionCandidates, allocateVerifyBudget } from "@/lib/ingestFeedQueue";
 import {
   SANITY_FLOOR_PCT,
   coreTokens,
@@ -65,9 +66,21 @@ export async function GET(request) {
   }
 
   // Pre-flight quota guard. A high floor on purpose: this is spare-capacity
-  // supplementation. A failed meta-call (null) -> proceed.
+  // supplementation - it backs off FIRST so the primary scanner
+  // (app/api/refresh-deals, which has no floor) always keeps quota. A
+  // failed meta-call (null) -> proceed. A floor skip does ZERO Browse
+  // item lookups and touches ZERO timestamps.
   const rl = await getBrowseRateLimit();
   if (rl && rl.remaining != null && rl.remaining < RATE_LIMIT_FLOOR) {
+    const dbFloor = supabaseAdmin();
+    await recordIngestRun(dbFloor, {
+      at: new Date().toISOString(),
+      quotaFloorSkipped: true,
+      browseVerifyAttempts: 0,
+      floor: RATE_LIMIT_FLOOR,
+      rateLimitRemaining: rl.remaining,
+      tookMs: Date.now() - startedAt,
+    });
     return Response.json({
       skipped: "ebay_rate_limited",
       floor: RATE_LIMIT_FLOOR,
@@ -81,66 +94,87 @@ export async function GET(request) {
   // 1. Pull the board.
   const { listings: feedItems, error: feedError } = await fetchFeed();
   if (feedError) {
+    await recordIngestRun(db, { at: new Date().toISOString(), feedUnavailable: true, error: feedError, browseVerifyAttempts: 0, tookMs: Date.now() - startedAt });
     return Response.json({ skipped: "feed_unavailable", error: feedError });
   }
   if (feedItems.length === 0) {
+    await recordIngestRun(db, { at: new Date().toISOString(), candidatesDiscovered: 0, browseVerifyAttempts: 0, note: "board parsed to zero items", tookMs: Date.now() - startedAt });
     return Response.json({ feedItems: 0, note: "board parsed to zero items" });
   }
 
-  // 2. Which of these do we already have a fresh row for? Skip the Browse
-  //    call for those, just bump last_seen_at so the grace window is honest.
-  const byMarketplace = new Map();
-  for (const it of feedItems) {
-    if (!MARKETPLACES[it.marketplace]) continue;
-    if (!byMarketplace.has(it.marketplace)) byMarketplace.set(it.marketplace, []);
-    byMarketplace.get(it.marketplace).push(it);
-  }
+  // 2. CHEAP FILTERING - before any Browse call.
+  //
+  // Keep only supported marketplaces; canonical-dedupe is handled by
+  // partitionCandidates on discoveryListingKey.
+  const supportedItems = feedItems.filter((it) => MARKETPLACES[it.marketplace]);
+  const candidateKeys = [...new Set(supportedItems.map(candidateKey).filter(Boolean))];
+  const recentCutoffMs = Date.now() - RECENT_VERIFY_HOURS * 3600 * 1000;
+  const recentCutoff = new Date(recentCutoffMs).toISOString();
 
-  const recentCutoff = new Date(Date.now() - RECENT_VERIFY_HOURS * 3600 * 1000).toISOString();
-  const seenListingIds = new Set();
-  for (const [marketplace, items] of byMarketplace) {
-    const candidateIds = items.map((it) => restId(it.ebayItemId));
-    const { data: rows } = await db
-      .from("deals")
-      .select("listing_id, last_seen_at")
-      .eq("source", "ebay")
-      .eq("marketplace", marketplace)
-      .in("listing_id", candidateIds);
+  // 2a. Existing check: a candidate we already have a `deals` row for.
+  //     Fresh row (last_seen inside the window) -> skip the Browse call.
+  //     Any still-listed active row -> bump last_seen_at so the 2-day
+  //     grace window stays honest.
+  const freshDealKeys = new Set();
+  {
+    const restIds = candidateKeys.map((k) => restId(k.split(":").slice(1).join(":")));
     const stillListed = [];
-    for (const r of rows ?? []) {
-      if (r.last_seen_at > recentCutoff) seenListingIds.add(r.listing_id);
-      stillListed.push(r.listing_id);
+    for (let i = 0; i < restIds.length; i += 200) {
+      const chunk = restIds.slice(i, i + 200);
+      const { data: rows } = await db
+        .from("deals")
+        .select("listing_id, marketplace, last_seen_at, is_active")
+        .eq("source", "ebay")
+        .in("listing_id", chunk);
+      for (const r of rows ?? []) {
+        const key = discoveryListingKey(r.marketplace, r.listing_id);
+        if (r.last_seen_at > recentCutoff) freshDealKeys.add(key);
+        if (r.is_active) stillListed.push(r.listing_id);
+      }
     }
-    // Refresh last_seen_at for every still-listed item we're not re-verifying.
-    if (stillListed.length > 0) {
+    for (let i = 0; i < stillListed.length; i += 200) {
       await db
         .from("deals")
         .update({ last_seen_at: new Date().toISOString() })
         .eq("source", "ebay")
-        .eq("marketplace", marketplace)
         .eq("is_active", true)
-        .in("listing_id", stillListed);
+        .in("listing_id", stillListed.slice(i, i + 200));
     }
   }
 
-  // 3. Genuinely-new items, capped.
-  const newByMarketplace = new Map();
-  let newCount = 0;
-  for (const [marketplace, items] of byMarketplace) {
-    const fresh = items.filter((it) => !seenListingIds.has(restId(it.ebayItemId)));
-    if (fresh.length === 0) continue;
-    newByMarketplace.set(marketplace, fresh);
-    newCount += fresh.length;
+  // 2b. THE P0.3.2 FIX: consult discovery_events (source='external'),
+  //     which logs EVERY verified candidate whatever the outcome. A
+  //     candidate any external verification touched inside
+  //     RECENT_VERIFY_HOURS is skipped BEFORE the Browse call - accepted,
+  //     rejected, failed-match, failed-quality-gate, every marketplace.
+  //     After the window it is eligible again (no blacklist).
+  const externalHistory = new Map(); // listingKey -> latest occurred_at ms
+  for (let i = 0; i < candidateKeys.length; i += 200) {
+    const chunk = candidateKeys.slice(i, i + 200);
+    const { data: rows } = await db
+      .from("discovery_events")
+      .select("listing_key, occurred_at")
+      .eq("source", "external")
+      .in("listing_key", chunk);
+    for (const r of rows ?? []) {
+      const ms = Date.parse(r.occurred_at);
+      if (!Number.isFinite(ms)) continue;
+      const prev = externalHistory.get(r.listing_key);
+      if (prev == null || ms > prev) externalHistory.set(r.listing_key, ms);
+    }
   }
-  // Apply the per-cycle ceiling proportionally across marketplaces.
-  let budget = MAX_NEW_PER_CYCLE;
-  const toVerify = new Map();
-  for (const [marketplace, items] of newByMarketplace) {
-    if (budget <= 0) break;
-    const take = items.slice(0, budget);
-    toVerify.set(marketplace, take);
-    budget -= take.length;
-  }
+
+  // 3. Partition + order + cap.
+  const part = partitionCandidates({ feedItems: supportedItems, externalHistory, freshDealKeys, recentCutoffMs });
+  const toVerify = allocateVerifyBudget({
+    neverSeen: part.neverSeen,
+    dueRecheck: part.dueRecheck,
+    budget: MAX_NEW_PER_CYCLE,
+  });
+  const newCount = part.neverSeen.length + part.dueRecheck.length;
+  const queuedForVerify = [...toVerify.values()].reduce((s, a) => s + a.length, 0);
+  // legacy field name kept in the response for anything watching it
+  const seenListingIds = freshDealKeys;
 
   // 4. Load the card_catalog match index + the watched-card id set, once.
   const rates = await getUsdRates();
@@ -326,18 +360,88 @@ export async function GET(request) {
     .lt("last_seen_at", graceCutoff)
     .select("id");
 
-  return Response.json({
-    feedItems: feedItems.length,
-    alreadyFresh: seenListingIds.size,
-    newDiscovered: newCount,
-    verifyBudget: MAX_NEW_PER_CYCLE,
+  const rejectionBreakdown = {
+    untrusted: counts.untrusted,
+    graded: counts.graded,
+    noMatch: counts.noMatch,
+    badCondition: counts.badCondition ?? 0,
+    langMismatch: counts.langMismatch ?? 0,
+    noPrice: counts.noPrice,
+    notDeal: counts.notDeal,
+    upsertError: counts.upsertError ?? 0,
+  };
+  const rejected = Object.values(rejectionBreakdown).reduce((s, n) => s + n, 0);
+  const capHit = queuedForVerify >= MAX_NEW_PER_CYCLE;
+
+  // OBSERVABILITY (P0.3.2 SS6) - one durable per-cycle record so a future
+  // audit can prove whether this fix works, without a new table.
+  await recordIngestRun(db, {
+    at: new Date().toISOString(),
+    marketplaces: [...toVerify.keys()],
+    candidatesDiscovered: candidateKeys.length,
+    dedupedInBatch: part.dedupedInBatch,
+    skippedAlreadyFreshDeal: part.skippedFreshDeal,
+    skippedRecentlyVerified: part.skippedRecentlyVerified,
+    neverSeenQueued: part.neverSeen.length,
+    dueRecheckQueued: part.dueRecheck.length,
+    queuedForVerify,
+    capHit,
+    quotaFloorSkipped: false,
+    browseVerifyAttempts: browseCalls,
     verified,
-    browseCalls,
-    ...counts,
+    accepted: counts.upserted,
+    rejected,
+    rejectionBreakdown,
     expiredFeedOnly: expired?.length ?? 0,
     rateLimitRemaining: rl?.remaining ?? null,
     tookMs: Date.now() - startedAt,
   });
+
+  return Response.json({
+    feedItems: feedItems.length,
+    candidatesDiscovered: candidateKeys.length,
+    dedupedInBatch: part.dedupedInBatch,
+    skippedAlreadyFreshDeal: part.skippedFreshDeal,
+    skippedRecentlyVerified: part.skippedRecentlyVerified,
+    alreadyFresh: seenListingIds.size, // legacy field name
+    newDiscovered: newCount,
+    neverSeenQueued: part.neverSeen.length,
+    dueRecheckQueued: part.dueRecheck.length,
+    queuedForVerify,
+    verifyBudget: MAX_NEW_PER_CYCLE,
+    capHit,
+    verified,
+    browseCalls,
+    ...counts,
+    rejected,
+    expiredFeedOnly: expired?.length ?? 0,
+    rateLimitRemaining: rl?.remaining ?? null,
+    tookMs: Date.now() - startedAt,
+  });
+}
+
+// P0.3.2 SS6 - persist the last N ingest-feed cycle summaries to the
+// existing catalog_snapshot(kind) blob table (same mechanism send-digest
+// uses for "digest_state"). Best-effort: observability must never break
+// a discovery cycle.
+const INGEST_RUN_HISTORY = 72; // ~3 days of hourly cycles
+
+async function recordIngestRun(db, entry) {
+  try {
+    const { data } = await db
+      .from("catalog_snapshot")
+      .select("data")
+      .eq("kind", "ingest_feed_runs")
+      .maybeSingle();
+    const prev = Array.isArray(data?.data) ? data.data : [];
+    const next = [...prev.slice(-(INGEST_RUN_HISTORY - 1)), entry];
+    await db.from("catalog_snapshot").upsert(
+      { kind: "ingest_feed_runs", data: next, updated_at: new Date().toISOString() },
+      { onConflict: "kind" }
+    );
+  } catch {
+    /* observability must never break discovery */
+  }
 }
 
 // Same whole-word candidate-index approach the scanner's sweep uses, but
