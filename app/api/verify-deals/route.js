@@ -75,7 +75,7 @@ const H = 60 * 60 * 1000;
 const COLS =
   "id, listing_id, marketplace, market_price, discount_pct, first_seen_at, last_seen_at, is_active, is_graded, " +
   "condition, card_language, disqualified_reason, visual_authenticity_status, visual_authenticity_reason, " +
-  "auction_end_at, listing_type, listing_url, affiliate_url, card_name, card_set, title, card_tcgplayer_id";
+  "auction_end_at, listing_type, listing_url, affiliate_url, card_name, card_set, title, card_tcgplayer_id, image_url";
 
 const legacyOf = (listingId) => String(listingId ?? "").split("|")[1] || null;
 
@@ -189,7 +189,7 @@ export async function GET(request) {
   const rates = await getUsdRates();
 
   const batch = pool.slice(0, BATCH);
-  const out = { ACTIVE: 0, ENDED: 0, SOLD: 0, UNKNOWN: 0, RETIRED: 0, REPRICED: 0 };
+  const out = { ACTIVE: 0, ENDED: 0, SOLD: 0, UNKNOWN: 0, RETIRED: 0, REPRICED: 0, IMAGE_RECOVERED: 0 };
   let calls = 0;
   const detail = [];
   for (const r of batch) {
@@ -225,6 +225,28 @@ export async function GET(request) {
         out.REPRICED++;
       } else {
         status = "UNKNOWN";
+      }
+      // P0 image false-fallback: `snap` already carries the single-item
+      // endpoint's seller photos. If this row's image was never captured
+      // (item_summary/search omitted it -> image_url NULL), recover it
+      // here at ZERO extra call and let screen-deal-images re-classify.
+      if (
+        status === "ACTIVE" &&
+        !/^https?:\/\//.test(String(r.image_url ?? "")) &&
+        /^https?:\/\//.test(String(snap.primaryImage ?? ""))
+      ) {
+        const urls = (Array.isArray(snap.imageUrls) ? snap.imageUrls : []).filter((u) =>
+          /^https?:\/\//.test(String(u))
+        );
+        auctionActiveExtra = {
+          ...auctionActiveExtra,
+          image_url: snap.primaryImage,
+          image_urls: urls.length ? urls : [snap.primaryImage],
+          image_verdict: null,
+          display_image_url: null,
+          image_checked_at: null,
+        };
+        out.IMAGE_RECOVERED = (out.IMAGE_RECOVERED ?? 0) + 1;
       }
     } else {
       const { status: s, calls: c } = await getListingFreshness(legacyOf(r.listing_id), r.marketplace);

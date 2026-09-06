@@ -200,12 +200,20 @@ test("5b. the render path does no per-request image processing - no sharp, no fe
   }
 });
 
-test("5c. classification happens OUT OF BAND in a bounded worker, with NO eBay Browse calls", () => {
+test("5c. classification happens OUT OF BAND in a bounded worker; the only eBay call is bounded, quota-gated image RECOVERY", () => {
   const src = read("app/api/screen-deal-images/route.js");
   assert.match(src, /const BATCH = \d+/);
   assert.match(src, /CRON_SECRET/);
   assert.match(src, /image_checked_at/); // TTL-gated re-check queue
-  assert.doesNotMatch(src, /EBAY_BROWSE_URL|searchListings|getListingSnapshot|buy\/browse/, "the image worker must not call the eBay Browse API");
+  // CLASSIFICATION never calls eBay - it fetches image bytes from the CDN.
+  assert.doesNotMatch(src, /searchListings|getListingFreshness|buy\/browse/, "the image worker must not use the eBay search / freshness API");
+  // The ONE permitted eBay use is recovering a genuinely-missing seller
+  // image - and it is per-run-capped AND quota-floor-guarded.
+  const recoverCalls = (src.match(/getListingSnapshot\(/g) ?? []).length;
+  assert.equal(recoverCalls, 1, "getListingSnapshot must be called from exactly one place (recovery)");
+  assert.match(src, /getBrowseRateLimit/, "recovery must be quota-gated");
+  assert.match(src, /recoverUsed >= recoverBudget/, "recovery must respect a per-run cap");
+  assert.match(src, /remaining - IMAGE_RECOVER_PER_RUN >= RECOVER_RESERVE/, "recovery must protect a Browse-quota reserve");
 });
 
 test("5d. the existing visual-authenticity / counterfeit screening is untouched by this change", () => {
@@ -226,4 +234,102 @@ test("5e. eBay normalisation now captures ALL seller images (not just the primar
   const scan = read("app/api/refresh-deals/route.js");
   assert.match(scan, /persistImageUrls/);
   assert.match(scan, /const \{ image_urls, \.\.\.core \} = row_/);
+});
+
+// ---------------------------------------------------------------------------
+// 6. VALID SELLER IMAGE FALSE-FALLBACK (deal 31083 shape)
+//
+// A pre-migration deal whose item_summary/search response omitted `image`
+// was stored image_url = NULL, then the card-back remediation marked it
+// NO_TRUSTED_IMAGE and the render path fell back to canonical art with a
+// "Reference image" badge - even though eBay's single-item endpoint has 5
+// real seller FRONT photos. The fix RECOVERS those photos in the
+// out-of-band image worker (bounded, quota-gated), never at render time,
+// and must NOT weaken the CARD_BACK protection or let card backs win.
+// ---------------------------------------------------------------------------
+
+test("6a. classifier: the recovered seller-front fixture is SELLER_FRONT (the failure-shape image)", async () => {
+  const v = (await classifyListingImage(fixture("recovered-seller-front.jpg"))).verdict;
+  assert.equal(v, IMAGE_VERDICT.SELLER_FRONT);
+  // and the card-back fixture is still CARD_BACK - protection intact
+  assert.equal((await classifyListingImage(fixture("card-back-swirl.jpg"))).verdict, IMAGE_VERDICT.CARD_BACK);
+});
+
+test("6b. render is UNCHANGED and stays pure - a recovered row is just a SELLER_FRONT row", () => {
+  // once the worker writes image_url + image_verdict=SELLER_FRONT, the
+  // shared selector shows the seller photo and NO reference badge.
+  const recovered = {
+    image_verdict: IMAGE_VERDICT.SELLER_FRONT,
+    image_url: "https://i.ebayimg.com/images/g/abc/s-l1600.jpg",
+    card_tcgplayer_id: "90143",
+  };
+  assert.equal(dealImageProps(recovered).src, "https://i.ebayimg.com/images/g/abc/s-l1600.jpg");
+  assert.equal(trustedDealImageUrl(recovered), "https://i.ebayimg.com/images/g/abc/s-l1600.jpg");
+  // the pure selector never fetches / classifies
+  const pure = read("lib/listingImage.js");
+  assert.doesNotMatch(pure, /getListingSnapshot|require\(["']sharp|fetch\(/);
+});
+
+test("6c. screen-deal-images RECOVERS a missing seller image - bounded, quota-gated, one pipeline", () => {
+  const src = read("app/api/screen-deal-images/route.js");
+  assert.match(src, /getListingSnapshot/, "worker must recover images via getListingSnapshot");
+  assert.match(src, /getBrowseRateLimit/, "recovery must be quota-gated");
+  assert.match(src, /const IMAGE_RECOVER_PER_RUN = \d+/, "recovery must have a per-run cap");
+  assert.match(src, /const RECOVER_RESERVE = \d+/, "recovery must protect a Browse-quota reserve");
+  // recovery ONLY for rows with genuinely missing image URLs
+  assert.match(src, /if \(!hasStoredImages\(row\)\)/);
+  // a row that already has an image URL makes NO eBay call
+  assert.match(src, /hasStoredImages = \(row\) =>\s*\n?\s*isHttp\(row\.image_url\)/);
+  // recovered URLs are written back so the row self-heals
+  assert.match(src, /patch\.image_url = row\.image_url/);
+  assert.match(src, /patch\.image_urls = row\.image_urls/);
+});
+
+test("6d. recovery outcomes are safe: ENDED -> leave, UNKNOWN -> retry, no images -> NO_TRUSTED_IMAGE (canonical stays)", () => {
+  const src = read("app/api/screen-deal-images/route.js");
+  const fn = src.slice(src.indexOf("async function recoverListingImages"), src.indexOf("async function screenRow"));
+  assert.match(fn, /snap\.status === "ENDED"\) return \{ ended: true \}/);
+  assert.match(fn, /snap\.status === "UNKNOWN"\) return \{ inconclusive: true \}/);
+  assert.match(fn, /if \(!primary\) return \{ noImages: true \}/);
+  // in the loop: ended -> continue (freshness sweep retires); inconclusive -> continue (no stamp); noImages -> NO_TRUSTED_IMAGE + stamp
+  assert.match(src, /if \(rec\.ended\)[\s\S]{0,120}continue;/);
+  assert.match(src, /if \(rec\.inconclusive\)[\s\S]{0,120}continue;/);
+  assert.match(src, /if \(rec\.noImages\)[\s\S]{0,200}NO_TRUSTED_IMAGE/);
+});
+
+test("6e. getListingSnapshot now also returns seller images (zero extra call), reused by verify-deals", () => {
+  const ebay = read("lib/ebay.js");
+  const fn = ebay.slice(ebay.indexOf("async function getListingSnapshot"), ebay.indexOf("\n}", ebay.indexOf("async function getListingSnapshot")));
+  assert.match(fn, /primaryImage: primaryListingImage\(body\)/);
+  assert.match(fn, /imageUrls: allListingImages\(body\)/);
+  // verify-deals recovers a NULL image_url from the auction snapshot it
+  // already fetched - no second request - and clears the verdict so the
+  // image worker re-classifies.
+  const vd = read("app/api/verify-deals/route.js");
+  assert.ok(vd.includes("P0 image false-fallback"), "verify-deals image recovery not documented");
+  assert.ok(vd.includes("image_url: snap.primaryImage"), "verify-deals does not recover image_url from the snapshot");
+  assert.ok(vd.includes("image_verdict: null"), "verify-deals does not clear the verdict for re-classification");
+});
+
+test("6f. no AI generation, no render-time external fetch introduced by the recovery fix", () => {
+  for (const f of ["app/api/screen-deal-images/route.js", "lib/ebay.js", "components/DealImage.js", "components/AuctionPrice.js"]) {
+    const src = read(f);
+    assert.doesNotMatch(src, /images\/generations|dall-?e|stable-?diffusion|generateImage/i, `${f} reaches for image generation`);
+  }
+  // the deal detail + DealCard still never call the eBay API at render time
+  for (const f of ["app/deals/[id]/page.js", "components/DealCard.js"]) {
+    assert.doesNotMatch(read(f), /getListingSnapshot|getListingFreshness|get_item_by_legacy_id|EBAY_BROWSE_URL/);
+  }
+});
+
+test("6g. exact-canonical fallback still requires the exact card_tcgplayer_id - no species guess", () => {
+  // recovered=false, no seller image, canonical present -> canonical for THAT id only
+  const s = selectDealImageUrl({ imageVerdict: IMAGE_VERDICT.NO_TRUSTED_IMAGE, imageUrl: null, cardTcgplayerId: "90143" });
+  assert.equal(s.url, catalogImageUrl("90143"));
+  assert.notEqual(s.url, catalogImageUrl("111111"));
+  // no canonical id -> neutral, never a same-species substitute
+  assert.equal(
+    selectDealImageUrl({ imageVerdict: IMAGE_VERDICT.NO_TRUSTED_IMAGE, imageUrl: null, cardTcgplayerId: null }).url,
+    null
+  );
 });
