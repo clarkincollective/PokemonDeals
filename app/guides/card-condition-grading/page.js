@@ -144,6 +144,18 @@ export default function Page() {
         compare graded prices, compare like for like: same company, same grade. On this site, graded
         listings are only ever priced against real sold records for that exact company and grade.
       </GP>
+      <GP>
+        For what the <em>number</em> itself communicates — what a 7, 8, 9 or 10 means, and what
+        usually separates them — see{" "}
+        <Link href="/guides/pokemon-card-grading-scale" className="text-red-600 hover:underline dark:text-red-500">
+          the grading scale, 1 to 10
+        </Link>
+        . To judge a raw card before you buy it or send it in, see{" "}
+        <Link href="/guides/how-to-check-pokemon-card-condition" className="text-red-600 hover:underline dark:text-red-500">
+          how to check a card&apos;s condition
+        </Link>
+        .
+      </GP>
 
       <GH2>Practical takeaways</GH2>
       <GUL>
@@ -172,6 +184,18 @@ export default function Page() {
 
       <GH2>Keep reading</GH2>
       <GUL>
+        <li>
+          <Link href="/guides/pokemon-card-grading-scale" className="text-red-600 hover:underline dark:text-red-500">
+            The Pokemon card grading scale, 1 to 10
+          </Link>{" "}
+          — what each grade number means and what separates a 7, 8, 9 and 10.
+        </li>
+        <li>
+          <Link href="/guides/how-to-check-pokemon-card-condition" className="text-red-600 hover:underline dark:text-red-500">
+            How to check a Pokemon card&apos;s condition
+          </Link>{" "}
+          — the hands-on inspection: centering, corners, edges, surface, and what to photograph.
+        </li>
         <li>
           <Link href="/guides/raw-vs-graded-pokemon-cards" className="text-red-600 hover:underline dark:text-red-500">
             Raw vs. graded Pokemon cards

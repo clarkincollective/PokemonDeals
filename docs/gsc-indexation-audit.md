@@ -761,3 +761,162 @@ complete stable path to every indexable page instead of a flat sitemap +
 churny deal links. Re-baseline with `scripts/_gscAudit.mjs` in 4–6 weeks
 (~mid-October 2026): expect `/pokemon` + `/cards` indexed, and the
 "Discovered – currently not indexed" long-tail count falling.
+
+---
+
+# SEO-GSC-3 — grading / condition content cluster (implemented)
+
+**Date:** 2026-09-07 · commit see §commit. Turns the existing
+grading/condition search signal into a small hub-and-spoke cluster. No
+change to robots, canonicals, sitemap architecture / `<lastmod>` /
+segmentation, indexability gates, or any other page's SEO.
+
+## Real GSC queries used (§1)
+
+`/guides/card-condition-grading` baseline window 2026-08-01 → 09-09:
+**0 clicks · 79 impressions · CTR 0% · avg position 64 · 25 distinct
+queries** (29 impressions carry a query; the rest are GSC-anonymised).
+The exact query set, grouped by intent:
+
+| intent cluster | real GSC queries (verbatim) | destination |
+|---|---|---|
+| **Broad — condition + grading overview** | `pokemon grades explained`, `pokemon card grading explained`, `pokemon card condition grading`, `pokemon card condition`, `pokemon card condition guide`, `pokemon cards condition guide`, `all pokemon card conditions`, `card condition pokemon`, `ex card condition`, `what does it mean for a pokemon card to be graded` | **HUB** `card-condition-grading` (strengthened) |
+| **Grade-number meaning / scale** | `what is a grade 7 pokemon card`, `grade 9 pokemon card meaning`, `what does grade mean in pokemon cards`, `pokemon card condition scale`, `pokemon card grading criteria`, `pokemon card ratings`, `pokemon card rating`, `pokemon card rating system`, `rating pokemon cards`, `tcg card rating`, `pokemon cards grade`, `card grade pokemon` | **SPOKE A** `pokemon-card-grading-scale` (new) |
+| **How-to — inspect / check condition** | `how to check the grade on a pokemon card`, `how to tell the condition of a pokemon card`, `pokemon card condition checker` | **SPOKE B** `how-to-check-pokemon-card-condition` (new) |
+| **PSA vs CGC vs BGS comparison** | *(none — no `psa vs cgc`, `cgc vs bgs`, `which grading company`, `best grading company` query in GSC)* | **NOT BUILT — merged into the hub** |
+
+## Cannibalisation decisions (§9)
+
+- **PSA vs CGC vs BGS comparison guide — REJECTED.** The doc listed it as
+  candidate #3, but there is **zero query evidence** for a comparison
+  ("which grader", "psa vs cgc", etc. — none in GSC). The hub already
+  answers "what do PSA / CGC / BGS grades mean". A separate page would
+  compete with the hub's grading-companies section on the same broad
+  "grading explained" queries with no distinct intent to win. Instead the
+  hub's existing company list got a one-paragraph bridge to Spoke A for
+  the number breakdown. Net new guides this phase: **2, not 3.**
+- **Spoke A vs Hub:** hub keeps PRIMARY = broad "pokemon card condition /
+  grading explained"; A takes PRIMARY = number-specific "what is a grade
+  X / grading scale / grading criteria / card ratings". Distinct
+  title / H1 / meta (test 5 locks no title collision).
+- **Spoke B vs Hub vs raw-vs-graded:** B is strictly the hands-on
+  inspection task. It does **not** answer "should I grade" (that stays on
+  `raw-vs-graded-pokemon-cards`) or "what does grade 8 mean" (Spoke A).
+- **`pokemon card ratings` / `rating system`** (were on the hub at
+  pos ~76): re-homed to Spoke A, which states up front that "rating" and
+  "grade" are the same thing colloquially.
+
+## Pages created / updated (§2, §3, §4)
+
+| page | status | title | H1 | primary intent |
+|---|---|---|---|---|
+| `/guides/card-condition-grading` | **updated** (not rewritten) | Pokemon Card Condition & Grading Explained | Pokemon Card Condition & Grading Explained | broad condition + grading hub |
+| `/guides/pokemon-card-grading-scale` | **new** | The Pokemon Card Grading Scale, 1 to 10 | The Pokemon Card Grading Scale, 1 to 10 | what a grade number means |
+| `/guides/how-to-check-pokemon-card-condition` | **new** | How to Check a Pokemon Card's Condition | How to Check a Pokemon Card's Condition | inspect a card by hand |
+
+**Hub changes (additive only):** two bridge paragraphs after the grading-
+companies list (→ Spoke A for the number breakdown, → Spoke B for
+inspection); both spokes added to "Keep reading" ahead of the existing
+links. Everything already there — the raw NM→DMG scale, the
+`<ConditionScale>` figure, the PSA/CGC/BGS/SGC/ACE/TAG list, the FAQ +
+FAQPage schema, `/methodology` link — is untouched.
+
+**New deterministic components** (existing design system, mobile-safe,
+`overflow-x-auto` on the tables):
+- `components/guides/GradeScaleTable.js` — a 10→1 table (grade · common
+  name · "roughly what it communicates"). General hobby vocabulary
+  (Gem Mint / Mint / Excellent / …), **no per-company tolerances, no
+  population data.**
+- `components/guides/ConditionAxes.js` — centering / corners / edges /
+  surface / creases: what to look at, how, and what costs points. Shared
+  by both spokes.
+
+## Content quality (§5, §12)
+
+- No AI filler, no padded intros, no word-count target — each page is
+  structured + scannable (tables + short sections).
+- **Grading-claim safety:** every certainty is hedged. Spoke A: "Treat
+  this as *roughly what the number communicates*, not a checklist that
+  produces a guaranteed result" and a dedicated "The grading company
+  makes the final call" section. Spoke B: "It will not tell you the
+  grade" up front, "A thorough check tells you what is likely, not what
+  will happen", "The grader still decides". No "this card will get a
+  PSA 10" phrasing anywhere; no fabricated population reports or
+  company standards (tests 3 + 4 lock this).
+- No clickbait ("Ultimate", "Secret", "Guaranteed", "Everything You Need
+  to Know") in any title or body.
+
+## Internal-link cluster (§7)
+
+```
+        card-condition-grading  (hub)
+          ▲   │        │   ▲
+          │   ▼        ▼   │
+  grading-scale ◄────► how-to-check-condition   (spokes, cross-linked)
+          │                │
+          └──► raw-vs-graded, how-prices-work, /methodology,
+               /deals/graded, /pokemon, /cards
+```
+
+Verified in raw HTML: hub → both spokes; each spoke → hub + sibling spoke
++ `raw-vs-graded`; each spoke → `/methodology` and at least one of
+`/deals/graded` · `/pokemon` · `/cards`. No sitewide/boilerplate link
+injection. Guides remain informational — **0 affiliate hooks** on the new
+pages (test 7).
+
+## Structured data (§11)
+
+- `GuideLayout` already emits `BreadcrumbList` + `Article`. New guides
+  carry a truthful **per-guide `published` date (2026-09-07)** — added a
+  `published` field to `lib/guides.js` and `GuideLayout` now reads
+  `g.published ?? GUIDES_PUBLISHED`, so a new guide's Article
+  `datePublished` / `dateModified` is its real date, never the
+  original-batch default and never a build time.
+- Each spoke has a visible FAQ restated from its own body, with matching
+  `FAQPage` JSON-LD — same pattern as the hub. Added because the Q&A is
+  genuinely on the page, not to chase a rich result.
+
+## GSC baseline (§13)
+
+| page | window | clicks | impr | CTR | avg pos | queries |
+|---|---|---:|---:|---:|---:|---:|
+| `/guides/card-condition-grading` | 2026-08-01 → 09-09 | **0** | **79** | **0%** | **64** | 25 |
+| `/guides/pokemon-card-grading-scale` | — | 0 | 0 | — | — | 0 (created 2026-09-07) |
+| `/guides/how-to-check-pokemon-card-condition` | — | 0 | 0 | — | — | 0 (created 2026-09-07) |
+
+**Measurement window:** compare a 28-day window ending **~2026-11-05**
+(≈4 weeks after this deploy plus GSC's ~3-day lag) against the pre-change
+baseline above. Expect movement in *impressions / average position* for
+the grade-number and how-to queries before any clicks — the domain is
+still new (SEO-GSC-1 P0).
+
+## Indexability / crawl (§14)
+
+Both new guides: server-render full content (81 KB / 76 KB raw HTML,
+tables + headings present pre-hydration), self-canonical, no robots meta,
+listed automatically on `/guides` (index maps `GUIDES`) and in the
+`pages` sitemap segment (`lib/sitemap.js` maps `GUIDES`), reachable from
+the hub + the sibling spoke + the footer "Browse → Buying Guides" link
+(SEO-GSC-2). Not orphaned. **No manual GSC indexing requests.**
+
+## Tests & build (§15)
+
+- `npm run test:scanner` — **1381 / 1381**.
+- `npm run test:seo` — **357 / 357** (12 new in
+  `tests/seo/gsc3-grading-cluster.test.mjs` + the 2 new slugs added to
+  `pages.test.mjs`): two guides only / rejected-comparison not created;
+  truthful per-guide publish date, no `Date.now()`; no fabricated year or
+  clickbait; grading-claim hedging + no population data; distinct
+  titles/H1; hub↔spoke↔spoke links; informational (no affiliate hooks);
+  200 / self-canonical / indexable / server-rendered; table content in
+  raw HTML; `/guides` + sitemap inclusion; hub original content preserved.
+- `npm run build` — **✓ Compiled successfully** (both guides prerendered
+  static).
+
+## Production verification (§16)
+
+Verified against a local `next start` (Googlebot UA + client) —
+**re-verify on the deployed domain after merge:** both new guides 200,
+full raw HTML, correct self-canonical, no noindex, hub/spoke links
+resolve, tables scroll rather than overflow on narrow viewports, no
+hydration mismatch. Hub unchanged except the two new outbound links.

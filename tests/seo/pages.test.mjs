@@ -33,6 +33,8 @@ const STATIC_PATHS = [
   "/guides/raw-vs-graded-pokemon-cards",
   "/guides/vintage-vs-modern-pokemon-cards",
   "/guides/how-pokemon-card-prices-work",
+  "/guides/pokemon-card-grading-scale",
+  "/guides/how-to-check-pokemon-card-condition",
 ];
 
 // Dynamic types to sample from the sitemap.

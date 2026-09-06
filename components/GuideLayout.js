@@ -20,13 +20,16 @@ export default function GuideLayout({ slug, children }) {
     ],
   };
 
+  // A guide's own truthful publish date when it has one, else the
+  // original-batch default. Never a build/deploy timestamp.
+  const published = g.published ?? GUIDES_PUBLISHED;
   const articleJsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: g.title,
     description: g.blurb,
-    datePublished: GUIDES_PUBLISHED,
-    dateModified: GUIDES_PUBLISHED,
+    datePublished: published,
+    dateModified: published,
     author: { "@id": `${SITE_URL}/#organization` },
     publisher: { "@id": `${SITE_URL}/#organization` },
     mainEntityOfPage: `${SITE_URL}/guides/${slug}`,
