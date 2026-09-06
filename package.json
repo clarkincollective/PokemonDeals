@@ -22,7 +22,8 @@
     "history:backfill": "node scripts/ppt-history-backfill.mjs",
     "social:preview": "node scripts/socialPreview.mjs",
     "social:daily": "node scripts/socialDaily.mjs",
-    "social:assets": "node scripts/socialAssets.mjs"
+    "social:assets": "node scripts/socialAssets.mjs",
+    "social:video": "node scripts/socialVideo.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",
@@ -39,6 +40,8 @@
     "@tailwindcss/postcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
+    "ffmpeg-static": "^5.2.0",
+    "ffprobe-static": "^3.1.0",
     "tailwindcss": "^4",
     "vercel": "^59.5.0"
   }
