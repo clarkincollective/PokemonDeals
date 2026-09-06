@@ -314,18 +314,21 @@ test("16. outgoing copy is normalised to unaccented Pokemon; a preserved title i
 
 // === 17 / 18 / 19 : the first-batch records =========================
 
-test("17. the packz email record: verified recipient, approved-for-test, real prospect NOT sent", () => {
+test("17. the packz email record: real owner-authorized send (SEO-GSC-5.2B) landed on QUEUED, not SENT", () => {
   const r = RECORDS.find((x) => x.id === "packz");
   assert.ok(r);
   assert.equal(r.contactType, "EMAIL");
   assert.equal(r.recipient, "support@packz.io");
   assert.match(r.body, /I run PokemonDealFinder/);
-  // owner approved it for a TEST-recipient send; the real prospect was
-  // never queued or sent (that state comes only from a NON-test submit).
-  assert.ok(["DRAFT", "APPROVED"].includes(r.status), `unexpected status ${r.status}`);
-  assert.notEqual(r.status, "QUEUED");
-  assert.notEqual(r.status, "SENT");
-  assert.ok(!r.queuedAt && !r.sentAt && !r.providerRef, "no delivery field set for the real prospect");
+  // 2026-09-06: explicit per-record owner approval -> one real Instantly
+  // lead. A provider-accepted lead is QUEUED; SENT comes ONLY from a later
+  // sync on real send evidence.
+  assert.equal(r.status, "QUEUED", `unexpected status ${r.status}`);
+  assert.equal(r.provider, "instantly");
+  assert.ok(r.providerRef, "a real provider lead ref was stored");
+  assert.ok(r.queuedAt, "queuedAt stamped at submit");
+  assert.equal(r.sentAt, null, "sentAt must NOT be set from the local clock");
+  assert.equal(r.lastError, null);
 });
 
 test("18. a voxbooster email record exists in DRAFT and carries snapshot placeholders (frozen at approve)", () => {
@@ -339,7 +342,7 @@ test("18. a voxbooster email record exists in DRAFT and carries snapshot placeho
   assert.match(r.body, /priced,? English,? non-specialty cards/i, "keeps the population qualifier");
 });
 
-test("19. SEO-GSC-5 Batch 1: the expected records exist and NONE is queued or sent", () => {
+test("19. Batch 1 record set: packz + pokemonpricetracker QUEUED (SEO-GSC-5.2B authorized send); everyone else DRAFT; nothing SENT", () => {
   assert.deepEqual(
     RECORDS.map((r) => r.id).sort(),
     [
@@ -354,25 +357,29 @@ test("19. SEO-GSC-5 Batch 1: the expected records exist and NONE is queued or se
     ],
     "exactly the 10D records + the 4 new SEO-GSC-5 records"
   );
-  // SEO-GSC-5 added a real email prospect (PokemonPriceTracker) - but only
-  // as a DRAFT. It must never carry a delivery field or a non-DRAFT status.
+
+  // The ONLY two records the owner authorized for a real send.
+  const QUEUED_OK = new Set(["packz", "pokemonpricetracker"]);
   const ppt = RECORDS.find((r) => r.id === "pokemonpricetracker");
   assert.equal(ppt.contactType, "EMAIL");
-  assert.equal(ppt.status, "DRAFT");
+  assert.equal(ppt.status, "QUEUED");
   assert.equal(ppt.recipient, "pokepricetracker@proton.me");
-  assert.ok(!ppt.approvedAt && !ppt.queuedAt && !ppt.sentAt && !ppt.providerRef);
-  // the whole file: nothing was approved / queued / sent by this phase
+  assert.ok(ppt.approvedAt && ppt.queuedAt && ppt.providerRef, "approved + queued + has a lead ref");
+  assert.equal(ppt.sentAt, null, "no fabricated sentAt");
+
   for (const r of RECORDS) {
-    assert.ok(!["QUEUED", "SENT"].includes(r.status), `${r.id} status ${r.status}`);
-    assert.ok(!r.queuedAt && !r.sentAt && !r.providerRef, `${r.id} has a delivery field`);
-  }
-  // packz keeps the one pre-existing APPROVED-for-test state; everything
-  // else is DRAFT.
-  for (const r of RECORDS) {
-    assert.ok(
-      r.id === "packz" ? ["DRAFT", "APPROVED"].includes(r.status) : r.status === "DRAFT",
-      `${r.id} unexpected status ${r.status}`
-    );
+    // no record is SENT - that transition needs real Instantly send evidence
+    assert.notEqual(r.status, "SENT", `${r.id} must not be SENT without provider evidence`);
+    assert.equal(r.sentAt ?? null, null, `${r.id} has a sentAt`);
+    if (QUEUED_OK.has(r.id)) {
+      assert.equal(r.status, "QUEUED", `${r.id} should be QUEUED`);
+      assert.equal(r.provider, "instantly");
+      assert.ok(r.providerRef && r.queuedAt, `${r.id} missing a real delivery ref`);
+    } else {
+      // every other prospect is untouched by the send
+      assert.equal(r.status, "DRAFT", `${r.id} unexpected status ${r.status}`);
+      assert.ok(!r.queuedAt && !r.providerRef, `${r.id} has a delivery field it should not`);
+    }
   }
 });
 
@@ -530,25 +537,22 @@ test("C17. every email record records why the public contact was appropriate", (
   }
 });
 
-test("C13/C14/C15/C20. the 10D prospects (packz + voxbooster) are unchanged by SEO-GSC-5", () => {
+test("C13/C14/C15/C20. voxbooster stays untouched; packz sent for real in SEO-GSC-5.2B (QUEUED, not SENT)", () => {
   const packz = RECORDS.find((r) => r.id === "packz");
   const vox = RECORDS.find((r) => r.id === "voxbooster");
+  // voxbooster was NOT in any authorized send - still a pristine DRAFT
   assert.equal(vox.status, "DRAFT");
-  // packz was approved for a test-recipient send; still never a real send
-  assert.ok(["DRAFT", "APPROVED"].includes(packz.status));
-  for (const r of [packz, vox]) {
-    assert.notEqual(r.status, "QUEUED");
-    assert.notEqual(r.status, "SENT");
-    assert.ok(!r.queuedAt, `${r.id} has a queuedAt`);
-    assert.ok(!r.sentAt, `${r.id} has a sentAt`);
-    assert.ok(!r.providerRef, `${r.id} has a providerRef`);
-  }
-  // bodies + recipients + target pages are byte-for-byte the 10D copy
+  assert.ok(!vox.queuedAt && !vox.sentAt && !vox.providerRef, "voxbooster has a delivery field");
+  assert.match(vox.body, /^I run PokemonDealFinder \(pokemondealfinder\.com\)\. Your Trading Card Statistics/);
+  // packz: one authorized real submit -> QUEUED, real lead ref, NO sentAt
+  assert.equal(packz.status, "QUEUED");
+  assert.equal(packz.provider, "instantly");
+  assert.ok(packz.providerRef && packz.queuedAt);
+  assert.equal(packz.sentAt, null, "QUEUED != SENT; sentAt never comes from the local clock");
+  // body + recipient + target page are still the reviewed copy
   assert.match(packz.body, /^I run PokemonDealFinder \(pokemondealfinder\.com\), a free tool/);
   assert.equal(packz.recipient, "support@packz.io");
   assert.equal(packz.targetPage, "https://packz.io/blog/pokemon-card-price-checker");
-  assert.match(vox.body, /^I run PokemonDealFinder \(pokemondealfinder\.com\)\. Your Trading Card Statistics/);
-  // SEO-GSC-5 only *enriched* packz with pure-metadata leaf fields - no gate reads them
   assert.equal(packz.tier, "A");
   assert.equal(packz.linkAcquired, false);
 });
@@ -635,18 +639,22 @@ test("TM5. Resend stays unreachable from the test-mode path", () => {
   assert.doesNotMatch(strip(CLI), /\bsendEmail\s*\(|\bsendBatch\s*\(|from ["'][^"']*\/email(\.js)?["']/);
 });
 
-test("TM6. the current records file reflects the corrected test-mode state", () => {
+test("TM6. the records file reflects the SEO-GSC-5.2B authorized real send", () => {
   const packz = RECORDS.find((r) => r.id === "packz");
-  // stale 401 cleared; real prospect NOT queued / sent; test outcome kept test-safe
-  assert.equal(packz.status, "APPROVED");
+  // one real Instantly submit: QUEUED, real lead ref, queuedAt stamped,
+  // NO fabricated sentAt, no error.
+  assert.equal(packz.status, "QUEUED");
   assert.equal(packz.lastError, null);
-  assert.equal(packz.queuedAt, null);
-  assert.equal(packz.sentAt, null);
-  assert.equal(packz.providerRef, null, "real prospect providerRef must not imply Packz was queued");
-  assert.ok(packz.lastTest && packz.lastTest.ok === true, "the successful test is recorded off the delivery fields");
+  assert.ok(packz.queuedAt, "queuedAt stamped at submit");
+  assert.equal(packz.sentAt, null, "sentAt is set only by sync on real send evidence");
+  assert.equal(packz.provider, "instantly");
+  assert.ok(packz.providerRef, "a real provider lead ref is stored");
+  // the historical 10D test-recipient submit is still recorded, off the
+  // delivery fields, and is distinct from the real lead ref.
+  assert.ok(packz.lastTest && packz.lastTest.ok === true, "the earlier test result is preserved");
   assert.equal(packz.lastTest.to, "clarkincollective@gmail.com");
-  assert.notEqual(packz.lastTest.providerRef, null);
-  // Voxbooster (and the non-email records) untouched
+  assert.notEqual(packz.lastTest.providerRef, packz.providerRef, "test ref != real send ref");
+  // Voxbooster (and the non-email records) untouched by the send
   const vox = RECORDS.find((r) => r.id === "voxbooster");
   assert.equal(vox.status, "DRAFT");
   assert.equal(vox.lastError, null);

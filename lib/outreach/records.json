@@ -14,13 +14,13 @@
     "subjectAlt": "One tool category missing from your Pokemon price-check post",
     "body": "I run PokemonDealFinder (pokemondealfinder.com), a free tool that compares live eBay Pokemon card listings against recent market references and surfaces the ones that appear to be priced below market.\n\nYour post on the best websites for checking Pokemon card prices covers the valuation and scanner side well - PriceCharting, TCGplayer, PokeScreener and the rest. One adjacent use case the piece doesn't cover is finding listings that are currently under market.\n\nIf you ever expand the piece to include tools for that, it might be useful to readers. No worries either way.",
     "snapshot": null,
-    "status": "APPROVED",
+    "status": "QUEUED",
     "createdAt": "2026-09-02T00:00:00.000Z",
     "approvedAt": "2026-09-02T11:13:08.544Z",
     "sentAt": null,
     "followUpAt": null,
     "repliedAt": null,
-    "providerMessageId": null,
+    "providerMessageId": "01a0791e-5c57-73b7-b244-8328d3f2435c",
     "lastError": null,
     "sendLog": [
       {
@@ -42,12 +42,33 @@
         "provider": "instantly",
         "to": "clarkincollective@gmail.com",
         "providerRef": "01a061d3-027e-7e14-8ef9-17c67f766899"
+      },
+      {
+        "at": "2026-09-06T23:47:08.520Z",
+        "kind": "submit",
+        "provider": "instantly",
+        "to": "support@packz.io",
+        "providerRef": "01a0791e-5c57-73b7-b244-8328d3f2435c"
+      },
+      {
+        "at": "2026-09-06T23:47:34.139Z",
+        "kind": "sync",
+        "provider": "instantly",
+        "reading": {
+          "ok": true,
+          "sent": false,
+          "sentAt": null,
+          "bounced": false,
+          "unsubscribed": false,
+          "leadStatusRaw": 1
+        },
+        "result": "QUEUED"
       }
     ],
-    "providerRef": null,
-    "provider": null,
-    "queuedAt": null,
-    "syncedAt": null,
+    "providerRef": "01a0791e-5c57-73b7-b244-8328d3f2435c",
+    "provider": "instantly",
+    "queuedAt": "2026-09-06T23:47:08.521Z",
+    "syncedAt": "2026-09-06T23:47:34.138Z",
     "lastTest": {
       "at": "2026-09-02T11:13:34.209Z",
       "ok": true,
@@ -170,20 +191,42 @@
     "subjectAlt": "What each grade from 1 to 10 actually means",
     "body": "I run PokemonDealFinder (pokemondealfinder.com). We recently published a plain explainer of what each grade from 1 to 10 actually means, and what usually separates a 7, 8, 9 and 10 in practice: pokemondealfinder.com/guides/pokemon-card-grading-scale\n\nYour \"PSA vs CGC vs BGS\" slab guide compares the grading companies and helps readers choose between them; this covers the separate question of what the number itself means, in plain terms. It is free to read, no signup. If it is ever a useful pointer for readers of that guide, it is there - no worries either way.",
     "snapshot": null,
-    "status": "DRAFT",
+    "status": "QUEUED",
     "createdAt": "2026-09-07T00:00:00.000Z",
-    "approvedAt": null,
+    "approvedAt": "2026-09-06T23:46:34.956Z",
     "sentAt": null,
     "followUpAt": null,
     "repliedAt": null,
-    "providerMessageId": null,
+    "providerMessageId": "01a0791e-a743-7f25-b3b4-9224b567d627",
     "lastError": null,
-    "sendLog": [],
+    "sendLog": [
+      {
+        "at": "2026-09-06T23:47:27.691Z",
+        "kind": "submit",
+        "provider": "instantly",
+        "to": "pokepricetracker@proton.me",
+        "providerRef": "01a0791e-a743-7f25-b3b4-9224b567d627"
+      },
+      {
+        "at": "2026-09-06T23:47:34.602Z",
+        "kind": "sync",
+        "provider": "instantly",
+        "reading": {
+          "ok": true,
+          "sent": false,
+          "sentAt": null,
+          "bounced": false,
+          "unsubscribed": false,
+          "leadStatusRaw": 1
+        },
+        "result": "QUEUED"
+      }
+    ],
     "note": "SEO-GSC-5 Batch 1. Angle re-verified 2026-09-07: their blog compares grading companies by value retention but has no systematic 'what each grade means' explainer - our page is a genuine companion, not a competitor. SEO-GSC-5.1 human-review pass 2026-09-07: dropped an unverifiable 'no affiliate links' line from the body (our grading-scale guide carries a site-wide eBay/TCGplayer affiliate disclosure in its footer); replaced with 'free to read, no signup', which is verified true. Email DRAFT only - NOT approved, NOT queued, NOT sent.",
-    "providerRef": null,
-    "provider": null,
-    "queuedAt": null,
-    "syncedAt": null,
+    "providerRef": "01a0791e-a743-7f25-b3b4-9224b567d627",
+    "provider": "instantly",
+    "queuedAt": "2026-09-06T23:47:27.692Z",
+    "syncedAt": "2026-09-06T23:47:34.601Z",
     "prospectType": "market_analysis",
     "tier": "B",
     "score": 75,
