@@ -148,31 +148,34 @@ test("8. buildMoverPayload THROWS if handed a fail-closed movement (no chart wit
   assert.ok(Array.isArray(p.movement.series) && p.movement.series.length >= 2);
 });
 
-test("9. the Market Mover creative renders a real chart, and fails closed to a chart-free layout when the series is empty", () => {
+test("9. the Market Mover creative renders a real chart (with the real card), and fails closed to a chart-free layout when the series is empty", () => {
   const p = buildMoverPayload({ row: dealRow(), movement: realMovement });
-  const withChart = renderHtml(buildSlideContent(p), { variant: "A" });
+  const art = { presentation: "hero_left", card: { fileUrl: "file:///cache/12345.jpg" } };
+  const withChart = renderHtml(buildSlideContent(p), { variant: "A", cardArtwork: art });
   assert.match(withChart, /<svg /);
   assert.match(withChart, /class="chart"/);
+  assert.match(withChart, /class="card-art"/); // 13E.3C: the card is part of the Mover identity
   assert.match(withChart, /class="disclosure">Ad</);
 
   const empty = buildSlideContent({ ...p, movement: { ...p.movement, series: [] } });
-  const html = renderHtml(empty, { variant: "A" });
-  assert.doesNotMatch(html, /class="chart"/); // no chart element at all
+  const html = renderHtml(empty, { variant: "A", cardArtwork: art });
+  assert.doesNotMatch(html, /class="chart"/); // no confident chart -> chart element dropped
   assert.match(html, /class="disclosure">Ad</); // still a complete creative
 });
 
 // === 4. HOOK CAROUSEL SEQUENCING (deterministic; a final CTA slide) ===
 
-test("10. buildCarouselSequence is deterministic: cover, one slide per deal (capped), then a fixed close slide", () => {
-  const deals = [1, 2, 3].map((id) => dealRow({ id }));
+test("10. buildCarouselSequence is deterministic: cover, one slide per DISTINCT card (capped), then a fixed close slide", () => {
+  const deals = [1, 2, 3].map((id) => dealRow({ id, card_tcgplayer_id: String(id), card_name: "Species" + id }));
   const a = buildCarouselSequence(deals);
   const b = buildCarouselSequence(deals);
   assert.deepEqual(a.slides.map((s) => s.kind), b.slides.map((s) => s.kind));
   assert.equal(a.slides[0].kind, "cover");
   assert.equal(a.slides[a.slides.length - 1].kind, "close"); // a final CTA / brand slide ALWAYS exists
-  assert.equal(a.count, deals.length + 2);
+  assert.equal(a.count, deals.length + 2); // 3 distinct -> cover + 3 + close
+  assert.equal(a.distinctCount, 3);
   // capped
-  const many = Array.from({ length: 20 }, (_, i) => dealRow({ id: i }));
+  const many = Array.from({ length: 20 }, (_, i) => dealRow({ id: i, card_tcgplayer_id: String(1000 + i), card_name: "P" + i }));
   assert.ok(buildCarouselSequence(many).count <= FAMILY_SPECS.hook_carousel.sequence.maxSlides);
   // too few -> not ok
   assert.equal(buildCarouselSequence([]).ok, false);
@@ -287,4 +290,99 @@ test("19. every family's content types resolve back to that family", () => {
     }
   }
   assert.equal(familyForContentType("nope"), null);
+});
+
+// === 10. HOOK CAROUSEL - DISTINCT CARD IDENTITIES (13E.3C) ============
+
+const cRow = (over = {}) => dealRow({
+  id: over.id, card_tcgplayer_id: over.card_tcgplayer_id,
+  card_name: over.card_name ?? "Charizard", card_set: over.card_set ?? "Base Set",
+});
+
+test("20. a carousel never shows the same exact printing twice", () => {
+  const rows = [
+    cRow({ id: 1, card_tcgplayer_id: "100", card_name: "Charizard", card_set: "Base Set" }),
+    cRow({ id: 2, card_tcgplayer_id: "100", card_name: "Charizard", card_set: "Base Set" }), // exact dup id
+    cRow({ id: 3, card_tcgplayer_id: null, card_name: "Pikachu", card_set: "Jungle" }),
+    cRow({ id: 4, card_tcgplayer_id: null, card_name: "pikachu", card_set: "jungle" }),      // dup name|set
+    cRow({ id: 5, card_tcgplayer_id: "200", card_name: "Blastoise", card_set: "Base Set" }),
+  ];
+  const seq = buildCarouselSequence(rows);
+  const cards = seq.slides.filter((s) => s.kind === "card").map((s) => s.deal);
+  const keyOf = (d) => (/^\d+$/.test(String(d.card_tcgplayer_id ?? "")) ? "tcg:" + d.card_tcgplayer_id
+    : "ns:" + String(d.card_name).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() + "|" + String(d.card_set).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim());
+  const keys = cards.map(keyOf);
+  assert.equal(new Set(keys).size, keys.length, "no printing repeats");
+  assert.equal(cards.length, 3); // Charizard, Pikachu, Blastoise
+});
+
+test("21. a carousel prefers distinct Pokemon when enough alternatives exist", () => {
+  const rows = [
+    cRow({ id: 1, card_tcgplayer_id: "1", card_name: "Charizard", card_set: "Base Set" }),
+    cRow({ id: 2, card_tcgplayer_id: "2", card_name: "Charizard", card_set: "Base Set 2" }), // 2nd Charizard printing
+    cRow({ id: 3, card_tcgplayer_id: "3", card_name: "Pikachu", card_set: "Jungle" }),
+    cRow({ id: 4, card_tcgplayer_id: "4", card_name: "Blastoise", card_set: "Base Set" }),
+  ];
+  const cards = buildCarouselSequence(rows).slides.filter((s) => s.kind === "card").map((s) => s.deal.id);
+  // the 2nd Charizard (id 2) is a filler and comes AFTER the distinct-species cards
+  assert.deepEqual(cards, [1, 3, 4, 2]);
+});
+
+test("22. carousel sequencing is deterministic for a given input", () => {
+  const rows = [1, 2, 3, 4].map((id) => cRow({ id, card_tcgplayer_id: String(id), card_name: "P" + id }));
+  const a = buildCarouselSequence(rows).slides.map((s) => `${s.kind}:${s.deal ? s.deal.id : ""}`);
+  const b = buildCarouselSequence(rows).slides.map((s) => `${s.kind}:${s.deal ? s.deal.id : ""}`);
+  assert.deepEqual(a, b);
+});
+
+test("23. not enough distinct cards -> a SHORTER carousel and a truthful count (never a duplicate)", () => {
+  const rows = [
+    cRow({ id: 1, card_tcgplayer_id: "9", card_name: "Gyarados" }),
+    cRow({ id: 2, card_tcgplayer_id: "9", card_name: "Gyarados" }),
+    cRow({ id: 3, card_tcgplayer_id: "9", card_name: "Gyarados" }),
+    cRow({ id: 4, card_tcgplayer_id: null, card_name: "Gyarados", card_set: "X" }),
+    cRow({ id: 5, card_tcgplayer_id: null, card_name: "gyarados", card_set: "x" }),
+  ];
+  const seq = buildCarouselSequence(rows);
+  const cards = seq.slides.filter((s) => s.kind === "card");
+  assert.equal(seq.distinctCount, 2);          // tcg:9  +  ns:gyarados|x
+  assert.equal(cards.length, 2);
+  assert.equal(seq.count, 4);                   // cover + 2 + close
+  assert.equal(seq.slides[seq.slides.length - 1].kind, "close");
+});
+
+test("24. the cover slide count and hook match the DISTINCT content-slide count, not the raw input", () => {
+  const payload = { deal_data: [1, 2, 3, 4, 5, 6, 7].map((id) => cRow({ id })), freshness: { label: "x" } };
+  const rawFallback = buildCoverSlideContent(payload); // no opts -> deal_data.length + 2
+  assert.equal(rawFallback.carousel.total, 9);
+  // with the real deduped numbers from buildCarouselSequence
+  const cover = buildCoverSlideContent(payload, { distinctCount: 3, totalSlides: 5 });
+  assert.equal(cover.carousel.total, 5);
+  assert.match(cover.headline, /^3 Pokemon cards$/);
+  const one = buildCoverSlideContent(payload, { distinctCount: 1, totalSlides: 3 });
+  assert.match(one.headline, /^1 Pokemon card$/); // singular
+});
+
+// === 11. MARKET MOVER - CARD ART IS PART OF THE IDENTITY (13E.3C) =====
+
+test("25. a Market Mover creative renders BOTH the real card and the real chart in variant A and variant B", () => {
+  const p = buildMoverPayload({ row: dealRow(), movement: realMovement });
+  const slide = buildSlideContent(p);
+  const art = { presentation: "hero_left", card: { fileUrl: "file:///cache/12345.jpg" } };
+  for (const variant of ["A", "B"]) {
+    const html = renderHtml(slide, { variant, cardArtwork: art });
+    assert.match(html, /<svg /, `${variant}: has the chart`);
+    assert.match(html, /class="card-art" src="file:\/\/\/cache\/12345\.jpg"/, `${variant}: has the real card`);
+    assert.match(html, /class="disclosure">Ad</);
+  }
+});
+
+test("26. a Market Mover with NO resolvable card art fails closed to identity + figure - never a chart-only premium creative", () => {
+  const p = buildMoverPayload({ row: dealRow(), movement: realMovement });
+  const slide = buildSlideContent(p);
+  const html = renderHtml(slide, { variant: "A", cardArtwork: null });
+  assert.doesNotMatch(html, /class="chart"/); // the chart element is dropped
+  assert.doesNotMatch(html, /<img/i);         // no card image
+  assert.match(html, /class="disclosure">Ad</); // still a complete (minimal) slide
+  assert.match(html, /\+17%/); // the movement figure is still stated
 });

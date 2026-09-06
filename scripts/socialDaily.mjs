@@ -259,20 +259,44 @@ async function generate() {
     }
   }
 
-  // Phase 13E.3 - resolve a Market Mover BEFORE rendering (one bounded
-  // price_history probe over the top flagship cards). Fails closed.
+  // Phase 13E.3 / 13E.3C - resolve a Market Mover BEFORE rendering. A
+  // Market Mover post requires BOTH a real confident price movement AND
+  // the real canonical card artwork for that exact printing - a
+  // chart-only creative is not shipped. If either can't be resolved we
+  // fail closed: no Market Mover post.
   let moverEntry = null;
   try {
     const ranked = rankFlagshipDeals(socialBinPool(rows, now), { freshnessOf: (r) => dealFreshness(r), limit: 12 });
     const { candidate } = await pickMarketMover(ranked, { maxProbe: 8 });
     if (candidate) {
-      const payload = buildMoverPayload({ row: candidate.row, movement: candidate.movement, now });
-      moverEntry = {
-        family: "market-mover",
-        payload,
-        reasonSelected: `Real ${candidate.movement.direction} movement ${Math.round(candidate.movement.pct * 100)}% over ${candidate.movement.windowLabel} - ${payload.subject.display_name}.`,
-        cooldownKeys: buildCooldownKeys(payload),
-      };
+      let art = { status: "skipped" };
+      if (RIGHTS_STATE.card_image === "CLEARED") {
+        const id = String(candidate.row.card_tcgplayer_id ?? "");
+        let catalogRow = catalogById[id] ?? null;
+        if (!catalogRow && /^\d+$/.test(id)) {
+          try {
+            const { byId } = await fetchCatalogRows([id]);
+            catalogRow = byId[id] ?? null;
+          } catch {
+            /* fall back to URL self-consistency */
+          }
+        }
+        art = await resolveCardArtwork(
+          { card_tcgplayer_id: candidate.row.card_tcgplayer_id, card_name: candidate.row.card_name, card_set: candidate.row.card_set },
+          { rightsState: RIGHTS_STATE, catalogRow, cacheDir: CARD_ART_CACHE_DIR }
+        );
+      }
+      if (art.status === "ready") {
+        const payload = buildMoverPayload({ row: candidate.row, movement: candidate.movement, now });
+        moverEntry = {
+          family: "market-mover",
+          payload,
+          reasonSelected: `Real ${candidate.movement.direction} movement ${Math.round(candidate.movement.pct * 100)}% over ${candidate.movement.windowLabel}, with verified canonical artwork - ${payload.subject.display_name}.`,
+          cooldownKeys: buildCooldownKeys(payload),
+        };
+      } else {
+        console.warn(`market-mover skipped: exact canonical card artwork could not be resolved (${art.reason ?? art.status}) - fail closed, no chart-only creative`);
+      }
     }
   } catch (e) {
     console.warn(`market-mover probe skipped: ${e && e.message ? e.message : e}`);

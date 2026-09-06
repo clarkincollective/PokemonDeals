@@ -42,6 +42,27 @@ function.
 | **Hook Carousel** | stop scroll on slide 1, earn swipes, close on brand + CTA | cover → `product_hero_split` slides → close | the hook | green from real `discount_pct` |
 | **Brand / Conversion Ad** | explain PokemonDealFinder fast | `brand_ad` (Version D) | the hook | none |
 
+### 13E.3C corrections
+
+- **Hook Carousel — distinct card identities.** `buildCarouselSequence()`
+  never shows the same exact printing twice (dedupe by the P0.3-strict
+  tcgplayer id, else a normalised `name|set`; an unidentifiable row is
+  dropped), and prefers distinct Pokemon (a same-species / different-
+  printing card is only a filler). Deterministic. It does **not** invent
+  replacements: when there aren't enough distinct cards the carousel is
+  **shorter**, `distinctCount` is the truthful number the cover hook
+  states, and the cover's slide count equals the real content-slide
+  count (`buildCoverSlideContent(payload, { distinctCount, totalSlides })`).
+  The final close slide is unchanged.
+- **Market Mover — the card is part of the identity.** A normal Market
+  Mover creative **always** includes the real canonical card artwork
+  alongside the real chart, in both variant A (card rail + chart) and
+  variant B (card stacked above the chart). There is no deliberate
+  chart-only variant. If the exact printing's artwork can't be resolved,
+  `socialDaily` produces **no Market Mover post** (fail closed, same as a
+  missing confident window); the renderer's no-card branch is a minimal
+  identity + figure floor, never a shipped chart-only creative.
+
 `contentTypes` map each existing daily content type onto a family
 (`familyForContentType`). `deal_of_day` / `just_found` → Deal Drop;
 `market_mover` → Market Mover; `pokemon_spotlight` / `set_spotlight` /

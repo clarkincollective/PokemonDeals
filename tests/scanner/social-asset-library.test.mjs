@@ -254,14 +254,35 @@ test("6d. selection is deterministic for a given (content type, rotation key)", 
   assert.ok(["deal_intelligence__A", "deal_intelligence__B", "deal_intelligence__C"].includes(other.id));
 });
 
-test("6e. an all-planned manifest yields no background (Mode B stands)", () => {
-  const { manifest } = loadAssetManifest(MANIFEST_PATH);
-  assert.ok(manifest, "committed manifest loads");
+test("6e. a manifest with NO approved asset yields no background (Mode B stands)", () => {
+  // Synthetic all-planned/generated manifest - none approved. (The
+  // committed manifest now carries human-approved assets from 13E.3C, so
+  // the "nothing in rotation" property is tested against a clean fixture.)
+  const m = fakeManifest([
+    { ...approvedEntry({ id: "deal_intelligence__A" }), status: "planned", file: null, qa: null },
+    { ...approvedEntry({ id: "just_found__A", category: "just_found" }), status: "generated" },
+  ]);
   for (const ct of DAILY_CONTENT_TYPES) {
-    assert.equal(pickAssetForContentType(ct, { manifest, rotationKey: "2026-09-06", existsFn: allExist }), null);
+    assert.equal(pickAssetForContentType(ct, { manifest: m, rotationKey: "2026-09-06", existsFn: allExist }), null);
   }
   const payload = buildDealPayload({ contentType: "deal_of_day", row: dealRow(), utmCampaign: "deal_of_day" });
-  assert.equal(resolveBackgroundForPost(payload, { manifest, existsFn: allExist }), null);
+  assert.equal(resolveBackgroundForPost(payload, { manifest: m, existsFn: allExist }), null);
+});
+
+test("6f. the committed manifest's approved assets ARE selectable when their file is on disk", () => {
+  const { manifest } = loadAssetManifest(MANIFEST_PATH);
+  const approved = manifest.assets.filter((a) => a.status === "approved");
+  if (approved.length === 0) return; // nothing approved yet - nothing to assert
+  // every approved entry: file path points at assets/social/approved/, all 5 QA PASS
+  for (const a of approved) {
+    assert.match(a.file, /^assets\/social\/approved\//, `${a.id} approved file location`);
+    assert.ok(QA_CHECKS.every((c) => a.qa[c] === "PASS"), `${a.id} all QA PASS`);
+  }
+  // with existsFn saying the files are present, a category that has an
+  // approved asset resolves one (deterministically).
+  const cat = approved[0].category;
+  const picked = approvedAssetsForCategory(manifest, cat, { existsFn: () => true });
+  assert.ok(picked.length >= 1, `${cat} resolves an approved background`);
 });
 
 // === 7. renderer: Mode B unchanged; background overlay preserves everything ===
@@ -353,11 +374,19 @@ test("8b. the committed manifest holds its durable invariants: 30 valid assets, 
     }
   }
 
-  // counts.approved is honest, and the committed baseline approves nothing -
-  // approval only ever happens as an explicit later step.
+  // counts.approved is honest. Any approved asset must have gone through
+  // the full gate: a file under assets/social/approved/ + all 5 QA PASS +
+  // an approved_date. (13E.3C: the human approved 12 backgrounds.)
   const approved = manifest.assets.filter((a) => a.status === "approved");
   assert.equal(manifest.counts.approved, approved.length, "counts.approved matches the real approved count");
-  assert.equal(approved.length, 0, "committed baseline approves nothing");
+  for (const a of approved) {
+    assert.match(a.file, /^assets\/social\/approved\//, `${a.id}: approved PNGs live in assets/social/approved/`);
+    assert.ok(a.qa && QA_CHECKS.every((c) => a.qa[c] === "PASS"), `${a.id}: all 5 QA PASS`);
+    assert.ok(a.approved_date, `${a.id}: has an approved_date`);
+    assert.ok(a.generated_file, `${a.id}: keeps its generated_file provenance`);
+  }
+  // and generation still never auto-approves: no `generated` asset is approved
+  assert.equal(manifest.assets.filter((a) => a.status === "generated" && a.approved_date).length, 0);
 
   // --- rotation gate: social:daily only ever sees approved + all-QA-PASS + file-on-disk ---
   // a `generated` (un-approved) asset is NOT rotation-eligible, even if every QA check is hand-set to PASS.

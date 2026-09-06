@@ -20,9 +20,9 @@
   ],
   "counts": {
     "planned": 17,
-    "generated": 13,
-    "approved": 0,
-    "rejected": 0
+    "generated": 0,
+    "approved": 12,
+    "rejected": 1
   },
   "assets": [
     {
@@ -53,18 +53,19 @@
         }
       },
       "prompt_spec_version": "13e3-v1",
-      "status": "generated",
-      "file": "assets/social/generated/auction_watch/auction_watch__A.png",
+      "status": "approved",
+      "file": "assets/social/approved/auction_watch/auction_watch__A.png",
       "generated_date": "2026-09-06",
-      "approved_date": null,
+      "approved_date": "2026-09-06",
       "qa": {
-        "generated_background": "PENDING",
-        "copyright_risk": "PENDING",
-        "brand_fit": "PENDING",
-        "text_legibility": "PENDING",
-        "ai_artifact": "PENDING"
+        "generated_background": "PASS",
+        "copyright_risk": "PASS",
+        "brand_fit": "PASS",
+        "text_legibility": "PASS",
+        "ai_artifact": "PASS"
       },
-      "notes": ""
+      "notes": "",
+      "generated_file": "assets/social/generated/auction_watch/auction_watch__A.png"
     },
     {
       "id": "auction_watch__B",
@@ -94,18 +95,19 @@
         }
       },
       "prompt_spec_version": "13e3-v1",
-      "status": "generated",
-      "file": "assets/social/generated/auction_watch/auction_watch__B.png",
+      "status": "approved",
+      "file": "assets/social/approved/auction_watch/auction_watch__B.png",
       "generated_date": "2026-09-06",
-      "approved_date": null,
+      "approved_date": "2026-09-06",
       "qa": {
-        "generated_background": "PENDING",
-        "copyright_risk": "PENDING",
-        "brand_fit": "PENDING",
-        "text_legibility": "PENDING",
-        "ai_artifact": "PENDING"
+        "generated_background": "PASS",
+        "copyright_risk": "PASS",
+        "brand_fit": "PASS",
+        "text_legibility": "PASS",
+        "ai_artifact": "PASS"
       },
-      "notes": ""
+      "notes": "",
+      "generated_file": "assets/social/generated/auction_watch/auction_watch__B.png"
     },
     {
       "id": "auction_watch__C",
@@ -135,7 +137,7 @@
         }
       },
       "prompt_spec_version": "13e3-v1",
-      "status": "generated",
+      "status": "rejected",
       "file": "assets/social/generated/auction_watch/auction_watch__C.png",
       "generated_date": "2026-09-06",
       "approved_date": null,
@@ -281,18 +283,19 @@
         }
       },
       "prompt_spec_version": "13e3-v1",
-      "status": "generated",
-      "file": "assets/social/generated/deal_intelligence/deal_intelligence__A.png",
+      "status": "approved",
+      "file": "assets/social/approved/deal_intelligence/deal_intelligence__A.png",
       "generated_date": "2026-09-06",
-      "approved_date": null,
+      "approved_date": "2026-09-06",
       "qa": {
-        "generated_background": "PENDING",
-        "copyright_risk": "PENDING",
-        "brand_fit": "PENDING",
-        "text_legibility": "PENDING",
-        "ai_artifact": "PENDING"
+        "generated_background": "PASS",
+        "copyright_risk": "PASS",
+        "brand_fit": "PASS",
+        "text_legibility": "PASS",
+        "ai_artifact": "PASS"
       },
-      "notes": ""
+      "notes": "",
+      "generated_file": "assets/social/generated/deal_intelligence/deal_intelligence__A.png"
     },
     {
       "id": "deal_intelligence__B",
@@ -322,18 +325,19 @@
         }
       },
       "prompt_spec_version": "13e3-v1",
-      "status": "generated",
-      "file": "assets/social/generated/deal_intelligence/deal_intelligence__B.png",
+      "status": "approved",
+      "file": "assets/social/approved/deal_intelligence/deal_intelligence__B.png",
       "generated_date": "2026-09-06",
-      "approved_date": null,
+      "approved_date": "2026-09-06",
       "qa": {
-        "generated_background": "PENDING",
-        "copyright_risk": "PENDING",
-        "brand_fit": "PENDING",
-        "text_legibility": "PENDING",
-        "ai_artifact": "PENDING"
+        "generated_background": "PASS",
+        "copyright_risk": "PASS",
+        "brand_fit": "PASS",
+        "text_legibility": "PASS",
+        "ai_artifact": "PASS"
       },
-      "notes": ""
+      "notes": "",
+      "generated_file": "assets/social/generated/deal_intelligence/deal_intelligence__B.png"
     },
     {
       "id": "deal_intelligence__C",
@@ -398,18 +402,19 @@
         }
       },
       "prompt_spec_version": "13e3-v1",
-      "status": "generated",
-      "file": "assets/social/generated/just_found/just_found__A.png",
+      "status": "approved",
+      "file": "assets/social/approved/just_found/just_found__A.png",
       "generated_date": "2026-09-06",
-      "approved_date": null,
+      "approved_date": "2026-09-06",
       "qa": {
-        "generated_background": "PENDING",
-        "copyright_risk": "PENDING",
-        "brand_fit": "PENDING",
-        "text_legibility": "PENDING",
-        "ai_artifact": "PENDING"
+        "generated_background": "PASS",
+        "copyright_risk": "PASS",
+        "brand_fit": "PASS",
+        "text_legibility": "PASS",
+        "ai_artifact": "PASS"
       },
-      "notes": ""
+      "notes": "",
+      "generated_file": "assets/social/generated/just_found/just_found__A.png"
     },
     {
       "id": "just_found__B",
@@ -439,18 +444,19 @@
         }
       },
       "prompt_spec_version": "13e3-v1",
-      "status": "generated",
-      "file": "assets/social/generated/just_found/just_found__B.png",
+      "status": "approved",
+      "file": "assets/social/approved/just_found/just_found__B.png",
       "generated_date": "2026-09-06",
-      "approved_date": null,
+      "approved_date": "2026-09-06",
       "qa": {
-        "generated_background": "PENDING",
-        "copyright_risk": "PENDING",
-        "brand_fit": "PENDING",
-        "text_legibility": "PENDING",
-        "ai_artifact": "PENDING"
+        "generated_background": "PASS",
+        "copyright_risk": "PASS",
+        "brand_fit": "PASS",
+        "text_legibility": "PASS",
+        "ai_artifact": "PASS"
       },
-      "notes": ""
+      "notes": "",
+      "generated_file": "assets/social/generated/just_found/just_found__B.png"
     },
     {
       "id": "just_found__C",
@@ -515,18 +521,19 @@
         }
       },
       "prompt_spec_version": "13e3-v1",
-      "status": "generated",
-      "file": "assets/social/generated/market_watch/market_watch__A.png",
+      "status": "approved",
+      "file": "assets/social/approved/market_watch/market_watch__A.png",
       "generated_date": "2026-09-06",
-      "approved_date": null,
+      "approved_date": "2026-09-06",
       "qa": {
-        "generated_background": "PENDING",
-        "copyright_risk": "PENDING",
-        "brand_fit": "PENDING",
-        "text_legibility": "PENDING",
-        "ai_artifact": "PENDING"
+        "generated_background": "PASS",
+        "copyright_risk": "PASS",
+        "brand_fit": "PASS",
+        "text_legibility": "PASS",
+        "ai_artifact": "PASS"
       },
-      "notes": ""
+      "notes": "",
+      "generated_file": "assets/social/generated/market_watch/market_watch__A.png"
     },
     {
       "id": "market_watch__B",
@@ -556,18 +563,19 @@
         }
       },
       "prompt_spec_version": "13e3-v1",
-      "status": "generated",
-      "file": "assets/social/generated/market_watch/market_watch__B.png",
+      "status": "approved",
+      "file": "assets/social/approved/market_watch/market_watch__B.png",
       "generated_date": "2026-09-06",
-      "approved_date": null,
+      "approved_date": "2026-09-06",
       "qa": {
-        "generated_background": "PENDING",
-        "copyright_risk": "PENDING",
-        "brand_fit": "PENDING",
-        "text_legibility": "PENDING",
-        "ai_artifact": "PENDING"
+        "generated_background": "PASS",
+        "copyright_risk": "PASS",
+        "brand_fit": "PASS",
+        "text_legibility": "PASS",
+        "ai_artifact": "PASS"
       },
-      "notes": ""
+      "notes": "",
+      "generated_file": "assets/social/generated/market_watch/market_watch__B.png"
     },
     {
       "id": "market_watch__C",
@@ -632,18 +640,19 @@
         }
       },
       "prompt_spec_version": "13e3-v1",
-      "status": "generated",
-      "file": "assets/social/generated/pokemon_watch/pokemon_watch__A.png",
+      "status": "approved",
+      "file": "assets/social/approved/pokemon_watch/pokemon_watch__A.png",
       "generated_date": "2026-09-06",
-      "approved_date": null,
+      "approved_date": "2026-09-06",
       "qa": {
-        "generated_background": "PENDING",
-        "copyright_risk": "PENDING",
-        "brand_fit": "PENDING",
-        "text_legibility": "PENDING",
-        "ai_artifact": "PENDING"
+        "generated_background": "PASS",
+        "copyright_risk": "PASS",
+        "brand_fit": "PASS",
+        "text_legibility": "PASS",
+        "ai_artifact": "PASS"
       },
-      "notes": ""
+      "notes": "",
+      "generated_file": "assets/social/generated/pokemon_watch/pokemon_watch__A.png"
     },
     {
       "id": "pokemon_watch__B",
@@ -673,18 +682,19 @@
         }
       },
       "prompt_spec_version": "13e3-v1",
-      "status": "generated",
-      "file": "assets/social/generated/pokemon_watch/pokemon_watch__B.png",
+      "status": "approved",
+      "file": "assets/social/approved/pokemon_watch/pokemon_watch__B.png",
       "generated_date": "2026-09-06",
-      "approved_date": null,
+      "approved_date": "2026-09-06",
       "qa": {
-        "generated_background": "PENDING",
-        "copyright_risk": "PENDING",
-        "brand_fit": "PENDING",
-        "text_legibility": "PENDING",
-        "ai_artifact": "PENDING"
+        "generated_background": "PASS",
+        "copyright_risk": "PASS",
+        "brand_fit": "PASS",
+        "text_legibility": "PASS",
+        "ai_artifact": "PASS"
       },
-      "notes": ""
+      "notes": "",
+      "generated_file": "assets/social/generated/pokemon_watch/pokemon_watch__B.png"
     },
     {
       "id": "pokemon_watch__C",
@@ -959,18 +969,19 @@
         }
       },
       "prompt_spec_version": "13e3-v1",
-      "status": "generated",
-      "file": "assets/social/generated/set_watch/set_watch__A.png",
+      "status": "approved",
+      "file": "assets/social/approved/set_watch/set_watch__A.png",
       "generated_date": "2026-09-06",
-      "approved_date": null,
+      "approved_date": "2026-09-06",
       "qa": {
-        "generated_background": "PENDING",
-        "copyright_risk": "PENDING",
-        "brand_fit": "PENDING",
-        "text_legibility": "PENDING",
-        "ai_artifact": "PENDING"
+        "generated_background": "PASS",
+        "copyright_risk": "PASS",
+        "brand_fit": "PASS",
+        "text_legibility": "PASS",
+        "ai_artifact": "PASS"
       },
-      "notes": ""
+      "notes": "",
+      "generated_file": "assets/social/generated/set_watch/set_watch__A.png"
     },
     {
       "id": "set_watch__B",
@@ -1000,18 +1011,19 @@
         }
       },
       "prompt_spec_version": "13e3-v1",
-      "status": "generated",
-      "file": "assets/social/generated/set_watch/set_watch__B.png",
+      "status": "approved",
+      "file": "assets/social/approved/set_watch/set_watch__B.png",
       "generated_date": "2026-09-06",
-      "approved_date": null,
+      "approved_date": "2026-09-06",
       "qa": {
-        "generated_background": "PENDING",
-        "copyright_risk": "PENDING",
-        "brand_fit": "PENDING",
-        "text_legibility": "PENDING",
-        "ai_artifact": "PENDING"
+        "generated_background": "PASS",
+        "copyright_risk": "PASS",
+        "brand_fit": "PASS",
+        "text_legibility": "PASS",
+        "ai_artifact": "PASS"
       },
-      "notes": ""
+      "notes": "",
+      "generated_file": "assets/social/generated/set_watch/set_watch__B.png"
     },
     {
       "id": "set_watch__C",

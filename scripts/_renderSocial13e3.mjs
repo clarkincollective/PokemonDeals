@@ -110,30 +110,38 @@ async function main() {
       if (bg) await shot(`dealdrop_${tag}_A_bg.png`, renderHtml(slide, { variant: "A", cardArtwork: art, background: bg }));
     }
 
-    // 2. MARKET MOVER - real movement
+    // 2. MARKET MOVER - real movement + real card artwork (13E.3C: no
+    //    chart-only variant; if artwork can't resolve, we skip that mover).
     for (const m of fx.movers.slice(0, 3)) {
+      const art = await artFor(m.row);
+      const tag = String(m.row.card_name).toLowerCase().replace(/\W+/g, "-").slice(0, 20);
+      if (!art) { console.warn(`  mover ${tag}: canonical artwork unresolved - skipped (fail closed)`); continue; }
       const payload = buildMoverPayload({ row: m.row, movement: m.movement, now });
       const slide = buildSlideContent(payload);
-      const art = await artFor(m.row);
       const bg = bgFor(payload);
-      const tag = String(m.row.card_name).toLowerCase().replace(/\W+/g, "-").slice(0, 20);
       await shot(`mover_${tag}_A.png`, renderHtml(slide, { variant: "A", cardArtwork: art }));
       await shot(`mover_${tag}_B.png`, renderHtml(slide, { variant: "B", cardArtwork: art }));
       if (bg) await shot(`mover_${tag}_A_bg.png`, renderHtml(slide, { variant: "A", cardArtwork: art, background: bg }));
     }
 
-    // 3. HOOK CAROUSEL - cover + card slides + close
-    const cRows = fx.carousel.deals;
+    // 3. HOOK CAROUSEL - deterministic sequence with DISTINCT card
+    //    identities; the cover states the real distinct count. Built from
+    //    the varied real-deal set (distinct species) plus the degenerate
+    //    "same species/printing" carousel group appended, so the dedupe is
+    //    visibly exercised.
+    const cRows = [...fx.deals.map((d) => d.row), ...fx.carousel.deals];
     const cPayload = buildSpotlightPayload({
       contentType: "pokemon_spotlight",
-      displayName: "Charizard",
+      displayName: "Under market today",
       dealCount: cRows.length,
       topDeals: cRows,
-      destinationRoute: "/pokemon/charizard",
+      destinationRoute: "/deals",
       now,
     });
     const seq = buildCarouselSequence(cRows);
-    await shot(`carousel_1_cover.png`, renderHtml(buildCoverSlideContent(cPayload), { variant: "A" }));
+    const coverOpts = { distinctCount: seq.distinctCount, totalSlides: seq.count };
+    console.log(`  carousel: ${cRows.length} input rows -> ${seq.distinctCount} distinct card slide(s) + cover + close = ${seq.count}`);
+    await shot(`carousel_1_cover.png`, renderHtml(buildCoverSlideContent(cPayload, coverOpts), { variant: "A" }));
     let i = 2;
     for (const s of seq.slides.filter((x) => x.kind === "card")) {
       const dp = buildDealPayload({ contentType: "deal_of_day", row: s.deal, now, utmCampaign: "best_deals_found_today" });
@@ -143,7 +151,7 @@ async function main() {
       await shot(`carousel_${i}_card.png`, renderHtml(slide, { variant: "A", cardArtwork: art }));
       i++;
     }
-    await shot(`carousel_${i}_close.png`, renderHtml(buildCloseSlideContent(cPayload), { variant: "A" }));
+    await shot(`carousel_${i}_close.png`, renderHtml(buildCloseSlideContent(cPayload, coverOpts), { variant: "A" }));
 
     // 4. BRAND / CONVERSION AD - Version D, real screenshot
     if (existsSync(shotPath)) {
