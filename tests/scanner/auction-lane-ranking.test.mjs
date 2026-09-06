@@ -167,10 +167,18 @@ test("no user-facing auction score; DealCard auction copy stays truthful", () =>
     assert.ok(!/Auction Score|Deal Score|Opportunity Score|Hotness|auctionQualityScore/i.test(read(f)), `${f} exposes an auction score`);
   }
   const dc = read("components/DealCard.js");
-  assert.match(dc, /Current bid ·/, "DealCard auction line still says 'Current bid'");
-  assert.match(dc, /can rise/, "DealCard auction line still says the price can rise");
-  assert.match(dc, /isAuction \? "" : "line-through"/, "auction market ref is never struck through");
+  assert.match(dc, /<AuctionPrice/, "DealCard renders auctions through AuctionPrice");
   assert.ok(!/auctionLaneRanking/.test(dc), "DealCard must not import the auction ranker");
+  // P0 auction-price-integrity: the truthful auction copy now lives in the
+  // shared AuctionPrice component - headline is the CURRENT BID, a
+  // separate EST. TOTAL line carries the discount, nothing is struck
+  // through, and the "price can rise" caveat is kept.
+  const ap = read("components/AuctionPrice.js");
+  assert.ok(!/Auction Score|Deal Score|Opportunity Score|Hotness|auctionQualityScore/i.test(ap), "AuctionPrice exposes an auction score");
+  assert.match(ap, /Current bid/, "AuctionPrice labels the headline figure 'Current bid'");
+  assert.match(ap, /Est\. total/, "AuctionPrice shows a distinct 'Est. total' line");
+  assert.match(ap, /bids can raise the final price|can rise/, "AuctionPrice keeps the 'price can rise' caveat");
+  assert.ok(!/line-through/.test(ap), "an auction price figure is never struck through");
 });
 
 // --- scope isolation -------------------------------------------------

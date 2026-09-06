@@ -7,6 +7,7 @@ import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebay";
 import { currencyForDeal, refInListingCurrency, dealTotalUsd } from "@/lib/money";
 import Price from "@/components/Price";
+import AuctionPrice from "@/components/AuctionPrice";
 import { getSealedPriceHistory } from "@/lib/pokemonPriceTracker";
 import { shouldIndexDeal } from "@/lib/indexability";
 import { isExactEbayDealDestination, auctionEnded } from "@/lib/dealQuality";
@@ -265,39 +266,51 @@ export default async function SealedDealDetailPage({ params }) {
             <p className="mt-1 line-clamp-2 text-sm text-zinc-400">{normalizePublicText(deal.title)}</p>
 
             <div className="mt-4">
-              <div className="flex items-baseline gap-3">
-                <Price
-                  usd={usdTotal}
-                  native={{ amount: total, currency: nativeCurrency }}
-                  className="text-2xl font-bold text-black dark:text-zinc-50"
+              {isAuction ? (
+                // P0 auction-price-integrity: headline = CURRENT BID, with
+                // shipping + estimated landed total on their own lines.
+                <AuctionPrice
+                  deal={deal}
+                  marketUsd={marketUsd}
+                  marketNative={marketNative}
+                  discountPct={discountPct}
+                  variant="detail"
                 />
-                {showRef && (
-                  <span className="text-lg text-zinc-400 line-through">
-                    <Price
-                      usd={marketUsd}
-                      native={{ amount: marketNative, currency: nativeCurrency }}
-                      approxPrefix=""
-                    />
-                  </span>
-                )}
-              </div>
-              {showRef ? (
-                <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                  You save{" "}
-                  <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}
-                  {discountPct}% below market
-                </p>
               ) : (
-                <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                  {discountPct}% below market
-                </p>
+                <>
+                  <div className="flex items-baseline gap-3">
+                    <Price
+                      usd={usdTotal}
+                      native={{ amount: total, currency: nativeCurrency }}
+                      className="text-2xl font-bold text-black dark:text-zinc-50"
+                    />
+                    {showRef && (
+                      <span className="text-lg text-zinc-400 line-through">
+                        <Price
+                          usd={marketUsd}
+                          native={{ amount: marketNative, currency: nativeCurrency }}
+                          approxPrefix=""
+                        />
+                      </span>
+                    )}
+                  </div>
+                  {showRef ? (
+                    <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-500">
+                      You save{" "}
+                      <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}
+                      {discountPct}% below market
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-500">
+                      {discountPct}% below market
+                    </p>
+                  )}
+                </>
               )}
             </div>
-            {isAuction && (
+            {isAuction && deal.auction_end_at && (
               <p className="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-                Current bid{deal.bid_count != null ? ` · ${deal.bid_count} bids` : ""}
-                {deal.auction_end_at && ` · ${timeUntil(deal.auction_end_at)}`} - may rise before the
-                auction ends
+                Auction ends {timeUntil(deal.auction_end_at)}
               </p>
             )}
             {deal.seller_feedback_pct != null && (

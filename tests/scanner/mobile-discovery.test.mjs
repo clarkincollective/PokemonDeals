@@ -152,8 +152,16 @@ test("DealCard keeps a long name/set on one truncated line (no wrap overflow)", 
 
 test("DealCard distinguishes auction from BIN and never strikes the auction ref", () => {
   const src = read("components/DealCard.js");
-  assert.match(src, /isAuction \? "" : "line-through"/, "auction market ref must not be struck through");
-  assert.match(src, /Current bid ·/, "auction shows a 'Current bid' label");
+  // Auctions render through <AuctionPrice> (P0 auction-price-integrity):
+  // headline = current bid, shipping + est. total on their own lines,
+  // never a struck-through "was" price.
+  assert.match(src, /isAuction \? \(\s*\n\s*\/\/ P0 auction-price-integrity[\s\S]*?<AuctionPrice/, "auctions go through AuctionPrice");
+  const auctionPrice = read("components/AuctionPrice.js");
+  assert.match(auctionPrice, /Current bid/, "AuctionPrice shows a 'Current bid' label");
+  assert.doesNotMatch(auctionPrice, /line-through/, "an auction price block never strikes a figure");
+  // line-through survives ONLY in DealCard's fixed-price branch.
+  const binOnly = src.slice(src.indexOf(") : (\n          <div className=\"mt-1.5 flex"));
+  assert.match(binOnly, /line-through/, "BIN keeps its struck-through typical price");
 });
 
 test("DealCard image reserves space (no CLS)", () => {

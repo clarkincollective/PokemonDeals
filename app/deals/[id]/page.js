@@ -11,8 +11,9 @@ import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebay";
-import { currencyForDeal, refInListingCurrency, dealTotalUsd } from "@/lib/money";
+import { currencyForDeal, refInListingCurrency, dealTotalUsd, auctionDisplayParts } from "@/lib/money";
 import Price from "@/components/Price";
+import AuctionPrice from "@/components/AuctionPrice";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
@@ -337,6 +338,15 @@ export default async function DealDetailPage({ params }) {
   const marketNative = refInListingCurrency(marketUsd, total, usdTotal, nativeCurrency);
   const savedNative = marketNative != null ? marketNative - total : null;
   const showRef = Number.isFinite(marketUsd) && savedUsd > 0 && marketNative != null;
+  // P0 auction-price-integrity: the bid / shipping / landed-total split in
+  // the listing's own currency, using the scan-time implied FX rate. Used
+  // for the sticky CTA price and the Product JSON-LD offer so both name
+  // the CURRENT BID as the auction's price, not the bid+shipping total.
+  const auctionParts = isAuction ? auctionDisplayParts(deal) : null;
+  const ctaPriceUsd = auctionParts ? auctionParts.bid.usd : usdTotal;
+  const ctaPriceNative = auctionParts
+    ? { amount: auctionParts.bid.native, currency: auctionParts.currency }
+    : { amount: total, currency: nativeCurrency };
   const tcgplayerLink = buildTcgplayerLink(cardName, deal.watchlist?.justtcg_tcgplayer_id);
 
   // Structured data so a search result can show price/availability
@@ -363,8 +373,13 @@ export default async function DealDetailPage({ params }) {
     offers: {
       "@type": "Offer",
       url: deal.listing_url,
-      priceCurrency: marketInfo?.currency ?? "USD",
-      price: Number(deal.total_price).toFixed(2),
+      // The listing's OWN currency (deal.currency, falling back to the
+      // marketplace default) - not the marketplace currency, which can
+      // differ from how the listing is actually priced (e.g. a
+      // USD-denominated auction delivered to the UK). For an auction the
+      // price is the CURRENT BID, matching what the page now shows.
+      priceCurrency: nativeCurrency,
+      price: Number(auctionParts ? auctionParts.bid.native : deal.total_price).toFixed(2),
       availability: deal.is_active ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/UsedCondition",
       shippingDetails: {
@@ -372,7 +387,7 @@ export default async function DealDetailPage({ params }) {
         shippingRate: {
           "@type": "MonetaryAmount",
           value: Number(deal.shipping ?? 0).toFixed(2),
-          currency: marketInfo?.currency ?? "USD",
+          currency: nativeCurrency,
         },
         shippingDestination: {
           "@type": "DefinedRegion",
@@ -514,41 +529,50 @@ export default async function DealDetailPage({ params }) {
             )}
 
             <div className="mt-4">
-              <div className="flex items-baseline gap-3">
-                <Price
-                  usd={usdTotal}
-                  native={{ amount: total, currency: nativeCurrency }}
-                  className="text-2xl font-bold text-black dark:text-zinc-50"
-                />
-                {showRef && (
-                  // Auction: the reference is what to read the CURRENT BID
-                  // against, not a "was" price - so it isn't struck through.
-                  <span className={`text-base text-zinc-400 ${isAuction ? "" : "line-through"}`}>
-                    {isAuction && <span className="mr-1 text-xs">market ref</span>}
-                    <Price
-                      usd={marketUsd}
-                      native={{ amount: marketNative, currency: nativeCurrency }}
-                      approxPrefix=""
-                    />
-                  </span>
-                )}
-              </div>
               {isAuction ? (
-                <p className="text-sm font-medium text-amber-600 dark:text-amber-500">
-                  Current bid{deal.bid_count != null ? ` · ${deal.bid_count} bids` : ""}
-                  {showRef && discountPct > 0 ? ` · ${discountPct}% under the market reference` : ""} — the
-                  final price can rise before the auction ends
-                </p>
-              ) : showRef ? (
-                <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                  You save{" "}
-                  <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}
-                  {discountPct}% below market
-                </p>
+                // P0 auction-price-integrity: headline = CURRENT BID, with
+                // shipping and the estimated landed total on their own
+                // lines. The "% below market" / market reference stay
+                // attached to the EST. TOTAL line - deal qualification is
+                // unchanged, it still compares the landed total against the
+                // reference.
+                <AuctionPrice
+                  deal={deal}
+                  marketUsd={marketUsd}
+                  marketNative={marketNative}
+                  discountPct={discountPct}
+                  variant="detail"
+                />
               ) : (
-                <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                  {discountPct}% below market
-                </p>
+                <>
+                  <div className="flex items-baseline gap-3">
+                    <Price
+                      usd={usdTotal}
+                      native={{ amount: total, currency: nativeCurrency }}
+                      className="text-2xl font-bold text-black dark:text-zinc-50"
+                    />
+                    {showRef && (
+                      <span className="text-base text-zinc-400 line-through">
+                        <Price
+                          usd={marketUsd}
+                          native={{ amount: marketNative, currency: nativeCurrency }}
+                          approxPrefix=""
+                        />
+                      </span>
+                    )}
+                  </div>
+                  {showRef ? (
+                    <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
+                      You save{" "}
+                      <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}
+                      {discountPct}% below market
+                    </p>
+                  ) : (
+                    <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
+                      {discountPct}% below market
+                    </p>
+                  )}
+                </>
               )}
               <p className="mt-1 text-xs text-zinc-400">
                 Compared against real market pricing.{" "}
@@ -750,8 +774,9 @@ export default async function DealDetailPage({ params }) {
 
       <StickyDealCta
         href={wrapEbayAffiliateUrl(deal.affiliate_url, { surface: "deal_page" })}
-        priceUsd={usdTotal}
-        priceNative={{ amount: total, currency: nativeCurrency }}
+        priceUsd={ctaPriceUsd}
+        priceNative={ctaPriceNative}
+        priceLabel={isAuction ? "current bid" : undefined}
         ctaLabel={isAuction ? "Bid on eBay →" : "Check on eBay →"}
         eventData={{ card: cardName, marketplace: deal.marketplace, discountPct }}
       />

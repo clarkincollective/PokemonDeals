@@ -1,6 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { getListingFreshness, getBrowseRateLimit } from "@/lib/ebay";
+import { getListingFreshness, getListingSnapshot, getBrowseRateLimit } from "@/lib/ebay";
 import { isDisplayableDeal, freshnessTierTtl, hoursSinceSeen, discoveryAgeHours, JUST_ADDED_MAX_DISCOVERY_AGE_HOURS } from "@/lib/dealQuality";
+import { getUsdRates } from "@/lib/fx";
+import { repricedAuctionPatch } from "@/lib/auctionPricing";
 
 // BOUNDED, RESERVE-GUARDED exact-listing re-verification. One Browse call
 // per row, hard-capped at BATCH per run, and it runs ONLY when the daily
@@ -26,7 +28,13 @@ import { isDisplayableDeal, freshnessTierTtl, hoursSinceSeen, discoveryAgeHours,
 // the full quota-allocation reasoning.
 //
 // Priority (visitor value, highest first):
-//   1. displayable auctions ending within 2h
+//   1. ALL active AUCTIONs (soonest-ending first). P0 auction-price-
+//      integrity: an auction is discovered at an opening bid and never
+//      re-priced afterwards, so its stored "% below market" silently rots
+//      as bids come in. These rows are RE-PRICED here (bid + shipping +
+//      landed total + discount_pct recomputed), not just re-confirmed
+//      alive. Small slice of inventory (~290), so a full sweep still comes
+//      round in hours.
 //   2. displayable "Just Added" candidates - discovered within the lane's
 //      own max-discovery-age window and never yet exactly verified, so the
 //      lane (lib/deals.js fetchFreshFinds) can actually populate instead
@@ -41,11 +49,19 @@ import { isDisplayableDeal, freshnessTierTtl, hoursSinceSeen, discoveryAgeHours,
 //   ENDED / SOLD -> is_active=false, exact_verified_at=now (retired; row
 //                   kept for history; the check-time is recorded too, for
 //                   observability, even though is_active already hides it)
+//   RETIRED      -> (auction only) live re-price put the recomputed
+//                   discount below the publish floor - is_active=false,
+//                   with the truthful numbers written to the dead row
+//   REPRICED     -> (auction only) still a deal at the live bid;
+//                   price/shipping/total_price*/discount_pct/bid_count +
+//                   last_seen_at + exact_verified_at all refreshed
 //   ACTIVE       -> last_seen_at=now, exact_verified_at=now (re-verified;
 //                   promotable again, including for premium placement)
 //   UNKNOWN      -> untouched (never retire, and never stamp
 //                   exact_verified_at, on an inconclusive call - UNKNOWN is
-//                   not the same as LIVE)
+//                   not the same as LIVE - and for an auction this also
+//                   covers a bid that read LOWER than stored: bids don't
+//                   fall, so that is a bad response, not a price drop)
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -107,11 +123,7 @@ export async function GET(request) {
     if (data.length < PAGE) break;
   }
 
-  const endsSoon = (r) =>
-    r.listing_type === "AUCTION" &&
-    r.auction_end_at &&
-    Date.parse(r.auction_end_at) > now &&
-    Date.parse(r.auction_end_at) < now + 2 * H;
+  const isAuctionRow = (r) => r.listing_type === "AUCTION";
   // A candidate for the "Just Added" lane (lib/deals.js fetchFreshFinds):
   // discovered recently enough to still qualify, but never yet exactly
   // verified - without this priority tier, a brand-new discovery would
@@ -125,7 +137,15 @@ export async function GET(request) {
   const staleness = (r) => hoursSinceSeen(r, now) / freshnessTierTtl(r);
 
   const rank = (r) => {
-    if (endsSoon(r)) return 0;
+    // P0 auction-price-integrity: EVERY active auction is re-priced (not
+    // just re-confirmed alive) on a rolling basis, ahead of the
+    // fixed-price freshness tiers. An auction is discovered at an opening
+    // bid; live bidding erodes that discount but nothing re-reads the bid,
+    // so a week-old auction can still advertise its opening-bid "% under
+    // market" long after the real price caught up. Auctions are a small
+    // slice of active inventory (~290 rows), so a full re-price sweep
+    // still comes round in a few hours at BATCH x 48 runs/day.
+    if (isAuctionRow(r)) return 0;
     // P0.2 fix (found live, post-migration): this MUST be its own tier,
     // never tied with highValue. A brand-new discovery has a near-zero
     // staleness ratio by definition, so sharing a tie-break sorted by
@@ -155,25 +175,74 @@ export async function GET(request) {
   // (newest first) instead - that tier's whole purpose is getting brand-
   // new discoveries verified before a visitor ever sees the lane, not
   // protecting older rows from expiring (the other tiers already do that).
-  const tieBreak = (r) => (justAddedCandidate(r) ? discoveryAgeHours(r, now) : -staleness(r));
+  // Auctions: soonest-ending first (its price is about to lock in), then
+  // Just-Added by discovery recency, then everything else by staleness.
+  const tieBreak = (r) =>
+    isAuctionRow(r)
+      ? Date.parse(r.auction_end_at ?? "") || Number.MAX_SAFE_INTEGER
+      : justAddedCandidate(r)
+        ? discoveryAgeHours(r, now)
+        : -staleness(r);
   pool.sort((a, b) => rank(a) - rank(b) || tieBreak(a) - tieBreak(b));
 
+  // Scan-time FX for the auction re-price math (no per-row network call).
+  const rates = await getUsdRates();
+
   const batch = pool.slice(0, BATCH);
-  const out = { ACTIVE: 0, ENDED: 0, SOLD: 0, UNKNOWN: 0 };
+  const out = { ACTIVE: 0, ENDED: 0, SOLD: 0, UNKNOWN: 0, RETIRED: 0, REPRICED: 0 };
   let calls = 0;
   const detail = [];
   for (const r of batch) {
-    const { status, calls: c } = await getListingFreshness(legacyOf(r.listing_id), r.marketplace);
-    calls += c;
-    out[status] = (out[status] ?? 0) + 1;
-    detail.push({ id: r.id, status });
     const checkedAt = new Date().toISOString();
-    if (status === "ENDED" || status === "SOLD") {
-      const patch = exactColReady ? { is_active: false, exact_verified_at: checkedAt } : { is_active: false };
+    // Extra fields folded into the ACTIVE / retire patch for an auction
+    // that got re-priced (bid + shipping + landed total + recomputed
+    // discount_pct + bid_count). Empty {} for a fixed-price row - its
+    // ACTIVE / retire patch is exactly what it always was.
+    let auctionActiveExtra = {};
+    let auctionRetireExtra = {};
+    let status;
+
+    if (isAuctionRow(r)) {
+      // ONE get_item_by_legacy_id call: freshness status AND the live bid /
+      // shipping, so the row is RE-PRICED, not just re-confirmed alive.
+      // lib/auctionPricing.repricedAuctionPatch decides deterministically;
+      // a below-floor recomputed discount -> RETIRED (never grandfathered),
+      // an inconclusive read -> untouched (same as UNKNOWN).
+      const snap = await getListingSnapshot(legacyOf(r.listing_id), r.marketplace);
+      calls += snap.calls ?? 1;
+      const decision = repricedAuctionPatch({ row: r, snapshot: snap, rates, nowIso: checkedAt });
+      if (decision.action === "retire") {
+        status =
+          decision.reason === "listing_ended"
+            ? "ENDED"
+            : decision.reason === "listing_sold"
+              ? "SOLD"
+              : "RETIRED";
+        auctionRetireExtra = decision.patch ?? {};
+      } else if (decision.action === "reprice") {
+        status = "ACTIVE";
+        auctionActiveExtra = decision.patch ?? {};
+        out.REPRICED++;
+      } else {
+        status = "UNKNOWN";
+      }
+    } else {
+      const { status: s, calls: c } = await getListingFreshness(legacyOf(r.listing_id), r.marketplace);
+      calls += c;
+      status = s;
+    }
+
+    out[status] = (out[status] ?? 0) + 1;
+    detail.push({ id: r.id, status, type: r.listing_type });
+
+    if (status === "ENDED" || status === "SOLD" || status === "RETIRED") {
+      const patch = exactColReady
+        ? { ...auctionRetireExtra, is_active: false, exact_verified_at: checkedAt }
+        : { is_active: false };
       await db.from("deals").update(patch).eq("id", r.id);
     } else if (status === "ACTIVE") {
       const patch = exactColReady
-        ? { last_seen_at: checkedAt, exact_verified_at: checkedAt }
+        ? { ...auctionActiveExtra, last_seen_at: checkedAt, exact_verified_at: checkedAt }
         : { last_seen_at: checkedAt };
       await db.from("deals").update(patch).eq("id", r.id);
     }

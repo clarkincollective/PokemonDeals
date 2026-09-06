@@ -12,6 +12,7 @@ import AffiliateLink from "@/components/AffiliateLink";
 import DealImage from "@/components/DealImage";
 import SaveCardButton from "@/components/SaveCardButton";
 import Price from "@/components/Price";
+import AuctionPrice from "@/components/AuctionPrice";
 
 const JUST_FOUND_MS = 2 * 60 * 60 * 1000;
 
@@ -204,34 +205,41 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           {conditionText}
         </p>
 
-        <div className="mt-1.5 flex items-baseline gap-2">
-          <Price
-            usd={usdTotal}
-            native={{ amount: total, currency: nativeCurrency }}
-            className="tnum text-lg font-bold text-zinc-900 dark:text-zinc-50"
-          />
-          {showRef && (
-            // Fixed price: the market reference is a "typical" figure the
-            // asking price sits below (struck through). Auction: it's a
-            // plain reference to read the CURRENT BID against - never a
-            // "was" price, since the final price can still rise.
-            <span
-              className={`tnum text-xs text-zinc-400 ${isAuction ? "" : "line-through"}`}
-            >
-              {isAuction ? "market ref " : "typical "}
-              <Price
-                usd={marketUsd}
-                native={{ amount: marketNative, currency: nativeCurrency }}
-                approxPrefix=""
-              />
-            </span>
-          )}
-        </div>
         {isAuction ? (
-          <p className="tnum text-xs font-semibold text-amber-600 dark:text-amber-500">
-            Current bid · {discountPct}% under market ref · can rise
-          </p>
-        ) : showRef ? (
+          // P0 auction-price-integrity: the headline figure for an auction
+          // is the CURRENT BID, with shipping and the estimated landed
+          // total as their own lines - never the bid+shipping total shown
+          // as though it were the bid.
+          <AuctionPrice
+            deal={deal}
+            marketUsd={marketUsd}
+            marketNative={marketNative}
+            discountPct={discountPct}
+            variant="card"
+            className="mt-1.5"
+          />
+        ) : (
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <Price
+              usd={usdTotal}
+              native={{ amount: total, currency: nativeCurrency }}
+              className="tnum text-lg font-bold text-zinc-900 dark:text-zinc-50"
+            />
+            {showRef && (
+              // Fixed price: the market reference is a "typical" figure the
+              // asking price sits below (struck through).
+              <span className="tnum text-xs text-zinc-400 line-through">
+                typical{" "}
+                <Price
+                  usd={marketUsd}
+                  native={{ amount: marketNative, currency: nativeCurrency }}
+                  approxPrefix=""
+                />
+              </span>
+            )}
+          </div>
+        )}
+        {isAuction ? null : showRef ? (
           <p className="tnum text-xs font-semibold text-emerald-700 dark:text-emerald-500">
             Save{" "}
             <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}

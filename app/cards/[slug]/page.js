@@ -13,7 +13,7 @@ import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebay";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import SiteHeader from "@/components/SiteHeader";
 import CardDealFilters from "@/components/CardDealFilters";
-import { currencyForDeal } from "@/lib/money";
+import { currencyForDeal, auctionDisplayParts } from "@/lib/money";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import RecentSales from "@/components/RecentSales";
@@ -521,15 +521,28 @@ export default async function CardHubPage({ params }) {
         </div>
       </div>
 
-      {cheapest && (
-        <StickyDealCta
-          href={wrapEbayAffiliateUrl(cheapest.affiliate_url, { surface: "card" })}
-          priceUsd={cheapest.total_price_usd ?? cheapest.total_price}
-          priceNative={{ amount: Number(cheapest.total_price), currency: currencyForDeal(cheapest) }}
-          ctaLabel={cheapest.listing_type === "AUCTION" ? "Bid on eBay →" : "Check on eBay →"}
-          eventData={{ card: hub.name, marketplace: cheapest.marketplace, page: "card_hub" }}
-        />
-      )}
+      {cheapest &&
+        (() => {
+          // P0 auction-price-integrity: for an auction the sticky-bar
+          // figure is the CURRENT BID (with its own label), never the
+          // bid+shipping landed total.
+          const isAuc = cheapest.listing_type === "AUCTION";
+          const parts = isAuc ? auctionDisplayParts(cheapest) : null;
+          return (
+            <StickyDealCta
+              href={wrapEbayAffiliateUrl(cheapest.affiliate_url, { surface: "card" })}
+              priceUsd={parts ? parts.bid.usd : cheapest.total_price_usd ?? cheapest.total_price}
+              priceNative={
+                parts
+                  ? { amount: parts.bid.native, currency: parts.currency }
+                  : { amount: Number(cheapest.total_price), currency: currencyForDeal(cheapest) }
+              }
+              priceLabel={isAuc ? "current bid" : undefined}
+              ctaLabel={isAuc ? "Bid on eBay →" : "Check on eBay →"}
+              eventData={{ card: hub.name, marketplace: cheapest.marketplace, page: "card_hub" }}
+            />
+          );
+        })()}
 
       <SiteFooter note="Card-to-listing matching is automated and not perfect - always double-check a listing's photos and description before buying." />
 

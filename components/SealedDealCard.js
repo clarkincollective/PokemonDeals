@@ -10,6 +10,7 @@ import DealScoreBadge from "@/components/DealScoreBadge";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import ShareButton from "@/components/ShareButton";
 import Price from "@/components/Price";
+import AuctionPrice from "@/components/AuctionPrice";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -92,43 +93,52 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
         {productSet && <p className="line-clamp-1 text-xs text-zinc-500">{productSet}</p>}
 
         <div className="mt-1">
-          <div className="flex items-baseline gap-2">
-            <Price
-              usd={usdTotal}
-              native={{ amount: total, currency: nativeCurrency }}
-              className="text-lg font-bold text-black dark:text-zinc-50"
-            />
-            {showRef && (
-              <span className={`text-sm text-zinc-400 ${isAuction ? "" : "line-through"}`}>
-                {isAuction && "market ref "}
-                <Price
-                  usd={marketUsd}
-                  native={{ amount: marketNative, currency: nativeCurrency }}
-                  approxPrefix=""
-                />
-              </span>
-            )}
-          </div>
           {isAuction ? (
-            <p className="text-xs font-medium text-amber-600 dark:text-amber-500">
-              Current bid · {discountPct}% under market ref · can rise
-            </p>
-          ) : showRef ? (
-            <p className="text-xs font-medium text-emerald-600 dark:text-emerald-500">
-              You save{" "}
-              <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}
-              {discountPct}% below market
-            </p>
+            // P0 auction-price-integrity: headline is the CURRENT BID, with
+            // shipping + estimated landed total as their own lines - the
+            // landed total is never shown labelled as "the bid".
+            <AuctionPrice
+              deal={deal}
+              marketUsd={marketUsd}
+              marketNative={marketNative}
+              discountPct={discountPct}
+              variant="card"
+            />
           ) : (
-            <p className="text-xs font-medium text-emerald-600 dark:text-emerald-500">
-              {discountPct}% below market
-            </p>
+            <>
+              <div className="flex items-baseline gap-2">
+                <Price
+                  usd={usdTotal}
+                  native={{ amount: total, currency: nativeCurrency }}
+                  className="text-lg font-bold text-black dark:text-zinc-50"
+                />
+                {showRef && (
+                  <span className="text-sm text-zinc-400 line-through">
+                    <Price
+                      usd={marketUsd}
+                      native={{ amount: marketNative, currency: nativeCurrency }}
+                      approxPrefix=""
+                    />
+                  </span>
+                )}
+              </div>
+              {showRef ? (
+                <p className="text-xs font-medium text-emerald-600 dark:text-emerald-500">
+                  You save{" "}
+                  <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}
+                  {discountPct}% below market
+                </p>
+              ) : (
+                <p className="text-xs font-medium text-emerald-600 dark:text-emerald-500">
+                  {discountPct}% below market
+                </p>
+              )}
+            </>
           )}
         </div>
-        {isAuction && (
+        {isAuction && deal.auction_end_at && (
           <div className="-mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-            Current bid{deal.bid_count != null ? ` · ${deal.bid_count} bids` : ""}
-            {deal.auction_end_at && ` · ${timeUntil(deal.auction_end_at)}`}
+            Auction ends {timeUntil(deal.auction_end_at)}
           </div>
         )}
 

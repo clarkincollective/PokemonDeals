@@ -118,17 +118,34 @@ test("5. no fabricated social-proof language (fake viewers / buyers / 'trending'
 });
 
 test("6. an auction's current bid is never framed as a settled / guaranteed below-market price", () => {
-  for (const f of ["components/DealCard.js", "components/SealedDealCard.js", "app/deals/[id]/page.js", "components/SpeciesCard.js", "components/CatalogueBrowser.js"]) {
+  // P0 auction-price-integrity: the primary surfaces render auctions
+  // through the shared <AuctionPrice>, which headlines the CURRENT BID and
+  // shows shipping + estimated landed total as their own lines - the
+  // landed total is never shown as though it were the bid.
+  for (const f of [
+    "components/DealCard.js",
+    "components/SealedDealCard.js",
+    "app/deals/[id]/page.js",
+    "app/sealed-deals/[id]/page.js",
+  ]) {
+    assert.match(read(f), /<AuctionPrice/, `${f}: auctions must render through AuctionPrice`);
+  }
+  const ap = read("components/AuctionPrice.js");
+  assert.match(ap, /Current bid/, "AuctionPrice: the headline figure is labelled the current bid");
+  assert.match(ap, /bids can raise the final price|can rise/i, "AuctionPrice: keeps the price-can-rise caveat");
+  assert.ok(!/You save|Save <Price/.test(ap), "AuctionPrice must not tell the visitor they 'save $' on an auction");
+  // Projected-shape tiles (no stored bid available) show the landed figure
+  // as an ESTIMATE - never labelled "current bid" - and still flag rises.
+  for (const f of ["components/SpeciesCard.js", "components/CatalogueBrowser.js"]) {
     const src = read(f);
     if (!/isAuction/.test(src)) continue;
-    // there is an isAuction branch in the price/savings block, and it
-    // says "current bid" + "can rise" / "final price can rise", not "you save $"
-    assert.match(src, /isAuction \?[\s\S]{0,400}[Cc]urrent bid/, `${f}: no auction-specific bid framing`);
-    assert.match(src, /isAuction \?[\s\S]{0,400}(can rise|final price can rise|may rise|price can rise)/i, `${f}: auction copy doesn't say the price can rise`);
+    assert.match(src, /isAuction[\s\S]{0,400}Est\. total/, `${f}: auction landed figure isn't labelled 'est. total'`);
+    assert.match(src, /isAuction[\s\S]{0,400}(bids can rise|can rise)/i, `${f}: auction copy doesn't say the price can rise`);
     assert.ok(!/isAuction \?[\s\S]{0,300}(You save|Save <Price)/.test(src), `${f}: auction branch still says "save $"`);
+    assert.ok(!/isAuction \?[\s\S]{0,300}Current bid/.test(src), `${f}: landed total still mislabelled "Current bid"`);
   }
   // and never the words "guaranteed final price"
-  for (const f of ["app/deals/[id]/page.js", "app/sealed-deals/[id]/page.js", "components/DealCard.js"]) {
+  for (const f of ["app/deals/[id]/page.js", "app/sealed-deals/[id]/page.js", "components/DealCard.js", "components/AuctionPrice.js"]) {
     assert.ok(!/guaranteed final price|final price guaranteed/i.test(read(f)), `${f} calls the auction price guaranteed`);
   }
 });

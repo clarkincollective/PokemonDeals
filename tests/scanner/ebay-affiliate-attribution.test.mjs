@@ -194,7 +194,7 @@ test("15b. every function that calls authHeaders() is a background scan/verify/d
     .split("\n")
     .map((line) => line.replace(/\/\/.*$/, ""))
     .join("\n");
-  const knownScanFunctions = ["searchListings", "searchNewlyListed", "getGradingDetails", "getRawListingDetail", "getListingFreshness", "getItemsByLegacyIds"];
+  const knownScanFunctions = ["searchListings", "searchNewlyListed", "getGradingDetails", "getRawListingDetail", "getListingFreshness", "getListingSnapshot", "getItemsByLegacyIds"];
   const topLevelStarts = [...src.matchAll(/^(?:async )?function \w+\(/gm)].map((m) => m.index).sort((a, b) => a - b);
 
   function bodyOf(name) {

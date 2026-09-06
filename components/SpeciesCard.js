@@ -125,6 +125,16 @@ export default function SpeciesCard({ card, label, speciesName, pageName = "spec
         {isDeal ? (
           <>
             <div className="mt-1.5">
+              {/* P0 auction-price-integrity: card.deal.cheapest* is the
+                  bid + shipping LANDED total, so an auction shows it as
+                  "est. total", never as "current bid". The full
+                  bid / shipping / total split lives on the deal card and
+                  the deal detail page. */}
+              {isAuction && (
+                <p className="text-[10px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-500">
+                  Est. total
+                </p>
+              )}
               <Price
                 usd={card.deal.cheapestUsd}
                 native={{
@@ -136,7 +146,7 @@ export default function SpeciesCard({ card, label, speciesName, pageName = "spec
             </div>
             {isAuction ? (
               <p className="tnum text-xs font-semibold text-amber-600 dark:text-amber-500">
-                {card.deal.discountPct != null && `Current bid · ${Math.round(card.deal.discountPct * 100)}% under market ref · can rise`}
+                {card.deal.discountPct != null && `${Math.round(card.deal.discountPct * 100)}% under market ref · auction, bids can rise`}
               </p>
             ) : (
               <p className="tnum text-xs font-semibold text-emerald-700 dark:text-emerald-500">

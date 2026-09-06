@@ -153,9 +153,14 @@ test("10. no deal tile on /?listing=AUCTION mixes a non-USD symbol with a bare U
 });
 
 test("11. auction tiles still carry the 'can rise' honesty language", () => {
-  assert.match(read("components/DealCard.js"), /isAuction \?[\s\S]{0,300}can rise/);
-  assert.match(read("components/SealedDealCard.js"), /isAuction \?[\s\S]{0,300}can rise/);
-  assert.match(read("app/deals/[id]/page.js"), /final price can rise before the auction ends/);
+  // P0 auction-price-integrity: the honesty copy now lives in the shared
+  // <AuctionPrice>, which every primary auction surface renders.
+  assert.match(read("components/AuctionPrice.js"), /bids can raise the final price|can rise/i);
+  assert.match(read("components/DealCard.js"), /<AuctionPrice/);
+  assert.match(read("components/SealedDealCard.js"), /<AuctionPrice/);
+  assert.match(read("app/deals/[id]/page.js"), /<AuctionPrice/);
+  // projected-shape tiles keep an inline caveat
+  assert.match(read("components/SpeciesCard.js"), /bids can rise/);
 });
 
 test("12. a GBP deal tile shows the reference in GBP (£), not USD, on the server render", () => {

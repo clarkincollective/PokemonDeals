@@ -133,6 +133,16 @@ export function Tile({ card, speciesName, placement }) {
                   <Money usd={card.refPrice} native={{ amount: refNative, currency: dealCcy }} />
                 </p>
               )}
+              {/* P0 auction-price-integrity: card.deal.cheapest* is the
+                  bid + shipping LANDED total. On an auction tile it is
+                  labelled "est. total", never "current bid" - the full
+                  bid / shipping split lives on the deal card + detail
+                  page. */}
+              {isAuction && (
+                <p className="text-[10px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-500">
+                  Est. total
+                </p>
+              )}
               <p className="text-lg font-bold text-emerald-700 dark:text-emerald-500">
                 <Money
                   usd={card.deal.cheapestUsd}
@@ -142,7 +152,7 @@ export function Tile({ card, speciesName, placement }) {
               {discountPct != null && discountPct > 0 && (
                 isAuction ? (
                   <p className="text-xs font-semibold text-amber-600 dark:text-amber-500">
-                    Current bid · {discountPct}% under ref · can rise
+                    {discountPct}% under ref · auction, bids can rise
                   </p>
                 ) : (
                   <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-500">{discountPct}% below market</p>
