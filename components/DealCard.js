@@ -10,6 +10,7 @@ import { cardDisplayName } from "@/lib/cardName";
 import { priceBandUsd, discountBand, listingTypeProp, rawVsGraded } from "@/lib/analytics/props";
 import AffiliateLink from "@/components/AffiliateLink";
 import DealImage from "@/components/DealImage";
+import { dealImageProps } from "@/lib/listingImage";
 import SaveCardButton from "@/components/SaveCardButton";
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
@@ -147,8 +148,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           className="relative block aspect-square w-full bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950"
         >
           <DealImage
-            src={deal.image_url}
-            cardTcgplayerId={deal.card_tcgplayer_id}
+            {...dealImageProps(deal)}
             alt={normalizePublicText(deal.title)}
             sizes="(max-width: 640px) 90vw, (max-width: 1024px) 46vw, 24vw"
             quality={85}

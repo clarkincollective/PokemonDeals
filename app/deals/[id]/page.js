@@ -29,6 +29,7 @@ import SaveCardButton from "@/components/SaveCardButton";
 import PriceAlertForm from "@/components/PriceAlertForm";
 import { emailEnabled } from "@/lib/email";
 import DealImage from "@/components/DealImage";
+import { dealImageProps, trustedDealImageUrl } from "@/lib/listingImage";
 import DealBackLink from "@/components/DealBackLink";
 import AffiliateLink from "@/components/AffiliateLink";
 import ShareButton from "@/components/ShareButton";
@@ -157,6 +158,12 @@ export async function generateMetadata({ params }) {
   const forClause = listingUsd ? ` for $${listingUsd.toFixed(2)}` : "";
   const description = `${cardName}${cardSet ? ` (${cardSet})` : ""}${forClause} - ${discountPct}% below the $${marketUsd.toFixed(2)} real market price on eBay.`;
 
+  // P0 deal-image-integrity: never advertise a card-back seller photo as
+  // the deal's identity image - trustedDealImageUrl yields the canonical
+  // exact-printing art for a CARD_BACK row, or null (omit) when there is
+  // no trusted image.
+  const ogImage = trustedDealImageUrl(deal);
+
   return {
     title,
     description,
@@ -164,16 +171,16 @@ export async function generateMetadata({ params }) {
     openGraph: {
       title,
       description,
-      images: deal.image_url ? [deal.image_url] : undefined,
+      images: ogImage ? [ogImage] : undefined,
     },
     // Next.js doesn't derive twitter:* from openGraph automatically - set
     // explicitly, or a shared deal link shows the generic site title/desc
     // on Twitter/X instead of this specific card's.
     twitter: {
-      card: deal.image_url ? "summary_large_image" : "summary",
+      card: ogImage ? "summary_large_image" : "summary",
       title,
       description,
-      images: deal.image_url ? [deal.image_url] : undefined,
+      images: ogImage ? [ogImage] : undefined,
     },
     // Always active here - the inactive case returns early above.
   };
@@ -367,7 +374,9 @@ export default async function DealDetailPage({ params }) {
     "@context": "https://schema.org",
     "@type": "Product",
     name: `${cardName}${cardSet ? ` - ${cardSet}` : ""}`,
-    image: deal.image_url ?? undefined,
+    // P0 deal-image-integrity: the trusted display image (seller face, or
+    // canonical exact-printing art) - never a card-back seller photo.
+    image: trustedDealImageUrl(deal) ?? undefined,
     description: normalizePublicText(deal.title),
     brand: { "@type": "Brand", name: "Pokemon" },
     offers: {
@@ -434,7 +443,7 @@ export default async function DealDetailPage({ params }) {
           dealId: deal.id,
           name: cardName,
           set: cardSet,
-          image: deal.image_url,
+          image: trustedDealImageUrl(deal),
           price: deal.total_price,
           currency: currencyForDeal(deal),
         }}
@@ -456,8 +465,7 @@ export default async function DealDetailPage({ params }) {
         <div className="mt-4 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
           <div className="relative h-56 w-56 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:self-auto dark:bg-zinc-900">
             <DealImage
-              src={deal.image_url}
-              cardTcgplayerId={deal.card_tcgplayer_id ?? deal.watchlist?.justtcg_tcgplayer_id}
+              {...dealImageProps(deal)}
               alt={normalizePublicText(deal.title)}
               sizes="224px"
               priority
@@ -627,7 +635,7 @@ export default async function DealDetailPage({ params }) {
                   dealId: deal.id,
                   name: cardName,
                   set: cardSet,
-                  image: deal.image_url,
+                  image: trustedDealImageUrl(deal),
                   price: deal.total_price,
                   currency: currencyForDeal(deal),
                 }}

@@ -254,6 +254,11 @@ function dealRow({ watchlistId, listing, totalPrice, totalPriceUsd, marketPrice,
     listing_type: listing.listingType,
     bid_count: listing.bidCount,
     auction_end_at: listing.auctionEndAt,
+    // P0 deal-image-integrity: every seller photo (primary first). Kept
+    // OUT of the core upsert by tryUpsert and written best-effort, so a
+    // pre-migration `deals` table (no image_urls column) never fails a
+    // scan.
+    image_urls: Array.isArray(listing.imageUrls) && listing.imageUrls.length ? listing.imageUrls : null,
     price: listing.price,
     shipping: listing.shipping,
     total_price: totalPrice,
@@ -286,6 +291,32 @@ function dealRow({ watchlistId, listing, totalPrice, totalPriceUsd, marketPrice,
 // is in every search result; image_count / returns_accepted come only
 // from the getItem resolveRawCondition already makes, so they stay null
 // on a row that never needed that call.
+// P0 deal-image-integrity: persist every seller photo (primary first) as a
+// SEPARATE best-effort update, so a `deals` table that hasn't run the
+// image-integrity migration yet (no `image_urls` column) never fails a
+// scan. The out-of-band screening worker (app/api/screen-deal-images)
+// reads these to prefer an alternate real card face over the catalogue
+// fallback when the primary photo is a card back.
+let _imageUrlsColMissingLogged = false;
+async function persistImageUrls(db, core, imageUrls) {
+  if (!Array.isArray(imageUrls) || imageUrls.length === 0) return;
+  try {
+    const { error } = await db
+      .from("deals")
+      .update({ image_urls: imageUrls })
+      .match({ source: core.source, marketplace: core.marketplace, listing_id: core.listing_id });
+    if (error && !_imageUrlsColMissingLogged) {
+      _imageUrlsColMissingLogged = true;
+      console.warn(`deals.image_urls not writable yet (${error.message}) - run deal_image_integrity_migration.sql`);
+    }
+  } catch (e) {
+    if (!_imageUrlsColMissingLogged) {
+      _imageUrlsColMissingLogged = true;
+      console.warn(`image_urls persist skipped: ${e.message}`);
+    }
+  }
+}
+
 let _trustColsMissingLogged = false;
 async function enrichDealTrustSignals(db, listing, { imageCount = null, returnsAccepted = null } = {}) {
   const patch = {};
@@ -376,23 +407,25 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
   }
 
   const tryUpsert = async (row_) => {
+    const { image_urls, ...core } = row_;
     const { error } = await db
       .from("deals")
-      .upsert(row_, { onConflict: "source,marketplace,listing_id" });
-    if (error) console.error(`Failed to upsert deal ${row_.listing_id}:`, error.message);
+      .upsert(core, { onConflict: "source,marketplace,listing_id" });
+    if (error) console.error(`Failed to upsert deal ${core.listing_id}:`, error.message);
     else {
       dealsFound++;
       // Best-effort discovery-analytics event (Phase 2). Never awaited on
       // the critical path in a way that can fail the scan.
       logDiscoveryEvent(db, {
         marketplace: marketplaceId,
-        listingId: row_.listing_id,
+        listingId: core.listing_id,
         source: "scan",
         searchType,
         cardTcgplayerId: row.justtcg_tcgplayer_id ?? null,
         becameDeal: true,
-        discountPct: row_.discount_pct,
+        discountPct: core.discount_pct,
       });
+      await persistImageUrls(db, core, image_urls);
     }
   };
 
@@ -676,19 +709,21 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
   const errors = [];
 
   const tryUpsert = async (row_, cardId) => {
-    const { error } = await db.from("deals").upsert(row_, { onConflict: "source,marketplace,listing_id" });
-    if (error) console.error(`Failed to upsert deal ${row_.listing_id}:`, error.message);
+    const { image_urls, ...core } = row_;
+    const { error } = await db.from("deals").upsert(core, { onConflict: "source,marketplace,listing_id" });
+    if (error) console.error(`Failed to upsert deal ${core.listing_id}:`, error.message);
     else {
       dealsFound++;
       logDiscoveryEvent(db, {
         marketplace: marketplaceId,
-        listingId: row_.listing_id,
+        listingId: core.listing_id,
         source: "scan",
         searchType: "sweep",
         cardTcgplayerId: cardId ?? null,
         becameDeal: true,
-        discountPct: row_.discount_pct,
+        discountPct: core.discount_pct,
       });
+      await persistImageUrls(db, core, image_urls);
     }
   };
 
