@@ -192,10 +192,23 @@ test("13C.4 - homepage auction lane is isolated; the broad auction browser is un
   assert.ok(!/auctionLaneRanking/.test(read("lib/flagshipRanking.js")));
 });
 
-test("13C.4 - only app/page.js calls fetchAuctionsEndingSoon (single homepage caller)", () => {
-  // guard against a future surface quietly reusing the homepage lane policy
-  const home = read("app/page.js");
-  assert.match(home, /fetchAuctionsEndingSoon\(\{ limit: 3/, "homepage still previews exactly 3");
+test("13C.4 - the auctions-ending-soon lane is used only by the homepage (single caller)", async () => {
+  // guard against a future surface quietly reusing the homepage lane
+  // policy. P0.4.1 - the homepage now assembles its lanes in
+  // lib/deals.fetchHomepageLanes, which calls fetchAuctionsEndingSoonUncached
+  // once; the homepage still shows exactly 3 (lib/homepageVariety.LANES).
+  const deals = read("lib/deals.js");
+  const callSites = [...deals.matchAll(/fetchAuctionsEndingSoon(?:Uncached)?\s*\(/g)];
+  // the public export definition + the one homepage-lane call = 2 textual
+  // hits inside lib/deals.js, and nothing outside it.
+  assert.ok(callSites.length <= 2, `unexpected fetchAuctionsEndingSoon call sites: ${callSites.length}`);
+  assert.match(deals, /fetchHomepageLanesUncached[\s\S]*?fetchAuctionsEndingSoonUncached\(\{ limit: 24/);
+  const { LANES } = await import("../../lib/homepageVariety.js");
+  assert.equal(LANES().find((l) => l.key === "auctions").limit, 3, "homepage auctions preview must stay 3");
+  // no OTHER app route imports it
+  for (const f of ["app/best-finds/page.js", "app/api/send-digest/route.js"]) {
+    assert.ok(!/fetchAuctionsEndingSoon/.test(read(f)), `${f} must not reuse the homepage auctions lane`);
+  }
 });
 
 test("13C.4 - flagship stays BIN-only, All Deals unchanged", () => {

@@ -1,17 +1,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
-  fetchHomepageFlagshipDeals,
-  fetchAuctionsEndingSoon,
+  fetchHomepageLanes,
   fetchDealsPool,
   fetchDealsPage,
-  fetchFreshFinds,
   fetchLastScanTime,
   fetchCardHubs,
   fetchHubCounts,
   fetchMarketDataSummary,
   fetchSetSlugs,
 } from "@/lib/deals";
+import { buildHomepageLanes, rotationBucket, rotateForBucket, selectDiverseLane } from "@/lib/homepageVariety";
 import { GUIDES } from "@/lib/guides";
 import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
@@ -88,15 +87,6 @@ function isRecentlyRefreshed(dateString) {
   return Date.now() - new Date(dateString).getTime() <= SCAN_FRESH_THRESHOLD_MS;
 }
 
-function shuffled(array) {
-  const copy = [...array];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
-
 // The under-$X / graded chips point at the dedicated /deals/<category>/
 // landing routes now that those exist (same live results, a real
 // crawlable page + descriptive anchor text) rather than the
@@ -149,27 +139,27 @@ export default async function Home({ searchParams }) {
 
   const filters = { language: "english", country, cardType, listingType, maxPrice, minPrice };
 
-  // Page 1, no sort -> the shuffled variety pool (rotates on repeat
-  // visits). Any sort, or page 2+ -> deterministic, stable pagination.
+  // Page 1, no sort -> curated + diverse rotating lanes. Any sort, or
+  // page 2+ -> deterministic, stable pagination.
   const useStableList = page > 1 || sort;
+  // P0.4.1 - deterministic 3-hour rotation bucket. Every render inside one
+  // bucket is byte-identical (cache-safe, no hydration drift, no SEO
+  // churn); a new bucket rotates the visible curated inventory.
+  const bucket = rotationBucket();
 
   const [
-    { data: pool, error: poolError },
+    homeLanesResult,
+    { data: filteredPool, error: poolError },
     dealsPageResult,
-    { deals: flagshipDeals },
-    { deals: endingSoon },
-    { deals: freshFinds },
     lastRefreshed,
     cardHubsResult,
     hubCounts,
     summary,
     validSetSlugs,
   ] = await Promise.all([
-    useStableList ? Promise.resolve({ data: null, error: null }) : fetchDealsPool(filters),
+    showPromo ? fetchHomepageLanes({ country }) : Promise.resolve(null),
+    !showPromo && !useStableList ? fetchDealsPool(filters) : Promise.resolve({ data: null, error: null }),
     useStableList ? fetchDealsPage({ table: "deals", ...filters, sort: sort ?? "newest", page }) : Promise.resolve(null),
-    showPromo ? fetchHomepageFlagshipDeals({ limit: 4, country }) : Promise.resolve({ deals: [] }),
-    showPromo ? fetchAuctionsEndingSoon({ limit: 3, country }) : Promise.resolve({ deals: [] }),
-    showPromo ? fetchFreshFinds({ limit: 3, country }) : Promise.resolve({ deals: [] }),
     fetchLastScanTime({ table: "deals", language: "english" }),
     showPromo ? fetchCardHubs({ language: "english" }) : Promise.resolve({ hubs: [] }),
     fetchHubCounts({ language: "english" }),
@@ -179,20 +169,35 @@ export default async function Home({ searchParams }) {
 
   const error = poolError || dealsPageResult?.error;
 
-  let deals;
+  let flagshipDeals = [];
+  let endingSoon = [];
+  let freshFinds = [];
+  let underPriceDeals = [];
+  let deals = [];
   let totalPages = 1;
+
   if (useStableList) {
     deals = dealsPageResult?.deals ?? [];
     totalPages = dealsPageResult?.totalPages ?? 1;
+  } else if (showPromo) {
+    // One pass builds every curated lane with real cross-lane dedupe +
+    // the deterministic diversity selector + 3-hour rotation.
+    const lanes = buildHomepageLanes(homeLanesResult?.pools ?? {}, { bucket });
+    flagshipDeals = lanes.flagship;
+    underPriceDeals = lanes.underPrice;
+    freshFinds = lanes.justAdded;
+    endingSoon = lanes.auctions;
+    deals = lanes.grid;
   } else {
-    const seen = new Set();
-    const deduped = [];
-    for (const d of pool ?? []) {
-      if (seen.has(d.watchlist_id)) continue;
-      seen.add(d.watchlist_id);
-      deduped.push(d);
-    }
-    deals = shuffled(deduped.slice(0, 400)).slice(0, HOME_PREVIEW_SIZE);
+    // Filtered page-1 grid (no curated lanes): a deterministic per-bucket
+    // diverse slice of the WHOLE filtered pool - no per-request shuffle,
+    // no "newest 400 only" cap.
+    const ordered = rotateForBucket(filteredPool ?? [], {
+      bucket,
+      laneId: "grid_filtered",
+      mode: "bucketPermute",
+    });
+    deals = selectDiverseLane(ordered, { limit: HOME_PREVIEW_SIZE, speciesCap: 3 });
   }
 
   const topHubs = cardHubsResult.hubs.slice(0, 6);
@@ -441,12 +446,26 @@ export default async function Home({ searchParams }) {
 
         {!useStableList ? (
           deals?.length > 0 && (
-            <div className="mt-10 flex justify-center">
+            <div className="mt-10 flex flex-col items-center gap-2">
+              <Link
+                href="/deals"
+                data-analytics-click="browse_all_deals_clicked"
+                data-analytics-props={JSON.stringify({ section: "all_deals" })}
+                className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+              >
+                Browse all live deals
+                {liveCount != null && (
+                  <span className="tnum rounded-md bg-white/15 px-1.5 py-0.5 text-xs font-bold dark:bg-black/10">
+                    {liveCount.toLocaleString()}
+                  </span>
+                )}
+                <span aria-hidden="true">→</span>
+              </Link>
               <a
                 href={pageHref(params, 2, "/")}
-                className="rounded-full border border-zinc-200 bg-white px-5 py-2 text-sm font-medium text-zinc-600 transition-colors hover:border-red-300 hover:text-red-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
+                className="text-xs font-medium text-zinc-500 underline-offset-2 hover:text-red-600 hover:underline dark:text-zinc-400 dark:hover:text-red-500"
               >
-                Browse all deals →
+                or keep scrolling this page
               </a>
             </div>
           )
@@ -475,6 +494,30 @@ export default async function Home({ searchParams }) {
             <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {freshFinds.map((deal, i) => (
                 <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_fresh" validSetSlugs={validSetSlugs} analytics={{ section: "just_added", rank: i + 1 }} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* UNDER $25 - P0.4.1: ~47% of active deals are under $25 and had no
+          curated homepage placement. A compact 3-card low-cost discovery
+          lane; the same isDisplayableDeal gate as the "All deals" grid
+          (reference / matching / language / condition guards intact), the
+          diversity selector, cross-lane dedupe, freshness preference. Full
+          list lives at the existing /deals/under-25 route. */}
+      {showPromo && underPriceDeals.length > 0 && (
+        <section data-analytics-section="under_25" className="border-b border-zinc-200 dark:border-zinc-800">
+          <div className="mx-auto max-w-7xl px-6 py-10">
+            <SectionHeader
+              kicker="Low-cost picks"
+              title="Pokemon card deals under $25"
+              actionLabel="See all under $25"
+              actionHref="/deals/under-25"
+            />
+            <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {underPriceDeals.map((deal, i) => (
+                <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} pageName="home_under25" validSetSlugs={validSetSlugs} analytics={{ section: "under_25", rank: i + 1 }} />
               ))}
             </div>
           </div>

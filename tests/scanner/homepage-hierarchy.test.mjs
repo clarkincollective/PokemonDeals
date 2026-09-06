@@ -12,11 +12,14 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
+import { LANES } from "../../lib/homepageVariety.js";
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
 
 const page = read("app/page.js");
 const layout = read("app/layout.js");
+const laneLimit = (key) => LANES().find((l) => l.key === key)?.limit;
 
 const idx = (s, needle) => {
   const i = s.indexOf(needle);
@@ -97,19 +100,27 @@ test("13C.3 - homepage section order: flagship -> auctions -> All Deals -> Just 
 test("13C.3 - flagship stays first commercial lane; auctions before any supporting content", () => {
   assert.ok(idx(page, 'data-analytics-section="best_deals"') < idx(page, 'data-analytics-section="ending_soon"'));
   assert.ok(idx(page, 'data-analytics-section="ending_soon"') < idx(page, 'id="how-it-works"'));
-  // flagship unchanged: Buy It Now selector, 4 tiles
-  assert.match(page, /fetchHomepageFlagshipDeals\(\{ limit: 4/);
+  // P0.4.1 - flagship is still 4 Buy It Now tiles; the count now lives in
+  // the shared lane contract (lib/homepageVariety.LANES) rather than a
+  // fetchHomepageFlagshipDeals({ limit: 4 }) literal in the page.
+  assert.equal(laneLimit("flagship"), 4, "flagship homepage lane must be 4 tiles");
+  assert.match(page, /flagshipDeals = lanes\.flagship/);
+  assert.match(page, /data-analytics-section="best_deals"[\s\S]{0,600}lg:grid-cols-4/, "flagship still renders a 4-up grid");
 });
 
-test("13C.3 - preview lanes are compacted (auctions 3, just-added 3, All Deals page-1 preview 9)", () => {
-  assert.match(page, /fetchAuctionsEndingSoon\(\{ limit: 3/, "auctions homepage preview is 3 cards");
-  assert.match(page, /fetchFreshFinds\(\{ limit: 3/, "just-added homepage preview is 3 cards");
-  assert.match(page, /const HOME_PREVIEW_SIZE = 9;/, "All Deals unfiltered page-1 renders a 9-card preview");
-  assert.match(page, /\.slice\(0, HOME_PREVIEW_SIZE\)/);
+test("13C.3 - preview lanes are compacted (auctions 3, just-added 3, Under $25 3, All Deals preview 9)", () => {
+  // P0.4.1 - the per-lane limits moved into the shared lane contract.
+  assert.equal(laneLimit("auctions"), 3, "auctions homepage preview is 3 cards");
+  assert.equal(laneLimit("justAdded"), 3, "just-added homepage preview is 3 cards");
+  assert.equal(laneLimit("underPrice"), 3, "Under $25 homepage preview is 3 cards");
+  assert.equal(laneLimit("grid"), 9, "All Deals unfiltered page-1 renders a 9-card preview");
+  assert.match(page, /const HOME_PREVIEW_SIZE = 9;/);
   // the deeper paths still exist
   assert.match(page, /actionHref="\/\?listing=AUCTION&sort=ending"/, "'See all auctions' path retained");
   assert.match(page, /actionHref="\/\?sort=newest"/, "'Browse newest' path retained");
-  assert.ok(page.includes("Browse all deals"), "'Browse all deals' link into the paginated list retained");
+  assert.match(page, /actionHref="\/deals\/under-25"/, "'See all under $25' path retained");
+  assert.ok(page.includes("Browse all live deals"), "prominent 'Browse all live deals' CTA present");
+  assert.match(page, /href="\/deals"/, "the Browse-all CTA points at the dedicated /deals route");
 });
 
 test("13C.3 - All Deals keeps its FilterBar + pagination on the homepage", () => {

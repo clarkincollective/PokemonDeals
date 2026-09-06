@@ -188,8 +188,18 @@ test("13C.2.1 - the digest pins 'no auctions' INDEPENDENTLY of the homepage flag
 
 test("13C.2.1 - callers wired to their intended selector", () => {
   const home = read("app/page.js");
-  assert.match(home, /fetchHomepageFlagshipDeals\(\{ limit: 4/);
+  // P0.4.1 - the homepage now gets its flagship tiles through the curated
+  // lane builder, which internally uses the SAME shared selectFlagshipDeals
+  // (asserted in lib/deals.js below). It must not call the generic
+  // fetchBestFinds, and it must not re-implement flagship ranking.
+  assert.match(home, /fetchHomepageLanes\(/);
   assert.ok(!/fetchBestFinds\b/.test(home), "homepage must not call the generic fetchBestFinds");
+  const deals = read("lib/deals.js");
+  assert.match(
+    deals,
+    /fetchHomepageLanesUncached[\s\S]*?selectFlagshipDeals\(\{ limit: 60/,
+    "the homepage lane builder must reuse the shared selectFlagshipDeals, not a new ranking path"
+  );
 
   const bf = read("app/best-finds/page.js");
   assert.match(bf, /fetchBestFinds\(\{ limit: 10/);
