@@ -19,6 +19,7 @@ import {
   isTrustworthyListing,
   isHighRiskBelowMarket,
   selectConditionPrice,
+  gradedReferenceAllowed,
 } from "@/lib/dealMatching";
 import {
   classifyListingCondition,
@@ -517,9 +518,15 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
   ) {
     try {
       const grading = await getGradingDetails(cheapestGraded.listingId, marketplaceId);
-      const gradedPrice = grading.grader
-        ? await getGradedPrice(row.justtcg_tcgplayer_id, grading.grader, grading.grade, row.language)
-        : null;
+      // P0.3.1 - a graded market reference is only trustworthy when the
+      // listing credibly shows ONE slab with mutually-consistent grade
+      // evidence (recognised grader + valid grade + a title that says so,
+      // not a multi-card lot). Fail CLOSED - never fall back to a graded
+      // price on ambiguous evidence (deal 31721).
+      const gradedPrice =
+        grading.grader && gradedReferenceAllowed(cheapestGraded, grading)
+          ? await getGradedPrice(row.justtcg_tcgplayer_id, grading.grader, grading.grade, row.language)
+          : null;
 
       if (gradedPrice) {
         const { totalLocal, totalUsd, discountPct } = pricedListing(cheapestGraded, gradedPrice.price, rates);
@@ -697,9 +704,12 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
         gradedLookups++;
         try {
           const grading = await getGradingDetails(listing.listingId, marketplaceId);
-          const gradedPrice = grading.grader
-            ? await getGradedPrice(row.justtcg_tcgplayer_id, grading.grader, grading.grade, row.language)
-            : null;
+          // P0.3.1 - fail closed on inconsistent/absent graded evidence
+          // (see the priority-loop branch above).
+          const gradedPrice =
+            grading.grader && gradedReferenceAllowed(listing, grading)
+              ? await getGradedPrice(row.justtcg_tcgplayer_id, grading.grader, grading.grade, row.language)
+              : null;
           if (!gradedPrice) continue;
 
           const { totalLocal, totalUsd, discountPct } = pricedListing(listing, gradedPrice.price, rates);
