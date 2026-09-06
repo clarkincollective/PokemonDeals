@@ -56,11 +56,20 @@ import { loadAssetManifest, resolveBackgroundForPost } from "../lib/social/asset
 import { RIGHTS_STATE } from "../lib/social/rights.mjs";
 import { resolveCardArtwork, resolveMultiCardArtwork, CARD_ART_CACHE_DIR } from "../lib/social/cardArtwork.mjs";
 import { resolveBrandScreenshot } from "../lib/social/brandAd.mjs";
+// Phase 13E.3 - MARKET MOVER: one real card's real, confident price
+// movement, resolved here (needs a price_history read) and appended to
+// the batch. Fails closed - no confident window -> no mover post.
+import { pickMarketMover } from "../lib/social/priceMovement.mjs";
+import { buildMoverPayload } from "../lib/social/payload.mjs";
+import { socialBinPool } from "../lib/social/candidates.mjs";
+import { rankFlagshipDeals } from "../lib/flagshipRanking.js";
+import { dealFreshness } from "../lib/dealQuality.js";
 
 // Deterministic Version-C presentation per family (docs/social-card-artwork.md SS8).
 const CARD_PRESENTATION_FOR = {
   deal_of_day: "card_metric_panel",
   just_found: "center_card",
+  market_mover: "hero_left",
   pokemon_spotlight: "multi_card",
   set_spotlight: "multi_card",
 };
@@ -143,7 +152,7 @@ async function renderCandidate(entry, renderer, assetManifest, catalogById = {})
       } else {
         cardVersionFailed = { reason: res.reason, provider: res.provider, skipped: res.skipped };
       }
-    } else if (family === "deal_of_day" || family === "just_found") {
+    } else if (family === "deal_of_day" || family === "just_found" || family === "market_mover") {
       const deal = Array.isArray(dd) ? dd[0] : dd;
       const res = await resolveCardArtwork(deal, {
         rightsState: RIGHTS_STATE,
@@ -250,17 +259,38 @@ async function generate() {
     }
   }
 
+  // Phase 13E.3 - resolve a Market Mover BEFORE rendering (one bounded
+  // price_history probe over the top flagship cards). Fails closed.
+  let moverEntry = null;
+  try {
+    const ranked = rankFlagshipDeals(socialBinPool(rows, now), { freshnessOf: (r) => dealFreshness(r), limit: 12 });
+    const { candidate } = await pickMarketMover(ranked, { maxProbe: 8 });
+    if (candidate) {
+      const payload = buildMoverPayload({ row: candidate.row, movement: candidate.movement, now });
+      moverEntry = {
+        family: "market-mover",
+        payload,
+        reasonSelected: `Real ${candidate.movement.direction} movement ${Math.round(candidate.movement.pct * 100)}% over ${candidate.movement.windowLabel} - ${payload.subject.display_name}.`,
+        cooldownKeys: buildCooldownKeys(payload),
+      };
+    }
+  } catch (e) {
+    console.warn(`market-mover probe skipped: ${e && e.message ? e.message : e}`);
+  }
+
+  const toRender = moverEntry ? [...batch.selected, moverEntry] : batch.selected;
   const rendered = [];
-  if (batch.selected.length) {
+  if (toRender.length) {
     const renderer = await createRenderer();
     try {
-      for (const entry of batch.selected) {
+      for (const entry of toRender) {
         rendered.push(await renderCandidate(entry, renderer, assetManifest, catalogById));
       }
     } finally {
       await renderer.close();
     }
   }
+  if (moverEntry && !batch.considered) batch.considered = 0;
 
   const html = buildDailyGalleryHtml(
     rendered.map((r) => ({

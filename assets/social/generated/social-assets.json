@@ -1,6 +1,6 @@
 {
   "_note": "Phase 13E.2 / 13E.2.1 generated-BACKGROUND manifest. See docs/social-asset-library.md + docs/social-card-artwork.md.",
-  "spec_version": "13e2.1-v1",
+  "spec_version": "13e3-v1",
   "generator": "scripts/socialAssets.mjs",
   "image_model": "gpt-image-2",
   "updated": "2026-09-06",
@@ -19,8 +19,8 @@
     "rejected"
   ],
   "counts": {
-    "planned": 27,
-    "generated": 3,
+    "planned": 17,
+    "generated": 13,
     "approved": 0,
     "rejected": 0
   },
@@ -52,7 +52,7 @@
           "footer": "lower block"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "generated",
       "file": "assets/social/generated/auction_watch/auction_watch__A.png",
       "generated_date": "2026-09-06",
@@ -93,7 +93,7 @@
           "footer": "below the band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "generated",
       "file": "assets/social/generated/auction_watch/auction_watch__B.png",
       "generated_date": "2026-09-06",
@@ -134,7 +134,7 @@
           "footer": "bottom band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "generated",
       "file": "assets/social/generated/auction_watch/auction_watch__C.png",
       "generated_date": "2026-09-06",
@@ -175,7 +175,7 @@
           "footer": "bottom band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "planned",
       "file": null,
       "generated_date": null,
@@ -210,7 +210,7 @@
           "footer": "bottom band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "planned",
       "file": null,
       "generated_date": null,
@@ -245,7 +245,7 @@
           "footer": "lower block"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "planned",
       "file": null,
       "generated_date": null,
@@ -280,12 +280,18 @@
           "footer": "below the band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
-      "status": "planned",
-      "file": null,
-      "generated_date": null,
+      "prompt_spec_version": "13e3-v1",
+      "status": "generated",
+      "file": "assets/social/generated/deal_intelligence/deal_intelligence__A.png",
+      "generated_date": "2026-09-06",
       "approved_date": null,
-      "qa": null,
+      "qa": {
+        "generated_background": "PENDING",
+        "copyright_risk": "PENDING",
+        "brand_fit": "PENDING",
+        "text_legibility": "PENDING",
+        "ai_artifact": "PENDING"
+      },
       "notes": ""
     },
     {
@@ -315,12 +321,18 @@
           "footer": "bottom band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
-      "status": "planned",
-      "file": null,
-      "generated_date": null,
+      "prompt_spec_version": "13e3-v1",
+      "status": "generated",
+      "file": "assets/social/generated/deal_intelligence/deal_intelligence__B.png",
+      "generated_date": "2026-09-06",
       "approved_date": null,
-      "qa": null,
+      "qa": {
+        "generated_background": "PENDING",
+        "copyright_risk": "PENDING",
+        "brand_fit": "PENDING",
+        "text_legibility": "PENDING",
+        "ai_artifact": "PENDING"
+      },
       "notes": ""
     },
     {
@@ -350,7 +362,7 @@
           "footer": "lower block"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "planned",
       "file": null,
       "generated_date": null,
@@ -385,12 +397,18 @@
           "footer": "bottom band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
-      "status": "planned",
-      "file": null,
-      "generated_date": null,
+      "prompt_spec_version": "13e3-v1",
+      "status": "generated",
+      "file": "assets/social/generated/just_found/just_found__A.png",
+      "generated_date": "2026-09-06",
       "approved_date": null,
-      "qa": null,
+      "qa": {
+        "generated_background": "PENDING",
+        "copyright_risk": "PENDING",
+        "brand_fit": "PENDING",
+        "text_legibility": "PENDING",
+        "ai_artifact": "PENDING"
+      },
       "notes": ""
     },
     {
@@ -420,12 +438,18 @@
           "footer": "bottom band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
-      "status": "planned",
-      "file": null,
-      "generated_date": null,
+      "prompt_spec_version": "13e3-v1",
+      "status": "generated",
+      "file": "assets/social/generated/just_found/just_found__B.png",
+      "generated_date": "2026-09-06",
       "approved_date": null,
-      "qa": null,
+      "qa": {
+        "generated_background": "PENDING",
+        "copyright_risk": "PENDING",
+        "brand_fit": "PENDING",
+        "text_legibility": "PENDING",
+        "ai_artifact": "PENDING"
+      },
       "notes": ""
     },
     {
@@ -455,7 +479,7 @@
           "footer": "lower block"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "planned",
       "file": null,
       "generated_date": null,
@@ -490,12 +514,18 @@
           "footer": "lower block"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
-      "status": "planned",
-      "file": null,
-      "generated_date": null,
+      "prompt_spec_version": "13e3-v1",
+      "status": "generated",
+      "file": "assets/social/generated/market_watch/market_watch__A.png",
+      "generated_date": "2026-09-06",
       "approved_date": null,
-      "qa": null,
+      "qa": {
+        "generated_background": "PENDING",
+        "copyright_risk": "PENDING",
+        "brand_fit": "PENDING",
+        "text_legibility": "PENDING",
+        "ai_artifact": "PENDING"
+      },
       "notes": ""
     },
     {
@@ -525,12 +555,18 @@
           "footer": "below the band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
-      "status": "planned",
-      "file": null,
-      "generated_date": null,
+      "prompt_spec_version": "13e3-v1",
+      "status": "generated",
+      "file": "assets/social/generated/market_watch/market_watch__B.png",
+      "generated_date": "2026-09-06",
       "approved_date": null,
-      "qa": null,
+      "qa": {
+        "generated_background": "PENDING",
+        "copyright_risk": "PENDING",
+        "brand_fit": "PENDING",
+        "text_legibility": "PENDING",
+        "ai_artifact": "PENDING"
+      },
       "notes": ""
     },
     {
@@ -560,7 +596,7 @@
           "footer": "bottom band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "planned",
       "file": null,
       "generated_date": null,
@@ -595,12 +631,18 @@
           "footer": "bottom band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
-      "status": "planned",
-      "file": null,
-      "generated_date": null,
+      "prompt_spec_version": "13e3-v1",
+      "status": "generated",
+      "file": "assets/social/generated/pokemon_watch/pokemon_watch__A.png",
+      "generated_date": "2026-09-06",
       "approved_date": null,
-      "qa": null,
+      "qa": {
+        "generated_background": "PENDING",
+        "copyright_risk": "PENDING",
+        "brand_fit": "PENDING",
+        "text_legibility": "PENDING",
+        "ai_artifact": "PENDING"
+      },
       "notes": ""
     },
     {
@@ -630,12 +672,18 @@
           "footer": "bottom band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
-      "status": "planned",
-      "file": null,
-      "generated_date": null,
+      "prompt_spec_version": "13e3-v1",
+      "status": "generated",
+      "file": "assets/social/generated/pokemon_watch/pokemon_watch__B.png",
+      "generated_date": "2026-09-06",
       "approved_date": null,
-      "qa": null,
+      "qa": {
+        "generated_background": "PENDING",
+        "copyright_risk": "PENDING",
+        "brand_fit": "PENDING",
+        "text_legibility": "PENDING",
+        "ai_artifact": "PENDING"
+      },
       "notes": ""
     },
     {
@@ -665,7 +713,7 @@
           "footer": "below the band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "planned",
       "file": null,
       "generated_date": null,
@@ -700,7 +748,7 @@
           "footer": "below the band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "planned",
       "file": null,
       "generated_date": null,
@@ -735,7 +783,7 @@
           "footer": "bottom band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "planned",
       "file": null,
       "generated_date": null,
@@ -770,7 +818,7 @@
           "footer": "lower block"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "planned",
       "file": null,
       "generated_date": null,
@@ -805,7 +853,7 @@
           "footer": "bottom band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "planned",
       "file": null,
       "generated_date": null,
@@ -840,7 +888,7 @@
           "footer": "bottom band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "planned",
       "file": null,
       "generated_date": null,
@@ -875,7 +923,7 @@
           "footer": "below the band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "planned",
       "file": null,
       "generated_date": null,
@@ -910,12 +958,18 @@
           "footer": "bottom band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
-      "status": "planned",
-      "file": null,
-      "generated_date": null,
+      "prompt_spec_version": "13e3-v1",
+      "status": "generated",
+      "file": "assets/social/generated/set_watch/set_watch__A.png",
+      "generated_date": "2026-09-06",
       "approved_date": null,
-      "qa": null,
+      "qa": {
+        "generated_background": "PENDING",
+        "copyright_risk": "PENDING",
+        "brand_fit": "PENDING",
+        "text_legibility": "PENDING",
+        "ai_artifact": "PENDING"
+      },
       "notes": ""
     },
     {
@@ -945,12 +999,18 @@
           "footer": "lower block"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
-      "status": "planned",
-      "file": null,
-      "generated_date": null,
+      "prompt_spec_version": "13e3-v1",
+      "status": "generated",
+      "file": "assets/social/generated/set_watch/set_watch__B.png",
+      "generated_date": "2026-09-06",
       "approved_date": null,
-      "qa": null,
+      "qa": {
+        "generated_background": "PENDING",
+        "copyright_risk": "PENDING",
+        "brand_fit": "PENDING",
+        "text_legibility": "PENDING",
+        "ai_artifact": "PENDING"
+      },
       "notes": ""
     },
     {
@@ -980,7 +1040,7 @@
           "footer": "bottom band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "planned",
       "file": null,
       "generated_date": null,
@@ -1015,7 +1075,7 @@
           "footer": "below the band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "planned",
       "file": null,
       "generated_date": null,
@@ -1050,7 +1110,7 @@
           "footer": "lower block"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "planned",
       "file": null,
       "generated_date": null,
@@ -1085,7 +1145,7 @@
           "footer": "bottom band"
         }
       },
-      "prompt_spec_version": "13e2.1-v1",
+      "prompt_spec_version": "13e3-v1",
       "status": "planned",
       "file": null,
       "generated_date": null,

@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-import { buildDailyBatch, DAILY_FAMILIES, batchMixWarnings } from "../../lib/social/dailyMix.mjs";
+import { buildDailyBatch, DAILY_FAMILIES, MIX_FAMILIES, batchMixWarnings } from "../../lib/social/dailyMix.mjs";
 import { assembleCaption, assemblePlatformCaptions } from "../../lib/social/caption.mjs";
 import { buildHashtags } from "../../lib/social/hashtags.mjs";
 import { buildSlideContent, renderHtml } from "../../lib/social/templates.mjs";
@@ -116,7 +116,7 @@ test("1. an ineligible row (stale, sold, wrong-language, bad reference) never be
   ];
   const batch = buildDailyBatch(bad, { history: [], now: NOW });
   assert.equal(batch.selected.length, 0);
-  assert.equal(batch.rejected.length, DAILY_FAMILIES.length);
+  assert.equal(batch.rejected.length, MIX_FAMILIES.length);
 });
 
 // === 2. daily mix: <=1 per family, 3-5 when supported, FEWER when thin =====
@@ -143,7 +143,7 @@ test("2c. an empty pool produces zero posts and a clean (non-error) result", () 
   const batch = buildDailyBatch([], { history: [], now: NOW });
   assert.equal(batch.selected.length, 0);
   assert.equal(batch.warnings.length, 0);
-  assert.equal(batch.considered, DAILY_FAMILIES.length);
+  assert.equal(batch.considered, MIX_FAMILIES.length);
 });
 
 // === 3. cooldowns =========================================================

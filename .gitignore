@@ -33,11 +33,26 @@ yarn-error.log*
 # payload JSON). Never committed - this is dev/review scratch output, not
 # a build artifact or published content.
 /.social-preview/
+
+# Phase 13E.3 - OpenAI brand-asset STORAGE POLICY (docs/social-asset-library.md SS22).
+# assets/social/generated/ is the working area: raw OpenAI PNG output pending
+# human review. Those PNGs are scratch and are NOT committed - only the
+# manifest (social-assets.json) is tracked. `social:assets approve` copies
+# a reviewed PNG into assets/social/approved/ (which IS committed) and
+# repoints the manifest at it, so the repo only carries approved assets.
+assets/social/generated/**/*.png
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+
+# Impeccable design skill: the reference docs + scripts + hook config ARE
+# committed (reproducible design work), but the ~15 MB self-downloading
+# platform binary and the regenerable font index are not - they re-hydrate
+# on first run.
+.claude/skills/impeccable/scripts/bin/
+.claude/skills/impeccable/scripts/data/
 
 # vercel
 .vercel

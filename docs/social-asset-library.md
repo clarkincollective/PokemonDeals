@@ -272,6 +272,39 @@ call (tested).
 
 ---
 
+## §22. Generated-PNG storage policy (Phase 13E.3)
+
+The generated-vs-approved lifecycle maps onto **two directories**:
+
+| Directory | Tracked? | Holds |
+| --- | --- | --- |
+| `assets/social/generated/` | **manifest only** (`social-assets.json`). `assets/social/generated/**/*.png` is **git-ignored** | Raw OpenAI output pending human review. Scratch — like `.social-preview/`. A `git add -A` can never sweep these in. |
+| `assets/social/approved/` | **committed** | The reviewed PNGs that passed all 5 QA checks. This is what `social:daily` and any deployed runtime read. |
+
+`npm run social:assets approve <id>` **copies** the reviewed PNG from
+`generated/` into `approved/<category>/<id>.png`, records the original path
+as `generated_file` for provenance, and repoints the manifest `file` at
+the approved copy. `approvedAssetsForCategory()` only ever trusts an
+`approved` entry whose `file` exists on disk (fail closed).
+
+**Why this shape:**
+
+- **Deployment / runtime** — the repo and every Vercel build carry only
+  the small, human-approved set. An un-reviewed generation is never in the
+  deployment.
+- **Repo size** — a full 30-asset library at ~2 MB/PNG would be ~60 MB of
+  churn in history; only the handful that ship are committed.
+- **No `git add -A` surprises** — the whole `generated/` PNG tree is
+  ignored; the only tracked thing there is the manifest.
+- **Deterministic manifest ↔ file** — `file` always points at wherever the
+  asset currently lives (`generated/` while pending, `approved/` once
+  shipped); the reader checks existence and falls back to Mode B.
+
+The 3 `auction_watch` probe PNGs generated during 13E.2.1 were
+`git rm --cached`d under this policy (kept on disk, no longer tracked).
+
+---
+
 ## Files
 
 | File | Role |

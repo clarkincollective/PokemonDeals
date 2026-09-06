@@ -25,7 +25,7 @@
 //   * `generate` only ever sets status "generated". A human must review
 //     and `approve` before an asset enters `social:daily` rotation.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, copyFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config as loadDotenv } from "dotenv";
@@ -307,11 +307,21 @@ function cmdApprove(ids) {
       continue;
     }
     if (!a.file || !existsSync(path.join(ROOT, a.file))) { console.error(`  ${id}: file missing (${a.file})`); continue; }
-    const problems = validateAssetEntry({ ...a, status: "approved" });
-    if (problems.length) { console.error(`  ${id}: invalid entry - ${problems.join("; ")}`); continue; }
+    // 13E.3 storage policy: on approval, COPY the reviewed PNG out of the
+    // gitignored working area (assets/social/generated/) into the tracked
+    // shipped area (assets/social/approved/) and repoint `file` at it, so
+    // the repo only ever carries human-approved assets.
+    const approvedRel = path.join("assets", "social", "approved", a.category, `${a.id}.png`).replace(/\\/g, "/");
+    const approvedAbs = path.join(ROOT, approvedRel);
+    mkdirSync(path.dirname(approvedAbs), { recursive: true });
+    copyFileSync(path.join(ROOT, a.file), approvedAbs);
+    const problems = validateAssetEntry({ ...a, status: "approved", file: approvedRel });
+    if (problems.length) { console.error(`  ${id}: invalid entry - ${problems.join("; ")}`); rmSync(approvedAbs, { force: true }); continue; }
+    a.generated_file = a.file;      // provenance: where the raw output came from
+    a.file = approvedRel;           // what social:daily / runtime now reads
     a.status = "approved";
     a.approved_date = todayIso();
-    console.log(`  approved ${id}`);
+    console.log(`  approved ${id} -> ${approvedRel}`);
   }
   saveManifest(m);
 }

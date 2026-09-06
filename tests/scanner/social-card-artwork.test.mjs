@@ -233,7 +233,7 @@ test("11. every background prompt forbids drawing a card / creature and reserves
     assert.match(prompt, /LEAVE THE RESERVED HERO ZONE COMPLETELY EMPTY/);
     assert.doesNotMatch(prompt, /blank card rectangle|fanned stack of blank cards|anonymous clear slab shape/i);
   }
-  assert.equal(PROMPT_SPEC_VERSION, "13e2.1-v1");
+  assert.equal(PROMPT_SPEC_VERSION, "13e3-v1"); // 13E.3 - premium-dark background direction
 });
 
 // === 12-13. artwork is never transformed ============================

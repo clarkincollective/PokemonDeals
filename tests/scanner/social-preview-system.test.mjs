@@ -251,24 +251,36 @@ test("9b. lib/social/render.mjs never references an image URL field", () => {
   assert.ok(!/image_url|ebayimg/.test(src));
 });
 
-// === 10. PPT price-HISTORY templates still do not exist (13E.1: PPT
-//         social DATA is now cleared, so an aggregate market_snapshot of
-//         TODAY's pool is allowed - but movers / grade-spread / raw-vs-
-//         graded / biggest-losers all need PPT price-history or explicit
-//         grade-comparison data and remain unbuilt / fail-closed) =========
+// === 10. Price-history content is confined to ONE sanctioned family ===
+//   13E.3: MARKET MOVER is a real family - one real card's real,
+//   CONFIDENT price movement over a stated window, or nothing. It lives
+//   in exactly one module (lib/social/priceMovement.mjs), reuses
+//   lib/priceHistory.js UNCHANGED (the same merged canonical history +
+//   anomaly-confidence checks the site's own card pages use), and fails
+//   closed on thin history / no confident window / source disagreement.
+//   grade-spread / biggest-losers stay unbuilt everywhere.
 
-test("10. no PPT price-history / movers / grade-spread / raw-vs-graded template exists anywhere in lib/social", () => {
-  const blockedFamilies = /\bmarket_movers\b|\braw_vs_graded\b|\bgrade_spread\b|\bprice_history\b|\bbiggest_losers\b/i;
-  // 13E.2: lib/social/assetPrompts.mjs + assets.mjs carry a `raw_vs_graded`
-  // token as the id of an EVERGREEN, DATA-FREE image-background category
-  // (a blank card next to a blank slab shape) - it is not a PPT-history
-  // template and reaches no live data. Those two modules are checked
-  // separately (they must stay pure) in tests/scanner/social-asset-library.test.mjs.
-  const ASSET_PACK = new Set(["lib/social/assetPrompts.mjs", "lib/social/assets.mjs"]);
+test("10. price-history is confined to lib/social/priceMovement.mjs, reuses lib/priceHistory unchanged, and fails closed", () => {
+  // real ACCESS to price history (an import, a call, or the table name as
+  // a string) - not a doc comment that merely names a helper.
+  const HISTORY_ACCESS = /from ["']\.\.\/priceHistory|getCanonicalPriceHistory\s*\(|confidentTrendWindows\s*\(|["']price_history["']/;
+  const ALLOWED = new Set(["lib/social/priceMovement.mjs"]);
   for (const f of SOCIAL_FILES) {
-    if (ASSET_PACK.has(f)) continue;
-    assert.doesNotMatch(read(f), blockedFamilies, `${f} must not implement a PPT-price-history-dependent template`);
+    if (ALLOWED.has(f)) continue;
+    assert.doesNotMatch(read(f), HISTORY_ACCESS, `${f} must route all price-history access through lib/social/priceMovement.mjs`);
   }
+  // still banned as a data template ANYWHERE in the social system:
+  for (const f of SOCIAL_FILES) {
+    assert.doesNotMatch(read(f), /\bgrade_spread\b|\bbiggest_losers\b/i, `${f} must not implement grade-spread / biggest-losers`);
+  }
+  // the one sanctioned module reuses the shared history lib unchanged and
+  // has an explicit fail-closed path, with no fabrication/interpolation.
+  const pm = read("lib/social/priceMovement.mjs");
+  assert.match(pm, /from "\.\.\/priceHistory\.js"/);
+  assert.match(pm, /confidentTrendWindows\s*\(/); // it actually calls the shared, unchanged confidence gate
+  assert.match(pm, /ok:\s*false/); // an explicit fail-closed path exists
+  assert.match(pm, /return \{ ok: false/); // ...and it is returned, not just referenced
+  assert.doesNotMatch(pm, /Math\.random\s*\(/); // no randomness / fabricated series
 });
 
 test("10b. the only market-intelligence content type is market_snapshot, and it derives ONLY from the current deal pool (no PPT history import, no price_history table)", () => {
@@ -577,16 +589,22 @@ test("24. carouselFileName produces a stable, zero-padded, variant-suffixed name
   assert.equal(carouselFileName(11, "A"), "11-A.png");
 });
 
-test("24b. a Best Deals payload with N deals implies exactly N+1 carousel positions (cover + one per deal), in stable pool order", () => {
+test("24b. a Hook Carousel with N deals implies N+2 positions: a cover, one slide per deal, and a fixed close slide", () => {
   const rows = [
     dealRow({ id: 1, watchlist_id: 1, discount_pct: 0.5 }),
     dealRow({ id: 2, watchlist_id: 2, discount_pct: 0.6 }),
     dealRow({ id: 3, watchlist_id: 3, discount_pct: 0.7 }),
   ];
   const { payload } = buildFamilyPayload("best-deals", rows);
+  // 13E.3: the Hook Carousel closes on a PokemonDealFinder + CTA slide,
+  // so total = cover + N card slides + close.
   const cover = buildCoverSlideContent(payload);
-  assert.equal(cover.carousel.total, payload.deal_data.length + 1);
-  const names = ["01-cover-A.png", ...payload.deal_data.map((_, i) => carouselFileName(i + 2, "A"))];
+  assert.equal(cover.carousel.total, payload.deal_data.length + 2);
+  const names = [
+    "01-cover-A.png",
+    ...payload.deal_data.map((_, i) => carouselFileName(i + 2, "A")),
+    carouselFileName(payload.deal_data.length + 2, "A"), // close slide
+  ];
   assert.deepEqual(new Set(names).size, names.length); // no collisions
 });
 
