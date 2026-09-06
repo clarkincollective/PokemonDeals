@@ -1,7 +1,9 @@
 # Real Card Artwork Compositing + OpenAI Pipeline Correction — Phase 13E.2.1
 
-**Status: architecture + real-card rendering shipped. No images generated
-(no `OPENAI_API_KEY`).** Builds directly on
+**Status: architecture + real-card rendering shipped. `OPENAI_API_KEY` is
+now configured and a 3-image probe confirmed the `gpt-image-2` pipeline;
+the background library is otherwise still un-generated and nothing is
+approved.** Builds directly on
 [`docs/social-asset-library.md`](./social-asset-library.md) (13E.2) — that
 pipeline is reused, not rebuilt.
 
@@ -220,7 +222,8 @@ if `ebay_seller_images` ever flips to CLEARED without a re-check.
 
 ## Activation
 
-The only remaining blocker for generated backgrounds (Version B) and any
-future generation is **`OPENAI_API_KEY`** — set it server/local (never
-commit, never paste in chat) and run `npm run social:assets -- generate
---sample`. Version C (real card artwork) needs **no key** and is live now.
+`OPENAI_API_KEY` is now set server/local (never committed, never pasted in
+chat). A 3-image probe has run; to generate the first-pass sample run
+`npm run social:assets -- generate --sample`, then QA and approve each
+before it enters `social:daily` rotation. Version C (real card artwork)
+needs **no key** and is live now.

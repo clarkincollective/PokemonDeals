@@ -1,9 +1,11 @@
 # OpenAI Image-Generated Brand Asset Library — Phase 13E.2
 
-**Status: architecture + prompt pack shipped; no images generated yet.**
-No `OPENAI_API_KEY` is configured in this environment, so per the brief
-(§19/§21) the generation step is built but not run, and no other image
-provider is substituted.
+**Status: architecture + prompt pack shipped. `OPENAI_API_KEY` is now
+configured; a 3-image probe (`auction_watch__A/B/C`) confirmed the
+`gpt-image-2` pipeline end to end.** The remaining 27 planned assets are
+not generated yet, and nothing is approved — per the brief (§19/§21)
+generation and approval stay deliberate, human-gated steps, and no other
+image provider is substituted.
 
 The library gives the daily social feed an optional premium visual layer
 of **evergreen, non-data-bearing backgrounds**. The existing deterministic

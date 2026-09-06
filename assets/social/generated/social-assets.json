@@ -3,7 +3,7 @@
   "spec_version": "13e2.1-v1",
   "generator": "scripts/socialAssets.mjs",
   "image_model": "gpt-image-2",
-  "updated": "2026-09-05",
+  "updated": "2026-09-06",
   "boundary": "Image generation receives ZERO live eBay / PPT / card / price / listing / user data and NO real card image or URL. Prompts are evergreen, built only from lib/social/assetPrompts.mjs, and explicitly forbid drawing any card / creature / product shape (the hero zone stays empty). The real canonical card artwork (Version C) and the real site screenshot (Version D) are composited by the deterministic renderer AFTER generation - never by the model.",
   "qa_checks": [
     "generated_background",
@@ -19,8 +19,8 @@
     "rejected"
   ],
   "counts": {
-    "planned": 30,
-    "generated": 0,
+    "planned": 27,
+    "generated": 3,
     "approved": 0,
     "rejected": 0
   },
@@ -53,11 +53,17 @@
         }
       },
       "prompt_spec_version": "13e2.1-v1",
-      "status": "planned",
-      "file": null,
-      "generated_date": null,
+      "status": "generated",
+      "file": "assets/social/generated/auction_watch/auction_watch__A.png",
+      "generated_date": "2026-09-06",
       "approved_date": null,
-      "qa": null,
+      "qa": {
+        "generated_background": "PENDING",
+        "copyright_risk": "PENDING",
+        "brand_fit": "PENDING",
+        "text_legibility": "PENDING",
+        "ai_artifact": "PENDING"
+      },
       "notes": ""
     },
     {
@@ -88,11 +94,17 @@
         }
       },
       "prompt_spec_version": "13e2.1-v1",
-      "status": "planned",
-      "file": null,
-      "generated_date": null,
+      "status": "generated",
+      "file": "assets/social/generated/auction_watch/auction_watch__B.png",
+      "generated_date": "2026-09-06",
       "approved_date": null,
-      "qa": null,
+      "qa": {
+        "generated_background": "PENDING",
+        "copyright_risk": "PENDING",
+        "brand_fit": "PENDING",
+        "text_legibility": "PENDING",
+        "ai_artifact": "PENDING"
+      },
       "notes": ""
     },
     {
@@ -123,11 +135,17 @@
         }
       },
       "prompt_spec_version": "13e2.1-v1",
-      "status": "planned",
-      "file": null,
-      "generated_date": null,
+      "status": "generated",
+      "file": "assets/social/generated/auction_watch/auction_watch__C.png",
+      "generated_date": "2026-09-06",
       "approved_date": null,
-      "qa": null,
+      "qa": {
+        "generated_background": "PENDING",
+        "copyright_risk": "PENDING",
+        "brand_fit": "PENDING",
+        "text_legibility": "PENDING",
+        "ai_artifact": "PENDING"
+      },
       "notes": ""
     },
     {

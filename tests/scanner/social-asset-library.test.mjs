@@ -310,23 +310,91 @@ test("8. validateAssetEntry catches malformed entries and passes clean ones", ()
   assert.ok(validateAssetEntry({ ...approvedEntry(), status: "approved", qa: { copyright_risk: "PASS" } }).length); // incomplete qa
 });
 
-test("8b. the committed manifest is valid, 30 planned assets, nothing approved yet", () => {
+test("8b. the committed manifest holds its durable invariants: 30 valid assets, 3/family, generation allowed but never auto-approved, QA+approval+file gate rotation", () => {
   const { manifest, error } = loadAssetManifest(MANIFEST_PATH);
   assert.equal(error, null);
-  assert.equal(manifest.assets.length, 30);
+
+  // --- shape invariants (hold no matter how many assets have been generated) ---
+  assert.equal(manifest.assets.length, 30, "10 families x 3 variants");
   assert.equal(manifest.spec_version, PROMPT_SPEC_VERSION);
   assert.match(manifest.boundary, /ZERO live eBay \/ PPT \/ card \/ price \/ listing \/ user data/);
-  for (const a of manifest.assets) {
-    assert.deepEqual(validateAssetEntry(a), [], `${a.id}: ${validateAssetEntry(a).join("; ")}`);
-    assert.equal(a.status, "planned");
-    assert.equal(a.file, null);
-  }
-  assert.equal(manifest.counts.approved, 0);
-  // 3 variants per family, 10 families
+  assert.equal(new Set(manifest.assets.map((a) => a.id)).size, 30, "no duplicate asset ids");
   for (const fam of ASSET_FAMILIES) {
     assert.equal(manifest.assets.filter((a) => a.category === fam).length, 3, fam);
     assert.equal(VARIANT_PLAN[fam].length, 3);
   }
+
+  const VALID_STATUS = ["planned", "generated", "approved", "rejected"];
+  for (const a of manifest.assets) {
+    // every committed entry is structurally clean for whatever status it carries
+    assert.deepEqual(validateAssetEntry(a), [], `${a.id}: ${validateAssetEntry(a).join("; ")}`);
+    assert.ok(VALID_STATUS.includes(a.status), `${a.id} has an unknown status "${a.status}"`);
+
+    if (a.status === "planned") {
+      assert.equal(a.file, null, `${a.id}: a planned asset carries no file`);
+    }
+
+    if (a.status === "generated") {
+      // generation IS allowed in the committed manifest, but it is never a
+      // shortcut into rotation: a generated asset is not approved, has no
+      // approved_date, and generation must not have forced its QA to PASS.
+      assert.notEqual(a.status, "approved");
+      assert.equal(a.approved_date ?? null, null, `${a.id}: a generated asset must not carry an approved_date`);
+      assert.ok(a.qa && QA_CHECKS.every((c) => c in a.qa), `${a.id}: a generated asset has a full QA block`);
+      assert.ok(!QA_CHECKS.every((c) => a.qa[c] === "PASS"), `${a.id}: generation must not auto-PASS every QA check`);
+    }
+
+    if (a.status === "approved") {
+      // an approval is a deliberate, reviewable manifest edit: it needs a
+      // real file reference and all five QA checks explicitly PASS.
+      assert.equal(typeof a.file, "string");
+      assert.ok(a.file, `${a.id}: an approved asset names a file`);
+      assert.ok(a.qa && QA_CHECKS.every((c) => a.qa[c] === "PASS"), `${a.id}: an approved asset has all five QA checks PASS`);
+    }
+  }
+
+  // counts.approved is honest, and the committed baseline approves nothing -
+  // approval only ever happens as an explicit later step.
+  const approved = manifest.assets.filter((a) => a.status === "approved");
+  assert.equal(manifest.counts.approved, approved.length, "counts.approved matches the real approved count");
+  assert.equal(approved.length, 0, "committed baseline approves nothing");
+
+  // --- rotation gate: social:daily only ever sees approved + all-QA-PASS + file-on-disk ---
+  // a `generated` (un-approved) asset is NOT rotation-eligible, even if every QA check is hand-set to PASS.
+  const genPass = {
+    ...approvedEntry({ id: "market_watch__A", category: "market_watch" }),
+    status: "generated",
+    qa: Object.fromEntries(QA_CHECKS.map((c) => [c, "PASS"])),
+  };
+  assert.equal(
+    approvedAssetsForCategory(fakeManifest([genPass]), "market_watch", { existsFn: () => true }).length,
+    0,
+    "a generated (un-approved) asset is never rotation-eligible"
+  );
+
+  // missing file still fails closed: approved in the manifest but absent on disk -> excluded.
+  const ghost = approvedEntry({
+    id: "market_watch__B",
+    category: "market_watch",
+    file: "assets/social/generated/market_watch/market_watch__B.png",
+  });
+  assert.equal(
+    approvedAssetsForCategory(fakeManifest([ghost]), "market_watch", { existsFn: () => false }).length,
+    0,
+    "approved-but-missing-file fails closed to Mode B"
+  );
+
+  // positive control: approved + all QA PASS + file present IS eligible.
+  const live = approvedEntry({
+    id: "market_watch__C",
+    category: "market_watch",
+    file: "assets/social/generated/market_watch/market_watch__C.png",
+  });
+  assert.equal(
+    approvedAssetsForCategory(fakeManifest([live]), "market_watch", { existsFn: () => true }).length,
+    1,
+    "approved + QA PASS + file present -> eligible"
+  );
 });
 
 // === 9. family spec sanity ===========================================
