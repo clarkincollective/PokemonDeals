@@ -115,7 +115,7 @@ test("2. an exact printing resolves its canonical TCGplayer URL and renders a Ve
   assert.match(html, /width:\s*1080px/);
   assert.match(html, /height:\s*1350px/);
   assert.match(html, /class="disclosure">Ad</); // Layer 3 facts intact
-  assert.match(html, /UNDER MARKET REF/);
+  assert.match(html, /BELOW RECENT MARKET/); // 13E.3D - clearer consumer wording
 });
 
 // === 3. missing artwork fails closed ==================================

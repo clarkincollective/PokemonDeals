@@ -101,10 +101,13 @@ async function main() {
       ["non-US marketplace", "wigglytuff-gb"],
     ]) {
       const row = rowOf(label);
-      const payload = buildDealPayload({ contentType: "deal_of_day", row, now, utmCampaign: "deal_of_day" });
+      // one just_found example so the FRESHNESS hook variant is exercised
+      const ct = tag === "raichu" ? "just_found" : "deal_of_day";
+      const payload = buildDealPayload({ contentType: ct, row, now, utmCampaign: ct });
       const slide = buildSlideContent(payload);
       const art = await artFor(row);
       const bg = bgFor(payload);
+      console.log(`  dealdrop ${tag}: hook="${payload.hook.text}" (${payload.hook.variant}) cta="${payload.cta.label}"`);
       await shot(`dealdrop_${tag}_A.png`, renderHtml(slide, { variant: "A", cardArtwork: art }));
       await shot(`dealdrop_${tag}_B.png`, renderHtml(slide, { variant: "B", cardArtwork: art }));
       if (bg) await shot(`dealdrop_${tag}_A_bg.png`, renderHtml(slide, { variant: "A", cardArtwork: art, background: bg }));
@@ -139,19 +142,28 @@ async function main() {
       now,
     });
     const seq = buildCarouselSequence(cRows);
-    const coverOpts = { distinctCount: seq.distinctCount, totalSlides: seq.count };
-    console.log(`  carousel: ${cRows.length} input rows -> ${seq.distinctCount} distinct card slide(s) + cover + close = ${seq.count}`);
+    // resolve the card art for every content slide up front, so the cover
+    // can fan 2-3 of the carousel's OWN real cards.
+    const cardSlides = seq.slides.filter((x) => x.kind === "card");
+    const slideArt = [];
+    for (const cs of cardSlides) slideArt.push(await artFor(cs.deal));
+    const coverCards = slideArt.filter(Boolean).slice(0, 3).map((a) => a.card.fileUrl);
+    // qualifying pool larger than shown -> a truthful "N more" on the close
+    const moreCount = Math.max(0, seq.distinctPrintings - seq.distinctCount);
+    const coverOpts = { distinctCount: seq.distinctCount, totalSlides: seq.count, coverCards };
+    const closeOpts = { distinctCount: seq.distinctCount, totalSlides: seq.count, moreCount };
+    console.log(`  carousel: ${cRows.length} input rows -> ${seq.distinctCount} distinct card slide(s) + cover + close = ${seq.count}; cover fan ${coverCards.length}; +${moreCount} more`);
     await shot(`carousel_1_cover.png`, renderHtml(buildCoverSlideContent(cPayload, coverOpts), { variant: "A" }));
     let i = 2;
-    for (const s of seq.slides.filter((x) => x.kind === "card")) {
+    for (let k = 0; k < cardSlides.length; k++) {
+      const s = cardSlides[k];
       const dp = buildDealPayload({ contentType: "deal_of_day", row: s.deal, now, utmCampaign: "best_deals_found_today" });
       const slide = buildSlideContent(dp);
       slide.carousel = { position: s.index + 1, total: seq.count };
-      const art = await artFor(s.deal);
-      await shot(`carousel_${i}_card.png`, renderHtml(slide, { variant: "A", cardArtwork: art }));
+      await shot(`carousel_${i}_card.png`, renderHtml(slide, { variant: "A", cardArtwork: slideArt[k] }));
       i++;
     }
-    await shot(`carousel_${i}_close.png`, renderHtml(buildCloseSlideContent(cPayload, coverOpts), { variant: "A" }));
+    await shot(`carousel_${i}_close.png`, renderHtml(buildCloseSlideContent(cPayload, closeOpts), { variant: "A" }));
 
     // 4. BRAND / CONVERSION AD - Version D, real screenshot
     if (existsSync(shotPath)) {
@@ -161,7 +173,9 @@ async function main() {
         variant: "A",
         brandAd: {
           screenshot: { fileUrl: pathToFileUrl(shotPath) },
-          sub: "PokemonDealFinder scans live eBay listings and compares each one to a real market reference - so you see the ones priced below it.",
+          sub: "PokemonDealFinder scans live eBay listings and compares each one to a real market reference - so you see the ones priced below it. Free.",
+          benefits: ["Live eBay listings", "Real price history", "Below-market finds"],
+          cta: { label: "SEE TODAY'S DEALS", url: "PokemonDealFinder.com/deals" },
           urlLabel: "pokemondealfinder.com",
         },
       }));

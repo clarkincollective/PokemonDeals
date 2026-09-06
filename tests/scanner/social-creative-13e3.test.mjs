@@ -19,13 +19,13 @@ import {
   PLATFORM_TARGETS, DEFAULT_TARGET, RENDERABLE_TARGETS, ZONES, COMPOSITIONS,
   FAMILIES, FAMILY_SPECS, TOKENS, CARD_GEOMETRY,
   resolveCreativeSpec, resolveCardGeometry, resolveAccent, familyForContentType,
-  buildCarouselSequence, validateAllFamilySpecs,
+  buildCarouselSequence, validateAllFamilySpecs, CAROUSEL_HOOK_TEMPLATES, selectDealHook, resolveCta, CONTENT_GOALS, buildCreativeIdentifiers,
 } from "../../lib/social/creativeSpec.mjs";
 import { resolveMovement } from "../../lib/social/priceMovement.mjs";
 import {
   buildSlideContent, buildCoverSlideContent, buildCloseSlideContent, renderHtml, safeText,
 } from "../../lib/social/templates.mjs";
-import { buildDealPayload, buildMoverPayload } from "../../lib/social/payload.mjs";
+import { buildDealPayload, buildMoverPayload, buildSpotlightPayload } from "../../lib/social/payload.mjs";
 import { assembleCaption } from "../../lib/social/caption.mjs";
 import { RIGHTS_STATE } from "../../lib/social/rights.mjs";
 
@@ -153,13 +153,13 @@ test("9. the Market Mover creative renders a real chart (with the real card), an
   const art = { presentation: "hero_left", card: { fileUrl: "file:///cache/12345.jpg" } };
   const withChart = renderHtml(buildSlideContent(p), { variant: "A", cardArtwork: art });
   assert.match(withChart, /<svg /);
-  assert.match(withChart, /class="chart"/);
+  assert.match(withChart, /class="chart/);
   assert.match(withChart, /class="card-art"/); // 13E.3C: the card is part of the Mover identity
   assert.match(withChart, /class="disclosure">Ad</);
 
   const empty = buildSlideContent({ ...p, movement: { ...p.movement, series: [] } });
   const html = renderHtml(empty, { variant: "A", cardArtwork: art });
-  assert.doesNotMatch(html, /class="chart"/); // no confident chart -> chart element dropped
+  assert.doesNotMatch(html, /class="chart/); // no confident chart -> chart element dropped
   assert.match(html, /class="disclosure">Ad</); // still a complete creative
 });
 
@@ -252,7 +252,7 @@ test("15. Version A / B emit NO <img>; the OpenAI background is CSS only; Versio
 test("16. Version D requires a real screenshot handle; the brand-ad hook never carries a fabricated stat", () => {
   const html = renderHtml({ kind: "deal" }, { brandAd: { screenshot: { fileUrl: "file:///shot/home.png" }, sub: "PokemonDealFinder scans live eBay listings and compares each one to a real market reference.", urlLabel: "pokemondealfinder.com" } });
   assert.match(html, /<img src="file:\/\/\/shot\/home\.png"/);
-  assert.match(html, /class="device-frame"/);
+  assert.match(html, /class="device-frame/);
   assert.doesNotMatch(html, /\$\d|\d+%\s*(off|below|under)/i); // no invented number in the ad
 });
 
@@ -352,15 +352,28 @@ test("23. not enough distinct cards -> a SHORTER carousel and a truthful count (
 });
 
 test("24. the cover slide count and hook match the DISTINCT content-slide count, not the raw input", () => {
-  const payload = { deal_data: [1, 2, 3, 4, 5, 6, 7].map((id) => cRow({ id })), freshness: { label: "x" } };
+  const payload = { deal_data: [1, 2, 3, 4, 5, 6, 7].map((id) => cRow({ id })), freshness: { label: "x" }, generated_at: "2026-09-06T12:00:00Z" };
   const rawFallback = buildCoverSlideContent(payload); // no opts -> deal_data.length + 2
   assert.equal(rawFallback.carousel.total, 9);
   // with the real deduped numbers from buildCarouselSequence
   const cover = buildCoverSlideContent(payload, { distinctCount: 3, totalSlides: 5 });
   assert.equal(cover.carousel.total, 5);
-  assert.match(cover.headline, /^3 Pokemon cards$/);
+  assert.equal(cover.count, 3);
+  assert.match(cover.hookText, /\b3\b/); // the truthful count is in the hook
+  assert.match(cover.hookText, /POKEMON CARD|EBAY LISTING|BIGGEST|BELOW RECENT MARKET/); // one of the real templates
   const one = buildCoverSlideContent(payload, { distinctCount: 1, totalSlides: 3 });
-  assert.match(one.headline, /^1 Pokemon card$/); // singular
+  assert.match(one.hookText, /\b1\b/);
+  assert.doesNotMatch(one.hookText, /1 POKEMON CARDS\b/); // singular, not "1 CARDS"
+});
+
+test("24c. every carousel cover hook template is truthful about the count and carries no fake urgency", () => {
+  for (let n = 1; n <= 6; n++) {
+    for (let k = 0; k < 4; k++) {
+      const t = CAROUSEL_HOOK_TEMPLATES[k](n);
+      assert.ok(t.includes(String(n)), `template ${k} states n=${n}`);
+      assert.doesNotMatch(t, /\b(hurry|now only|last chance|selling fast|don'?t miss|act now)\b/i);
+    }
+  }
 });
 
 // === 11. MARKET MOVER - CARD ART IS PART OF THE IDENTITY (13E.3C) =====
@@ -381,8 +394,138 @@ test("26. a Market Mover with NO resolvable card art fails closed to identity + 
   const p = buildMoverPayload({ row: dealRow(), movement: realMovement });
   const slide = buildSlideContent(p);
   const html = renderHtml(slide, { variant: "A", cardArtwork: null });
-  assert.doesNotMatch(html, /class="chart"/); // the chart element is dropped
+  assert.doesNotMatch(html, /class="chart/); // the chart element is dropped
   assert.doesNotMatch(html, /<img/i);         // no card image
   assert.match(html, /class="disclosure">Ad</); // still a complete (minimal) slide
   assert.match(html, /\+17%/); // the movement figure is still stated
+});
+
+// === 12. CONVERSION LAYER (13E.3D): website-first CTA, truthful hooks,
+//         content intent, deterministic trackable identifiers ==========
+
+const srcRow = (over = {}) => dealRow({
+  id: 42, card_tcgplayer_id: "999",
+  card_name: "Blastoise", card_set: "Base Set (Shadowless)",
+  total_price_usd: 350, market_price: 894.04, discount_pct: 0.6085,
+  ...over,
+});
+
+test("27. every CTA is website-first: the label is a real intent and the url is an on-site PokemonDealFinder.com route (never eBay)", () => {
+  for (const c of [
+    resolveCta({ family: "deal_drop", contentType: "deal_of_day", route: "/deals/42" }),
+    resolveCta({ family: "market_mover", contentType: "market_mover", route: "/cards/blastoise" }),
+    resolveCta({ family: "hook_carousel", contentType: "best_deals_found_today", route: "/deals" }),
+    resolveCta({ family: "brand_ad", contentType: "brand_ad", route: "/deals" }),
+    resolveCta({ family: "deal_drop", contentType: "just_found", route: "/deals/7" }),
+  ]) {
+    assert.match(c.url, /^PokemonDealFinder\.com(\/|$)/i);
+    assert.doesNotMatch(c.url, /ebay|itm\/|tcgplayer/i);
+    assert.equal(typeof c.label, "string");
+    assert.ok(c.label.length > 3);
+  }
+  // the deal payload no longer says "See it on eBay" as its CTA
+  const p = buildDealPayload({ contentType: "deal_of_day", row: srcRow(), utmCampaign: "deal_of_day" });
+  assert.doesNotMatch(p.cta.label, /on eBay/i);
+  const html = renderHtml(buildSlideContent(p), { variant: "A" });
+  assert.match(html, /PokemonDealFinder\.com\/deals\/42/);
+});
+
+test("28. a CTA never fabricates a destination - the url path is exactly the payload's real destination route", () => {
+  for (const route of ["/deals/31721", "/cards/umbreon-vmax", "/pokemon/charizard", "/sets/base-set", "/deals"]) {
+    const c = resolveCta({ family: "deal_drop", contentType: "deal_of_day", route });
+    assert.ok(c.url === `PokemonDealFinder.com${route}` || c.url === `PokemonDealFinder.com`, `${route} -> ${c.url}`);
+  }
+});
+
+test("29. the price-contrast hook is exact to the source values (rounded whole dollars, no exaggeration)", () => {
+  const h = selectDealHook(srcRow({ total_price_usd: 350, market_price: 894.04, discount_pct: 0.6086 }), { contentType: "deal_of_day" });
+  assert.equal(h.variant, "price_contrast");
+  assert.equal(h.text, "$894 CARD. LISTED FOR $350.");
+  assert.equal(h.supported, true);
+});
+
+test("30. the absolute-saving hook is exact to (reference - listed)", () => {
+  // ref/listed ratio 1.5 (< 1.8) so price_contrast does NOT fire; gap = 60
+  const h = selectDealHook(srcRow({ total_price_usd: 120, market_price: 180, discount_pct: 0.3333 }), { contentType: "deal_of_day" });
+  assert.equal(h.variant, "absolute_saving");
+  assert.equal(h.text, "SAVE $60 VS RECENT MARKET");
+});
+
+test("31. the percent-gap hook is exact to round(discount_pct*100) and is the always-valid default", () => {
+  const h = selectDealHook(srcRow({ total_price_usd: 44, market_price: 55, discount_pct: 0.2 }), { contentType: "deal_of_day" });
+  assert.equal(h.variant, "percent_gap");
+  assert.equal(h.text, "WE FOUND THIS 20% BELOW RECENT MARKET");
+});
+
+test("32. the freshness hook only fires for just_found and states the real percent", () => {
+  const h = selectDealHook(srcRow({ total_price_usd: 350, market_price: 894, discount_pct: 0.6085 }), { contentType: "just_found" });
+  assert.equal(h.variant, "freshness");
+  assert.equal(h.text, "JUST FOUND: 61% BELOW RECENT MARKET");
+});
+
+test("33. no Deal Drop hook or carousel hook contains fake scarcity / urgency", () => {
+  const URGENCY = /\b(hurry|act now|only \d+ left|last chance|won'?t last|selling fast|going fast|don'?t miss|before it'?s gone|buy now)\b/i;
+  for (const ct of ["deal_of_day", "just_found"]) {
+    for (const over of [
+      { total_price_usd: 350, market_price: 894, discount_pct: 0.61 },
+      { total_price_usd: 120, market_price: 180, discount_pct: 0.33 },
+      { total_price_usd: 44, market_price: 55, discount_pct: 0.2 },
+    ]) {
+      assert.doesNotMatch(selectDealHook(srcRow(over), { contentType: ct }).text, URGENCY);
+    }
+  }
+  for (let n = 1; n <= 6; n++) for (let k = 0; k < CAROUSEL_HOOK_TEMPLATES.length; k++) {
+    assert.doesNotMatch(CAROUSEL_HOOK_TEMPLATES[k](n), URGENCY);
+  }
+});
+
+test("34. the carousel cover only fans real cards that are actually in the sequence, and never more than 3", () => {
+  const rows = [1, 2, 3, 4, 5].map((i) => dealRow({ id: i, card_tcgplayer_id: String(i), card_name: "P" + i }));
+  const seq = buildCarouselSequence(rows);
+  const seqUrls = seq.slides.filter((s) => s.kind === "card").map((s) => `file:///cache/${s.deal.card_tcgplayer_id}.jpg`);
+  // pass MORE than exist + an alien url; the cover must keep only in-sequence ones, capped at 3
+  const cover = buildCoverSlideContent(
+    { deal_data: rows, freshness: { label: "x" }, generated_at: "2026-09-06T00:00:00Z" },
+    { distinctCount: seq.distinctCount, totalSlides: seq.count, coverCards: [...seqUrls, "file:///alien/999.jpg"] }
+  );
+  assert.ok(cover.coverCards.length <= 3);
+  for (const u of cover.coverCards) assert.ok(seqUrls.includes(u), `${u} is from the sequence`);
+});
+
+test("35. content_goal is always one of the valid enum values, per family", () => {
+  const cases = [
+    [buildDealPayload({ contentType: "deal_of_day", row: srcRow(), utmCampaign: "deal_of_day" }), "CONVERSION"],
+    [buildMoverPayload({ row: srcRow(), movement: realMovement }), "ENGAGEMENT"],
+    [buildSpotlightPayload({ contentType: "pokemon_spotlight", displayName: "x", dealCount: 3, topDeals: [srcRow()], destinationRoute: "/pokemon/x" }), "REACH"],
+  ];
+  for (const [p, expected] of cases) {
+    assert.ok(CONTENT_GOALS.includes(p.content_goal), p.content_goal);
+    assert.equal(p.content_goal, expected);
+  }
+});
+
+test("36. every creative carries deterministic content_id / creative_family / hook_variant / cta_variant identifiers", () => {
+  const mk = () => buildDealPayload({ contentType: "deal_of_day", row: srcRow(), utmCampaign: "deal_of_day", now: Date.parse("2026-09-06T12:00:00Z") });
+  const a = mk().creative;
+  const b = mk().creative;
+  assert.deepEqual(a, b); // deterministic
+  assert.match(a.content_id, /^pdf-deal-drop-deal-of-day-blastoise-20260906-A-[0-9a-z]{7}$/);
+  assert.equal(a.creative_family, "deal_drop");
+  assert.equal(a.hook_variant, "price_contrast");
+  assert.equal(a.cta_variant, "live_deal");
+  assert.equal(a.content_goal, "CONVERSION");
+  // a different input -> a different content_id
+  const other = buildDealPayload({ contentType: "just_found", row: srcRow({ card_name: "Umbreon" }), utmCampaign: "just_found", now: Date.parse("2026-09-06T12:00:00Z") }).creative;
+  assert.notEqual(a.content_id, other.content_id);
+});
+
+test("37. the conversion layer never introduces an eBay seller image, an AI card, or a publish path", () => {
+  for (const f of ["lib/social/creativeSpec.mjs", "lib/social/templates.mjs", "lib/social/payload.mjs"]) {
+    const src = read(f);
+    // no image-generation import / call, no reading a deal's seller photo as a value
+    assert.doesNotMatch(src, /from ["'][^"']*openai|generateImageB64|images\/generations|dall-?e|midjourney/i, f);
+    assert.doesNotMatch(src, /\b(deal|row|d)\.image_url\b/, f); // never reads the eBay seller photo field
+    assert.doesNotMatch(src, /\bfunction\s+(publish|schedulePost|postToInstagram|postToTikTok)\b/, f);
+  }
+  assert.equal(RIGHTS_STATE.publishing, "DISABLED");
 });

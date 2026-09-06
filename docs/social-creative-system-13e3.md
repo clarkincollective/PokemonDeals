@@ -42,6 +42,47 @@ function.
 | **Hook Carousel** | stop scroll on slide 1, earn swipes, close on brand + CTA | cover → `product_hero_split` slides → close | the hook | green from real `discount_pct` |
 | **Brand / Conversion Ad** | explain PokemonDealFinder fast | `brand_ad` (Version D) | the hook | none |
 
+### 13E.3D — conversion / scroll-stop pass
+
+Not a redesign. The dark system, typography, red accent, green-only-for-a-
+real-positive-metric rule, card safeguards, OpenAI isolation, and
+publishing lock are all unchanged. What changed:
+
+- **Website-first CTAs** (`creativeSpec.resolveCta`) - "SEE THE LIVE
+  DEAL", "FULL PRICE HISTORY", "COMPARE LIVE LISTINGS", "SEE TODAY'S
+  DEALS", "SEE ALL LIVE FINDS", each with the creative's **real** on-site
+  `PokemonDealFinder.com<route>` printed under it. No creative CTA points
+  at eBay; the website owns the affiliate hop. `resolveCta` never
+  fabricates a path - the url is exactly `payload.destination.route`.
+- **Deal Drop hook engine** (`creativeSpec.selectDealHook`) - the
+  strongest **truthful** angle, each gated on the data: `freshness`
+  ("JUST FOUND: 61% BELOW RECENT MARKET", just_found only) >
+  `price_contrast` ("$894 CARD. LISTED FOR $350.", when the reference is
+  big and the listing well under it) > `absolute_saving` ("SAVE $228 VS
+  RECENT MARKET", $ gap >= $60) > `percent_gap` ("WE FOUND THIS 61% BELOW
+  RECENT MARKET", the always-valid default). No exaggeration, no fake
+  scarcity. Consumer wording `UNDER MARKET REF` -> **`BELOW RECENT
+  MARKET`**; the `MARKET REF (USD)` price label + the "recent sold prices
+  for this exact printing" trust line stay.
+- **Hook Carousel cover** - real canonical card artwork from the
+  carousel's **own** sequence, 2-3 cards fanned as supporting imagery
+  (never fabricated / unrelated / seller images). Truthful count hook
+  from `selectCarouselHook` ("4 POKEMON CARDS WE FOUND BELOW MARKET",
+  ...). The close slide may state "N more under-market finds on the site"
+  when `moreCount` (a real integer) > 0.
+- **Market Mover** - editorial hierarchy (NAME / MOVE % / PERIOD), the
+  chart is a clean unboxed line rather than a dashboard widget. No
+  invented reason a market moved.
+- **Brand Ad** - the real screenshot fills ~55% of the composition, a max
+  of 3 supported benefits (LIVE EBAY LISTINGS / REAL PRICE HISTORY /
+  BELOW-MARKET FINDS), one website-first CTA, no dead space. No
+  affiliation implied.
+- **Content intent + trackable ids** - every payload carries a
+  `content_goal` (`REACH | ENGAGEMENT | TRUST | CONVERSION | BRAND`) and a
+  deterministic `creative` block (`content_id`, `creative_family`,
+  `hook_variant`, `cta_variant`, `content_goal`) for 13E.5 measurement.
+  No analytics / distribution wiring here.
+
 ### 13E.3C corrections
 
 - **Hook Carousel — distinct card identities.** `buildCarouselSequence()`

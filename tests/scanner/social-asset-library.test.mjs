@@ -309,7 +309,7 @@ test("7b. renderHtml WITH an approved background keeps the full deterministic ov
   assert.match(html, /height:\s*1350px/);
   // every real fact is still the deterministic overlay
   assert.match(html, /class="disclosure">Ad</);
-  assert.match(html, /UNDER MARKET REF/);
+  assert.match(html, /BELOW RECENT MARKET/); // 13E.3D - clearer consumer wording
   assert.match(html, /LISTED \(USD\)/);
   assert.match(html, /MARKET REF \(USD\)/);
 });
