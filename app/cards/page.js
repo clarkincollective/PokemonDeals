@@ -10,6 +10,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import JsonLd from "@/components/JsonLd";
 import FeaturedValueCards from "@/components/FeaturedValueCards";
+import SetLinkIndex from "@/components/SetLinkIndex";
 import { breadcrumbList, collectionPage, itemList } from "@/lib/jsonLd";
 
 const SITE_URL = "https://pokemondealfinder.com";
@@ -35,7 +36,7 @@ export const metadata = {
   twitter: { card: "summary", title: TITLE, description: DESCRIPTION },
 };
 
-const BROWSE_POKEMON = 24;
+const BROWSE_POKEMON = 60;
 const BROWSE_SETS = 24;
 const FEATURED_CARDS = 24;
 
@@ -64,9 +65,10 @@ export default async function CardsDirectoryPage() {
   const setBySlug = new Map();
   for (const s of dealSets ?? []) setBySlug.set(s.slug, { set: s.set, slug: s.slug, count: s.count });
   for (const s of catSets ?? []) if (!setBySlug.has(s.slug)) setBySlug.set(s.slug, { set: s.set, slug: s.slug, count: 0 });
-  const topSets = [...setBySlug.values()]
-    .sort((a, b) => b.count - a.count || a.set.localeCompare(b.set))
-    .slice(0, BROWSE_SETS);
+  const allSets = [...setBySlug.values()].sort(
+    (a, b) => b.count - a.count || a.set.localeCompare(b.set)
+  );
+  const topSets = allSets.slice(0, BROWSE_SETS);
 
   const featuredItems = (featured ?? []).map((c) => ({
     name: `${c.displayName} (${c.set})`,
@@ -192,6 +194,12 @@ export default async function CardsDirectoryPage() {
             </ul>
           )}
         </section>
+
+        {/* SEO-GSC-2: the complete, crawlable A-Z set index. This is what
+            makes /cards a real second entry point into the set -> card
+            tree - every /sets/[slug] page in one plain-link block, and
+            each of those already links its own cards. */}
+        <SetLinkIndex sets={allSets} />
 
         {/* Highest market references */}
         {featured && featured.length >= 4 && (

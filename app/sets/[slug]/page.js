@@ -122,6 +122,7 @@ export default async function SetDetailPage({ params }) {
     hubCounts,
     {
       cards: catalogCards,
+      indexCards: catalogIndexCards,
       totalCards: catalogTotal,
       truncated: catalogTruncated,
       stats,
@@ -157,6 +158,16 @@ export default async function SetDetailPage({ params }) {
   // BROWSE data - the interactive checklist grid + the bounded ItemList
   // schema only. Capped at SET_CATALOG_MAX_BROWSE non-deal cards upstream.
   const catalogueItems = buildCatalogueItems(catalogCards, validSetSlugs, "set");
+  // SEO-GSC-2: the plain-text <CatalogueLinkIndex> gets the FULL set (up
+  // to SET_LINK_INDEX_MAX), so the ~1,900 indexable cards past the
+  // 600-tile grid cap in the 4 oversized grab-bag "sets" stay on a
+  // stable crawl path. Same buildCatalogueItems shape; the index itself
+  // drops any card without a permanent /cards/[slug].
+  const catalogueIndexItems = buildCatalogueItems(
+    catalogIndexCards ?? catalogCards,
+    validSetSlugs,
+    "set"
+  );
 
   // FULL-SET aggregates (SEO Phase 4A closeout) - price range/median,
   // species list and the most-valuable ranking are computed server-side
@@ -338,7 +349,7 @@ export default async function SetDetailPage({ params }) {
               }
               totalCount={catalogueItems.length}
             />
-            <CatalogueLinkIndex label={resolved.set} cards={catalogueItems} headingId="full-set-index" />
+            <CatalogueLinkIndex label={resolved.set} cards={catalogueIndexItems} headingId="full-set-index" />
           </section>
         )}
 

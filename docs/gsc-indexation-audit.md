@@ -541,3 +541,223 @@ scheduled in a later phase — not this one.
   Inspection API). No write scope, no Search Console mutation.
 - Raw data captured: `scripts/_gsc_pages.json`, `_gsc_queries.json`,
   `_gsc_page_query.json`, `_gsc_inspect*.json` (git-ignored scratch).
+
+---
+
+# SEO-GSC-2 — crawl discovery + catalogue hub strengthening (implemented)
+
+**Date:** 2026-09-07 · commit see §commit · **not** an indexation-bug
+fix. Goal: improve Google's *discovery* and *crawl prioritisation* of the
+stable catalogue without new low-value pages and without touching the SEO
+system's architecture, canonicals, robots, indexability gates or sitemap
+`<lastmod>`.
+
+## What changed (3 code changes + 1 new component)
+
+| # | change | file(s) | effect |
+|---|---|---|---|
+| 1 | **Footer "Browse" row** — a stable, server-rendered, always-visible (`no display:none`, no JS, no churn) nav row linking `/deals · /cards · /pokemon · /sets · /guides` | `components/SiteFooter.js` | every one of the ~24k card, ~900 species, ~200 set and every deal/guide page now carries a plain `<a href>` to each catalogue hub. GSC showed the only site-wide links to `/pokemon` and `/cards` lived in a **double-`display:none`** desktop header dropdown + a **click-gated** mobile portal — neither a strong crawl signal on a new domain. |
+| 2 | **`/cards` fans out to the full set universe** — new `SetLinkIndex` server component (plain `<a>`, no `next/link`, A–Z grouped) renders **all ~208** `/sets/[slug]` hubs; `BROWSE_POKEMON` 24 → 60 | `app/cards/page.js`, `components/SetLinkIndex.js` | `/cards` becomes a real second crawl path into the set → card tree (`/cards → /sets/[slug] → /cards/[slug]`). Was 24 set links; the deep catalogue depended on the flat sitemap + expiring deal URLs. |
+| 3 | **`/sets/[slug]` crawl index uncapped** — the plain-text `<CatalogueLinkIndex>` now receives the **full indexable** card list (`SET_LINK_INDEX_MAX = 2500`), while the image-heavy `<CatalogueBrowser>` keeps its 600-tile cap | `lib/deals.js` (`fetchSetCatalog` → new `indexCards`), `app/sets/[slug]/page.js` | closes the crawl-orphan gap: **1,168 indexable cards** (862 of them species-less, so no `/pokemon/[species]` parent either) sat past the 600 cap in 4 grab-bag "sets" with **no stable crawlable parent**. Filter is INDEXABLE-only (`hubSlug` or resolvable + non-sentinel price) — resolvable-but-priceless `noindex,follow` cards are still **not** advertised as crawl targets (brief §8: "do not blindly expose junk/thin pages"). |
+
+No change to: robots.txt, canonicals, sitemap architecture / `<lastmod>` /
+segmentation, indexability thresholds, deal-matching / authenticity /
+freshness logic, or the P0.4.1 homepage variety selector.
+
+## Before → after — crawl paths & link counts
+
+**[PROD]** raw HTML (Googlebot UA), local `next start`:
+
+| page | HTML bytes | `/pokemon/[slug]` links | `/sets/[slug]` links | footer hubs |
+|---|---:|---:|---:|---|
+| `/` | 359 KB → 360 KB | 12 | 25 | — → **5** (`/deals /cards /pokemon /sets /guides`) |
+| `/pokemon` | 802 KB → 803 KB | 1,025 (unchanged) | 0 | — → **5** |
+| `/cards` | **189 KB → 282 KB** | 24 → **60** | **24 → 208** | — → **5** |
+| `/sets` | 431 KB → 432 KB | 0 | 208 | — → **5** |
+| `/sets/base-set` (normal set) | 426 KB (unchanged) | 68 | 1 | — → **5** |
+| `/sets/world-championship-decks` (grab-bag) | ~0.9 MB → **1.15 MB** | 295 | 0 | — → **5** |
+| `/cards/charizard-base-set` | 141 KB (unchanged) | 1 | 1 | — → **5** |
+
+`/sets/[slug]` crawlable `/cards/[slug]` links, oversized buckets:
+
+| set | catalogue rows | indexable | `/cards/` links before (600-tile cap) | after (full text index) |
+|---|---:|---:|---:|---:|
+| World Championship Decks | 1,960 | 1,598 | ~600 | **1,587** |
+| Prize Pack Series Cards | 886 | 647 | ~600 | **614** |
+| Miscellaneous Cards & Products | 824 | 723 | ~600 | ~700 |
+| League & Championship Cards | 617 | 551 | 551 | 551 |
+
+Normal sets (≤600 catalogue cards — ~204 of 208) are unchanged.
+
+### Crawl depth
+
+| entity | shortest stable path before | after |
+|---|---|---|
+| species `/pokemon/[slug]` | `/` → header dropdown (`display:none`) → `/pokemon` → slug — dropdown links weak on a new domain | `/` → **footer** `/pokemon` → slug — depth 2, plain link on every page |
+| set `/sets/[slug]` | same, via `/sets` (or 24-link `/cards` slice) | `/` → **footer** `/sets` **or** `/cards` (now 208-set index) → slug — depth 2 |
+| card `/cards/[slug]` (has species) | `/pokemon/[species]` → slug (species page itself un-crawled) | `/sets/[slug]` **and** `/pokemon/[species]` → slug — depth 3, both parents now footer-reachable |
+| card `/cards/[slug]` (species-less, in a grab-bag set, past #600) | **none** — sitemap / expiring deal link only | `/sets/[slug]` full text index → slug — depth 3 |
+
+## Orphan state (§6)
+
+| | before | after |
+|---|---:|---:|
+| indexable cards past the `/sets/[slug]` 600 cap (no stable parent from their set page) | **1,168** | 0 |
+| — of those, species-less (**true** indexable orphans: no set-page and no species-page parent) | **862** | **0** |
+| indexable species with a stable crawlable parent | 910 / 910 (via `/pokemon`, un-crawled) | 910 / 910 (via footer-linked `/pokemon`) |
+| indexable sets with a stable crawlable parent | 208 / 208 | 208 / 208 (now also from `/cards`) |
+| guides with a stable crawlable parent | 4 / 4 | 4 / 4 |
+
+**Target of 0 indexable orphans: met.** The 862 species-less grab-bag
+reprints match the pre-existing "~600–900 no-species reprint/specialty
+cards" P2 watch — it was 862, now resolved by change #3.
+
+## Sitemap `<lastmod>` decision (§9)
+
+**No change — already truthful.** Audited `lib/sitemap.js`:
+
+- `pages`, `sets`, `pokemon`, `cards` segments: **omit `<lastmod>`** — no
+  per-URL content-modification timestamp exists we can stand behind (a
+  bulk `card_catalog.synced_at` moves every row on every sync = the
+  "everything changed at once" signal the code already rejects).
+- `deals`, `sealed-deals` segments: `<lastmod>` = the listing's real
+  `last_seen_at` from the scanner. Kept.
+- Sitemap **index**: no child `<lastmod>` (a prior `Date.now()` stamp was
+  removed pre-audit; `crawl-hygiene.test.mjs` locks this).
+- No `Date.now()` / build-time / deploy-time timestamp anywhere.
+
+Aligns with brief §1 ("no fake freshness") and §9 ("if no truthful
+modification timestamp exists, omit lastmod").
+
+## Sitemap segmentation decision (§10)
+
+**No change — sharding not justified now.** `cards.xml` = 23,619 URLs,
+well under the 50,000-per-file protocol limit. The only concrete benefit
+of code-level shards (`cards-1.xml`…) would be per-shard GSC reporting —
+which is available with **zero code** by submitting the existing child
+sitemaps (`/sitemaps/cards.xml`, `pokemon.xml`, `sets.xml`) individually
+in GSC alongside the index (SEO-GSC-1 §19 manual action). GSC (2026-09-06)
+reported `errors 0, warnings 0` and a fresh `lastDownloaded` on the
+index — no partial-processing signal. Revisit if `cards.xml` approaches
+~40k URLs or GSC starts reporting it as partially processed.
+
+## Guide-query opportunity — preserved for the NEXT content phase (§11)
+
+**[GSC]** 2026-08-20 → 09-08, real queries hitting `/guides/*` (do not
+fabricate — this is the exact set):
+
+`/guides/card-condition-grading` (79 impr in SEO-GSC-1's window; **~24
+distinct queries**, all pos ~55–90):
+
+| theme | real GSC queries (verbatim) |
+|---|---|
+| **grade meaning / scale** | `what is a grade 7 pokemon card`, `grade 9 pokemon card meaning`, `what does grade mean in pokemon cards`, `what does it mean for a pokemon card to be graded`, `pokemon card condition scale` |
+| **"explained" / overview** | `pokemon grades explained`, `pokemon card grading explained`, `pokemon card ratings`, `pokemon card rating`, `pokemon card rating system`, `rating pokemon cards`, `tcg card rating`, `pokemon cards grade`, `card grade pokemon` |
+| **condition (raw) guide** | `pokemon card condition`, `pokemon card condition guide`, `pokemon cards condition guide`, `pokemon card condition grading`, `card condition pokemon`, `all pokemon card conditions`, `ex card condition` |
+| **how-to / checker** | `how to check the grade on a pokemon card`, `how to tell the condition of a pokemon card`, `pokemon card condition checker`, `pokemon card grading criteria` |
+
+`/guides/raw-vs-graded-pokemon-cards`: `graded vs ungraded pokemon cards`
+(44), `raw vs graded` (54).
+`/guides/how-pokemon-card-prices-work`: `how do pokemon cards get their
+value` (38).
+`/guides/vintage-vs-modern-pokemon-cards`: `what are vintage pokemon
+cards` (57).
+
+**Next-phase guide candidates (evidence-backed, DO NOT build yet):**
+1. Strengthen `card-condition-grading` around the **grade-scale** cluster
+   ("what is a grade 7/8/9", "grade X meaning", "grading scale explained")
+   — the single densest real query cluster on the site.
+2. A **"how to check / find a card's grade & condition"** how-to section
+   or sibling guide (`how to check the grade…`, `…condition checker`,
+   `how to tell the condition…`).
+3. **PSA vs CGC vs BGS** comparison — adjacent to every grading query;
+   not yet covered.
+
+## Striking-distance card pages — shortlist for a later on-page phase (§12)
+
+**[GSC]** `/cards/[slug]` pages at avg position **4–19** with **≥2
+impressions**, 2026-08-20 → 09-08 (31 total; top 20, DO NOT mass-edit
+titles):
+
+| # | URL | impr | pos | real query (if not GSC-anonymised) |
+|---|---|---:|---:|---|
+| 1 | `/cards/houndoom-ex-full-art-xy-breakthrough` | 8 | 16.0 | `houndoom ex price` |
+| 2 | `/cards/pikachu-ex-xy124-xy-promos` | 7 | 8.1 | `pikachu xy124` |
+| 3 | `/cards/popplio-045-me-mega-evolution-promo` | 7 | 13.9 | (anonymised) |
+| 4 | `/cards/moltres-12-fossil` | 5 | 7.2 | (anonymised) |
+| 5 | `/cards/kangaskhan-5-jungle` | 5 | 10.2 | (anonymised) |
+| 6 | `/cards/pikachu-v-full-art-swsh04-vivid-voltage` | 4 | 5.3 | (anonymised) |
+| 7 | `/cards/glaceon-171-cosmos-holo-sv-scarlet-violet-promo-cards` | 4 | 10.0 | `glaceon 171 promo` |
+| 8 | `/cards/excadrill-56-98-cosmos-holo-blister-exclusives` | 4 | 10.3 | (anonymised) |
+| 9 | `/cards/ancient-mew-japanese-exclusive-print-miscellaneous-cards-products` | 4 | 12.0 | (anonymised) |
+| 10 | `/cards/radiant-charizard-020-159-prize-pack-series-cards` | 3 | 4.0 | (anonymised) |
+| 11 | `/cards/kakuna-base-set-shadowless` | 3 | 6.7 | (anonymised) |
+| 12 | `/cards/umbreon-vmax-alternate-art-secret-swsh07-evolving-skies` | 3 | 7.7 | (anonymised) |
+| 13 | `/cards/espeon-vmax-alternate-art-secret-swsh08-fusion-strike` | 3 | 8.7 | (anonymised) |
+| 14 | `/cards/radiant-greninja-046-189-southeast-asia-exclusive-league-championship-cards` | 3 | 9.7 | (anonymised) |
+| 15 | `/cards/popplio-sm03-general-mills-promo-miscellaneous-cards-products` | 3 | 18.7 | (anonymised) |
+| 16 | `/cards/charizard-ex-power-keepers` | 2 | 6.5 | (anonymised) |
+| 17 | `/cards/starmie-swsh09-brilliant-stars` | 2 | 8.5 | (anonymised) |
+| 18 | `/cards/electrode-base-set-shadowless` | 2 | 9.0 | (anonymised) |
+| 19 | `/cards/light-toxtricity-swsh137-swsh-sword-shield-promo-cards` | 2 | 9.0 | (anonymised) |
+| 20 | `/cards/pikachu-227-s-p-swsh-sword-shield-promo-cards` | 2 | 9.0 | (anonymised) |
+
+Ranking basis: impressions desc, then position asc. All carry a real
+market-reference price + Product/Offer schema (verified in SEO-GSC-1 §8).
+GSC anonymises the query for most rows (each has only 1–3 impressions).
+
+## Performance (§13)
+
+- `next build` — **compiled successfully**, no bundle regression (the two
+  new components are server-only; `SetLinkIndex` and the expanded
+  `CatalogueLinkIndex` emit class-less `<a>` so the RSC payload stays
+  small).
+- Homepage / `/pokemon` / `/sets` / detail pages: unchanged size (±1 KB).
+- `/cards`: 189 KB → 282 KB (+93 KB for ~250 more links + A–Z headings) —
+  comfortably inside the 400 KB `cards-directory.test.mjs` ceiling.
+- The 4 grab-bag set pages grow (worst: WCD 1.15 MB, plain-text links, all
+  below the fold, ISR-cached `revalidate: 900`). Accepted: 4 low-value
+  URLs vs. putting 1,168 orphaned indexable cards on a crawl path.
+  Googlebot's page limit is ~15 MB.
+
+## Tests & build (§14)
+
+- `npm run test:scanner` — **1381 / 1381 pass**.
+- `npm run test:seo` — **343 / 343 pass** (12 new in
+  `tests/seo/gsc2-crawl-hubs.test.mjs`: footer Browse row is
+  server-rendered & unhidden; `/cards` SetLinkIndex fan-out; `/sets/[slug]`
+  full text index & the INDEXABLE-only filter; robots/canonical/
+  lastmod/indexability unchanged; P0.4.1 homepage preserved; live raw-HTML
+  crawl-path + no-orphan-regression checks).
+- `npm run build` — **✓ Compiled successfully.**
+
+## Production verification (§15)
+
+Verified against a local `next start` (Googlebot UA + ordinary client);
+**re-verify on the deployed domain after merge:**
+
+| URL | HTTP | raw HTML | canonical | robots | footer hub links |
+|---|---|---|---|---|---|
+| `/` | 200 | full | self | index | 5 ✓ |
+| `/pokemon` | 200 | full, H1 "Browse Pokemon Cards by Generation", 1,025 species `<a>` | self | index | 5 ✓ |
+| `/cards` | 200 | full, H1 "Pokemon Card Database & Prices", 208 set `<a>` + "Every set we track (208)" | self | index | 5 ✓ |
+| `/sets` | 200 | full, 208 set `<a>` | self | index | 5 ✓ |
+| `/guides` | 200 | full | self | index | 5 ✓ |
+| `/sets/world-championship-decks` | 200 | full, "Full … card index (1587)" | self | index | 5 ✓ |
+
+## Manual action required
+
+**None new.** The SEO-GSC-1 recommendation stands and is still worth
+doing: in GSC, submit `/sitemaps/cards.xml`, `/sitemaps/pokemon.xml`,
+`/sitemaps/sets.xml` individually (per-family crawl reporting), and
+optionally "Request indexing" once for `/pokemon` and `/cards` now that
+they have a site-wide footer inlink.
+
+## What this does NOT do
+
+It does not make Google crawl faster — that is gated by domain age /
+authority (SEO-GSC-1 P0). It gives the crawler, once it does come, a
+complete stable path to every indexable page instead of a flat sitemap +
+churny deal links. Re-baseline with `scripts/_gscAudit.mjs` in 4–6 weeks
+(~mid-October 2026): expect `/pokemon` + `/cards` indexed, and the
+"Discovered – currently not indexed" long-tail count falling.
