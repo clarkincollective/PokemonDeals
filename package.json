@@ -27,7 +27,8 @@
     "social:publish": "node scripts/socialPublish.mjs",
     "social:source": "node scripts/socialSource.mjs",
     "social:metrics": "node scripts/socialMetrics.mjs",
-    "social:plan": "node scripts/socialPlan.mjs"
+    "social:plan": "node scripts/socialPlan.mjs",
+    "social:dashboard": "node scripts/socialDashboard.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",
