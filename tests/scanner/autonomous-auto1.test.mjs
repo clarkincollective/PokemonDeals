@@ -358,8 +358,10 @@ test("AUTO1-24 decideDigest wouldSend is false unless every gate is open", () =>
 test("AUTO1-25 social:auto CLI defaults to dry-run; the live submit is gated", () => {
   const src = read("scripts/socialAuto.mjs");
   assert.match(src, /DEFAULT IS DRY RUN/);
-  assert.match(src, /loadSourceSnapshot/);
-  assert.match(src, /never posts from a fixture/i); // no fixture fallback for the production verdict
+  // AUTO-3: derives a FRESH live source via the shared resolver, no on-disk fallback
+  assert.match(src, /resolveLiveSource/);
+  assert.doesNotMatch(strip(src), /loadSourceSnapshot\(/);
+  assert.match(src, /never posts from a fixture/i);
   // submitAutonomousBatch is called exactly once, inside the LIVE+gate guard
   assert.equal((strip(src).match(/submitAutonomousBatch\(/g) || []).length, 1);
   assert.match(src, /const liveGate = resolveLiveSocialGates\(/);

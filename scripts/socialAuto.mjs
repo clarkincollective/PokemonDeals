@@ -26,7 +26,11 @@ import { newRun, finishRun, appendRun, lastRun, loadCircuit, isTripped, effectiv
 import { selectAutonomousCandidate, stageCapCheck, cadenceCheck, firstLiveDealSafe, preSendRevalidate } from "../lib/autonomous/socialAuto.mjs";
 import { resolveLiveSocialGates, submitAutonomousBatch } from "../lib/autonomous/socialPublish.mjs";
 import { saveCircuit, recordFailure } from "../lib/autonomous/runState.mjs";
-import { loadSourceSnapshot } from "./socialSource.mjs";
+import { resolveLiveSource } from "./socialSource.mjs";
+import { buildCreativeIdentifiers } from "../lib/social/creativeSpec.mjs";
+import { assignExperimentForPlacement, factsFromCandidate } from "../lib/social/experiments/index.mjs";
+import { writeFileSync as _wf, mkdirSync as _mkd } from "node:fs";
+import { execSync as _execSync } from "node:child_process";
 import { loadLedger, saveLedger } from "../lib/social/distribution/ledger.mjs";
 import { loadBatches, saveBatches, findBatch } from "../lib/social/distribution/batch.mjs";
 import { readFileSync } from "node:fs";
@@ -49,6 +53,14 @@ const jsonOut = args.includes("--json");
 
 function line(s = "") { if (!jsonOut) console.log(s); }
 
+function gitHead() {
+  try {
+    return _execSync("git rev-parse HEAD", { cwd: process.cwd() }).toString().trim();
+  } catch {
+    return null;
+  }
+}
+
 async function main() {
   const posture = resolveSocialPosture(process.env, { requestLive: wantLive });
   const circuit = loadCircuit("social");
@@ -61,27 +73,69 @@ async function main() {
   line(`  circuit: ${circuit.state}${isTripped(circuit) ? ` (tripped ${circuit.tripped_at}: ${circuit.reason} - owner resume required)` : ""}`);
   line(`  effective mode: ${mode}${wantLive && mode !== "LIVE" ? "  (--live requested but not permitted - running as a plan only)" : ""}\n`);
 
-  // ---- 1. load live eligible social source (no Browse call) ----
-  const snap = loadSourceSnapshot();
-  const isLive = snap && snap.source_is_live === true && !String(snap.source ?? "").toLowerCase().startsWith("fixture");
-  if (!snap) {
-    run.skip_reasons.push("no live source snapshot (run: npm run social:source -- live)");
+  // ---- 1. RESOLVE a FRESH live source from the DB (AUTO-3). ----
+  // ONE canonical resolver, shared with `social:source -- live`. NO eBay
+  // Browse call - it reads current verified Supabase state only. It NEVER
+  // falls back to a fixture / historical demo / stale preview / old
+  // on-disk snapshot. 0 eligible -> NO_CONTENT.
+  let snap;
+  try {
+    snap = await resolveLiveSource({ sourceCommit: gitHead() });
+  } catch (e) {
+    run.provider_errors.push(`live source read failed: ${String(e.message).slice(0, 160)}`);
     finishRun(run, "NO_CONTENT");
     appendRun("social", run);
-    line("  NO CONTENT: no source snapshot on disk. Nothing rendered, nothing published. (successful run)\n");
+    line(`  NO CONTENT: live source read failed - ${e.message}\n`);
     return report(run, posture, circuit, mode);
   }
-  if (!isLive) {
-    run.skip_reasons.push(`source snapshot is not live (source=${snap.source ?? "?"}) - autonomous mode never posts from a fixture / stale snapshot`);
+  // freeze the immutable LIVE snapshot to its OWN path (never the fixture,
+  // never the from-fixture wrap at live-snapshot.json).
+  try {
+    _mkd(path.join(process.cwd(), ".social-preview", "source"), { recursive: true });
+    _wf(path.join(process.cwd(), ".social-preview", "source", "auto-live-snapshot.json"), JSON.stringify({ ...snap, frozen_by: "social:auto", frozen_at: new Date().toISOString() }, null, 2) + "\n", "utf8");
+  } catch { /* advisory only */ }
+
+  if (snap.empty || snap.source_is_live !== true) {
+    run.skip_reasons.push(snap.empty_reason ?? "no live eligible social source");
     finishRun(run, "NO_CONTENT");
     appendRun("social", run);
-    line(`  NO CONTENT: source snapshot is "${snap.source}", not live. Autonomous mode will not post from it.\n`);
+    line("  NO CONTENT: no live eligible social source right now (autonomous mode never posts from a fixture / stale snapshot).");
+    if (snap.empty_reason) line(`    reason: ${snap.empty_reason}`);
+    line(`    active pool ${snap.active_pool_size ?? "?"}, eligible ${snap.eligible_pool_size ?? 0}, freshest exact_verified ${snap.freshest_exact_verified_hours ?? "?"}h\n`);
     return report(run, posture, circuit, mode);
   }
 
-  const candidates = Array.isArray(snap.candidates) ? snap.candidates : Array.isArray(snap.deals) ? snap.deals : [];
+  // map the resolver's `deals` -> autonomous deal_drop candidates.
+  const candidates = (snap.deals ?? []).map((d) => {
+    const r = d.row ?? d;
+    const subject = r.card_name ?? "";
+    const generatedAt = snap.captured_at;
+    // deterministic E1 assignment (13E.10A) - NOT visually chosen.
+    const facts = factsFromCandidate({ family: "deal_drop", card_name: r.card_name, total_price_usd: r.total_price_usd, market_price: r.market_price, discount_pct: r.discount_pct, freshness_state: d.freshness_state });
+    const exp = assignExperimentForPlacement({ family: "deal_drop", ...facts, freshnessState: d.freshness_state }, "instagram");
+    const ids = buildCreativeIdentifiers({ family: "deal_drop", contentType: "deal_of_day", subject, generatedAt, variant: "A", hookVariant: exp?.hook_variant ?? null, ctaVariant: exp?.cta_variant ?? null });
+    return {
+      content_id: ids.content_id,
+      family: "deal_drop",
+      card_name: r.card_name, card_set: r.card_set, card_tcgplayer_id: r.card_tcgplayer_id,
+      species: String(r.card_name ?? "").split(" ")[0],
+      is_graded: r.is_graded, marketplace: r.marketplace, listing_type: r.listing_type,
+      total_price_usd: r.total_price_usd, market_price: r.market_price, discount_pct: r.discount_pct,
+      freshness_state: d.freshness_state,
+      cooldown_key: `card:${r.card_tcgplayer_id ?? r.id}`,
+      experiment: exp ?? null,
+      snapshot: {
+        source: snap.source, source_is_live: true, source_captured_at: snap.captured_at,
+        deal_id: r.id, exact_verified_at: r.exact_verified_at ?? d.exact_verified_at,
+        listed_usd: r.total_price_usd, market_price: r.market_price, discount_pct: r.discount_pct,
+        listing_active: true, image_ok: true, marketplace: r.marketplace, listing_type: r.listing_type,
+        landing_url: `https://pokemondealfinder.com/deals/${r.id}`,
+      },
+    };
+  });
   run.eligible_candidates = candidates.length;
-  line(`  live snapshot: ${snap.source}  captured ${snap.captured_at ?? snap.pulled_at ?? "?"}  (${candidates.length} candidate(s))`);
+  line(`  live source: ${snap.source} source_is_live=true  captured ${snap.captured_at}  commit ${String(snap.source_commit ?? "").slice(0, 8)}`);
+  line(`  active pool ${snap.active_pool_size}, eligible ${snap.eligible_pool_size}, freshest exact_verified ${snap.freshest_exact_verified_hours}h  (${candidates.length} deal candidate(s))`);
 
   // ---- 2-4. select an autonomous candidate (stricter than planner) ----
   const ledger = loadLedger();

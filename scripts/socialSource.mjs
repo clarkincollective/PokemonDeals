@@ -24,6 +24,7 @@
 // Output: .social-preview/source/live-snapshot.json
 
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 import path from "node:path";
 import { config as loadDotenv } from "dotenv";
 if (existsSync(".env.local")) loadDotenv({ path: ".env.local", quiet: true });
@@ -78,6 +79,21 @@ function pickDeals(pool) {
   return picks.filter((p) => (seen.has(p.row.id) ? false : (seen.add(p.row.id), true)));
 }
 
+// AUTO-3 - THE ONE canonical live-source resolver. `social:source -- live`
+// and `social:auto` both call this; there is no second deal-selection
+// truth model. It performs ONE Supabase read (NO eBay Browse call), keeps
+// only rows that pass the UNCHANGED social eligibility gates, freezes each
+// row's real source timestamps, and NEVER fabricates inventory. 0
+// eligible -> an explicit `empty:true` snapshot with a machine-readable
+// reason. It never reads or writes a fixture.
+export async function resolveLiveSource({ sourceCommit = null } = {}) {
+  const snap = await buildLiveSnapshot();
+  // stamp the live provenance the autonomous gate checks (§4/§7)
+  snap.source_is_live = !snap.empty;
+  snap.source_commit = sourceCommit;
+  return snap;
+}
+
 async function buildLiveSnapshot() {
   const { rows, error } = await fetchActiveDealPool({ poolLimit: 3000 });
   if (error) throw new Error(`pool read failed: ${error}`);
@@ -91,19 +107,28 @@ async function buildLiveSnapshot() {
   const freshest = allAges.length ? Number(allAges[0].toFixed(2)) : null;
 
   if (!pool.length) {
+    // AUTO-3 - diagnose *why* nothing is eligible (fresh-but-not-BIN vs
+    // stale vs never-verified), so the autonomous skip reason is accurate.
+    const freshAll = rows.filter((r) => Number.isFinite(hoursSinceExactVerification(r, now)) && hoursSinceExactVerification(r, now) <= SOCIAL_FRESHNESS_MAX_AGE_HOURS);
+    const freshBin = freshAll.filter((r) => String(r.listing_type ?? "").toUpperCase() !== "AUCTION");
+    let why;
+    if (freshAll.length === 0) {
+      why = `0 active deals are exact-verified within the ${SOCIAL_FRESHNESS_MAX_AGE_HOURS}h social ceiling (freshest is ${freshest == null ? "null (never verified)" : freshest + "h"} ago). Upstream: app/api/verify-deals is behind.`;
+    } else if (freshBin.length === 0) {
+      why = `${freshAll.length} active deal(s) are fresh-verified within ${SOCIAL_FRESHNESS_MAX_AGE_HOURS}h, but ALL of them are AUCTIONs - the social Deal Drop pipeline is Buy-It-Now only, so 0 pass. No scanner/quota issue; the BIN inventory just isn't fresh.`;
+    } else {
+      why = `${freshBin.length} fresh BIN deal(s) exist but none pass the full premium social gate (match integrity / discount / canonical art / grade rules in lib/social/eligibility.isSociallyEligiblePremium).`;
+    }
     return {
       source: "live",
       empty: true,
-      empty_reason:
-        `0 rows pass social eligibility. Freshest exact_verified_at in the active pool is ` +
-        `${freshest == null ? "null (never verified)" : freshest + "h"} ago vs the ${SOCIAL_FRESHNESS_MAX_AGE_HOURS}h ` +
-        `social ceiling (which also matches nothing at the site's 12h premium bound). ` +
-        `The app/api/verify-deals cron is behind; Browse quota is exhausted until the next daily reset. ` +
-        `Re-run social:source -- live after verify-deals catches up.`,
+      empty_reason: why,
       captured_at: new Date(now).toISOString(),
       now: new Date(now).toISOString(),
       active_pool_size: rows.length,
       eligible_pool_size: 0,
+      fresh_verified_count: freshAll.length,
+      fresh_bin_count: freshBin.length,
       freshest_exact_verified_hours: freshest,
       deals: [],
       movers: [],
@@ -148,10 +173,19 @@ async function buildLiveSnapshot() {
   };
 }
 
+function gitHead() {
+  try {
+    return execSync("git rev-parse HEAD", { cwd: ROOT }).toString().trim();
+  } catch {
+    return null;
+  }
+}
+
 function fromFixture() {
   const fx = JSON.parse(readFileSync(FIXTURE_PATH, "utf8"));
   return {
     source: "fixture:tests/fixtures/social-deals.json",
+    source_is_live: false, // AUTO-3 - explicit: a fixture is NEVER a live source
     empty: !(fx.deals?.length),
     empty_reason: fx.deals?.length ? undefined : "the committed fixture has no deals",
     captured_at: fx.pulled_at, // the fixture's own freeze time - freshness is judged as-of THIS
@@ -176,7 +210,7 @@ async function main() {
   }
 
   let snap;
-  if (mode === "live") snap = await buildLiveSnapshot();
+  if (mode === "live") snap = await resolveLiveSource({ sourceCommit: gitHead() });
   else if (mode === "from-fixture") snap = fromFixture();
   else {
     console.error(`unknown mode "${mode}". one of: live, from-fixture, show`);

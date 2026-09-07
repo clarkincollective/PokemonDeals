@@ -48,8 +48,12 @@ blocks. AUTO-1 files never import `gates.mjs` and never weaken it.
 ## Social flow (`npm run social:auto`)
 
 ```
-1  load live eligible social source        social:source snapshot (Supabase read, NO Browse call)
-                                           - not live / fixture / stale  -> NO CONTENT (successful)
+1  RESOLVE a FRESH live source (AUTO-3)   resolveLiveSource() - the ONE canonical resolver,
+                                           shared with `social:source -- live`. Reads current
+                                           verified Supabase state (NO Browse call). NEVER a
+                                           fixture / historical / stale / on-disk fallback.
+                                           0 eligible -> NO CONTENT (successful). No manual
+                                           `social:source` step is required.
 2  select an autonomous candidate          stricter than the planner (see quality floor)
 3  assign experiment                       13E.10A deterministic assignment (unchanged)
 4  verify content tier                     S/A tier only for deal_drop; B never
@@ -319,12 +323,13 @@ return `{ ok:true, skipped:"autonomous_disabled" }` and touch no provider.
 { "path": "/api/crm-auto",    "schedule": "0 16 * * 5" }    // Fri 16:00 UTC
 ```
 
-- `GET /api/social-auto` — hourly EVALUATE. When LIVE + gates pass, it
-  submits **the single oldest autonomous-approved, untampered batch**
-  (one per invocation — the STAGE cap is enforced upstream at
-  batch-build). It does **not** render / QA / host — that is a CLI /
-  worker job (`npm run social:auto -- --once` on a machine that can
-  commit ledger state; see the state-persistence note).
+- `GET /api/social-auto` — hourly EVALUATE. **AUTO-3:** it resolves a
+  fresh live source from the DB itself (`resolveLiveSource`) — no manual
+  `social:source` step. When LIVE + gates pass, it submits **the single
+  oldest autonomous-approved, untampered batch** (one per invocation —
+  the STAGE cap is enforced upstream). It does **not** render / QA / host
+  — that stays a CLI / worker job (`npm run social:auto -- --once` on a
+  machine that can commit ledger state; see the state-persistence note).
 - `GET /api/crm-auto` — twice-weekly EVALUATE. "Cron fires" means
   *evaluate whether a digest should exist*, never *must send*. It runs
   the full decision → pre-send revalidation → audience → `sendBatch`.
