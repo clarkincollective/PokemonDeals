@@ -193,6 +193,48 @@ formal EPN approval is ever actually obtained.
 
 ---
 
+## 4b. EPN account / campaign review — CLOSED (COMPLIANT)
+
+> **Status of record:**
+> `EPN_ACCOUNT_REVIEW = CLOSED_COMPLIANT`
+> `EPN_ACCOUNT_REVIEW_ACTION_REQUIRED = false`
+> (recorded in `lib/social/distribution/config.mjs` as a factual constant —
+> it is **not** wired into any publishing gate.)
+
+**2026-09** — eBay Partner Network Operations Support / Quality Team
+confirmed **in writing**:
+
+> "We have completed our review and do not require any additional
+> information or action from you."
+
+They also stated our campaigns were brought **"in compliance."**
+
+**Scope of this status — read carefully:**
+
+- This closes the **EPN account / campaign review** that §26 and the
+  "WAITING — current EPN review" item were gated on. No further owner
+  action is required for that review.
+- It is **NOT** an approval of AI-generated social content.
+- It is **NOT** an approval of OpenAI / any GenAI usage.
+- It is **NOT** a blanket approval of every future implementation or
+  pipeline change.
+
+**What is unchanged:**
+
+- `SOCIAL_EPN_AI_CLASSIFICATION` stays `NOT_APPLICABLE_CURRENT_PIPELINE`
+  for the current data-free architecture (§4a). It is **not** changed to
+  `APPROVED` — no formal EPN "AI Tools" approval has been filed or
+  granted, and §1 #2 still applies the moment any eBay-derived data would
+  reach a GenAI model.
+- Every rights / freshness / QA / disclosure gate in
+  `lib/social/distribution/gates.mjs` is untouched. This status adds no
+  gate and removes none — it introduces **no new publishing blocker** and
+  lifts none.
+- `RIGHTS_STATE.publishing` stays `DISABLED`; nothing here authorises a
+  first post.
+
+---
+
 ## 5. eBay data boundary
 
 | eBay-derived field | Scoring/selection | Caption/copy | Image generation | Chart/social graphic | Send to GenAI at all? |
@@ -734,6 +776,14 @@ anywhere above, and nothing in this phase changes that current state.
 
 ## 26. Current EPN review — consistency check
 
+> **UPDATE (2026-09): the EPN account / campaign review is CLOSED —
+> COMPLIANT.** EPN Operations Support / Quality Team confirmed in writing
+> that their review is complete and requires no further information or
+> action, and that our campaigns were brought "in compliance". See §4b.
+> This resolves the review this section was tracking. It does **not**
+> approve AI social content, OpenAI usage, or future implementations, and
+> `SOCIAL_EPN_AI_CLASSIFICATION` remains `NOT_APPLICABLE_CURRENT_PIPELINE`.
+
 **Audit finding: CONSISTENT.**
 
 No social-automation code, no publishing integration, and no GenAI
@@ -805,17 +855,22 @@ concern, flagged here so it isn't missed.
 - Any GenAI pipeline that puts raw eBay data into a model prompt before
   EPN approval exists
 
-**WAITING — current EPN review:**
-- Submitting the AI Tools application, or any EPN-facing communication about
-  GenAI or social promotion, until the current EPN Quality Team account
-  review is resolved (explicit instruction this phase, honored — nothing
-  was sent)
+**~~WAITING — current EPN review~~ — RESOLVED (2026-09, see §4b):**
+- The EPN account / campaign review is **CLOSED — COMPLIANT**
+  (`EPN_ACCOUNT_REVIEW = CLOSED_COMPLIANT`,
+  `EPN_ACCOUNT_REVIEW_ACTION_REQUIRED = false`). No further owner action
+  for that review.
+- Still not done and still required before any GenAI-touching-eBay-data
+  pipeline: the AI Tools application itself (§1 #2 / §2 worksheet). The
+  closed account review is **not** that approval. Nothing has been sent.
 
 ---
 
 ## What must happen before Phase 13E
 
-1. Current EPN Quality Team review resolves.
+1. ~~Current EPN Quality Team review resolves.~~ **DONE (2026-09) —
+   CLOSED, COMPLIANT, no action required (§4b).** (This is the account /
+   campaign review only, not the AI Tools approval in item 5.)
 2. PokemonPriceTracker gives a written answer on off-site derived-figure use
    in social content (§6).
 3. The eBay "visually isolated" Public Display clause is confirmed directly

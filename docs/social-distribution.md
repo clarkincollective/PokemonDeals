@@ -271,11 +271,15 @@ The distribution layer does **not** weaken any of these.
 ## 6. EPN / affiliate-policy preflight  [BLOCKED ON OWNER AUTH]
 
 `docs/social-compliance-readiness.md` (13D.1) records that the EPN "AI
-Tools" / GenAI approval **has not been filed or granted**, and that an EPN
-Quality review was active. This system's caption/number path is fully
-deterministic (no eBay data reaches a model), so it does not *technically*
-require that approval — but per the phase brief the prerequisite is
-represented as an **explicit gate the owner must clear**:
+Tools" / GenAI approval **has not been filed or granted**. (The separate
+EPN **account / campaign review** that was active is now **CLOSED —
+COMPLIANT**: `EPN_ACCOUNT_REVIEW = CLOSED_COMPLIANT` in
+`lib/social/distribution/config.mjs`, §4b — a factual record, not a gate,
+and **not** an approval of AI content / OpenAI / future work.) This
+system's caption/number path is fully deterministic (no eBay data reaches
+a model), so it does not *technically* require the AI Tools approval — but
+per the phase brief the prerequisite is represented as an **explicit gate
+the owner must clear**:
 
 ```
 SOCIAL_EPN_AI_CLASSIFICATION=NOT_APPLICABLE_CURRENT_PIPELINE

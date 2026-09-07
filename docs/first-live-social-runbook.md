@@ -42,7 +42,10 @@ lib/social/rights.mjs   RIGHTS_STATE.publishing = "ALLOWED"      (one reviewed l
 .env.local              SOCIAL_PUBLISH_DRY_RUN = false
 .env.local              SOCIAL_EPN_AI_CLASSIFICATION = NOT_APPLICABLE_CURRENT_PIPELINE
                         (owner/compliance classification - NOT an eBay approval; see
-                         docs/social-compliance-readiness.md §4a)
+                         docs/social-compliance-readiness.md §4a. STILL REQUIRED.
+                         The separate EPN account/campaign review is CLOSED - COMPLIANT
+                         (config.mjs EPN_ACCOUNT_REVIEW = CLOSED_COMPLIANT; §4b), but
+                         that is NOT this classification and does NOT set this var.)
 provider auth           BUFFER_ACCESS_TOKEN present (already set)
 channels                lib/social/distribution/channels.json resolved (already done)
 plus                    an APPROVED batch  +  the  --confirm-live  flag on send-batch
