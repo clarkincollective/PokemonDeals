@@ -161,6 +161,38 @@ code exists.
 
 ---
 
+## 4a. EPN "AI Tools" classification of the CURRENT pipeline (owner decision, 13E.5D)
+
+> **This section records an INTERNAL owner/compliance classification. It is
+> NOT a claim that eBay or the eBay Partner Network has approved anything.
+> No EPN "AI Tools" form has been filed. If eBay-derived data ever reaches
+> a GenAI model, §1 #2 applies and this classification is void.**
+
+**Classification:** `SOCIAL_EPN_AI_CLASSIFICATION = NOT_APPLICABLE_CURRENT_PIPELINE`
+(the `epn_compliance` gate in `lib/social/distribution/gates.mjs` reads
+this env value; it defaults to unset = the gate blocks).
+
+**Why the current pipeline is considered out of scope for EPN's "AI Tools"
+policy (§1 #2), which governs *sharing eBay Data with a GenAI tool*:**
+
+| Fact | Evidence in this repo |
+|---|---|
+| OpenAI receives ONLY data-free background-generation instructions — the `{family, style, zone}` enums. | `lib/social/assetPrompts.mjs`; the ONLY OpenAI call is `scripts/socialAssets.mjs` (image endpoint, one `fetch`), asserted image-only + data-free by `tests/scanner/social-preview-system.test.mjs` tests 11 / 11b. |
+| OpenAI does **not** receive: eBay listing data, prices, bids, seller data, seller images, affiliate URLs/IDs, or any customer data. | The render / caption / daily path imports no OpenAI client (test 11, scanned over `lib/social/**` + `social:daily`). Captions are deterministic string templates (`lib/social/caption.mjs`). |
+| Real card artwork is the canonical TCGplayer catalogue image, composited **deterministically after** generation; all factual overlays (price, % below reference, card identity) are drawn by code, not a model. | `lib/social/cardArtwork.mjs` (host-locked to `tcgplayer-cdn.tcgplayer.com`, no `fetch`, no OpenAI); `lib/social/templates.mjs` overlays; `RIGHTS_STATE.card_image = CLEARED` (13E.2.1). |
+| eBay **seller** images are never used. | `RIGHTS_STATE.ebay_seller_images = NOT_CLEARED` (unchanged); no `i.ebayimg`/seller path can reach a template, OpenAI, or the hosting layer (`social-*` tests; 13E.5C `canHost` refuses seller-image paths). |
+| The promoted destination is **PokemonDealFinder.com**, not an eBay URL. | `lib/social/creativeSpec.mjs` `resolveCta` — every CTA is an on-site route; `tests/scanner/social-preview-system.test.mjs` tests 14 / 14b. |
+| All normal affiliate-disclosure + truthfulness requirements are **preserved**. | `DISCLOSURE_LINE` required by the `caption_frozen` gate; §10 disclosure pattern; deterministic factual overlays; the send gate stack is unchanged except this classification swap. |
+
+**What is NOT changed by this classification:** `RIGHTS_STATE.publishing`
+stays `DISABLED`; `ebay_seller_images` stays `NOT_CLEARED`; the
+seller-image prohibition, the deterministic-overlay requirement, and the
+data-free GenAI boundary all stand. `SOCIAL_EPN_AI_CLASSIFICATION` is the
+ONLY change — and it must be set to `APPROVED` (not this value) if a
+formal EPN approval is ever actually obtained.
+
+---
+
 ## 5. eBay data boundary
 
 | eBay-derived field | Scoring/selection | Caption/copy | Image generation | Chart/social graphic | Send to GenAI at all? |

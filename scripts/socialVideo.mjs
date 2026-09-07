@@ -36,14 +36,35 @@ import { renderVideoHtml } from "../lib/social/videoDocument.mjs";
 import { renderTimelineToMp4, probeMp4 } from "../lib/social/videoRender.mjs";
 import { buildVideoCaptions } from "../lib/social/videoCaption.mjs";
 import { runVideoQa } from "../lib/social/videoQa.mjs";
+import { loadSourceSnapshot } from "./socialSource.mjs";
 
 const ROOT = process.cwd();
 const OUT = path.join(ROOT, ".social-preview", "13e4");
 const ONLY = process.argv.slice(2).filter((a) => !a.startsWith("-")); // optional family filter
 const PLATFORMS = process.argv.includes("--reel-only") ? ["reel"] : VIDEO_PLATFORMS;
 
-const fx = JSON.parse(readFileSync(path.join(ROOT, "tests/fixtures/social-deals.json"), "utf8"));
-const now = Date.now();
+// 13E.5D - the DETERMINISTIC INPUT is a frozen content snapshot
+// (scripts/socialSource.mjs). Freshness is judged AS OF snapshot capture
+// time, never wall-clock render time. Falls back to the committed test
+// fixture (judged as of its own pulled_at) with a loud warning.
+const snap = loadSourceSnapshot();
+let fx;
+let now;
+let SOURCE_LABEL;
+if (snap && !snap.empty && (snap.deals?.length || snap.movers?.length)) {
+  fx = { deals: snap.deals, movers: snap.movers, carousel: snap.carousel ?? { deals: [] } };
+  now = Date.parse(snap.captured_at) || Date.now();
+  SOURCE_LABEL = snap.source;
+  if (String(snap.source).startsWith("fixture")) {
+    console.warn(`\n  ⚠ social:video is rendering from a NON-LIVE fixture snapshot (${snap.source}, captured ${snap.captured_at}).`);
+    console.warn(`    Fresh live content is unavailable (run: npm run social:source -- live). Do NOT treat these as live-ready.\n`);
+  }
+} else {
+  fx = JSON.parse(readFileSync(path.join(ROOT, "tests/fixtures/social-deals.json"), "utf8"));
+  now = Date.parse(fx.pulled_at) || Date.now();
+  SOURCE_LABEL = `fixture:social-deals.json@${fx.pulled_at}`;
+  console.warn(`\n  ⚠ no content snapshot - falling back to the committed fixture (captured ${fx.pulled_at}). Run: npm run social:source -- live\n`);
+}
 const manifest = loadAssetManifest().manifest;
 const C = TOKENS.color;
 
@@ -375,6 +396,11 @@ async function main() {
     master: "1080x1920 / 9:16 / H.264 / yuv420p / no audio",
     platforms: PLATFORMS,
     published: false,
+    // 13E.5D - which frozen content snapshot this render used, and the
+    // timestamp freshness was judged as of (NOT wall-clock render time).
+    source: SOURCE_LABEL,
+    source_captured_at: new Date(now).toISOString(),
+    source_is_live: !String(SOURCE_LABEL).startsWith("fixture"),
     families,
   };
   writeFileSync(path.join(OUT, "manifest.json"), JSON.stringify(manifestOut, null, 2));

@@ -207,9 +207,18 @@ test("9. market mover: the chart facts are the real series - same length, same f
   assert.equal(tl.facts.movement.direction, "up");
 });
 
-test("10. the freshness line is never the internal 'not eligible for preview' diagnostic", () => {
+test("10. a stale row FAILS CLOSED - no payload, no creative, no diagnostic copy (13E.5D)", () => {
   const stale = dealRow({ exact_verified_at: new Date(Date.now() - 400 * HOUR).toISOString() });
-  const p = buildDealPayload({ contentType: "deal_of_day", row: stale, now: Date.now(), utmCampaign: "deal_of_day" });
+  // buildDealPayload now THROWS rather than emit a creative with placeholder
+  // freshness text - the render pipeline catches this and skips the family.
+  assert.throws(
+    () => buildDealPayload({ contentType: "deal_of_day", row: stale, now: Date.now(), utmCampaign: "deal_of_day" }),
+    /social freshness/i
+  );
+  // a fresh row still builds, and its freshness label is the real
+  // exact_verified_at, never the internal diagnostic string
+  const fresh = dealRow({ exact_verified_at: new Date(Date.now() - 1 * HOUR).toISOString() });
+  const p = buildDealPayload({ contentType: "deal_of_day", row: fresh, now: Date.now(), utmCampaign: "deal_of_day" });
   const tl = buildVideoTimeline({ payload: p, family: "deal_drop", platform: "reel" });
   assert.doesNotMatch(tl.facts.freshness_label, /not eligible|outside .*threshold/i);
   assert.match(tl.facts.freshness_label, /Availability can change\.$/);

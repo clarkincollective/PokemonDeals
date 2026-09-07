@@ -709,6 +709,16 @@ function cmdReviewPack() {
     flags: describeFlags(flags),
     rights_publishing: RIGHTS_STATE.publishing,
     provider: PROVIDER.name,
+    // 13E.5D - the recommended single strongest FIRST LIVE piece + platforms.
+    // (Advisory only - it still cannot send: live gates closed, and the
+    //  current content is a fixture snapshot, not fresh live data.)
+    first_live_candidate: {
+      content: "Deal Drop (deal_of_day) - strongest truthful hook + real canonical card art + highest savings + video-QA-verified facts + website-first CTA",
+      platforms: ["instagram_reel", "tiktok", "youtube_short", "x_post"],
+      one_master_note: "one 9:16 master -> Reel + TikTok + YouTube Short; X carries the frozen text form",
+      hard_prerequisite: "a fresh `social:source -- live` snapshot (verify-deals cron must catch up) so `freshness_at_send` passes; then the 4 owner gates",
+      lower_dependency_alt: "Market Mover (MARKET_DATA) - exempt from `freshness_at_send`; X + YouTube Short",
+    },
     items: pack,
   };
   const p = path.join(REVIEW_PACK_DIR, "manifest.json");

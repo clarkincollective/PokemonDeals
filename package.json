@@ -24,7 +24,8 @@
     "social:daily": "node scripts/socialDaily.mjs",
     "social:assets": "node scripts/socialAssets.mjs",
     "social:video": "node scripts/socialVideo.mjs",
-    "social:publish": "node scripts/socialPublish.mjs"
+    "social:publish": "node scripts/socialPublish.mjs",
+    "social:source": "node scripts/socialSource.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",

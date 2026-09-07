@@ -33,8 +33,9 @@ const read = (p) => readFileSync(join(ROOT, p), "utf8");
 
 // --- a fully-passing fixture (every gate green) so each test can knock
 //     out exactly one thing ------------------------------------------------
-const GREEN_FLAGS = { publishEnabled: true, dryRun: false, epnAiToolsApproved: true, hasBufferToken: true };
+const GREEN_FLAGS = { publishEnabled: true, dryRun: false, epnAiClassification: "NOT_APPLICABLE_CURRENT_PIPELINE", hasBufferToken: true };
 
+const FRESH_SNAP = () => ({ market_price: 100, discount_pct: 0.5, source_is_live: true, source_captured_at: new Date().toISOString() });
 function greenVariant(over = {}) {
   return {
     media: { kind: "video_916", files: ["/x/a.mp4"], width: 1080, height: 1920, durationS: 8, filesExist: true },
@@ -43,7 +44,7 @@ function greenVariant(over = {}) {
     hashtags: ["#PokemonCards"],
     qa: { ok: true, passed: 39, total: 39, failed: [] },
     rights: { ...RIGHTS_STATE },
-    snapshot: { market_price: 100, discount_pct: 0.5 },
+    snapshot: FRESH_SNAP(),
     ...over,
   };
 }
@@ -61,7 +62,7 @@ function greenRow(over = {}) {
     hashtags: ["#PokemonCards"],
     qa: { ok: true, passed: 39, total: 39, failed: [] },
     rights: { ...RIGHTS_STATE },
-    snapshot: { market_price: 100, discount_pct: 0.5 },
+    snapshot: FRESH_SNAP(),
     media: { kind: "video_916", files: ["/x/a.mp4"], width: 1080, height: 1920, durationS: 8, filesExist: true },
     ...over,
   };
@@ -119,7 +120,7 @@ test("13E.5A-4. no publish without the EPN compliance prerequisite", () => {
   const res = runAllGates({
     row: greenRow(),
     variant: greenVariant(),
-    flags: { ...GREEN_FLAGS, epnAiToolsApproved: false },
+    flags: { ...GREEN_FLAGS, epnAiClassification: null },
     providerConfigured: true,
     ledger: [],
   });
@@ -143,7 +144,7 @@ test("13E.5A-6. no publish while dry-run mode is on (the default)", () => {
   const def = readDistributionFlags({});
   assert.equal(def.publishEnabled, false);
   assert.equal(def.dryRun, true);
-  assert.equal(def.epnAiToolsApproved, false);
+  assert.equal(def.epnAiClassification, null);
 });
 
 test("13E.5A-7. duplicate protection blocks a second in-flight row for the same placement", () => {

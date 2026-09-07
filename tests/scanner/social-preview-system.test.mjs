@@ -125,15 +125,20 @@ test("4. exact verification is required and must be within the social threshold 
   assert.ok(SOCIAL_FRESHNESS_MAX_AGE_HOURS < 12);
 });
 
-test("4b. freshness language never fabricates 'live now' outside the threshold", () => {
+test("4b. freshness language FAILS CLOSED outside the threshold - no label, no debug copy (13E.5D)", () => {
   const stale = dealRow({ exact_verified_at: ago(SOCIAL_FRESHNESS_MAX_AGE_HOURS + 5) });
   const line = socialFreshnessLine(stale);
-  assert.doesNotMatch(line.label, /\blive\b/i);
+  assert.equal(line.renderable, false);
+  assert.equal(line.label, null); // NEVER caption text - the payload builder throws instead
   assert.equal(line.checkedAt, null);
-  const fresh = dealRow({ exact_verified_at: ago(1) });
-  const freshLine = socialFreshnessLine(fresh);
+  assert.doesNotMatch(String(line.reason ?? ""), /not eligible for preview|outside social freshness threshold - not eligible/i);
+  // a fresh row: label reports the REAL exact_verified_at, not render time
+  const verifiedAt = ago(1);
+  const fresh = dealRow({ exact_verified_at: verifiedAt });
+  const freshLine = socialFreshnessLine(fresh, { at: new Date() });
+  assert.equal(freshLine.renderable, true);
   assert.match(freshLine.label, /^Checked .+ UTC\. Availability can change\.$/);
-  assert.ok(freshLine.checkedAt); // exact ISO timestamp still present for the payload/audit trail
+  assert.equal(freshLine.checkedAt, verifiedAt); // the authoritative timestamp, verbatim
 });
 
 test("4c. Just Found requires BOTH recent discovery AND fresh exact verification", () => {

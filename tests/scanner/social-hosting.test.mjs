@@ -149,12 +149,12 @@ test("13E.5C-10. asset drift blocks a future send", () => {
   const row = {
     platform: "instagram_reel", creative_family: "deal_drop", status: "APPROVED",
     caption: "body\n\nAd · x", hashtags: [], qa: GOOD_QA, rights: GOOD_RIGHTS,
-    snapshot: { market_price: 100, discount_pct: 0.5 },
+    snapshot: { market_price: 100, discount_pct: 0.5, source_is_live: true, source_captured_at: new Date().toISOString() },
     media: { kind: "video_916", files: ["/local/x.mp4"], width: 1080, height: 1920, durationS: 8, filesExist: true },
     public_media_url: "https://x/y.mp4", media_sha256: hosted.sha256, channel_id: "c1",
   };
   const variant = { media: row.media, qa: GOOD_QA, rights: GOOD_RIGHTS, caption_instagram: row.caption, snapshot: row.snapshot };
-  const flags = { publishEnabled: true, dryRun: false, epnAiToolsApproved: true, hasBufferToken: true };
+  const flags = { publishEnabled: true, dryRun: false, epnAiClassification: "NOT_APPLICABLE_CURRENT_PIPELINE", hasBufferToken: true };
   const clean = runAllGates({ row, variant, flags, providerConfigured: true, ledger: [], currentMediaSha: hosted.sha256 });
   const dirty = runAllGates({ row, variant, flags, providerConfigured: true, ledger: [], currentMediaSha: sha256(Buffer.from("changed")) });
   assert.equal(clean.gates.find((g) => g.id === "asset_not_drifted").ok, true);
@@ -183,9 +183,9 @@ test("13E.5C-11. QUEUED / PUBLISHED media is retention-protected; old orphans ar
 test("13E.5C-12. a media placement needs a public HTTPS URL; a text-only X post does not", () => {
   const base = {
     creative_family: "deal_drop", status: "APPROVED", caption: "body\n\nAd · x", hashtags: [],
-    qa: GOOD_QA, rights: GOOD_RIGHTS, snapshot: { market_price: 100, discount_pct: 0.5 }, channel_id: "c1",
+    qa: GOOD_QA, rights: GOOD_RIGHTS, snapshot: { market_price: 100, discount_pct: 0.5, source_is_live: true, source_captured_at: new Date().toISOString() }, channel_id: "c1",
   };
-  const flags = { publishEnabled: true, dryRun: false, epnAiToolsApproved: true, hasBufferToken: true };
+  const flags = { publishEnabled: true, dryRun: false, epnAiClassification: "NOT_APPLICABLE_CURRENT_PIPELINE", hasBufferToken: true };
 
   // a Reel with a local file but NO public URL -> media_present fails
   const noUrl = {

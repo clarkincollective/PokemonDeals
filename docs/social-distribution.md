@@ -238,7 +238,7 @@ are deliberately independent — defeating one still leaves the rest.
 |---|---|
 | `publish_switch` | `RIGHTS_STATE.publishing === "ALLOWED"` **and** `SOCIAL_PUBLISH_ENABLED=true` — **both**. (Today: `DISABLED` + unset.) |
 | `live_mode` | `SOCIAL_PUBLISH_DRY_RUN` is explicitly `"false"`. Default = dry run. |
-| `epn_compliance` | `EPN_AI_TOOLS_APPROVED=true` — the owner has recorded that the EPN prerequisite is satisfied (see §7). Default = not approved. |
+| `epn_compliance` | `SOCIAL_EPN_AI_CLASSIFICATION` is set to `NOT_APPLICABLE_CURRENT_PIPELINE` or `APPROVED` — an **owner/compliance classification**, NOT an eBay approval (13E.5D; see §6 + `docs/social-compliance-readiness.md` §4a). Default = unclassified → blocks. |
 | `qa_pass` | the artifact variant's QA verdict is `ok` with an empty `failed[]`. |
 | `rights_cleared` | the artifact's frozen `rights_state` is byte-identical to `lib/social/rights.mjs` **and** `ppt_social_data` + `card_image` are `CLEARED`. Rights drift = hard fail. |
 | `owner_approval` | the ledger row is `APPROVED` (explicit, per-row). |
@@ -246,9 +246,11 @@ are deliberately independent — defeating one still leaves the rest.
 | `channel_resolved` | the row's platform maps to a real Buffer channel id in `channels.json`. |
 | `placement_eligible` | `(family, media kind, platform)` is an approved placement (artifactMap). |
 | `media_compatible` | media ratio / duration / item-count is inside the platform's accepted envelope. |
-| `media_present` | the media files exist on disk. |
+| `media_present` | the local media file exists **and** a frozen public HTTPS URL is set (13E.5C). Text-only X posts exempt. |
+| `asset_not_drifted` | the local media's current sha256 still matches the hosted+frozen hash (13E.5C). |
 | `caption_frozen` | caption is non-empty, carries the `Ad` disclosure, is **unchanged** vs the artifact, and within hashtag limits. |
 | `deterministic_facts` | frozen `market_price`+`discount_pct` or `movement` on the row — or, for a 9:16 video, a passing video QA gate (which re-derives every on-screen number from the verified payload) — or `brand_ad`. |
+| `freshness_at_send` **(13E.5D)** | for `deal_drop` / `hook_carousel` / `market_snapshot`: the frozen content snapshot is **live** (not a fixture) **and** ≤ `SOCIAL_FRESHNESS_MAX_AGE_HOURS` old *as of now* — a post that aged in the review queue past the ceiling is blocked and forces a re-source + re-render. `market_mover` (MARKET_DATA) and `brand_ad` are exempt. |
 | `not_duplicate` | no other in-flight/published ledger row for the same placement (owner `--force` overrides this gate only). |
 
 ### Rights / compliance state (unchanged, from `lib/social/rights.mjs`)
@@ -275,11 +277,18 @@ require that approval — but per the phase brief the prerequisite is
 represented as an **explicit gate the owner must clear**:
 
 ```
-EPN_AI_TOOLS_APPROVED=true      # only when the owner has confirmed the EPN prerequisite is satisfied
+SOCIAL_EPN_AI_CLASSIFICATION=NOT_APPLICABLE_CURRENT_PIPELINE
+#   ^ owner/compliance classification (13E.5D). NOT an eBay approval.
+#     Set APPROVED only if a formal EPN AI Tools approval is actually filed.
 ```
 
-Until it is set, `epn_compliance` blocks every `send`. Setting it is an
-owner decision, not something this system infers.
+Until it is set, `epn_compliance` blocks every `send`. It is an INTERNAL
+owner/compliance classification and does NOT represent, imply, or claim any
+approval from eBay/EPN. The current pipeline sends only DATA-FREE
+background instructions to OpenAI (no eBay listing data / prices / seller
+data / seller images / affiliate data / customer data); real card art +
+all factual overlays are composited deterministically; the promoted
+destination is PokemonDealFinder.com. Full evidence: `docs/social-compliance-readiness.md` §4a.
 
 ---
 
@@ -310,7 +319,7 @@ active or `RIGHTS_STATE.publishing != ALLOWED` (defence in depth).
 Default safety is **non-publishing**, enforced by *four* independent
 signals that must ALL be flipped:
 `RIGHTS_STATE.publishing = ALLOWED` **and** `SOCIAL_PUBLISH_ENABLED=true`
-**and** `SOCIAL_PUBLISH_DRY_RUN=false` **and** `EPN_AI_TOOLS_APPROVED=true`
+**and** `SOCIAL_PUBLISH_DRY_RUN=false` **and** `SOCIAL_EPN_AI_CLASSIFICATION` set
 — plus a configured provider and a resolved channel. A developer who runs
 `social:publish send` by accident gets a printed list of blockers and
 exit 1; nothing leaves the machine.
@@ -549,6 +558,102 @@ carries its real Supabase public URL; every item still says
 
 ---
 
+## 13a. Fresh content source + the freshness contract  [IMPLEMENTED 13E.5D]
+
+### Why the live social pool is thin (diagnosis)
+
+`social:daily` and `social:source -- live` currently select **0** posts.
+Traced through the live pool (663 active English deals, one Supabase read):
+
+| filter | survivors |
+|---|---|
+| `isDisplayableDeal` (the site's own display gate) | 646 |
+| + BIN only (auctions are out of social MVP scope) | 404 |
+| + valid `market_price` **and** positive `discount_pct` | 404 |
+| + `exact_verified_at` within **6 h** (social ceiling) | **0** |
+| + `exact_verified_at` within **12 h** (the *site's* premium bound) | **0** |
+| `isPremiumDealEligible` (site flagship gate) over the whole pool | 17 — but **0** are BIN-with-a-real-discount (all auctions / no discount) |
+
+**Primary cause:** `exact_verified_at` is stale pool-wide — the freshest
+in the active pool is ~8 h old. `exact_verified_at` is written only by the
+`app/api/verify-deals` cron on a positive single-item eBay confirmation;
+that cron is behind, and the eBay Browse quota is exhausted until the next
+daily reset (the P0 image-recovery job is waiting on the same reset), so
+it can't be forced now without disturbing that job. This starves the
+**site's** premium sections too, not just social. Re-run
+`social:source -- live` once `verify-deals` catches up.
+
+### Was a social-only gate too strict? (§2)
+
+Yes, one: `SOCIAL_FRESHNESS_MAX_AGE_HOURS = 6` is **half** the site's own
+`PREMIUM_EXACT_VERIFICATION_MAX_AGE_HOURS = 12`. It is a
+**CREATIVE_PREFERENCE / operational margin** (documented: "a social
+preview can sit in a human-review queue"), not a truth requirement — the
+site itself treats a 12 h-verified premium deal as fresh. It was **left
+unchanged this phase** (relaxing it changes nothing today: 0 qualifying
+BIN deals in the 6–12 h window either), and the review-queue-latency risk
+it was compensating for is now handled *properly* by the new
+`freshness_at_send` gate. Recommendation for the owner: consider aligning
+it to 12 h now that the send-time re-check exists.
+
+### Gate classification (§2)
+
+| gate | class | may relax? |
+|---|---|---|
+| actual deal qualification (`isDisplayableDeal`, `isPremiumDealEligible`, P0.3 match integrity, active-listing, language/grade/multi-card, exact printing, reference confidence) | MANDATORY_TRUTH / MANDATORY_QUALITY | **never** — untouched, a wrapper not a fork (`lib/social/eligibility.mjs`) |
+| `exact_verified_at` present + within a real ceiling; `socialFreshnessLine` fail-closed | MANDATORY_TRUTH | never |
+| `RIGHTS_STATE` (`ppt_social_data`, `card_image`, `ebay_seller_images`, `ebay_genai`, `publishing`) | MANDATORY_RIGHTS | never |
+| canonical card-art requirement (`cardArtwork.mjs`, fail closed on wrong/missing printing) | MANDATORY_QUALITY | never |
+| BIN-only (auction wording UI not built) | MANDATORY_QUALITY (MVP scope) | not this phase |
+| `SOCIAL_FRESHNESS_MAX_AGE_HOURS = 6` (vs the site's 12) | **CREATIVE_PREFERENCE** | yes, with evidence — left at 6 this phase; owner may align to 12 |
+| every family present every run | **CREATIVE_PREFERENCE** | already graceful — `tryProduce` skips a family that can't produce; the run never aborts |
+| carousel needs ≥ N distinct cards | MANDATORY_TRUTH (the "N cards" claim) | never — a shorter truthful carousel is fine, a false count is not |
+
+### The freshness contract
+
+One authoritative definition, from real stored timestamps only —
+**never render/wall-clock time**:
+
+- **authoritative field:** `exact_verified_at` (P0.2 — a positive
+  single-item eBay confirmation only).
+- **ceiling:** `SOCIAL_FRESHNESS_MAX_AGE_HOURS`.
+- **states** (`lib/social/eligibility.SOCIAL_FRESHNESS_STATE`):
+  `JUST_FOUND` (the unchanged just-found rule), `FRESH` (verified within
+  the ceiling), `MARKET_DATA` (Market Mover — truth is confident price
+  history, not per-listing freshness; no "checked" line, no ceiling).
+- **fail closed:** `socialFreshnessLine()` on a row past the ceiling
+  returns `{ renderable:false, label:null }`; `baseFreshness()` in
+  `payload.mjs` **throws**; the render pipeline catches it and **skips the
+  family** — a creative with placeholder freshness copy can never be
+  produced (regression test `social-freshness-13e5d`).
+- The old debug string *"...not eligible for preview."* is **removed**
+  from every production code path.
+
+### `npm run social:source`  [IMPLEMENTED]
+
+Freezes a real eligible content snapshot to
+`.social-preview/source/live-snapshot.json` — the deterministic input to
+`social:video` (and, later, `social:daily`).
+
+```
+npm run social:source -- live          pull from the live DB (one Supabase read, NO eBay calls)
+npm run social:source -- from-fixture  wrap the committed test fixture in the snapshot contract (NON-LIVE)
+npm run social:source -- show          print the current snapshot
+```
+
+- Keeps only rows that pass the **unchanged** eligibility gates
+  (`socialBinPool`).
+- Freezes each row's real `exact_verified_at` / `first_seen_at` /
+  `last_seen_at`, its source deal id and tcgplayer id, and `captured_at`.
+- **Never fabricates inventory:** 0 eligible → an explicit `empty: true`
+  snapshot with a machine-readable `empty_reason`. **Never** overwrites
+  `tests/fixtures/`.
+- `social:video` judges freshness **as of `captured_at`**, records
+  `source` / `source_captured_at` / `source_is_live` in its manifest, and
+  the distribution layer's `freshness_at_send` gate re-checks *as of now*.
+
+---
+
 ## 14. Autopilot — design only  [FUTURE — NOT BUILT]
 
 ```
@@ -573,23 +678,50 @@ real deal data → planner → render → QA → approval policy → scheduler �
 
 **LIVE GATE CLOSED** (owner action, none flipped this phase):
 
-1. `EPN_AI_TOOLS_APPROVED` decision — see `docs/social-compliance-readiness.md` §1 #2 / §4.
+1. `SOCIAL_EPN_AI_CLASSIFICATION` — the owner sets this env to
+   `NOT_APPLICABLE_CURRENT_PIPELINE` (data-free GenAI boundary; the
+   evidence + rationale is written in `docs/social-compliance-readiness.md`
+   §4a — 13E.5D swapped the old hard `EPN_AI_TOOLS_APPROVED` flag for this
+   classification, which does **not** claim any eBay approval).
 2. `RIGHTS_STATE.publishing` → `"ALLOWED"` (one reviewed line).
 3. `SOCIAL_PUBLISH_ENABLED=true` **and** `SOCIAL_PUBLISH_DRY_RUN=false`.
-4. `PokemonPriceTracker` / EPN written confirmations
-   (`docs/social-compliance-readiness.md` §5–6).
+4. A **fresh live content snapshot** — `social:source -- live` currently
+   returns `empty` (0 rows exact-verified within the ceiling; the
+   `verify-deals` cron is behind + Browse quota exhausted until the daily
+   reset). `freshness_at_send` blocks every `deal_drop` / `hook_carousel`
+   / `market_snapshot` placement until a live snapshot exists and
+   `social:video` is re-run against it. `market_mover` (MARKET_DATA) is
+   exempt.
 
 Once 1–4 are done, `social:publish -- prepare … → approve … → send …`
 runs the full gate stack; a green stack submits ONE Buffer lead per
 platform → QUEUED, and `sync` promotes to PUBLISHED only on real
 `sent` + `sentAt` evidence.
 
+### PPT / EPN written-confirmation audit (§11, 13E.5D)
+
+| item | required? | evidence | classification |
+|---|---|---|---|
+| PPT written confirmation for derived figures in social | was a pre-13E action note | `RIGHTS_STATE.ppt_social_data = "CLEARED"` (`lib/social/rights.mjs`, owner, 13E.1 2026-09-06); `docs/social-daily-workflow.md` §249 "Owner-confirmed (13E.1)". Scope: today's on-site market reference only — NOT PPT time-series / movers / grade-spreads. | **C — satisfied at the operative gate.** The pipeline reads `ppt_social_data`; it is CLEARED. Do not claim PPT emailed — the owner's recorded clearance is the gate; the distribution layer blocks any content whose `rights_state` drifts from it. |
+| eBay "visually isolated" clause / seller-image confirmation | required **only** to composite eBay **seller** photos | `RIGHTS_STATE.ebay_seller_images = "NOT_CLEARED"` (unchanged); no `i.ebayimg` / seller path can reach a template, OpenAI, or the hosting layer (`social-*` tests; 13E.5C `canHost`). The render system uses canonical TCGplayer art only. | **D for the current pipeline — obsolete as a blocker** (the pipeline never touches seller images). Stays `NOT_CLEARED` as a permanent guard. It would be **A** only if a seller-image workflow were built. |
+| EPN GenAI / "AI Tools" approval | required **only** if eBay data reaches a GenAI model | `docs/social-compliance-readiness.md` §5 governing principle + §4a; `lib/social/assetPrompts.mjs` sends only `{family,style,zone}` enums; `scripts/socialAssets.mjs` is the sole OpenAI call, image-only + data-free (tests 11 / 11b). | **D — obsolete as a hard blocker for this pipeline.** Replaced by `SOCIAL_EPN_AI_CLASSIFICATION=NOT_APPLICABLE_CURRENT_PIPELINE` (an internal classification, not an eBay approval). |
+
+No external approval was invented. `RIGHTS_STATE` is unchanged.
+
 **RESOLVED:**
 
 - ~~Buffer API key + 4 channels~~ — done 13E.5B.
 - ~~Public asset hosting~~ — done 13E.5C (Supabase Storage, `social-public`).
-- ~~Stale `freshness.label` in the 13E.4 masters~~ — fixed by re-running
-  `social:video` this phase.
+- ~~The debug `freshness.label` in the masters~~ — **13E.5D:**
+  `socialFreshnessLine` now fails closed (`renderable:false`, `label:null`);
+  the payload builder throws rather than emit placeholder copy; the
+  removed string cannot reach a creative (regression test). The masters
+  were re-rendered from a frozen snapshot judged as of its capture time,
+  so the line now reads `Checked <real exact_verified_at> UTC. Availability
+  can change.` — but the snapshot is a **fixture** (no fresh live data),
+  so `freshness_at_send` still blocks the deal placements.
+- ~~Old hard `EPN_AI_TOOLS_APPROVED` flag~~ — **13E.5D:** replaced by the
+  `SOCIAL_EPN_AI_CLASSIFICATION` gate.
 
 **FUTURE (not built):**
 
