@@ -301,6 +301,46 @@ async function gather() {
     }
   }
 
+  // ---- editorial newsroom backlog (SOCIAL-NEWSROOM-1: read-only) ----
+  let editorialBacklog = null;
+  try {
+    const { backlogHealth, refillNeeds } = await import("../lib/social/newsroom/backlogHealth.mjs");
+    const { loadPlacements, tablesReady } = await import("../lib/social/newsroom/db.mjs");
+    const ready = await tablesReady().catch(() => false);
+    const placed = ready ? (await loadPlacements({})).rows : [];
+    const health = backlogHealth(placed, { now: Date.now() });
+    // enrich from the last review-pack summary if present (series/pillar mix,
+    // support counts, AI-spam + fatigue signals) - never re-runs the DB stats.
+    let packSummary = null;
+    try {
+      const { readFileSync } = await import("node:fs");
+      packSummary = JSON.parse(readFileSync(".social-preview/editorial-newsroom/backlog-summary.json", "utf8"));
+    } catch {
+      packSummary = null;
+    }
+    editorialBacklog = {
+      tables_ready: ready,
+      overall: health.overall,
+      by_platform: health.by_platform,
+      refill_needs: refillNeeds(health),
+      pack: packSummary
+        ? {
+            generated_at: packSummary.generated_at,
+            support: packSummary.support_matrix,
+            series_diversity: packSummary.calendar_sim?.series_diversity ?? null,
+            pillar_counts: packSummary.calendar_sim?.pillar_counts ?? null,
+            editorial_balance: packSummary.calendar_sim?.editorial_balance?.byBucket ?? null,
+            unfilled_editorial_slots: packSummary.calendar_sim?.unfilled_editorial_slots ?? null,
+            cta_sequence_ok: packSummary.calendar_sim?.cta_sequence?.ok ?? null,
+            fatigue_warnings: packSummary.calendar_sim?.fatigue?.warnings ?? [],
+            vision_review: packSummary.vision_review ?? null,
+          }
+        : null,
+    };
+  } catch {
+    editorialBacklog = null;
+  }
+
   // ---- autonomous orchestration status (AUTO-1: read-only, no secrets) ----
   let autonomous = null;
   try {
@@ -449,6 +489,7 @@ async function gather() {
     image_recovery: { state: recoveryState, last_line: recoverLast, imageless_active_rows: imageless },
     subscribers,
     verifier_health: verifierHealth,
+    editorial_backlog: editorialBacklog,
     autonomous,
     outreach,
     metrics,
@@ -773,6 +814,24 @@ ${
   ${row(["Browse quota remaining", esc(String(d.verifier_health.quota_remaining ?? "—"))])}
 </table>
 <p class="sub">A large "strong BIN total" with 0 "fresh ≤6h" = verifier allocation skew (see <code>app/api/verify-deals</code> allocation block).</p>`
+    : `<p class="muted">not read</p>`
+}
+
+<h2>Editorial backlog (SOCIAL-NEWSROOM-1 — read-only)</h2>
+${
+  d.editorial_backlog
+    ? `<table>
+  ${row(["overall", esc(d.editorial_backlog.overall)])}
+  ${Object.values(d.editorial_backlog.by_platform).map((h) => row([`${h.platform} — days covered / state`, `${h.days_covered}d / ${h.state} (target ${h.target_days[0]}-${h.target_days[1]}d, editorial cap ${h.editorial_capacity_per_day}/d, fresh reserve ${h.fresh_reserved_per_day}/d, next gap ${h.next_gap ?? "—"})`])).join("\n  ")}
+  ${row(["refill needed", d.editorial_backlog.refill_needs.length ? esc(d.editorial_backlog.refill_needs.map((r) => `${r.platform}(+${r.need_slots})`).join(", ")) : "none"])}
+  ${d.editorial_backlog.pack ? row(["support: NOW / LIMITED / NOT_READY", `${d.editorial_backlog.pack.support.supported_now.length} / ${d.editorial_backlog.pack.support.supported_with_limitations.length} / ${d.editorial_backlog.pack.support.data_not_ready.length}`]) : ""}
+  ${d.editorial_backlog.pack ? row(["last 14d sim: distinct series / open editorial slots", `${d.editorial_backlog.pack.series_diversity ?? "—"} / ${d.editorial_backlog.pack.unfilled_editorial_slots ?? "—"}`]) : ""}
+  ${d.editorial_backlog.pack?.editorial_balance ? row(["editorial balance", esc(Object.entries(d.editorial_backlog.pack.editorial_balance).map(([k, v]) => `${k} ${(v.share * 100).toFixed(0)}%(${v.status})`).join(", "))]) : ""}
+  ${d.editorial_backlog.pack ? row(["AI-spam / CTA sequence ok", String(d.editorial_backlog.pack.cta_sequence_ok)]) : ""}
+  ${d.editorial_backlog.pack ? row(["fatigue warnings", d.editorial_backlog.pack.fatigue_warnings.length ? esc(d.editorial_backlog.pack.fatigue_warnings.join("; ")) : "none"]) : ""}
+  ${d.editorial_backlog.pack?.vision_review ? row(["vision review (Layer 5)", `OpenAI n/a · Anthropic adapter ${d.editorial_backlog.pack.vision_review.anthropic_review_configured ? "configured" : "NOT configured → WATCH"}`]) : ""}
+</table>
+<p class="sub">${d.editorial_backlog.tables_ready ? "Backlog from persisted <code>social_story_placements</code>." : "<code>social_stories</code> table not migrated yet — health shown for an empty backlog. Enrichment from the last <code>npm run social:backlog</code> review pack."} Read-only; nothing published or scheduled.</p>`
     : `<p class="muted">not read</p>`
 }
 
