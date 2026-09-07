@@ -163,6 +163,37 @@ test("lib/sitemap.js uses the shared display gate as the deals-table page-indexa
   assert.match(SITEMAP_SRC, /if \(!pageIndexable\(row\)\) continue/);
 });
 
+// SEO-GSC re-audit: the served deals/sealed-deals sitemap XML was found
+// carrying 48h-stale (now is_active=false -> noindex) deal URLs because
+// the shared edge cache-control had stale-while-revalidate=86400. The
+// churny segments must use a SHORT edge cache so a just-expired listing
+// clears from the served XML in minutes, not a day+.
+const ROUTE_SRC = readFileSync(join(HERE, "..", "..", "app", "sitemaps", "[segment]", "route.js"), "utf8");
+
+test("ephemeral sitemap segments (deals/sealed-deals) get a SHORT edge cache, not the 24h SWR", () => {
+  // the stable cache-control is unchanged (long SWR is fine for catalogue URLs)
+  assert.match(SITEMAP_SRC, /SITEMAP_CACHE_CONTROL\s*=\s*"public, max-age=0, s-maxage=900, stale-while-revalidate=86400"/);
+
+  // a dedicated short cache-control for the churny segments
+  const eph = SITEMAP_SRC.match(/SITEMAP_CACHE_CONTROL_EPHEMERAL\s*=\s*\n?\s*"([^"]+)"/);
+  assert.ok(eph, "SITEMAP_CACHE_CONTROL_EPHEMERAL is not defined");
+  const val = eph[1];
+  const sMax = Number((val.match(/s-maxage=(\d+)/) || [])[1]);
+  const swr = Number((val.match(/stale-while-revalidate=(\d+)/) || [])[1]);
+  assert.ok(sMax > 0 && sMax <= 300, `ephemeral s-maxage should be <= 300s, got ${sMax}`);
+  assert.ok(swr <= 600, `ephemeral stale-while-revalidate should be <= 600s (was 86400), got ${swr}`);
+  // worst-case served staleness is bounded to well under an hour
+  assert.ok(sMax + swr <= 900, `ephemeral s-maxage + SWR (${sMax + swr}s) exceeds the 15-min bound`);
+
+  // deals + sealed-deals map to the ephemeral policy; the stable ones don't
+  assert.match(SITEMAP_SRC, /EPHEMERAL_SEGMENTS\s*=\s*new Set\(\["deals", "sealed-deals"\]\)/);
+  assert.match(SITEMAP_SRC, /function cacheControlForSegment/);
+
+  // the route actually uses the per-segment helper, not a hardcoded long cache
+  assert.match(ROUTE_SRC, /cacheControlForSegment\(key\)/);
+  assert.doesNotMatch(ROUTE_SRC, /"cache-control":\s*SITEMAP_CACHE_CONTROL\b/);
+});
+
 test("the deals sitemap select names every column isDisplayableDeal depends on", () => {
   // Columns isDisplayableDeal (lib/dealQuality) reads off a raw deals row.
   // Keep in sync with that module; the canary columns (visual

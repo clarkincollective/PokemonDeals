@@ -1,4 +1,4 @@
-import { segmentEntries, urlsetXml, SITEMAP_SEGMENTS, SITEMAP_CACHE_CONTROL } from "@/lib/sitemap";
+import { segmentEntries, urlsetXml, SITEMAP_SEGMENTS, cacheControlForSegment } from "@/lib/sitemap";
 
 // One child sitemap per page type. Request path is /sitemaps/<segment>.xml
 // (the ".xml" is stripped); an unknown segment 404s rather than serving an
@@ -27,7 +27,9 @@ export async function GET(_request, { params }) {
   return new Response(urlsetXml(entries ?? []), {
     headers: {
       "content-type": "application/xml",
-      "cache-control": SITEMAP_CACHE_CONTROL,
+      // ephemeral segments (deals/sealed-deals) get a short edge cache so
+      // a just-expired -> noindex listing clears in minutes, not ~48h.
+      "cache-control": cacheControlForSegment(key),
     },
   });
 }
