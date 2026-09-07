@@ -176,11 +176,11 @@ test("N2-9. preflightPlacement blocks LIVE/FRESH stories, non-PASS QA, near-imme
   s.professional_score = "PASS";
   const p = { placement_id: "p1", platform: "instagram", hosted_url: "https://cdn/x.png", artifact_hash: "h" };
   const okAt = new Date(NOW + 3 * 3_600_000).toISOString();
-  assert.equal(preflightPlacement({ story: s, placement: p, dueAtUtc: okAt, professionalResult: "PASS", now: NOW }).ok, true);
+  assert.equal(preflightPlacement({ story: s, placement: p, dueAtUtc: okAt, professionalResult: "PASS", artifactQa: { ok: true }, now: NOW }).ok, true);
   assert.equal(preflightPlacement({ story: s, placement: p, dueAtUtc: okAt, professionalResult: "WATCH", now: NOW }).ok, false);
   assert.equal(preflightPlacement({ story: s, placement: { ...p, hosted_url: null }, dueAtUtc: okAt, professionalResult: "PASS", now: NOW }).ok, false);
   const live = makeStory({ series: "DEAL_DROP", subjectType: "card", subjectId: "x", dealIds: [1], capturedAt: iso(-1), facts: { exact_verified_at: iso(-1) }, now: NOW });
-  assert.equal(preflightPlacement({ story: live, placement: p, dueAtUtc: okAt, professionalResult: "PASS", now: NOW }).ok, false);
+  assert.equal(preflightPlacement({ story: live, placement: p, dueAtUtc: okAt, professionalResult: "PASS", artifactQa: { ok: true }, now: NOW }).ok, false);
 });
 
 test("N2-10. scheduleOne: provider ACCEPT -> BUFFER_QUEUED, never PUBLISHED; a future dueAt is sent", async () => {
@@ -189,7 +189,7 @@ test("N2-10. scheduleOne: provider ACCEPT -> BUFFER_QUEUED, never PUBLISHED; a f
   let sentMsg = null;
   const prov = mockProvider({ onCreate: (m) => (sentMsg = m) });
   const due = new Date(NOW + 3 * 3_600_000).toISOString();
-  const r = await scheduleOne({ story: s, placement: p, channelId: "ch_ig", caption: "editorial caption", dueAtUtc: due, professionalResult: "PASS", mode: "scheduled", now: NOW, provider: prov });
+  const r = await scheduleOne({ story: s, placement: p, channelId: "ch_ig", caption: "editorial caption", dueAtUtc: due, professionalResult: "PASS", artifactQa: { ok: true }, mode: "scheduled", now: NOW, provider: prov });
   assert.equal(r.queued, true);
   assert.equal(r.placement_patch.status, "BUFFER_QUEUED");
   assert.notEqual(r.placement_patch.status, "PUBLISHED");
@@ -201,7 +201,7 @@ test("N2-11. scheduleOne in default (draft) mode passes saveToDraft so the post 
   const s = edStory();
   const p = { placement_id: "p1", platform: "x", placement_type: "post", hosted_url: "https://cdn/x.png", artifact_hash: "h" };
   let sentMsg = null;
-  const r = await scheduleOne({ story: s, placement: p, channelId: "ch_x", caption: "x commentary", dueAtUtc: new Date(NOW + 3 * 3_600_000).toISOString(), professionalResult: "PASS", mode: "draft", now: NOW, provider: mockProvider({ onCreate: (m) => (sentMsg = m), status: "draft" }) });
+  const r = await scheduleOne({ story: s, placement: p, channelId: "ch_x", caption: "x commentary", dueAtUtc: new Date(NOW + 3 * 3_600_000).toISOString(), professionalResult: "PASS", artifactQa: { ok: true }, mode: "draft", now: NOW, provider: mockProvider({ onCreate: (m) => (sentMsg = m), status: "draft" }) });
   assert.equal(r.queued, true);
   assert.equal(sentMsg.saveToDraft, true);
   assert.equal(resolveProviderMode({}), "draft");
@@ -210,7 +210,7 @@ test("N2-11. scheduleOne in default (draft) mode passes saveToDraft so the post 
 test("N2-12. scheduleOne refuses an immediate/near-term dueAt outright", async () => {
   const s = edStory();
   const p = { placement_id: "p1", platform: "instagram", hosted_url: "https://cdn/x.png", artifact_hash: "h" };
-  const r = await scheduleOne({ story: s, placement: p, channelId: "ch", caption: "c", dueAtUtc: new Date(NOW + 10 * 60_000).toISOString(), professionalResult: "PASS", now: NOW, provider: mockProvider() });
+  const r = await scheduleOne({ story: s, placement: p, channelId: "ch", caption: "c", dueAtUtc: new Date(NOW + 10 * 60_000).toISOString(), professionalResult: "PASS", artifactQa: { ok: true }, now: NOW, provider: mockProvider() });
   assert.equal(r.queued, false);
   assert.equal(r.reason, "preflight_failed");
   assert.ok(r.blockers.some((b) => /safety buffer/.test(b)));

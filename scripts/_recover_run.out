@@ -1,0 +1,150 @@
+22:06 quota=340
+22:16 quota=300
+22:26 quota=280
+22:36 quota=250
+22:46 quota=230
+22:56 quota=230
+23:06 quota=230
+23:16 quota=230
+23:26 quota=230
+23:36 quota=230
+23:46 quota=230
+23:56 quota=230
+00:06 quota=230
+00:16 quota=230
+00:26 quota=230
+00:36 quota=230
+00:46 quota=230
+00:56 quota=230
+01:07 quota=230
+01:17 quota=230
+01:27 quota=230
+01:37 quota=230
+01:47 quota=230
+01:57 quota=230
+02:07 quota=230
+02:17 quota=230
+02:27 quota=230
+02:37 quota=230
+02:47 quota=230
+02:57 quota=230
+03:07 quota=230
+03:17 quota=230
+03:27 quota=230
+03:37 quota=230
+03:47 quota=230
+03:57 quota=230
+04:07 quota=230
+04:17 quota=230
+04:27 quota=230
+04:37 quota=230
+04:47 quota=230
+04:57 quota=230
+05:07 quota=230
+05:17 quota=230
+05:27 quota=230
+05:37 quota=230
+05:47 quota=230
+05:57 quota=230
+06:07 quota=230
+06:17 quota=230
+06:27 quota=230
+06:37 quota=230
+06:47 quota=230
+06:57 quota=230
+07:07 quota=5000
+RUNNING recovery --apply
+rows with image_url NULL: 11  (APPLY)
+Browse quota: { limit: 5000, remaining: 5000, reset: '2026-09-08T07:00:00.000Z' }
+
+---- recovery tally ----
+{
+  "recovered_front": 11,
+  "recovered_other": 0,
+  "recovered_back": 0,
+  "no_images": 0,
+  "ended": 0,
+  "inconclusive": 0
+}
+
+---- changes (11) ----
+[
+  {
+    "id": 33176,
+    "card": "Pikachu & Zekrom GX / SM Promos",
+    "verdict": "SELLER_FRONT",
+    "images": 2,
+    "primary": "https://i.ebayimg.com/images/g/ExcAAeSwkBNqnHgE/s-l1600.jpg"
+  },
+  {
+    "id": 33155,
+    "card": "Charizard V / S4a: Shiny Star V",
+    "verdict": "SELLER_FRONT",
+    "images": 3,
+    "primary": "https://i.ebayimg.com/images/g/vu4AAeSwhPJqnGnn/s-l1600.jpg"
+  },
+  {
+    "id": 33173,
+    "card": "Lucario & Melmetal GX - SM192 / SM Promos",
+    "verdict": "SELLER_FRONT",
+    "images": 2,
+    "primary": "https://i.ebayimg.com/images/g/gOkAAeSwVzdqnHfH/s-l1600.jpg"
+  },
+  {
+    "id": 33046,
+    "card": "Ivysaur - 034/100 / EX Crystal Guardians",
+    "verdict": "SELLER_FRONT",
+    "images": 2,
+    "primary": "https://i.ebayimg.com/images/g/BZwAAeSw94NqnCST/s-l1600.jpg"
+  },
+  {
+    "id": 33623,
+    "card": "Gengar / XY - BREAKthrough",
+    "verdict": "SELLER_FRONT",
+    "images": 4,
+    "primary": "https://i.ebayimg.com/images/g/ZakAAeSw0jpqnceY/s-l1600.jpg"
+  },
+  {
+    "id": 33140,
+    "card": "Charizard VMAX / sC: Charizard Starter Set VMAX",
+    "verdict": "SELLER_FRONT",
+    "images": 2,
+    "primary": "https://i.ebayimg.com/images/g/WkkAAeSwQe1qnFlq/s-l1600.jpg"
+  },
+  {
+    "id": 33148,
+    "card": "Armarouge (What's Your Favorite Stamp) / Miscellaneous Cards & Products",
+    "verdict": "SELLER_FRONT",
+    "images": 2,
+    "primary": "https://i.ebayimg.com/images/g/~psAAeSwUxNqnF0l/s-l1600.jpg"
+  },
+  {
+    "id": 33566,
+    "card": "Gastly / XY Promos",
+    "verdict": "SELLER_FRONT",
+    "images": 2,
+    "primary": "https://i.ebayimg.com/images/g/dwYAAeSwGatqnZIz/s-l1600.jpg"
+  },
+  {
+    "id": 33582,
+    "card": "Gastly / XY Promos",
+    "verdict": "SELLER_FRONT",
+    "images": 2,
+    "primary": "https://i.ebayimg.com/images/g/t54AAeSw2HNqnZ70/s-l1600.jpg"
+  },
+  {
+    "id": 33554,
+    "card": "Slowpoke / SV: Paldean Fates",
+    "verdict": "SELLER_FRONT",
+    "images": 2,
+    "primary": "https://i.ebayimg.com/images/g/Ej8AAeSwxqFqnYZi/s-l1600.jpg"
+  },
+  {
+    "id": 33179,
+    "card": "Dialga / Diamond and Pearl",
+    "verdict": "SELLER_FRONT",
+    "images": 2,
+    "primary": "https://i.ebayimg.com/images/g/cQgAAeSwiTNqnHwm/s-l1600.jpg"
+  }
+]
+Browse quota after: { limit: 5000, remaining: 5000, reset: '2026-09-08T07:00:00.000Z' }

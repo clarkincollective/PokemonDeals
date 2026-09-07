@@ -1,0 +1,399 @@
+{
+  "base": "http://localhost:3141",
+  "label": "c2-after",
+  "ranAt": "2026-09-04T08:14:54.900Z",
+  "widths": [
+    {
+      "requested": {
+        "w": 375,
+        "h": 812,
+        "mobile": true
+      },
+      "innerWidth": 375,
+      "clientWidth": 375,
+      "dpr": 2,
+      "pageOverflows": false,
+      "scrollWidth": 375,
+      "h1": "Pokemon Card Deals — Underpriced Cards on eBay",
+      "heroSearchY": 293,
+      "heroSearchVisible": true,
+      "discoveryCtaText": "Browse today's deals↓",
+      "discoveryCtaY": 442,
+      "firstDealY": 0,
+      "firstAffiliateY": 1302,
+      "docHeight": 27437,
+      "h2Count": 9,
+      "h2s": [
+        "Best deals right now",
+        "Auctions ending soon",
+        "Just added",
+        "Cards with the most active listings",
+        "Browse the catalogue",
+        "All deals",
+        "How it works",
+        "FAQ",
+        "Buying guides"
+      ],
+      "duplicateIds": [],
+      "sectionMap": [
+        {
+          "tag": "header",
+          "seg": null,
+          "heading": "Pokemon Card Deals — Underpriced Cards on eB",
+          "y": 69,
+          "h": 648
+        },
+        {
+          "tag": "section",
+          "seg": "best_deals",
+          "heading": "Best deals right now",
+          "y": 717,
+          "h": 2330
+        },
+        {
+          "tag": "section",
+          "seg": "ending_soon",
+          "heading": "Auctions ending soon",
+          "y": 3116,
+          "h": 3430
+        },
+        {
+          "tag": "section",
+          "seg": "just_added",
+          "heading": "Just added",
+          "y": 6546,
+          "h": 3426
+        },
+        {
+          "tag": "section",
+          "seg": "most_active",
+          "heading": "Cards with the most active listings",
+          "y": 9972,
+          "h": 896
+        },
+        {
+          "tag": "section",
+          "seg": "browse",
+          "heading": "Browse the catalogue",
+          "y": 10868,
+          "h": 1053
+        },
+        {
+          "tag": "main",
+          "seg": "all_deals",
+          "heading": "All deals",
+          "y": 11920,
+          "h": 13490
+        },
+        {
+          "tag": "section",
+          "seg": "how_it_works",
+          "heading": "How it works",
+          "y": 25673,
+          "h": 1054
+        },
+        {
+          "tag": "section",
+          "seg": "guides",
+          "heading": "Buying guides",
+          "y": 26727,
+          "h": 498
+        }
+      ]
+    },
+    {
+      "requested": {
+        "w": 390,
+        "h": 844,
+        "mobile": true
+      },
+      "innerWidth": 390,
+      "clientWidth": 390,
+      "dpr": 2,
+      "pageOverflows": false,
+      "scrollWidth": 390,
+      "h1": "Pokemon Card Deals — Underpriced Cards on eBay",
+      "heroSearchY": 293,
+      "heroSearchVisible": true,
+      "discoveryCtaText": "Browse today's deals↓",
+      "discoveryCtaY": 442,
+      "firstDealY": 0,
+      "firstAffiliateY": 1317,
+      "docHeight": 27994,
+      "h2Count": 9,
+      "h2s": [
+        "Best deals right now",
+        "Auctions ending soon",
+        "Just added",
+        "Cards with the most active listings",
+        "Browse the catalogue",
+        "All deals",
+        "How it works",
+        "FAQ",
+        "Buying guides"
+      ],
+      "duplicateIds": [],
+      "sectionMap": [
+        {
+          "tag": "header",
+          "seg": null,
+          "heading": "Pokemon Card Deals — Underpriced Cards on eB",
+          "y": 69,
+          "h": 648
+        },
+        {
+          "tag": "section",
+          "seg": "best_deals",
+          "heading": "Best deals right now",
+          "y": 717,
+          "h": 2390
+        },
+        {
+          "tag": "section",
+          "seg": "ending_soon",
+          "heading": "Auctions ending soon",
+          "y": 3176,
+          "h": 3520
+        },
+        {
+          "tag": "section",
+          "seg": "just_added",
+          "heading": "Just added",
+          "y": 6696,
+          "h": 3516
+        },
+        {
+          "tag": "section",
+          "seg": "most_active",
+          "heading": "Cards with the most active listings",
+          "y": 10212,
+          "h": 918
+        },
+        {
+          "tag": "section",
+          "seg": "browse",
+          "heading": "Browse the catalogue",
+          "y": 11130,
+          "h": 1007
+        },
+        {
+          "tag": "main",
+          "seg": "all_deals",
+          "heading": "All deals",
+          "y": 12137,
+          "h": 13850
+        },
+        {
+          "tag": "section",
+          "seg": "how_it_works",
+          "heading": "How it works",
+          "y": 26249,
+          "h": 1034
+        },
+        {
+          "tag": "section",
+          "seg": "guides",
+          "heading": "Buying guides",
+          "y": 27283,
+          "h": 498
+        }
+      ]
+    },
+    {
+      "requested": {
+        "w": 430,
+        "h": 932,
+        "mobile": true
+      },
+      "innerWidth": 430,
+      "clientWidth": 430,
+      "dpr": 2,
+      "pageOverflows": false,
+      "scrollWidth": 430,
+      "h1": "Pokemon Card Deals — Underpriced Cards on eBay",
+      "heroSearchY": 257,
+      "heroSearchVisible": true,
+      "discoveryCtaText": "Browse today's deals↓",
+      "discoveryCtaY": 382,
+      "firstDealY": 0,
+      "firstAffiliateY": 1298,
+      "docHeight": 29455,
+      "h2Count": 9,
+      "h2s": [
+        "Best deals right now",
+        "Auctions ending soon",
+        "Just added",
+        "Cards with the most active listings",
+        "Browse the catalogue",
+        "All deals",
+        "How it works",
+        "FAQ",
+        "Buying guides"
+      ],
+      "duplicateIds": [],
+      "sectionMap": [
+        {
+          "tag": "header",
+          "seg": null,
+          "heading": "Pokemon Card Deals — Underpriced Cards on eB",
+          "y": 69,
+          "h": 588
+        },
+        {
+          "tag": "section",
+          "seg": "best_deals",
+          "heading": "Best deals right now",
+          "y": 657,
+          "h": 2550
+        },
+        {
+          "tag": "section",
+          "seg": "ending_soon",
+          "heading": "Auctions ending soon",
+          "y": 3276,
+          "h": 3760
+        },
+        {
+          "tag": "section",
+          "seg": "just_added",
+          "heading": "Just added",
+          "y": 7036,
+          "h": 3756
+        },
+        {
+          "tag": "section",
+          "seg": "most_active",
+          "heading": "Cards with the most active listings",
+          "y": 10793,
+          "h": 978
+        },
+        {
+          "tag": "section",
+          "seg": "browse",
+          "heading": "Browse the catalogue",
+          "y": 11771,
+          "h": 987
+        },
+        {
+          "tag": "main",
+          "seg": "all_deals",
+          "heading": "All deals",
+          "y": 12757,
+          "h": 14810
+        },
+        {
+          "tag": "section",
+          "seg": "how_it_works",
+          "heading": "How it works",
+          "y": 27807,
+          "h": 974
+        },
+        {
+          "tag": "section",
+          "seg": "guides",
+          "heading": "Buying guides",
+          "y": 28781,
+          "h": 478
+        }
+      ]
+    },
+    {
+      "requested": {
+        "w": 1280,
+        "h": 900,
+        "mobile": false
+      },
+      "innerWidth": 1280,
+      "clientWidth": 1280,
+      "dpr": 1,
+      "pageOverflows": false,
+      "scrollWidth": 1280,
+      "h1": "Pokemon Card Deals — Underpriced Cards on eBay",
+      "heroSearchY": 269,
+      "heroSearchVisible": true,
+      "discoveryCtaText": "Browse today's deals↓",
+      "discoveryCtaY": 371,
+      "firstDealY": 16,
+      "firstAffiliateY": 1101,
+      "docHeight": 7960,
+      "h2Count": 9,
+      "h2s": [
+        "Best deals right now",
+        "Auctions ending soon",
+        "Just added",
+        "Cards with the most active listings",
+        "Browse the catalogue",
+        "All deals",
+        "How it works",
+        "FAQ",
+        "Buying guides"
+      ],
+      "duplicateIds": [],
+      "sectionMap": [
+        {
+          "tag": "header",
+          "seg": null,
+          "heading": "Pokemon Card Deals — Underpriced Cards on eB",
+          "y": 65,
+          "h": 484
+        },
+        {
+          "tag": "section",
+          "seg": "best_deals",
+          "heading": "Best deals right now",
+          "y": 549,
+          "h": 646
+        },
+        {
+          "tag": "section",
+          "seg": "ending_soon",
+          "heading": "Auctions ending soon",
+          "y": 1232,
+          "h": 585
+        },
+        {
+          "tag": "section",
+          "seg": "just_added",
+          "heading": "Just added",
+          "y": 1817,
+          "h": 601
+        },
+        {
+          "tag": "section",
+          "seg": "most_active",
+          "heading": "Cards with the most active listings",
+          "y": 2418,
+          "h": 414
+        },
+        {
+          "tag": "section",
+          "seg": "browse",
+          "heading": "Browse the catalogue",
+          "y": 2832,
+          "h": 437
+        },
+        {
+          "tag": "main",
+          "seg": "all_deals",
+          "heading": "All deals",
+          "y": 3269,
+          "h": 3649
+        },
+        {
+          "tag": "section",
+          "seg": "how_it_works",
+          "heading": "How it works",
+          "y": 7090,
+          "h": 462
+        },
+        {
+          "tag": "section",
+          "seg": "guides",
+          "heading": "Buying guides",
+          "y": 7551,
+          "h": 264
+        }
+      ]
+    }
+  ]
+}

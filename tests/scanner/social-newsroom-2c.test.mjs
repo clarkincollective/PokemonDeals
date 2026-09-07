@@ -78,10 +78,10 @@ test("2C-4. each renderable series maps to a distinct layout family, mixed CTA (
     layouts.add(def.layout);
     ctas.add(def.cta);
   }
-  assert.equal(layouts.size, 5, "all 5 editorial layout families are used");
+  assert.ok(layouts.size >= 5, `${layouts.size} distinct editorial layout families in use`);
   assert.ok(ctas.has("NONE") && ctas.has("BRAND_ONLY"), "CTA intensity varies (education = NONE/BRAND_ONLY)");
   // distinct wordmark/CTA zones so the feed rhythm varies (SS13)
-  assert.equal(new Set(Object.values(LAYOUT_CTA_ZONE)).size, 5);
+  assert.equal(new Set(Object.values(LAYOUT_CTA_ZONE)).size, Object.keys(LAYOUT_CTA_ZONE).length, "every layout has a distinct CTA zone");
 });
 
 // ---- deterministic editorial QA ------------------------------
@@ -142,7 +142,7 @@ test("2C-11. visual WATCH / FAIL blocks the queue (fail-closed, SS10/SS20)", asy
   const p = { placement_id: "p1", platform: "x", hosted_url: "https://cdn/x.png", artifact_hash: "h" };
   assert.equal(preflightPlacement({ story: s, placement: p, dueAtUtc: iso(48), professionalResult: "WATCH", now: NOW }).ok, false);
   assert.equal(preflightPlacement({ story: s, placement: p, dueAtUtc: iso(48), professionalResult: "FAIL", now: NOW }).ok, false);
-  assert.equal(preflightPlacement({ story: s, placement: p, dueAtUtc: iso(48), professionalResult: "PASS", now: NOW }).ok, true);
+  assert.equal(preflightPlacement({ story: s, placement: p, dueAtUtc: iso(48), professionalResult: "PASS", artifactQa: { ok: true }, now: NOW }).ok, true);
 });
 
 test("2C-12. FEED_PASS is required before the proof queue (SS13)", () => {
@@ -162,9 +162,9 @@ test("2C-13. the proof queue is DRAFT mode by default - a real provider write th
 test("2C-14. scheduleOne: provider accept -> BUFFER_QUEUED, never PUBLISHED; future dueAt only", async () => {
   const s = story("MARKET_SNAPSHOT");
   const p = { placement_id: "p1", platform: "x", placement_type: "post", hosted_url: "https://cdn/x.png", artifact_hash: "h", content_id: s.story_id };
-  const near = await scheduleOne({ story: s, placement: p, channelId: "ch_x", caption: "c", dueAtUtc: iso(0.5), professionalResult: "PASS", now: NOW, provider: mockProvider() });
+  const near = await scheduleOne({ story: s, placement: p, channelId: "ch_x", caption: "c", dueAtUtc: iso(0.5), professionalResult: "PASS", artifactQa: { ok: true }, now: NOW, provider: mockProvider() });
   assert.equal(near.queued, false); // <= now + 60m rejected
-  const ok = await scheduleOne({ story: s, placement: p, channelId: "ch_x", caption: "c", dueAtUtc: iso(48), professionalResult: "PASS", mode: "draft", now: NOW, provider: mockProvider({ status: "draft" }) });
+  const ok = await scheduleOne({ story: s, placement: p, channelId: "ch_x", caption: "c", dueAtUtc: iso(48), professionalResult: "PASS", artifactQa: { ok: true }, mode: "draft", now: NOW, provider: mockProvider({ status: "draft" }) });
   assert.equal(ok.queued, true);
   assert.equal(ok.placement_patch.status, "BUFFER_QUEUED");
   assert.notEqual(ok.placement_patch.status, "PUBLISHED");
@@ -182,7 +182,7 @@ test("2C-15. reconcile reads provider state back and never infers PUBLISHED with
 test("2C-16. no live Deal Drop can enter the proof - LIVE/FRESH stories are rejected at preflight (SS19)", async () => {
   const live = { ...story("MARKET_SNAPSHOT"), shelf_life_class: "LIVE", lane: "FRESH" };
   const p = { placement_id: "p1", platform: "x", hosted_url: "https://cdn/x.png", artifact_hash: "h" };
-  const r = preflightPlacement({ story: live, placement: p, dueAtUtc: iso(48), professionalResult: "PASS", now: NOW });
+  const r = preflightPlacement({ story: live, placement: p, dueAtUtc: iso(48), professionalResult: "PASS", artifactQa: { ok: true }, now: NOW });
   assert.equal(r.ok, false);
   assert.ok(r.blockers.some((b) => /LIVE\/FRESH/.test(b)));
   // the render registry only maps EDITORIAL/EVERGREEN series - no DEAL_DROP

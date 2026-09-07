@@ -1,0 +1,3368 @@
+{
+  "base": "https://pokemondealfinder.com",
+  "ranAt": "2026-09-04T20:23:18.168Z",
+  "viewports": [
+    {
+      "requested": {
+        "w": 375,
+        "h": 812
+      },
+      "routes": [
+        {
+          "slug": "home",
+          "url": "/",
+          "innerWidth": 375,
+          "innerHeight": 812,
+          "clientWidth": 375,
+          "dpr": 2,
+          "pageScrollWidth": 375,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "Search Pokemon cards by name, set or collector number",
+              "fontPx": 16
+            },
+            {
+              "id": "Search Pokemon cards by name, set or collector number",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 10,
+          "headings": [
+            "H1: Pokemon Card Deals — Underpriced Cards on eB",
+            "H2: Best deals right now",
+            "H2: Auctions ending soon",
+            "H2: Filtered deals",
+            "H2: Just added",
+            "H2: Explore Pokemon cards",
+            "H3: Cards with the most active listings",
+            "H2: How it works",
+            "H2: FAQ",
+            "H2: Buying guides"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1302,
+          "heroSearchY": -23,
+          "docHeight": 15829,
+          "filtersToggle": {
+            "h": 44,
+            "w": 91,
+            "visible": true
+          },
+          "filterPillHeights": [
+            32,
+            32,
+            32,
+            32,
+            32,
+            32
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "how we price t",
+              "h": 20,
+              "w": 130,
+              "overflows": false
+            },
+            {
+              "label": "See top 10 →",
+              "h": 26,
+              "w": 101,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "search-pikachu",
+          "url": "/search?q=pikachu",
+          "innerWidth": 375,
+          "innerHeight": 812,
+          "clientWidth": 375,
+          "dpr": 2,
+          "pageScrollWidth": 375,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "pc-q",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-country",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-sort",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 3,
+          "headings": [
+            "H1: Pokemon Card Price Checker",
+            "H2: Below-market deals we've found (60)",
+            "H2: Card price reference (60 matching)"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1185,
+          "heroSearchY": 293,
+          "docHeight": 37584,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "View all match",
+              "h": 30,
+              "w": 225,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "search-dense",
+          "url": "/search?q=psa%2010%20pikachu&type=graded&grader=PSA&grade=10&maxPrice=200&listing=BIN",
+          "innerWidth": 375,
+          "innerHeight": 812,
+          "clientWidth": 375,
+          "dpr": 2,
+          "pageScrollWidth": 375,
+          "pageOverflows": false,
+          "intentionalScrollers": [
+            {
+              "cls": "-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [-ms-ov",
+              "sw": 492,
+              "cw": 335
+            }
+          ],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "pc-q",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-country",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-sort",
+              "fontPx": 16
+            },
+            {
+              "id": "Grader",
+              "fontPx": 16
+            },
+            {
+              "id": "Grade",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 3,
+          "headings": [
+            "H1: Pokemon Card Price Checker",
+            "H2: Below-market deals we've found (2)",
+            "H2: Card price reference (60 matching)"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1780,
+          "heroSearchY": 293,
+          "docHeight": 6271,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            30,
+            30,
+            30,
+            30,
+            30,
+            30
+          ],
+          "chipHeights": [
+            26,
+            26,
+            26,
+            26,
+            26
+          ],
+          "paginationRow": [
+            {
+              "label": "View all match",
+              "h": 30,
+              "w": 225,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            },
+            {
+              "label": "PikachuBase Se",
+              "h": 316,
+              "w": 156,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "search-evolving-skies-umbreon",
+          "url": "/search?q=evolving%20skies%20umbreon",
+          "innerWidth": 375,
+          "innerHeight": 812,
+          "clientWidth": 375,
+          "dpr": 2,
+          "pageScrollWidth": 375,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "pc-q",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-country",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-sort",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 3,
+          "headings": [
+            "H1: Pokemon Card Price Checker",
+            "H2: Below-market deals we've found (2)",
+            "H2: Card price reference (6 matching)"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1317,
+          "heroSearchY": 293,
+          "docHeight": 3456,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "View all Umbre",
+              "h": 30,
+              "w": 245,
+              "overflows": false
+            },
+            {
+              "label": "Browse the who",
+              "h": 46,
+              "w": 293,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "search-team-rocket-umbreon",
+          "url": "/search?q=team%20rocket%20umbreon",
+          "innerWidth": 375,
+          "innerHeight": 812,
+          "clientWidth": 375,
+          "dpr": 2,
+          "pageScrollWidth": 375,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "pc-q",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-country",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-sort",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 2,
+          "headings": [
+            "H1: Pokemon Card Price Checker",
+            "H2: Card price reference (0 matching)"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": null,
+          "heroSearchY": 293,
+          "docHeight": 1307,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "View all Umbre",
+              "h": 26,
+              "w": 241,
+              "overflows": false
+            },
+            {
+              "label": "Browse the who",
+              "h": 26,
+              "w": 238,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "search-charizard-4-102",
+          "url": "/search?q=charizard%204%2F102",
+          "innerWidth": 375,
+          "innerHeight": 812,
+          "clientWidth": 375,
+          "dpr": 2,
+          "pageScrollWidth": 375,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "pc-q",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-country",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-sort",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 3,
+          "headings": [
+            "H1: Pokemon Card Price Checker",
+            "H2: Below-market deals we've found (4)",
+            "H2: Card price reference (7 matching)"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1245,
+          "heroSearchY": 293,
+          "docHeight": 4823,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "Price & value ",
+              "h": 28,
+              "w": 114,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "pokemon-pikachu",
+          "url": "/pokemon/pikachu",
+          "innerWidth": 375,
+          "innerHeight": 812,
+          "clientWidth": 375,
+          "dpr": 2,
+          "pageScrollWidth": 375,
+          "pageOverflows": false,
+          "intentionalScrollers": [
+            {
+              "cls": "mt-4 overflow-x-auto",
+              "sw": 512,
+              "cw": 327
+            }
+          ],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "Search Pikachu cards",
+              "fontPx": 16
+            },
+            {
+              "id": "Filter by set",
+              "fontPx": 16
+            },
+            {
+              "id": "Filter by rarity",
+              "fontPx": 16
+            },
+            {
+              "id": "Sort cards",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 166,
+          "headings": [
+            "H1: Pikachu Card Prices & Values",
+            "H2: Best Pikachu deals",
+            "H2: Pikachu card prices at a glance",
+            "H2: Most valuable Pikachu cards we track",
+            "H2: Pikachu cards by set",
+            "H2: Every Pikachu card, by set (347)",
+            "H3: Miscellaneous Cards & Products",
+            "H3: Pikachu World Collection Promos",
+            "H3: SM Promos",
+            "H3: ME: 30th Celebration",
+            "H3: WoTC Promo",
+            "H3: SWSH: Sword & Shield Promo Cards",
+            "H3: XY Promos",
+            "H3: SV: Scarlet & Violet Promo Cards",
+            "H3: Rising Rivals",
+            "H3: SM - Team Up"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1249,
+          "heroSearchY": 8622,
+          "docHeight": 37355,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            0,
+            0,
+            32,
+            32,
+            32,
+            32
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "← Back to Poke",
+              "h": 38,
+              "w": 165,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "pokemon-pikachu-graded",
+          "url": "/pokemon/pikachu?type=graded&grader=PSA&grade=10",
+          "innerWidth": 375,
+          "innerHeight": 812,
+          "clientWidth": 375,
+          "dpr": 2,
+          "pageScrollWidth": 375,
+          "pageOverflows": false,
+          "intentionalScrollers": [
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 611,
+              "cw": 375
+            },
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 662,
+              "cw": 375
+            },
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 696,
+              "cw": 375
+            },
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 469,
+              "cw": 375
+            },
+            {
+              "cls": "mt-4 overflow-x-auto",
+              "sw": 512,
+              "cw": 327
+            }
+          ],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "Search Pikachu cards",
+              "fontPx": 16
+            },
+            {
+              "id": "Filter by set",
+              "fontPx": 16
+            },
+            {
+              "id": "Filter by rarity",
+              "fontPx": 16
+            },
+            {
+              "id": "Sort cards",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 166,
+          "headings": [
+            "H1: Pikachu Card Prices & Values",
+            "H2: Best Pikachu deals",
+            "H2: Pikachu card prices at a glance",
+            "H2: Most valuable Pikachu cards we track",
+            "H2: Pikachu cards by set",
+            "H2: Every Pikachu card, by set (347)",
+            "H3: Miscellaneous Cards & Products",
+            "H3: Pikachu World Collection Promos",
+            "H3: SM Promos",
+            "H3: ME: 30th Celebration",
+            "H3: WoTC Promo",
+            "H3: SWSH: Sword & Shield Promo Cards",
+            "H3: XY Promos",
+            "H3: SV: Scarlet & Violet Promo Cards",
+            "H3: Rising Rivals",
+            "H3: SM - Team Up"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 2370,
+          "heroSearchY": 5877,
+          "docHeight": 34610,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            26,
+            26,
+            26,
+            26,
+            26,
+            26
+          ],
+          "chipHeights": [
+            26,
+            26,
+            26
+          ],
+          "paginationRow": [
+            {
+              "label": "← Back to Poke",
+              "h": 38,
+              "w": 165,
+              "overflows": false
+            },
+            {
+              "label": "Next Destinies",
+              "h": 0,
+              "w": 0,
+              "overflows": false
+            },
+            {
+              "label": "View set →",
+              "h": 16,
+              "w": 65,
+              "overflows": false
+            },
+            {
+              "label": "Show all 15 Mi",
+              "h": 46,
+              "w": 327,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "sets-base-set",
+          "url": "/sets/base-set",
+          "innerWidth": 375,
+          "innerHeight": 812,
+          "clientWidth": 375,
+          "dpr": 2,
+          "pageScrollWidth": 375,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "Search Base Set cards",
+              "fontPx": 16
+            },
+            {
+              "id": "Filter by rarity",
+              "fontPx": 16
+            },
+            {
+              "id": "Sort cards",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 14,
+          "headings": [
+            "H1: Base Set Card List, Prices & Values",
+            "H2: Base Set deals",
+            "H2: Base Set card prices at a glance",
+            "H2: Most valuable Base Set cards we track",
+            "H2: Base Set card checklist (102)",
+            "H2: Full Base Set card index (102)",
+            "H3: Base Set (102)",
+            "H2: Pokemon in Base Set",
+            "H2: Sealed products for Base Set (6)",
+            "H2: Common questions about Base Set cards",
+            "H3: How many cards from Base Set do you track?",
+            "H3: How much are Base Set cards worth?",
+            "H3: Which Pokemon appear in Base Set?",
+            "H3: Are there any Base Set card deals right now?"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1185,
+          "heroSearchY": 9872,
+          "docHeight": 20743,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            0,
+            0,
+            32,
+            32,
+            32,
+            32
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "← Back to Sets",
+              "h": 38,
+              "w": 134,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "sets-base-set-graded",
+          "url": "/sets/base-set?type=graded&grader=PSA",
+          "innerWidth": 375,
+          "innerHeight": 812,
+          "clientWidth": 375,
+          "dpr": 2,
+          "pageScrollWidth": 375,
+          "pageOverflows": false,
+          "intentionalScrollers": [
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 611,
+              "cw": 375
+            },
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 662,
+              "cw": 375
+            },
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 696,
+              "cw": 375
+            },
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 469,
+              "cw": 375
+            }
+          ],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "Search Base Set cards",
+              "fontPx": 16
+            },
+            {
+              "id": "Filter by rarity",
+              "fontPx": 16
+            },
+            {
+              "id": "Sort cards",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 14,
+          "headings": [
+            "H1: Base Set Card List, Prices & Values",
+            "H2: Base Set deals",
+            "H2: Base Set card prices at a glance",
+            "H2: Most valuable Base Set cards we track",
+            "H2: Base Set card checklist (102)",
+            "H2: Full Base Set card index (102)",
+            "H3: Base Set (102)",
+            "H2: Pokemon in Base Set",
+            "H2: Sealed products for Base Set (6)",
+            "H2: Common questions about Base Set cards",
+            "H3: How many cards from Base Set do you track?",
+            "H3: How much are Base Set cards worth?",
+            "H3: Which Pokemon appear in Base Set?",
+            "H3: Are there any Base Set card deals right now?"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 2239,
+          "heroSearchY": 4929,
+          "docHeight": 15799,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            26,
+            26,
+            26,
+            26,
+            26,
+            26
+          ],
+          "chipHeights": [
+            26,
+            26
+          ],
+          "paginationRow": [
+            {
+              "label": "← Back to Sets",
+              "h": 38,
+              "w": 134,
+              "overflows": false
+            },
+            {
+              "label": "Find on eBay →",
+              "h": 58,
+              "w": 122,
+              "overflows": false
+            },
+            {
+              "label": "Find on eBay →",
+              "h": 58,
+              "w": 122,
+              "overflows": false
+            },
+            {
+              "label": "Find on eBay →",
+              "h": 58,
+              "w": 122,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "cards-charizard-base-set",
+          "url": "/cards/charizard-base-set",
+          "innerWidth": 375,
+          "innerHeight": 812,
+          "clientWidth": 375,
+          "dpr": 2,
+          "pageScrollWidth": 375,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "cd-country",
+              "fontPx": 16
+            },
+            {
+              "id": "cd-sort",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 10,
+          "headings": [
+            "H1: Charizard — Base Set Price & Value",
+            "H2: Price & value",
+            "H2: Price intelligence",
+            "H2: Active listings (4)",
+            "H2: Market price history",
+            "H2: Every variant, side by side",
+            "H2: Recent raw eBay sales",
+            "H2: More Charizard cards",
+            "H2: More cards from Base Set",
+            "H2: How we check listings"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 600,
+          "heroSearchY": null,
+          "docHeight": 7173,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "All Charizard ",
+              "h": 18,
+              "w": 193,
+              "overflows": false
+            },
+            {
+              "label": "View all 4 lis",
+              "h": 56,
+              "w": 277,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 293,
+              "overflows": false
+            }
+          ],
+          "cardBottom": {
+            "stickyVisible": true,
+            "stickyRect": {
+              "top": 747,
+              "h": 65
+            },
+            "footerBottom": 732,
+            "viewportH": 812,
+            "footerLinksCoveredBySticky": []
+          }
+        },
+        {
+          "slug": "cards-charizard-base-set-graded",
+          "url": "/cards/charizard-base-set?type=graded&grader=PSA&grade=10",
+          "innerWidth": 375,
+          "innerHeight": 812,
+          "clientWidth": 375,
+          "dpr": 2,
+          "pageScrollWidth": 375,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "cd-country",
+              "fontPx": 16
+            },
+            {
+              "id": "cd-sort",
+              "fontPx": 16
+            },
+            {
+              "id": "Grader",
+              "fontPx": 16
+            },
+            {
+              "id": "Grade",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 10,
+          "headings": [
+            "H1: Charizard — Base Set Price & Value",
+            "H2: Price & value",
+            "H2: Price intelligence",
+            "H2: Matching live listings (0)",
+            "H2: Market price history",
+            "H2: Every variant, side by side",
+            "H2: Recent raw eBay sales",
+            "H2: More Charizard cards",
+            "H2: More cards from Base Set",
+            "H2: How we check listings"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 600,
+          "heroSearchY": null,
+          "docHeight": 5288,
+          "filtersToggle": {
+            "h": 44,
+            "w": 93,
+            "visible": true
+          },
+          "filterPillHeights": [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chipHeights": [
+            26,
+            26,
+            26
+          ],
+          "paginationRow": [
+            {
+              "label": "All Charizard ",
+              "h": 18,
+              "w": 193,
+              "overflows": false
+            },
+            {
+              "label": "View all 4 lis",
+              "h": 56,
+              "w": 277,
+              "overflows": false
+            },
+            {
+              "label": "RawNear MintA$",
+              "h": 153,
+              "w": 133,
+              "overflows": false
+            },
+            {
+              "label": "All Charizard ",
+              "h": 18,
+              "w": 198,
+              "overflows": false
+            }
+          ],
+          "cardBottom": {
+            "stickyVisible": true,
+            "stickyRect": {
+              "top": 747,
+              "h": 65
+            },
+            "footerBottom": 732,
+            "viewportH": 812,
+            "footerLinksCoveredBySticky": []
+          }
+        }
+      ]
+    },
+    {
+      "requested": {
+        "w": 390,
+        "h": 844
+      },
+      "routes": [
+        {
+          "slug": "home",
+          "url": "/",
+          "innerWidth": 390,
+          "innerHeight": 844,
+          "clientWidth": 390,
+          "dpr": 2,
+          "pageScrollWidth": 390,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "Search Pokemon cards by name, set or collector number",
+              "fontPx": 16
+            },
+            {
+              "id": "Search Pokemon cards by name, set or collector number",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 11,
+          "headings": [
+            "H1: Pokemon Card Deals — Underpriced Cards on eB",
+            "H2: Best deals right now",
+            "H2: Recently viewed",
+            "H2: Auctions ending soon",
+            "H2: Filtered deals",
+            "H2: Just added",
+            "H2: Explore Pokemon cards",
+            "H3: Cards with the most active listings",
+            "H2: How it works",
+            "H2: FAQ",
+            "H2: Buying guides"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1317,
+          "heroSearchY": -23,
+          "docHeight": 16358,
+          "filtersToggle": {
+            "h": 44,
+            "w": 91,
+            "visible": true
+          },
+          "filterPillHeights": [
+            32,
+            32,
+            32,
+            32,
+            32,
+            32
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "how we price t",
+              "h": 20,
+              "w": 130,
+              "overflows": false
+            },
+            {
+              "label": "See top 10 →",
+              "h": 26,
+              "w": 101,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "search-pikachu",
+          "url": "/search?q=pikachu",
+          "innerWidth": 390,
+          "innerHeight": 844,
+          "clientWidth": 390,
+          "dpr": 2,
+          "pageScrollWidth": 390,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "pc-q",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-country",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-sort",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 3,
+          "headings": [
+            "H1: Pokemon Card Price Checker",
+            "H2: Below-market deals we've found (60)",
+            "H2: Card price reference (60 matching)"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1168,
+          "heroSearchY": 261,
+          "docHeight": 38223,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "View all match",
+              "h": 30,
+              "w": 225,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "search-dense",
+          "url": "/search?q=psa%2010%20pikachu&type=graded&grader=PSA&grade=10&maxPrice=200&listing=BIN",
+          "innerWidth": 390,
+          "innerHeight": 844,
+          "clientWidth": 390,
+          "dpr": 2,
+          "pageScrollWidth": 390,
+          "pageOverflows": false,
+          "intentionalScrollers": [
+            {
+              "cls": "-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [-ms-ov",
+              "sw": 492,
+              "cw": 350
+            }
+          ],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "pc-q",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-country",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-sort",
+              "fontPx": 16
+            },
+            {
+              "id": "Grader",
+              "fontPx": 16
+            },
+            {
+              "id": "Grade",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 3,
+          "headings": [
+            "H1: Pokemon Card Price Checker",
+            "H2: Below-market deals we've found (2)",
+            "H2: Card price reference (60 matching)"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1763,
+          "heroSearchY": 261,
+          "docHeight": 6040,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            30,
+            30,
+            30,
+            30,
+            30,
+            30
+          ],
+          "chipHeights": [
+            26,
+            26,
+            26,
+            26,
+            26
+          ],
+          "paginationRow": [
+            {
+              "label": "View all match",
+              "h": 30,
+              "w": 225,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            },
+            {
+              "label": "PikachuBase Se",
+              "h": 291,
+              "w": 163,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "search-evolving-skies-umbreon",
+          "url": "/search?q=evolving%20skies%20umbreon",
+          "innerWidth": 390,
+          "innerHeight": 844,
+          "clientWidth": 390,
+          "dpr": 2,
+          "pageScrollWidth": 390,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "pc-q",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-country",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-sort",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 3,
+          "headings": [
+            "H1: Pokemon Card Price Checker",
+            "H2: Below-market deals we've found (2)",
+            "H2: Card price reference (6 matching)"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1284,
+          "heroSearchY": 261,
+          "docHeight": 3392,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "View all Umbre",
+              "h": 30,
+              "w": 245,
+              "overflows": false
+            },
+            {
+              "label": "Browse the who",
+              "h": 30,
+              "w": 307,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "search-team-rocket-umbreon",
+          "url": "/search?q=team%20rocket%20umbreon",
+          "innerWidth": 390,
+          "innerHeight": 844,
+          "clientWidth": 390,
+          "dpr": 2,
+          "pageScrollWidth": 390,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "pc-q",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-country",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-sort",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 2,
+          "headings": [
+            "H1: Pokemon Card Price Checker",
+            "H2: Card price reference (0 matching)"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": null,
+          "heroSearchY": 261,
+          "docHeight": 1275,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "View all Umbre",
+              "h": 26,
+              "w": 241,
+              "overflows": false
+            },
+            {
+              "label": "Browse the who",
+              "h": 26,
+              "w": 238,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "search-charizard-4-102",
+          "url": "/search?q=charizard%204%2F102",
+          "innerWidth": 390,
+          "innerHeight": 844,
+          "clientWidth": 390,
+          "dpr": 2,
+          "pageScrollWidth": 390,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "pc-q",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-country",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-sort",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 3,
+          "headings": [
+            "H1: Pokemon Card Price Checker",
+            "H2: Below-market deals we've found (4)",
+            "H2: Card price reference (7 matching)"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1202,
+          "heroSearchY": 261,
+          "docHeight": 4751,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "Price & value ",
+              "h": 28,
+              "w": 114,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "pokemon-pikachu",
+          "url": "/pokemon/pikachu",
+          "innerWidth": 390,
+          "innerHeight": 844,
+          "clientWidth": 390,
+          "dpr": 2,
+          "pageScrollWidth": 390,
+          "pageOverflows": false,
+          "intentionalScrollers": [
+            {
+              "cls": "mt-4 overflow-x-auto",
+              "sw": 512,
+              "cw": 342
+            }
+          ],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "Search Pikachu cards",
+              "fontPx": 16
+            },
+            {
+              "id": "Filter by set",
+              "fontPx": 16
+            },
+            {
+              "id": "Filter by rarity",
+              "fontPx": 16
+            },
+            {
+              "id": "Sort cards",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 166,
+          "headings": [
+            "H1: Pikachu Card Prices & Values",
+            "H2: Best Pikachu deals",
+            "H2: Pikachu card prices at a glance",
+            "H2: Most valuable Pikachu cards we track",
+            "H2: Pikachu cards by set",
+            "H2: Every Pikachu card, by set (347)",
+            "H3: Miscellaneous Cards & Products",
+            "H3: Pikachu World Collection Promos",
+            "H3: SM Promos",
+            "H3: ME: 30th Celebration",
+            "H3: WoTC Promo",
+            "H3: SWSH: Sword & Shield Promo Cards",
+            "H3: XY Promos",
+            "H3: SV: Scarlet & Violet Promo Cards",
+            "H3: Rising Rivals",
+            "H3: SM - Team Up"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1264,
+          "heroSearchY": 8711,
+          "docHeight": 37460,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            0,
+            0,
+            32,
+            32,
+            32,
+            32
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "← Back to Poke",
+              "h": 38,
+              "w": 165,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "pokemon-pikachu-graded",
+          "url": "/pokemon/pikachu?type=graded&grader=PSA&grade=10",
+          "innerWidth": 390,
+          "innerHeight": 844,
+          "clientWidth": 390,
+          "dpr": 2,
+          "pageScrollWidth": 390,
+          "pageOverflows": false,
+          "intentionalScrollers": [
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 611,
+              "cw": 390
+            },
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 662,
+              "cw": 390
+            },
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 696,
+              "cw": 390
+            },
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 469,
+              "cw": 390
+            },
+            {
+              "cls": "mt-4 overflow-x-auto",
+              "sw": 512,
+              "cw": 342
+            }
+          ],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "Search Pikachu cards",
+              "fontPx": 16
+            },
+            {
+              "id": "Filter by set",
+              "fontPx": 16
+            },
+            {
+              "id": "Filter by rarity",
+              "fontPx": 16
+            },
+            {
+              "id": "Sort cards",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 166,
+          "headings": [
+            "H1: Pikachu Card Prices & Values",
+            "H2: Best Pikachu deals",
+            "H2: Pikachu card prices at a glance",
+            "H2: Most valuable Pikachu cards we track",
+            "H2: Pikachu cards by set",
+            "H2: Every Pikachu card, by set (347)",
+            "H3: Miscellaneous Cards & Products",
+            "H3: Pikachu World Collection Promos",
+            "H3: SM Promos",
+            "H3: ME: 30th Celebration",
+            "H3: WoTC Promo",
+            "H3: SWSH: Sword & Shield Promo Cards",
+            "H3: XY Promos",
+            "H3: SV: Scarlet & Violet Promo Cards",
+            "H3: Rising Rivals",
+            "H3: SM - Team Up"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 2336,
+          "heroSearchY": 5876,
+          "docHeight": 34625,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            26,
+            26,
+            26,
+            26,
+            26,
+            26
+          ],
+          "chipHeights": [
+            26,
+            26,
+            26
+          ],
+          "paginationRow": [
+            {
+              "label": "← Back to Poke",
+              "h": 38,
+              "w": 165,
+              "overflows": false
+            },
+            {
+              "label": "Next Destinies",
+              "h": 0,
+              "w": 0,
+              "overflows": false
+            },
+            {
+              "label": "View set →",
+              "h": 16,
+              "w": 65,
+              "overflows": false
+            },
+            {
+              "label": "Show all 15 Mi",
+              "h": 30,
+              "w": 329,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "sets-base-set",
+          "url": "/sets/base-set",
+          "innerWidth": 390,
+          "innerHeight": 844,
+          "clientWidth": 390,
+          "dpr": 2,
+          "pageScrollWidth": 390,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "Search Base Set cards",
+              "fontPx": 16
+            },
+            {
+              "id": "Filter by rarity",
+              "fontPx": 16
+            },
+            {
+              "id": "Sort cards",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 14,
+          "headings": [
+            "H1: Base Set Card List, Prices & Values",
+            "H2: Base Set deals",
+            "H2: Base Set card prices at a glance",
+            "H2: Most valuable Base Set cards we track",
+            "H2: Base Set card checklist (102)",
+            "H2: Full Base Set card index (102)",
+            "H3: Base Set (102)",
+            "H2: Pokemon in Base Set",
+            "H2: Sealed products for Base Set (6)",
+            "H2: Common questions about Base Set cards",
+            "H3: How many cards from Base Set do you track?",
+            "H3: How much are Base Set cards worth?",
+            "H3: Which Pokemon appear in Base Set?",
+            "H3: Are there any Base Set card deals right now?"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1200,
+          "heroSearchY": 10024,
+          "docHeight": 20944,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            0,
+            0,
+            32,
+            32,
+            32,
+            32
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "← Back to Sets",
+              "h": 38,
+              "w": 134,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "sets-base-set-graded",
+          "url": "/sets/base-set?type=graded&grader=PSA",
+          "innerWidth": 390,
+          "innerHeight": 844,
+          "clientWidth": 390,
+          "dpr": 2,
+          "pageScrollWidth": 390,
+          "pageOverflows": false,
+          "intentionalScrollers": [
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 611,
+              "cw": 390
+            },
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 662,
+              "cw": 390
+            },
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 696,
+              "cw": 390
+            },
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 469,
+              "cw": 390
+            }
+          ],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "Search Base Set cards",
+              "fontPx": 16
+            },
+            {
+              "id": "Filter by rarity",
+              "fontPx": 16
+            },
+            {
+              "id": "Sort cards",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 14,
+          "headings": [
+            "H1: Base Set Card List, Prices & Values",
+            "H2: Base Set deals",
+            "H2: Base Set card prices at a glance",
+            "H2: Most valuable Base Set cards we track",
+            "H2: Base Set card checklist (102)",
+            "H2: Full Base Set card index (102)",
+            "H3: Base Set (102)",
+            "H2: Pokemon in Base Set",
+            "H2: Sealed products for Base Set (6)",
+            "H2: Common questions about Base Set cards",
+            "H3: How many cards from Base Set do you track?",
+            "H3: How much are Base Set cards worth?",
+            "H3: Which Pokemon appear in Base Set?",
+            "H3: Are there any Base Set card deals right now?"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1616,
+          "heroSearchY": 6410,
+          "docHeight": 17330,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            26,
+            26,
+            26,
+            26,
+            26,
+            26
+          ],
+          "chipHeights": [
+            26,
+            26
+          ],
+          "paginationRow": [
+            {
+              "label": "← Back to Sets",
+              "h": 38,
+              "w": 134,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "cards-charizard-base-set",
+          "url": "/cards/charizard-base-set",
+          "innerWidth": 390,
+          "innerHeight": 844,
+          "clientWidth": 390,
+          "dpr": 2,
+          "pageScrollWidth": 390,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "cd-country",
+              "fontPx": 16
+            },
+            {
+              "id": "cd-sort",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 10,
+          "headings": [
+            "H1: Charizard — Base Set Price & Value",
+            "H2: Price & value",
+            "H2: Price intelligence",
+            "H2: Active listings (4)",
+            "H2: Market price history",
+            "H2: Every variant, side by side",
+            "H2: Recent raw eBay sales",
+            "H2: More Charizard cards",
+            "H2: More cards from Base Set",
+            "H2: How we check listings"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 600,
+          "heroSearchY": null,
+          "docHeight": 7099,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "All Charizard ",
+              "h": 18,
+              "w": 193,
+              "overflows": false
+            },
+            {
+              "label": "View all 4 lis",
+              "h": 36,
+              "w": 277,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 308,
+              "overflows": false
+            }
+          ],
+          "cardBottom": {
+            "stickyVisible": true,
+            "stickyRect": {
+              "top": 779,
+              "h": 65
+            },
+            "footerBottom": 764,
+            "viewportH": 844,
+            "footerLinksCoveredBySticky": []
+          }
+        },
+        {
+          "slug": "cards-charizard-base-set-graded",
+          "url": "/cards/charizard-base-set?type=graded&grader=PSA&grade=10",
+          "innerWidth": 390,
+          "innerHeight": 844,
+          "clientWidth": 390,
+          "dpr": 2,
+          "pageScrollWidth": 390,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "cd-country",
+              "fontPx": 16
+            },
+            {
+              "id": "cd-sort",
+              "fontPx": 16
+            },
+            {
+              "id": "Grader",
+              "fontPx": 16
+            },
+            {
+              "id": "Grade",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 10,
+          "headings": [
+            "H1: Charizard — Base Set Price & Value",
+            "H2: Price & value",
+            "H2: Price intelligence",
+            "H2: Matching live listings (0)",
+            "H2: Market price history",
+            "H2: Every variant, side by side",
+            "H2: Recent raw eBay sales",
+            "H2: More Charizard cards",
+            "H2: More cards from Base Set",
+            "H2: How we check listings"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 600,
+          "heroSearchY": null,
+          "docHeight": 5154,
+          "filtersToggle": {
+            "h": 44,
+            "w": 93,
+            "visible": true
+          },
+          "filterPillHeights": [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chipHeights": [
+            26,
+            26,
+            26
+          ],
+          "paginationRow": [
+            {
+              "label": "All Charizard ",
+              "h": 18,
+              "w": 193,
+              "overflows": false
+            },
+            {
+              "label": "View all 4 lis",
+              "h": 36,
+              "w": 277,
+              "overflows": false
+            },
+            {
+              "label": "RawNear MintA$",
+              "h": 153,
+              "w": 140,
+              "overflows": false
+            },
+            {
+              "label": "All Charizard ",
+              "h": 18,
+              "w": 198,
+              "overflows": false
+            }
+          ],
+          "cardBottom": {
+            "stickyVisible": true,
+            "stickyRect": {
+              "top": 779,
+              "h": 65
+            },
+            "footerBottom": 764,
+            "viewportH": 844,
+            "footerLinksCoveredBySticky": []
+          }
+        }
+      ]
+    },
+    {
+      "requested": {
+        "w": 430,
+        "h": 932
+      },
+      "routes": [
+        {
+          "slug": "home",
+          "url": "/",
+          "innerWidth": 430,
+          "innerHeight": 932,
+          "clientWidth": 430,
+          "dpr": 2,
+          "pageScrollWidth": 430,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "Search Pokemon cards by name, set or collector number",
+              "fontPx": 16
+            },
+            {
+              "id": "Search Pokemon cards by name, set or collector number",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 11,
+          "headings": [
+            "H1: Pokemon Card Deals — Underpriced Cards on eB",
+            "H2: Best deals right now",
+            "H2: Recently viewed",
+            "H2: Auctions ending soon",
+            "H2: Filtered deals",
+            "H2: Just added",
+            "H2: Explore Pokemon cards",
+            "H3: Cards with the most active listings",
+            "H2: How it works",
+            "H2: FAQ",
+            "H2: Buying guides"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1298,
+          "heroSearchY": -23,
+          "docHeight": 16950,
+          "filtersToggle": {
+            "h": 44,
+            "w": 91,
+            "visible": true
+          },
+          "filterPillHeights": [
+            32,
+            32,
+            32,
+            32,
+            32,
+            32
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "how we price t",
+              "h": 20,
+              "w": 130,
+              "overflows": false
+            },
+            {
+              "label": "See top 10 →",
+              "h": 26,
+              "w": 101,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "search-pikachu",
+          "url": "/search?q=pikachu",
+          "innerWidth": 430,
+          "innerHeight": 932,
+          "clientWidth": 430,
+          "dpr": 2,
+          "pageScrollWidth": 430,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "pc-q",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-country",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-sort",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 3,
+          "headings": [
+            "H1: Pokemon Card Price Checker",
+            "H2: Below-market deals we've found (60)",
+            "H2: Card price reference (60 matching)"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1188,
+          "heroSearchY": 241,
+          "docHeight": 40783,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "View all match",
+              "h": 30,
+              "w": 225,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "search-dense",
+          "url": "/search?q=psa%2010%20pikachu&type=graded&grader=PSA&grade=10&maxPrice=200&listing=BIN",
+          "innerWidth": 430,
+          "innerHeight": 932,
+          "clientWidth": 430,
+          "dpr": 2,
+          "pageScrollWidth": 430,
+          "pageOverflows": false,
+          "intentionalScrollers": [
+            {
+              "cls": "-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [-ms-ov",
+              "sw": 492,
+              "cw": 390
+            }
+          ],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "pc-q",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-country",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-sort",
+              "fontPx": 16
+            },
+            {
+              "id": "Grader",
+              "fontPx": 16
+            },
+            {
+              "id": "Grade",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 3,
+          "headings": [
+            "H1: Pokemon Card Price Checker",
+            "H2: Below-market deals we've found (2)",
+            "H2: Card price reference (60 matching)"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1710,
+          "heroSearchY": 241,
+          "docHeight": 6208,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            30,
+            30,
+            30,
+            30,
+            30,
+            30
+          ],
+          "chipHeights": [
+            26,
+            26,
+            26,
+            26,
+            26
+          ],
+          "paginationRow": [
+            {
+              "label": "View all match",
+              "h": 30,
+              "w": 225,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            },
+            {
+              "label": "PikachuBase Se",
+              "h": 311,
+              "w": 183,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "search-evolving-skies-umbreon",
+          "url": "/search?q=evolving%20skies%20umbreon",
+          "innerWidth": 430,
+          "innerHeight": 932,
+          "clientWidth": 430,
+          "dpr": 2,
+          "pageScrollWidth": 430,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "pc-q",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-country",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-sort",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 3,
+          "headings": [
+            "H1: Pokemon Card Price Checker",
+            "H2: Below-market deals we've found (2)",
+            "H2: Card price reference (6 matching)"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1278,
+          "heroSearchY": 241,
+          "docHeight": 3447,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "View all Umbre",
+              "h": 30,
+              "w": 245,
+              "overflows": false
+            },
+            {
+              "label": "Browse the who",
+              "h": 30,
+              "w": 307,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "search-team-rocket-umbreon",
+          "url": "/search?q=team%20rocket%20umbreon",
+          "innerWidth": 430,
+          "innerHeight": 932,
+          "clientWidth": 430,
+          "dpr": 2,
+          "pageScrollWidth": 430,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "pc-q",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-country",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-sort",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 2,
+          "headings": [
+            "H1: Pokemon Card Price Checker",
+            "H2: Card price reference (0 matching)"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": null,
+          "heroSearchY": 241,
+          "docHeight": 1215,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "View all Umbre",
+              "h": 26,
+              "w": 241,
+              "overflows": false
+            },
+            {
+              "label": "Browse the who",
+              "h": 26,
+              "w": 238,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "search-charizard-4-102",
+          "url": "/search?q=charizard%204%2F102",
+          "innerWidth": 430,
+          "innerHeight": 932,
+          "clientWidth": 430,
+          "dpr": 2,
+          "pageScrollWidth": 430,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "pc-q",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-country",
+              "fontPx": 16
+            },
+            {
+              "id": "pc-sort",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 3,
+          "headings": [
+            "H1: Pokemon Card Price Checker",
+            "H2: Below-market deals we've found (4)",
+            "H2: Card price reference (7 matching)"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1222,
+          "heroSearchY": 241,
+          "docHeight": 4912,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "Price & value ",
+              "h": 28,
+              "w": 114,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "pokemon-pikachu",
+          "url": "/pokemon/pikachu",
+          "innerWidth": 430,
+          "innerHeight": 932,
+          "clientWidth": 430,
+          "dpr": 2,
+          "pageScrollWidth": 430,
+          "pageOverflows": false,
+          "intentionalScrollers": [
+            {
+              "cls": "mt-4 overflow-x-auto",
+              "sw": 512,
+              "cw": 382
+            }
+          ],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "Search Pikachu cards",
+              "fontPx": 16
+            },
+            {
+              "id": "Filter by set",
+              "fontPx": 16
+            },
+            {
+              "id": "Filter by rarity",
+              "fontPx": 16
+            },
+            {
+              "id": "Sort cards",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 166,
+          "headings": [
+            "H1: Pikachu Card Prices & Values",
+            "H2: Best Pikachu deals",
+            "H2: Pikachu card prices at a glance",
+            "H2: Most valuable Pikachu cards we track",
+            "H2: Pikachu cards by set",
+            "H2: Every Pikachu card, by set (347)",
+            "H3: Miscellaneous Cards & Products",
+            "H3: Pikachu World Collection Promos",
+            "H3: SM Promos",
+            "H3: ME: 30th Celebration",
+            "H3: WoTC Promo",
+            "H3: SWSH: Sword & Shield Promo Cards",
+            "H3: XY Promos",
+            "H3: SV: Scarlet & Violet Promo Cards",
+            "H3: Rising Rivals",
+            "H3: SM - Team Up"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1260,
+          "heroSearchY": 8947,
+          "docHeight": 36762,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            0,
+            0,
+            32,
+            32,
+            32,
+            32
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "← Back to Poke",
+              "h": 38,
+              "w": 165,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "pokemon-pikachu-graded",
+          "url": "/pokemon/pikachu?type=graded&grader=PSA&grade=10",
+          "innerWidth": 430,
+          "innerHeight": 932,
+          "clientWidth": 430,
+          "dpr": 2,
+          "pageScrollWidth": 430,
+          "pageOverflows": false,
+          "intentionalScrollers": [
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 611,
+              "cw": 430
+            },
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 662,
+              "cw": 430
+            },
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 696,
+              "cw": 430
+            },
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 469,
+              "cw": 430
+            },
+            {
+              "cls": "mt-4 overflow-x-auto",
+              "sw": 512,
+              "cw": 382
+            }
+          ],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "Search Pikachu cards",
+              "fontPx": 16
+            },
+            {
+              "id": "Filter by set",
+              "fontPx": 16
+            },
+            {
+              "id": "Filter by rarity",
+              "fontPx": 16
+            },
+            {
+              "id": "Sort cards",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 166,
+          "headings": [
+            "H1: Pikachu Card Prices & Values",
+            "H2: Best Pikachu deals",
+            "H2: Pikachu card prices at a glance",
+            "H2: Most valuable Pikachu cards we track",
+            "H2: Pikachu cards by set",
+            "H2: Every Pikachu card, by set (347)",
+            "H3: Miscellaneous Cards & Products",
+            "H3: Pikachu World Collection Promos",
+            "H3: SM Promos",
+            "H3: ME: 30th Celebration",
+            "H3: WoTC Promo",
+            "H3: SWSH: Sword & Shield Promo Cards",
+            "H3: XY Promos",
+            "H3: SV: Scarlet & Violet Promo Cards",
+            "H3: Rising Rivals",
+            "H3: SM - Team Up"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 2297,
+          "heroSearchY": 5873,
+          "docHeight": 33688,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            26,
+            26,
+            26,
+            26,
+            26,
+            26
+          ],
+          "chipHeights": [
+            26,
+            26,
+            26
+          ],
+          "paginationRow": [
+            {
+              "label": "← Back to Poke",
+              "h": 38,
+              "w": 165,
+              "overflows": false
+            },
+            {
+              "label": "Next Destinies",
+              "h": 0,
+              "w": 0,
+              "overflows": false
+            },
+            {
+              "label": "View set →",
+              "h": 16,
+              "w": 65,
+              "overflows": false
+            },
+            {
+              "label": "Show all 15 Mi",
+              "h": 30,
+              "w": 329,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "sets-base-set",
+          "url": "/sets/base-set",
+          "innerWidth": 430,
+          "innerHeight": 932,
+          "clientWidth": 430,
+          "dpr": 2,
+          "pageScrollWidth": 430,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "Search Base Set cards",
+              "fontPx": 16
+            },
+            {
+              "id": "Filter by rarity",
+              "fontPx": 16
+            },
+            {
+              "id": "Sort cards",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 14,
+          "headings": [
+            "H1: Base Set Card List, Prices & Values",
+            "H2: Base Set deals",
+            "H2: Base Set card prices at a glance",
+            "H2: Most valuable Base Set cards we track",
+            "H2: Base Set card checklist (102)",
+            "H2: Full Base Set card index (102)",
+            "H3: Base Set (102)",
+            "H2: Pokemon in Base Set",
+            "H2: Sealed products for Base Set (6)",
+            "H2: Common questions about Base Set cards",
+            "H3: How many cards from Base Set do you track?",
+            "H3: How much are Base Set cards worth?",
+            "H3: Which Pokemon appear in Base Set?",
+            "H3: Are there any Base Set card deals right now?"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 1240,
+          "heroSearchY": 10437,
+          "docHeight": 21070,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            0,
+            0,
+            32,
+            32,
+            32,
+            32
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "← Back to Sets",
+              "h": 38,
+              "w": 134,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "sets-base-set-graded",
+          "url": "/sets/base-set?type=graded&grader=PSA",
+          "innerWidth": 430,
+          "innerHeight": 932,
+          "clientWidth": 430,
+          "dpr": 2,
+          "pageScrollWidth": 430,
+          "pageOverflows": false,
+          "intentionalScrollers": [
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 611,
+              "cw": 430
+            },
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 662,
+              "cw": 430
+            },
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 696,
+              "cw": 430
+            },
+            {
+              "cls": "-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-ov",
+              "sw": 469,
+              "cw": 430
+            }
+          ],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "Search Base Set cards",
+              "fontPx": 16
+            },
+            {
+              "id": "Filter by rarity",
+              "fontPx": 16
+            },
+            {
+              "id": "Sort cards",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 14,
+          "headings": [
+            "H1: Base Set Card List, Prices & Values",
+            "H2: Base Set deals",
+            "H2: Base Set card prices at a glance",
+            "H2: Most valuable Base Set cards we track",
+            "H2: Base Set card checklist (102)",
+            "H2: Full Base Set card index (102)",
+            "H3: Base Set (102)",
+            "H2: Pokemon in Base Set",
+            "H2: Sealed products for Base Set (6)",
+            "H2: Common questions about Base Set cards",
+            "H3: How many cards from Base Set do you track?",
+            "H3: How much are Base Set cards worth?",
+            "H3: Which Pokemon appear in Base Set?",
+            "H3: Are there any Base Set card deals right now?"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 2183,
+          "heroSearchY": 4920,
+          "docHeight": 15552,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            26,
+            26,
+            26,
+            26,
+            26,
+            26
+          ],
+          "chipHeights": [
+            26,
+            26
+          ],
+          "paginationRow": [
+            {
+              "label": "← Back to Sets",
+              "h": 38,
+              "w": 134,
+              "overflows": false
+            },
+            {
+              "label": "Find on eBay →",
+              "h": 38,
+              "w": 149,
+              "overflows": false
+            },
+            {
+              "label": "Find on eBay →",
+              "h": 38,
+              "w": 149,
+              "overflows": false
+            },
+            {
+              "label": "Find on eBay →",
+              "h": 38,
+              "w": 149,
+              "overflows": false
+            }
+          ]
+        },
+        {
+          "slug": "cards-charizard-base-set",
+          "url": "/cards/charizard-base-set",
+          "innerWidth": 430,
+          "innerHeight": 932,
+          "clientWidth": 430,
+          "dpr": 2,
+          "pageScrollWidth": 430,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "cd-country",
+              "fontPx": 16
+            },
+            {
+              "id": "cd-sort",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 10,
+          "headings": [
+            "H1: Charizard — Base Set Price & Value",
+            "H2: Price & value",
+            "H2: Price intelligence",
+            "H2: Active listings (4)",
+            "H2: Market price history",
+            "H2: Every variant, side by side",
+            "H2: Recent raw eBay sales",
+            "H2: More Charizard cards",
+            "H2: More cards from Base Set",
+            "H2: How we check listings"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 600,
+          "heroSearchY": null,
+          "docHeight": 6999,
+          "filtersToggle": {
+            "h": 44,
+            "w": 68,
+            "visible": true
+          },
+          "filterPillHeights": [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chipHeights": [],
+          "paginationRow": [
+            {
+              "label": "All Charizard ",
+              "h": 18,
+              "w": 193,
+              "overflows": false
+            },
+            {
+              "label": "View all 4 lis",
+              "h": 36,
+              "w": 277,
+              "overflows": false
+            },
+            {
+              "label": "Check deal on ",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            },
+            {
+              "label": "Bid on eBay →",
+              "h": 36,
+              "w": 348,
+              "overflows": false
+            }
+          ],
+          "cardBottom": {
+            "stickyVisible": true,
+            "stickyRect": {
+              "top": 867,
+              "h": 65
+            },
+            "footerBottom": 852,
+            "viewportH": 932,
+            "footerLinksCoveredBySticky": []
+          }
+        },
+        {
+          "slug": "cards-charizard-base-set-graded",
+          "url": "/cards/charizard-base-set?type=graded&grader=PSA&grade=10",
+          "innerWidth": 430,
+          "innerHeight": 932,
+          "clientWidth": 430,
+          "dpr": 2,
+          "pageScrollWidth": 430,
+          "pageOverflows": false,
+          "intentionalScrollers": [],
+          "bleedElements": [],
+          "unlabeledControls": [],
+          "controlFontPx": [
+            {
+              "id": "cd-country",
+              "fontPx": 16
+            },
+            {
+              "id": "cd-sort",
+              "fontPx": 16
+            },
+            {
+              "id": "Grader",
+              "fontPx": 16
+            },
+            {
+              "id": "Grade",
+              "fontPx": 16
+            }
+          ],
+          "minControlFontPx": 16,
+          "duplicateIds": [],
+          "headingCount": 10,
+          "headings": [
+            "H1: Charizard — Base Set Price & Value",
+            "H2: Price & value",
+            "H2: Price intelligence",
+            "H2: Matching live listings (0)",
+            "H2: Market price history",
+            "H2: Every variant, side by side",
+            "H2: Recent raw eBay sales",
+            "H2: More Charizard cards",
+            "H2: More cards from Base Set",
+            "H2: How we check listings"
+          ],
+          "firstDealY": 0,
+          "firstCTAY": 600,
+          "heroSearchY": null,
+          "docHeight": 4895,
+          "filtersToggle": {
+            "h": 44,
+            "w": 93,
+            "visible": true
+          },
+          "filterPillHeights": [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chipHeights": [
+            26,
+            26,
+            26
+          ],
+          "paginationRow": [
+            {
+              "label": "All Charizard ",
+              "h": 18,
+              "w": 193,
+              "overflows": false
+            },
+            {
+              "label": "View all 4 lis",
+              "h": 36,
+              "w": 277,
+              "overflows": false
+            },
+            {
+              "label": "RawNear MintA$",
+              "h": 153,
+              "w": 160,
+              "overflows": false
+            },
+            {
+              "label": "All Charizard ",
+              "h": 18,
+              "w": 198,
+              "overflows": false
+            }
+          ],
+          "cardBottom": {
+            "stickyVisible": true,
+            "stickyRect": {
+              "top": 867,
+              "h": 65
+            },
+            "footerBottom": 852,
+            "viewportH": 932,
+            "footerLinksCoveredBySticky": []
+          }
+        }
+      ]
+    }
+  ]
+}

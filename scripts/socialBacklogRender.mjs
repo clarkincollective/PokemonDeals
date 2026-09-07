@@ -30,12 +30,13 @@ import { execSync } from "node:child_process";
 
 import {
   loadStories, loadPlacements, tablesReady, upsertStory, upsertPlacements, patchPlacement, recordQaRun,
+  artifactQueueEligible, latestQaForArtifact,
 } from "../lib/social/newsroom/db.mjs";
 import {
   makeStory, storyRow, placementRows, qaRunRow, quantizedCapturedAtIso, stableStoryId,
-  placementsForStory, organicScore, runQaStack, feedReview, logEvent,
+  placementsForStory, organicScore, runQaStack, feedReview, logEvent, captionDuplicateCheck,
 } from "../lib/social/newsroom/index.mjs";
-import { SERIES_RENDER, seriesRenderable, layoutFamilyFor, renderablePlatformsFor, buildEditorialAsset, newsroomRights } from "../lib/social/newsroom/renderRegistry.mjs";
+import { SERIES_RENDER, seriesRenderable, seriesAutonomousSafe, AUTONOMOUS_SAFE_LAYOUTS, layoutFamilyFor, renderablePlatformsFor, buildEditorialAsset, newsroomRights } from "../lib/social/newsroom/renderRegistry.mjs";
 import { EDITORIAL_TARGETS } from "../lib/social/newsroom/editorialTemplates.mjs";
 import { platformCaptions } from "../lib/social/newsroom/captions.mjs";
 import { reviewRenderedCreative, reviewAvailable } from "../lib/newsroom/visualReview.mjs";
@@ -45,10 +46,12 @@ import { getSocialProvider } from "../lib/social/providers/index.mjs";
 
 const args = process.argv.slice(2);
 const has = (f) => args.includes(f);
+const argVal = (f) => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : null; };
 const JSON_OUT = has("--json");
 const DO_SEED = has("--proof-seed");
 const DO_QUEUE = has("--queue-proof");
-const DO_RENDER = has("--render") || (!DO_SEED && !DO_QUEUE);
+const CANCEL_DRAFT = has("--cancel-draft") ? argVal("--cancel-draft") : null;
+const DO_RENDER = has("--render") || (!DO_SEED && !DO_QUEUE && !CANCEL_DRAFT);
 const NOW = Date.now();
 const ROOT = process.cwd();
 const RENDER_DIR = path.join(ROOT, ".social-preview", "editorial-newsroom", "renders");
@@ -57,11 +60,16 @@ const log = (...a) => { if (!JSON_OUT) console.log(...a); };
 const gitHead = () => { try { return execSync("git rev-parse --short HEAD", { encoding: "utf8" }).trim(); } catch { return null; } };
 
 // The fixed proof set: 5 series, 5 distinct layout families, mixed CTA.
-const PROOF_SERIES = ["PRICE_STORY", "BIGGEST_MOVERS", "MARKET_SNAPSHOT", "HOW_WE_FIND_DEALS", "METHODOLOGY"];
+const PROOF_SERIES = ["PRICE_STORY", "BIGGEST_MOVERS", "MARKET_SNAPSHOT", "HOW_WE_FIND_DEALS", "METHODOLOGY", "WHY_SOLD_PRICES_MATTER", "EXACT_PRINTING_MATTERS", "AUCTION_BID_VS_TOTAL"];
 
 async function seedProof() {
   const sourceCommit = gitHead();
-  let stories = 0, placements = 0;
+  let stories = 0, placements = 0, preserved = 0;
+  // SOCIAL-NEWSROOM-2D: a full upsert would REPLACE the row and null the
+  // provider/schedule/QA state of an already-queued placement (this
+  // orphaned real Buffer posts once). Preserve those fields for any
+  // placement that is past PLANNED.
+  const existing = Object.fromEntries(((await loadPlacements({})).rows).map((p) => [p.placement_id, p]));
   for (const series of PROOF_SERIES) {
     const subjectId = `${series.toLowerCase()}-proof`;
     const capturedAt = quantizedCapturedAtIso(series, { now: NOW });
@@ -76,12 +84,20 @@ async function seedProof() {
     // only renderable platforms
     const wanted = renderablePlatformsFor(series);
     const pls = placementsForStory(story).filter((p) => wanted.includes(p.platform)).map((p) => ({ ...p, content_id: story.story_id }));
-    const pr = await upsertPlacements(placementRows(story, pls, { now: NOW }));
+    const rows = placementRows(story, pls, { now: NOW }).map((row) => {
+      const ex = existing[row.placement_id];
+      if (ex && ex.status && ex.status !== "PLANNED") {
+        preserved++;
+        return { ...row, status: ex.status, artifact_hash: ex.artifact_hash, hosted_url: ex.hosted_url, buffer_provider_ref: ex.buffer_provider_ref, scheduled_for: ex.scheduled_for, provider_state: ex.provider_state, published_at: ex.published_at, platform_post_url: ex.platform_post_url, caption_style: ex.caption_style ?? row.caption_style };
+      }
+      return row;
+    });
+    const pr = await upsertPlacements(rows);
     if (pr.error) throw new Error(`seed placements ${series}: ${pr.error}`);
     placements += pr.wrote;
     logEvent("STORY_CREATED", { story_id: story.story_id, series, lane: story.lane, proof: true });
   }
-  return { stories, placements };
+  return { stories, placements, preserved };
 }
 
 // Deterministic proof facts. Aggregate/editorial only - no card artwork,
@@ -174,7 +190,10 @@ async function renderPass() {
     const st = storyById[p.story_id];
     if (!st || !seriesRenderable(st.series)) return false;
     if (!String(st.subject_id ?? "").endsWith("-proof")) return false;
-    if (!["PLANNED", "RENDERED", "QA_WATCH", "BUFFER_READY"].includes(p.status)) return false;
+    // BUFFER_QUEUED is included so a re-render can CATCH + downgrade a
+    // draft whose exact artifact no longer PASSes (SS2 - never leave
+    // invalid queued creative silently present).
+    if (!["PLANNED", "RENDERED", "QA_WATCH", "BUFFER_READY", "BUFFER_QUEUED"].includes(p.status)) return false;
     const k = `${p.story_id}|${p.platform}`;
     if (seen.has(k)) return false;
     seen.add(k);
@@ -267,10 +286,11 @@ async function renderPass() {
         }
       }
 
-      // 5. persist QA runs + patch placement
-      await recordQaRun(qaRunRow({ storyId: story.story_id, placementId: p.placement_id, qaType: "STACK", result: qa.professional_result, score: organicScore(story), blockers: qa.blockers, detail: { layout: asset.layout_family } }));
-      await recordQaRun(qaRunRow({ storyId: story.story_id, placementId: p.placement_id, qaType: "VISUAL_REVIEW", result: review.verdict, score: review.scores?.AI_SPAM_RISK ?? null, blockers: review.blockers ?? [], detail: { model: review.model ?? null, notes: (review.notes ?? []).slice(0, 3), cached: review.cached ?? false } }));
-      logEvent(qa.professional_result === "PASS" ? "QA_PASS" : qa.professional_result === "WATCH" ? "QA_WATCH" : "QA_FAIL", { story_id: story.story_id, platform: p.platform });
+      // 5. persist QA runs (ARTIFACT-SCOPED: every run carries the exact
+      //    artifact sha so the queue path can enforce the SS3 invariant).
+      await recordQaRun(qaRunRow({ storyId: story.story_id, placementId: p.placement_id, qaType: "STACK", result: qa.professional_result, score: organicScore(story), blockers: qa.blockers, detail: { layout: asset.layout_family, artifact_sha256: sha } }));
+      await recordQaRun(qaRunRow({ storyId: story.story_id, placementId: p.placement_id, qaType: "VISUAL_REVIEW", result: review.verdict, score: review.scores?.AI_SPAM_RISK ?? null, blockers: review.blockers ?? [], detail: { model: review.model ?? null, notes: (review.notes ?? []).slice(0, 3), cached: review.cached ?? false, artifact_sha256: sha } }));
+      logEvent(qa.professional_result === "PASS" ? "QA_PASS" : qa.professional_result === "WATCH" ? "QA_WATCH" : "QA_FAIL", { story_id: story.story_id, platform: p.platform, sha: sha.slice(0, 12) });
 
       const ready = qaOk && reviewOk && Boolean(hostedUrl) && !hostErr;
       if (ready) {
@@ -281,6 +301,31 @@ async function renderPass() {
           caption_style: { platform: p.platform, cta_intensity: asset.cta_intensity, cta_zone: asset.cta_zone, hook: cap.hook, text: cap.text, hashtags: cap.hashtags, link: cap.link, layout_family: asset.layout_family },
         });
         readySet.push({ story, placement: p, layout: asset.layout_family, cta_zone: asset.cta_zone, platform: p.platform });
+      } else if (["BUFFER_READY", "BUFFER_QUEUED"].includes(p.status)) {
+        // SS2 - a re-render that no longer PASSes must NEVER leave a
+        // previously-ready/queued placement in that state. Downgrade to
+        // QA_WATCH; if a provider draft exists, flag it for owner removal
+        // (we never silently keep invalid queued creative).
+        const patch = { status: "QA_WATCH", artifact_hash: sha };
+        let providerDelete = null;
+        if (p.buffer_provider_ref) {
+          // a not-yet-sent draft/scheduled post for a now-invalid artifact
+          // is removed from the provider immediately (deletePost refuses a
+          // sent post); the local ref is cleared.
+          try {
+            const prov = getSocialProvider();
+            const before = await prov.getPostStatus(p.buffer_provider_ref);
+            if (!(before.ok && before.published)) {
+              providerDelete = await prov.deletePost(p.buffer_provider_ref);
+              if (providerDelete.deleted) { patch.buffer_provider_ref = null; patch.scheduled_for = null; patch.provider_state = "CANCELLED_INVALID"; }
+              else patch.provider_state = "INVALIDATED_LOCAL";
+            } else patch.provider_state = "ALREADY_SENT_MANUAL_REVIEW";
+          } catch { patch.provider_state = "INVALIDATED_LOCAL"; }
+          logEvent("BUFFER_DRIFT", { placement_id: p.placement_id, was: p.status, now: "QA_WATCH", provider_ref: p.buffer_provider_ref, reason: `re-render ${qa.professional_result}/${review.verdict}`, provider_deleted: Boolean(providerDelete?.deleted) });
+        }
+        await patchPlacement(p.placement_id, patch);
+        results.push({ placement_id: p.placement_id, story_id: story.story_id, series: story.series, platform: p.platform, downgraded_from: p.status, to: "QA_WATCH", deterministic_qa: qa.professional_result, visual_review: review.verdict, provider_ref: p.buffer_provider_ref ?? null, provider_delete: providerDelete });
+        continue;
       }
 
       results.push({
@@ -348,9 +393,16 @@ async function queueProof() {
     .filter((p) => String(byId[p.story_id]?.subject_id ?? "").endsWith("-proof"))
     .filter((p) => !alreadyQueued.has(p.placement_id))
     .filter((p) => p.artifact_hash && p.hosted_url)
+    .filter((p) => p.status === "BUFFER_READY") // never a downgraded/held placement
+    .filter((p) => seriesAutonomousSafe(byId[p.story_id]?.series)) // SS7 - reliable-PASS layouts only
+    .filter((p) => AUTONOMOUS_SAFE_LAYOUTS.includes(p.caption_style?.layout_family))
     .filter((p) => proofPlatforms.includes(p.platform) && channelByService[p.platform]);
   // strictly distinct series AND distinct layout family; <= 2 per
   // platform; cap 3 (SS18). Distinctness is what makes FEED_PASS reachable.
+  // SS21: scheduled mode is a genuine auto-publishing proof -> MAXIMUM 1
+  // per platform. Draft mode may take up to MAX_QUEUE_PER_PLATFORM_PER_RUN.
+  const perPlatformCap = mode === "scheduled" ? 1 : MAX_QUEUE_PER_PLATFORM_PER_RUN;
+  const runCap = mode === "scheduled" ? 2 : 3;
   const pickedSeries = new Set();
   const pickedLayout = new Set();
   const perPlatform = {};
@@ -358,13 +410,13 @@ async function queueProof() {
   for (const p of proof) {
     const st = byId[p.story_id];
     const lf = p.caption_style?.layout_family;
-    if ((perPlatform[p.platform] ?? 0) >= MAX_QUEUE_PER_PLATFORM_PER_RUN) continue;
+    if ((perPlatform[p.platform] ?? 0) >= perPlatformCap) continue;
     if (pickedSeries.has(st.series) || pickedLayout.has(lf)) continue;
     chosen.push({ p, st, lf });
     pickedSeries.add(st.series);
     pickedLayout.add(lf);
     perPlatform[p.platform] = (perPlatform[p.platform] ?? 0) + 1;
-    if (chosen.length >= 3) break;
+    if (chosen.length >= runCap) break;
   }
 
   // SS13 - feed gate over the curated proof subset. Never queue on
@@ -376,30 +428,55 @@ async function queueProof() {
     return { posture, mode, feed, blocked: `feed review ${feed.verdict}: ${(feed.warnings ?? []).join("; ")}`, chosen: chosen.length, queued: 0, results: [] };
   }
 
-  // Brisbane future times: tomorrow + day after, 10:00 / 16:00 Brisbane.
+  // Brisbane future times: 3-4 DAYS out (SS24 - the owner must be able to
+  // review/cancel in Buffer well before delivery), 10:00 / 16:00 Brisbane.
   const bris = new Date(NOW + 10 * 3_600_000); // now in Brisbane wall time
   const slots = [
-    brisbaneWallToUtc({ y: bris.getUTCFullYear(), m: bris.getUTCMonth() + 1, d: bris.getUTCDate() + 1, hh: 10 }),
-    brisbaneWallToUtc({ y: bris.getUTCFullYear(), m: bris.getUTCMonth() + 1, d: bris.getUTCDate() + 1, hh: 16 }),
-    brisbaneWallToUtc({ y: bris.getUTCFullYear(), m: bris.getUTCMonth() + 1, d: bris.getUTCDate() + 2, hh: 10 }),
-    brisbaneWallToUtc({ y: bris.getUTCFullYear(), m: bris.getUTCMonth() + 1, d: bris.getUTCDate() + 2, hh: 16 }),
+    brisbaneWallToUtc({ y: bris.getUTCFullYear(), m: bris.getUTCMonth() + 1, d: bris.getUTCDate() + 3, hh: 10 }),
+    brisbaneWallToUtc({ y: bris.getUTCFullYear(), m: bris.getUTCMonth() + 1, d: bris.getUTCDate() + 3, hh: 16 }),
+    brisbaneWallToUtc({ y: bris.getUTCFullYear(), m: bris.getUTCMonth() + 1, d: bris.getUTCDate() + 4, hh: 10 }),
+    brisbaneWallToUtc({ y: bris.getUTCFullYear(), m: bris.getUTCMonth() + 1, d: bris.getUTCDate() + 4, hh: 16 }),
   ];
+
+  // SS13 - X value/duplication guard: an X placement's caption must not be
+  // a near-duplicate (or an identical numeric skeleton) of another X
+  // caption already queued/ready.
+  const existingXCaptions = placements
+    .filter((x) => x.platform === "x" && x.caption_style?.text && !chosen.some((c) => c.p.placement_id === x.placement_id))
+    .map((x) => ({ platform: "x", caption: x.caption_style.text }));
 
   const results = [];
   for (let i = 0; i < chosen.length; i++) {
     const { p, st } = chosen[i];
+    if (p.platform === "x") {
+      const dup = captionDuplicateCheck({ platform: "x", caption: p.caption_style?.text ?? "" }, existingXCaptions);
+      if (dup.blocked) {
+        results.push({ story_id: p.story_id, series: st.series, placement_id: p.placement_id, platform: "x", queued: false, reason: `x_duplicate_caption: ${dup.reason}` });
+        continue;
+      }
+      existingXCaptions.push({ platform: "x", caption: p.caption_style?.text ?? "" });
+    }
     const dueUtc = slots[i % slots.length];
     const sched = normaliseSchedule(dueUtc);
     if (queuedContentStale(st, { ...p, status: "BUFFER_QUEUED", scheduled_for: dueUtc }, { now: NOW })) {
       results.push({ story_id: p.story_id, series: st.series, placement_id: p.placement_id, platform: p.platform, queued: false, reason: "QUEUED_CONTENT_STALE", valid_until: st.valid_until, scheduled_for: dueUtc });
       continue;
     }
-    logEvent("BUFFER_QUEUE_REQUEST", { story_id: p.story_id, platform: p.platform, scheduled_for: dueUtc, mode });
+    // SS3/SS4 - the artifact-scoped QA invariant. The LATEST STACK + the
+    // LATEST LAYER-5 verdict FOR THIS EXACT artifact sha must both be
+    // PASS. A stale/story-level/layout-level PASS never authorises.
+    const artifactQa = await artifactQueueEligible({ placementId: p.placement_id, artifactSha: p.artifact_hash });
+    const stackVerdict = artifactQa.stack?.verdict ?? "MISSING";
+    if (!artifactQa.ok) {
+      results.push({ story_id: p.story_id, series: st.series, placement_id: p.placement_id, platform: p.platform, queued: false, reason: `artifact_qa_invariant: ${artifactQa.reason}`, artifact_hash: (p.artifact_hash ?? "").slice(0, 16) });
+      continue;
+    }
+    logEvent("BUFFER_QUEUE_REQUEST", { story_id: p.story_id, platform: p.platform, scheduled_for: dueUtc, mode, artifact_sha: (p.artifact_hash ?? "").slice(0, 12) });
     const r = await scheduleOne({
       story: st, placement: p,
       channelId: channelByService[p.platform],
       caption: p.caption_style?.text ?? "",
-      dueAtUtc: dueUtc, professionalResult: "PASS", mode,
+      dueAtUtc: dueUtc, professionalResult: stackVerdict, artifactQa, mode,
     });
     if (r.queued) {
       await patchPlacement(p.placement_id, { ...r.placement_patch, scheduled_for: dueUtc });
@@ -422,10 +499,40 @@ async function queueProof() {
   return { posture, mode, feed, channels: Object.keys(channelByService), candidates: proof.length, chosen: chosen.length, queued: results.filter((r) => r.queued).length, results };
 }
 
+// ---- SS2/SS19: operator-only removal of an invalid Buffer draft -----
+async function cancelDraft(ref) {
+  if (!(await tablesReady())) return { error: "MIGRATION_REQUIRED" };
+  const { rows: pl } = await loadPlacements({});
+  const p = pl.find((x) => x.buffer_provider_ref === ref);
+  const prov = getSocialProvider();
+  if (!prov.isConfigured?.()) return { error: "BUFFER_ACCESS_TOKEN not set" };
+  const before = await prov.getPostStatus(ref);
+  if (before.ok && before.published) return { ref, error: "REFUSING: provider reports this post already sent", provider_state: before.statusRaw };
+  const del = await prov.deletePost(ref);
+  let localPatch = null;
+  if (p) {
+    localPatch = { status: "QA_WATCH", buffer_provider_ref: null, scheduled_for: null, provider_state: "CANCELLED_INVALID" };
+    await patchPlacement(p.placement_id, localPatch);
+    await recordQaRun(qaRunRow({ storyId: p.story_id, placementId: p.placement_id, qaType: "STACK", result: "WATCH", blockers: ["draft cancelled - latest LAYER-5 verdict for the queued artifact was WATCH (SS2)"], detail: { artifact_sha256: p.artifact_hash, cancelled_provider_ref: ref } }));
+    logEvent("BUFFER_DRIFT", { placement_id: p.placement_id, provider_ref: ref, action: "cancelled_invalid_draft", provider_delete_ok: del.ok });
+  }
+  const after = await prov.getPostStatus(ref);
+  return { ref, provider_before: before.statusRaw ?? null, provider_delete: del, provider_after: after.ok ? after.statusRaw : after.reason, local_placement: p?.placement_id ?? null, local_patch: localPatch };
+}
+
 // --------------------------------------------------------------------
 (async () => {
   mkdirSync(OUT, { recursive: true });
   const payload = { generated_at: new Date(NOW).toISOString(), visual_review_configured: reviewAvailable() };
+
+  if (CANCEL_DRAFT) {
+    const c = await cancelDraft(CANCEL_DRAFT);
+    payload.cancel_draft = c;
+    log(`cancel-draft ${CANCEL_DRAFT}: ${JSON.stringify(c)}`);
+    writeFileSync(path.join(OUT, "cancel-draft.json"), JSON.stringify(payload, null, 2) + "\n");
+    if (JSON_OUT) console.log(JSON.stringify(payload, null, 2));
+    return;
+  }
 
   if (DO_SEED) {
     const s = await seedProof();

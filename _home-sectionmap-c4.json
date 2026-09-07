@@ -1,0 +1,571 @@
+{
+  "base": "http://localhost:3141",
+  "label": "c4",
+  "ranAt": "2026-09-04T10:58:25.851Z",
+  "widths": [
+    {
+      "requested": {
+        "w": 375,
+        "h": 812,
+        "mobile": true
+      },
+      "innerWidth": 375,
+      "clientWidth": 375,
+      "pageOverflows": false,
+      "docHeight": 15829,
+      "h1Count": 1,
+      "h2Count": 8,
+      "h2s": [
+        "Best deals right now",
+        "Auctions ending soon",
+        "All deals",
+        "Just added",
+        "Explore Pokemon cards",
+        "How it works",
+        "FAQ",
+        "Buying guides"
+      ],
+      "totalDealCards": 43,
+      "totalDistinctDeals": 19,
+      "totalImages": 25,
+      "totalDomNodes": 897,
+      "htmlBytes": 324388,
+      "allDealsY": 4925,
+      "howItWorksY": 14065,
+      "footerY": 15616,
+      "sections": [
+        {
+          "tag": "header",
+          "seg": null,
+          "heading": "H1: Pokemon Card Deals — Underpriced Cards on eBay",
+          "y": 69,
+          "h": 648,
+          "dealCards": 3,
+          "hubTiles": 5,
+          "imgs": 0,
+          "viewAllLinks": [
+            "Browse today's deals↓"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "best_deals",
+          "heading": "H2: Best deals right now",
+          "y": 717,
+          "h": 2330,
+          "dealCards": 12,
+          "hubTiles": 7,
+          "imgs": 4,
+          "viewAllLinks": [
+            "See top 10 →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "ending_soon",
+          "heading": "H2: Auctions ending soon",
+          "y": 3116,
+          "h": 1810,
+          "dealCards": 9,
+          "hubTiles": 3,
+          "imgs": 3,
+          "viewAllLinks": [
+            "See all auctions →"
+          ]
+        },
+        {
+          "tag": "main",
+          "seg": "all_deals",
+          "heading": "H2: All deals",
+          "y": 4925,
+          "h": 5238,
+          "dealCards": 18,
+          "hubTiles": 15,
+          "imgs": 9,
+          "viewAllLinks": [
+            "Browse all deals →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "just_added",
+          "heading": "H2: Just added",
+          "y": 10163,
+          "h": 1776,
+          "dealCards": 9,
+          "hubTiles": 6,
+          "imgs": 3,
+          "viewAllLinks": [
+            "Browse newest →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "browse",
+          "heading": "H2: Explore Pokemon cards",
+          "y": 11939,
+          "h": 1863,
+          "dealCards": 0,
+          "hubTiles": 28,
+          "imgs": 6,
+          "viewAllLinks": [
+            "Browse by setSet checklists ",
+            "Browse by PokemonCard prices",
+            "Compare all →",
+            "All Pokemon →",
+            "All sets →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "how_it_works",
+          "heading": "H2: How it works",
+          "y": 14065,
+          "h": 1054,
+          "dealCards": 0,
+          "hubTiles": 0,
+          "imgs": 0,
+          "viewAllLinks": [
+            "Full methodology →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "guides",
+          "heading": "H2: Buying guides",
+          "y": 15119,
+          "h": 498,
+          "dealCards": 0,
+          "hubTiles": 0,
+          "imgs": 0,
+          "viewAllLinks": [
+            "All guides →"
+          ]
+        }
+      ]
+    },
+    {
+      "requested": {
+        "w": 390,
+        "h": 844,
+        "mobile": true
+      },
+      "innerWidth": 390,
+      "clientWidth": 390,
+      "pageOverflows": false,
+      "docHeight": 16071,
+      "h1Count": 1,
+      "h2Count": 8,
+      "h2s": [
+        "Best deals right now",
+        "Auctions ending soon",
+        "All deals",
+        "Just added",
+        "Explore Pokemon cards",
+        "How it works",
+        "FAQ",
+        "Buying guides"
+      ],
+      "totalDealCards": 43,
+      "totalDistinctDeals": 19,
+      "totalImages": 25,
+      "totalDomNodes": 894,
+      "htmlBytes": 323604,
+      "allDealsY": 5030,
+      "howItWorksY": 14326,
+      "footerY": 15858,
+      "sections": [
+        {
+          "tag": "header",
+          "seg": null,
+          "heading": "H1: Pokemon Card Deals — Underpriced Cards on eBay",
+          "y": 69,
+          "h": 648,
+          "dealCards": 3,
+          "hubTiles": 5,
+          "imgs": 0,
+          "viewAllLinks": [
+            "Browse today's deals↓"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "best_deals",
+          "heading": "H2: Best deals right now",
+          "y": 717,
+          "h": 2390,
+          "dealCards": 12,
+          "hubTiles": 7,
+          "imgs": 4,
+          "viewAllLinks": [
+            "See top 10 →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "ending_soon",
+          "heading": "H2: Auctions ending soon",
+          "y": 3176,
+          "h": 1855,
+          "dealCards": 9,
+          "hubTiles": 3,
+          "imgs": 3,
+          "viewAllLinks": [
+            "See all auctions →"
+          ]
+        },
+        {
+          "tag": "main",
+          "seg": "all_deals",
+          "heading": "H2: All deals",
+          "y": 5030,
+          "h": 5373,
+          "dealCards": 18,
+          "hubTiles": 13,
+          "imgs": 9,
+          "viewAllLinks": [
+            "Browse all deals →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "just_added",
+          "heading": "H2: Just added",
+          "y": 10403,
+          "h": 1821,
+          "dealCards": 9,
+          "hubTiles": 6,
+          "imgs": 3,
+          "viewAllLinks": [
+            "Browse newest →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "browse",
+          "heading": "H2: Explore Pokemon cards",
+          "y": 12224,
+          "h": 1840,
+          "dealCards": 0,
+          "hubTiles": 28,
+          "imgs": 6,
+          "viewAllLinks": [
+            "Browse by setSet checklists ",
+            "Browse by PokemonCard prices",
+            "Compare all →",
+            "All Pokemon →",
+            "All sets →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "how_it_works",
+          "heading": "H2: How it works",
+          "y": 14326,
+          "h": 1034,
+          "dealCards": 0,
+          "hubTiles": 0,
+          "imgs": 0,
+          "viewAllLinks": [
+            "Full methodology →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "guides",
+          "heading": "H2: Buying guides",
+          "y": 15360,
+          "h": 498,
+          "dealCards": 0,
+          "hubTiles": 0,
+          "imgs": 0,
+          "viewAllLinks": [
+            "All guides →"
+          ]
+        }
+      ]
+    },
+    {
+      "requested": {
+        "w": 430,
+        "h": 932,
+        "mobile": true
+      },
+      "innerWidth": 430,
+      "clientWidth": 430,
+      "pageOverflows": false,
+      "docHeight": 16663,
+      "h1Count": 1,
+      "h2Count": 8,
+      "h2s": [
+        "Best deals right now",
+        "Auctions ending soon",
+        "All deals",
+        "Just added",
+        "Explore Pokemon cards",
+        "How it works",
+        "FAQ",
+        "Buying guides"
+      ],
+      "totalDealCards": 43,
+      "totalDistinctDeals": 19,
+      "totalImages": 25,
+      "totalDomNodes": 896,
+      "htmlBytes": 324129,
+      "allDealsY": 5221,
+      "howItWorksY": 15014,
+      "footerY": 16466,
+      "sections": [
+        {
+          "tag": "header",
+          "seg": null,
+          "heading": "H1: Pokemon Card Deals — Underpriced Cards on eBay",
+          "y": 69,
+          "h": 588,
+          "dealCards": 3,
+          "hubTiles": 5,
+          "imgs": 0,
+          "viewAllLinks": [
+            "Browse today's deals↓"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "best_deals",
+          "heading": "H2: Best deals right now",
+          "y": 657,
+          "h": 2550,
+          "dealCards": 12,
+          "hubTiles": 7,
+          "imgs": 4,
+          "viewAllLinks": [
+            "See top 10 →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "ending_soon",
+          "heading": "H2: Auctions ending soon",
+          "y": 3276,
+          "h": 1945,
+          "dealCards": 9,
+          "hubTiles": 3,
+          "imgs": 3,
+          "viewAllLinks": [
+            "See all auctions →"
+          ]
+        },
+        {
+          "tag": "main",
+          "seg": "all_deals",
+          "heading": "H2: All deals",
+          "y": 5221,
+          "h": 5733,
+          "dealCards": 18,
+          "hubTiles": 14,
+          "imgs": 9,
+          "viewAllLinks": [
+            "Browse all deals →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "just_added",
+          "heading": "H2: Just added",
+          "y": 10954,
+          "h": 1941,
+          "dealCards": 9,
+          "hubTiles": 6,
+          "imgs": 3,
+          "viewAllLinks": [
+            "Browse newest →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "browse",
+          "heading": "H2: Explore Pokemon cards",
+          "y": 12894,
+          "h": 1880,
+          "dealCards": 0,
+          "hubTiles": 28,
+          "imgs": 6,
+          "viewAllLinks": [
+            "Browse by setSet checklists ",
+            "Browse by PokemonCard prices",
+            "Compare all →",
+            "All Pokemon →",
+            "All sets →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "how_it_works",
+          "heading": "H2: How it works",
+          "y": 15014,
+          "h": 974,
+          "dealCards": 0,
+          "hubTiles": 0,
+          "imgs": 0,
+          "viewAllLinks": [
+            "Full methodology →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "guides",
+          "heading": "H2: Buying guides",
+          "y": 15988,
+          "h": 478,
+          "dealCards": 0,
+          "hubTiles": 0,
+          "imgs": 0,
+          "viewAllLinks": [
+            "All guides →"
+          ]
+        }
+      ]
+    },
+    {
+      "requested": {
+        "w": 1280,
+        "h": 900,
+        "mobile": false
+      },
+      "innerWidth": 1280,
+      "clientWidth": 1280,
+      "pageOverflows": false,
+      "docHeight": 6645,
+      "h1Count": 1,
+      "h2Count": 8,
+      "h2s": [
+        "Best deals right now",
+        "Auctions ending soon",
+        "All deals",
+        "Just added",
+        "Explore Pokemon cards",
+        "How it works",
+        "FAQ",
+        "Buying guides"
+      ],
+      "totalDealCards": 43,
+      "totalDistinctDeals": 19,
+      "totalImages": 25,
+      "totalDomNodes": 892,
+      "htmlBytes": 322571,
+      "allDealsY": 1982,
+      "howItWorksY": 5775,
+      "footerY": 6500,
+      "sections": [
+        {
+          "tag": "header",
+          "seg": null,
+          "heading": "H1: Pokemon Card Deals — Underpriced Cards on eBay",
+          "y": 65,
+          "h": 484,
+          "dealCards": 3,
+          "hubTiles": 5,
+          "imgs": 0,
+          "viewAllLinks": [
+            "Browse today's deals↓"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "best_deals",
+          "heading": "H2: Best deals right now",
+          "y": 549,
+          "h": 646,
+          "dealCards": 12,
+          "hubTiles": 7,
+          "imgs": 4,
+          "viewAllLinks": [
+            "See top 10 →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "ending_soon",
+          "heading": "H2: Auctions ending soon",
+          "y": 1232,
+          "h": 750,
+          "dealCards": 9,
+          "hubTiles": 3,
+          "imgs": 3,
+          "viewAllLinks": [
+            "See all auctions →"
+          ]
+        },
+        {
+          "tag": "main",
+          "seg": "all_deals",
+          "heading": "H2: All deals",
+          "y": 1982,
+          "h": 2101,
+          "dealCards": 18,
+          "hubTiles": 12,
+          "imgs": 9,
+          "viewAllLinks": [
+            "Browse all deals →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "just_added",
+          "heading": "H2: Just added",
+          "y": 4082,
+          "h": 746,
+          "dealCards": 9,
+          "hubTiles": 6,
+          "imgs": 3,
+          "viewAllLinks": [
+            "Browse newest →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "browse",
+          "heading": "H2: Explore Pokemon cards",
+          "y": 4828,
+          "h": 775,
+          "dealCards": 0,
+          "hubTiles": 28,
+          "imgs": 6,
+          "viewAllLinks": [
+            "Browse by setSet checklists ",
+            "Browse by PokemonCard prices",
+            "Compare all →",
+            "All Pokemon →",
+            "All sets →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "how_it_works",
+          "heading": "H2: How it works",
+          "y": 5775,
+          "h": 462,
+          "dealCards": 0,
+          "hubTiles": 0,
+          "imgs": 0,
+          "viewAllLinks": [
+            "Full methodology →"
+          ]
+        },
+        {
+          "tag": "section",
+          "seg": "guides",
+          "heading": "H2: Buying guides",
+          "y": 6237,
+          "h": 264,
+          "dealCards": 0,
+          "hubTiles": 0,
+          "imgs": 0,
+          "viewAllLinks": [
+            "All guides →"
+          ]
+        }
+      ]
+    }
+  ]
+}

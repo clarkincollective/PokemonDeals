@@ -483,3 +483,103 @@ AI_SPAM_APPEARANCE.
 No Sunday/Wednesday mutation cron, no automatic refill, no 7-14 day
 population. `SOCIAL_BUFFER_BACKLOG_ENABLED` is passed inline for the proof
 only - it is not set in the environment.
+
+---
+
+# SOCIAL-NEWSROOM-2D - gate integrity + platform coverage + scheduled mode
+
+## Gate integrity (the 2C WATCH-to-Buffer contradiction)
+
+**Investigated:** the queued `BIGGEST_MOVERS` draft (`6a9f33371e39f0564cdb49a7`)
+was Layer-5 **PASS at queue time** (21:52 render), but a later re-render of
+the identical artifact verdicted **WATCH** (21:54) - and the queue path had
+(a) hardcoded `professionalResult: "PASS"` instead of reading the persisted
+verdict, and (b) no downgrade path, so a now-invalid placement kept a live
+draft. **Not a hard bypass, but a real P0 integrity gap.**
+
+**Fixes:**
+- `db.artifactQueueEligible({ placementId, artifactSha })` - the queue path
+  now reads the **latest STACK + latest LAYER-5 verdict FOR THE EXACT
+  artifact sha**, both must be `PASS`. Every `social_qa_runs` row now
+  carries `detail.artifact_sha256`; a run without it can only BLOCK.
+- `preflightPlacement` / `scheduleOne` take an `artifactQa` arg and HARD-
+  block unless `artifactQa.ok === true` - `createPost` is unreachable
+  otherwise.
+- the render pass DOWNGRADES a `BUFFER_READY` / `BUFFER_QUEUED` placement
+  to `QA_WATCH` if a re-render no longer PASSes, and (for a not-yet-sent
+  draft/scheduled post) calls `deletePost` + clears the local ref.
+- Buffer adapter gained `deletePost(id)` (union `DeletePostSuccess |
+  VoidMutationError`, verified live) - refuses a sent post; operator
+  command `social:backlog-render -- --cancel-draft <ref>`.
+- **Invalid draft `6a9f33371e39f0564cdb49a7` deleted from Buffer.** The
+  `MARKET_SNAPSHOT` draft was PASS-valid at the time but its story was
+  later re-seeded; all earlier proof drafts were cleaned up.
+- **`--proof-seed` bug fixed:** a full `upsertPlacements` was replacing the
+  row and nulling `buffer_provider_ref` / `scheduled_for` / `status` on an
+  already-queued placement (this orphaned real Buffer posts once). It now
+  preserves provider/schedule/QA state for any placement past `PLANNED`.
+
+## Layout reliability (temperature:0 stability run, 6 samples each)
+
+| layout | Layer-5 PASS rate | autonomous-safe |
+|---|---|---|
+| `editorial_dashboard` | ~100% (occasional WATCH on re-run) | **yes** |
+| `trust_editorial` | ~100% (occasional WATCH) | **yes** |
+| `process_explainer` | 100% | **yes** |
+| `compare_split` (NEW) | 83-100% | **yes** |
+| `story_reveal` | 50% | **no** (flaky) |
+| `data_ranking` | WATCH-prone even after a bounded redesign | **no** |
+
+`data_ranking` was redesigned (lead-mover hero + up/down split) and still
+verdicts WATCH with no blockers - **replaced** for autonomous use by the
+new `compare_split` (a two-column A-vs-B education layout). `AUTONOMOUS_SAFE_LAYOUTS`
+= `editorial_dashboard, trust_editorial, process_explainer, compare_split`.
+**Finding:** gpt-4o is NOT fully deterministic at `temperature:0` - the
+gate is correctly fail-closed (WATCH holds) so autonomous throughput is
+best-effort per cycle, never forced.
+
+## Platform support matrix
+
+| | Instagram | X | YouTube | TikTok |
+|---|---|---|---|---|
+| editorial status | **SUPPORTED** (single static `post` - NOT `carousel`; verified real draft) | **SUPPORTED** (text+image; families widened) | SUPPORTED_WITH_LIMITATIONS (9:16 Layer-5 flakier; narrative/editorial/evergreen only, `short:false` series excluded) | **NOT_PLATFORM_FIT** (motion-only; no editorial motion renderer wired) |
+
+**Instagram InvalidInputError root cause:** the newsroom placement type
+was `carousel`, so `metadata.instagram.type = "carousel"` - and Buffer
+rejects a 1-asset carousel. Fixed: editorial IG placements are `post`
+(a raw `createPost` with `type: "post"` succeeds).
+
+**X coverage widened:** `xAllowed` now also accepts EDUCATION / STORY /
+BEHIND_THE_FINDER series and a small BRAND allow-list (`METHODOLOGY`,
+`PRODUCT_EXPLAINER`). Newsroom X/YouTube fit is decided by
+`xAllowed`/`youtubeAllowed`, not the deal-creative `PLATFORM_ROLES` table.
+An X caption is blocked only for a real near-duplicate (token/shingle
+Jaccard >= 0.72 same-platform) or a repeated **numeric template** - a
+pure-prose structural coincidence no longer false-blocks.
+
+## Scheduled-mode proof (SS21-SS24)
+
+`SOCIAL_BUFFER_BACKLOG_MODE=scheduled` - genuine future auto-delivery
+(`mode: customScheduled`, no `saveToDraft` -> `status: "scheduled"`).
+Curation caps **1 per platform** in scheduled mode; every gate
+(artifact-QA invariant, FEED_PASS, `dueAt >= now + 60m`, future-only,
+autonomous-safe layout, distinct series) enforced. Slots are **3-4 days
+out** so the owner reviews in Buffer before delivery.
+
+Two scheduled posts retained for owner review:
+
+| series / layout | platform | provider_ref | Brisbane | UTC | provider state |
+|---|---|---|---|---|---|
+| MARKET_SNAPSHOT / editorial_dashboard | Instagram | `6a9f498d5b3dd39bb39eb30a` | 2026-09-11 10:00 | 2026-09-11T00:00:00Z | **scheduled** (published:false, drift:null) |
+| WHY_SOLD_PRICES_MATTER / compare_split | X | `6a9f49904c4e8f291175ccec` | 2026-09-11 16:00 | 2026-09-11T06:00:00Z | **scheduled** (published:false, drift:null) |
+
+Reconcile: `RECONCILED`, 2 queued, `published_detected: 0`.
+
+## Recurring refill (SS25) - PREPARED, NOT ACTIVATED
+
+`lib/social/newsroom/refill.planRefill()` - Sun+Wed cadence (`0 20 * * 0,3`,
+**not** in `vercel.json`). Refills only below-target platforms, only
+autonomous-safe + data-supported series, caps at the LOW watermark (no
+overfill), returns `BACKLOG_LOW_BUT_NO_QUALITY_CONTENT` rather than filler,
+and reports a `NOT_PLATFORM_FIT` / `PROVIDER_BLOCKED` platform as `BLOCKED`
+(no refill loop).
