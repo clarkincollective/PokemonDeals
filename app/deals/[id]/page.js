@@ -2,7 +2,8 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { findCardHubByWatchlistId, resolveSpeciesByName, fetchSetSlugs, cardColsReady, withCard } from "@/lib/deals";
+import { findCardHubByWatchlistId, resolveSpeciesByName, fetchSetSlugs, fetchRelatedActiveDeals, cardColsReady, withCard } from "@/lib/deals";
+import { timeAgo } from "@/lib/time";
 import { shouldIndexDeal } from "@/lib/indexability";
 import { conditionLabel, isDisplayableDeal } from "@/lib/dealQuality";
 import { normalizePublicText } from "@/lib/publicText";
@@ -32,6 +33,8 @@ import DealImage from "@/components/DealImage";
 import { dealImageProps, trustedDealImageUrl } from "@/lib/listingImage";
 import DealBackLink from "@/components/DealBackLink";
 import AffiliateLink from "@/components/AffiliateLink";
+import RelatedDeals from "@/components/RelatedDeals";
+import SocialLandingBadge from "@/components/SocialLandingBadge";
 import ShareButton from "@/components/ShareButton";
 import { DEAL_CATEGORIES, DEAL_CATEGORY_SLUGS } from "@/lib/dealCategories";
 import DealCategoryPage, { dealCategoryMetadata } from "@/components/DealCategoryPage";
@@ -238,7 +241,27 @@ export default async function DealDetailPage({ params }) {
     // purchase opportunity or auto-redirecting anywhere.
     const cardName = deal ? cardDisplayName({ name: normalizePublicText(deal.watchlist?.name ?? deal.title) }) : null;
     const cardSet = deal?.watchlist?.set ?? null;
-    const cardHub = deal?.watchlist_id ? await findCardHubByWatchlistId(deal.watchlist_id) : null;
+    const speciesName =
+      deal && deal.watchlist?.language !== "japanese"
+        ? extractSpecies(deal.watchlist?.name ?? deal.title)
+        : null;
+    const [cardHub, speciesHub, validSetSlugs, relatedDeals] = await Promise.all([
+      deal?.watchlist_id ? findCardHubByWatchlistId(deal.watchlist_id) : Promise.resolve(null),
+      speciesName ? resolveSpeciesByName(speciesName) : Promise.resolve(null),
+      fetchSetSlugs("english"),
+      deal
+        ? fetchRelatedActiveDeals(
+            deal.watchlist_id ?? null,
+            deal.card_tcgplayer_id ?? deal.watchlist?.justtcg_tcgplayer_id ?? null,
+            speciesName,
+            deal.id,
+            deal.watchlist?.language ?? "english",
+            4
+          )
+        : Promise.resolve([]),
+    ]);
+    const setSlugRaw = cardSet && deal?.watchlist?.language !== "japanese" ? slugifySet(cardSet) : null;
+    const setSlug = setSlugRaw && validSetSlugs.includes(setSlugRaw) ? setSlugRaw : null;
     const searchQuery = cardName ? `${cardName}${cardSet ? ` ${cardSet}` : ""}` : null;
     const ebaySearchUrl = searchQuery ? buildEbaySearchLink(searchQuery, deal?.marketplace, "deal_page") : null;
     return (
@@ -250,7 +273,7 @@ export default async function DealDetailPage({ params }) {
           </h1>
           <p className="mt-2 text-sm text-zinc-500">
             {deal
-              ? `The listing${cardName ? ` for ${cardName}` : ""} is no longer available, sold, or no longer meets our listing checks - it's not a live purchase opportunity anymore.`
+              ? `The listing${cardName ? ` for ${cardName}` : ""} is no longer active, sold, or no longer passes our listing checks - it is not a live purchase opportunity anymore. Here is where to look next.`
               : "That deal doesn't exist, or has expired."}
           </p>
           <div className="mt-6 flex flex-col items-center gap-3">
@@ -262,21 +285,40 @@ export default async function DealDetailPage({ params }) {
                 See current listings for this card →
               </Link>
             )}
-            {ebaySearchUrl && (
-              <AffiliateLink
-                href={ebaySearchUrl}
-                eventName="eBay Search Click"
-                eventData={{ page: "expired_deal" }}
-                className="text-sm font-medium text-red-600 hover:underline dark:text-red-500"
-              >
-                See current listings on eBay →
-              </AffiliateLink>
-            )}
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm">
+              {speciesHub && (
+                <Link href={`/pokemon/${speciesHub.slug}`} className="font-medium text-red-600 hover:underline dark:text-red-500">
+                  All {speciesHub.name} deals →
+                </Link>
+              )}
+              {setSlug && (
+                <Link href={`/sets/${setSlug}`} className="font-medium text-red-600 hover:underline dark:text-red-500">
+                  {cardSet} deals →
+                </Link>
+              )}
+              {ebaySearchUrl && (
+                <AffiliateLink
+                  href={ebaySearchUrl}
+                  eventName="eBay Search Click"
+                  eventData={{ page: "expired_deal" }}
+                  analyticsProps={{ origin_section: "expired_deal" }}
+                  className="font-medium text-red-600 hover:underline dark:text-red-500"
+                >
+                  Search eBay for this card →
+                </AffiliateLink>
+              )}
+            </div>
             <Link href="/" className="text-sm font-medium underline">
               Back to all deals
             </Link>
           </div>
         </div>
+        {relatedDeals.length > 0 && (
+          <div className="mx-auto max-w-5xl px-6 pb-12">
+            <RelatedDeals deals={relatedDeals} pokemonName={speciesHub?.name} />
+          </div>
+        )}
+        <SiteFooter />
       </div>
     );
   }
@@ -296,11 +338,19 @@ export default async function DealDetailPage({ params }) {
       ? extractSpecies(deal.watchlist?.name ?? deal.title)
       : null;
 
-  const [analysis, cardHub, speciesHub, validSetSlugs] = await Promise.all([
+  const [analysis, cardHub, speciesHub, validSetSlugs, relatedDeals] = await Promise.all([
     loadPriceAnalysis(deal, deal.watchlist),
     deal.watchlist_id ? findCardHubByWatchlistId(deal.watchlist_id) : Promise.resolve(null),
     speciesName ? resolveSpeciesByName(speciesName) : Promise.resolve(null),
     fetchSetSlugs("english"),
+    fetchRelatedActiveDeals(
+      deal.watchlist_id ?? null,
+      deal.card_tcgplayer_id ?? deal.watchlist?.justtcg_tcgplayer_id ?? null,
+      speciesName,
+      deal.id,
+      deal.watchlist?.language ?? "english",
+      4
+    ),
   ]);
 
   // The chart/section for THIS specific listing's own variant - raw uses
@@ -462,6 +512,8 @@ export default async function DealDetailPage({ params }) {
           ]}
         />
 
+        <SocialLandingBadge />
+
         <div className="mt-4 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
           <div className="relative h-56 w-56 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:self-auto dark:bg-zinc-900">
             <DealImage
@@ -495,7 +547,11 @@ export default async function DealDetailPage({ params }) {
               <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                 {isAuction ? "Auction" : "Buy It Now"}
               </span>
-              {marketInfo && <span title={marketInfo.label}>{marketInfo.flag}</span>}
+              {marketInfo && (
+                <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                  {marketInfo.flag} on eBay · {marketInfo.label}
+                </span>
+              )}
             </div>
 
             {/* Real deal context folded into the H1 itself (not just the
@@ -583,13 +639,21 @@ export default async function DealDetailPage({ params }) {
                 </>
               )}
               <p className="mt-1 text-xs text-zinc-400">
-                Compared against real market pricing.{" "}
+                Compared against a recent market reference.{" "}
                 <Link
                   href="/methodology"
                   className="hover:text-red-600 hover:underline dark:hover:text-red-500"
                 >
                   How we price this →
                 </Link>
+              </p>
+              {deal.last_seen_at && (
+                <p className="mt-1 text-xs text-zinc-400">
+                  Listing checked {timeAgo(deal.last_seen_at)} · price and availability can change.
+                </p>
+              )}
+              <p className="mt-1 text-xs text-zinc-400">
+                We scan live eBay listings for Pokemon cards priced below recent sold prices.
               </p>
             </div>
             {deal.seller_feedback_pct != null && (
@@ -610,9 +674,15 @@ export default async function DealDetailPage({ params }) {
                   isGraded: deal.is_graded,
                   page: "detail",
                 }}
-                className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                analyticsProps={{
+                  origin_section: "deal_detail_primary",
+                  deal_id: deal.id,
+                  content_id: String(deal.id),
+                  listing_type: deal.listing_type,
+                }}
+                className="flex w-full items-center justify-center rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 sm:w-auto dark:bg-white dark:text-black dark:hover:bg-zinc-200"
               >
-                {isAuction ? "Bid Now →" : "View Deal →"}
+                {isAuction ? "Bid on eBay →" : "View on eBay →"}
               </AffiliateLink>
               <AffiliateLink
                 href={tcgplayerLink}
@@ -771,6 +841,10 @@ export default async function DealDetailPage({ params }) {
 
         <RecentSales sales={recentSales} cardName={cardName} page="deal_recent_sales" surface="deal_page" className="mt-6" />
 
+        {relatedDeals.length > 0 && (
+          <RelatedDeals deals={relatedDeals} pokemonName={speciesHub?.name} className="mt-6" />
+        )}
+
         <ListingChecks className="mt-8" />
       </div>
       <SiteFooter note="Card-to-listing matching is automated and not perfect - always double-check a listing's photos and description before buying." />
@@ -785,7 +859,7 @@ export default async function DealDetailPage({ params }) {
         priceUsd={ctaPriceUsd}
         priceNative={ctaPriceNative}
         priceLabel={isAuction ? "current bid" : undefined}
-        ctaLabel={isAuction ? "Bid on eBay →" : "Check on eBay →"}
+        ctaLabel={isAuction ? "Bid on eBay →" : "View on eBay →"}
         eventData={{ card: cardName, marketplace: deal.marketplace, discountPct }}
       />
     </div>

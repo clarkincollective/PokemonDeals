@@ -10,7 +10,7 @@ import Price from "@/components/Price";
 // and only on narrower viewports where the in-page button is off-screen.
 // Pass priceUsd + priceNative ({ amount, currency }) so the price
 // localises to the viewer's currency after hydration like everywhere else.
-export default function StickyDealCta({ href, priceUsd, priceNative, priceLabel, ctaLabel = "Check on eBay →", eventData }) {
+export default function StickyDealCta({ href, priceUsd, priceNative, priceLabel, ctaLabel = "View on eBay →", eventData }) {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -24,12 +24,12 @@ export default function StickyDealCta({ href, priceUsd, priceNative, priceLabel,
 
   return (
     <div
-      className={`fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white/95 backdrop-blur transition-transform duration-200 lg:hidden dark:border-zinc-800 dark:bg-zinc-950/95 ${
+      className={`fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white/95 shadow-[0_-1px_12px_rgba(0,0,0,0.06)] backdrop-blur transition-transform duration-200 lg:hidden dark:border-zinc-800 dark:bg-zinc-950/95 dark:shadow-[0_-1px_12px_rgba(0,0,0,0.4)] ${
         show ? "translate-y-0" : "translate-y-full"
       }`}
     >
-      <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
-        <span className="flex flex-col leading-tight">
+      <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-2.5">
+        <span className="flex min-w-0 shrink flex-col leading-tight">
           {priceLabel && (
             <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               {priceLabel}
@@ -38,14 +38,14 @@ export default function StickyDealCta({ href, priceUsd, priceNative, priceLabel,
           <Price
             usd={priceUsd}
             native={priceNative}
-            className="text-lg font-bold text-black dark:text-zinc-50"
+            className="truncate text-lg font-bold text-black dark:text-zinc-50"
           />
         </span>
         <AffiliateLink
           href={href}
           eventName="eBay Click"
           eventData={{ ...eventData, page: "sticky_cta" }}
-          className="flex-1 rounded-md bg-black px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+          className="flex min-h-[44px] flex-1 basis-3/5 items-center justify-center rounded-md bg-black px-4 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
         >
           {ctaLabel}
         </AffiliateLink>

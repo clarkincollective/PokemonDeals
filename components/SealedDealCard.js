@@ -166,7 +166,7 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
             }}
             className="block flex-1 rounded-md bg-black px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
           >
-            {isAuction ? "Bid Now →" : "View Deal →"}
+            {isAuction ? "Bid on eBay →" : "View on eBay →"}
           </AffiliateLink>
         </div>
         <AffiliateLink

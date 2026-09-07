@@ -544,7 +544,7 @@ export default async function CardHubPage({ params }) {
                   : { amount: Number(cheapest.total_price), currency: currencyForDeal(cheapest) }
               }
               priceLabel={isAuc ? "current bid" : undefined}
-              ctaLabel={isAuc ? "Bid on eBay →" : "Check on eBay →"}
+              ctaLabel={isAuc ? "Bid on eBay →" : "View on eBay →"}
               eventData={{ card: hub.name, marketplace: cheapest.marketplace, page: "card_hub" }}
             />
           );
