@@ -63,12 +63,26 @@
           "leadStatusRaw": 1
         },
         "result": "QUEUED"
+      },
+      {
+        "at": "2026-09-07T02:43:47.701Z",
+        "kind": "sync",
+        "provider": "instantly",
+        "reading": {
+          "ok": true,
+          "sent": false,
+          "sentAt": null,
+          "bounced": false,
+          "unsubscribed": false,
+          "leadStatusRaw": 1
+        },
+        "result": "QUEUED"
       }
     ],
     "providerRef": "01a0791e-5c57-73b7-b244-8328d3f2435c",
     "provider": "instantly",
     "queuedAt": "2026-09-06T23:47:08.521Z",
-    "syncedAt": "2026-09-06T23:47:34.138Z",
+    "syncedAt": "2026-09-07T02:43:47.700Z",
     "lastTest": {
       "at": "2026-09-02T11:13:34.209Z",
       "ok": true,
@@ -220,13 +234,27 @@
           "leadStatusRaw": 1
         },
         "result": "QUEUED"
+      },
+      {
+        "at": "2026-09-07T02:43:48.256Z",
+        "kind": "sync",
+        "provider": "instantly",
+        "reading": {
+          "ok": true,
+          "sent": false,
+          "sentAt": null,
+          "bounced": false,
+          "unsubscribed": false,
+          "leadStatusRaw": 1
+        },
+        "result": "QUEUED"
       }
     ],
     "note": "SEO-GSC-5 Batch 1. Angle re-verified 2026-09-07: their blog compares grading companies by value retention but has no systematic 'what each grade means' explainer - our page is a genuine companion, not a competitor. SEO-GSC-5.1 human-review pass 2026-09-07: dropped an unverifiable 'no affiliate links' line from the body (our grading-scale guide carries a site-wide eBay/TCGplayer affiliate disclosure in its footer); replaced with 'free to read, no signup', which is verified true. Email DRAFT only - NOT approved, NOT queued, NOT sent.",
     "providerRef": "01a0791e-a743-7f25-b3b4-9224b567d627",
     "provider": "instantly",
     "queuedAt": "2026-09-06T23:47:27.692Z",
-    "syncedAt": "2026-09-06T23:47:34.601Z",
+    "syncedAt": "2026-09-07T02:43:48.255Z",
     "prospectType": "market_analysis",
     "tier": "B",
     "score": 75,

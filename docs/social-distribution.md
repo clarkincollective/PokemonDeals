@@ -654,6 +654,48 @@ npm run social:source -- show          print the current snapshot
 
 ---
 
+## 13b. First-live batch workflow  [IMPLEMENTED 13E.6A]
+
+A **batch** is a signed-off launch plan for one `content_id` across a
+chosen set of platform placements — NOT a publisher.
+`lib/social/distribution/batch.mjs` + `revalidate.mjs`; store
+`batches.json` (committed empty). Step-by-step operator guide:
+**`docs/first-live-social-runbook.md`**.
+
+```
+prepare-batch <content_id> [--platforms instagram,tiktok,x,youtube] [--order …] [--schedule now|<iso>]
+review <batch_id>            per-placement: media/copy/CTA/freshness/QA/rights/duplicate/drift/READY + summary
+approve-batch <batch_id>     freezes exact placements + copy + artifact hashes + facts; stamps an approval CHECKSUM. Does NOT publish.
+send-batch <batch_id> --confirm-live   HARD-FAILS without the flag; HARD-FAILS unless every live switch is set;
+                            per-placement revalidate → submit in send order; one failure never stops the others
+retry <job_id> --confirm-live    FAILED row only; same batch; re-runs every gate; refuses a double-submit
+sync-batch <batch_id>       polls Buffer per QUEUED placement; QUEUED→PUBLISHED only on real sent+sentAt evidence
+batches                     list
+```
+
+- **Approval checksum:** any post-approval edit (copy, media hash, added
+  placement, schedule) invalidates it — `send-batch` refuses until re-approval.
+- **Send order (§7):** `x_post → instagram_reel → instagram_feed → instagram_carousel → tiktok → youtube_short`.
+- **Pre-send revalidation** (`revalidate.mjs`) runs the full gate stack
+  **plus**: batch approval still valid, row copy byte-identical to the
+  frozen copy, hosted asset sha matches the approved artifact,
+  **fact-drift** policy (§6 — see the runbook table), channel re-resolve.
+  Copy is **never** mutated at send time.
+- **Partial failure:** verdict `PARTIAL_SUCCESS` / `ALL_QUEUED` /
+  `ALL_FAILED`; published/queued placements are never auto-deleted; a
+  `FAILED` placement needs an explicit `retry`.
+- **Live confirmation:** four independent env/rights switches **and** an
+  approved untampered batch **and** the literal `--confirm-live` flag.
+  Running `send-batch` by accident cannot publish.
+- **Observability:** batch `history[]` + ledger `history[]`/`sendLog[]`
+  record created / approved / submitted / provider-ref / queued /
+  published / failed / retry / sync — no tokens, no secrets.
+- **Reserved for later** (ledger row): `platform_post_url`, `metrics.*`,
+  `last_metrics_sync` — populated from Buffer's read-only metrics API
+  (`aggregatedPostMetrics` / `post.metrics`), no scraping.
+
+---
+
 ## 14. Autopilot — design only  [FUTURE — NOT BUILT]
 
 ```

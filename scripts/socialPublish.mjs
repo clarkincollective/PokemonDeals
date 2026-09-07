@@ -52,6 +52,17 @@ import {
   PLATFORM_SERVICE,
 } from "../lib/social/distribution/artifactMap.mjs";
 import { getSocialProvider } from "../lib/social/providers/index.mjs";
+import {
+  loadBatches,
+  saveBatches,
+  findBatch,
+  buildBatch,
+  approveBatch,
+  batchApprovalValid,
+  batchStatus,
+  DEFAULT_SEND_ORDER,
+} from "../lib/social/distribution/batch.mjs";
+import { revalidatePlacement } from "../lib/social/distribution/revalidate.mjs";
 import { getStorageProvider } from "../lib/social/storage/index.mjs";
 import {
   loadHostedAssets,
@@ -239,11 +250,12 @@ function buildRow({ artifact, variant, platform, scheduledForIso }) {
     rights: variant.rights ?? artifact.rights ?? null,
     source: artifact.source,
     source_commit: headGitCommit(),
-    // frozen deterministic facts - carried in a shape the gate reads
+    // frozen deterministic facts - carried in a shape the gate + batch read
     snapshot: {
       ...(variant.snapshot ?? {}),
       market_price: f.marketRefUsd ?? variant.snapshot?.market_price ?? null,
       discount_pct: f.discountPct ?? variant.snapshot?.discount_pct ?? null,
+      listed_usd: f.listedUsd ?? variant.snapshot?.listed_usd ?? null,
       movement: f.movementPct != null ? { pct: f.movementPct, direction: f.movementDirection, windowLabel: f.movementWindow } : (variant.snapshot?.movement ?? null),
       facts_source: f.source ?? null,
     },
@@ -256,6 +268,11 @@ function buildRow({ artifact, variant, platform, scheduledForIso }) {
     last_error: null,
     retry_count: 0,
     dry_runs: [],
+    // 13E.6A §17-18 - post-publish verification + performance tracking
+    // (reserved; populated later from Buffer's read-only metrics API).
+    platform_post_url: null,
+    metrics: { views: null, likes: null, comments: null, shares: null, saves: null, clicks: null },
+    last_metrics_sync: null,
     history: [{ at: new Date().toISOString(), from: null, to: "DRAFT", note: "prepared from artifact" }],
   };
 }
@@ -755,20 +772,365 @@ function cmdReviewPack() {
   console.log("  NOTHING WAS PUBLISHED OR SCHEDULED. NOTHING LEFT THIS MACHINE.\n");
 }
 
+// ==== 13E.6A: FIRST-LIVE BATCH WORKFLOW ==============================
+
+const PLATFORM_LABEL = { instagram_feed: "Instagram (feed)", instagram_carousel: "Instagram (carousel)", instagram_reel: "Instagram (reel)", tiktok: "TikTok", x_post: "X", youtube_short: "YouTube (Short)" };
+
+// Expand a --platforms alias list ("instagram,tiktok,x,youtube") to the
+// concrete placement platforms available for this content.
+function resolvePlatforms(aliasCsv, artifact) {
+  const ALIAS = {
+    instagram: artifact.source?.startsWith("video") ? ["instagram_reel"] : ["instagram_feed"],
+    "instagram-reel": ["instagram_reel"],
+    "instagram-feed": ["instagram_feed"],
+    "instagram-carousel": ["instagram_carousel"],
+    tiktok: ["tiktok"],
+    x: ["x_post"],
+    youtube: ["youtube_short"],
+  };
+  const wanted = String(aliasCsv || "instagram,tiktok,x,youtube")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  const out = [];
+  for (const w of wanted) {
+    const ps = ALIAS[w] ?? (PLATFORM_CHANNEL_KEY[w] ? [w] : null);
+    if (!ps) die(`unknown platform alias "${w}". one of: instagram, instagram-reel, instagram-feed, instagram-carousel, tiktok, x, youtube`);
+    for (const p of ps) if (!out.includes(p)) out.push(p);
+  }
+  return out;
+}
+
+// Prepare one ledger row per requested platform for a content_id, then
+// freeze them into a DRAFT batch.
+function cmdPrepareBatch(idOrKey, opts) {
+  banner();
+  if (!idOrKey) die("usage: social:publish -- prepare-batch <content_id|key> [--platforms instagram,tiktok,x,youtube] [--order ...] [--schedule now|<iso>]");
+  const probe = resolveArtifactVariant(idOrKey, { platformCut: "reel" });
+  if (!probe.ok) die(probe.reason);
+  const artifact = probe.artifact;
+  const platforms = resolvePlatforms(opts.platforms, artifact);
+  let scheduleMode = "PUBLISH_NOW";
+  let scheduledForIso = null;
+  if (opts.schedule && opts.schedule !== "now") {
+    scheduleMode = "SCHEDULED";
+    try { scheduledForIso = toUtcIso(opts.schedule); } catch (e) { die(e.message); }
+  }
+  const sendOrder = opts.order ? opts.order.split(",").map((s) => s.trim()) : DEFAULT_SEND_ORDER;
+
+  const ledger = loadLedger();
+  const prepared = [];
+  for (const platform of platforms) {
+    const cut = cutFor(platform, null);
+    let res = resolveArtifactVariant(idOrKey, { platformCut: cut });
+    if (!res.ok && cut === "reel") res = resolveArtifactVariant(idOrKey, { platformCut: "tiktok" });
+    if (!res.ok) { console.log(`  - ${platform}: SKIP - ${res.reason}`); continue; }
+    const row = buildRow({ artifact: res.artifact, variant: res.variant, platform, scheduledForIso });
+    const existing = findJob(ledger, row.job_id);
+    if (existing && ["QUEUED", "PUBLISHED"].includes(existing.status)) {
+      console.log(`  - ${platform}: SKIP - ${row.job_id} already ${existing.status}`);
+      continue;
+    }
+    let out;
+    if (existing) {
+      Object.assign(existing, {
+        media: row.media, placement: row.placement, service: row.service,
+        hosted_asset_id: row.hosted_asset_id, public_media_url: row.public_media_url, media_sha256: row.media_sha256,
+        caption: row.caption, youtube_title: row.youtube_title, copy_error: row.copy_error,
+        hashtags: row.hashtags, first_comment: row.first_comment, cta_url: row.cta_url,
+        channel_id: row.channel_id, qa: row.qa, rights: row.rights, snapshot: row.snapshot,
+        scheduled_for: row.scheduled_for, source_commit: row.source_commit, status: "DRAFT",
+      });
+      existing.history.push({ at: new Date().toISOString(), from: existing.status, to: "DRAFT", note: "re-prepared for a batch" });
+      out = existing;
+    } else {
+      ledger.push(row);
+      out = row;
+    }
+    const rg = readinessGates({ row: out, variant: res.variant, flags, providerConfigured: PROVIDER.isConfigured(), ledger, currentMediaSha: currentMediaShaOf(out) });
+    markReady(out, { gatesOk: rg.ok, blockers: rg.blockers });
+    prepared.push(out);
+  }
+  if (!prepared.length) die("no placements could be prepared for this content");
+  saveLedger(ledger);
+
+  const contentId = prepared[0].content_id;
+  const batch = buildBatch({ content_id: contentId, rows: prepared, sendOrder, scheduleMode, scheduledFor: scheduledForIso, sourceCommit: headGitCommit() });
+  const batches = loadBatches();
+  batches.push(batch);
+  saveBatches(batches);
+
+  console.log(`  BATCH CREATED  ${batch.batch_id}   status: DRAFT`);
+  console.log(`  content_id     ${batch.content_id}`);
+  console.log(`  source         ${batch.source_snapshot_id ?? "?"}  captured ${batch.source_captured_at ?? "?"}  live=${batch.source_is_live}`);
+  console.log(`  schedule       ${batch.schedule_mode}${batch.scheduled_for ? `  ${brisbaneLabel(batch.scheduled_for)}` : ""}`);
+  console.log(`  send order     ${batch.send_order.join(" -> ")}`);
+  console.log(`  placements     ${batch.placements.length}`);
+  for (const p of batch.placements) console.log(`    - ${PLATFORM_LABEL[p.platform] ?? p.platform}  (${p.job_id})  asset ${p.approved_artifact_sha256 ? p.approved_artifact_sha256.slice(0, 12) + "…" : "text-only"}`);
+  console.log(`\n  next:  npm run social:publish -- review ${batch.batch_id}\n`);
+}
+
+function freshVariantFor(row) {
+  const v = reResolveVariant(row);
+  return v ?? { qa: row.qa, rights: row.rights, media: row.media, snapshot: row.snapshot, caption_instagram: row.caption, caption_tiktok: row.caption, facts: {} };
+}
+
+// §13 - human-readable batch review.
+function cmdReview(batchId) {
+  banner();
+  const batches = loadBatches();
+  const batch = findBatch(batches, batchId);
+  if (!batch) die(`no batch "${batchId}" (try: social:publish -- batches)`);
+  const ledger = loadLedger();
+  const channels = loadChannels();
+  const derived = batchStatus(batch, ledger);
+
+  console.log(`  BATCH ${batch.batch_id}   status: ${batch.status}${derived !== batch.status ? ` (derived: ${derived})` : ""}`);
+  console.log(`  content_id ${batch.content_id}`);
+  console.log(`  source     ${batch.source_snapshot_id ?? "?"}  captured ${batch.source_captured_at ?? "?"}  live=${batch.source_is_live}  commit ${batch.source_commit ?? "?"}`);
+  console.log(`  schedule   ${batch.schedule_mode}${batch.scheduled_for ? `  ${brisbaneLabel(batch.scheduled_for)}` : "  (publish now)"}`);
+  console.log(`  facts      market_ref=${batch.frozen_facts.market_price ?? "-"}  discount=${batch.frozen_facts.discount_pct ?? "-"}  listed=${batch.frozen_facts.listed_usd ?? "-"}  movement=${batch.frozen_facts.movement_pct ?? "-"}`);
+  if (batch.owner_approved_at) console.log(`  approved   ${batch.owner_approved_at} by ${batch.owner_approved_by}   checksum ${batch.approval_checksum?.slice(0, 26)}…  valid=${batchApprovalValid(batch).ok}`);
+  console.log("");
+
+  const allBlockers = [];
+  for (const p of batch.placements) {
+    const row = findJob(ledger, p.job_id);
+    if (!row) { console.log(`  ── ${PLATFORM_LABEL[p.platform] ?? p.platform}: LEDGER ROW MISSING (${p.job_id})\n`); allBlockers.push(`${p.platform}: ledger row missing`); continue; }
+    const variant = freshVariantFor(row);
+    const rv = revalidatePlacement({
+      row, batch, variant, liveFacts: variant.facts ?? {},
+      currentMediaSha: currentMediaShaOf(row),
+      flags, providerConfigured: PROVIDER.isConfigured(), channels, ledger,
+    });
+    const fresh = rv.gates.find((g) => g.id === "freshness_at_send");
+    const dup = rv.gates.find((g) => g.id === "not_duplicate");
+    console.log(`  ── ${PLATFORM_LABEL[p.platform] ?? p.platform}`);
+    console.log(`     PLACEMENT   ${p.placement}   STATUS ${row.status}`);
+    console.log(`     MEDIA       ${row.media.kind === "text_only" ? "text-only" : `${row.media.kind} ${row.media.width}x${row.media.height}${row.media.durationS ? " " + row.media.durationS + "s" : ""}`}`);
+    if (row.public_media_url) console.log(`                 ${row.public_media_url}  sha ${String(row.media_sha256 ?? "").slice(0, 12)}…`);
+    if (row.youtube_title) console.log(`     TITLE       ${row.youtube_title}`);
+    console.log(`     COPY        ${String(row.caption ?? "").replace(/\n+/g, " / ").slice(0, 160)}${(row.caption ?? "").length > 160 ? "…" : ""}`);
+    console.log(`     CTA         ${row.cta_url}`);
+    console.log(`     FRESHNESS   ${fresh ? fresh.detail : "(n/a - MARKET_DATA/brand)"}`);
+    console.log(`     QA          ${row.qa?.ok ? `PASS (${row.qa.passed}/${row.qa.total})` : `FAIL [${(row.qa?.failed ?? []).join(", ")}]`}`);
+    console.log(`     RIGHTS      ${JSON.stringify(row.rights)}`);
+    console.log(`     DUPLICATE   ${dup ? (dup.ok ? "none" : dup.detail) : "n/a"}`);
+    console.log(`     DRIFT       ${rv.drift.length ? rv.drift.map((d) => `${d.field}(${d.action})`).join(", ") : "none"}`);
+    console.log(`     READY       ${rv.ok ? "YES" : "NO"}`);
+    if (!rv.ok) { for (const b of rv.blockers) console.log(`                 - ${b}`); allBlockers.push(...rv.blockers.map((b) => `${p.platform}: ${b}`)); }
+    console.log("");
+  }
+
+  const uniq = [...new Set(allBlockers)];
+  const canApprove = batch.status === "DRAFT" && batch.placements.every((p) => {
+    const r = findJob(ledger, p.job_id);
+    return r && r.qa?.ok && (p.platform === "x_post" || r.public_media_url);
+  });
+  console.log(`  READY TO APPROVE:  ${canApprove ? "yes" : "no"}   (approval freezes the plan; it does NOT publish)`);
+  console.log(`  READY TO SEND:     no  ${uniq.length ? `(${uniq.length} blocker${uniq.length === 1 ? "" : "s"})` : ""}`);
+  if (uniq.length) { console.log("  BLOCKERS:"); for (const b of uniq) console.log(`    - ${b}`); }
+  console.log(`\n  approve with:  npm run social:publish -- approve-batch ${batch.batch_id}`);
+  console.log("");
+}
+
+function cmdApproveBatch(batchId) {
+  banner();
+  const batches = loadBatches();
+  const batch = findBatch(batches, batchId);
+  if (!batch) die(`no batch "${batchId}"`);
+  const ledger = loadLedger();
+  // every placement row must be READY (all non-approval gates green)
+  for (const p of batch.placements) {
+    const row = findJob(ledger, p.job_id);
+    if (!row) die(`ledger row ${p.job_id} missing - re-run prepare-batch`);
+    if (!["READY", "APPROVED"].includes(row.status)) die(`placement ${p.platform} is ${row.status}, not READY - run review ${batchId} to see blockers`);
+  }
+  const r = approveBatch(batch, { by: "owner" });
+  if (!r.ok) die(`cannot approve batch: ${r.reason}`);
+  // stamp each placement row APPROVED too (so the send gate stack passes owner_approval)
+  for (const p of batch.placements) {
+    const row = findJob(ledger, p.job_id);
+    if (row.status === "READY") approveRow(row, { by: "owner" });
+  }
+  saveBatches(batches);
+  saveLedger(ledger);
+  console.log(`  ✓ BATCH ${batch.batch_id} APPROVED  at ${batch.owner_approved_at}`);
+  console.log(`  checksum ${batch.approval_checksum}`);
+  console.log(`  This is a signed-off launch plan. It has NOT published anything.`);
+  console.log(`  A future send needs:  RIGHTS_STATE.publishing=ALLOWED, SOCIAL_PUBLISH_ENABLED=true,`);
+  console.log(`  SOCIAL_PUBLISH_DRY_RUN=false, SOCIAL_EPN_AI_CLASSIFICATION set, provider auth, channels, no drift,`);
+  console.log(`  AND the explicit flag:  social:publish -- send-batch ${batch.batch_id} --confirm-live\n`);
+}
+
+async function cmdSendBatch(batchId, opts) {
+  banner();
+  const batches = loadBatches();
+  const batch = findBatch(batches, batchId);
+  if (!batch) die(`no batch "${batchId}"`);
+
+  // GUARD 1 - explicit live confirmation flag
+  if (opts.confirmLive !== true) {
+    die(`send-batch requires the explicit  --confirm-live  flag. Without it this is a hard fail. Nothing was submitted.`);
+  }
+  // GUARD 2 - batch must be approved + the approval untampered
+  if (batch.status !== "APPROVED" && batch.status !== "PARTIAL_SUCCESS") die(`batch is ${batch.status} - approve it first`);
+  const bv = batchApprovalValid(batch);
+  if (!bv.ok) die(`batch approval invalid: ${bv.reason}`);
+  // GUARD 3 - all the independent live switches
+  const notReady = [];
+  if (RIGHTS_STATE.publishing !== "ALLOWED") notReady.push("RIGHTS_STATE.publishing != ALLOWED");
+  if (flags.publishEnabled !== true) notReady.push("SOCIAL_PUBLISH_ENABLED != true");
+  if (flags.dryRun !== false) notReady.push("SOCIAL_PUBLISH_DRY_RUN is not \"false\"");
+  if (flags.epnAiClassification == null) notReady.push("SOCIAL_EPN_AI_CLASSIFICATION not set");
+  if (!PROVIDER.isConfigured()) notReady.push("no social provider configured");
+  if (notReady.length) {
+    console.log("  send-batch BLOCKED - the live switches are not all set:\n");
+    for (const n of notReady) console.log(`    - ${n}`);
+    console.log("\n  Nothing was submitted. Nothing left this machine.\n");
+    process.exit(1);
+  }
+
+  // per-placement revalidate -> submit, in send order. One failure does
+  // NOT stop the others.
+  const ledger = loadLedger();
+  const channels = loadChannels();
+  const results = [];
+  const ordered = [...batch.placements].sort((a, b) => batch.send_order.indexOf(a.platform) - batch.send_order.indexOf(b.platform));
+  for (const p of ordered) {
+    const row = findJob(ledger, p.job_id);
+    if (!row) { results.push({ platform: p.platform, outcome: "SKIP", reason: "ledger row missing" }); continue; }
+    if (["QUEUED", "PUBLISHED"].includes(row.status)) { results.push({ platform: p.platform, outcome: "ALREADY", status: row.status, providerRef: row.provider_ref }); continue; }
+    const variant = freshVariantFor(row);
+    const rv = revalidatePlacement({ row, batch, variant, liveFacts: variant.facts ?? {}, currentMediaSha: currentMediaShaOf(row), flags, providerConfigured: PROVIDER.isConfigured(), channels, ledger });
+    if (!rv.ok) { results.push({ platform: p.platform, outcome: "BLOCKED", blockers: rv.blockers }); continue; }
+    // defence in depth
+    if (RIGHTS_STATE.publishing !== "ALLOWED" || !PROVIDER.isConfigured()) { results.push({ platform: p.platform, outcome: "BLOCKED", blockers: ["internal guard"] }); continue; }
+    const res = await submitOne(row, ledger);
+    results.push({ platform: p.platform, ...res });
+  }
+  saveLedger(ledger);
+  batch.status = batchStatus(batch, ledger);
+  batch.history.push({ at: new Date().toISOString(), note: `send-batch: ${results.map((r) => `${r.platform}=${r.outcome}`).join(" ")}` });
+  saveBatches(batches);
+
+  const anyOk = results.some((r) => r.outcome === "QUEUED" || r.outcome === "ALREADY");
+  const anyBad = results.some((r) => r.outcome === "FAILED" || r.outcome === "BLOCKED");
+  const verdict = anyOk && anyBad ? "PARTIAL_SUCCESS" : anyOk ? "ALL_QUEUED" : "ALL_FAILED";
+  console.log(`  SEND-BATCH ${batch.batch_id}:  ${verdict}\n`);
+  for (const r of results) {
+    console.log(`    ${PLATFORM_LABEL[r.platform] ?? r.platform}: ${r.outcome}${r.providerRef ? `  ref ${r.providerRef}` : ""}${r.reason ? `  (${r.reason})` : ""}`);
+    if (r.blockers) for (const b of r.blockers) console.log(`        - ${b}`);
+  }
+  console.log(`\n  QUEUED != PUBLISHED. Confirm with:  npm run social:publish -- sync-batch ${batch.batch_id}`);
+  console.log(`  A FAILED placement needs explicit:  npm run social:publish -- retry <job_id>  (never auto-retried)\n`);
+}
+
+// submit ONE row through the provider. Returns { outcome, providerRef?, reason? }.
+async function submitOne(row, ledger) {
+  const assets = row.media.kind === "text_only" || !row.public_media_url ? [] : [{ type: row.media.kind === "video_916" ? "video" : "image", url: row.public_media_url }];
+  const msg = {
+    channelId: row.channel_id, platform: row.service, placement: row.placement,
+    text: row.caption, assets, dueAt: row.scheduled_for, saveToDraft: false, schedulingType: "automatic",
+    postType: PLATFORM_POST_TYPE[row.platform], firstComment: row.first_comment,
+    youtubeTitle: row.youtube_title ?? null, siteLink: row.platform === "instagram_feed" ? row.cta_url : null,
+  };
+  const res = await PROVIDER.createPost(msg);
+  if (res?.accepted) {
+    applyProviderAccept(row, { provider: PROVIDER.name, providerRef: res.id });
+    return { outcome: "QUEUED", providerRef: res.id };
+  }
+  applyProviderReject(row, { provider: PROVIDER.name, reason: res?.reason ?? "unknown", detail: res?.detail ?? "" });
+  return { outcome: "FAILED", reason: res?.reason ?? "unknown" };
+}
+
+async function cmdRetry(jobId_, opts) {
+  banner();
+  const ledger = loadLedger();
+  const row = findJob(ledger, jobId_);
+  if (!row) die(`no ledger row "${jobId_}"`);
+  if (row.status !== "FAILED") die(`retry is only for a FAILED row - "${jobId_}" is ${row.status}`);
+  if (row.provider_ref) die(`"${jobId_}" already has a provider_ref (${row.provider_ref}) - the provider accepted it; use sync, do NOT re-submit`);
+  // find its batch + re-validate against the SAME approved batch
+  const batches = loadBatches();
+  const batch = batches.find((b) => b.placements.some((p) => p.job_id === jobId_));
+  if (!batch) die(`"${jobId_}" is not part of any batch`);
+  const bv = batchApprovalValid(batch);
+  if (!bv.ok) die(`batch approval no longer valid: ${bv.reason} - re-approve the batch`);
+  if (opts.confirmLive !== true) die("retry submits to the provider - it requires --confirm-live");
+  if (RIGHTS_STATE.publishing !== "ALLOWED" || flags.publishEnabled !== true || flags.dryRun !== false || flags.epnAiClassification == null || !PROVIDER.isConfigured()) {
+    die("retry BLOCKED - the live switches are not all set (see send-batch).");
+  }
+  const channels = loadChannels();
+  const variant = freshVariantFor(row);
+  const rv = revalidatePlacement({ row, batch, variant, liveFacts: variant.facts ?? {}, currentMediaSha: currentMediaShaOf(row), flags, providerConfigured: PROVIDER.isConfigured(), channels, ledger });
+  if (!rv.ok) { console.log("  retry BLOCKED:\n"); for (const b of rv.blockers) console.log(`    - ${b}`); process.exit(1); }
+  // reuse the SAME row - status FAILED -> QUEUED on accept
+  row.status = "APPROVED"; // transient, so applyProviderAccept's guard passes
+  const res = await submitOne(row, ledger);
+  saveLedger(ledger);
+  batch.status = batchStatus(batch, ledger);
+  saveBatches(batches);
+  console.log(`  retry ${jobId_}: ${res.outcome}${res.providerRef ? `  ref ${res.providerRef}` : `  (${res.reason})`}\n`);
+}
+
+async function cmdSyncBatch(batchId) {
+  banner();
+  const batches = loadBatches();
+  const batch = findBatch(batches, batchId);
+  if (!batch) die(`no batch "${batchId}"`);
+  const ledger = loadLedger();
+  if (!PROVIDER.isConfigured()) die("no provider configured - cannot query post status");
+  const lines = [];
+  for (const p of batch.placements) {
+    const row = findJob(ledger, p.job_id);
+    if (!row || row.status !== "QUEUED") { lines.push(`  ${p.platform}: ${row?.status ?? "MISSING"} - nothing to sync`); continue; }
+    const evidence = await PROVIDER.getPostStatus(row.provider_ref);
+    if (!evidence?.ok) { lines.push(`  ${p.platform}: sync error - ${evidence?.reason ?? "?"}`); continue; }
+    const r = applyProviderEvidence(row, evidence);
+    lines.push(`  ${p.platform}: ${r.note}${row.published_at ? `  published_at ${row.published_at}` : ""}`);
+  }
+  saveLedger(ledger);
+  batch.status = batchStatus(batch, ledger);
+  saveBatches(batches);
+  console.log(`  SYNC-BATCH ${batch.batch_id}  ->  ${batch.status}\n`);
+  for (const l of lines) console.log(l);
+  console.log("");
+}
+
+function cmdBatches() {
+  banner();
+  const batches = loadBatches();
+  const ledger = loadLedger();
+  if (!batches.length) return console.log("  no batches yet - create one with  social:publish -- prepare-batch <content_id>\n");
+  for (const b of batches) {
+    console.log(`  ${b.batch_id}  ${batchStatus(b, ledger)}  ${b.content_id}  (${b.placements.length} placements: ${b.send_order.join(",")})`);
+    console.log(`      created ${b.created_at}  ${b.owner_approved_at ? `approved ${b.owner_approved_at} valid=${batchApprovalValid(b).ok}` : "not approved"}`);
+  }
+  console.log("");
+}
+
 // ---- dispatch ------------------------------------------------------
 function parseOpts(rest) {
   const opts = {};
   for (let i = 0; i < rest.length; i++) {
     if (rest[i] === "--force") opts.force = true;
+    else if (rest[i] === "--confirm-live") opts.confirmLive = true;
     else if (rest[i] === "--cut") opts.cut = rest[++i];
     else if (rest[i] === "--at") opts.at = rest[++i];
+    else if (rest[i] === "--platforms") opts.platforms = rest[++i];
+    else if (rest[i] === "--order") opts.order = rest[++i];
+    else if (rest[i] === "--schedule") opts.schedule = rest[++i]; // now | <iso>
+    else if (rest[i] === "--approve") opts.approve = rest[++i]; // subset for approve-batch
   }
   return opts;
 }
 
+const OPT_FLAGS = new Set(["--cut", "--at", "--platforms", "--order", "--schedule", "--approve"]);
+
 async function main() {
   const [cmd, ...rest] = process.argv.slice(2);
-  const args = rest.filter((a) => !a.startsWith("--") && rest[rest.indexOf(a) - 1] !== "--cut" && rest[rest.indexOf(a) - 1] !== "--at");
+  const args = rest.filter((a, i) => !a.startsWith("--") && !OPT_FLAGS.has(rest[i - 1]));
   const opts = parseOpts(rest);
   switch (cmd) {
     case "list":
@@ -786,6 +1148,20 @@ async function main() {
       return cmdSend(args[0], opts);
     case "sync":
       return cmdSync(args[0]);
+    case "prepare-batch":
+      return cmdPrepareBatch(args[0], opts);
+    case "review":
+      return cmdReview(args[0]);
+    case "approve-batch":
+      return cmdApproveBatch(args[0]);
+    case "send-batch":
+      return cmdSendBatch(args[0], opts);
+    case "retry":
+      return cmdRetry(args[0], opts);
+    case "sync-batch":
+      return cmdSyncBatch(args[0]);
+    case "batches":
+      return cmdBatches();
     case "host":
       return cmdHost();
     case "verify-hosts":
@@ -795,7 +1171,7 @@ async function main() {
     case "review-pack":
       return cmdReviewPack();
     default:
-      die(`unknown command "${cmd}". one of: list, channels, prepare, dry-run, approve, send, sync, host, verify-hosts, hosts, review-pack`);
+      die(`unknown command "${cmd}". one of: list, channels, prepare, dry-run, approve, send, sync, prepare-batch, review, approve-batch, send-batch, retry, sync-batch, batches, host, verify-hosts, hosts, review-pack`);
   }
 }
 
