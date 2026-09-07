@@ -35,7 +35,8 @@
     "crm:summary": "node scripts/crmSummary.mjs",
     "crm:auto": "node scripts/crmAuto.mjs",
     "social:backlog": "node scripts/socialBacklog.mjs",
-    "social:quality-audit": "node scripts/socialQualityAudit.mjs"
+    "social:quality-audit": "node scripts/socialQualityAudit.mjs",
+    "social:newsroom-migrate-check": "node scripts/socialNewsroomMigrationCheck.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",

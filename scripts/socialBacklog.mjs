@@ -50,16 +50,33 @@ import {
   refillNeeds,
   fatigueReport,
   sequenceCtaCheck,
+  feedReview,
+  stableStoryId,
+  stableCapturedAt,
+  storyRow,
+  placementRows,
+  qaRunRow,
+  resolveBacklogPosture,
+  scheduleTimeAcceptable,
+  MAX_QUEUE_PER_RUN,
+  MAX_QUEUE_PER_PLATFORM_PER_RUN,
+  backlogCircuitStatus,
+  noteBacklogFailure,
+  noteBacklogSuccess,
+  logEvent,
 } from "../lib/social/newsroom/index.mjs";
-import { loadPlacements, tablesReady } from "../lib/social/newsroom/db.mjs";
-import { reviewAvailable } from "../lib/social/newsroom/visionReview.mjs";
+import { loadStories, loadPlacements, tablesReady, upsertStory, upsertPlacements, patchPlacement, recordQaRun } from "../lib/social/newsroom/db.mjs";
+import { reviewAvailable } from "../lib/newsroom/visualReview.mjs";
+import { scheduleOne, reconcileOne, queuedContentStale, resolveProviderMode } from "../lib/newsroom/bufferBacklog.mjs";
 
 const ROOT = process.cwd();
 const OUT_DIR = path.join(ROOT, ".social-preview", "editorial-newsroom");
 const args = process.argv.slice(2);
-const has = (f) => args.includes(f);
+const has = (f) => args.includes(f) || args.includes(f.replace(/^--/, ""));
 const JSON_OUT = has("--json");
-const MODE = has("reconcile") ? "reconcile" : has("--status") ? "status" : "plan";
+const MODE = has("--reconcile") ? "reconcile" : has("--status") ? "status" : "plan";
+const DO_BUILD = has("--build") || has("--queue"); // --queue implies build
+const DO_QUEUE = has("--queue");
 const HORIZON_DAYS = has("--week") ? 7 : 14;
 const NOW = Date.now();
 
@@ -187,17 +204,23 @@ function freshLaneStories(freshDeals, capturedAt, sourceCommit) {
 // SUPPORTED (NOW/LIMITED) editorial series. Evergreen explainers are
 // concept stories (no live data needed). Data-backed editorial series get
 // a story only when their required facts are SUPPORTED.
-function plannedLaneStories(matrix, capturedAt, sourceCommit) {
+function plannedLaneStories(matrix, sourceCommit) {
   const out = [];
   for (const row of matrix.rows) {
-    if (row.support === "DATA_NOT_READY") continue;
+    if (row.support === "DATA_NOT_READY") continue; // §9 - never forced
     if (row.clock === "LIVE") continue; // handled by the fresh lane
+    // §8 - a LIMITED series only produces a story when its required facts
+    // are actually satisfied this run (SUPPORTED_WITH_LIMITATIONS still
+    // means the checks cleared the "thin" threshold, not DATA_NOT_READY).
+    const subjectId = `${row.series.toLowerCase()}-representative`;
+    // stable per-series captured_at -> idempotent story id across rebuilds
+    const capturedAt = stableCapturedAt(row.series, { now: NOW });
     out.push(
       makeStory({
         series: row.series,
         subjectType: row.requires.length ? "catalog" : "concept",
-        subjectId: `${row.series.toLowerCase()}-representative`,
-        capturedAt,
+        subjectId,
+        capturedAt: capturedAt === "evergreen" ? new Date(NOW).toISOString() : capturedAt.length === 7 ? weekStartIso(capturedAt) : capturedAt,
         facts: {
           headline_fact: row.requires.length ? `derived from: ${row.checks.map((c) => c.detail).join("; ")}` : null,
           layout_family: row.pillar.toLowerCase(),
@@ -206,8 +229,21 @@ function plannedLaneStories(matrix, capturedAt, sourceCommit) {
         sourceCommit,
       })
     );
+    // overwrite with the deterministic stable id so repeated builds upsert
+    out[out.length - 1].story_id = stableStoryId({ series: row.series, subjectType: row.requires.length ? "catalog" : "concept", subjectId, now: NOW });
   }
   return out;
+}
+
+// "2026-W37" -> the Monday 00:00Z of that ISO week, as an ISO string.
+function weekStartIso(wk) {
+  const [y, w] = wk.split("-W").map(Number);
+  const jan4 = new Date(Date.UTC(y, 0, 4));
+  const day = (jan4.getUTCDay() + 6) % 7;
+  const monday = new Date(jan4);
+  monday.setUTCDate(jan4.getUTCDate() - day + (w - 1) * 7);
+  monday.setUTCHours(0, 0, 0, 0);
+  return monday.toISOString();
 }
 
 function scoreStory(story, context) {
@@ -244,14 +280,43 @@ function scoreStory(story, context) {
 
   if (MODE === "reconcile") {
     const hasBuffer = Boolean(process.env.BUFFER_ACCESS_TOKEN);
+    const queuedRows = placed.filter((p) => p.buffer_provider_ref);
+    const findings = [];
+    let published = 0;
+    if (hasBuffer && ready && queuedRows.length) {
+      const storyById = Object.fromEntries((await loadStories({})).rows.map((s) => [s.story_id, s]));
+      for (const p of queuedRows) {
+        const rc = await reconcileOne({ placement: p });
+        const story = storyById[p.story_id];
+        const stale = story ? queuedContentStale(story, p, { now: NOW }) : false;
+        if (rc.published) {
+          published++;
+          logEvent("BUFFER_RECONCILED", { placement_id: p.placement_id, published: true });
+        } else if (rc.drift) {
+          logEvent("BUFFER_DRIFT", { placement_id: p.placement_id, drift: rc.drift });
+        } else {
+          logEvent("BUFFER_RECONCILED", { placement_id: p.placement_id, provider_state: rc.providerState });
+        }
+        if (stale) logEvent("QUEUED_CONTENT_STALE", { placement_id: p.placement_id, story_id: p.story_id });
+        findings.push({
+          placement_id: p.placement_id, story_id: p.story_id, platform: p.platform,
+          local_status: p.status, provider_state: rc.providerState ?? null,
+          drift: rc.drift ?? null, published: Boolean(rc.published),
+          scheduled_for: p.scheduled_for ?? null,
+          stale_risk: stale ? "QUEUED_CONTENT_STALE" : null,
+        });
+      }
+    }
     const payload = {
       generated_at: new Date(NOW).toISOString(),
       buffer_configured: hasBuffer,
       tables_ready: ready,
       persisted_placements: placed.length,
-      queued_placements: placed.filter((p) => p.status === "BUFFER_QUEUED").length,
-      result: !hasBuffer ? "BUFFER_NOT_CONFIGURED" : placed.length === 0 ? "NOTHING_TO_RECONCILE" : "READ_ONLY_COMPARE_ONLY",
-      note: "reconcile never resubmits or mutates Buffer (§29). It only reports MISSING_PROVIDER_POST / TIME_DRIFT / FAILED / QUEUED / PUBLISHED once placements exist.",
+      queued_placements: queuedRows.length,
+      published_detected: published,
+      result: !hasBuffer ? "BUFFER_NOT_CONFIGURED" : !ready ? "MIGRATION_REQUIRED" : queuedRows.length === 0 ? "NOTHING_TO_RECONCILE" : "RECONCILED",
+      findings,
+      note: "read-only: reconcile never resubmits or mutates Buffer (§29). PUBLISHED is only inferred from provider sent-evidence.",
     };
     return console.log(JSON.stringify(payload, null, 2));
   }
@@ -264,7 +329,7 @@ function scoreStory(story, context) {
   const matrix = buildSupportMatrix(stats);
 
   const fresh = statsErr ? [] : freshLaneStories(freshDeals, capturedAt, sourceCommit);
-  const planned = plannedLaneStories(matrix, capturedAt, sourceCommit);
+  const planned = plannedLaneStories(matrix, sourceCommit);
   const allStories = [...fresh, ...planned];
 
   // score + QA + minimum-autonomous-quality filter
@@ -331,6 +396,95 @@ function scoreStory(story, context) {
   const ctaSeq = sequenceCtaCheck(fixedSlots.map((s) => ({ cta_intensity: candidates.find((c) => c.story.story_id === s.story_id)?.story.cta_intensity ?? "SOFT" })));
   const fatigue = fatigueReport(fixedSlots.map((s) => ({ series: s.series, pillar: s.pillar, story: candidates.find((c) => c.story.story_id === s.story_id)?.story, time_utc: s.time_utc })), { now: NOW });
 
+  // §33 feed-level review over the next ~12 planned editorial posts
+  const feedStrip = fixedSlots
+    .slice()
+    .sort((a, b) => Date.parse(a.time_utc) - Date.parse(b.time_utc))
+    .map((s) => ({ story: candidates.find((c) => c.story.story_id === s.story_id)?.story }))
+    .filter((x) => x.story);
+  const feed = feedReview(feedStrip);
+  logEvent("FEED_REVIEW", { verdict: feed.verdict, sample: feed.sample, warnings: feed.warnings.length });
+
+  // ---- §7/§22 BUILD (persist) + §10 QUEUE (Buffer future schedule) ----
+  const posture = resolveBacklogPosture(process.env, { requestQueue: DO_QUEUE });
+  const circuit = backlogCircuitStatus();
+  const build = { attempted: DO_BUILD, tables_ready: ready, stories_upserted: 0, placements_upserted: 0, qa_runs: 0, skipped: [], error: null };
+  const queue = { attempted: DO_QUEUE, posture, circuit, provider_mode: resolveProviderMode(process.env), requests: 0, queued: 0, results: [], blocked_reason: null };
+  const persistedStories = [];
+
+  if (DO_BUILD) {
+    if (!ready) {
+      build.error = "MIGRATION_REQUIRED";
+      build.skipped.push("social_stories/social_story_placements/social_qa_runs not found - run supabase/social_editorial_newsroom_migration.sql");
+    } else {
+      // persist ONLY calendar-placed editorial stories that passed min quality
+      const placedIds = new Set(fixedSlots.map((s) => s.story_id));
+      for (const c of candidates) {
+        if (!placedIds.has(c.story.story_id)) continue;
+        if (c.story.lane === "FRESH") continue; // never persist a LIVE deal story through the backlog builder
+        c.story.status = "PLANNED";
+        c.story.professional_score = c.qa_professional;
+        const sRow = storyRow(c.story, { now: NOW, sourceCommit });
+        const sRes = await upsertStory(sRow);
+        if (sRes.error) { build.error = sRes.error; break; }
+        build.stories_upserted += sRes.wrote;
+        // attach the calendar slot time to each placement
+        const slot = fixedSlots.find((s) => s.story_id === c.story.story_id);
+        const pls = c.placements.map((p) => ({ ...p, planned_for: slot?.time_utc ?? null, content_id: p.content_id ?? c.story.story_id }));
+        const pRes = await upsertPlacements(placementRows(c.story, pls, { now: NOW }));
+        if (pRes.error) { build.error = pRes.error; break; }
+        build.placements_upserted += pRes.wrote;
+        const qRes = await recordQaRun(qaRunRow({ storyId: c.story.story_id, qaType: "STACK", result: c.qa_professional, score: c.organic, blockers: c.qa_blockers, detail: { min_autonomous_quality: c.maq_ok } }));
+        build.qa_runs += qRes.wrote ?? 0;
+        logEvent(c.qa_professional === "PASS" ? "QA_PASS" : c.qa_professional === "WATCH" ? "QA_WATCH" : "QA_FAIL", { story_id: c.story.story_id, series: c.story.series });
+        logEvent("STORY_CREATED", { story_id: c.story.story_id, series: c.story.series, lane: c.story.lane });
+        for (const p of pls) logEvent("PLACEMENT_PLANNED", { story_id: c.story.story_id, platform: p.platform, planned_for: p.planned_for });
+        persistedStories.push({ story: c.story, placements: pls, qa_professional: c.qa_professional });
+      }
+    }
+  }
+
+  if (DO_QUEUE) {
+    if (circuit.suspended) {
+      queue.blocked_reason = `BACKLOG_SUSPENDED (${circuit.reason})`;
+    } else if (!posture.canQueueProvider) {
+      queue.blocked_reason = posture.reason;
+    } else if (!ready) {
+      queue.blocked_reason = "MIGRATION_REQUIRED - no persisted placements to schedule";
+    } else {
+      // Only evergreen/editorial, professional QA PASS, future schedule >= now + 60m.
+      // Layer-5 visual review requires a rendered+hosted artifact; without one
+      // the placement stays WATCH -> held (fail-closed, §20/§22).
+      const perPlatform = {};
+      for (const ps of persistedStories) {
+        if (queue.requests >= MAX_QUEUE_PER_RUN) break;
+        if (ps.qa_professional !== "PASS") { queue.results.push({ story_id: ps.story.story_id, queued: false, reason: `professional QA ${ps.qa_professional}` }); continue; }
+        for (const p of ps.placements) {
+          if (queue.requests >= MAX_QUEUE_PER_RUN) break;
+          if ((perPlatform[p.platform] ?? 0) >= MAX_QUEUE_PER_PLATFORM_PER_RUN) continue;
+          if (!p.hosted_url || !p.artifact_hash) {
+            queue.results.push({ story_id: ps.story.story_id, platform: p.platform, queued: false, reason: "no rendered+hosted artifact - visual review cannot run -> WATCH (held)" });
+            continue;
+          }
+          queue.requests++;
+          perPlatform[p.platform] = (perPlatform[p.platform] ?? 0) + 1;
+          logEvent("BUFFER_QUEUE_REQUEST", { story_id: ps.story.story_id, platform: p.platform, scheduled_for: p.planned_for });
+          const r = await scheduleOne({ story: ps.story, placement: p, channelId: null, caption: null, dueAtUtc: p.planned_for, professionalResult: "PASS", mode: queue.provider_mode });
+          if (r.queued) {
+            queue.queued++;
+            await patchPlacement(p.placement_id, r.placement_patch);
+            logEvent("BUFFER_QUEUED", { story_id: ps.story.story_id, platform: p.platform, provider_ref: r.provider_ref, provider_state: r.provider_state });
+            queue.results.push({ story_id: ps.story.story_id, platform: p.platform, queued: true, provider_ref: r.provider_ref, scheduled_for: r.placement_patch.scheduled_for, provider_state: r.provider_state });
+          } else {
+            noteBacklogFailure({ reason: "provider_schedule_failure", detail: (r.blockers ?? []).join("; ") });
+            queue.results.push({ story_id: ps.story.story_id, platform: p.platform, queued: false, reason: r.reason, blockers: r.blockers });
+          }
+        }
+      }
+      if (queue.queued > 0) noteBacklogSuccess({});
+    }
+  }
+
   const summary = {
     generated_at: new Date(NOW).toISOString(),
     horizon_days: HORIZON_DAYS,
@@ -362,11 +516,14 @@ function scoreStory(story, context) {
     },
     backlog_health: health,
     refill_needs: refillNeeds(health),
+    feed_review: feed,
+    build,
+    queue,
     vision_review: {
-      openai_vision_available: false,
-      note: "no OpenAI vision/chat client in repo (OpenAI = image-gen only). Adapter reuses the existing Anthropic vision path.",
-      anthropic_review_configured: reviewAvailable(),
+      openai_vision_reviewer: "lib/newsroom/visualReview.mjs (OpenAI Chat Completions, gpt-4o, image input) - OUTSIDE lib/social",
+      configured: reviewAvailable(),
       layer5_verdict_when_unconfigured: "WATCH (cannot autonomously schedule)",
+      cache: "keyed by artifact sha256 (.social-preview/editorial-newsroom/visual-review-cache.json)",
     },
     runtime_gates_not_evaluated: [
       "rights_cleared per artifact (assumed cleared in this content-quality sim)",
@@ -374,7 +531,16 @@ function scoreStory(story, context) {
       "distribution gates.mjs (publish_switch, live_mode, epn, owner_approval, freshness_at_send)",
       "RIGHTS_STATE.publishing must be ALLOWED (code constant, currently DISABLED)",
     ],
-    publishing: { published: 0, scheduled: 0, buffer_calls: 0, supabase_writes: 0, ebay_browse_calls: 0, stage1: "OFF" },
+    publishing: {
+      published: 0,
+      scheduled: queue.queued,
+      provider_requests: queue.requests,
+      supabase_story_writes: build.stories_upserted,
+      supabase_placement_writes: build.placements_upserted,
+      ebay_browse_calls: 0,
+      stage1: "OFF",
+      rights_state_publishing: "DISABLED",
+    },
   };
 
   writeFileSync(path.join(OUT_DIR, "backlog-summary.json"), JSON.stringify(summary, null, 2) + "\n");
@@ -382,15 +548,19 @@ function scoreStory(story, context) {
   writeFileSync(path.join(OUT_DIR, "support-matrix.json"), JSON.stringify(matrix, null, 2) + "\n");
   writeFileSync(
     path.join(OUT_DIR, "README.txt"),
-    "SIMULATION / REVIEW ONLY - SOCIAL-NEWSROOM-1\n" +
-      "Nothing here was published or scheduled. No Buffer call, no Supabase write, no eBay Browse call.\n" +
-      "Fresh-lane stories use the live read-only source; editorial-lane stories use real aggregate\n" +
-      "data where available and are otherwise representative concept stories. Stage 1 autonomy is OFF.\n"
+    `${DO_QUEUE ? "BACKLOG BUILD + QUEUE" : DO_BUILD ? "BACKLOG BUILD (persist)" : "SIMULATION / REVIEW ONLY"} - SOCIAL-NEWSROOM-2\n` +
+      "Live social publishing is OFF. Stage 1 OFF. RIGHTS_STATE.publishing DISABLED.\n" +
+      "Any Buffer request in --queue mode is a FUTURE-scheduled draft/scheduled post (>= now + 60m), never an immediate publish.\n" +
+      "eBay Browse calls: 0.\n"
   );
 
   if (JSON_OUT) return console.log(JSON.stringify(summary, null, 2));
 
-  log("SOCIAL EDITORIAL NEWSROOM - DRY RUN (nothing published / scheduled)");
+  log(`SOCIAL EDITORIAL NEWSROOM - ${DO_QUEUE ? "BUILD + QUEUE" : DO_BUILD ? "BUILD (persist)" : "DRY RUN"} (no immediate publish)`);
+  log(`  build: tables_ready ${build.tables_ready} | stories +${build.stories_upserted} | placements +${build.placements_upserted} | qa_runs +${build.qa_runs}${build.error ? ` | ${build.error}` : ""}`);
+  log(`  queue: mode ${posture.mode} (${posture.reason}) | requests ${queue.requests} | queued ${queue.queued}${queue.blocked_reason ? ` | blocked: ${queue.blocked_reason}` : ""}`);
+  log(`  feed review: ${feed.verdict}${feed.warnings.length ? ` (${feed.warnings.join("; ")})` : ""}`);
+  log(`  circuit: ${circuit.suspended ? "SUSPENDED" : circuit.state} (failures 24h: ${circuit.failures_24h})`);
   log(`  source live: ${summary.source_is_live}${summary.live_empty_reason ? ` (${summary.live_empty_reason})` : ""}`);
   log(`  data: pool ${summary.data.active_pool}, BIN ${summary.data.bin_pool}, fresh BIN <=6h ${summary.data.fresh_bin_6h}`);
   log(`  support: NOW ${matrix.summary.SUPPORTED_NOW.length} / LIMITED ${matrix.summary.SUPPORTED_WITH_LIMITATIONS.length} / NOT_READY ${matrix.summary.DATA_NOT_READY.length}`);
@@ -402,7 +572,7 @@ function scoreStory(story, context) {
   log(`  editorial balance: ${Object.entries(diagnostics.balance.byBucket).map(([k, v]) => `${k} ${(v.share * 100).toFixed(0)}%(${v.status})`).join(", ")}`);
   log(`  CTA sequence ok: ${ctaSeq.ok} (${ctaSeq.warnings.join("; ") || "clean"})`);
   log(`  fatigue warnings: ${fatigue.warnings.join("; ") || "none"}`);
-  log(`  vision review: OpenAI n/a; Anthropic adapter ${reviewAvailable() ? "configured" : "NOT configured -> layer 5 = WATCH"}`);
+  log(`  visual review (Layer 5): OpenAI gpt-4o reviewer ${reviewAvailable() ? "configured (lib/newsroom/visualReview.mjs)" : "NOT configured -> WATCH"}`);
   log(`  backlog health: ${health.overall}`);
   log(`  review pack: ${path.relative(ROOT, OUT_DIR)}/`);
 })().catch((e) => {

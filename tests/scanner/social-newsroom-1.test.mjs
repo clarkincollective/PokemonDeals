@@ -113,13 +113,24 @@ test("NR-3. the newsroom introduces no second planner / ledger / Buffer client /
     /from ["'][^"']*providers\/buffer/, /from ["'][^"']*socialSource/,
     /from ["'][^"']*\/render\.mjs/, /from ["'][^"']*lib\/ebay/,
   ];
-  const bannedCalls = [/\.insert\(/, /\.upsert\(/, /\.delete\(\s*\)/, /\.update\(\s*\{/, /api\.buffer\.com/, /getBrowseRateLimit\(/, /createPost\(/];
+  // SOCIAL-NEWSROOM-2 adds the sanctioned editorial writes to db.mjs
+  // (the 3 newsroom tables only). Everything else stays write-free, and
+  // no file may reach a social platform / eBay / a second Buffer client.
+  const bannedCalls = [/api\.buffer\.com/, /getBrowseRateLimit\(/, /createPost\(/, /bufferGraphQL\(/];
+  const bannedWrites = [/\.insert\(/, /\.upsert\(/, /\.delete\(\s*\)/, /\.update\(\s*\{/];
   const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
   for (const f of files) {
     const src = readFileSync(join(dir, f), "utf8");
     for (const re of bannedImports) assert.ok(!re.test(src), `${f} must not match ${re}`);
     const code = stripComments(src);
     for (const re of bannedCalls) assert.ok(!re.test(code), `${f} (code) must not match ${re}`);
+    if (f !== "db.mjs") {
+      for (const re of bannedWrites) assert.ok(!re.test(code), `${f} (code) must not write to a table`);
+    } else {
+      // db.mjs writes ONLY the three newsroom tables
+      const targets = [...code.matchAll(/\.from\("([^"]+)"\)\s*\n?\s*\.(upsert|insert|update|delete)/g)].map((m) => m[1]);
+      assert.ok(targets.every((t) => ["social_stories", "social_story_placements", "social_qa_runs"].includes(t)), `db.mjs writes an unexpected table: ${targets}`);
+    }
   }
 });
 

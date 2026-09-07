@@ -305,10 +305,29 @@ async function gather() {
   let editorialBacklog = null;
   try {
     const { backlogHealth, refillNeeds } = await import("../lib/social/newsroom/backlogHealth.mjs");
-    const { loadPlacements, tablesReady } = await import("../lib/social/newsroom/db.mjs");
+    const { backlogCircuitStatus } = await import("../lib/social/newsroom/backlogCircuit.mjs");
+    const { resolveBacklogPosture } = await import("../lib/social/newsroom/backlogConfig.mjs");
+    const { queuedContentStale } = await import("../lib/newsroom/bufferBacklog.mjs");
+    const { loadPlacements, loadStories, loadQaRuns, tablesReady } = await import("../lib/social/newsroom/db.mjs");
     const ready = await tablesReady().catch(() => false);
     const placed = ready ? (await loadPlacements({})).rows : [];
+    const storyRows = ready ? (await loadStories({})).rows : [];
+    const qaRows = ready ? (await loadQaRuns({})).rows : [];
     const health = backlogHealth(placed, { now: Date.now() });
+    const byId = Object.fromEntries(storyRows.map((s) => [s.story_id, s]));
+    // §36 - distinguish local plan state from provider state
+    const stateCounts = { DB_PLANNED: 0, BUFFER_READY: 0, BUFFER_QUEUED: 0, PUBLISHED: 0 };
+    let staleRisk = 0;
+    for (const p of placed) {
+      if (p.status === "BUFFER_QUEUED") stateCounts.BUFFER_QUEUED++;
+      else if (p.status === "BUFFER_READY") stateCounts.BUFFER_READY++;
+      else if (p.status === "PUBLISHED") stateCounts.PUBLISHED++;
+      else stateCounts.DB_PLANNED++;
+      const st = byId[p.story_id];
+      if (st && queuedContentStale(st, p, { now: Date.now() })) staleRisk++;
+    }
+    const visionWatch = qaRows.filter((q) => q.qa_type === "VISUAL_REVIEW" && q.result === "WATCH").length;
+    const queuedTimes = placed.filter((p) => p.buffer_provider_ref && p.scheduled_for).map((p) => Date.parse(p.scheduled_for)).filter(Number.isFinite).sort((a, b) => a - b);
     // enrich from the last review-pack summary if present (series/pillar mix,
     // support counts, AI-spam + fatigue signals) - never re-runs the DB stats.
     let packSummary = null;
@@ -323,6 +342,13 @@ async function gather() {
       overall: health.overall,
       by_platform: health.by_platform,
       refill_needs: refillNeeds(health),
+      state_counts: stateCounts,
+      stale_risk: staleRisk,
+      vision_watch_count: visionWatch,
+      oldest_queued: queuedTimes.length ? new Date(queuedTimes[0]).toISOString() : null,
+      newest_queued: queuedTimes.length ? new Date(queuedTimes[queuedTimes.length - 1]).toISOString() : null,
+      circuit: backlogCircuitStatus(),
+      posture: resolveBacklogPosture(process.env, { requestQueue: false }),
       pack: packSummary
         ? {
             generated_at: packSummary.generated_at,
@@ -334,6 +360,7 @@ async function gather() {
             cta_sequence_ok: packSummary.calendar_sim?.cta_sequence?.ok ?? null,
             fatigue_warnings: packSummary.calendar_sim?.fatigue?.warnings ?? [],
             vision_review: packSummary.vision_review ?? null,
+            feed_review: packSummary.feed_review?.verdict ?? null,
           }
         : null,
     };
@@ -817,21 +844,27 @@ ${
     : `<p class="muted">not read</p>`
 }
 
-<h2>Editorial backlog (SOCIAL-NEWSROOM-1 — read-only)</h2>
+<h2>Editorial backlog (SOCIAL-NEWSROOM-2 — read-only)</h2>
 ${
   d.editorial_backlog
     ? `<table>
-  ${row(["overall", esc(d.editorial_backlog.overall)])}
+  ${row(["migration applied", d.editorial_backlog.tables_ready ? "yes" : "NO — run supabase/social_editorial_newsroom_migration.sql"])}
+  ${row(["overall health", esc(d.editorial_backlog.overall)])}
+  ${row(["state: DB_PLANNED / BUFFER_READY / BUFFER_QUEUED / PUBLISHED", `${d.editorial_backlog.state_counts.DB_PLANNED} / ${d.editorial_backlog.state_counts.BUFFER_READY} / ${d.editorial_backlog.state_counts.BUFFER_QUEUED} / ${d.editorial_backlog.state_counts.PUBLISHED}`])}
+  ${row(["queue window (oldest → newest scheduled)", `${d.editorial_backlog.oldest_queued ?? "—"} → ${d.editorial_backlog.newest_queued ?? "—"}`])}
+  ${row(["stale-risk placements (QUEUED_CONTENT_STALE)", String(d.editorial_backlog.stale_risk)])}
+  ${row(["visual-review WATCH count", String(d.editorial_backlog.vision_watch_count)])}
+  ${row(["backlog-queue circuit", d.editorial_backlog.circuit.suspended ? `SUSPENDED (${esc(d.editorial_backlog.circuit.reason ?? "")})` : `${esc(d.editorial_backlog.circuit.state)} · failures 24h ${d.editorial_backlog.circuit.failures_24h}`])}
+  ${row(["SOCIAL_BUFFER_BACKLOG_ENABLED", `${d.editorial_backlog.posture.enabled} · mode ${esc(d.editorial_backlog.posture.mode)}`])}
   ${Object.values(d.editorial_backlog.by_platform).map((h) => row([`${h.platform} — days covered / state`, `${h.days_covered}d / ${h.state} (target ${h.target_days[0]}-${h.target_days[1]}d, editorial cap ${h.editorial_capacity_per_day}/d, fresh reserve ${h.fresh_reserved_per_day}/d, next gap ${h.next_gap ?? "—"})`])).join("\n  ")}
   ${row(["refill needed", d.editorial_backlog.refill_needs.length ? esc(d.editorial_backlog.refill_needs.map((r) => `${r.platform}(+${r.need_slots})`).join(", ")) : "none"])}
   ${d.editorial_backlog.pack ? row(["support: NOW / LIMITED / NOT_READY", `${d.editorial_backlog.pack.support.supported_now.length} / ${d.editorial_backlog.pack.support.supported_with_limitations.length} / ${d.editorial_backlog.pack.support.data_not_ready.length}`]) : ""}
-  ${d.editorial_backlog.pack ? row(["last 14d sim: distinct series / open editorial slots", `${d.editorial_backlog.pack.series_diversity ?? "—"} / ${d.editorial_backlog.pack.unfilled_editorial_slots ?? "—"}`]) : ""}
+  ${d.editorial_backlog.pack ? row(["last sim: distinct series / open editorial slots / feed review", `${d.editorial_backlog.pack.series_diversity ?? "—"} / ${d.editorial_backlog.pack.unfilled_editorial_slots ?? "—"} / ${d.editorial_backlog.pack.feed_review ?? "—"}`]) : ""}
   ${d.editorial_backlog.pack?.editorial_balance ? row(["editorial balance", esc(Object.entries(d.editorial_backlog.pack.editorial_balance).map(([k, v]) => `${k} ${(v.share * 100).toFixed(0)}%(${v.status})`).join(", "))]) : ""}
-  ${d.editorial_backlog.pack ? row(["AI-spam / CTA sequence ok", String(d.editorial_backlog.pack.cta_sequence_ok)]) : ""}
   ${d.editorial_backlog.pack ? row(["fatigue warnings", d.editorial_backlog.pack.fatigue_warnings.length ? esc(d.editorial_backlog.pack.fatigue_warnings.join("; ")) : "none"]) : ""}
-  ${d.editorial_backlog.pack?.vision_review ? row(["vision review (Layer 5)", `OpenAI n/a · Anthropic adapter ${d.editorial_backlog.pack.vision_review.anthropic_review_configured ? "configured" : "NOT configured → WATCH"}`]) : ""}
+  ${d.editorial_backlog.pack?.vision_review ? row(["visual review (Layer 5)", `${esc(d.editorial_backlog.pack.vision_review.openai_vision_reviewer ?? "OpenAI gpt-4o")} · ${d.editorial_backlog.pack.vision_review.configured ? "configured" : "NOT configured → WATCH"}`]) : ""}
 </table>
-<p class="sub">${d.editorial_backlog.tables_ready ? "Backlog from persisted <code>social_story_placements</code>." : "<code>social_stories</code> table not migrated yet — health shown for an empty backlog. Enrichment from the last <code>npm run social:backlog</code> review pack."} Read-only; nothing published or scheduled.</p>`
+<p class="sub">${d.editorial_backlog.tables_ready ? "Backlog from persisted <code>social_story_placements</code>." : "<code>social_stories</code> not migrated yet — state shown for an empty backlog."} Read-only; nothing published or scheduled. BUFFER_QUEUED means the provider accepted a FUTURE-scheduled post, never that it published.</p>`
     : `<p class="muted">not read</p>`
 }
 

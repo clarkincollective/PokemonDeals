@@ -1,4 +1,4 @@
-# Social editorial newsroom (SOCIAL-NEWSROOM-1)
+# Social editorial newsroom (SOCIAL-NEWSROOM-1 / -2)
 
 A deterministic editorial layer on top of the existing `lib/social` system.
 It turns social from a reactive post generator into a planned newsroom that
@@ -6,9 +6,17 @@ can maintain a Buffer backlog days ahead **while reserving capacity for
 fresh live Deal Drops**. It introduces **no** second planner, ledger,
 Buffer client, QA engine, renderer, or source of truth.
 
-Status after this phase: **build + simulation only.** Nothing is published
-or scheduled. No Buffer call, no Supabase write, no eBay Browse call.
-Social Stage 1 autonomy remains OFF (`RIGHTS_STATE.publishing = "DISABLED"`).
+**SOCIAL-NEWSROOM-1** built the model + gates (simulation only).
+**SOCIAL-NEWSROOM-2** (this document's later sections) operationalises it:
+DB persistence, idempotent story identity, a future-scheduled Buffer
+backlog path through the existing adapter, an OpenAI visual reviewer
+(Layer 5), feed-level QA, and a queueing circuit breaker.
+
+Status: **build + persistence + gated scheduling.** Actual social
+publishing stays OFF. Every Buffer request is a FUTURE-scheduled
+draft/scheduled post (≥ now + 60 min) — never an immediate publish.
+Social Stage 1 autonomy remains OFF (`RIGHTS_STATE.publishing = "DISABLED"`),
+independent of the new `SOCIAL_BUFFER_BACKLOG_ENABLED` flag.
 
 ## Architecture
 
@@ -244,3 +252,148 @@ reader returns empty (nothing errors).
 The goal is **high-quality variety, not zero unfilled slots** — a calendar
 with many `OPEN_SLOT`s and a handful of strong `FIXED_EDITORIAL_SLOT`s is
 the intended output while the editorial data surface is still thin.
+
+---
+
+# SOCIAL-NEWSROOM-2 — persistent backlog + Buffer scheduling + Layer 5
+
+## DB persistence (SS3, SS4, SS5, SS6)
+
+`lib/social/newsroom/persist.mjs` builds the row shapes; `db.mjs` now
+carries the editorial writes — `upsertStory`, `upsertPlacements`,
+`patchPlacement`, `recordQaRun` — all idempotent (upsert on the primary
+key; a repeated backlog build never duplicates a row), scoped to the 3
+newsroom tables only (no write touches `deals`, the ledger JSON,
+`hosted-assets.json`, `newsletter_subscribers`, `catalog_snapshot`, or
+`digest_state`), and gated (no-op until the migration is applied).
+
+Stable identity (`stableStoryId` / `stableCapturedAt`): the story id is
+quantised by shelf-life class so rebuilds in the same window collapse to
+one row — EVERGREEN one canonical story per (series, subject); EDITORIAL
+per ISO week; SHORT per UTC day; LIVE per (series, subject,
+`exact_verified_at`, deal id).
+
+Frozen facts (`freezeFacts`): `facts_json` stores only an allow-listed set
+of source-supported factual fields. Generated copy (caption/hook/CTA text)
+is never persisted as source truth.
+
+## Migration (SS2, SS48) - OWNER ACTION
+
+This runtime has no DDL path (no `psql`, no `pg` client, no
+`DATABASE_URL`, no `exec_sql` RPC), so the migration cannot be applied
+from here. Owner:
+
+1. Run `supabase/social_editorial_newsroom_migration.sql` in the Supabase
+   SQL editor (idempotent - safe to re-run).
+2. Verify with `npm run social:newsroom-migrate-check` (read-only: the 3
+   tables + all expected columns + a non-destructive upsert/delete
+   round-trip that leaves no row behind).
+
+Until then every reader/writer no-ops and `social:backlog -- --build`
+reports `MIGRATION_REQUIRED`.
+
+## Backlog commands (SS23)
+
+- `social:backlog` - dry-run: 14-day sim + review pack, no writes.
+- `social:backlog -- --status` - backlog health per platform + refill need.
+- `social:backlog -- --14d` / `--week` - horizon for the sim.
+- `social:backlog -- --build` - persist calendar-placed editorial stories
+  + placements + QA runs (needs the migration).
+- `social:backlog -- --queue` - `--build` plus schedule QA-PASS placements
+  into Buffer (needs the migration AND `SOCIAL_BUFFER_BACKLOG_ENABLED=true`
+  AND a Buffer token AND a rendered+hosted artifact).
+- `social:backlog -- --reconcile` - read-only: read Buffer state back for
+  every queued placement; reports `MISSING_PROVIDER_POST` / `FAILED` /
+  `PUBLISHED` / stale risk. Never resubmits.
+
+## Buffer future-scheduling path (SS10, SS11, SS25)
+
+`lib/newsroom/bufferBacklog.mjs` (outside `lib/social` because it touches
+the provider adapter - same boundary as `lib/autonomous/socialPublish.mjs`).
+It uses the existing `getSocialProvider()` adapter - no second Buffer
+client. `scheduleOne()` rejects: LIVE/FRESH-lane stories; non-PASS
+professional QA (WATCH holds, FAIL blocks); `scheduled_for <= now + 60m`
+(`SCHEDULE_SAFETY_MINUTES`); a schedule after `latest_safe_publish_at`; a
+placement with no hosted artifact. On provider ACCEPT the placement
+becomes `BUFFER_QUEUED` with `buffer_provider_ref` + `scheduled_for` +
+raw `provider_state` - never `PUBLISHED` (that needs `getPostStatus()`
+sent-evidence).
+
+Provider mode (`SOCIAL_BUFFER_BACKLOG_MODE`): `draft` (default - a Buffer
+draft that never auto-sends) or `scheduled` (a real future auto-send).
+Both map to `BUFFER_QUEUED` locally. Per-run ceilings:
+`MAX_QUEUE_PER_RUN = 8`, `MAX_QUEUE_PER_PLATFORM_PER_RUN = 2`.
+
+## `SOCIAL_BUFFER_BACKLOG_ENABLED` (SS11)
+
+Default OFF. Independent of live autonomous publishing. Even `true`, it
+never publishes immediately, never enables Stage 1, never flips
+`RIGHTS_STATE.publishing`, and never schedules a LIVE Deal Drop.
+`SOCIAL_BUFFER_BACKLOG_KILL=true` forces the posture OFF.
+
+## Timezone (SS15)
+
+`lib/social/newsroom/timezone.mjs` - owner is `Australia/Brisbane`
+(UTC+10, no DST, fixed). Every schedule is stored `scheduled_for_utc`;
+`scheduled_for_local` + `timezone` advisory. All conversions explicit
+(`brisbaneWallToUtc` / `utcToBrisbaneLabel` / `normaliseSchedule`).
+
+## Layer-5 visual review (SS17-SS21)
+
+`lib/newsroom/visualReview.mjs` (outside `lib/social` - the preview-system
+tests forbid a GenAI call there, the same reason `scripts/socialAssets.mjs`
+owns the OpenAI image-gen call). `reviewRenderedCreative(image, context)`
+calls OpenAI Chat Completions (`gpt-4o`, `response_format: json_object`)
+with the actual final rendered PNG (a local file path or a `data:` URL - a
+remote `http(s)` URL is refused, SS19; nothing else is sent). Returns the
+SS18 rubric (`HOOK_CLARITY`, `CARD_DOMINANCE`, `FACT_HIERARCHY`,
+`TYPOGRAPHY`, `SPACING`, `SAFE_ZONE_INTEGRITY`, `CTA_CLARITY`,
+`BRAND_CONSISTENCY`, `THUMBNAIL_READABILITY`, `PREMIUM_FEEL`,
+`EDITORIAL_VALUE`, `AI_SPAM_RISK`) + verdict + blockers[] + notes[].
+Cache (SS21) keyed by `sha256` of the image bytes
+(`.social-preview/editorial-newsroom/visual-review-cache.json`).
+Fallback (SS20): no key / error / unparseable -> `verdict: "WATCH"`, never
+auto-PASS. Verified against a real rendered creative (all 12 scores,
+verdict PASS, `AI_SPAM_RISK: 40`).
+
+## Feed-level review (SS33, SS34)
+
+`lib/social/newsroom/feedReview.mjs` - deterministic checks over the next
+~12 planned posts as a sequence (same-layout / same-species /
+same-hook-grammar / price-card / commercial / red-accent /
+identical-CTA-placement / branding share) ->
+`FEED_PASS` / `FEED_WATCH` / `FEED_FAIL`. A repetitive feed of
+near-identical price cards fails even when each post passes alone.
+
+## Quality gate to reach Buffer (SS22)
+
+Scheduled only when all pass: fact QA, rights/image QA, deterministic
+creative QA, originality, sequence, caption similarity, and the
+professional visual review. `WATCH` holds; `FAIL` blocks. Without a
+rendered+hosted artifact the visual review cannot run -> the placement
+stays `WATCH` (held) - fail-closed.
+
+## Circuit breaker (SS39)
+
+`lib/social/newsroom/backlogCircuit.mjs` reuses the pure circuit
+primitives from `lib/autonomous/runState.mjs` (no new breaker) with its
+own `backlog` surface. Trips -> `BACKLOG_SUSPENDED` after 3 qualifying
+failures / 24h (provider scheduling, visual-review system failure,
+provider auth, DB integrity). Owner-resume only.
+
+## Structured events (SS41) + attribution (SS42) + stale (SS29)
+
+`events.mjs` emits `STORY_CREATED` / `PLACEMENT_PLANNED` /
+`QA_PASS|WATCH|FAIL` / `ASSET_HOSTED` / `BUFFER_QUEUE_REQUEST` /
+`BUFFER_QUEUED` / `BUFFER_RECONCILED` / `BUFFER_DRIFT` / `STORY_EXPIRED` /
+`QUEUED_CONTENT_STALE` / `BACKLOG_SUSPENDED` / `FEED_REVIEW`, every field
+scrubbed of secret-looking values. Scheduled placements use the existing
+deterministic UTM scheme (`attributedCtaUrl`) - no second attribution
+model. `queuedContentStale()` flags a `BUFFER_QUEUED` placement whose
+story `valid_until` has passed or precedes its scheduled time.
+
+## Not activated (SS37, SS45)
+
+The 2x/week refill cron (Sun/Wed) is designed, not wired. A read-only
+daily backlog-health check is safe to activate later (no mutation). Both
+wait until the migration is applied and a clean proof queue has run.
