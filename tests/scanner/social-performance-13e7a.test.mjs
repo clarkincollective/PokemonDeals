@@ -310,8 +310,9 @@ test("13E.7A-20. the ledger row reserves the measurement fields and the CLI wire
   assert.match(cli, /cta_attribution: parseAttribution\(ctaUrl\)/);
   assert.match(cli, /metrics_snapshots: \[\]/);
   assert.match(cli, /metrics_error: null/);
-  // experiment tags are reserved + inert
-  assert.match(cli, /experiment_id: null/);
+  // experiment tags are carried on the row (13E.10A wired the assignment
+  // through; the field still defaults to null when no experiment applies)
+  assert.match(cli, /experiment_id: variant\.experiment_id \?\? artifact\.experiment_id \?\? null/);
   // metrics subcommands are dispatched
   assert.match(cli, /case "metrics":/);
   assert.match(cli, /case "metrics-batch":/);

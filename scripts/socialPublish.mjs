@@ -304,11 +304,14 @@ function buildRow({ artifact, variant, platform, scheduledForIso }) {
     metrics_snapshots: [],
     metrics_error: null,
     last_metrics_sync: null,
-    // §14 content-experiment tags - design only, inert until an experiment
-    // is explicitly started (no experiments run in 13E.7A).
-    experiment_id: null,
-    experiment_variant: null,
-    experiment_hypothesis: null,
+    // 13E.10A conversion experiment - deterministic assignment carried from
+    // the planner (null when no experiment applies). Frozen into the batch
+    // at approval time and covered by the approval checksum. hook_variant /
+    // cta_variant are set above (they also feed the render/copy layer).
+    experiment_id: variant.experiment_id ?? artifact.experiment_id ?? null,
+    experiment_variant: variant.variant_id ?? variant.experiment_variant ?? artifact.variant_id ?? null,
+    variant_id: variant.variant_id ?? variant.experiment_variant ?? artifact.variant_id ?? null,
+    experiment_hypothesis: variant.experiment_hypothesis ?? artifact.experiment_hypothesis ?? null,
     history: [{ at: new Date().toISOString(), from: null, to: "DRAFT", note: "prepared from artifact" }],
   };
 }

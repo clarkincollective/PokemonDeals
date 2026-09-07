@@ -266,6 +266,21 @@ async function gather() {
     })),
   };
 
+  // ---- conversion experiments (13E.10A §21) ----
+  let experiments = { rows: [], anything_published: false };
+  try {
+    const { reportAll } = await import("../lib/social/experiments/report.mjs");
+    const { experimentDashboardRows } = await import("../lib/social/operator.mjs");
+    const attrRaw = readJson(path.join(ROOT, ".social-preview", "metrics", "attribution-import.json"), {});
+    const reports = reportAll(ledger, attrRaw && typeof attrRaw === "object" ? attrRaw : {});
+    experiments = {
+      rows: experimentDashboardRows(plan.entries ?? [], reports),
+      anything_published: ledger.some((r) => r.status === "PUBLISHED" && r.experiment_id),
+    };
+  } catch {
+    /* experiments layer optional */
+  }
+
   // ---- review-pack preview (existing artifact, if present) ----
   const reviewPack = readJson(REVIEW_PACK);
 
@@ -337,6 +352,7 @@ async function gather() {
     image_recovery: { state: recoveryState, last_line: recoverLast, imageless_active_rows: imageless },
     outreach,
     metrics,
+    experiments,
     first_live: { gates, overall: flOverall },
     blockers,
     review_pack: reviewPack ? { generated_at: reviewPack.generated_at, items: (reviewPack.items ?? []).map((it) => ({ label: it.label, platform: it.platform, media: it.media, public_media_url: it.public_media_url ?? null, youtube_title: it.youtube_title ?? null, caption: it.caption ?? null, would_send: it.would_send })) } : null,
@@ -598,6 +614,25 @@ ${
         )
         .join("")}</tbody></table>`
     : `<p>${pill("NOT_AVAILABLE_YET", "muted")} nothing has been published. Missing / unsupported metrics render as <code>—</code>, never a fake 0.</p>`
+}
+
+<h2>Conversion experiments (13E.10A)</h2>
+${
+  (d.experiments?.rows ?? []).length
+    ? `<table><thead><tr><th>experiment</th><th>dimension</th><th>planned today A/B</th><th>published A/B</th><th>state</th><th>current leader</th></tr></thead><tbody>${d.experiments.rows
+        .map((x) =>
+          row([
+            `<code>${esc(x.experiment_id)}</code>`,
+            esc(x.dimension ?? "—"),
+            `${x.planned_today.A} / ${x.planned_today.B}`,
+            `${x.published.A} / ${x.published.B}`,
+            pill(x.state, x.state === "WINNER_CANDIDATE" ? "ok" : x.state === "NOT_AVAILABLE_YET" ? "muted" : "info"),
+            esc(x.leader),
+          ])
+        )
+        .join("")}</tbody></table>
+       <p class="sub">${d.experiments.anything_published ? "" : "Nothing with an experiment_id has been published — every state is NOT_AVAILABLE_YET (no fake 0 performance). "}The evaluator never changes production creative (§14, §15).</p>`
+    : `<p>${pill("NOT_AVAILABLE_YET", "muted")} no experiment is assigned to any planned or published content yet.</p>`
 }
 
 <h2>Outreach status</h2>
