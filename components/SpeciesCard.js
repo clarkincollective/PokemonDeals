@@ -161,7 +161,7 @@ export default function SpeciesCard({ card, label, speciesName, pageName = "spec
                 eventData={{ context, card: card.name, page: pageName, marketplace: card.deal.marketplace }}
                 className="block rounded-lg bg-emerald-600 px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
               >
-                {isAuction ? "Bid on eBay →" : "View Deal on eBay →"}
+                {isAuction ? "Bid on eBay →" : "View on eBay →"}
               </AffiliateLink>
               {cardPageHref && (
                 <Link

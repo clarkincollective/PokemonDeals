@@ -69,7 +69,9 @@ test("13C.5 - a click inside the affiliate CTA does NOT also fire the lane click
 test("13C.5 - the homepage All Deals grid tags its own origin_section", () => {
   const page = read("app/page.js");
   const grid = page.slice(page.indexOf('data-analytics-filter-bar="all_deals"'));
-  assert.match(grid.slice(0, 1500), /<DealCard[^>]*pageName="home_all_deals"/);
+  // window widened in UX-CVR-2: a real empty-state block now sits between
+  // the filter bar and the grid.
+  assert.match(grid.slice(0, 3200), /<DealCard[^>]*pageName="home_all_deals"/);
   // the promo lanes keep their distinct pageNames
   assert.match(page, /pageName="home_best"/);
   assert.match(page, /pageName="home_ending"/);

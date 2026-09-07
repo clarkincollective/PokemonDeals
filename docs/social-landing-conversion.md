@@ -177,3 +177,102 @@ branch:
 - `lib/deals.js` — `fetchRelatedActiveDeals` (DB-only, `unstable_cache`).
 - `lib/affiliateSurfaces.js` — `deal_related` → `deal_page` EPN surface.
 - `tests/scanner/social-landing-conversion-uxcvr1.test.mjs` (new, 13).
+
+---
+
+# UX-CVR-2 — Homepage + Deal Browse Conversion Polish
+
+Follows UX-CVR-1. High-confidence P0/P1 only, no redesign, P0.4.1 diversity
+work untouched, no scanner/qualification change, no eBay call at render.
+
+## 9. Homepage funnel
+
+```
+HOMEPAGE  →  a curated lane card (Best Deals / Auctions / Just Added / Under $25 / All Deals)
+   │           or the "Browse today's deals ↓" primary CTA
+   ▼
+DEAL DETAIL  →  primary "View on eBay →" / "Bid on eBay →"  (UX-CVR-1 sticky + inline)
+   ▼
+EBAY OUTBOUND  (affiliate_click, origin_section = the lane's pageName)
+```
+
+## 10. Browse funnel
+
+```
+HOMEPAGE "All Deals" section  ─ FilterBar (Sort / Country / Card & listing / Price)
+   │   filtered → 0 results?  → a real EMPTY-STATE block (Clear filters + Browse all + Under $25 + Newest)
+   ▼
+DEAL CARD  →  "View on eBay →" / "Bid on eBay →"
+   ▼
+EBAY OUTBOUND
+
+/deals  →  category hub grid  →  /deals/<category>  (DealGrid: AppliedFilters chips + FilteredEmptyState)
+```
+
+## 11. Changes made
+
+| # | area | before | after |
+|---|---|---|---|
+| CTA contract (§7) | deal-card CTA | DealCard "Check deal on eBay →" · SpeciesCard / CatalogueBrowser "View Deal on eBay" · detail "View on eBay" (UX-CVR-1) — three lexical variants | **one contract everywhere**: BIN "View on eBay →", auction "Bid on eBay →". The internal Vercel-Analytics `eventName` strings keep their old values for historical continuity (they carry no arrow glyph and are not visible copy). |
+| empty state (§13) | filtered/category grid with 0 results | a bare grey sentence, no recovery links (and on a page-1 filtered homepage view the "Clear filters" link didn't even render) | a bordered card: honest heading ("these filters run against real, currently-active listings — nothing was broadened"), the relaxation pills (`FilteredEmptyState`), **and** always-present escapes — **Browse all live deals →**, **Under $25 →**, **Newest →**. The homepage All Deals empty branch also gets a **Clear filters** button. New `EmptyGridState` + `EmptyStateEscapes` in `components/DealFilterChips.js`. |
+| active-filter visibility (§8) | `AppliedFilters` / `FilterNotes` chips only on `/pokemon/[slug]` (13B.3-scoped) | shown on **every** grid via `DealGrid` — a category page now shows which filters are applied and each chip's ✕ removes exactly that filter |
+| filter/sort labels (§9, §12) | already human ("Biggest discount", "Price: low to high", "Newest", "Ending soon", "Under $25"…) | **unchanged** — HEALTHY |
+| homepage hero (§1–§3) | H1 "Pokemon Card Deals — Underpriced Cards on eBay" + "Every listing checked against real sold prices. The junk filtered out. Free." + solid "Browse today's deals ↓" primary + plain-text example searches | **unchanged** — the 5-second what/how/value is clear; the filled dark button is the single dominant CTA and the example searches are underline links, not competing buttons — HEALTHY |
+| lane order (§5) | Best Deals → Auctions → All Deals → Just Added → Under $25 → Explore | **unchanged** — the 13C.3 hierarchy is deliberate and tested; not weaker |
+| trust (§4, §17) | live-count + "checked X ago" + methodology link in the hero; slim "checked against real eBay sold listings · updated continuously · we may earn a commission…" strip near the deals; footer disclosure | **unchanged** — factual, no "best prices" / "guaranteed savings" — HEALTHY. Every deal CTA now names eBay (§17). |
+| `/deals` first screen (§8) | breadcrumb + H1 + intro + category grid + "Newest finds" strip | **unchanged** — it is a clear category hub, not a filter page — HEALTHY |
+
+## 12. P0 / P1 / P2 findings
+
+| sev | finding | status |
+|---|---|---|
+| **P1** | a filtered/category grid with 0 results was a near-dead-end (bare sentence, no forward path) | **FIXED** — recovery block on every grid + the homepage |
+| **P1** | three lexical CTA variants across DealCard / SpeciesCard / CatalogueBrowser / detail | **FIXED** — one "View on eBay" / "Bid on eBay" contract |
+| **P2** | active-filter chips were Pokemon-page-only | **FIXED** — now on every grid |
+| **P2** | homepage hero has two loud affordances (search box + "Browse today's deals" button) | **OPEN** — deliberate 13C.1 "two homepage jobs" design; not a regression, left as-is |
+| **P2** | DealCard stacks a lot (image, badge, name, set·condition, price, save line, listings·found-ago, CTA) | **OPEN** — all tiered, nothing overcrowded; no change |
+| **P3** | homepage empty-state row can wrap to 4 items on a narrow phone | **OPEN** — rare error state, acceptable |
+| **HEALTHY** | homepage "what is this" in ~5s; lane labels/order; sort labels; `/deals` hub; trust strip; no fabricated urgency | no change |
+| **HEALTHY** | P0.4.1 diversity / 3-h rotation / under-$25 lane / species soft cap | untouched (`lib/homepageVariety.js` unchanged) |
+
+## 13. Performance impact
+
+None. No new DB query, no eBay call, no client bundle growth — the
+empty-state components are server components rendered only when a grid has
+0 rows. `AppliedFilters` / `FilterNotes` were already imported by
+`DealGrid`; the change is dropping a `showGrading &&` guard. Homepage
+TTFB / HTML size / cached-read model unchanged.
+
+## 14. Analytics coverage
+
+No new taxonomy. Homepage→deal vs browse→deal is already distinguishable
+by `pageName` (`home_best` / `home_ending` / `home_fresh` / `home_under25`
+/ `home_all_deals` vs `deals_index` / `category_detail`). Filter use is
+`filter_opened` / `filter_applied` / `filter_cleared` / `sort_changed`.
+The new empty-state recovery links carry existing markers —
+`filter_cleared` (relaxation / Clear filters) and
+`browse_all_deals_clicked` (Browse all live deals). Primary affiliate
+outbound stays `affiliate_click` with `origin_section`.
+
+## 15. Impeccable pass (§19)
+
+Degraded single-context (no sub-agent spawn). Detector clean on every
+changed file except one pre-existing false positive on `DealCard.js:296`
+(`text-zinc-900 on bg-red-600` — the code also has `dark:hover:text-white`,
+so the hover state is correct). No P0/P1 design issues: the changes are
+net-positive for CTA clarity and turn a dead-end into a forward path,
+using the site's existing `rounded-xl border shadow-card` idiom. No
+redesign; nothing to fix.
+
+## 16. Files changed (UX-CVR-2)
+
+- `components/DealCard.js`, `components/SpeciesCard.js`,
+  `components/CatalogueBrowser.js` — CTA label → "View on eBay" (BIN).
+- `components/DealFilterChips.js` — new `EmptyStateEscapes` /
+  `EmptyGridState`; `FilteredEmptyState` gains the escape links.
+- `components/DealGrid.js` — `FilteredEmptyState` / `EmptyGridState` for
+  both empty branches; `AppliedFilters` / `FilterNotes` on every grid.
+- `app/page.js` — real empty-state block for the All Deals grid.
+- `tests/seo/conversion-ux.test.mjs`,
+  `tests/scanner/analytics-homepage-13c5.test.mjs` — assertion widening.
+- `tests/scanner/homepage-browse-conversion-uxcvr2.test.mjs` (new, 12).

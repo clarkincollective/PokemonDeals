@@ -24,6 +24,7 @@ import SectionHeader from "@/components/SectionHeader";
 import DealCard from "@/components/DealCard";
 import HomeBrowseLinks from "@/components/HomeBrowseLinks";
 import FilterBar from "@/components/FilterBar";
+import { EmptyStateEscapes } from "@/components/DealFilterChips";
 import Pagination, { pageHref } from "@/components/Pagination";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import CardMemoryStrip from "@/components/CardMemoryStrip";
@@ -430,9 +431,31 @@ export default async function Home({ searchParams }) {
         {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
 
         {!error && deals?.length === 0 && (
-          <p className="text-zinc-500">
-            No deals match these filters right now. Try clearing a filter, or check back after the next scheduled scan.
-          </p>
+          <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+              {anyFilter
+                ? "No live deals match these filters right now."
+                : "No deals to show right now — the next scheduled scan will refresh this."}
+            </p>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              {anyFilter
+                ? "These filters run against real, currently-active listings — nothing was broadened."
+                : "Every deal is a live listing checked against real market data."}
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium">
+              {anyFilter && (
+                <Link
+                  href="/"
+                  data-analytics-click="filter_cleared"
+                  data-analytics-props={JSON.stringify({ facet: "all", context: "empty_state" })}
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 font-semibold text-black hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                >
+                  Clear filters
+                </Link>
+              )}
+              <EmptyStateEscapes />
+            </div>
+          </div>
         )}
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

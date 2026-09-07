@@ -69,7 +69,7 @@ test("1. a qualifying deal is visually distinct from a catalogue card (emerald d
   const sc = read("components/SpeciesCard.js");
   // deal tile: emerald border + emerald "View/Bid on eBay" CTA
   assert.match(sc, /border-emerald-500/);
-  assert.match(sc, /bg-emerald-600[\s\S]{0,300}(View Deal on eBay|Bid on eBay)/);
+  assert.match(sc, /bg-emerald-600[\s\S]{0,300}(View on eBay|View Deal on eBay|Bid on eBay)/);
   // catalogue tile: neutral "Reference price · PokemonPriceTracker" + outlined "Find on eBay"
   assert.match(sc, /Reference price/);
   assert.match(sc, /PokemonPriceTracker/);
@@ -92,7 +92,7 @@ test("2. no 'save' / below-market styling on an ordinary catalogue card", () => 
 test("3. deal CTAs name eBay / the destination (no vague 'view' / 'go' / 'click here')", () => {
   for (const f of ["components/DealCard.js", "components/SpeciesCard.js", "components/SealedDealCard.js"]) {
     const src = read(f);
-    assert.match(src, /(Check deal on eBay|View Deal on eBay|Bid on eBay|Bid Now|Check on eBay)/, `${f} has no eBay-named deal CTA`);
+    assert.match(src, /(View on eBay|Check deal on eBay|View Deal on eBay|Bid on eBay|Bid Now|Check on eBay)/, `${f} has no eBay-named deal CTA`);
     assert.ok(!/>\s*(Click here|Go|View)\s*<\//i.test(src), `${f} has a vague CTA`);
   }
 });

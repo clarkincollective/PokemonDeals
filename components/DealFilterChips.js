@@ -137,12 +137,41 @@ export function FilteredEmptyState({ params, basePath, subjectLabel }) {
             key={i}
             href={hrefWithout(params, s.drop, basePath)}
             rel="nofollow"
+            data-analytics-click="filter_cleared"
+            data-analytics-props={JSON.stringify({ facet: "relax", context: "empty_state" })}
             className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
           >
             {s.label}
           </a>
         ))}
       </div>
+      <EmptyStateEscapes className="mt-3" />
+    </div>
+  );
+}
+
+// The always-available "get me out of here" links for an empty grid -
+// real routes, no fabricated matches (13B.3 §9 / UX-CVR-2 §13).
+export function EmptyStateEscapes({ className = "" }) {
+  return (
+    <div className={`flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium ${className}`}>
+      <a href="/" data-analytics-click="browse_all_deals_clicked" data-analytics-props='{"section":"empty_state"}' className="text-red-600 hover:underline dark:text-red-500">
+        Browse all live deals →
+      </a>
+      <a href="/deals/under-25" className="text-red-600 hover:underline dark:text-red-500">Under $25 →</a>
+      <a href="/?sort=newest" rel="nofollow" className="text-red-600 hover:underline dark:text-red-500">Newest →</a>
+    </div>
+  );
+}
+
+// Shown instead of the grid when a NON-filtered grid is genuinely empty
+// (a whole category with no live deals right now). Truthful - never shows
+// unrelated listings - and always offers a real route forward.
+export function EmptyGridState({ label }) {
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+      <p className="text-sm text-zinc-600 dark:text-zinc-300">{label}</p>
+      <EmptyStateEscapes className="mt-3" />
     </div>
   );
 }

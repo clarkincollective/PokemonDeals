@@ -194,7 +194,7 @@ export function Tile({ card, speciesName, placement }) {
               }}
               className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-center text-xs font-semibold text-white transition-colors hover:bg-emerald-700"
             >
-              {isAuction ? "Bid on eBay" : "View Deal on eBay"}
+              {isAuction ? "Bid on eBay" : "View on eBay"}
             </AffiliateLink>
           ) : (
             <a

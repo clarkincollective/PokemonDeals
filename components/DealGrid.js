@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
 import Pagination from "@/components/Pagination";
-import { AppliedFilters, FilterNotes, FilteredEmptyState } from "@/components/DealFilterChips";
+import { AppliedFilters, FilterNotes, FilteredEmptyState, EmptyGridState } from "@/components/DealFilterChips";
 import { hasActiveDealFilters, normalizeDealFilters } from "@/lib/dealFilters";
 
 // The filterable, paginated deal grid for /sets/[slug] and
@@ -182,8 +182,10 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
         />
       </div>
 
-      {showGrading && <FilterNotes params={params.obj} />}
-      {showGrading && filtered && (
+      {/* UX-CVR-2 §8 - active-filter visibility on every grid (was 13B.3-
+          scoped to the Pokemon page only). Plain nofollow <a> nav, no JS. */}
+      <FilterNotes params={params.obj} />
+      {filtered && (
         <AppliedFilters
           params={params.obj}
           basePath={basePath}
@@ -198,14 +200,14 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
       {loading ? (
         <GridSkeleton />
       ) : !view.error && view.deals.length === 0 ? (
-        showGrading && filtered ? (
+        filtered ? (
           <FilteredEmptyState
             params={params.obj}
             basePath={basePath}
             subjectLabel={subjectLabel ?? "matching"}
           />
         ) : (
-          <p className="text-zinc-500">{emptyLabel}</p>
+          <EmptyGridState label={emptyLabel} />
         )
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

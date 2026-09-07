@@ -32,7 +32,7 @@ function discountBadgeClass(pct) {
 //   is it a good deal -> tiered discount badge + price / typical / saved
 //   can I trust it    -> "N listings" (real active-listing hub count - NOT
 //                        distinct sellers, which eBay's data doesn't give us) + recency
-//   what if I click   -> a single full-width "Check deal on eBay ->" CTA
+//   what if I click   -> a single full-width "View on eBay ->" CTA
 //
 // `rank` shows a number badge only on ranked lists (Top 10, "Best deals").
 // `hub` is `{ count, slug }` from fetchHubCounts when this card has 2+
@@ -295,7 +295,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             }
             className="block rounded-lg bg-zinc-900 px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-red-600 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-red-600 dark:hover:text-white"
           >
-            {isAuction ? "Bid on eBay →" : "Check deal on eBay →"}
+            {isAuction ? "Bid on eBay →" : "View on eBay →"}
           </AffiliateLink>
         </div>
       </div>
