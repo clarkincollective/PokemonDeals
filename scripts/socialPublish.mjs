@@ -9,7 +9,11 @@
 //   npm run social:publish -- approve <job_id>           READY -> APPROVED (explicit human approval)
 //   npm run social:publish -- send <job_id> [--force]    HARD-FAILS unless every gate passes
 //   npm run social:publish -- sync <job_id>              poll the provider; QUEUED -> PUBLISHED only on real evidence
+//   npm run social:publish -- metrics <job_id>           READ-ONLY: pull the provider's metrics, append a snapshot
+//   npm run social:publish -- metrics-batch <batch_id>   READ-ONLY: metrics for every placement in a batch
 //   npm run social:publish -- review-pack                build the dry-run 4-platform distribution review pack
+//
+//   (see also  npm run social:metrics -- sync | report  — the same read-only measurement layer)
 //
 //   <platform> = instagram_feed | instagram_carousel | instagram_reel | tiktok | x_post | youtube_short
 //   <id>       = a content_id, a "<source>/<family>" key (e.g. video:13e4/deal_drop),
@@ -63,6 +67,8 @@ import {
   DEFAULT_SEND_ORDER,
 } from "../lib/social/distribution/batch.mjs";
 import { revalidatePlacement } from "../lib/social/distribution/revalidate.mjs";
+import { attributedCtaUrl, SITE_ORIGIN, parseAttribution, hasSocialAttribution } from "../lib/social/distribution/attribution.mjs";
+import { emptyMetrics, normalizeProviderMetrics, buildSnapshot, attachSnapshot } from "../lib/social/distribution/metrics.mjs";
 import { getStorageProvider } from "../lib/social/storage/index.mjs";
 import {
   loadHostedAssets,
@@ -211,6 +217,22 @@ function buildRow({ artifact, variant, platform, scheduledForIso }) {
   // posts carry no media and stay { null }.
   const needsMedia = media.kind !== "text_only";
   const h = needsMedia ? hostedFor(media) : null;
+  // 13E.7A - stamp deterministic first-party campaign attribution onto the
+  // on-site CTA for THIS placement's platform. Never touches the eBay
+  // affiliate URL. Falls back to the bare link if it can't be attributed.
+  const baseCta = variant.cta_url ?? `${SITE_ORIGIN}/deals`;
+  let ctaUrl;
+  try {
+    ctaUrl = attributedCtaUrl({
+      baseUrl: baseCta,
+      platform,
+      contentGoal: artifact.content_goal ?? null,
+      contentId: artifact.content_id ?? variant.content_id ?? null,
+      contentFamily: artifact.creative_family ?? null,
+    });
+  } catch {
+    ctaUrl = baseCta;
+  }
   return {
     job_id: jobId({ content_id: artifact.content_id ?? variant.content_id, platform, creative_variant: variant.creative_variant }),
     content_id: artifact.content_id ?? variant.content_id ?? null,
@@ -220,6 +242,9 @@ function buildRow({ artifact, variant, platform, scheduledForIso }) {
     placement: PLATFORM_PLACEMENT[platform],
     service: PLATFORM_SERVICE[platform],
     content_goal: artifact.content_goal ?? null,
+    // 13E.7A §2 - full identity for later performance comparison
+    hook_variant: artifact.hook_variant ?? variant.hook_variant ?? null,
+    cta_variant: artifact.cta_variant ?? variant.cta_variant ?? null,
     media: {
       kind: media.kind,
       files: media.files ?? [],
@@ -240,7 +265,8 @@ function buildRow({ artifact, variant, platform, scheduledForIso }) {
     copy_error: copy.error ?? null,
     hashtags: variant.hashtags ?? [],
     first_comment: variant.first_comment ?? null,
-    cta_url: variant.cta_url ?? null,
+    cta_url: ctaUrl,
+    cta_attribution: parseAttribution(ctaUrl),
     channel_key: channelKey,
     channel_id: channels[channelKey] ?? null,
     provider: null,
@@ -268,11 +294,21 @@ function buildRow({ artifact, variant, platform, scheduledForIso }) {
     last_error: null,
     retry_count: 0,
     dry_runs: [],
-    // 13E.6A §17-18 - post-publish verification + performance tracking
-    // (reserved; populated later from Buffer's read-only metrics API).
+    // 13E.6A §17-18 / 13E.7A §9 - post-publish verification + read-only
+    // performance tracking. `metrics` is the newest reading (every key
+    // null = "no reading", NOT zero); `metrics_snapshots` is the timestamped
+    // history; `metrics_error` holds the last failed sync (last good
+    // snapshot is retained, never overwritten with zeros).
     platform_post_url: null,
-    metrics: { views: null, likes: null, comments: null, shares: null, saves: null, clicks: null },
+    metrics: emptyMetrics(),
+    metrics_snapshots: [],
+    metrics_error: null,
     last_metrics_sync: null,
+    // §14 content-experiment tags - design only, inert until an experiment
+    // is explicitly started (no experiments run in 13E.7A).
+    experiment_id: null,
+    experiment_variant: null,
+    experiment_hypothesis: null,
     history: [{ at: new Date().toISOString(), from: null, to: "DRAFT", note: "prepared from artifact" }],
   };
 }
@@ -912,6 +948,7 @@ function cmdReview(batchId) {
     if (row.youtube_title) console.log(`     TITLE       ${row.youtube_title}`);
     console.log(`     COPY        ${String(row.caption ?? "").replace(/\n+/g, " / ").slice(0, 160)}${(row.caption ?? "").length > 160 ? "…" : ""}`);
     console.log(`     CTA         ${row.cta_url}`);
+    console.log(`     ATTRIBUTION ${hasSocialAttribution(row.cta_url) ? `utm_source=${row.cta_attribution?.utm_source} utm_campaign=${row.cta_attribution?.utm_campaign} utm_content=${row.cta_attribution?.utm_content}` : "MISSING — CTA carries no first-party UTM"}`);
     console.log(`     FRESHNESS   ${fresh ? fresh.detail : "(n/a - MARKET_DATA/brand)"}`);
     console.log(`     QA          ${row.qa?.ok ? `PASS (${row.qa.passed}/${row.qa.total})` : `FAIL [${(row.qa?.failed ?? []).join(", ")}]`}`);
     console.log(`     RIGHTS      ${JSON.stringify(row.rights)}`);
@@ -1098,6 +1135,59 @@ async function cmdSyncBatch(batchId) {
   console.log("");
 }
 
+// ==== 13E.7A: READ-ONLY METRICS (mirrors of scripts/socialMetrics.mjs) ==
+// `send`-free by construction: these only ever call PROVIDER.getPostMetrics.
+async function cmdMetrics(jobId_) {
+  banner();
+  if (!jobId_) die("usage: social:publish -- metrics <job_id>");
+  const { ledger, row } = requireJob(jobId_);
+  if (!PROVIDER.isConfigured()) die("no provider configured — cannot read metrics.");
+  if (!row.provider_ref) {
+    console.log(`  "${jobId_}" has no provider_ref (status ${row.status}). Nothing published -> metrics NOT_AVAILABLE_YET.\n`);
+    return;
+  }
+  const r = await PROVIDER.getPostMetrics(row.provider_ref);
+  if (!r?.ok) {
+    attachSnapshot(row, buildSnapshot({ platform: row.platform, error: { reason: r?.reason ?? "unknown", detail: r?.detail ?? "" } }));
+    saveLedger(ledger);
+    die(`metrics read failed: ${r?.reason ?? "?"} — last good snapshot retained, no zeros written.`);
+  }
+  const norm = normalizeProviderMetrics(r.metrics, row.platform);
+  const snap = buildSnapshot({ platform: row.platform, metrics: norm.metrics, unsupported: norm.unsupported, units: norm.units, metricsUpdatedAt: r.metricsUpdatedAt });
+  attachSnapshot(row, snap);
+  saveLedger(ledger);
+  console.log(`  ${row.job_id}  snapshot @ ${snap.captured_at}  (provider updated ${r.metricsUpdatedAt ?? "?"})`);
+  for (const k of Object.keys(norm.metrics)) {
+    const val = norm.unsupported.includes(k) ? "— (unsupported on this platform)" : norm.metrics[k] == null ? "· (no reading)" : norm.metrics[k];
+    console.log(`      ${k.padEnd(24)} ${val}`);
+  }
+  console.log("\n  READ-ONLY. Nothing was published or modified at the provider.\n");
+}
+
+async function cmdMetricsBatch(batchId) {
+  banner();
+  if (!batchId) die("usage: social:publish -- metrics-batch <batch_id>");
+  const batch = findBatch(loadBatches(), batchId);
+  if (!batch) die(`no batch "${batchId}"`);
+  if (!PROVIDER.isConfigured()) die("no provider configured — cannot read metrics.");
+  const ledger = loadLedger();
+  for (const p of batch.placements) {
+    const row = findJob(ledger, p.job_id);
+    if (!row || !row.provider_ref) { console.log(`  ${p.platform}: ${row?.status ?? "MISSING"} — no provider_ref, metrics NOT_AVAILABLE_YET`); continue; }
+    const r = await PROVIDER.getPostMetrics(row.provider_ref);
+    if (!r?.ok) {
+      attachSnapshot(row, buildSnapshot({ platform: row.platform, error: { reason: r?.reason ?? "unknown", detail: r?.detail ?? "" } }));
+      console.log(`  ${p.platform}: sync error — ${r?.reason ?? "?"} (last good snapshot retained)`);
+      continue;
+    }
+    const norm = normalizeProviderMetrics(r.metrics, row.platform);
+    attachSnapshot(row, buildSnapshot({ platform: row.platform, metrics: norm.metrics, unsupported: norm.unsupported, units: norm.units, metricsUpdatedAt: r.metricsUpdatedAt }));
+    console.log(`  ${p.platform}: snapshot @ ${new Date().toISOString()}  reported: ${norm.reported.join(", ") || "(none yet)"}`);
+  }
+  saveLedger(ledger);
+  console.log("\n  READ-ONLY. Full report:  npm run social:metrics -- report\n");
+}
+
 function cmdBatches() {
   banner();
   const batches = loadBatches();
@@ -1160,6 +1250,10 @@ async function main() {
       return cmdRetry(args[0], opts);
     case "sync-batch":
       return cmdSyncBatch(args[0]);
+    case "metrics":
+      return cmdMetrics(args[0]);
+    case "metrics-batch":
+      return cmdMetricsBatch(args[0]);
     case "batches":
       return cmdBatches();
     case "host":
@@ -1171,7 +1265,7 @@ async function main() {
     case "review-pack":
       return cmdReviewPack();
     default:
-      die(`unknown command "${cmd}". one of: list, channels, prepare, dry-run, approve, send, sync, prepare-batch, review, approve-batch, send-batch, retry, sync-batch, batches, host, verify-hosts, hosts, review-pack`);
+      die(`unknown command "${cmd}". one of: list, channels, prepare, dry-run, approve, send, sync, prepare-batch, review, approve-batch, send-batch, retry, sync-batch, metrics, metrics-batch, batches, host, verify-hosts, hosts, review-pack`);
   }
 }
 

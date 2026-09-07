@@ -1,8 +1,9 @@
-# Social Distribution — Phase 13E.5A · 13E.5B · 13E.5C
+# Social Distribution — Phase 13E.5A · 13E.5B · 13E.5C · 13E.6A · 13E.7A
 
 **Status:** infrastructure + dry-run only. **Nothing has been published or
 scheduled.** Buffer calls made: **read-only** `account` / `channels`
-queries only — **no `createPost`.** Media is uploaded to public storage
+queries + (13E.7A) read-only `post` / `aggregatedPostMetrics` metrics
+queries — **no `createPost`.** Media is uploaded to public storage
 (13E.5C) — hosting a file is not posting it. `social:publish` cannot publish — several independent gates are
 all off (see §5, §15).
 
@@ -303,7 +304,13 @@ npm run social:publish -- dry-run <job_id>             run the FULL gate stack; 
 npm run social:publish -- approve <job_id>             READY → APPROVED (explicit human approval)
 npm run social:publish -- send <job_id> [--force]      HARD-FAILS unless every gate passes
 npm run social:publish -- sync <job_id>                poll the provider; QUEUED → PUBLISHED only on real evidence
+npm run social:publish -- metrics <job_id>             READ-ONLY: pull provider metrics, append a snapshot (13E.7A)
+npm run social:publish -- metrics-batch <batch_id>     READ-ONLY: metrics for every placement in a batch (13E.7A)
 npm run social:publish -- review-pack                  build the dry-run distribution review pack
+
+npm run social:metrics  -- sync                        READ-ONLY: snapshot every PUBLISHED/QUEUED placement (13E.7A)
+npm run social:metrics  -- report                      per-placement performance dashboard (13E.7A)
+npm run social:metrics  -- baseline                    show the pre-live NOT_AVAILABLE_YET baseline
 ```
 
 `<platform>` = `instagram_feed` | `instagram_carousel` | `instagram_reel`
@@ -764,6 +771,33 @@ No external approval was invented. `RIGHTS_STATE` is unchanged.
   so `freshness_at_send` still blocks the deal placements.
 - ~~Old hard `EPN_AI_TOOLS_APPROVED` flag~~ — **13E.5D:** replaced by the
   `SOCIAL_EPN_AI_CLASSIFICATION` gate.
+
+---
+
+## 16. Performance tracking & attribution  [IMPLEMENTED 13E.7A]
+
+Read-only measurement layer — see **`docs/social-performance.md`** for the
+full contract. In brief:
+
+- **Attribution** (`lib/social/distribution/attribution.mjs`): the one
+  place that stamps first-party `utm_source` (platform) / `utm_medium=social`
+  / `utm_campaign` (content goal) / `utm_content` (`content_id`) onto the
+  on-site CTA. Deterministic, idempotent, no personal data, refuses any
+  non-`pokemondealfinder.com` host. The batch freezes the attributed URL;
+  `revalidate.mjs` byte-checks it. **eBay `campid` / `customid` unchanged.**
+- **Metrics** (`lib/social/distribution/metrics.mjs`): timestamped
+  snapshots on the ledger row. Missing metric → `null` (never `0`);
+  platform can't report it → `—` (`unsupported`); sync error → keep last
+  good snapshot. Buffer's post-metrics API is experimental — treated as
+  best-effort. `PLATFORM_METRIC_SUPPORT` matrix per platform.
+- **CLI**: `social:metrics -- sync | report | baseline`,
+  `social:publish -- metrics | metrics-batch` — all READ-ONLY (no
+  `createPost` path; `tests/scanner/social-performance-13e7a.test.mjs`
+  asserts it).
+- **First-live baseline**: every metric `NOT_AVAILABLE_YET` (nothing
+  published).
+- **EPN `customid`**: recommendation is to keep it coarse — do **not**
+  encode `content_id`. No affiliate-URL change this phase.
 
 **FUTURE (not built):**
 
