@@ -23,8 +23,9 @@ if (existsSync(".env.local")) loadDotenv({ path: ".env.local", quiet: true });
 else loadDotenv({ quiet: true });
 
 import { resolveEmailPosture, describePosture } from "../lib/autonomous/config.mjs";
-import { newRun, finishRun, appendRun, loadCircuit, isTripped, effectiveMode, loadDigestHistory, appendDigestSend } from "../lib/autonomous/runState.mjs";
-import { decideDigest, DIGEST_MIN_DEALS } from "../lib/autonomous/emailAuto.mjs";
+import { newRun, finishRun, appendRun, loadCircuit, saveCircuit, recordFailure, recordSuccess, isTripped, effectiveMode, loadDigestHistory, appendDigestSend } from "../lib/autonomous/runState.mjs";
+import { decideDigest, DIGEST_MIN_DEALS, selectDigestDeals, preSendRevalidateDigest, selectDigestAudience } from "../lib/autonomous/emailAuto.mjs";
+import { resolveLiveEmailGates, sendAutonomousDigest } from "../lib/autonomous/emailSend.mjs";
 
 const args = process.argv.slice(2);
 const wantLive = args.includes("--live");
@@ -97,20 +98,70 @@ async function main() {
   if (decision.blockers.length) for (const b of decision.blockers) line(`    blocker: ${b}`);
   if (decision.send_gates_blocking.length) for (const g of decision.send_gates_blocking) line(`    send gate (held): ${g}`);
 
+  const liveGate = resolveLiveEmailGates({ env: process.env, posture, circuit });
+
   if (decision.decision === "SKIP") {
     run.skip_reasons = decision.blockers;
     finishRun(run, "NO_CONTENT");
+  } else if (mode === "LIVE" && once && decision.decision !== "SKIP" && liveGate.ok && decision.blockers.length === 0) {
+    // AUTO-2 LIVE SEND. Re-select + re-validate against the FRESH deal set
+    // immediately before Resend; below the minimum -> CANCEL the whole
+    // digest. Then fetch the ACTIVE audience WITH email + token.
+    const freshSel = selectDigestDeals(candidates, { now: Date.now() });
+    const freshById = new Map(freshSel.deals.map((d) => [d.id ?? d.deal_id, d]));
+    const reval = preSendRevalidateDigest(freshSel.deals, freshById, {});
+    if (reval.verdict !== "SEND") {
+      run.skip_reasons.push(`pre-send revalidation: ${reval.verdict} (${reval.count} items < ${DIGEST_MIN_DEALS})`);
+      finishRun(run, "NO_CONTENT");
+      line(`\n  CANCELLED at pre-send: ${reval.count} items left after revalidation (< ${DIGEST_MIN_DEALS}). No email sent.\n`);
+    } else {
+      let audience = [];
+      try {
+        const { supabaseAdmin } = await import("../lib/supabaseAdmin.js");
+        const db = supabaseAdmin();
+        const { data } = await db
+          .from("newsletter_subscribers")
+          .select("email, token, status, confirmed, unsubscribed_at")
+          .eq("confirmed", true)
+          .is("unsubscribed_at", null);
+        audience = selectDigestAudience(data ?? []).audience;
+      } catch (e) {
+        run.provider_errors.push(`audience read failed: ${String(e.message).slice(0, 120)}`);
+      }
+      if (audience.length === 0) {
+        run.skip_reasons.push("NO_ACTIVE_SUBSCRIBERS at send time");
+        finishRun(run, "NO_CONTENT");
+        line("\n  SKIP: NO_ACTIVE_SUBSCRIBERS. No email sent.\n");
+      } else {
+        const digestId = `digest_${Date.now().toString(36)}`;
+        const out = await sendAutonomousDigest({ items: reval.items, subscribers: audience, preset: "weekly" });
+        let c2 = circuit;
+        if (!out.ok) c2 = recordFailure(c2, { reason: "resend_send", detail: out.reason ?? out.verdict });
+        else c2 = recordSuccess(c2);
+        saveCircuit("email", c2);
+        run.circuit_state = c2.state;
+        appendDigestSend({
+          digest_id: digestId,
+          fingerprint: decision.fingerprint,
+          deal_ids: reval.items.map((d) => d.id ?? d.deal_id),
+          recipient_count: audience.length,
+          provider_refs: [],
+          sent_at: out.sent_at ?? null,
+          status: out.verdict === "SENT" ? "SENT" : out.verdict === "PARTIAL" ? "PARTIAL" : out.verdict === "FAILED" ? "FAILED" : "UNCERTAIN",
+          created_at: new Date().toISOString(),
+        });
+        finishRun(run, out.ok ? "PUBLISHED" : "ERROR");
+        line(`\n  DIGEST ${out.verdict}: ${out.sent} sent / ${out.failed} failed to ${audience.length} ACTIVE subscribers.\n`);
+      }
+    }
   } else if (!decision.wouldSend) {
-    run.skip_reasons = decision.send_gates_blocking;
+    run.skip_reasons = [...decision.send_gates_blocking, ...(liveGate.ok ? [] : liveGate.blockers)];
     finishRun(run, "DRY_RUN_OK");
     line("\n  READY BUT HELD: content + audience pass, but a send gate is closed. No email sent.\n");
   } else {
-    // AUTO-1 does NOT enable production sending. Even with every gate
-    // green we STOP before Resend and record the intent only.
-    run.skip_reasons.push("AUTO-1: Resend send is intentionally NOT wired in this phase");
     appendDigestSend({ fingerprint: decision.fingerprint, deal_ids: decision.selected_deal_ids, recipient_count: decision.audience_count, status: "DRY_RUN", created_at: new Date().toISOString() });
     finishRun(run, "DRY_RUN_OK");
-    line("\n  WOULD SEND (all gates green) - but AUTO-1 does not wire the Resend send. No email sent.\n");
+    line("\n  WOULD SEND (all gates green) - dry-run mode, no Resend call.\n");
   }
 
   appendRun("email", run);

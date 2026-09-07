@@ -1,13 +1,16 @@
-# Autonomous Social + Email Orchestration — Phase AUTO-1
+# Autonomous Social + Email Orchestration — Phases AUTO-1 / AUTO-2
 
-The layer that will eventually run social posting and the email digest
-**without routine owner approval** — while staying **fail-closed** and
-never publishing weak / stale / fabricated content to satisfy cadence.
+The layer that runs social posting and the email digest **without routine
+owner approval** — while staying **fail-closed** and never publishing
+weak / stale / fabricated content to satisfy cadence.
 
-**AUTO-1 builds and dry-run-verifies this. It does NOT enable production
-autonomous sending.** All production flags are OFF; the CLIs default to
-dry-run; the cron endpoints are inert; nothing is wired to Buffer or
-Resend from the autonomous path.
+- **AUTO-1** built + dry-run-verified the decision layer.
+- **AUTO-2** wired the live provider paths (Buffer / Resend), installed
+  the Vercel crons, and staged the rollout. **Production autonomy is
+  still OFF** — every AUTO flag defaults OFF, `RIGHTS_STATE.publishing`
+  is `DISABLED` (a code-reviewed constant, not an env var), `DIGEST_SEND_
+  ENABLED` is unset, and the CLIs default to dry-run. Enabling is a
+  deliberate owner step (below).
 
 ---
 
@@ -282,35 +285,76 @@ Durable, per surface (`.social-preview/autonomous/<surface>/circuit.json`).
 
 ---
 
-## Cron architecture (prepared, NOT enabled)
+## Provider truth model (AUTO-2 wiring)
 
-Endpoints exist and verify every flag themselves — **cron presence alone
-cannot enable autonomy**. In AUTO-1 both are inert (they return
-`{ ok:true, skipped:"..." }` and never touch a provider).
+The live paths **reuse the existing adapters** — no second Buffer client,
+no second email sender:
 
-- `GET /api/social-auto` — `Authorization: Bearer ${CRON_SECRET}`. Intended
-  cadence: **hourly**. Returns a decision summary; the Buffer submit stays
-  the separate `social:publish send-batch` owner step.
-- `GET /api/crm-auto` — same auth. Intended cadence: **~1–2×/week**. "Cron
-  fires" means *evaluate whether a digest should exist*, never *send an
-  email*. Also still gated by `DIGEST_SEND_ENABLED` + `emailEnabled()`.
+| step | reuses |
+| --- | --- |
+| social submit | `lib/autonomous/socialPublish.submitAutonomousBatch` → `revalidatePlacement` (13E.6A) → `getSocialProvider().createPost` → `applyProviderAccept` / `applyProviderReject` |
+| email send | `lib/autonomous/emailSend.sendAutonomousDigest` → `renderDigest` (website-first, footer, `List-Unsubscribe` headers) → `lib/email.sendBatch` |
 
-**`vercel.json` was NOT modified in AUTO-1.** When ready, add:
+Social status transitions (unchanged): `createPost` accepted → ledger
+**QUEUED** (+ `provider_ref`). **PUBLISHED** comes only from a later
+`sync-batch` on real send evidence. Failure evidence → **FAILED** (never
+auto-retried). A row that already has a `provider_ref` is **never
+resubmitted** — retry inspects the ref first.
+
+Email: `sendBatch` `{sent,failed}` → digest history entry `SENT` /
+`PARTIAL` / `FAILED` / `UNCERTAIN`; an uncertain result is **not** blindly
+re-sent.
+
+## Cron architecture (INSTALLED in `vercel.json`, inert until flags set)
+
+Endpoints verify every flag themselves — **cron presence alone cannot
+enable autonomy** (`resolveLiveSocialGates` / `resolveLiveEmailGates`
+re-check the AUTO flags, the 4 existing publish controls / `DIGEST_SEND_
+ENABLED` + `emailEnabled()`, and the circuit). While flags are OFF they
+return `{ ok:true, skipped:"autonomous_disabled" }` and touch no provider.
 
 ```json
-{ "path": "/api/social-auto", "schedule": "0 * * * *" },
-{ "path": "/api/crm-auto",    "schedule": "0 16 * * 2" }
+{ "path": "/api/social-auto", "schedule": "0 * * * *" },   // hourly
+{ "path": "/api/crm-auto",    "schedule": "0 16 * * 2" },   // Tue 16:00 UTC
+{ "path": "/api/crm-auto",    "schedule": "0 16 * * 5" }    // Fri 16:00 UTC
 ```
 
-Even after adding these, autonomy stays OFF until the env flags are set —
-the endpoints re-check.
+- `GET /api/social-auto` — hourly EVALUATE. When LIVE + gates pass, it
+  submits **the single oldest autonomous-approved, untampered batch**
+  (one per invocation — the STAGE cap is enforced upstream at
+  batch-build). It does **not** render / QA / host — that is a CLI /
+  worker job (`npm run social:auto -- --once` on a machine that can
+  commit ledger state; see the state-persistence note).
+- `GET /api/crm-auto` — twice-weekly EVALUATE. "Cron fires" means
+  *evaluate whether a digest should exist*, never *must send*. It runs
+  the full decision → pre-send revalidation → audience → `sendBatch`.
+  A **Supabase-persisted** `catalog_snapshot / digest_state` row (shared
+  with `/api/send-digest`) enforces the ~6-day floor even across Vercel's
+  ephemeral filesystem.
+
+### State-persistence note
+
+Autonomous **run state / circuit / social ledger / batches** are local
+JSON files (`.social-preview/autonomous/*`, `lib/social/distribution/
+{ledger,batches}.json`). On Vercel these are ephemeral. Therefore:
+
+- **Social:** the authoritative autonomous cycle (render → host →
+  autonomous-approve → submit → persist) runs from a machine that can
+  **commit** the ledger — the owner's box or a worker running
+  `npm run social:auto -- --once`. `/api/social-auto` is a lightweight
+  trigger that submits already-prepared batches; treat its ledger writes
+  as advisory until committed.
+- **Email:** cadence is safe on Vercel because the weekly floor and
+  last-digest state live in Supabase (`digest_state`). The local
+  `digests.json` is a secondary log.
 
 ### Metrics autonomy (13E.7A, read-only)
 
-Buffer post metrics are synced on a **separate** read-only workflow, not
-from the publish path. Suggested snapshot ages: 1 h / 24 h / 72 h / 7 d /
-28 d. `npm run social:metrics -- sync` already does the read; a metrics
-cron (`0 */6 * * *`) would call it. Read-only — never a mutation.
+`npm run social:metrics -- sync` polls Buffer's read methods for every
+`PUBLISHED`/`QUEUED` placement and appends a snapshot to the ledger. It
+writes `ledger.json`, so it is a **local operator CLI** (or a worker
+cron), not a Vercel cron. Suggested cadence: every 6 h. Read-only — never
+a mutation. Snapshot ages: 1 h / 24 h / 72 h / 7 d / 28 d.
 
 ---
 
@@ -343,24 +387,53 @@ and `.social-preview/autonomous/email/digests.json` (all gitignored).
 
 ---
 
-## How to enable (later — NOT in AUTO-1)
+## How to enable — Stage 1 rollout (owner step; NOT done by AUTO-2)
 
-1. Prove several clean dry-runs (`social:auto --dry-run`, `crm:auto --dry-run`)
-   over days with real live data.
-2. **Social:** set in Vercel `SOCIAL_AUTONOMOUS_ENABLED=true`,
-   `SOCIAL_AUTONOMOUS_STAGE=STAGE_1`, `SOCIAL_AUTONOMOUS_KILL=false` — and
-   the underlying 6 live-publish flags (`RIGHTS_STATE.publishing=ALLOWED`,
+**First deploy verification (before any flag):** confirm the endpoints
+are deployed, `curl` them with no auth → 401, with `Bearer $CRON_SECRET`
+→ `{ ok:true, skipped:"autonomous_disabled" }`; run `social:auto
+--dry-run` + `crm:auto --dry-run` against production and confirm both are
+`OFF` / no provider call; the dashboard shows both surfaces `OFF`; Buffer
++ Resend auth are healthy (`social:publish -- channels`, a Resend
+domains/whoami check).
+
+**Enable SOCIAL Stage 1 only** (do NOT enable email in the same step):
+
+1. In `lib/social/rights.mjs` set `RIGHTS_STATE.publishing = "ALLOWED"`
+   (a code-reviewed change — only if every compliance / rights /
+   freshness gate genuinely passes) and deploy.
+2. In Vercel set: `SOCIAL_AUTONOMOUS_ENABLED=true`,
+   `SOCIAL_AUTONOMOUS_STAGE=STAGE_1`, `SOCIAL_AUTONOMOUS_KILL=false`,
    `SOCIAL_PUBLISH_ENABLED=true`, `SOCIAL_PUBLISH_DRY_RUN=false`,
-   `SOCIAL_EPN_AI_CLASSIFICATION=NOT_APPLICABLE_CURRENT_PIPELINE`, provider
-   auth, channels). Add the `/api/social-auto` cron. Watch STAGE_1 for a
-   week before STAGE_2.
-3. **Email:** set `EMAIL_AUTONOMOUS_ENABLED=true`,
-   `EMAIL_AUTONOMOUS_STAGE=EMAIL_STAGE_1`, `EMAIL_AUTONOMOUS_KILL=false`,
-   plus `DIGEST_SEND_ENABLED=true`, `RESEND_API_KEY`, `ALERT_FROM_EMAIL`.
-   Add the `/api/crm-auto` cron.
-4. AUTO-1 wires the *decision* layer only; the actual Buffer submit
-   (`social:publish send-batch`) and Resend send are the follow-up step to
-   connect once STAGE_1 dry-runs are trusted.
+   `SOCIAL_EPN_AI_CLASSIFICATION=NOT_APPLICABLE_CURRENT_PIPELINE`
+   (already set), `BUFFER_ACCESS_TOKEN` (already set).
+3. Run **one** production cycle: `npm run social:auto -- --once` from a
+   machine that can commit `lib/social/distribution/ledger.json`. Accept
+   outcome **A = NO_CONTENT** (no fresh live S/A candidate) or **B = one
+   S/A Deal Drop submitted**. If B, verify content_id / live source /
+   experiment variant / platforms / hosted assets / Buffer `provider_ref`s
+   / ledger `QUEUED` / no duplicate / caption facts / CTA / UTMs /
+   disclosure, then `npm run social:publish -- sync-batch <id>`.
+4. Keep `EMAIL_AUTONOMOUS_ENABLED=false` and `DIGEST_SEND_ENABLED` unset
+   during the social proof. **Max one social `content_id` published** —
+   no bulk / backfill / catch-up.
+
+**Then EMAIL Stage 1** (only after social Stage 1 is healthy AND):
+ACTIVE subscribers > 0, ≥ 3 qualifying digest deals, Resend healthy,
+unsubscribe contract intact. Set `EMAIL_AUTONOMOUS_ENABLED=true`,
+`EMAIL_AUTONOMOUS_STAGE=EMAIL_STAGE_1`, `EMAIL_AUTONOMOUS_KILL=false`,
+`DIGEST_SEND_ENABLED=true`. The `/api/crm-auto` crons then evaluate twice
+weekly and send at most 1/week; if audience is empty or < 3 deals it
+**skips** (`NO_ACTIVE_SUBSCRIBERS` / `no_digest`).
+
+## Stage 2 promotion criteria (owner decision, not automatic)
+
+Move `SOCIAL_AUTONOMOUS_STAGE` `STAGE_1 → STAGE_2` (1→2 content/day) only
+after **≥ 1–2 weeks** of Stage 1 with: 0 circuit trips, no fact-drift
+CANCELs that reached a viewer, published captions/facts spot-checked
+correct, metrics syncing, and no duplicate posts. `EMAIL_STAGE_1 →
+EMAIL_STAGE_2` (1→2/week) similarly — only with a growing ACTIVE list and
+sustained ≥ 3-deal weeks. Never escalate both surfaces in the same week.
 
 ## How to disable
 
@@ -370,12 +443,24 @@ and `.social-preview/autonomous/email/digests.json` (all gitignored).
 
 ## Emergency kill procedure
 
-1. Set `SOCIAL_AUTONOMOUS_KILL=true` and/or `EMAIL_AUTONOMOUS_KILL=true`
-   in Vercel (redeploy or env-only change — takes effect on the next
-   invocation). Mode becomes `SUSPENDED`; no mutation is possible.
-2. If a provider is misbehaving, the circuit will also `AUTO_SUSPEND`
-   after 3 failures on its own.
-3. To fully stop the digest regardless of autonomy: unset
-   `DIGEST_SEND_ENABLED` (CRM-1B kill switch).
-4. Resume: clear the kill flag **and** `resumeCircuit` (an explicit owner
-   action) if the circuit had tripped.
+**Fastest full stop (no redeploy):** in Vercel, **remove** the enabling
+env var(s) — delete `SOCIAL_AUTONOMOUS_ENABLED` and/or
+`EMAIL_AUTONOMOUS_ENABLED` (and/or `DIGEST_SEND_ENABLED` /
+`SOCIAL_PUBLISH_ENABLED`). Vercel applies env changes to the **next cron
+invocation without a redeploy** for scheduled functions; the endpoints
+read `process.env` fresh each call and go to `OFF`. Also flip
+`SOCIAL_AUTONOMOUS_KILL=true` / `EMAIL_AUTONOMOUS_KILL=true` so mode is
+`SUSPENDED` even if `ENABLED` is later re-added by mistake.
+
+1. Delete / set-false the enabling flags + set the KILL flags in Vercel.
+   The next hourly / twice-weekly cron sees `OFF` / `SUSPENDED` and
+   touches no provider. The CLIs (`social:auto`, `crm:auto`) pick up
+   `.env.local` changes instantly.
+2. A misbehaving provider trips the circuit on its own after 3 failures
+   / 24 h → `AUTO_SUSPENDED`, no mutation, **owner `resumeCircuit`
+   required** (no timer clear).
+3. To stop only the digest, regardless of autonomy: unset
+   `DIGEST_SEND_ENABLED` (CRM-1B kill switch — also read by
+   `/api/send-digest`).
+4. Resume: re-add the enabling flags, set the KILL flags back to `false`,
+   and run `resumeCircuit` if the circuit had tripped.

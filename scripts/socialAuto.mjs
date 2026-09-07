@@ -24,9 +24,21 @@ else loadDotenv({ quiet: true });
 import { resolveSocialPosture, describePosture } from "../lib/autonomous/config.mjs";
 import { newRun, finishRun, appendRun, lastRun, loadCircuit, isTripped, effectiveMode } from "../lib/autonomous/runState.mjs";
 import { selectAutonomousCandidate, stageCapCheck, cadenceCheck, firstLiveDealSafe, preSendRevalidate } from "../lib/autonomous/socialAuto.mjs";
+import { resolveLiveSocialGates, submitAutonomousBatch } from "../lib/autonomous/socialPublish.mjs";
+import { saveCircuit, recordFailure } from "../lib/autonomous/runState.mjs";
 import { loadSourceSnapshot } from "./socialSource.mjs";
-import { loadLedger } from "../lib/social/distribution/ledger.mjs";
-import { loadBatches } from "../lib/social/distribution/batch.mjs";
+import { loadLedger, saveLedger } from "../lib/social/distribution/ledger.mjs";
+import { loadBatches, saveBatches, findBatch } from "../lib/social/distribution/batch.mjs";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
+function loadChannels() {
+  try {
+    return JSON.parse(readFileSync(path.join(process.cwd(), "lib", "social", "distribution", "channels.json"), "utf8"));
+  } catch {
+    return [];
+  }
+}
 import { loadPostHistory, buildCooldownKeys, COOLDOWN_WINDOW_HOURS } from "../lib/social/cooldown.mjs";
 import { SOCIAL_FRESHNESS_MAX_AGE_HOURS } from "../lib/social/eligibility.mjs";
 
@@ -120,18 +132,44 @@ async function main() {
   const allGreen = dealSafe.ok && stage.ok && reval.ok;
   run.planned_placements.push({ content_id: pick.candidate.content_id, platforms: "planner decides (IG/TikTok/X/YouTube subset)", note: "not resolved in AUTO-1 dry-run" });
 
-  if (mode === "LIVE" && once && allGreen && posture.canMutateProviders && !isTripped(circuit)) {
-    // AUTO-1 does NOT enable production sending. Even here, we STOP before
-    // any provider mutation and record the intent - the actual submit is
-    // wired to scripts/socialPublish send-batch, which is a separate
-    // owner-run, 6-flag-gated step. This branch is unreachable in AUTO-1
-    // because the posture flags are OFF by default.
-    run.skip_reasons.push("AUTO-1: provider submission is intentionally NOT wired in this phase - would hand off to social:publish send-batch");
-    finishRun(run, "DRY_RUN_OK");
-    line("\n  WOULD SUBMIT (all gates green) - but AUTO-1 does not wire the provider mutation. No Buffer call made.\n");
+  // ---- 11-13. LIVE submission (AUTO-2 - wired, but multi-gated) ----
+  // The provider submit runs ONLY when: mode LIVE + all content gates
+  // green + resolveLiveSocialGates().ok (which re-checks the AUTO flags,
+  // the 4 existing publish controls, provider auth, and the circuit) +
+  // an already autonomous-approved batch exists for this content_id.
+  const liveGate = resolveLiveSocialGates({ env: process.env, posture, circuit });
+  if (mode === "LIVE" && once && allGreen && liveGate.ok) {
+    const batches = loadBatches();
+    const batch = batches.find((b) => b.content_id === pick.candidate.content_id && (b.status === "APPROVED" || b.status === "PARTIAL_SUCCESS") && b.owner_approved_by === "SYSTEM_AUTONOMOUS");
+    if (!batch) {
+      run.skip_reasons.push("no autonomous-approved batch for this content_id yet - render + host + autonomous-approve it first (social:publish prepare-batch, then a --once render cycle)");
+      finishRun(run, "NO_CONTENT");
+      line("\n  HELD: gates green but no autonomous-approved batch exists to submit. No Buffer call.\n");
+    } else {
+      const ledgerRows = loadLedger();
+      const out = await submitAutonomousBatch({ batch, ledger: ledgerRows, channels: loadChannels(), env: process.env });
+      saveLedger(ledgerRows);
+      saveBatches(batches);
+      run.submitted = out.results.filter((r) => r.outcome === "QUEUED").map((r) => r.platform);
+      run.queued = run.submitted;
+      run.failed = out.results.filter((r) => r.outcome === "FAILED" || r.outcome === "BLOCKED").map((r) => r.platform);
+      run.provider_errors = out.providerErrors ?? [];
+      for (const r of out.results) if (r.providerRef) run.planned_placements.push({ platform: r.platform, provider_ref: r.providerRef, outcome: r.outcome });
+      // circuit: record failures / trim on a clean pass
+      let c2 = circuit;
+      for (const e of out.providerErrors ?? []) c2 = recordFailure(c2, { reason: "buffer_submit_failed", detail: e });
+      if ((out.providerErrors ?? []).length === 0) c2 = recordSuccess(c2);
+      saveCircuit("social", c2);
+      run.circuit_state = c2.state;
+      finishRun(run, out.verdict === "PARTIAL_SUCCESS" ? "PARTIAL_SUCCESS" : out.verdict === "ALL_QUEUED" ? "PUBLISHED" : "ERROR");
+      line(`\n  SUBMITTED: ${out.verdict}`);
+      for (const r of out.results) line(`    ${r.platform}: ${r.outcome}${r.providerRef ? ` ref ${r.providerRef}` : ""}${r.reason ? ` (${r.reason})` : ""}`);
+      line("  QUEUED != PUBLISHED - confirm with: npm run social:publish -- sync-batch " + batch.batch_id + "\n");
+    }
   } else {
+    if (mode === "LIVE" && once && allGreen && !liveGate.ok) run.skip_reasons.push(...liveGate.blockers);
     finishRun(run, allGreen ? "DRY_RUN_OK" : "NO_CONTENT");
-    line(`\n  ${allGreen ? "DRY RUN: all gates green - this content WOULD be submitted in a LIVE run." : "HELD: one or more gates blocked - nothing would be submitted."}\n`);
+    line(`\n  ${allGreen && liveGate.ok ? "READY: would submit (no batch yet)." : allGreen ? "DRY RUN: content gates green; live gates blocked -> " + liveGate.blockers.join("; ") : "HELD: one or more content gates blocked."}\n`);
   }
   appendRun("social", run);
   return report(run, posture, circuit, mode);

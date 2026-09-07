@@ -355,42 +355,58 @@ test("AUTO1-24 decideDigest wouldSend is false unless every gate is open", () =>
 
 // ============================ CLI + endpoint wiring ============================
 
-test("AUTO1-25 social:auto CLI defaults to dry-run and never imports the Buffer client", () => {
+test("AUTO1-25 social:auto CLI defaults to dry-run; the live submit is gated", () => {
   const src = read("scripts/socialAuto.mjs");
-  assert.doesNotMatch(strip(src), /providers\/buffer|createPost|submitLead|send-batch.*--confirm/);
   assert.match(src, /DEFAULT IS DRY RUN/);
   assert.match(src, /loadSourceSnapshot/);
-  // no fixture fallback for the production dry-run verdict
-  assert.match(src, /does NOT fall back to a fixture|never posts from a fixture/i);
+  assert.match(src, /never posts from a fixture/i); // no fixture fallback for the production verdict
+  // submitAutonomousBatch is called exactly once, inside the LIVE+gate guard
+  assert.equal((strip(src).match(/submitAutonomousBatch\(/g) || []).length, 1);
+  assert.match(src, /const liveGate = resolveLiveSocialGates\(/);
+  assert.match(src, /if \(mode === "LIVE" && once && allGreen && liveGate\.ok\)/);
 });
 
-test("AUTO1-26 crm:auto CLI defaults to dry-run and never imports lib/email in dry-run path", () => {
+test("AUTO1-26 crm:auto CLI defaults to dry-run; the live send is gated", () => {
   const src = read("scripts/crmAuto.mjs");
-  assert.doesNotMatch(strip(src), /from "\.\.\/lib\/email|sendBatch|sendEmail\(/);
   assert.match(src, /DEFAULT IS DRY RUN/);
-  assert.match(src, /never imports lib\/email and\s*\n?\/\/ never calls Resend/);
+  assert.match(src, /never imports lib\/email/);
+  assert.equal((strip(src).match(/sendAutonomousDigest\(/g) || []).length, 1);
+  assert.match(src, /const liveGate = resolveLiveEmailGates\(/);
+  assert.match(src, /} else if \(mode === "LIVE" && once && decision\.decision !== "SKIP" && liveGate\.ok/);
+  // the "READY BUT HELD" / dry-run branch never calls the sender
+  const dryBranch = src.slice(src.indexOf("} else if (!decision.wouldSend"));
+  assert.doesNotMatch(dryBranch, /sendAutonomousDigest\(/);
 });
 
-test("AUTO1-27 cron endpoints verify CRON_SECRET and every flag; no mutation in AUTO-1", () => {
+test("AUTO1-27 cron endpoints verify CRON_SECRET, resolve posture + circuit, and bail on anything but LIVE", () => {
   for (const f of ["app/api/social-auto/route.js", "app/api/crm-auto/route.js"]) {
     const src = read(f);
     assert.match(src, /authorization"\) !== `Bearer \$\{process\.env\.CRON_SECRET\}`/);
     assert.match(src, /resolve(Social|Email)Posture/);
     assert.match(src, /effectiveMode/);
     assert.match(src, /if \(mode !== "LIVE"\)/);
-    assert.match(src, /auto1_no_(provider_mutation|resend_send)/);
-    // no provider client imported
-    assert.doesNotMatch(strip(src), /providers\/buffer|lib\/email|sendBatch|createPost/);
+    assert.match(src, /resolveLive(Social|Email)Gates/);
+    assert.match(src, /skipped: "live_gates_blocked"/);
   }
-  // crm-auto also still honours the CRM-1B kill switch + emailEnabled
   const crm = read("app/api/crm-auto/route.js");
-  assert.match(crm, /DIGEST_SEND_ENABLED/);
-  assert.match(crm, /RESEND_API_KEY && process\.env\.ALERT_FROM_EMAIL/);
+  assert.match(crm, /DIGEST_SEND_ENABLED/); // still honours CRM-1B kill switch (via resolveLiveEmailGates)
+  assert.match(crm, /kind", "digest_state"/); // Supabase-persisted weekly guard
+  // the emailEnabled() (RESEND_API_KEY + ALERT_FROM_EMAIL) check lives in the shared gate
+  assert.match(read("lib/autonomous/emailSend.mjs"), /RESEND_API_KEY && env\.ALERT_FROM_EMAIL/);
 });
 
-test("AUTO1-28 no cron entry was added to vercel.json for the autonomous endpoints (prepare, do not enable)", () => {
-  const vj = read("vercel.json");
-  assert.doesNotMatch(vj, /social-auto|crm-auto/);
+test("AUTO1-28 the autonomous cron entries exist in vercel.json (AUTO-2) and the endpoints still re-verify every flag", () => {
+  const vj = JSON.parse(read("vercel.json"));
+  const paths = vj.crons.map((c) => c.path);
+  assert.ok(paths.includes("/api/social-auto"), "social-auto cron missing");
+  assert.ok(paths.includes("/api/crm-auto"), "crm-auto cron missing");
+  // cron presence alone cannot enable autonomy - both endpoints resolve
+  // the posture + circuit and bail on anything but LIVE.
+  for (const f of ["app/api/social-auto/route.js", "app/api/crm-auto/route.js"]) {
+    const src = read(f);
+    assert.match(src, /if \(mode !== "LIVE"\)/);
+    assert.match(src, /resolveLive(Social|Email)Gates/);
+  }
 });
 
 test("AUTO1-29 the existing distribution safety gates are untouched by AUTO-1", () => {

@@ -460,11 +460,21 @@ test("17. .social-preview/ is gitignored", () => {
 
 // === 18. homepage/scanner runtime never imports the social system ============
 
-test("18. nothing under app/ or components/ imports lib/social or scripts/socialPreview", () => {
+test("18. nothing under app/ or components/ imports the social PREVIEW/RENDER system (headless-Chrome / ffmpeg / next-cache chain)", () => {
   const appFiles = [...walk("app"), ...walk("components")].filter((f) => /\.jsx?$/.test(f));
+  // AUTO-2 wires the pure, network-free DISTRIBUTION layer
+  // (lib/social/distribution/*, lib/social/providers/*, rights,
+  // eligibility) into the two protected /api/{social,crm}-auto cron
+  // endpoints. Those modules carry no Chrome / ffmpeg / next-cache import.
+  // The ban that matters is the render/preview surface.
+  const BANNED = /socialPreview|lib\/social\/(templates|render|videoRender|videoDocument|videoTimeline|assets|assetPrompts|brandAd|cardArtwork|caption|gallery|payload|candidates|marketSnapshot|dailyMix|reviewSummary|fontData)\b|lib\/social\/fonts/;
+  const ALLOWED = /lib\/social\/(distribution|providers|planner|rights|eligibility|operator|cooldown|experiments|creativeSpec|creativeQa|backgroundQuality)\b/;
   for (const f of appFiles) {
     const src = read(f);
-    assert.ok(!/lib\/social|socialPreview/.test(src), `${f} must not import the social preview system`);
+    // strip the allowed imports first, then check nothing banned remains
+    const stripped = src.replace(new RegExp(ALLOWED, "g"), "");
+    assert.ok(!BANNED.test(stripped), `${f} must not import the social preview / render system`);
+    // and still: no direct lib/deals import from lib/social (18b guards that separately)
   }
 });
 

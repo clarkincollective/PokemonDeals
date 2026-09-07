@@ -295,7 +295,9 @@ async function gather() {
         last_run_at: sLast?.started_at ?? null, last_outcome: sLast?.outcome ?? null,
         last_skip_reason: sLast?.skip_reasons?.[0] ?? null,
         failures_24h: (sc.failures ?? []).length,
+        last_submission: (sLast?.submitted?.length ? sLast.finished_at : null),
         last_publish: (ledger.filter((r) => r.status === "PUBLISHED").sort((a, b) => Date.parse(b.published_at ?? 0) - Date.parse(a.published_at ?? 0))[0]?.published_at) ?? null,
+        next_window: "hourly (evaluate)",
       },
       email: {
         mode: effectiveMode(ep.mode, ec), stage: ep.stageId, circuit: ec.state,
@@ -304,6 +306,11 @@ async function gather() {
         failures_24h: (ec.failures ?? []).length,
         last_digest_at: dLast?.sent_at ?? dLast?.created_at ?? null,
         last_digest_status: dLast?.status ?? null,
+        next_eligible_window: (() => {
+          const lastSent = dLast?.status === "SENT" && dLast?.sent_at ? Date.parse(dLast.sent_at) : null;
+          const floorDays = ep.maxDigestsPerWeek >= 2 ? 3 : 6;
+          return lastSent ? new Date(lastSent + floorDays * 864e5).toISOString() : "twice weekly (Tue/Fri 16:00 UTC)";
+        })(),
         active_subscribers: subscribers?.active ?? null,
         digest_send_enabled: String(process.env.DIGEST_SEND_ENABLED ?? "").trim().toLowerCase() === "true",
       },
@@ -736,11 +743,13 @@ ${
     ? `<table>
   ${row(["SOCIAL autonomous", `${pill(d.autonomous.social.mode, d.autonomous.social.mode === "LIVE" ? "ok" : d.autonomous.social.mode === "SUSPENDED" ? "bad" : "info")} · stage ${esc(d.autonomous.social.stage)} · circuit ${esc(d.autonomous.social.circuit)}`])}
   ${row(["social — last auto run / outcome", `${esc(d.autonomous.social.last_run_at ?? "—")} · ${esc(d.autonomous.social.last_outcome ?? "—")}`])}
-  ${row(["social — last publish / last skip", `${esc(d.autonomous.social.last_publish ?? "—")} · ${esc(d.autonomous.social.last_skip_reason ?? "—")}`])}
+  ${row(["social — last submission / last publish", `${esc(d.autonomous.social.last_submission ?? "—")} · ${esc(d.autonomous.social.last_publish ?? "—")}`])}
+  ${row(["social — next window / last skip", `${esc(d.autonomous.social.next_window ?? "—")} · ${esc(d.autonomous.social.last_skip_reason ?? "—")}`])}
   ${row(["social — mutation failures 24h", String(d.autonomous.social.failures_24h)])}
   ${row(["EMAIL autonomous", `${pill(d.autonomous.email.mode, d.autonomous.email.mode === "LIVE" ? "ok" : d.autonomous.email.mode === "SUSPENDED" ? "bad" : "info")} · stage ${esc(d.autonomous.email.stage)} · circuit ${esc(d.autonomous.email.circuit)}`])}
   ${row(["email — last evaluation / outcome", `${esc(d.autonomous.email.last_eval_at ?? "—")} · ${esc(d.autonomous.email.last_outcome ?? "—")}`])}
   ${row(["email — last digest / status", `${esc(d.autonomous.email.last_digest_at ?? "—")} · ${esc(d.autonomous.email.last_digest_status ?? "—")}`])}
+  ${row(["email — next eligible window", esc(d.autonomous.email.next_eligible_window ?? "—")])}
   ${row(["email — last skip reason", esc(d.autonomous.email.last_skip_reason ?? "—")])}
   ${row(["email — ACTIVE subscribers · DIGEST_SEND_ENABLED", `${d.autonomous.email.active_subscribers ?? "—"} · ${d.autonomous.email.digest_send_enabled}`])}
   ${row(["email — mutation failures 24h", String(d.autonomous.email.failures_24h)])}

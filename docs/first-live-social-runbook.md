@@ -110,3 +110,31 @@ The ledger row reserves (unused today): `platform_post_url`,
 `published_at`, `views`, `likes`, `comments`, `shares`, `saves`,
 `clicks`, `last_metrics_sync`. Populated later from Buffer's read-only
 metrics API (`aggregatedPostMetrics` / `post.metrics`) — no scraping.
+
+---
+
+## Autonomous mode (AUTO-1 / AUTO-2)
+
+Once the manual first-live flow above has proven healthy, the same six
+`§8` live-flag checklist applies to **autonomous** publishing — autonomy
+only removes the routine *human approval*, not any factual/compliance
+gate.
+
+- **Additional flags:** `SOCIAL_AUTONOMOUS_ENABLED=true`,
+  `SOCIAL_AUTONOMOUS_STAGE=STAGE_1` (max 1 `content_id`/day),
+  `SOCIAL_AUTONOMOUS_KILL=false`. All default OFF.
+- **Wiring:** `npm run social:auto -- --once` (or the hourly
+  `/api/social-auto` cron) selects an S/A-tier live Deal Drop, assigns
+  E1 deterministically, renders/QA/hosts, builds a batch, **autonomously
+  approves it** (`owner_approved_by = SYSTEM_AUTONOMOUS`, own
+  `approval_policy_version`, same frozen checksum), then submits it via
+  the **existing** `revalidatePlacement` → `createPost` →
+  `applyProviderAccept` path. `QUEUED != PUBLISHED`; confirm with
+  `sync-batch`.
+- **Fail-closed:** no live source snapshot / fixture / stale → NO POST.
+  Drift at pre-send → SKIP (fresh render later). 3 provider failures /
+  24 h → circuit `AUTO_SUSPENDED` (owner `resumeCircuit` only).
+- **Kill:** remove `SOCIAL_AUTONOMOUS_ENABLED` (+ set
+  `SOCIAL_AUTONOMOUS_KILL=true`) in Vercel — effective on the next cron
+  invocation, no redeploy. See `docs/autonomous-social-email.md` for the
+  full procedure, the email side, rollout stages, and Stage 2 criteria.
