@@ -101,12 +101,14 @@ test("1e. verify-deals: the Just-Added-candidate priority rank is distinct from 
   // staleness by definition, so if it shared a rank with highValue (whose
   // rows accumulate staleness over days) the staleness-descending
   // tie-break always picked highValue first, starving Just Added.
-  const src = readFileSync(join(HERE, "..", "..", "app", "api", "verify-deals", "route.js"), "utf8");
-  const rankFn = src.slice(src.indexOf("const rank = (r)"), src.indexOf("pool.sort("));
-  const justAddedRank = Number(rankFn.match(/if \(justAddedCandidate\(r\)\) return (\d+);/)?.[1]);
-  const highValueRank = Number(rankFn.match(/if \(highValue\(r\)\) return (\d+);/)?.[1]);
+  // P0.4.3: the rank moved verbatim (in intent) into
+  // lib/verifyAllocator.generalRank, used for the allocator's "general" slots.
+  const src = readFileSync(join(HERE, "..", "..", "lib", "verifyAllocator.mjs"), "utf8");
+  const rankFn = src.slice(src.indexOf("function generalRank"), src.indexOf("function generalTieBreak"));
+  const justAddedRank = Number(rankFn.match(/if \(justAdded\) return (\d+);/)?.[1]);
+  const highValueRank = Number(rankFn.match(/if \(highValue\) return (\d+);/)?.[1]);
   assert.ok(Number.isFinite(justAddedRank) && Number.isFinite(highValueRank));
-  assert.notEqual(justAddedRank, highValueRank, "justAddedCandidate must not share a rank tier with highValue");
+  assert.notEqual(justAddedRank, highValueRank, "justAdded must not share a rank tier with highValue");
 });
 
 test("1f. verify-deals: within the Just-Added tier, the tie-break favors the NEWEST discovery, not the oldest", () => {
@@ -116,9 +118,11 @@ test("1f. verify-deals: within the Just-Added tier, the tie-break favors the NEW
   // its own freshness TTL) - the opposite of what that query needs
   // verified first. Confirmed live: 299/470 rows in the 48h window were
   // verified, but 0 of the newest 72 fetchFreshFinds actually reads.
-  const src = readFileSync(join(HERE, "..", "..", "app", "api", "verify-deals", "route.js"), "utf8");
-  const tieBreakSrc = src.slice(src.indexOf("const tieBreak = (r)"), src.indexOf("pool.sort("));
-  assert.match(tieBreakSrc, /justAddedCandidate\(r\)\s*\?\s*discoveryAgeHours\(r,\s*now\)/, "justAddedCandidate rows must tie-break on discoveryAgeHours ascending (newest first)");
+  // P0.4.3: the tie-break moved verbatim (in intent) into
+  // lib/verifyAllocator.generalTieBreak.
+  const src = readFileSync(join(HERE, "..", "..", "lib", "verifyAllocator.mjs"), "utf8");
+  const tieBreakSrc = src.slice(src.indexOf("function generalTieBreak"), src.indexOf("// --- THE ALLOCATOR"));
+  assert.match(tieBreakSrc, /if \(justAdded\) return discoveryAgeHours\(r, now\);/, "justAdded rows must tie-break on discoveryAgeHours ascending (newest first)");
 });
 
 // --- 2: a sold/ended listing cannot be premium-eligible regardless of score

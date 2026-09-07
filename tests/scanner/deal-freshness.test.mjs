@@ -169,7 +169,10 @@ test("10. /api/verify-deals is hard-capped at a small batch", () => {
   const src = readFileSync(join(HERE, "..", "..", "app", "api", "verify-deals", "route.js"), "utf8");
   const batch = Number(src.match(/const BATCH\s*=\s*(\d+)/)?.[1]);
   assert.ok(batch >= 1 && batch <= 25, `BATCH is ${batch}`);
-  assert.match(src, /pool\.slice\(0,\s*BATCH\)/);
+  // P0.4.3: batch composition moved to the pure allocator, which hard-caps
+  // its output at `batch` (lib/verifyAllocator + verify-allocator-p043 tests).
+  assert.match(src, /allocateVerifyBatch\(\{/);
+  assert.match(src, /\bbatch:\s*BATCH\b/);
 });
 
 test("11. /api/verify-deals refuses to run below the protected Browse reserve", () => {

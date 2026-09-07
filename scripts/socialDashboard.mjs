@@ -279,6 +279,28 @@ async function gather() {
     }
   }
 
+  // ---- verifier freshness mix (P0.4.3: read-only) ----
+  let verifierHealth = null;
+  if (!NO_DB) {
+    try {
+      const { supabaseAdmin } = await import("../lib/supabaseAdmin.js");
+      const { verifyHealthMetrics } = await import("../lib/verifyAllocator.mjs");
+      const db = supabaseAdmin();
+      const rows = [];
+      for (let f = 0; f < 6000; f += 1000) {
+        const { data } = await db.from("deals")
+          .select("id,listing_type,exact_verified_at,discount_pct,is_graded,condition,card_language,disqualified_reason,visual_authenticity_status,visual_authenticity_reason,market_price,card_tcgplayer_id,title,card_name,card_set")
+          .eq("is_active", true).range(f, f + 999);
+        if (!data?.length) break;
+        rows.push(...data);
+        if (data.length < 1000) break;
+      }
+      verifierHealth = { ...verifyHealthMetrics(rows), quota_remaining: quota?.remaining ?? null };
+    } catch {
+      verifierHealth = null;
+    }
+  }
+
   // ---- autonomous orchestration status (AUTO-1: read-only, no secrets) ----
   let autonomous = null;
   try {
@@ -426,6 +448,7 @@ async function gather() {
     freshness,
     image_recovery: { state: recoveryState, last_line: recoverLast, imageless_active_rows: imageless },
     subscribers,
+    verifier_health: verifierHealth,
     autonomous,
     outreach,
     metrics,
@@ -735,6 +758,22 @@ ${
 </table>
 <p class="sub">Full breakdown incl. top signup source: <code>npm run crm:summary</code></p>`
     : `<p class="muted">not read (—-no-db, or the newsletter_subscribers table is unavailable)</p>`
+}
+
+<h2>Verifier freshness mix (P0.4.3 — read-only)</h2>
+${
+  d.verifier_health
+    ? `<table>
+  ${row(["active BIN / AUCTION", `${d.verifier_health.active_bin} / ${d.verifier_health.active_auction}`])}
+  ${row(["fresh BIN ≤1h / ≤3h / ≤6h" + (d.verifier_health.fresh_bin_6h === 0 && d.verifier_health.strong_bin_total > 5 ? " ⚠ SKEW" : ""), `${d.verifier_health.fresh_bin_1h} / ${d.verifier_health.fresh_bin_3h} / ${d.verifier_health.fresh_bin_6h}`])}
+  ${row(["fresh AUCTION ≤6h", String(d.verifier_health.fresh_auction_6h)])}
+  ${row(["strong BIN: total / fresh ≤6h / aging 3-6h / stale", `${d.verifier_health.strong_bin_total} / ${d.verifier_health.strong_bin_fresh_6h} / ${d.verifier_health.strong_bin_aging_3_6h} / ${d.verifier_health.strong_bin_stale}`])}
+  ${row(["social-eligible BIN count", String(d.verifier_health.social_eligible_bin_count)])}
+  ${row(["never-verified BIN / AUCTION", `${d.verifier_health.bin_never_verified} / ${d.verifier_health.auction_never_verified}`])}
+  ${row(["Browse quota remaining", esc(String(d.verifier_health.quota_remaining ?? "—"))])}
+</table>
+<p class="sub">A large "strong BIN total" with 0 "fresh ≤6h" = verifier allocation skew (see <code>app/api/verify-deals</code> allocation block).</p>`
+    : `<p class="muted">not read</p>`
 }
 
 <h2>Autonomous orchestration (AUTO-1 — read-only)</h2>

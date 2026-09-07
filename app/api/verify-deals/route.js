@@ -1,8 +1,9 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getListingFreshness, getListingSnapshot, getBrowseRateLimit } from "@/lib/ebay";
-import { isDisplayableDeal, freshnessTierTtl, hoursSinceSeen, discoveryAgeHours, JUST_ADDED_MAX_DISCOVERY_AGE_HOURS } from "@/lib/dealQuality";
+import { isDisplayableDeal } from "@/lib/dealQuality";
 import { getUsdRates } from "@/lib/fx";
 import { repricedAuctionPatch } from "@/lib/auctionPricing";
+import { allocateVerifyBatch } from "@/lib/verifyAllocator";
 
 // BOUNDED, RESERVE-GUARDED exact-listing re-verification. One Browse call
 // per row, hard-capped at BATCH per run, and it runs ONLY when the daily
@@ -27,23 +28,26 @@ import { repricedAuctionPatch } from "@/lib/auctionPricing";
 // the protected 800-call floor. See docs/p02-availability-incident.md for
 // the full quota-allocation reasoning.
 //
-// Priority (visitor value, highest first):
-//   1. ALL active AUCTIONs (soonest-ending first). P0 auction-price-
-//      integrity: an auction is discovered at an opening bid and never
-//      re-priced afterwards, so its stored "% below market" silently rots
-//      as bids come in. These rows are RE-PRICED here (bid + shipping +
-//      landed total + discount_pct recomputed), not just re-confirmed
-//      alive. Small slice of inventory (~290), so a full sweep still comes
-//      round in hours.
-//   2. displayable "Just Added" candidates - discovered within the lane's
-//      own max-discovery-age window and never yet exactly verified, so the
-//      lane (lib/deals.js fetchFreshFinds) can actually populate instead
-//      of requiring a completed verification pass on a deal barely old
-//      enough to exist yet.
-//   3. displayable, high value / high discount, oldest last_seen first
-//   4. displayable, market_price >= 100, oldest last_seen first
-// Placement/popularity is not tracked; "displayable + value + discount +
-// age" is the cheap proxy for "prominently promoted".
+// Batch composition (P0.4.3 - lib/verifyAllocator.allocateVerifyBatch):
+//   1. CRITICAL auctions ending within ~90 min - always, ahead of all.
+//   2. BIN FRESHNESS RESERVE - a bounded, quota-scaled slice (~35% of the
+//      batch) for displayable BIN rows aging toward the freshness ceiling.
+//      SOFT ordering signal only: no threshold / market-reference /
+//      qualification / cooldown-safety change. Scales to 0 near the
+//      Browse reserve floor (auction safety wins on a tight day).
+//   3. GENERAL slots - the preserved P0.2 rank/tie-break, but auctions
+//      NOT ending soon get a time-to-end reverify COOLDOWN so the ~20
+//      soonest-ending ones aren't re-priced on every 30-minute run:
+//        auction: soonest-ending first (still re-PRICED, not just
+//                 re-confirmed - P0 auction-price-integrity), skipping
+//                 any re-priced inside its cooldown window
+//        justAdded (discovered <=48h, never verified): newest first, so
+//                 lib/deals.js fetchFreshFinds can populate
+//        high value / discount, then market_price >= 100, then the rest,
+//                 oldest last_seen first
+// ROOT CAUSE this fixed: rank(auction)=0 with NO cooldown meant the batch
+// was always 100% auctions - production showed 0 BIN rows verified in 24h
+// while 20 auctions sat at <=1h. See docs/verify-allocation-p043.md.
 //
 // Outcomes:
 //   ENDED / SOLD -> is_active=false, exact_verified_at=now (retired; row
@@ -124,71 +128,25 @@ export async function GET(request) {
   }
 
   const isAuctionRow = (r) => r.listing_type === "AUCTION";
-  // A candidate for the "Just Added" lane (lib/deals.js fetchFreshFinds):
-  // discovered recently enough to still qualify, but never yet exactly
-  // verified - without this priority tier, a brand-new discovery would
-  // only get an exact_verified_at stamp by luck of the value/age ranking
-  // below, and the lane would stay artificially empty.
-  const justAddedCandidate = (r) =>
-    discoveryAgeHours(r, now) <= JUST_ADDED_MAX_DISCOVERY_AGE_HOURS && r.exact_verified_at == null;
-  const highValue = (r) => Number(r.market_price) >= 300 || Number(r.discount_pct) >= 0.7;
-  const midValue = (r) => Number(r.market_price) >= 100;
-  // how close a row is to its stale TTL (>=1 means already stale)
-  const staleness = (r) => hoursSinceSeen(r, now) / freshnessTierTtl(r);
-
-  const rank = (r) => {
-    // P0 auction-price-integrity: EVERY active auction is re-priced (not
-    // just re-confirmed alive) on a rolling basis, ahead of the
-    // fixed-price freshness tiers. An auction is discovered at an opening
-    // bid; live bidding erodes that discount but nothing re-reads the bid,
-    // so a week-old auction can still advertise its opening-bid "% under
-    // market" long after the real price caught up. Auctions are a small
-    // slice of active inventory (~290 rows), so a full re-price sweep
-    // still comes round in a few hours at BATCH x 48 runs/day.
-    if (isAuctionRow(r)) return 0;
-    // P0.2 fix (found live, post-migration): this MUST be its own tier,
-    // never tied with highValue. A brand-new discovery has a near-zero
-    // staleness ratio by definition, so sharing a tie-break sorted by
-    // "closest to going stale" (below) meant highValue rows - which
-    // accumulate staleness over days - always won the tie and starved
-    // Just Added candidates out of every batch. Confirmed live: after 15
-    // verification runs, isPremiumDealEligible had recovered site-wide,
-    // but zero of the 72 candidates within fetchFreshFinds' own 48h/
-    // English/watchlist-scoped query had been reached.
-    if (justAddedCandidate(r)) return 1;
-    if (highValue(r)) return 2;
-    if (midValue(r)) return 3;
-    return 4;
-  };
-  // P0.2 fix #2 (found live, same session): giving justAddedCandidate its
-  // own tier (above) was necessary but not sufficient. fetchFreshFinds
-  // queries the NEWEST N rows in the discovery window (ORDER BY
-  // first_seen_at DESC) - but the staleness-descending tie-break used for
-  // every other tier prioritizes candidates CLOSEST TO GOING STALE, which
-  // for two rows both inside the 48h Just Added window means the OLDER one
-  // (closer to falling out of its freshness TTL) wins, not the newer one
-  // fetchFreshFinds actually wants verified first. Confirmed live: 299/470
-  // rows in the 48h window got verified, but 0 of the newest 72 (exactly
-  // what fetchFreshFinds queries) - verification was working backwards
-  // from "about to expire", the opposite direction from "just discovered".
-  // Within the Just-Added tier specifically, sort by discovery recency
-  // (newest first) instead - that tier's whole purpose is getting brand-
-  // new discoveries verified before a visitor ever sees the lane, not
-  // protecting older rows from expiring (the other tiers already do that).
-  // Auctions: soonest-ending first (its price is about to lock in), then
-  // Just-Added by discovery recency, then everything else by staleness.
-  const tieBreak = (r) =>
-    isAuctionRow(r)
-      ? Date.parse(r.auction_end_at ?? "") || Number.MAX_SAFE_INTEGER
-      : justAddedCandidate(r)
-        ? discoveryAgeHours(r, now)
-        : -staleness(r);
-  pool.sort((a, b) => rank(a) - rank(b) || tieBreak(a) - tieBreak(b));
 
   // Scan-time FX for the auction re-price math (no per-row network call).
   const rates = await getUsdRates();
 
-  const batch = pool.slice(0, BATCH);
+  // P0.4.3 - BATCH COMPOSITION via the pure allocator. It preserves the
+  // P0.2 rank/tie-break for the "general" slots, but (a) applies a
+  // time-to-end reverify COOLDOWN to auctions so the ~20 soonest-ending
+  // ones aren't re-priced every 30-minute run, and (b) reserves a small,
+  // quota-scaled slice of the batch for displayable BIN rows aging toward
+  // the freshness ceiling - a SOFT ordering signal only. NOTHING about
+  // deal qualification, thresholds, the market reference, cooldown safety,
+  // or the auction re-price path changes. See lib/verifyAllocator.mjs.
+  const { batch, allocation } = allocateVerifyBatch({
+    pool,
+    batch: BATCH,
+    now,
+    quotaRemaining: rl.remaining,
+    reserve: RESERVE,
+  });
   const out = { ACTIVE: 0, ENDED: 0, SOLD: 0, UNKNOWN: 0, RETIRED: 0, REPRICED: 0, IMAGE_RECOVERED: 0 };
   let calls = 0;
   const detail = [];
@@ -283,6 +241,8 @@ export async function GET(request) {
     remainingAfter: after?.remaining ?? null,
     reserve: RESERVE,
     exactVerifiedColReady: exactColReady,
+    // P0.4.3 batch-allocation observability
+    allocation,
     detail,
   });
 }

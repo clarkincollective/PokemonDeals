@@ -226,12 +226,17 @@ test("5a. verify-deals re-prices auctions via getListingSnapshot and keeps BIN o
 });
 
 test("5b. active auctions are re-priced ahead of the fixed-price freshness tiers", () => {
-  const src = readFileSync(join(HERE, "..", "..", "app", "api", "verify-deals", "route.js"), "utf8");
-  const rankFn = src.slice(src.indexOf("const rank = (r)"), src.indexOf("pool.sort("));
-  assert.match(rankFn, /if \(isAuctionRow\(r\)\) return 0;/);
-  // justAdded still a distinct tier below auctions, still != highValue
-  const ja = Number(rankFn.match(/if \(justAddedCandidate\(r\)\) return (\d+);/)?.[1]);
-  const hv = Number(rankFn.match(/if \(highValue\(r\)\) return (\d+);/)?.[1]);
+  // P0.4.3: the general-tier rank/tie-break moved verbatim (in intent) into
+  // lib/verifyAllocator.generalRank; the route delegates batch composition
+  // to allocateVerifyBatch. Auctions still rank ahead of every BIN tier in
+  // the general slots, and justAdded is still a distinct tier != highValue.
+  const route = readFileSync(join(HERE, "..", "..", "app", "api", "verify-deals", "route.js"), "utf8");
+  assert.match(route, /allocateVerifyBatch\(\{/);
+  const src = readFileSync(join(HERE, "..", "..", "lib", "verifyAllocator.mjs"), "utf8");
+  const rankFn = src.slice(src.indexOf("function generalRank"), src.indexOf("function generalTieBreak"));
+  assert.match(rankFn, /if \(isAuction\) return 0;/);
+  const ja = Number(rankFn.match(/if \(justAdded\) return (\d+);/)?.[1]);
+  const hv = Number(rankFn.match(/if \(highValue\) return (\d+);/)?.[1]);
   assert.ok(Number.isFinite(ja) && Number.isFinite(hv) && ja !== hv);
 });
 
