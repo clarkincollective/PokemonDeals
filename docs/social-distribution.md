@@ -1,10 +1,10 @@
-# Social Distribution — Phase 13E.5A / 13E.5B
+# Social Distribution — Phase 13E.5A · 13E.5B · 13E.5C
 
 **Status:** infrastructure + dry-run only. **Nothing has been published or
-scheduled.** The only Buffer calls made are **read-only** `account` /
-`channels` GraphQL queries for channel discovery; **no `createPost` has
-run.** `social:publish` cannot publish — several independent gates are
-all off (see §5, §14).
+scheduled.** Buffer calls made: **read-only** `account` / `channels`
+queries only — **no `createPost`.** Media is uploaded to public storage
+(13E.5C) — hosting a file is not posting it. `social:publish` cannot publish — several independent gates are
+all off (see §5, §15).
 
 This layer takes the artifacts the existing pipelines already produce
 (`social:daily` static, `social:video` 13E.4) and adds a provider-neutral
@@ -21,7 +21,7 @@ live GraphQL introspection 2026-09-07 · **[IMPLEMENTED]** built ·
 **[BLOCKED ON OWNER]** code path exists, waiting on an owner decision ·
 **[FUTURE]** designed, deliberately not built.
 
-## 13E.5B changes at a glance
+## 13E.5B / 13E.5C changes at a glance
 
 - **Endpoint corrected.** The live Buffer GraphQL API is `https://api.buffer.com`
   (Bearer API key), **not** `graph.buffer.com` — the 13E.5A guess was
@@ -36,6 +36,12 @@ live GraphQL introspection 2026-09-07 · **[IMPLEMENTED]** built ·
   (X post text ≤280; YouTube Short title ≤100 + description).
 - One `content_id` now fans out to up to four independent ledger rows,
   one per platform; a failure on one platform never touches the others.
+- **13E.5C:** public media hosting via **Supabase Storage** (bucket
+  `social-public`); content-addressed, immutable, dedup'd. `prepare`
+  freezes the public URL; `media_present` now requires it; a new
+  `asset_not_drifted` gate re-checks the local sha before send. The stale
+  `freshness.label` in the 13E.4 masters was fixed by re-running
+  `social:video`.
 
 ---
 
@@ -59,7 +65,7 @@ Checked 2026-09-07.
 | Account / org | `query { account { organizations { id } } }` → `organizationId`, required by `channels`. |
 | Channels | `query { channels(input:{ organizationId }) { id name displayName service serviceId type isLocked isDisconnected } }`. |
 | Create post | `mutation { createPost(input: CreatePostInput!) { ...on PostActionSuccess { post { id status } } ...on <Error> { message } } }`. `CreatePostInput`: `channelId`, `text`, `assets:[AssetInput!]!`, `dueAt`, `mode: ShareMode!` (`addToQueue`\|`customScheduled`\|`shareNext`\|`shareNow`), `schedulingType: SchedulingType!` (`automatic`\|`notification`), `saveToDraft`, `needsApproval: Boolean!`, `metadata: PostInputMetaData`, `tagIds`. |
-| Assets | `AssetInput = { image:{ url, thumbnailUrl? } } | { video:{ url, thumbnailUrl? } }`. **URLs must be PUBLIC — Buffer does no direct upload.** (Open item — see §14.) |
+| Assets | `AssetInput = { image:{ url, thumbnailUrl? } } | { video:{ url, thumbnailUrl? } }`. **URLs must be PUBLIC — Buffer does no direct upload.** (Handled in §13 — Supabase Storage.) |
 | Post types | `PostType` enum: `post`, `reel`, `carousel`, `short`, `story`, `thread`, … We use `post`/`carousel`/`reel`/`short`. |
 | Post status | `query { post(input:{ id }) { id status sentAt error } }`. `PostStatus`: `draft`, `scheduled`, `needs_approval`, `sending`, `sent`, `error`. Only `sent` **with** `sentAt` = real publish evidence. |
 | Scheduling | `dueAt` (+ `mode: customScheduled`) for an explicit time, else `mode: addToQueue`; `saveToDraft: true` for draft-only. |
@@ -453,7 +459,97 @@ deal pool is thin that command selects **0** posts and those slots report
 
 ---
 
-## 13. Autopilot — design only  [FUTURE — NOT BUILT]
+## 13. Public media hosting  [IMPLEMENTED 13E.5C]
+
+Buffer fetches assets from a **public URL** — it does no direct upload. So
+approved rendered media is uploaded to public storage first, and the
+distribution row freezes that URL.
+
+### Storage provider — Supabase Storage  [chosen]
+
+**Why:** it is already the project's database. `@supabase/supabase-js` is
+a dependency; `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` are
+already configured. **No new account, no new paid infrastructure.** No
+`@vercel/blob` / `BLOB_READ_WRITE_TOKEN` was present; the Vercel CLI is
+not installed. A public bucket serves a stable, unauthenticated HTTPS URL
+with the correct `Content-Type` — exactly what Buffer needs.
+
+Bucket **`social-public`** (created once, 13E.5C):
+`public: true`, per-file limit **25 MB**, MIME allow-list
+`image/png, image/jpeg, video/mp4`. Public URL shape:
+`<SUPABASE_URL>/storage/v1/object/public/social-public/by-hash/<sha256>.<ext>`.
+
+### Architecture  [IMPLEMENTED]
+
+```
+approved local artifact → sha256 → canHost() gate → STORAGE.upload() (upsert:false)
+   → immutable public URL → hosted-asset record (hosted-assets.json)
+   → prepare freezes { hosted_asset_id, public_media_url, media_sha256 } onto the ledger row
+   → Buffer adapter reads row.public_media_url  (NO upload at send time)
+```
+
+- `lib/social/storage/supabase.mjs` — the adapter (`upload`, `head`,
+  `probeRange`, `listKeys`, `remove`). The renderer imports none of this.
+- `lib/social/storage/index.mjs` — `getStorageProvider()`; **null
+  provider** default (refuses every call) when the env is absent.
+- `lib/social/storage/hostedAssets.mjs` — the record shape + store
+  (`hosted-assets.json`), `sha256`, `storageKeyFor`, `canHost`,
+  `assetMatches` (drift), `cleanupCandidates` (retention).
+- CLI: `social:publish -- host` / `verify-hosts` / `hosts`.
+
+### Object naming + checksum / dedupe  [IMPLEMENTED]
+
+The storage key **is** the content hash: `by-hash/<sha256>.<ext>`. So:
+
+- **Identical bytes → identical key → one object, one record** (dedupe;
+  `upsert:false`, "already exists" is treated as success).
+- **Any change → a new sha → a NEW immutable object.** An already-hosted
+  object is **never overwritten in place**, so a frozen social post can
+  never suffer asset drift.
+
+### Rights / QA gate before upload  [IMPLEMENTED]
+
+`canHost()` allows a host **only if** QA is `ok` with an empty `failed[]`,
+the artifact's frozen `rights_state` still matches `lib/social/rights.mjs`
+**and** `ppt_social_data` + `card_image` are `CLEARED`, the MIME is on the
+allow-list, the file is ≤ 25 MB, and the path is not a secret / config /
+manifest / log / `supabase/` / **eBay-seller-image** path. `publishing:
+DISABLED` does **not** block a host — **hosting is not publishing.**
+
+### Public URL verification  [IMPLEMENTED]
+
+After upload, `host` (and `verify-hosts`) issues a `HEAD` + a `Range: 0-4095`
+`GET` and records: HTTP status (must be `200`), `Content-Type` (must match
+the media class), `Content-Length` (must be within 1 KB of the local
+bytes), no `WWW-Authenticate` / 401 / 403, and `Accept-Ranges` for MP4
+seek compatibility. No `createPost` call is made.
+
+### Ledger integration + asset-drift guard  [IMPLEMENTED]
+
+`prepare` freezes `hosted_asset_id`, `public_media_url`, `media_sha256`
+onto the row. Gate **`media_present`** now requires a real `https://`
+`public_media_url` for every media placement (text-only X posts are
+exempt). Gate **`asset_not_drifted`** re-reads the local media at
+`dry-run` / `send` and fails if its sha256 no longer matches the frozen
+hash — forcing a re-host + re-approve; media is **never silently
+replaced**.
+
+### Retention policy  [IMPLEMENTED — conservative]
+
+`cleanupCandidates()` will **never** return an asset referenced by a
+`QUEUED` or `PUBLISHED` ledger row. Only orphan rows older than 30 days
+are even offered. There is **no automatic deletion** — a human runs it.
+
+### First hosted review pack
+
+`social:publish -- host` then `social:publish -- review-pack` — see the
+FINAL REPORT for the run captured this phase. Every media placement then
+carries its real Supabase public URL; every item still says
+`would_send = NO` (live gates closed).
+
+---
+
+## 14. Autopilot — design only  [FUTURE — NOT BUILT]
 
 ```
 real deal data → planner → render → QA → approval policy → scheduler → publish → status sync
@@ -473,26 +569,35 @@ real deal data → planner → render → QA → approval policy → scheduler �
 
 ---
 
-## 14. What is NOT done / open items
+## 15. What is NOT done / remaining live blockers
 
-- ~~Buffer API key + channel connection + mapping~~ — **done (13E.5B):**
-  token in `.env.local`, all 4 channels resolved in `channels.json`.
-- **[BLOCKED ON OWNER]** `EPN_AI_TOOLS_APPROVED` decision.
-- **[BLOCKED ON OWNER]** flipping `RIGHTS_STATE.publishing` to `ALLOWED`
-  (one reviewed line) + setting `SOCIAL_PUBLISH_ENABLED=true` and
-  `SOCIAL_PUBLISH_DRY_RUN=false`; and the `PokemonPriceTracker` / EPN
-  written confirmations in `docs/social-compliance-readiness.md` §5–6.
-- **[BLOCKED — REQUIRED BEFORE ANY REAL SEND]** Buffer needs **public
-  asset URLs** — it does no direct upload. `.social-preview/*.mp4` and
-  `*.png` are local paths; a hosting step (e.g. upload the approved
-  master to a CDN / bucket and pass that URL) must land first. The gate
-  stack blocks the send long before this bites, but it is the true
-  first blocker once the owner flags are flipped.
-- **[FUTURE]** re-run `social:video` to refresh the 13E.4 masters (stale
-  `freshness.label` line — see §12).
-- **[FUTURE]** a true multi-slide 4:5 carousel *export* from
-  `social:daily` (today it renders one representative 4:5 still); the
-  layer already models `carousel_45` with ≤ 10 items.
-- **[FUTURE]** the scheduler / autopilot policy engine (§13).
-- **[FUTURE]** X single-image posts and YouTube long-form (Shorts only
-  this phase); X threads; TikTok/YouTube notification-publish fallback.
+**LIVE GATE CLOSED** (owner action, none flipped this phase):
+
+1. `EPN_AI_TOOLS_APPROVED` decision — see `docs/social-compliance-readiness.md` §1 #2 / §4.
+2. `RIGHTS_STATE.publishing` → `"ALLOWED"` (one reviewed line).
+3. `SOCIAL_PUBLISH_ENABLED=true` **and** `SOCIAL_PUBLISH_DRY_RUN=false`.
+4. `PokemonPriceTracker` / EPN written confirmations
+   (`docs/social-compliance-readiness.md` §5–6).
+
+Once 1–4 are done, `social:publish -- prepare … → approve … → send …`
+runs the full gate stack; a green stack submits ONE Buffer lead per
+platform → QUEUED, and `sync` promotes to PUBLISHED only on real
+`sent` + `sentAt` evidence.
+
+**RESOLVED:**
+
+- ~~Buffer API key + 4 channels~~ — done 13E.5B.
+- ~~Public asset hosting~~ — done 13E.5C (Supabase Storage, `social-public`).
+- ~~Stale `freshness.label` in the 13E.4 masters~~ — fixed by re-running
+  `social:video` this phase.
+
+**FUTURE (not built):**
+
+- a true multi-slide 4:5 carousel *export* from `social:daily` (today it
+  renders one representative still); `carousel_45` (≤ 10) is already modelled.
+- the scheduler / autopilot policy engine (§14).
+- X single-image posts, YouTube long-form, X threads,
+  TikTok/YouTube notification-publish fallback.
+- static IG feed / carousel + X image placements depend on `social:daily`
+  selecting a post; when live inventory is thin it selects **0** and
+  those placements report `UNAVAILABLE` (correct fail-closed).

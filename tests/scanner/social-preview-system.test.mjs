@@ -349,7 +349,7 @@ test("12c. no social platform API client or SDK is imported in the render/previe
   // path must still reference no platform API at all.
   const forbidden = /instagram-private-api|tiktok-api|buffer-sdk|facebook-nodejs-business|graph\.facebook\.com|api\.buffer\.com|graph\.buffer\.com|open-api\.tiktok\.com|graph\.instagram\.com/i;
   for (const f of SOCIAL_FILES) {
-    if (f.includes("/distribution/") || f.includes("/providers/")) continue;
+    if (f.includes("/distribution/") || f.includes("/providers/") || f.includes("/storage/")) continue;
     assert.doesNotMatch(read(f), forbidden, `${f} references a social platform API`);
   }
 });
@@ -363,7 +363,7 @@ test("12d. the social system makes no fetch()/publish call; its only network cal
     // concern with its own test file (social-distribution.test.mjs). Its
     // provider adapter is the deliberate publish boundary; it is inert
     // without BUFFER_ACCESS_TOKEN and behind a 13-gate preflight stack.
-    if (f.includes("/distribution/") || f.includes("/providers/")) continue;
+    if (f.includes("/distribution/") || f.includes("/providers/") || f.includes("/storage/")) continue;
     const src = read(f);
     assert.doesNotMatch(src, /\bfetch\(/, `${f} must not make a network call`);
   }

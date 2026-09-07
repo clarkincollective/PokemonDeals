@@ -52,10 +52,24 @@ import {
   PLATFORM_SERVICE,
 } from "../lib/social/distribution/artifactMap.mjs";
 import { getSocialProvider } from "../lib/social/providers/index.mjs";
+import { getStorageProvider } from "../lib/social/storage/index.mjs";
+import {
+  loadHostedAssets,
+  saveHostedAssets,
+  findByHash,
+  findByAssetId,
+  buildHostedRecord,
+  canHost,
+  assetMatches,
+  sha256,
+  EXT_MIME,
+} from "../lib/social/storage/hostedAssets.mjs";
+import { readFileSync as fsRead } from "node:fs";
 import { RIGHTS_STATE } from "../lib/social/rights.mjs";
 
 const CHANNELS_PATH = path.join(process.cwd(), "lib", "social", "distribution", "channels.json");
 const REVIEW_PACK_DIR = path.join(process.cwd(), ".social-preview", "distribution-review-pack");
+const STORAGE = getStorageProvider();
 
 const flags = readDistributionFlags();
 const PROVIDER = getSocialProvider();
@@ -103,6 +117,21 @@ function mediaForPlatform(platform, variant) {
     return { kind: "text_only", files: [], width: 0, height: 0, filesExist: true }; // no file to check; the caption gate covers it
   }
   return { ...variant.media };
+}
+
+// The single local media file for a media object.
+function primaryLocalFile(media) {
+  return (media.files ?? []).find(Boolean) ?? null;
+}
+
+// Look up (not upload) the hosted-asset record that already covers this
+// media's exact bytes. Returns { record, sha } or null.
+function hostedFor(media) {
+  const f = primaryLocalFile(media);
+  if (!f || !existsSync(f)) return null;
+  const sha = sha256(fsRead(f));
+  const rec = findByHash(loadHostedAssets(), sha);
+  return rec ? { record: rec, sha } : { record: null, sha };
 }
 
 function banner() {
@@ -166,6 +195,11 @@ function buildRow({ artifact, variant, platform, scheduledForIso }) {
   const copy = copyForPlatform(platform, variant);
   const media = mediaForPlatform(platform, variant);
   const f = variant.facts ?? {};
+  // Freeze the PUBLIC hosted-media URL if this placement carries a media
+  // file and one has already been hosted (content-addressed). X text-only
+  // posts carry no media and stay { null }.
+  const needsMedia = media.kind !== "text_only";
+  const h = needsMedia ? hostedFor(media) : null;
   return {
     job_id: jobId({ content_id: artifact.content_id ?? variant.content_id, platform, creative_variant: variant.creative_variant }),
     content_id: artifact.content_id ?? variant.content_id ?? null,
@@ -184,6 +218,12 @@ function buildRow({ artifact, variant, platform, scheduledForIso }) {
       itemCount: media.itemCount ?? null,
       filesExist: media.filesExist,
     },
+    // frozen public media (13E.5C) - Buffer fetches this URL; there is NO
+    // upload at send time. null for a text-only X post, or when the
+    // artifact has not been hosted yet.
+    hosted_asset_id: h?.record?.asset_id ?? null,
+    public_media_url: h?.record?.public_url ?? null,
+    media_sha256: h?.sha ?? null,
     caption: copy.text ?? "",
     youtube_title: copy.title ?? null,
     copy_error: copy.error ?? null,
@@ -262,6 +302,9 @@ function cmdPrepare(idOrKey, platform, opts) {
       media: row.media,
       placement: row.placement,
       service: row.service,
+      hosted_asset_id: row.hosted_asset_id,
+      public_media_url: row.public_media_url,
+      media_sha256: row.media_sha256,
       caption: row.caption,
       youtube_title: row.youtube_title,
       copy_error: row.copy_error,
@@ -319,6 +362,13 @@ function requireJob(id) {
   return { ledger, row };
 }
 
+// sha256 of the row's local media file RIGHT NOW - for the asset-drift gate.
+function currentMediaShaOf(row) {
+  const f = (row.media?.files ?? []).find(Boolean);
+  if (!f || !existsSync(f)) return null;
+  return sha256(fsRead(f));
+}
+
 function reResolveVariant(row) {
   const cut = cutFor(row.platform, null);
   let res = resolveArtifactVariant(row.content_id, { platformCut: cut });
@@ -330,7 +380,7 @@ function cmdDryRun(id) {
   banner();
   const { ledger, row } = requireJob(id);
   const variant = reResolveVariant(row) ?? { qa: row.qa, rights: row.rights, media: row.media, snapshot: row.snapshot, caption_instagram: row.caption, caption_tiktok: row.caption };
-  const full = runAllGates({ row, variant, flags, providerConfigured: PROVIDER.isConfigured(), ledger });
+  const full = runAllGates({ row, variant, flags, providerConfigured: PROVIDER.isConfigured(), ledger, currentMediaSha: currentMediaShaOf(row) });
   row.dry_runs = row.dry_runs ?? [];
   row.dry_runs.push({ at: new Date().toISOString(), gates_ok: full.ok, blockers: full.blockers });
   saveLedger(ledger);
@@ -363,7 +413,7 @@ async function cmdSend(id, opts) {
   const { ledger, row } = requireJob(id);
   const variant = reResolveVariant(row) ?? { qa: row.qa, rights: row.rights, media: row.media, snapshot: row.snapshot, caption_instagram: row.caption, caption_tiktok: row.caption };
 
-  const full = runAllGates({ row, variant, flags, providerConfigured: PROVIDER.isConfigured(), ledger, force: opts.force === true });
+  const full = runAllGates({ row, variant, flags, providerConfigured: PROVIDER.isConfigured(), ledger, force: opts.force === true, currentMediaSha: currentMediaShaOf(row) });
   if (!full.ok) {
     console.log("  send BLOCKED — the following gates are not satisfied:\n");
     for (const b of full.blockers) console.log(`    - ${b}`);
@@ -377,15 +427,19 @@ async function cmdSend(id, opts) {
     die("internal guard: provider unconfigured or RIGHTS_STATE.publishing != ALLOWED — refusing to submit.");
   }
 
-  // NOTE: Buffer requires PUBLIC asset URLs (no direct upload). row.media.files
-  // are local .social-preview paths - a hosted-URL step is a documented
-  // remaining item; the gate stack blocks the send long before here anyway.
+  // Buffer requires a PUBLIC asset URL (no direct upload). It is FROZEN on
+  // the row (row.public_media_url) at prepare time from the hosted-asset
+  // record - there is NO upload here at send time. Text-only X posts have
+  // no asset.
+  const assets = row.media.kind === "text_only" || !row.public_media_url
+    ? []
+    : [{ type: row.media.kind === "video_916" ? "video" : "image", url: row.public_media_url }];
   const msg = {
     channelId: row.channel_id,
     platform: row.service, // "instagram" | "tiktok" | "twitter" | "youtube"
     placement: row.placement, // "feed" | "carousel" | "reel" | "video" | "post" | "short"
     text: row.caption,
-    assets: (row.media.files ?? []).map((f) => ({ type: row.media.kind === "video_916" ? "video" : "image", url: f })),
+    assets,
     dueAt: row.scheduled_for,
     saveToDraft: false,
     schedulingType: "automatic",
@@ -424,6 +478,160 @@ async function cmdSync(id) {
   console.log(`  status: ${row.status}${row.published_at ? `  published_at: ${row.published_at} (provider evidence)` : ""}\n`);
 }
 
+// ---- 13E.5C: public media hosting -------------------------------------
+
+const MIME_FOR = (p) => EXT_MIME[path.extname(String(p)).toLowerCase()] ?? null;
+
+// Host ONE media file for one artifact variant. Content-addressed +
+// dedupe. Uploading is NOT publishing.
+async function hostOneVariant({ artifact, variant }) {
+  const media = variant.media;
+  const file = primaryLocalFile(media);
+  if (!file) return { ok: false, label: `${artifact.creative_family}/${variant.creative_variant}`, reason: "no local media file (text-only?)" };
+  if (!existsSync(file)) return { ok: false, label: file, reason: "local media file missing on disk" };
+  const bytes = fsRead(file);
+  const mime = MIME_FOR(file);
+  const rights = variant.rights ?? artifact.rights ?? RIGHTS_STATE;
+
+  const gate = canHost({ localPath: file, bytes, mime, qa: variant.qa, rights, currentRights: RIGHTS_STATE });
+  if (!gate.ok) return { ok: false, label: file, reason: `canHost blocked: ${gate.reason}` };
+
+  const rows = loadHostedAssets();
+  const sha = sha256(bytes);
+  const existing = findByHash(rows, sha);
+  if (existing && existing.public_url) {
+    return { ok: true, deduped: true, record: existing, reason: "identical bytes already hosted - reusing the immutable URL" };
+  }
+
+  if (!STORAGE.isConfigured()) {
+    return { ok: false, label: file, reason: "no storage provider configured (needs NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY)" };
+  }
+
+  const rec =
+    existing ??
+    buildHostedRecord({
+      content_id: artifact.content_id ?? variant.content_id,
+      creative_family: artifact.creative_family,
+      artifact_type: media.kind,
+      platform_eligibility: media.kind === "video_916" ? ["instagram_reel", "tiktok", "youtube_short"] : media.kind === "carousel_45" ? ["instagram_carousel"] : ["instagram_feed", "x_post"],
+      localPath: file,
+      bytes,
+      mime,
+      width: media.width ?? null,
+      height: media.height ?? null,
+      durationS: media.durationS ?? null,
+      qa: variant.qa,
+      rights,
+      sourceCommit: headGitCommit(),
+    });
+
+  const up = await STORAGE.upload({ storageKey: rec.storage_key, bytes, contentType: mime });
+  if (!up.ok) return { ok: false, label: file, reason: `upload failed: ${up.reason} ${up.detail ?? ""}`.trim() };
+
+  rec.storage_provider = STORAGE.name;
+  rec.public_url = up.publicUrl;
+  rec.uploaded_at = rec.uploaded_at ?? new Date().toISOString();
+  rec.history.push({ at: new Date().toISOString(), note: up.deduped ? "storage object already present (dedupe)" : "uploaded" });
+
+  // verify Buffer could fetch it
+  const head = await STORAGE.head(up.publicUrl);
+  const range = mime === "video/mp4" ? await STORAGE.probeRange(up.publicUrl, 4096) : { ok: true, status: 200, bytes: 0 };
+  rec.verified = {
+    at: new Date().toISOString(),
+    status: head.status,
+    contentType: head.contentType,
+    contentLength: head.contentLength,
+    authChallenged: Boolean(head.authChallenged),
+    rangeOk: Boolean(range.ok),
+    acceptRanges: range.acceptRanges ?? null,
+  };
+  const verifiedOk =
+    head.ok && head.status === 200 && !head.authChallenged &&
+    String(head.contentType || "").startsWith(mime.split("/")[0]) &&
+    (head.contentLength == null || Math.abs(head.contentLength - bytes.length) < 1024) &&
+    range.ok;
+
+  const idx = rows.findIndex((r) => r.sha256 === sha);
+  if (idx >= 0) rows[idx] = rec;
+  else rows.push(rec);
+  saveHostedAssets(rows);
+
+  return { ok: true, deduped: up.deduped, record: rec, verifiedOk, reason: up.deduped ? "storage object already present; record refreshed" : "uploaded + verified" };
+}
+
+const HOST_TARGETS = [
+  { key: "video:13e4/deal_drop", cut: "reel", label: "Instagram Reel / X? — Deal Drop 9:16 master" },
+  { key: "video:13e4/deal_drop", cut: "tiktok", label: "TikTok — Deal Drop 9:16 master" },
+  { key: "video:13e4/market_mover", cut: "reel", label: "YouTube Short — Market Mover 9:16 master" },
+  { key: "video:13e4/hook_carousel", cut: "reel", label: "Reel/Short — Hook Carousel 9:16 master" },
+  { key: "video:13e4/brand_ad", cut: "reel", label: "Reel/Short — Brand Ad 9:16 master" },
+  // static (only if social:daily produced them)
+  { key: "deal_of_day", label: "Instagram feed / X image — Deal Drop static" },
+  { key: "pokemon_spotlight", label: "Instagram carousel — Hook Carousel still" },
+];
+
+async function cmdHost() {
+  banner();
+  console.log(`  storage provider: ${STORAGE.name}${STORAGE.isConfigured() ? ` (bucket ${STORAGE.bucket})` : " — NOT configured"}`);
+  console.log("  hosting = uploading publish-eligible rendered media to a PUBLIC URL. It is NOT publishing.\n");
+  for (const t of HOST_TARGETS) {
+    const res = resolveArtifactVariant(t.key, { platformCut: t.cut ?? null });
+    if (!res.ok) {
+      console.log(`  - ${t.label}: UNAVAILABLE — ${res.reason}`);
+      continue;
+    }
+    const r = await hostOneVariant(res);
+    if (!r.ok) {
+      console.log(`  - ${t.label}: NOT HOSTED — ${r.reason}`);
+      continue;
+    }
+    console.log(`  - ${t.label}: ${r.deduped ? "DEDUPED" : "HOSTED"}  ${r.record.asset_id}`);
+    console.log(`      sha256 ${r.record.sha256}`);
+    console.log(`      ${r.record.public_url}`);
+    if (r.record.verified) {
+      const v = r.record.verified;
+      console.log(`      verify: HTTP ${v.status}  ${v.contentType}  ${v.contentLength} bytes  auth=${v.authChallenged}  range=${v.rangeOk}  -> ${r.verifiedOk ? "OK" : "CHECK"}`);
+    }
+  }
+  console.log("\n  hosted-asset store: lib/social/storage/hosted-assets.json");
+  console.log("  NOTHING WAS PUBLISHED. Hosting media != posting it.\n");
+}
+
+async function cmdVerifyHosts() {
+  banner();
+  const rows = loadHostedAssets();
+  if (!rows.length) return console.log("  no hosted assets yet — run  npm run social:publish -- host\n");
+  let allOk = true;
+  for (const r of rows) {
+    if (!r.public_url) {
+      console.log(`  ${r.asset_id}: no public_url`);
+      allOk = false;
+      continue;
+    }
+    const head = await STORAGE.head(r.public_url);
+    const range = r.mime_type === "video/mp4" ? await STORAGE.probeRange(r.public_url, 4096) : { ok: true, status: 200 };
+    const ok = head.ok && head.status === 200 && !head.authChallenged && range.ok;
+    allOk = allOk && ok;
+    console.log(`  ${r.asset_id}  ${ok ? "OK  " : "FAIL"}  HTTP ${head.status}  ${head.contentType}  ${head.contentLength} bytes  ranges=${range.acceptRanges ?? "?"}`);
+    console.log(`      ${r.public_url}`);
+  }
+  console.log(`\n  ${allOk ? "all hosted assets are publicly fetchable (Buffer-compatible)." : "one or more hosted assets FAILED verification."}\n`);
+}
+
+function cmdHosts() {
+  banner();
+  const rows = loadHostedAssets();
+  const ledger = loadLedger();
+  console.log(`  HOSTED ASSETS (${rows.length}):`);
+  for (const r of rows) {
+    const refs = ledger.filter((j) => j.hosted_asset_id === r.asset_id).map((j) => `${j.platform}:${j.status}`);
+    console.log(`    ${r.asset_id}  ${r.artifact_type}  ${r.bytes} bytes  ${r.creative_family}`);
+    console.log(`        ${r.public_url ?? "(not uploaded)"}`);
+    console.log(`        sha ${r.sha256.slice(0, 20)}…  uploaded ${r.uploaded_at ?? "-"}  ledger refs: ${refs.join(", ") || "none"}`);
+  }
+  console.log("");
+}
+
 // A dry-run 4-PLATFORM pack from the CURRENT artifacts (§12): Instagram
 // still/carousel/Reel, TikTok, X Deal Drop + Market Mover, YouTube Short
 // Deal Drop + Market Mover — prepared, gated, NOT sent.
@@ -458,9 +666,9 @@ function cmdReviewPack() {
     }
     const { artifact, variant } = res;
     const target = buildRow({ artifact, variant, platform: t.platform, scheduledForIso: null });
-    const rg = readinessGates({ row: target, variant, flags, providerConfigured: PROVIDER.isConfigured(), ledger });
+    const rg = readinessGates({ row: target, variant, flags, providerConfigured: PROVIDER.isConfigured(), ledger, currentMediaSha: currentMediaShaOf(target) });
     markReady(target, { gatesOk: rg.ok, blockers: rg.blockers });
-    const full = runAllGates({ row: target, variant, flags, providerConfigured: PROVIDER.isConfigured(), ledger });
+    const full = runAllGates({ row: target, variant, flags, providerConfigured: PROVIDER.isConfigured(), ledger, currentMediaSha: currentMediaShaOf(target) });
     pack.push({
       label: t.label,
       job_id: target.job_id,
@@ -474,6 +682,9 @@ function cmdReviewPack() {
       channel_id: target.channel_id,
       artifact: target.media.files,
       media: target.media.kind === "text_only" ? "text_only (no media file)" : `${target.media.kind} ${target.media.width}x${target.media.height}${target.media.durationS ? ` ${target.media.durationS}s` : ""}`,
+      hosted_asset_id: target.hosted_asset_id ?? null,
+      public_media_url: target.public_media_url ?? null,
+      media_sha256: target.media_sha256 ?? null,
       planned_cta: target.cta_url,
       youtube_title: target.youtube_title ?? null,
       copy_error: target.copy_error ?? null,
@@ -489,11 +700,12 @@ function cmdReviewPack() {
   }
   // deliberately NOT saveLedger(ledger) - review-pack is a preview
   const manifest = {
-    phase: "13E.5B",
+    phase: "13E.5C",
     generated_at: new Date().toISOString(),
     published: false,
     scheduled: false,
-    note: "DRY RUN. No provider call was made. No post was published or scheduled. Every row is DRAFT/READY only.",
+    storage_provider: STORAGE.name,
+    note: "DRY RUN. No createPost call was made. No post was published or scheduled. Media placements carry REAL public hosted URLs; nothing was posted.",
     flags: describeFlags(flags),
     rights_publishing: RIGHTS_STATE.publishing,
     provider: PROVIDER.name,
@@ -514,6 +726,8 @@ function cmdReviewPack() {
     console.log(`      platform     : ${it.platform} (${it.placement})  channel ${it.channel_key} -> ${it.channel_id ?? "UNRESOLVED"}`);
     console.log(`      artifact     : ${it.artifact.length ? it.artifact.join(", ") : "(text only)"}`);
     console.log(`      media        : ${it.media}`);
+    if (it.media !== "text_only (no media file)")
+      console.log(`      public URL   : ${it.public_media_url ?? "NOT HOSTED — run `social:publish host`"}${it.media_sha256 ? `  (sha ${it.media_sha256.slice(0, 12)}…)` : ""}`);
     if (it.youtube_title) console.log(`      YT title     : ${it.youtube_title} (${it.youtube_title.length} chars)`);
     console.log(`      planned CTA  : ${it.planned_cta}`);
     if (it.copy_error) console.log(`      copy         : NOT BUILT — ${it.copy_error}`);
@@ -562,10 +776,16 @@ async function main() {
       return cmdSend(args[0], opts);
     case "sync":
       return cmdSync(args[0]);
+    case "host":
+      return cmdHost();
+    case "verify-hosts":
+      return cmdVerifyHosts();
+    case "hosts":
+      return cmdHosts();
     case "review-pack":
       return cmdReviewPack();
     default:
-      die(`unknown command "${cmd}". one of: list, channels, prepare, dry-run, approve, send, sync, review-pack`);
+      die(`unknown command "${cmd}". one of: list, channels, prepare, dry-run, approve, send, sync, host, verify-hosts, hosts, review-pack`);
   }
 }
 
