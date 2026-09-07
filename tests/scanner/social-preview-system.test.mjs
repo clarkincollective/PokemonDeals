@@ -354,9 +354,22 @@ test("12d. the social system makes no fetch()/publish call; its only network cal
     if (f.endsWith("db.mjs")) continue; // Supabase client call - reads the database, not a network publish
     if (f.endsWith("render.mjs")) continue; // spawns local Chrome + writes a local file - no network call
     if (f.endsWith("cardArtwork.mjs")) continue; // 13E.2.1 - a GET to the TCGplayer product CDN ONLY (host-locked, cached by id); asserted below
+    // 13E.5A - the distribution layer is a SEPARATE, independently-gated
+    // concern with its own test file (social-distribution.test.mjs). Its
+    // provider adapter is the deliberate publish boundary; it is inert
+    // without BUFFER_ACCESS_TOKEN and behind a 13-gate preflight stack.
+    if (f.includes("/distribution/") || f.includes("/providers/")) continue;
     const src = read(f);
     assert.doesNotMatch(src, /\bfetch\(/, `${f} must not make a network call`);
   }
+  // 13E.5A boundary check: within lib/social/providers/, the ONLY fetch
+  // target is the documented Buffer GraphQL host, and the module is inert
+  // when unconfigured (covered fully by social-distribution.test.mjs).
+  const buf = read("lib/social/providers/buffer.mjs");
+  const fetchHosts = [...buf.matchAll(/fetch\(\s*([A-Z_]+)/g)].map((m) => m[1]);
+  assert.ok(fetchHosts.every((h) => h === "BUFFER_GRAPHQL"), "the only fetch in buffer.mjs uses the BUFFER_GRAPHQL constant");
+  assert.match(buf, /const BUFFER_GRAPHQL = "https:\/\/graph\.buffer\.com\/"/);
+  assert.match(read("lib/social/providers/index.mjs"), /nullProvider[\s\S]*isConfigured: \(\) => false/);
   // cardArtwork.mjs: no fetch(), no OpenAI, no eBay; its https.get is
   // guarded to the one canonical host and nowhere else.
   const ca = read("lib/social/cardArtwork.mjs");

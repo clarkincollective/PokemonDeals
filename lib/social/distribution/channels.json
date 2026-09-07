@@ -1,0 +1,5 @@
+{
+  "_comment": "Phase 13E.5A - stable name -> Buffer channel id map. BLOCKED ON OWNER AUTH: run `npm run social:publish -- channels` after BUFFER_ACCESS_TOKEN is set and the Instagram + TikTok channels are connected in Buffer, then paste the ids here. Rendering/eligibility code never reads real ids - only this file does.",
+  "instagram_main": null,
+  "tiktok_main": null
+}
