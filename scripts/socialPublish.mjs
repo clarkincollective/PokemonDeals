@@ -1,24 +1,24 @@
 #!/usr/bin/env node
-// Phase 13E.5A - SOCIAL DISTRIBUTION CLI (dry-run by default; NON-PUBLISHING).
+// Phase 13E.5A / 13E.5B - SOCIAL DISTRIBUTION CLI (dry-run by default; NON-PUBLISHING).
 //
 //   npm run social:publish -- list                       show artifacts + ledger
-//   npm run social:publish -- channels                   discover Buffer channels (needs owner auth)
-//   npm run social:publish -- prepare <id> <platform> [--cut reel|tiktok]
-//                                                        build/refresh a DRAFT ledger row (freezes caption)
+//   npm run social:publish -- channels                   discover Buffer channels
+//   npm run social:publish -- prepare <id> <platform> [--cut reel|tiktok] [--at <iso>]
+//                                                        build/refresh a DRAFT ledger row (freezes the copy)
 //   npm run social:publish -- dry-run <job_id>           run the full gate stack, mutate NOTHING external
 //   npm run social:publish -- approve <job_id>           READY -> APPROVED (explicit human approval)
 //   npm run social:publish -- send <job_id> [--force]    HARD-FAILS unless every gate passes
 //   npm run social:publish -- sync <job_id>              poll the provider; QUEUED -> PUBLISHED only on real evidence
-//   npm run social:publish -- review-pack                build the dry-run distribution review pack
+//   npm run social:publish -- review-pack                build the dry-run 4-platform distribution review pack
 //
-//   <platform> = instagram_feed | instagram_carousel | instagram_reel | tiktok
+//   <platform> = instagram_feed | instagram_carousel | instagram_reel | tiktok | x_post | youtube_short
 //   <id>       = a content_id, a "<source>/<family>" key (e.g. video:13e4/deal_drop),
 //                or a daily content_type (e.g. deal_of_day)
 //
-// This script CANNOT publish in Phase 13E.5A: SOCIAL_PUBLISH_ENABLED is
+// This script CANNOT publish in Phase 13E.5A/B: SOCIAL_PUBLISH_ENABLED is
 // unset, RIGHTS_STATE.publishing is "DISABLED", EPN_AI_TOOLS_APPROVED is
-// unset, and no BUFFER_ACCESS_TOKEN exists. `send` checks all of these
-// (and more) independently and refuses. `dry-run` is the intended verb.
+// unset, and SOCIAL_PUBLISH_DRY_RUN defaults to on. `send` checks all of
+// these (and ~11 more) independently and refuses. `dry-run` is the verb.
 
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
@@ -45,7 +45,12 @@ import {
 } from "../lib/social/distribution/ledger.mjs";
 import { runAllGates, readinessGates } from "../lib/social/distribution/gates.mjs";
 import { resolveArtifactVariant, listAllArtifacts } from "../lib/social/distribution/artifacts.mjs";
-import { PLATFORM_CHANNEL_KEY, PLATFORM_POST_TYPE } from "../lib/social/distribution/artifactMap.mjs";
+import {
+  PLATFORM_CHANNEL_KEY,
+  PLATFORM_POST_TYPE,
+  PLATFORM_PLACEMENT,
+  PLATFORM_SERVICE,
+} from "../lib/social/distribution/artifactMap.mjs";
 import { getSocialProvider } from "../lib/social/providers/index.mjs";
 import { RIGHTS_STATE } from "../lib/social/rights.mjs";
 
@@ -73,12 +78,35 @@ function loadChannels() {
     return {};
   }
 }
-function captionFor(platform, variant) {
-  return platform === "tiktok" ? variant.caption_tiktok : variant.caption_instagram;
+// Resolve the FROZEN platform-appropriate copy (§4). IG/TikTok reuse
+// lib/social/caption.mjs output; X + YouTube use the deterministic
+// platformCopy.mjs derivations carried on the variant.
+function copyForPlatform(platform, variant) {
+  if (platform === "tiktok") return { text: variant.caption_tiktok ?? "", title: null, error: null };
+  if (platform.startsWith("instagram")) return { text: variant.caption_instagram ?? "", title: null, error: null };
+  if (platform === "x_post") {
+    return variant.x?.ok ? { text: variant.x.text, title: null, error: null } : { text: "", title: null, error: variant.x?.reason ?? "no X copy" };
+  }
+  if (platform === "youtube_short") {
+    return variant.youtube?.ok
+      ? { text: variant.youtube.description, title: variant.youtube.title, error: null }
+      : { text: "", title: null, error: variant.youtube?.reason ?? "no YouTube copy" };
+  }
+  return { text: "", title: null, error: `no copy mapping for ${platform}` };
+}
+
+// The media a placement actually carries. X text posts have no file; a 9:16
+// video master is reused as-is for Reel / TikTok / YouTube Short.
+function mediaForPlatform(platform, variant) {
+  if (platform === "x_post") {
+    if (variant.media.kind === "image_45") return { ...variant.media };
+    return { kind: "text_only", files: [], width: 0, height: 0, filesExist: true }; // no file to check; the caption gate covers it
+  }
+  return { ...variant.media };
 }
 
 function banner() {
-  console.log("\n  === social:publish — Phase 13E.5A (dry-run / non-publishing) ===");
+  console.log("\n  === social:publish — Phase 13E.5B (dry-run / non-publishing) ===");
   console.log(`  ${describeFlags(flags)}`);
   console.log(`  rights.publishing = ${RIGHTS_STATE.publishing}   provider = ${PROVIDER.name}${PROVIDER.isConfigured() ? " (configured)" : " (not configured)"}`);
   console.log("");
@@ -113,44 +141,52 @@ async function cmdChannels() {
   banner();
   if (!PROVIDER.isConfigured()) {
     console.log("  BLOCKED ON OWNER AUTH: no BUFFER_ACCESS_TOKEN.");
-    console.log("  1. In Buffer, connect the Instagram (Business/Creator) and TikTok (Business) channels.");
+    console.log("  1. In Buffer, connect Instagram (Business/Creator), TikTok (Business), X, and YouTube.");
     console.log("  2. Generate an API key at https://publish.buffer.com/settings/api");
     console.log("  3. Put  BUFFER_ACCESS_TOKEN=...  in .env.local  (gitignored, server-side only)");
-    console.log("  4. Re-run this command; it will print the channel ids to paste into");
+    console.log("  4. Re-run this command; it will print the channel ids to map into");
     console.log(`     ${path.relative(process.cwd(), CHANNELS_PATH)}`);
     console.log("");
     return;
   }
   const r = await PROVIDER.listChannels();
   if (!r.ok) die(`channel discovery failed: ${r.reason} ${r.detail ?? ""}`.trim());
-  console.log("  Connected Buffer channels:");
-  for (const c of r.channels) console.log(`    ${c.service.padEnd(12)} id=${c.id}  name=${JSON.stringify(c.name)} locked=${c.locked}`);
-  console.log("\n  Map the Instagram id -> \"instagram_main\" and the TikTok id -> \"tiktok_main\" in");
-  console.log(`  ${path.relative(process.cwd(), CHANNELS_PATH)}  (do not commit real ids until the owner confirms).`);
+  const alias = { instagram: "instagram_main", tiktok: "tiktok_main", twitter: "x_main", youtube: "youtube_main" };
+  console.log(`  Connected Buffer channels (org ${r.organizationId}):`);
+  for (const c of r.channels) {
+    console.log(`    ${String(c.service).padEnd(12)} -> ${(alias[c.service] ?? "?").padEnd(15)} id=${c.id}  name=${JSON.stringify(c.name)}  type=${c.type}  locked=${c.locked}  disconnected=${c.disconnected}`);
+  }
+  console.log(`\n  Map each id to its alias in  ${path.relative(process.cwd(), CHANNELS_PATH)}`);
   console.log("");
 }
 
 function buildRow({ artifact, variant, platform, scheduledForIso }) {
   const channels = loadChannels();
   const channelKey = PLATFORM_CHANNEL_KEY[platform];
-  const caption = captionFor(platform, variant);
+  const copy = copyForPlatform(platform, variant);
+  const media = mediaForPlatform(platform, variant);
+  const f = variant.facts ?? {};
   return {
     job_id: jobId({ content_id: artifact.content_id ?? variant.content_id, platform, creative_variant: variant.creative_variant }),
     content_id: artifact.content_id ?? variant.content_id ?? null,
     creative_family: artifact.creative_family,
     creative_variant: variant.creative_variant,
     platform,
+    placement: PLATFORM_PLACEMENT[platform],
+    service: PLATFORM_SERVICE[platform],
     content_goal: artifact.content_goal ?? null,
     media: {
-      kind: variant.media.kind,
-      files: variant.media.files,
-      width: variant.media.width,
-      height: variant.media.height,
-      durationS: variant.media.durationS ?? null,
-      itemCount: variant.media.itemCount ?? null,
-      filesExist: variant.media.filesExist,
+      kind: media.kind,
+      files: media.files ?? [],
+      width: media.width ?? 0,
+      height: media.height ?? 0,
+      durationS: media.durationS ?? null,
+      itemCount: media.itemCount ?? null,
+      filesExist: media.filesExist,
     },
-    caption: caption ?? "",
+    caption: copy.text ?? "",
+    youtube_title: copy.title ?? null,
+    copy_error: copy.error ?? null,
     hashtags: variant.hashtags ?? [],
     first_comment: variant.first_comment ?? null,
     cta_url: variant.cta_url ?? null,
@@ -163,7 +199,14 @@ function buildRow({ artifact, variant, platform, scheduledForIso }) {
     rights: variant.rights ?? artifact.rights ?? null,
     source: artifact.source,
     source_commit: headGitCommit(),
-    snapshot: { ...(variant.snapshot ?? {}) },
+    // frozen deterministic facts - carried in a shape the gate reads
+    snapshot: {
+      ...(variant.snapshot ?? {}),
+      market_price: f.marketRefUsd ?? variant.snapshot?.market_price ?? null,
+      discount_pct: f.discountPct ?? variant.snapshot?.discount_pct ?? null,
+      movement: f.movementPct != null ? { pct: f.movementPct, direction: f.movementDirection, windowLabel: f.movementWindow } : (variant.snapshot?.movement ?? null),
+      facts_source: f.source ?? null,
+    },
     scheduled_for: scheduledForIso,
     created_at: new Date().toISOString(),
     approved_at: null,
@@ -177,6 +220,13 @@ function buildRow({ artifact, variant, platform, scheduledForIso }) {
   };
 }
 
+function cutFor(platform, explicit) {
+  if (explicit) return explicit;
+  if (platform === "tiktok") return "tiktok";
+  if (platform === "instagram_reel" || platform === "youtube_short" || platform === "x_post") return "reel";
+  return null; // instagram_feed / instagram_carousel -> daily static
+}
+
 function cmdPrepare(idOrKey, platform, opts) {
   banner();
   if (!idOrKey || !platform) die("usage: social:publish -- prepare <id> <platform> [--cut reel|tiktok] [--at <iso>]");
@@ -187,8 +237,9 @@ function cmdPrepare(idOrKey, platform, opts) {
   } catch (e) {
     die(e.message);
   }
-  const cut = opts.cut ?? (platform === "tiktok" ? "tiktok" : platform === "instagram_reel" ? "reel" : null);
-  const res = resolveArtifactVariant(idOrKey, { platformCut: cut });
+  const cut = cutFor(platform, opts.cut);
+  let res = resolveArtifactVariant(idOrKey, { platformCut: cut });
+  if (!res.ok && cut === "reel") res = resolveArtifactVariant(idOrKey, { platformCut: "tiktok" }); // some families only cut one way
   if (!res.ok) die(res.reason);
   const { artifact, variant } = res;
 
@@ -209,7 +260,11 @@ function cmdPrepare(idOrKey, platform, opts) {
     // refresh the frozen fields but keep id + history
     Object.assign(existing, {
       media: row.media,
+      placement: row.placement,
+      service: row.service,
       caption: row.caption,
+      youtube_title: row.youtube_title,
+      copy_error: row.copy_error,
       hashtags: row.hashtags,
       first_comment: row.first_comment,
       cta_url: row.cta_url,
@@ -221,7 +276,7 @@ function cmdPrepare(idOrKey, platform, opts) {
       source_commit: row.source_commit,
       status: "DRAFT",
     });
-    existing.history.push({ at: new Date().toISOString(), from: existing.status, to: "DRAFT", note: "re-prepared (caption re-frozen)" });
+    existing.history.push({ at: new Date().toISOString(), from: existing.status, to: "DRAFT", note: "re-prepared (copy re-frozen)" });
     out = existing;
   } else {
     ledger.push(row);
@@ -240,12 +295,14 @@ function cmdPrepare(idOrKey, platform, opts) {
   saveLedger(ledger);
 
   console.log(`  prepared  ${out.job_id}`);
-  console.log(`  family=${out.creative_family}  variant=${out.creative_variant}  platform=${out.platform}  goal=${out.content_goal}`);
-  console.log(`  channel_key=${out.channel_key}  channel_id=${out.channel_id ?? "(unresolved — owner auth pending)"}`);
-  console.log(`  media: ${out.media.kind} ${out.media.width}x${out.media.height}${out.media.durationS ? ` ${out.media.durationS}s` : ""}  files ${out.media.filesExist ? "present" : "MISSING"}`);
+  console.log(`  family=${out.creative_family}  variant=${out.creative_variant}  platform=${out.platform} (${out.placement})  goal=${out.content_goal}`);
+  console.log(`  channel_key=${out.channel_key}  channel_id=${out.channel_id ?? "(unresolved)"}`);
+  console.log(`  media: ${out.media.kind === "text_only" ? "text_only (no media file)" : `${out.media.kind} ${out.media.width}x${out.media.height}${out.media.durationS ? ` ${out.media.durationS}s` : ""}  files ${out.media.filesExist ? "present" : "MISSING"}`}`);
   console.log(`  cta: ${out.cta_url}`);
   console.log(`  scheduled_for: ${brisbaneLabel(out.scheduled_for)}`);
-  console.log(`  caption (FROZEN, ${out.caption.length} chars):`);
+  if (out.youtube_title) console.log(`  YouTube title (FROZEN, ${out.youtube_title.length} chars): ${out.youtube_title}`);
+  if (out.copy_error) console.log(`  copy: NOT BUILT — ${out.copy_error}`);
+  console.log(`  copy (FROZEN, ${out.caption.length} chars):`);
   console.log(out.caption.split("\n").map((l) => "      " + l).join("\n"));
   console.log(`  hashtags: ${out.hashtags.join(" ")}`);
   console.log("");
@@ -263,8 +320,9 @@ function requireJob(id) {
 }
 
 function reResolveVariant(row) {
-  const cut = row.platform === "tiktok" ? "tiktok" : row.platform === "instagram_reel" ? "reel" : null;
-  const res = resolveArtifactVariant(row.content_id, { platformCut: cut });
+  const cut = cutFor(row.platform, null);
+  let res = resolveArtifactVariant(row.content_id, { platformCut: cut });
+  if (!res.ok && cut === "reel") res = resolveArtifactVariant(row.content_id, { platformCut: "tiktok" });
   return res.ok ? res.variant : null;
 }
 
@@ -319,15 +377,23 @@ async function cmdSend(id, opts) {
     die("internal guard: provider unconfigured or RIGHTS_STATE.publishing != ALLOWED — refusing to submit.");
   }
 
+  // NOTE: Buffer requires PUBLIC asset URLs (no direct upload). row.media.files
+  // are local .social-preview paths - a hosted-URL step is a documented
+  // remaining item; the gate stack blocks the send long before here anyway.
   const msg = {
     channelId: row.channel_id,
+    platform: row.service, // "instagram" | "tiktok" | "twitter" | "youtube"
+    placement: row.placement, // "feed" | "carousel" | "reel" | "video" | "post" | "short"
     text: row.caption,
-    assets: row.media.files.map((f) => ({ type: row.media.kind === "video_916" ? "video" : "image", url: f })),
+    assets: (row.media.files ?? []).map((f) => ({ type: row.media.kind === "video_916" ? "video" : "image", url: f })),
     dueAt: row.scheduled_for,
     saveToDraft: false,
     schedulingType: "automatic",
     postType: PLATFORM_POST_TYPE[row.platform],
     firstComment: row.first_comment,
+    youtubeTitle: row.youtube_title ?? null,
+    tiktokTitle: row.platform === "tiktok" ? null : null,
+    siteLink: row.platform === "instagram_feed" ? row.cta_url : null,
   };
   const res = await PROVIDER.createPost(msg);
   if (res?.accepted) {
@@ -358,24 +424,26 @@ async function cmdSync(id) {
   console.log(`  status: ${row.status}${row.published_at ? `  published_at: ${row.published_at} (provider evidence)` : ""}\n`);
 }
 
-// A dry-run pack from the CURRENT artifacts: 1 IG deal-drop still,
-// 1 IG carousel, 1 IG reel, 1 TikTok — prepared, gated, NOT sent.
+// A dry-run 4-PLATFORM pack from the CURRENT artifacts (§12): Instagram
+// still/carousel/Reel, TikTok, X Deal Drop + Market Mover, YouTube Short
+// Deal Drop + Market Mover — prepared, gated, NOT sent.
 function cmdReviewPack() {
   banner();
   const targets = [
-    // §18 asks for 1 IG still + 1 IG carousel from the daily static
-    // pipeline. Those are only present when `social:daily` selected a post
-    // that day; when inventory is thin it selects none and this reports
-    // UNAVAILABLE (the correct fail-closed outcome).
+    // Instagram still + carousel come from the daily static pipeline; only
+    // present when social:daily selected a post that day (thin inventory ->
+    // UNAVAILABLE, the correct fail-closed outcome).
     { key: "deal_of_day", platform: "instagram_feed", label: "Instagram — Deal Drop static (daily)" },
     { key: "pokemon_spotlight", platform: "instagram_carousel", label: "Instagram — Hook Carousel (daily)" },
-    // 13E.4 video artifacts — always the 9:16 masters.
+    // 13E.4 9:16 video masters.
     { key: "video:13e4/deal_drop", platform: "instagram_reel", cut: "reel", label: "Instagram — Deal Drop Reel (9:16)" },
     { key: "video:13e4/deal_drop", platform: "tiktok", cut: "tiktok", label: "TikTok — Deal Drop (9:16)" },
-    { key: "video:13e4/market_mover", platform: "instagram_reel", cut: "reel", label: "Instagram — Market Mover Reel (9:16)" },
-    { key: "video:13e4/market_mover", platform: "tiktok", cut: "tiktok", label: "TikTok — Market Mover (9:16)" },
-    { key: "video:13e4/hook_carousel", platform: "instagram_reel", cut: "reel", label: "Instagram — Hook Carousel Reel (9:16)" },
-    { key: "video:13e4/brand_ad", platform: "tiktok", cut: "tiktok", label: "TikTok — Brand Ad (9:16)" },
+    // X — concise real-data text posts (§6).
+    { key: "video:13e4/deal_drop", platform: "x_post", cut: "reel", label: "X — Deal Drop (text)" },
+    { key: "video:13e4/market_mover", platform: "x_post", cut: "reel", label: "X — Market Mover (text)" },
+    // YouTube Shorts — reuse the 9:16 master, YouTube-specific title + description (§5).
+    { key: "video:13e4/deal_drop", platform: "youtube_short", cut: "reel", label: "YouTube Short — Deal Drop" },
+    { key: "video:13e4/market_mover", platform: "youtube_short", cut: "reel", label: "YouTube Short — Market Mover" },
   ];
   mkdirSync(REVIEW_PACK_DIR, { recursive: true });
   // A dry-run PREVIEW: rows are built in memory and gated, but NOT
@@ -401,11 +469,14 @@ function cmdReviewPack() {
       creative_variant: target.creative_variant,
       content_goal: target.content_goal,
       platform: target.platform,
+      placement: target.placement,
       channel_key: target.channel_key,
       channel_id: target.channel_id,
       artifact: target.media.files,
-      media: `${target.media.kind} ${target.media.width}x${target.media.height}${target.media.durationS ? ` ${target.media.durationS}s` : ""}`,
+      media: target.media.kind === "text_only" ? "text_only (no media file)" : `${target.media.kind} ${target.media.width}x${target.media.height}${target.media.durationS ? ` ${target.media.durationS}s` : ""}`,
       planned_cta: target.cta_url,
+      youtube_title: target.youtube_title ?? null,
+      copy_error: target.copy_error ?? null,
       caption: target.caption,
       hashtags: target.hashtags,
       qa_state: target.qa?.ok ? `PASS (${target.qa.passed}/${target.qa.total})` : `FAIL [${(target.qa?.failed ?? []).join(", ")}]`,
@@ -418,7 +489,7 @@ function cmdReviewPack() {
   }
   // deliberately NOT saveLedger(ledger) - review-pack is a preview
   const manifest = {
-    phase: "13E.5A",
+    phase: "13E.5B",
     generated_at: new Date().toISOString(),
     published: false,
     scheduled: false,
@@ -431,7 +502,7 @@ function cmdReviewPack() {
   const p = path.join(REVIEW_PACK_DIR, "manifest.json");
   writeFileSync(p, JSON.stringify(manifest, null, 2) + "\n", "utf8");
 
-  console.log("  FIRST DRY-RUN DISTRIBUTION REVIEW PACK\n");
+  console.log("  FIRST DRY-RUN 4-PLATFORM DISTRIBUTION REVIEW PACK\n");
   for (const it of pack) {
     if (it.error) {
       console.log(`  - ${it.label}: UNAVAILABLE — ${it.error}\n`);
@@ -440,10 +511,16 @@ function cmdReviewPack() {
     console.log(`  - ${it.label}`);
     console.log(`      content_id   : ${it.content_id}`);
     console.log(`      family/variant: ${it.creative_family} / ${it.creative_variant}   goal: ${it.content_goal}`);
-    console.log(`      platform     : ${it.platform}  (channel ${it.channel_key} -> ${it.channel_id ?? "UNRESOLVED (owner auth pending)"})`);
-    console.log(`      artifact     : ${it.artifact.join(", ")}`);
+    console.log(`      platform     : ${it.platform} (${it.placement})  channel ${it.channel_key} -> ${it.channel_id ?? "UNRESOLVED"}`);
+    console.log(`      artifact     : ${it.artifact.length ? it.artifact.join(", ") : "(text only)"}`);
     console.log(`      media        : ${it.media}`);
+    if (it.youtube_title) console.log(`      YT title     : ${it.youtube_title} (${it.youtube_title.length} chars)`);
     console.log(`      planned CTA  : ${it.planned_cta}`);
+    if (it.copy_error) console.log(`      copy         : NOT BUILT — ${it.copy_error}`);
+    else {
+      console.log(`      copy (${it.caption.length} chars, frozen):`);
+      console.log(it.caption.split("\n").map((l) => "        " + l).join("\n"));
+    }
     console.log(`      QA           : ${it.qa_state}`);
     console.log(`      rights       : ${JSON.stringify(it.rights_state)}`);
     console.log(`      distribution : ${it.distribution_state}`);

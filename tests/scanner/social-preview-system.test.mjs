@@ -342,9 +342,14 @@ test("12b. no publish/schedule/send-to-platform function exists anywhere in the 
   }
 });
 
-test("12c. no social platform API client or SDK is imported anywhere in the social system", () => {
-  const forbidden = /instagram-private-api|tiktok-api|buffer-sdk|facebook-nodejs-business|graph\.facebook\.com|api\.buffer\.com|open-api\.tiktok\.com|graph\.instagram\.com/i;
+test("12c. no social platform API client or SDK is imported in the render/preview/daily system", () => {
+  // api.buffer.com is the SANCTIONED endpoint of the 13E.5B distribution
+  // adapter (lib/social/providers/buffer.mjs) - excluded here, fully
+  // covered by social-distribution.test.mjs. The render/caption/daily
+  // path must still reference no platform API at all.
+  const forbidden = /instagram-private-api|tiktok-api|buffer-sdk|facebook-nodejs-business|graph\.facebook\.com|api\.buffer\.com|graph\.buffer\.com|open-api\.tiktok\.com|graph\.instagram\.com/i;
   for (const f of SOCIAL_FILES) {
+    if (f.includes("/distribution/") || f.includes("/providers/")) continue;
     assert.doesNotMatch(read(f), forbidden, `${f} references a social platform API`);
   }
 });
@@ -368,7 +373,7 @@ test("12d. the social system makes no fetch()/publish call; its only network cal
   const buf = read("lib/social/providers/buffer.mjs");
   const fetchHosts = [...buf.matchAll(/fetch\(\s*([A-Z_]+)/g)].map((m) => m[1]);
   assert.ok(fetchHosts.every((h) => h === "BUFFER_GRAPHQL"), "the only fetch in buffer.mjs uses the BUFFER_GRAPHQL constant");
-  assert.match(buf, /const BUFFER_GRAPHQL = "https:\/\/graph\.buffer\.com\/"/);
+  assert.match(buf, /const BUFFER_GRAPHQL = "https:\/\/api\.buffer\.com"/); // 13E.5B: verified live endpoint
   assert.match(read("lib/social/providers/index.mjs"), /nullProvider[\s\S]*isConfigured: \(\) => false/);
   // cardArtwork.mjs: no fetch(), no OpenAI, no eBay; its https.get is
   // guarded to the one canonical host and nowhere else.

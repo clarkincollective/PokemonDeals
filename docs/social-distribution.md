@@ -1,79 +1,144 @@
-# Social Distribution — Phase 13E.5A
+# Social Distribution — Phase 13E.5A / 13E.5B
 
 **Status:** infrastructure + dry-run only. **Nothing has been published or
-scheduled. No social API call has been made.** `social:publish` cannot
-publish in this phase — several independent gates are all off.
+scheduled.** The only Buffer calls made are **read-only** `account` /
+`channels` GraphQL queries for channel discovery; **no `createPost` has
+run.** `social:publish` cannot publish — several independent gates are
+all off (see §5, §14).
 
 This layer takes the artifacts the existing pipelines already produce
 (`social:daily` static, `social:video` 13E.4) and adds a provider-neutral
-path to *eventually* schedule / autopost them to Instagram and TikTok via
-**Buffer**. It does not render anything and does not change the creative
-system.
+path to *eventually* schedule / autopost them via **Buffer** to:
 
-Legend: **[VERIFIED PROVIDER FACT]** checked against official Buffer docs
-2026-09-07 · **[IMPLEMENTED]** built this phase · **[BLOCKED ON OWNER
-AUTH]** code path exists, waiting on a credential/decision · **[FUTURE]**
-designed, deliberately not built.
+**Instagram · TikTok · X (Twitter) · YouTube (Shorts)** — all four
+channels are connected (Buffer Essentials plan) and resolved in
+`lib/social/distribution/channels.json` (13E.5B).
+
+It does not render anything and does not change the creative system.
+
+Legend: **[VERIFIED PROVIDER FACT]** checked against official Buffer docs /
+live GraphQL introspection 2026-09-07 · **[IMPLEMENTED]** built ·
+**[BLOCKED ON OWNER]** code path exists, waiting on an owner decision ·
+**[FUTURE]** designed, deliberately not built.
+
+## 13E.5B changes at a glance
+
+- **Endpoint corrected.** The live Buffer GraphQL API is `https://api.buffer.com`
+  (Bearer API key), **not** `graph.buffer.com` — the 13E.5A guess was
+  wrong; fixed in `lib/social/providers/buffer.mjs` and verified by
+  introspection against the owner's token.
+- **Channels resolved:** `instagram_main`, `tiktok_main`, `x_main`,
+  `youtube_main` → real Buffer channel ids in `channels.json`
+  (`npm run social:publish -- channels`).
+- **Two new platforms:** `x_post` and `youtube_short` added to
+  `artifactMap.mjs` (eligibility + media envelopes) with their own
+  deterministic copy in `lib/social/distribution/platformCopy.mjs`
+  (X post text ≤280; YouTube Short title ≤100 + description).
+- One `content_id` now fans out to up to four independent ledger rows,
+  one per platform; a failure on one platform never touches the others.
 
 ---
 
 ## 1. Verified current Buffer capabilities  [VERIFIED PROVIDER FACT]
 
-Sources: `developers.buffer.com` (API reference, `/guides/api-limits`),
-`support.buffer.com` articles *Using Instagram with Buffer* (554),
-*Scheduling Instagram posts, reels, stories, and notifications* (657),
-*Using TikTok with Buffer* (559), *Connecting your Instagram account*
-(568). Checked 2026-09-07.
+Sources: live GraphQL introspection against the owner's Essentials-plan
+token; `developers.buffer.com` (authentication, API reference,
+`/guides/api-limits`); `support.buffer.com` articles *Using Instagram
+with Buffer* (554), *Scheduling Instagram posts, reels, stories,
+notifications* (657), *Using TikTok with Buffer* (559), *Using X/Twitter
+with Buffer* (561), *Using YouTube Shorts with Buffer* (562), *Character
+limits for each social network* (588), *Does Buffer have an API* (859).
+Checked 2026-09-07.
+
+### Shared API facts
 
 | Capability | Current state |
 |---|---|
-| Public API | **Current and open.** GraphQL at `graph.buffer.com`; docs at `developers.buffer.com`. (This replaces the long-deprecated `api.bufferapp.com` v1.) |
-| Auth | **API key.** The account owner generates it at `https://publish.buffer.com/settings/api` and sends it as `Authorization: Bearer <key>`. No OAuth app registration needed for first-party use. |
-| Channels | `channels(input: ChannelsInput!)` lists the org's connected channels with stable ids; filter by `locked` / product type. |
-| Create post | `createPost(input: CreatePostInput!)` — fields we use: `channelId`, `text`, `assets` (ordered image/video list), `dueAt` (schedule), `saveToDraft`, `schedulingType` (`automatic` \| `notification`), `mode` (`addToQueue` \| `customScheduled` \| `shareNow` \| `shareNext`), `metadata` (service-specific), `tagIds`. |
-| Media | `assets[]` carry a `url` (+ optional `thumbnailUrl`, `altText`, IG user tags). Images and video are supported; assets are referenced by URL. |
-| Instagram publishing | **Supported.** Automatic (direct) publish for **Business / Creator** accounts; Personal accounts are notification-only. |
-| Instagram — Facebook Page required? | **No, not for publishing.** A linked Facebook Page is only needed for Buffer *Analyze* (insights) and for **location tagging**. Direct publishing works without one. |
-| Instagram Reels | **Can be scheduled and auto-published.** Reels with music / effects / caption links fall back to notification publishing. Limits: 3 s – 15 min; 4:5 – 9:16; ≤ 1920 px wide. |
-| Instagram carousels | **Can be scheduled and auto-published.** Up to **10** images (Buffer/IG API cap). |
-| Instagram stories | **Notification publishing only.** (Out of scope for this system — we post feed / carousel / reel.) |
-| First comment / hashtags | `metadata.instagram.firstComment` is supported, but **only on posts set to automatic publishing**. IG allows ≤ 5 hashtags in the caption body and ≤ 30 in the first comment. |
-| TikTok publishing | **Supported.** Requires a **TikTok Business** account. Automatic publish uses **original audio only** (trending sounds are not available via the API); notification publishing is the alternative for trending audio. |
-| TikTok video | Vertical video, 9:16 nominal. |
-| Scheduling | `dueAt` (explicit datetime) or `addToQueue` (Buffer's posting schedule); `saveToDraft: true` for draft-only. |
-| Draft / approval workflow | Buffer post statuses: `draft`, `buffer` (queued), `sent` (published), `failed`, `paused`. `editPost` carries an `approvalChange` field. Our layer keeps its **own** approval gate (below) rather than relying on Buffer's. |
-| Rate limits | **Per client (API key)**, rolling windows: 100 / 15 min, 250–500 / 24 h, 3 000–15 000 / 30 days (plan-dependent). HTTP `429` + `Retry-After`; a 429 does not consume quota. |
-| Webhooks / status push | **No post-status webhook in the public API today.** Status is confirmed by polling `post(input: { id })` → `status` + `sentAt`. |
+| Endpoint | **`https://api.buffer.com`** — GraphQL, POST. (Corrected in 13E.5B; the 13E.5A `graph.buffer.com` guess was wrong. `api.bufferapp.com` v1 is retired.) |
+| Auth | **Personal API key.** Owner generates it at `https://publish.buffer.com/settings/api`; sent as `Authorization: Bearer <key>`. No OAuth-app registration for first-party use. |
+| Account / org | `query { account { organizations { id } } }` → `organizationId`, required by `channels`. |
+| Channels | `query { channels(input:{ organizationId }) { id name displayName service serviceId type isLocked isDisconnected } }`. |
+| Create post | `mutation { createPost(input: CreatePostInput!) { ...on PostActionSuccess { post { id status } } ...on <Error> { message } } }`. `CreatePostInput`: `channelId`, `text`, `assets:[AssetInput!]!`, `dueAt`, `mode: ShareMode!` (`addToQueue`\|`customScheduled`\|`shareNext`\|`shareNow`), `schedulingType: SchedulingType!` (`automatic`\|`notification`), `saveToDraft`, `needsApproval: Boolean!`, `metadata: PostInputMetaData`, `tagIds`. |
+| Assets | `AssetInput = { image:{ url, thumbnailUrl? } } | { video:{ url, thumbnailUrl? } }`. **URLs must be PUBLIC — Buffer does no direct upload.** (Open item — see §14.) |
+| Post types | `PostType` enum: `post`, `reel`, `carousel`, `short`, `story`, `thread`, … We use `post`/`carousel`/`reel`/`short`. |
+| Post status | `query { post(input:{ id }) { id status sentAt error } }`. `PostStatus`: `draft`, `scheduled`, `needs_approval`, `sending`, `sent`, `error`. Only `sent` **with** `sentAt` = real publish evidence. |
+| Scheduling | `dueAt` (+ `mode: customScheduled`) for an explicit time, else `mode: addToQueue`; `saveToDraft: true` for draft-only. |
+| Rate limits | **Per API key**, rolling windows. Essentials: 3 keys, **7 500 req / 30 days**; 100 / 15 min; 250–500 / 24 h. HTTP `429` + `Retry-After`; a 429 does not consume quota. |
+| Webhooks | **None for post status.** Confirm by polling `post(id)`. |
 
-**Net:** Buffer is a genuine single scheduling/autopost layer for both
-Instagram and TikTok, and — importantly — **Instagram does not require a
-Facebook Page link** for publishing. The one hard account requirement is
-Business/Creator on Instagram and Business on TikTok.
+### Instagram  [channel `instagram_main` — Business account]
+
+| | |
+|---|---|
+| Static image | ✅ auto-publish (feed). 3:4 – 1.91:1. |
+| Carousel | ✅ auto-publish. **≤ 10 images**, same ratio range. |
+| Reels | ✅ auto-publish. 3 s – 15 min; 4:5 – 9:16; ≤ 1920 px wide. Music / effects / caption-links → notification only. |
+| Caption | `text`. First comment via `metadata.instagram.firstComment` — **auto-publish posts only**. ≤ 5 hashtags in caption body, ≤ 30 in first comment. |
+| Facebook Page required? | **No** — only for Analyze / location tagging. |
+| Direct publishing | ✅ (Business/Creator). Personal = notification only. |
+| `metadata.instagram` | `type: PostType!`, `shouldShareToFeed: Boolean!`, `firstComment`, `link`, `geolocation`. |
+
+### TikTok  [channel `tiktok_main` — Business account]
+
+| | |
+|---|---|
+| Vertical video | ✅ auto-publish. 3 s – 10 min. |
+| Direct publishing | ✅ (**TikTok Business account required**). |
+| Caption | `text`; optional `metadata.tiktok.title`. |
+| Audio | Auto-publish uses **original audio only** (no trending-sound library via API); notification publishing is the alternative. |
+| Static image | ❌ not used — video only (per strategy §8). |
+
+### X / Twitter  [channel `x_main` — profile]
+
+| | |
+|---|---|
+| Text post | ✅. **280 chars** on a standard account (emoji = 2, URLs count their full length). Extended count needs X Premium — **not assumed**. |
+| Image post | ✅ up to **4 images** (or **1 video**, or 1 GIF — not mixed). |
+| Video post | ✅ (1 per post). We keep X to text + optional single still. |
+| Multi-image | ✅ ≤ 4. |
+| Link handling | Posted as plain text; **link previews are unavailable for posts > 280 chars** (API limitation) — another reason we stay ≤ 280. |
+| Scheduling | ✅ via `dueAt`. |
+| Threads | `metadata.twitter.thread` exists — **not used** this phase (§6: no thread generation). |
+| Restrictions through Buffer | Over-limit posts are rejected up front with a clear error. |
+
+### YouTube  [channel `youtube_main` — channel; must be the channel owner]
+
+| | |
+|---|---|
+| Shorts | ✅ auto-publish. **9:16 or 1:1**, **≤ 3 min**, ≤ 10 GB, `.mp4`/`.mov`/`.mpg`/`.mpeg`/`.avi`/`.WebM`. |
+| Long-form | **Not built this phase** — Shorts only. |
+| Direct publishing | ✅ (must be logged in as the channel owner; brand-account *managers* cannot connect). Auto-publish can't use YouTube's audio library. |
+| Title | `metadata.youtube.title` — **≤ 100 chars** (first ~40 shown in the Shorts feed). Auto-syncs from the first caption line if omitted; we set it explicitly. |
+| Description | the main `text` field — **≤ 5 000 chars**; first 3 lines shown by default. |
+| Hashtags | typed into the description; hyperlinked on publish. |
+| `metadata.youtube` | `title`, `privacy: YoutubePrivacy` (`private`\|`public`\|`unlisted`), `madeForKids`, `notifySubscribers`, `categoryId`, `license`. |
+
+**Net:** Buffer is one scheduling/autopost layer for all four networks.
+Instagram needs **no Facebook Page** to publish. Hard account
+requirements: IG Business/Creator, TikTok Business, YouTube channel-owner
+login.
 
 ---
 
-## 2. Auth & account requirements  [BLOCKED ON OWNER AUTH]
+## 2. Auth & channels  [RESOLVED 13E.5B]
 
-Nothing is wired to a credential. To move past dry-run the owner must:
+`BUFFER_ACCESS_TOKEN` is set in `.env.local` (git-ignored, server-side
+only — never printed). `npm run social:publish -- channels` ran
+2026-09-07; `lib/social/distribution/channels.json` now holds:
 
-1. In Buffer, connect **Instagram** (Business or Creator account) and
-   **TikTok** (Business account) as channels.
-2. Generate a Buffer API key at `https://publish.buffer.com/settings/api`.
-3. Add it to `.env.local` (git-ignored, server-side only — never a
-   `NEXT_PUBLIC_` var):
+| alias | service | Buffer channel id | account | type |
+|---|---|---|---|---|
+| `instagram_main` | instagram | `6a9e047acd8b9c702c1dd923` | pokemondealfinder | business |
+| `tiktok_main` | tiktok | `6a9e06dccd8b9c702c1de017` | pokemondealfinder | account |
+| `x_main` | twitter | `6a9e05d8cd8b9c702c1ddd50` | pkmdealfinder | profile |
+| `youtube_main` | youtube | `6a9e079ccd8b9c702c1de219` | PokemonDeal Finder | channel |
 
-   ```
-   BUFFER_ACCESS_TOKEN=...
-   ```
-
-4. Run `npm run social:publish -- channels` — it prints each connected
-   channel's id. Paste the Instagram id under `instagram_main` and the
-   TikTok id under `tiktok_main` in
-   `lib/social/distribution/channels.json`.
-
-Until step 3, `getSocialProvider()` returns the **null provider**, which
-refuses every call — there is no code path from this repo to a social
-network.
+Org id `6a9e03b7134a079a70e1b008`. All four channels are unlocked and
+connected. Buffer auth is **healthy**. Channel ids are
+account-identifying but not credentials; only `channels.json` and the CLI
+read them. Without `BUFFER_ACCESS_TOKEN`, `getSocialProvider()` returns
+the **null provider** and there is no code path from this repo to a
+social network.
 
 ---
 
@@ -116,7 +181,8 @@ Files:
 | `lib/social/distribution/ledger.mjs` | ledger record shape + state machine (pure) |
 | `lib/social/distribution/gates.mjs` | the preflight gate stack |
 | `lib/social/distribution/ledger.json` | the durable ledger (starts `[]`) |
-| `lib/social/distribution/channels.json` | stable name → Buffer channel id (starts unresolved) |
+| `lib/social/distribution/channels.json` | logical alias → Buffer channel id — 4 platforms, **resolved 13E.5B** |
+| `lib/social/distribution/platformCopy.mjs` | deterministic X post text + YouTube Short title/description (13E.5B) |
 | `lib/social/providers/buffer.mjs` | Buffer GraphQL adapter (implemented, inert without a token) |
 | `lib/social/providers/index.mjs` | provider selection; null provider default |
 | `scripts/socialPublish.mjs` | the CLI (`npm run social:publish`) |
@@ -226,9 +292,9 @@ npm run social:publish -- review-pack                  build the dry-run distrib
 ```
 
 `<platform>` = `instagram_feed` | `instagram_carousel` | `instagram_reel`
-| `tiktok`. `<id>` = a `content_id`, a `<source>/<family>` key
-(e.g. `video:13e4/deal_drop`), or a daily `content_type`
-(e.g. `deal_of_day`).
+| `tiktok` | `x_post` | `youtube_short`. `<id>` = a `content_id`, a
+`<source>/<family>` key (e.g. `video:13e4/deal_drop`), or a daily
+`content_type` (e.g. `deal_of_day`).
 
 `send` additionally refuses, past the gate stack, if the null provider is
 active or `RIGHTS_STATE.publishing != ALLOWED` (defence in depth).
@@ -245,40 +311,83 @@ exit 1; nothing leaves the machine.
 
 ---
 
-## 8. Artifact → platform mapping  [IMPLEMENTED]
+## 8. Platform content strategy + artifact mapping  [IMPLEMENTED]
 
 Deterministic, in `lib/social/distribution/artifactMap.mjs`. Nothing goes
 to every platform.
 
-| Creative family | Media it distributes as | Eligible placements |
+| Creative family | media kind | eligible placements |
 |---|---|---|
-| `deal_drop` | 4:5 still | `instagram_feed` |
-| `deal_drop` | 9:16 video | `instagram_reel` + `tiktok` |
-| `market_mover` | 4:5 still | `instagram_feed` |
-| `market_mover` | 9:16 video | `instagram_reel` + `tiktok` |
-| `hook_carousel` | 4:5 carousel (≤10) | `instagram_carousel` |
-| `hook_carousel` | 9:16 video | `instagram_reel` + `tiktok` |
-| `brand_ad` | 4:5 still | `instagram_feed` |
-| `brand_ad` | 9:16 video | `instagram_reel` + `tiktok` |
-| `market_snapshot` | 4:5 still | `instagram_feed` (aggregate view — never video) |
+| `deal_drop` | `image_45` (4:5 still) | `instagram_feed`, `x_post` |
+| `deal_drop` | `video_916` (9:16) | `instagram_reel`, `tiktok`, `youtube_short` |
+| `deal_drop` | `text_only` | `x_post` (concise real-data text) |
+| `market_mover` | `image_45` | `instagram_feed`, `x_post` |
+| `market_mover` | `video_916` | `instagram_reel`, `tiktok`, `youtube_short` |
+| `market_mover` | `text_only` | `x_post` |
+| `hook_carousel` | `carousel_45` (≤10) | `instagram_carousel` |
+| `hook_carousel` | `video_916` | `instagram_reel`, `tiktok`, `youtube_short` |
+| `brand_ad` | `image_45` | `instagram_feed`, `x_post` |
+| `brand_ad` | `video_916` | `instagram_reel`, `tiktok`, `youtube_short` |
+| `market_snapshot` | `image_45` / `text_only` | `instagram_feed`, `x_post` |
 
-Media envelope checks (independent second guard): IG feed / carousel
-image 3:4 – 1.91:1; reel 4:5 – 9:16, ≤ 1920 px wide, 3 s – 15 min;
-carousel 2 – 10 slides; TikTok vertical, 3 s – 10 min.
+Deliberate exclusions: TikTok / YouTube take **video only** (no
+static-image workaround); a `hook_carousel` never becomes an `x_post`
+(no honest single-fact text form — the 9:16 motion cut carries it); a
+`market_snapshot` is never a video (it is an aggregate view).
+
+Media envelopes (independent second guard):
+
+- IG feed / carousel image: 3:4 – 1.91:1; carousel 2–10 slides.
+- IG Reel: 4:5 – 9:16, ≤ 1920 px wide, 3 s – 15 min.
+- TikTok: vertical, 3 s – 10 min.
+- **YouTube Short: 9:16 or 1:1, 1 s – 180 s (3 min).**
+- **X: text ≤ 280 chars (standard account); ≤ 4 images.**
+
+`youtube_short` and `x_post` reuse the **existing 13E.4 9:16 master** —
+no new render. X text posts carry no media file.
 
 ---
 
-## 9. Captions & facts  [IMPLEMENTED]
+## 9. Metadata / caption contracts  [IMPLEMENTED]
 
-`prepare` **freezes** the platform caption (from the artifact's
-`caption-instagram.txt` / `caption-tiktok.txt` or the video manifest),
-the hashtag array, the CTA URL, the `content_id`, and a `snapshot` of the
+`prepare` **freezes** the platform-appropriate copy + a `snapshot` of the
 deterministic facts (`market_price`, `discount_pct`, or `movement`) onto
-the ledger row. `send` re-reads the artifact and the `caption_frozen`
-gate fails if anything drifted. Captions are never regenerated at publish
-time — no LLM, no factual drift. The disclosure line
-(`Ad · PokemonDealFinder is an eBay Partner Network affiliate…`) is
-required by the gate.
+the ledger row. `send` re-reads the artifact and `caption_frozen` fails
+if anything drifted. Nothing is regenerated at publish time — no LLM, no
+factual drift.
+
+| field | source | notes |
+|---|---|---|
+| `instagram_caption` | `lib/social/caption.mjs` (unchanged) — daily `caption-instagram.txt` or the 13E.4 manifest | disclosure line required; ≤ 5 inline hashtags |
+| `tiktok_caption` | `lib/social/caption.mjs` (unchanged) — `caption-tiktok.txt` or manifest | shorter hook-driven variant |
+| `x_post_text` | `lib/social/distribution/platformCopy.mjs` → `xPostText(facts)` | ≤ 280 chars; DEAL / MARKET templates; falls back to a shorter form, then to a hook-only line; `{ ok:false }` if it can't fit → that placement is blocked, others unaffected |
+| `youtube_title` | `platformCopy.youtubeShortsMeta(facts).title` | ≤ 100 chars; `"$700 Pokemon Card Listed for $187"` / `"Ditto: Market Reference Up 37% (90d)"` style |
+| `youtube_description` | `platformCopy.youtubeShortsMeta(facts).description` | ≤ 5 000 chars; fact line + CTA + "Prices and availability can change." + full disclosure + `#PokemonCards #PokemonTCG` |
+
+The `facts` object is assembled once per variant
+(`lib/social/distribution/artifacts.mjs`): from the daily payload
+`snapshot` when present, otherwise by **parsing the 13E.4 manifest's own
+frozen fact sentence** (a byte-stable `caption.mjs` template — re-reading
+our own text, never inventing a number). Every platform's copy for one
+content piece therefore carries the **same** listed price / market
+reference / discount / movement. If the numbers can't be recovered, the
+X/YouTube copy is `{ ok:false }` and only that placement is blocked.
+
+### X templates (§6)
+
+```
+DEAL      Just found: {card}          MARKET   {card}: market reference moved
+          Listed: {listed}                     {dir} {pct}% over {window}.
+          Recent market ref: {ref}
+          {pct}% below reference               Price history:
+
+          {url}                                {url}
+
+          Ad · eBay Partner Network affiliate   Ad · eBay Partner Network affiliate
+```
+
+No thread generation. No automated replies. No engagement bait — every
+value comes from the frozen `facts`.
 
 ---
 
@@ -307,21 +416,40 @@ artifact. A provider reject at submit → `FAILED` with a truthful
 
 ---
 
-## 12. First dry-run review pack
+## 12. First dry-run 4-platform review pack
 
 `npm run social:publish -- review-pack` →
 `.social-preview/distribution-review-pack/manifest.json`.
 
-For each item it shows `content_id`, artifact path, frozen caption,
-creative family, content goal, platform, channel placeholder, planned
-CTA, QA state, rights state, and distribution state — and the gate
-verdict (`would send?` — always **NO** this phase).
+It builds these placements from the current artifacts, gates each, and
+persists nothing to the ledger:
 
-The static IG still + carousel slots come from `social:daily`; when the
+| # | placement | source | copy | would send |
+|---|---|---|---|---|
+| 1 | Instagram — Deal Drop static (feed) | `social:daily` | IG caption | UNAVAILABLE (daily pool thin — 0 selected) |
+| 2 | Instagram — Hook Carousel (carousel) | `social:daily` | IG caption | UNAVAILABLE (same) |
+| 3 | Instagram — Deal Drop Reel (9:16) | 13E.4 `deal_drop_reel.mp4` | IG caption (484 ch) | **NO** — publish_switch, live_mode, epn_compliance, owner_approval |
+| 4 | TikTok — Deal Drop (9:16) | 13E.4 `deal_drop_tiktok.mp4` | TikTok caption (375 ch) | **NO** — same 4 |
+| 5 | X — Deal Drop (text) | 13E.4 deal_drop facts | `x_post_text` **151 ch** | **NO** — same 4 |
+| 6 | X — Market Mover (text) | 13E.4 market_mover facts | `x_post_text` **132 ch** | **NO** — same 4 |
+| 7 | YouTube Short — Deal Drop | 13E.4 `deal_drop_reel.mp4` | title `"$141 Pokemon Card Listed for $40"` (32 ch) + desc (349 ch) | **NO** — same 4 |
+| 8 | YouTube Short — Market Mover | 13E.4 `market_mover_reel.mp4` | title `"Ditto: Market Reference Up 37% (90 days)"` (40 ch) + desc (360 ch) | **NO** — same 4 |
+
+Channels for 3–8 are now **resolved** and the provider is **configured**,
+so `provider_auth` and `channel_resolved` pass; the only blockers left are
+the four the owner must flip (publish_switch, live_mode, epn_compliance,
+owner_approval).
+
+The static IG still + carousel (1, 2) come from `social:daily`; when the
 deal pool is thin that command selects **0** posts and those slots report
-`UNAVAILABLE` (the correct fail-closed outcome) — the 13E.4 video
-artifacts populate the rest. See the FINAL REPORT for the run captured
-this phase.
+`UNAVAILABLE` — the correct fail-closed outcome.
+
+> **Known 13E.4-artifact issue (not a distribution bug):** the frozen IG
+> caption in the 13E.4 manifest contains the line *"Verification age
+> outside social freshness threshold - not eligible for preview."* — a
+> stale `freshness.label` from when those masters were rendered. The
+> distribution layer faithfully carries what 13E.4 produced;
+> `social:video` should be re-run before any real send.
 
 ---
 
@@ -347,17 +475,24 @@ real deal data → planner → render → QA → approval policy → scheduler �
 
 ## 14. What is NOT done / open items
 
-- **[BLOCKED ON OWNER AUTH]** Buffer API key + Instagram/TikTok channel
-  connection + channel-id mapping.
-- **[BLOCKED ON OWNER AUTH]** `EPN_AI_TOOLS_APPROVED` decision.
+- ~~Buffer API key + channel connection + mapping~~ — **done (13E.5B):**
+  token in `.env.local`, all 4 channels resolved in `channels.json`.
+- **[BLOCKED ON OWNER]** `EPN_AI_TOOLS_APPROVED` decision.
 - **[BLOCKED ON OWNER]** flipping `RIGHTS_STATE.publishing` to `ALLOWED`
-  (one reviewed line) and `PokemonPriceTracker` / EPN written
-  confirmations noted in `docs/social-compliance-readiness.md` §5–6.
+  (one reviewed line) + setting `SOCIAL_PUBLISH_ENABLED=true` and
+  `SOCIAL_PUBLISH_DRY_RUN=false`; and the `PokemonPriceTracker` / EPN
+  written confirmations in `docs/social-compliance-readiness.md` §5–6.
+- **[BLOCKED — REQUIRED BEFORE ANY REAL SEND]** Buffer needs **public
+  asset URLs** — it does no direct upload. `.social-preview/*.mp4` and
+  `*.png` are local paths; a hosting step (e.g. upload the approved
+  master to a CDN / bucket and pass that URL) must land first. The gate
+  stack blocks the send long before this bites, but it is the true
+  first blocker once the owner flags are flipped.
+- **[FUTURE]** re-run `social:video` to refresh the 13E.4 masters (stale
+  `freshness.label` line — see §12).
 - **[FUTURE]** a true multi-slide 4:5 carousel *export* from
-  `social:daily` (today it renders one representative 4:5 still per
-  family); the distribution layer already models `carousel_45` with ≤10
-  items.
+  `social:daily` (today it renders one representative 4:5 still); the
+  layer already models `carousel_45` with ≤ 10 items.
 - **[FUTURE]** the scheduler / autopilot policy engine (§13).
-- **[FUTURE]** Buffer asset upload — the current adapter passes asset
-  **URLs**; a hosted-URL step (or Buffer's media upload endpoint) is
-  needed before a real send, since `.social-preview/*.mp4` is local.
+- **[FUTURE]** X single-image posts and YouTube long-form (Shorts only
+  this phase); X threads; TikTok/YouTube notification-publish fallback.

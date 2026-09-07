@@ -291,7 +291,7 @@ test("13E.5A-17. the distribution layer imports no provider unless one is config
 
 test("13E.5A-18. the Buffer adapter never posts when unconfigured and hard-codes only the documented endpoint", () => {
   const src = read("lib/social/providers/buffer.mjs");
-  assert.match(src, /graph\.buffer\.com/);
+  assert.match(src, /https:\/\/api\.buffer\.com/); // 13E.5B: verified live GraphQL endpoint
   assert.doesNotMatch(src, /NEXT_PUBLIC_/);
   const buf = _providers.bufferProvider({});
   assert.equal(buf.isConfigured(), false);
@@ -351,9 +351,161 @@ test("13E.5A-22. existing static + video QA gates are untouched (still fail-clos
   assert.equal(m.published, false);
 });
 
-test("13E.5A-23. the committed ledger + channel map start empty / unresolved", () => {
+test("13E.5A-23 / 13E.5B. the committed ledger starts empty; the channel map is resolved for all 4 platforms", () => {
   assert.deepEqual(JSON.parse(read("lib/social/distribution/ledger.json")), []);
   const ch = JSON.parse(read("lib/social/distribution/channels.json"));
-  assert.equal(ch.instagram_main, null);
-  assert.equal(ch.tiktok_main, null);
+  // 13E.5B: owner connected IG + TikTok + X + YouTube on the Essentials
+  // plan; the aliases are now resolved to real Buffer channel ids.
+  for (const alias of ["instagram_main", "tiktok_main", "x_main", "youtube_main"]) {
+    assert.equal(typeof ch[alias], "string", `${alias} must be a resolved channel id`);
+    assert.ok(ch[alias].length > 8, `${alias} looks like a real id`);
+  }
+});
+
+// ============ 13E.5B - X + YouTube expansion ==========================
+
+import { xPostText, youtubeShortsMeta, COPY_LIMITS } from "../../lib/social/distribution/platformCopy.mjs";
+import { PLATFORM_SERVICE, PLATFORM_PLACEMENT, LIMITS } from "../../lib/social/distribution/artifactMap.mjs";
+
+const DEAL_FACTS = { family: "deal_drop", contentGoal: "CONVERSION", cardName: "Sabrina's Haunter", listedUsd: 186.89, marketRefUsd: 700, discountPct: 0.733, ctaUrl: "https://pokemondealfinder.com/deals/33202" };
+const MOVER_FACTS = { family: "market_mover", contentGoal: "ENGAGEMENT", cardName: "Ditto", movementPct: 0.37, movementDirection: "up", movementWindow: "90 days", ctaUrl: "https://pokemondealfinder.com/cards" };
+
+test("13E.5B-1. X post text is deterministic, factual, and within the 280-char budget", () => {
+  const d = xPostText(DEAL_FACTS);
+  assert.equal(d.ok, true);
+  assert.ok(d.chars <= COPY_LIMITS.X_MAX, `deal X post ${d.chars} <= 280`);
+  assert.match(d.text, /186\.89/);
+  assert.match(d.text, /700/);
+  assert.match(d.text, /73% below reference/);
+  assert.match(d.text, /pokemondealfinder\.com\/deals\/33202/);
+  assert.match(d.text, /\bAd\b/); // affiliate marker present
+  assert.doesNotMatch(d.text, /https?:\/\//); // URL shown bare, not as a link scheme
+  // same call twice -> byte-identical (no randomness / regeneration)
+  assert.equal(xPostText(DEAL_FACTS).text, d.text);
+
+  const m = xPostText(MOVER_FACTS);
+  assert.equal(m.ok, true);
+  assert.ok(m.chars <= COPY_LIMITS.X_MAX);
+  assert.match(m.text, /moved up 37% over 90 days/);
+});
+
+test("13E.5B-2. an over-long card name still yields an in-budget X post (drops the disclosure tail, never the facts)", () => {
+  const long = { ...DEAL_FACTS, cardName: "Charizard VMAX Rainbow Secret Rare Alternate Art Full Prerelease Promo Stamped" };
+  const r = xPostText(long);
+  assert.equal(r.ok, true);
+  assert.ok(r.chars <= COPY_LIMITS.X_MAX);
+  assert.match(r.text, /73% below/); // the fact survives
+});
+
+test("13E.5B-3. YouTube Shorts metadata is frozen: title <=100, description <=5000, carries disclosure + CTA", () => {
+  const d = youtubeShortsMeta(DEAL_FACTS);
+  assert.equal(d.ok, true);
+  assert.ok(d.title.length > 0 && d.title.length <= COPY_LIMITS.YT_TITLE_MAX);
+  assert.ok(d.description.length <= COPY_LIMITS.YT_DESC_MAX);
+  assert.match(d.title, /\$700 Pokemon Card Listed for \$187/);
+  assert.match(d.description, /pokemondealfinder\.com\/deals\/33202/);
+  assert.match(d.description, /Prices and availability can change/);
+  assert.match(d.description, /eBay Partner Network affiliate/);
+  assert.match(d.description, /#PokemonCards #PokemonTCG/);
+  // deterministic
+  assert.equal(youtubeShortsMeta(DEAL_FACTS).title, d.title);
+  assert.equal(youtubeShortsMeta(DEAL_FACTS).description, d.description);
+
+  const m = youtubeShortsMeta(MOVER_FACTS);
+  assert.equal(m.ok, true);
+  assert.match(m.title, /Ditto: Market Reference Up 37%/);
+});
+
+test("13E.5B-4. X and YouTube copy for one content piece preserve the SAME underlying facts", () => {
+  const x = xPostText(DEAL_FACTS).text;
+  const yt = youtubeShortsMeta(DEAL_FACTS);
+  // both carry the same listed price, same reference, same discount
+  for (const s of ["186.89", "700", "73%"]) {
+    assert.ok(x.includes(s.replace("186.89", "186.89")) || x.includes("186.89"), `X missing ${s}`);
+  }
+  assert.match(x, /186\.89/);
+  assert.match(yt.description, /186\.89/);
+  assert.match(x, /73% below reference/);
+  assert.match(yt.description, /73% below reference/);
+  assert.match(yt.title, /\$700 .* \$187/); // title rounds per the §5 example style; body stays exact
+});
+
+test("13E.5B-5. YouTube Shorts media eligibility: 9:16 video OK, 4:5 still rejected, >3min rejected", () => {
+  assert.equal(mediaCompatibility({ platform: "youtube_short", mediaMeta: { kind: "video_916", width: 1080, height: 1920, durationS: 12 } }).ok, true);
+  assert.equal(mediaCompatibility({ platform: "youtube_short", mediaMeta: { kind: "image_45", width: 1080, height: 1350 } }).ok, false);
+  assert.equal(mediaCompatibility({ platform: "youtube_short", mediaMeta: { kind: "video_916", width: 1080, height: 1920, durationS: 200 } }).ok, false);
+  // placement eligibility: every family that has a 9:16 cut can be a Short
+  for (const fam of ["deal_drop", "market_mover", "hook_carousel", "brand_ad"]) {
+    assert.equal(placementEligibility({ family: fam, mediaKind: "video_916", platform: "youtube_short" }).ok, true, fam);
+  }
+});
+
+test("13E.5B-6. X static + text eligibility; a carousel is never an X post", () => {
+  assert.equal(placementEligibility({ family: "deal_drop", mediaKind: "image_45", platform: "x_post" }).ok, true);
+  assert.equal(placementEligibility({ family: "market_mover", mediaKind: "text_only", platform: "x_post" }).ok, true);
+  assert.equal(placementEligibility({ family: "brand_ad", mediaKind: "image_45", platform: "x_post" }).ok, true);
+  assert.equal(placementEligibility({ family: "hook_carousel", mediaKind: "carousel_45", platform: "x_post" }).ok, false);
+  // media compat: an X text post needs frozen text within budget
+  assert.equal(mediaCompatibility({ platform: "x_post", mediaMeta: { kind: "text_only" }, text: "" }).ok, false);
+  assert.equal(mediaCompatibility({ platform: "x_post", mediaMeta: { kind: "text_only" }, text: "x".repeat(281) }).ok, false);
+  assert.equal(mediaCompatibility({ platform: "x_post", mediaMeta: { kind: "text_only" }, text: "Short and factual. Ad" }).ok, true);
+});
+
+test("13E.5B-7. one content_id -> four platform placements, each its own job_id", () => {
+  const cid = "pdf-deal-drop-deal-of-day-x-20260907-A-abc1234";
+  const ids = ["instagram_reel", "tiktok", "x_post", "youtube_short"].map((p) =>
+    jobId({ content_id: cid, platform: p, creative_variant: "9x16-reel" })
+  );
+  assert.equal(new Set(ids).size, 4, "four distinct job ids");
+  ids.forEach((id) => assert.ok(id.startsWith(cid + "::")));
+});
+
+test("13E.5B-8. same-platform duplicate is blocked; cross-platform is allowed", () => {
+  const cid = "cid-x";
+  const igRow = { job_id: jobId({ content_id: cid, platform: "instagram_reel", creative_variant: "v" }), content_id: cid, platform: "instagram_reel", creative_variant: "v", status: "DRAFT" };
+  const ledger = [
+    { ...igRow, job_id: "first", status: "QUEUED" },
+  ];
+  // a second IG reel for the same content_id/variant -> duplicate
+  assert.ok(duplicateOf(igRow, ledger));
+  // the SAME content on TikTok / X / YouTube -> NOT a duplicate
+  for (const p of ["tiktok", "x_post", "youtube_short"]) {
+    const row = { job_id: jobId({ content_id: cid, platform: p, creative_variant: "v" }), content_id: cid, platform: p, creative_variant: "v", status: "DRAFT" };
+    assert.equal(duplicateOf(row, ledger), null, `${p} must not collide with the IG reel`);
+  }
+});
+
+test("13E.5B-9. platform maps: service + placement + channel-key are total over all 6 platforms", () => {
+  for (const p of ["instagram_feed", "instagram_carousel", "instagram_reel", "tiktok", "x_post", "youtube_short"]) {
+    assert.ok(PLATFORM_SERVICE[p], `service for ${p}`);
+    assert.ok(PLATFORM_PLACEMENT[p], `placement for ${p}`);
+    assert.ok(PLATFORM_CHANNEL_KEY[p], `channel key for ${p}`);
+  }
+  assert.equal(PLATFORM_SERVICE.x_post, "twitter");
+  assert.equal(PLATFORM_SERVICE.youtube_short, "youtube");
+  assert.equal(PLATFORM_PLACEMENT.youtube_short, "short");
+});
+
+test("13E.5B-10. the Buffer adapter hits ONLY api.buffer.com and is inert unconfigured (X + YT included)", () => {
+  const src = read("lib/social/providers/buffer.mjs");
+  assert.match(src, /const BUFFER_GRAPHQL = "https:\/\/api\.buffer\.com"/);
+  assert.doesNotMatch(src, /graph\.buffer\.com/);
+  assert.match(src, /metadata\.youtube\s*=/); // YouTube metadata branch (title/privacy)
+  assert.match(src, /metadata\.instagram\s*=/); // IG metadata branch (type/firstComment)
+  assert.match(src, /PostActionSuccess/); // real union member from live introspection
+  const buf = _providers.bufferProvider({});
+  assert.equal(buf.isConfigured(), false);
+  return Promise.all([
+    buf.createPost({ platform: "youtube", assets: [] }).then((r) => assert.equal(r.accepted, false)),
+    buf.createPost({ platform: "twitter", assets: [] }).then((r) => assert.equal(r.accepted, false)),
+  ]);
+});
+
+test("13E.5B-11. provider acceptance is still QUEUED (never PUBLISHED) for every platform", () => {
+  for (const platform of ["instagram_reel", "tiktok", "x_post", "youtube_short"]) {
+    const row = { job_id: `j-${platform}`, platform, status: "APPROVED" };
+    applyProviderAccept(row, { provider: "buffer", providerRef: `p-${platform}` });
+    assert.equal(row.status, "QUEUED", platform);
+    assert.equal(row.published_at ?? null, null, `${platform}: acceptance must not set published_at`);
+  }
 });

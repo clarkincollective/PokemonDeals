@@ -1,5 +1,14 @@
 {
-  "_comment": "Phase 13E.5A - stable name -> Buffer channel id map. BLOCKED ON OWNER AUTH: run `npm run social:publish -- channels` after BUFFER_ACCESS_TOKEN is set and the Instagram + TikTok channels are connected in Buffer, then paste the ids here. Rendering/eligibility code never reads real ids - only this file does.",
-  "instagram_main": null,
-  "tiktok_main": null
+  "_comment": "Phase 13E.5B - logical alias -> Buffer channel id. Resolved 2026-09-07 via `npm run social:publish -- channels` against the owner's Essentials-plan token. These are Buffer channel ids (account-identifying, NOT secrets/credentials). Rendering/eligibility code never reads real ids - only this file and the CLI do.",
+  "_organizationId": "6a9e03b7134a079a70e1b008",
+  "instagram_main": "6a9e047acd8b9c702c1dd923",
+  "tiktok_main": "6a9e06dccd8b9c702c1de017",
+  "x_main": "6a9e05d8cd8b9c702c1ddd50",
+  "youtube_main": "6a9e079ccd8b9c702c1de219",
+  "_channels": {
+    "instagram_main": { "service": "instagram", "type": "business", "name": "pokemondealfinder" },
+    "tiktok_main": { "service": "tiktok", "type": "account", "name": "pokemondealfinder" },
+    "x_main": { "service": "twitter", "type": "profile", "name": "pkmdealfinder" },
+    "youtube_main": { "service": "youtube", "type": "channel", "name": "PokemonDeal Finder" }
+  }
 }
