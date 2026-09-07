@@ -29,7 +29,8 @@
     "social:metrics": "node scripts/socialMetrics.mjs",
     "social:plan": "node scripts/socialPlan.mjs",
     "social:dashboard": "node scripts/socialDashboard.mjs",
-    "social:experiments": "node scripts/socialExperiments.mjs"
+    "social:experiments": "node scripts/socialExperiments.mjs",
+    "social:creative-quality": "node scripts/socialCreativeQuality.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",
