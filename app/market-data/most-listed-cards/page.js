@@ -6,7 +6,7 @@ import JsonLd from "@/components/JsonLd";
 import { breadcrumbList, collectionPage, itemList } from "@/lib/jsonLd";
 import { formatScanTime } from "@/lib/time";
 
-export const revalidate = 900;
+export const revalidate = 21600;
 
 const TITLE = "Most-Listed Pokemon Cards";
 const DESCRIPTION =

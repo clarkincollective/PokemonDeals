@@ -30,7 +30,7 @@ import { speciesPriceSnapshot, speciesBySet } from "@/lib/speciesSummary";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
-export const revalidate = 900;
+export const revalidate = 3600;
 
 // Page 1 renders server-side; pagination + filters are client-side (see
 // <DealGrid> / /api/deals-page), so this route reads no request-time APIs

@@ -15,7 +15,7 @@ import { breadcrumbList, collectionPage, itemList } from "@/lib/jsonLd";
 import { formatDate } from "@/lib/time";
 import Price from "@/components/Price";
 
-export const revalidate = 900;
+export const revalidate = 21600;
 
 // Top 75: a substantial, cite-able cross-catalogue ranking that keeps the
 // text-only page comfortably light (SEO Phase 9A performance rule - 100

@@ -9,7 +9,12 @@ import { segmentEntries, urlsetXml, SITEMAP_SEGMENTS, cacheControlForSegment } f
 // value that matters is the deal / sealed segments, where a shorter
 // window keeps a just-expired (now-noindex) listing from lingering in
 // the sitemap. Served stale-while-revalidate, so no request ever waits.
-export const revalidate = 300;
+// VERCEL-COST-1: 300 -> 900. The per-segment `cache-control`
+// (cacheControlForSegment) already gives the ephemeral deal/sealed
+// segments a 300s edge window, so a just-expired listing still clears in
+// minutes; the route-level ISR data cache only needs to re-serialise the
+// stable segments occasionally.
+export const revalidate = 900;
 
 export function generateStaticParams() {
   return SITEMAP_SEGMENTS.map((segment) => ({ segment: `${segment}.xml` }));

@@ -34,7 +34,7 @@ import { emailEnabled } from "@/lib/email";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
-export const revalidate = 60;
+export const revalidate = 180;
 
 export async function generateMetadata({ searchParams }) {
   const params = await searchParams;

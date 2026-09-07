@@ -62,7 +62,7 @@ const SITE_URL = "https://pokemondealfinder.com";
 // every hit) to ISR: rendered on demand, then served from the edge cache
 // and revalidated in the background. 5,000 deal pages churn too fast to
 // prerender at build, so the list is empty and every page is on-demand.
-export const revalidate = 120;
+export const revalidate = 600;
 export async function generateStaticParams() {
   // /deals/<category>/ landing routes share this [id] segment (a real
   // deal id is always numeric, a category slug never is). Prerender the

@@ -40,6 +40,15 @@ export default function DealImage({
 
   if (!current) return <CardImagePlaceholder />;
 
+  // VERCEL-COST-1: eBay listing photos bypass Vercel Image Optimization.
+  // They are unique per ephemeral listing (thousands, each live for days),
+  // already web-optimized JPEGs served from eBay's own CDN, and had almost
+  // no Vercel edge-cache reuse - so every one was paying for AVIF/WebP
+  // transforms + cache writes it never recouped. The canonical TCGplayer
+  // catalogue art (the `reference` stage) stays optimized: it is immutable
+  // and high-reuse (~720 hubs share ~720 images forever).
+  const isEbayPhoto = /(^|\.)ebayimg\.com\//.test(current);
+
   return (
     <>
       <Image
@@ -50,6 +59,7 @@ export default function DealImage({
         sizes={sizes}
         quality={quality}
         priority={priority}
+        unoptimized={isEbayPhoto}
         className={className}
         onError={() =>
           setStage((s) => (s === "listing" && reference ? "reference" : "placeholder"))

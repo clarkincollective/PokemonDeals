@@ -16,7 +16,7 @@ const TITLE = "Browse Pokemon Card Deals by Price, Grade & Era";
 const DESCRIPTION =
   "Pokemon card deals grouped by price band, condition and era — cards under $25/$50/$100, graded (PSA/CGC/BGS), auctions, vintage WOTC and modern. All live eBay listings checked against real market data.";
 
-export const revalidate = 300;
+export const revalidate = 600;
 
 export const metadata = {
   title: TITLE,

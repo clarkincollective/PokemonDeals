@@ -8,7 +8,7 @@ import JsonLd from "@/components/JsonLd";
 import { breadcrumbList, collectionPage, itemList } from "@/lib/jsonLd";
 import { filterHref, PriceFilterRow, CountryFilterRow } from "@/components/FilterBar";
 
-export const revalidate = 60;
+export const revalidate = 300;
 
 const TITLE = "Today's Best Finds";
 const DESCRIPTION = "The biggest real discounts on higher-value Pokemon cards, found on eBay right now.";

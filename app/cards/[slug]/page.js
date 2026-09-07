@@ -44,7 +44,7 @@ const FEATURED_OFFER_COUNT = 4;
 
 const SITE_URL = "https://pokemondealfinder.com";
 
-export const revalidate = 900;
+export const revalidate = 3600;
 
 // No request-time APIs on this route (currency/region moved client-side,
 // no searchParams), so an empty generateStaticParams + the revalidate
@@ -373,7 +373,7 @@ export default async function CardHubPage({ params }) {
                 alt={`${cardName} - ${hub.set}`}
                 fill
                 sizes="(max-width: 640px) 176px, 256px"
-                quality={90}
+                quality={85}
                 priority
                 className="object-contain"
               />

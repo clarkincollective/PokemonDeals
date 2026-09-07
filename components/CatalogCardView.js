@@ -119,7 +119,7 @@ export default function CatalogCardView({ card, analysis, priceHistory = null, s
                 alt={`${name} - ${set}`}
                 fill
                 sizes="(max-width: 640px) 176px, 256px"
-                quality={90}
+                quality={85}
                 priority
                 className="object-contain"
               />

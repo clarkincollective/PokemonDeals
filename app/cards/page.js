@@ -15,7 +15,7 @@ import { breadcrumbList, collectionPage, itemList } from "@/lib/jsonLd";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
-export const revalidate = 900;
+export const revalidate = 3600;
 
 // Stable, broad, database/browse-oriented - no live deal count, market
 // range or catalogue total (those move; visible body counts are fine).

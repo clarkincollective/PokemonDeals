@@ -35,7 +35,7 @@ const SITE_URL = "https://pokemondealfinder.com";
 // now), so an empty generateStaticParams + a revalidate window flips it
 // from fully-dynamic to ISR (edge-cached, background-revalidated). Sealed
 // deals are few but still churn, so nothing is prerendered at build.
-export const revalidate = 120;
+export const revalidate = 600;
 export async function generateStaticParams() {
   return [];
 }

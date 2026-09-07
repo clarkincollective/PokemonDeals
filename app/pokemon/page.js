@@ -6,7 +6,7 @@ import PokemonFilterList from "@/components/PokemonFilterList";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbList, collectionPage, itemList } from "@/lib/jsonLd";
 
-export const revalidate = 900;
+export const revalidate = 3600;
 
 const TITLE = "Browse Pokemon Cards by Generation";
 const DESCRIPTION =

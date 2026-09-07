@@ -33,7 +33,7 @@ import SiteFooter from "@/components/SiteFooter";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
-export const revalidate = 900;
+export const revalidate = 3600;
 
 // One STABLE set-page title (Phase 8A) that leads with the query-proven
 // head terms - "card list", "prices", "values". A few very long set

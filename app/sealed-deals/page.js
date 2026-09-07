@@ -10,7 +10,7 @@ import SealedProductBrowser from "@/components/SealedProductBrowser";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbList, collectionPage } from "@/lib/jsonLd";
 
-export const revalidate = 300;
+export const revalidate = 600;
 
 export async function generateMetadata() {
   const title = "Sealed Pokemon Products — Deals & Prices";

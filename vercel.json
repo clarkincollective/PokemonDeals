@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/refresh-catalog",
-      "schedule": "*/15 * * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/sweep-stale-deals",
@@ -74,7 +74,7 @@
     },
     {
       "path": "/api/screen-deal-images",
-      "schedule": "15,45 * * * *"
+      "schedule": "15 * * * *"
     },
     {
       "path": "/api/refresh-deals?tier=allocated&country=EBAY_US",

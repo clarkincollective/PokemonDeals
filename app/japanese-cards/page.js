@@ -10,7 +10,7 @@ import FilterBar from "@/components/FilterBar";
 import Pagination, { pageHref } from "@/components/Pagination";
 
 // Re-check for new deals at most once a minute - same as the homepage.
-export const revalidate = 60;
+export const revalidate = 300;
 
 // See app/page.js's identical generateMetadata for why paginated pages
 // need their own canonical instead of all pointing back at the base URL.
