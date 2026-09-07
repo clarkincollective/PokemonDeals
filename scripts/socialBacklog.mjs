@@ -52,7 +52,7 @@ import {
   sequenceCtaCheck,
   feedReview,
   stableStoryId,
-  stableCapturedAt,
+  quantizedCapturedAtIso,
   storyRow,
   placementRows,
   qaRunRow,
@@ -213,14 +213,15 @@ function plannedLaneStories(matrix, sourceCommit) {
     // are actually satisfied this run (SUPPORTED_WITH_LIMITATIONS still
     // means the checks cleared the "thin" threshold, not DATA_NOT_READY).
     const subjectId = `${row.series.toLowerCase()}-representative`;
-    // stable per-series captured_at -> idempotent story id across rebuilds
-    const capturedAt = stableCapturedAt(row.series, { now: NOW });
+    // stable per-series captured_at (real ISO) -> idempotent story id + a
+    // valid timestamptz for the DB column.
+    const capturedAt = quantizedCapturedAtIso(row.series, { now: NOW });
     out.push(
       makeStory({
         series: row.series,
         subjectType: row.requires.length ? "catalog" : "concept",
         subjectId,
-        capturedAt: capturedAt === "evergreen" ? new Date(NOW).toISOString() : capturedAt.length === 7 ? weekStartIso(capturedAt) : capturedAt,
+        capturedAt,
         facts: {
           headline_fact: row.requires.length ? `derived from: ${row.checks.map((c) => c.detail).join("; ")}` : null,
           layout_family: row.pillar.toLowerCase(),
@@ -233,17 +234,6 @@ function plannedLaneStories(matrix, sourceCommit) {
     out[out.length - 1].story_id = stableStoryId({ series: row.series, subjectType: row.requires.length ? "catalog" : "concept", subjectId, now: NOW });
   }
   return out;
-}
-
-// "2026-W37" -> the Monday 00:00Z of that ISO week, as an ISO string.
-function weekStartIso(wk) {
-  const [y, w] = wk.split("-W").map(Number);
-  const jan4 = new Date(Date.UTC(y, 0, 4));
-  const day = (jan4.getUTCDay() + 6) % 7;
-  const monday = new Date(jan4);
-  monday.setUTCDate(jan4.getUTCDate() - day + (w - 1) * 7);
-  monday.setUTCHours(0, 0, 0, 0);
-  return monday.toISOString();
 }
 
 function scoreStory(story, context) {

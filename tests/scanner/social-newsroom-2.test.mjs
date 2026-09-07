@@ -12,6 +12,8 @@ import {
   makeStory,
   stableStoryId,
   stableCapturedAt,
+  quantizedCapturedAtIso,
+  EVERGREEN_EPOCH_ISO,
   isoWeekKey,
   storyRow,
   placementRows,
@@ -108,6 +110,18 @@ test("N2-3. stableCapturedAt quantises by shelf-life class", () => {
   assert.equal(stableCapturedAt("MARKET_SNAPSHOT", { now: NOW }), isoWeekKey(NOW)); // EDITORIAL -> ISO week
   assert.equal(stableCapturedAt("THREE_UNDER_25", { now: NOW }), new Date(NOW).toISOString().slice(0, 10)); // SHORT -> UTC day
   assert.equal(stableCapturedAt("DEAL_DROP", { now: NOW, anchorAt: iso(-1) }), iso(-1)); // LIVE -> exact_verified_at
+});
+
+test("N2-3b. quantizedCapturedAtIso always returns a valid ISO timestamp (for the timestamptz column) and is window-stable", () => {
+  const ev = quantizedCapturedAtIso("EXACT_PRINTING_MATTERS", { now: NOW });
+  assert.equal(ev, EVERGREEN_EPOCH_ISO);
+  const ed = quantizedCapturedAtIso("MARKET_SNAPSHOT", { now: NOW });
+  assert.ok(Number.isFinite(Date.parse(ed)) && ed.endsWith("Z"));
+  assert.equal(quantizedCapturedAtIso("MARKET_SNAPSHOT", { now: NOW + 2 * 86_400_000 }), ed); // same ISO week
+  const sh = quantizedCapturedAtIso("THREE_UNDER_25", { now: NOW });
+  assert.match(sh, /^2026-09-07T00:00:00\.000Z$/);
+  // never a bare week key
+  assert.doesNotMatch(ed, /-W\d\d/);
 });
 
 test("N2-4. stableStoryId is stable across rebuilds in the same window and differs across windows", () => {
