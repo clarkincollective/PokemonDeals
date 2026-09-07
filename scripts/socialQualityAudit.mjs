@@ -14,7 +14,7 @@
 // SIMULATION / REVIEW ONLY. No publish, no Buffer, no Supabase write, no
 // eBay call. Fixtures / representative specs only.
 
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { config as loadDotenv } from "dotenv";
 if (existsSync(".env.local")) loadDotenv({ path: ".env.local", quiet: true });
@@ -29,7 +29,7 @@ import {
   runQaStack,
   getSeries,
 } from "../lib/social/newsroom/index.mjs";
-import { RUBRIC_KEYS, reviewAvailable } from "../lib/social/newsroom/visionReview.mjs";
+import { RUBRIC_KEYS, reviewAvailable } from "../lib/newsroom/visualReview.mjs";
 
 const ROOT = process.cwd();
 const OUT_DIR = path.join(ROOT, ".social-preview", "editorial-newsroom", "quality-audit");
@@ -86,31 +86,62 @@ for (const spec of SPECS) {
   });
 }
 
+// SOCIAL-NEWSROOM-2C: fold in the ACTUAL rendered proof assets (from
+// scripts/socialBacklogRender.mjs) so the review pack grades real pixels,
+// not just representative specs.
+let realRenders = [];
+try {
+  const rp = JSON.parse(readFileSync(path.join(ROOT, ".social-preview", "editorial-newsroom", "render-results.json"), "utf8"));
+  realRenders = (rp.render?.results ?? []).map((r) => ({
+    series: r.series, platform: r.platform, layout_family: r.layout_family,
+    dimensions: r.dimensions, local_path: r.local_path, artifact_sha256: (r.artifact_sha256 ?? "").slice(0, 16),
+    hosted_url: r.hosted_url ?? null,
+    deterministic_qa: r.deterministic_qa,
+    layer5: { verdict: r.visual_review?.verdict, ai_spam_risk: r.visual_review?.ai_spam_risk, notes: (r.visual_review?.notes ?? []).slice(0, 2) },
+    status: r.status,
+  }));
+} catch {
+  realRenders = [];
+}
+
 const pack = {
   generated_at: new Date().toISOString(),
-  disclaimer: "SIMULATION / REVIEW ONLY. Representative specs, not live deals. Nothing published or scheduled.",
-  reviewer_note: "Claude / Impeccable is a development-time auditor. Grade each item PASS / WATCH / FAIL against the rubric below; feed P0/P1 findings back as design-system fixes.",
+  disclaimer: "Representative specs + the ACTUAL rendered proof assets (SOCIAL-NEWSROOM-2C). Editorial content only, no live deals. Nothing published; the only provider writes are future-scheduled Buffer DRAFTS.",
+  reviewer_note: "Claude / Impeccable is a development-time auditor. Grade PASS / WATCH / FAIL against the rubric; implement only concrete P0/P1 design-system fixes (SS14 - avoid endless cosmetic iteration).",
   impeccable_rubric: [
-    "ORGANIC_VALUE", "SCROLL_STOP", "STORY_CLARITY", "CARD_DOMINANCE", "FACT_HIERARCHY",
-    "EDITORIAL_VALUE", "ORIGINALITY", "VISUAL_POLISH", "MOBILE", "PLATFORM_FIT", "AI_SPAM_RISK", "CONVERSION_FIT",
+    "SCROLL_STOP", "ORGANIC_VALUE", "PREMIUM_FEEL", "EDITORIAL_VALUE", "TYPOGRAPHY",
+    "LAYOUT", "MOBILE_READABILITY", "PLATFORM_FIT", "AI_SPAM_APPEARANCE",
   ],
   runtime_vision_rubric: RUBRIC_KEYS,
   runtime_vision_configured: reviewAvailable(),
-  items,
+  representative_items: items,
+  real_proof_renders: realRenders,
 };
 
 writeFileSync(path.join(OUT_DIR, "review-pack.json"), JSON.stringify(pack, null, 2) + "\n");
 writeFileSync(
   path.join(OUT_DIR, "review-pack.md"),
-  `# SOCIAL-NEWSROOM-1 - editorial review pack\n\n_${pack.disclaimer}_\n\n` +
+  `# SOCIAL-NEWSROOM editorial review pack\n\n_${pack.disclaimer}_\n\n` +
     `${pack.reviewer_note}\n\n## Impeccable rubric\n\n${pack.impeccable_rubric.map((k) => `- [ ] ${k}: PASS / WATCH / FAIL`).join("\n")}\n\n` +
-    `## Items\n\n` +
+    `## Real proof renders (SOCIAL-NEWSROOM-2C)\n\n` +
+    (realRenders.length
+      ? realRenders
+          .map(
+            (r) =>
+              `### ${r.series} - ${r.platform} - ${r.layout_family} (${r.dimensions})\n` +
+              `- file: ${r.local_path}  sha ${r.artifact_sha256}\n` +
+              `- deterministic QA: ${r.deterministic_qa}  |  Layer-5: ${r.layer5.verdict}${r.layer5.ai_spam_risk != null ? ` (AI_SPAM_RISK ${r.layer5.ai_spam_risk})` : ""}\n` +
+              `- ${r.status}${r.hosted_url ? `  hosted: ${r.hosted_url}` : ""}\n` +
+              (r.layer5.notes.length ? `- notes: ${r.layer5.notes.join(" / ")}\n` : "")
+          )
+          .join("\n")
+      : "_(run `npm run social:backlog-render -- --render` first)_\n") +
+    `\n## Representative items\n\n` +
     items
       .map(
         (it) =>
           `### ${it.series} (${it.pillar} / ${it.shelf_life_class} / ${it.lane})\n` +
-          `- platforms: ${it.platforms.join(", ")}\n` +
-          `- CTA: ${it.cta_intensity}\n` +
+          `- platforms: ${it.platforms.join(", ")}  CTA: ${it.cta_intensity}\n` +
           `- scores: organic ${it.scores.organic}, conversion-proxy ${it.scores.conversion_proxy}, originality ${it.scores.originality}\n` +
           `- deterministic QA: ${it.deterministic_qa.professional_result}${it.deterministic_qa.blockers.length ? ` (blockers: ${it.deterministic_qa.blockers.join("; ")})` : ""}\n`
       )
@@ -120,8 +151,8 @@ writeFileSync(
 
 if (JSON_OUT) console.log(JSON.stringify(pack, null, 2));
 else {
-  console.log(`social:quality-audit - ${items.length} representative items`);
-  for (const it of items) console.log(`  ${it.series.padEnd(28)} ${it.deterministic_qa.professional_result.padEnd(6)} organic ${it.scores.organic}  originality ${it.scores.originality}`);
+  console.log(`social:quality-audit - ${realRenders.length} real proof renders + ${items.length} representative items`);
+  for (const r of realRenders) console.log(`  ${r.series.padEnd(18)} ${r.platform.padEnd(10)} ${r.layout_family.padEnd(20)} QA=${r.deterministic_qa} L5=${r.layer5.verdict} -> ${r.status}`);
   console.log(`  runtime vision review configured: ${reviewAvailable()}`);
   console.log(`  pack: ${path.relative(ROOT, OUT_DIR)}/`);
 }

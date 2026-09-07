@@ -397,3 +397,89 @@ story `valid_until` has passed or precedes its scheduled time.
 The 2x/week refill cron (Sun/Wed) is designed, not wired. A read-only
 daily backlog-health check is safe to activate later (no mutation). Both
 wait until the migration is applied and a clean proof queue has run.
+
+---
+
+# SOCIAL-NEWSROOM-2C - real render -> host -> visual QA -> safe Buffer proof
+
+## The creative path (now complete)
+
+`persisted story -> platform placement -> REAL render -> REAL hosted asset
+-> deterministic QA -> OpenAI Layer-5 -> feed review -> BUFFER_READY ->
+future-scheduled Buffer proof -> reconciliation`
+
+- **Render** - `lib/social/newsroom/editorialTemplates.mjs`: 5 deterministic
+  editorial layout families with MATERIALLY different structure -
+  `editorial_dashboard` (stat grid), `data_ranking` (ranked deltas),
+  `story_reveal` (quoted frame), `process_explainer` (numbered steps),
+  `trust_editorial` (masthead statement). Pure HTML, embedded fonts, NO
+  card artwork / seller image / OpenAI redraw. 4:5 (IG/X) + 9:16
+  (YouTube). Rasterised by the EXISTING `lib/social/render` (system Chrome
+  over CDP) - no new renderer.
+- **Series -> renderer** - `renderRegistry.mjs` maps each renderable
+  series to one layout family + a deterministic content-prop builder from
+  the persisted `facts_json`, plus `newsroomRights()` (matches the live
+  `RIGHTS_STATE` exactly so `canHost`'s drift guard passes). TikTok is
+  motion-only -> never a static placement; YouTube only when the series is
+  materially varied (SS40).
+- **Host** - the EXISTING `getStorageProvider()` (Supabase `social-public`
+  bucket) + `hosted-assets` registry. Content-addressed immutable key
+  (`by-hash/<sha256>.png`); a matching hash is never re-uploaded; the
+  public URL is HEAD-verified.
+- **Deterministic QA** - `editorialQa.editorialCreativeQa` (hook <= 3
+  lines, one wordmark, 0-1 CTA, min 22px, safe zones, stat density, no
+  duplicate stat). `qaStack` routes `creativeMeta.editorial` here instead
+  of the deal-density `scoreCreative`.
+- **Layer-5** - `lib/newsroom/visualReview.reviewRenderedCreative` on the
+  ACTUAL PNG, `temperature: 0` (stable verdict at the margin). Editorial
+  context in the prompt: a deliberately card-free composition is not
+  penalised for CARD_DOMINANCE, and a NONE/BRAND_ONLY CTA is not flagged.
+- **Feed review** - `feedReview` over the curated proof subset must be
+  `FEED_PASS` before any queue (SS13). Each layout carries a distinct
+  wordmark/CTA zone (`LAYOUT_CTA_ZONE`) so "identical CTA placement" is
+  not tripped.
+
+`npm run social:backlog-render -- --proof-seed` persists a fixed 5-series
+proof set; `-- --render` runs the pipeline and patches PASS placements to
+`BUFFER_READY`; `-- --queue-proof` does the Buffer proof (below).
+
+## The Buffer proof (draft mode)
+
+`SOCIAL_BUFFER_BACKLOG_ENABLED=true node scripts/socialBacklogRender.mjs
+--queue-proof` - via the EXISTING adapter (`getSocialProvider().createPost`).
+
+- **DRAFT mode** (`SOCIAL_BUFFER_BACKLOG_MODE` unset). A Buffer draft with
+  a future `dueAt`: a REAL provider write that **never auto-publishes**.
+  `getPostStatus` reports `status: "draft"`, `published: false`. To get a
+  genuine auto-delivering scheduled post, set
+  `SOCIAL_BUFFER_BACKLOG_MODE=scheduled` (adapter sends
+  `mode: "customScheduled"`, no `saveToDraft` -> `status: "scheduled"`,
+  auto-sends at `dueAt`).
+- Every request: future `dueAt` (>= now + 60m), a resolved channel, a
+  hosted asset, QA PASS + Layer-5 PASS, FEED_PASS, not stale, not a
+  duplicate (a placement with a `buffer_provider_ref` is never re-queued).
+- Times are Brisbane wall-clock converted explicitly to UTC
+  (`brisbaneWallToUtc` / `normaliseSchedule`).
+- Provider acceptance -> `BUFFER_QUEUED` (never `PUBLISHED`).
+- Immediate `reconcileOne()` read-back after each queue.
+
+**Instagram via Buffer** returns `InvalidInputError` for our editorial
+image posts (a known Buffer-IG API constraint). The proof therefore runs
+on **X**, which accepts the text+image post cleanly. Only MARKET pillar
+series get an X placement (the platform role carries `market_mover`), so
+the X proof set is `BIGGEST_MOVERS` + `MARKET_SNAPSHOT` - 2 distinct
+series, 2 distinct layouts.
+
+## Impeccable / Claude review (SS14)
+
+`npm run social:quality-audit` now folds in the ACTUAL rendered proof
+assets (`real_proof_renders`) alongside the representative specs, graded
+on SCROLL_STOP / ORGANIC_VALUE / PREMIUM_FEEL / EDITORIAL_VALUE /
+TYPOGRAPHY / LAYOUT / MOBILE_READABILITY / PLATFORM_FIT /
+AI_SPAM_APPEARANCE.
+
+## Not activated (SS25, SS45)
+
+No Sunday/Wednesday mutation cron, no automatic refill, no 7-14 day
+population. `SOCIAL_BUFFER_BACKLOG_ENABLED` is passed inline for the proof
+only - it is not set in the environment.
