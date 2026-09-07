@@ -290,6 +290,19 @@ test("CRM1-24 send-digest still sends exactly one batch, website-first, and skip
   assert.doesNotMatch(src, /ebay\.com|ebay\.to|rover\.ebay|\/rover\/|campid=|affiliate_url|wrapEbay/i);
 });
 
+test("CRM1-24b the weekly digest has its own kill switch, separate from emailEnabled()", () => {
+  const src = read("app/api/send-digest/route.js");
+  // both locks are checked, DIGEST_SEND_ENABLED is the second, independent one
+  assert.match(src, /if \(!emailEnabled\(\)\) return Response\.json\(\{ ok: true, skipped: "disabled" \}\)/);
+  assert.match(src, /if \(!digestSendEnabled\(\)\) return Response\.json\(\{ ok: true, skipped: "digest_send_disabled" \}\)/);
+  const gateIdx = src.indexOf("if (!digestSendEnabled())");
+  const sendIdx = src.indexOf("sendBatch(");
+  assert.ok(gateIdx > -1 && gateIdx < sendIdx, "the gate is checked before any send");
+  // the predicate: ONLY the literal string "true" (any case, trimmed) opens it
+  assert.match(src, /DIGEST_SEND_ENABLED \?\? ""\)\.trim\(\)\.toLowerCase\(\) === "true"/);
+  assert.doesNotMatch(src, /DIGEST_SEND_ENABLED[\s\S]{0,40}(!==|\bfalse\b)/, "not a default-on / negated check");
+});
+
 // ============================ placement rules ============================
 
 test("CRM1-25 homepage capture is present and gated", () => {

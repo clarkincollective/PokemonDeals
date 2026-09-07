@@ -13,18 +13,33 @@ const MIN_DAYS_BETWEEN_SENDS = 6;
 const DEAL_COUNT = 8;
 
 // Weekly cron: emails confirmed newsletter subscribers the week's best
-// below-market deals. Dormant without RESEND_API_KEY. Guarded so a
-// double-fire within 6 days is a no-op.
+// below-market deals. Guarded so a double-fire within 6 days is a no-op.
+//
+// CRM-1B: this marketing send has its OWN kill switch, DIGEST_SEND_ENABLED,
+// deliberately SEPARATE from emailEnabled() (which gates transactional
+// confirmation mail + the on-site capture forms). Turning email capture on
+// must NOT also start the weekly marketing digest - the owner enables this
+// one explicitly, only when list size + deal volume justify a first send.
+// Default (unset / not "true") = the digest stays off even with Resend
+// configured.
 //
 // 13C.2.1 - the digest is DELIBERATELY Buy It Now only (fetchDigestDeals,
 // which pins that contract independently of the homepage flagship). Each
 // row below renders `total_price` as a plain price the recipient can pay,
 // so an auction's current bid must never appear here.
+export function digestSendEnabled(env = process.env) {
+  return String(env.DIGEST_SEND_ENABLED ?? "").trim().toLowerCase() === "true";
+}
+
 export async function GET(request) {
   if (request.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // Two independent locks, both must be open. emailEnabled() = a mailer
+  // exists; digestSendEnabled() = the owner has explicitly turned ON the
+  // weekly MARKETING digest (CRM-1B).
   if (!emailEnabled()) return Response.json({ ok: true, skipped: "disabled" });
+  if (!digestSendEnabled()) return Response.json({ ok: true, skipped: "digest_send_disabled" });
 
   const db = supabaseAdmin();
 

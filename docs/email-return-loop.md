@@ -212,6 +212,23 @@ volume justifies more. No daily cadence unless a user later explicitly
 opts into daily. `send-digest` keeps its 6-day idempotency guard. **No
 autonomous send cadence is enabled in this phase.**
 
+### Digest kill switch (CRM-1B)
+
+`/api/send-digest` has its **own** env gate, `DIGEST_SEND_ENABLED`,
+separate from `emailEnabled()`:
+
+| Gate | Controls |
+| --- | --- |
+| `emailEnabled()` (`RESEND_API_KEY` + `ALERT_FROM_EMAIL`) | transactional confirmation mail + whether the on-site capture forms render |
+| `DIGEST_SEND_ENABLED` (must equal `"true"`) | the weekly **marketing** digest cron actually sending |
+
+The `vercel.json` cron entry (`/api/send-digest`, Mondays 15:00 UTC)
+stays in place, but the route returns `{ ok:true, skipped:"disabled" }`
+while there is no mailer and `{ ok:true, skipped:"digest_send_disabled" }`
+whenever `DIGEST_SEND_ENABLED` is unset/false. **Enabling email capture
+does not enable the digest** — the owner flips `DIGEST_SEND_ENABLED`
+separately, only when list size + deal volume justify a first send.
+
 ---
 
 ## Return-visitor funnel
@@ -262,6 +279,8 @@ extra signup fields.
 2. Set `RESEND_API_KEY` and `ALERT_FROM_EMAIL`. The capture modules then
    render and `/api/newsletter/subscribe` accepts signups + sends
    **confirmation** emails only.
-3. The **digest** (`/api/send-digest`) stays inert until its cron is
-   configured with `CRON_SECRET`; keep it off until deal volume and list
-   size justify a first send. Nothing marketing goes out before then.
+3. The **digest** (`/api/send-digest`) has a Vercel cron entry but stays
+   inert: it needs `emailEnabled()` **and** `DIGEST_SEND_ENABLED="true"`
+   (CRM-1B). Leave `DIGEST_SEND_ENABLED` unset until deal volume and list
+   size justify a first marketing send. Nothing marketing goes out before
+   then.
