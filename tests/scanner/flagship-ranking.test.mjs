@@ -211,19 +211,31 @@ test("13C.2.1 - callers wired to their intended selector", () => {
 });
 
 test("13C.2.1 - digest email renders a plain purchase price + '% below market', no auction-only framing", () => {
-  // strip comments so the guard checks RENDERED strings, not prose
-  const code = read("app/api/send-digest/route.js")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .split("\n")
-    .filter((l) => !l.trim().startsWith("//"))
-    .join("\n");
-  // rows show total_price and "% below market" - fine for a fixed price
-  assert.match(code, /% below market/);
-  // must NOT carry auction-bid framing (would be a lie for a BIN row and
-  // the digest is BIN-only anyway)
-  assert.ok(!/current bid|can rise|Bid on eBay|ending in|auction ends/i.test(code), "digest email must not use auction-bid wording");
-  // and it must not tell the reader to 'Buy now at $X' as if we sell it
-  assert.ok(!/buy now at|purchase for \$|checkout/i.test(code));
+  // CRM-1 moved the digest rendering into lib/crm/digestTemplate.js; the
+  // route now pre-formats rows and calls renderDigest(). Check both.
+  const stripCode = (p) =>
+    read(p)
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .split("\n")
+      .filter((l) => !l.trim().startsWith("//"))
+      .join("\n");
+  const route = stripCode("app/api/send-digest/route.js");
+  const tpl = stripCode("lib/crm/digestTemplate.js");
+
+  // the route feeds a plain purchase price label + a discount % to the template
+  assert.match(route, /priceLabel: formatMoney\(d\.total_price, currencyForDeal\(d\)\)/);
+  assert.match(route, /pct: Math\.round\(d\.discount_pct \* 100\)/);
+  assert.match(route, /preset: "weekly"/);
+  // the template renders "% below market" and website-first deal links
+  assert.match(tpl, /% below market/);
+  assert.match(tpl, /\/deals\/\$\{encodeURIComponent/);
+
+  for (const code of [route, tpl]) {
+    // no auction-bid framing (a lie for a BIN row; the digest is BIN-only)
+    assert.ok(!/current bid|can rise|Bid on eBay|ending in|auction ends/i.test(code), "digest email must not use auction-bid wording");
+    // must not tell the reader to 'Buy now at $X' as if we sell it
+    assert.ok(!/buy now at|purchase for \$|checkout/i.test(code));
+  }
 });
 
 test("no user-facing 'Deal Score' / ranking number is rendered", () => {

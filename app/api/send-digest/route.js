@@ -3,6 +3,7 @@ import { fetchDigestDeals } from "@/lib/deals";
 import { emailEnabled, sendBatch } from "@/lib/email";
 import { currencyForDeal, formatMoney } from "@/lib/money";
 import { digestSubscriberQueryStatus } from "@/lib/newsletterFlow";
+import { renderDigest } from "@/lib/crm/digestTemplate";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -43,11 +44,18 @@ export async function GET(request) {
     fetchDigestDeals({ limit: DEAL_COUNT }),
     db
       .from("newsletter_subscribers")
-      .select("email, token")
+      .select("email, token, status")
       .eq("confirmed", true)
       .is("unsubscribed_at", null),
   ]);
-  const { data: subs, error: subErr } = subsResult;
+  const { data: subsRaw, error: subErr } = subsResult;
+  // CRM-1: a provider webhook can mark a still-"confirmed" row BOUNCED /
+  // COMPLAINED without setting unsubscribed_at - never mail those. Legacy
+  // rows have status null and are fine to send (filtering with a SQL
+  // `neq`/`not in` here would wrongly drop null-status rows too).
+  const subs = Array.isArray(subsRaw)
+    ? subsRaw.filter((s) => s.status !== "BOUNCED" && s.status !== "COMPLAINED")
+    : subsRaw;
   // A genuine query/database failure must never look like a normal
   // "nothing to send" run to anything watching cron status by HTTP code
   // (see the P1 audit - a 200 here is exactly what let the
@@ -56,47 +64,22 @@ export async function GET(request) {
   if (!subs?.length) return Response.json({ ok: true, sent: 0, note: "no subscribers" });
   if (!deals?.length) return Response.json({ ok: true, sent: 0, note: "no deals to send" });
 
-  const rows = deals
-    .map((d) => {
-      const name = d.watchlist?.name ?? d.title;
-      const set = d.watchlist?.set ?? "";
-      const price = formatMoney(d.total_price, currencyForDeal(d));
-      const pct = Math.round(d.discount_pct * 100);
-      const img = d.image_url
-        ? `<img src="${d.image_url}" width="56" height="56" alt="" style="border-radius:6px;object-fit:contain;background:#f4f3f0">`
-        : "";
-      return `<tr>
-  <td style="padding:8px 12px 8px 0;vertical-align:top;width:56px">${img}</td>
-  <td style="padding:8px 0;vertical-align:top">
-    <a href="${SITE_URL}/deals/${d.id}" style="color:#171514;font-weight:600;font-size:14px;text-decoration:none">${esc(name)}</a><br>
-    <span style="color:#6b6560;font-size:12px">${esc(set)}</span><br>
-    <span style="font-weight:700;font-size:14px">${price}</span>
-    <span style="color:#0e7c46;font-size:12px;font-weight:600"> &nbsp;${pct}% below market</span>
-  </td>
-</tr>`;
-    })
-    .join("");
+  // Pre-format each deal into plain, recipient-payable labels; the
+  // template (lib/crm/digestTemplate) does website-first string assembly
+  // only and never sees an eBay / affiliate URL.
+  const digestRows = deals.map((d) => ({
+    id: d.id,
+    name: d.watchlist?.name ?? d.title,
+    set: d.watchlist?.set ?? "",
+    priceLabel: formatMoney(d.total_price, currencyForDeal(d)),
+    pct: Math.round(d.discount_pct * 100),
+    imageUrl: d.image_url || null,
+  }));
 
   const messages = subs.map((s) => {
     const unsub = `${SITE_URL}/api/newsletter?token=${s.token}&action=unsubscribe`;
-    return {
-      to: s.email,
-      subject: "This week's best Pokemon card deals",
-      text: `The biggest below-market Pokemon card finds on eBay this week:\n\n${deals
-        .map((d) => `${d.watchlist?.name ?? d.title} — ${formatMoney(d.total_price, currencyForDeal(d))} (${Math.round(d.discount_pct * 100)}% below market)\n${SITE_URL}/deals/${d.id}`)
-        .join("\n\n")}\n\nMore: ${SITE_URL}/best-finds\nUnsubscribe: ${unsub}`,
-      html: `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;color:#171514">
-  <h1 style="font-size:19px;margin:0 0 4px">This week's best Pokemon deals</h1>
-  <p style="color:#6b6560;font-size:13px;margin:0 0 16px">The biggest below-market finds on eBay right now, checked against real sold prices.</p>
-  <table style="width:100%;border-collapse:collapse">${rows}</table>
-  <p style="margin:20px 0"><a href="${SITE_URL}/best-finds" style="display:inline-block;background:#1a1613;color:#fff;font-size:13px;font-weight:600;text-decoration:none;padding:10px 18px;border-radius:8px">See more deals &rarr;</a></p>
-  <hr style="border:none;border-top:1px solid #e7e4dd;margin:20px 0">
-  <p style="color:#9a938c;font-size:11px;line-height:1.5">
-    You're getting this because you opted in on pokemondealfinder.com. As an eBay affiliate we may earn a commission on purchases, at no cost to you.<br>
-    <a href="${unsub}" style="color:#9a938c">Unsubscribe</a>
-  </p>
-</div>`,
-    };
+    const { subject, html, text } = renderDigest(digestRows, { unsubscribeUrl: unsub, siteUrl: SITE_URL, preset: "weekly" });
+    return { to: s.email, subject, html, text };
   });
 
   const result = await sendBatch(messages);
@@ -111,8 +94,4 @@ export async function GET(request) {
   );
 
   return Response.json({ ok: true, subscribers: subs.length, ...result, deals: deals.length });
-}
-
-function esc(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }

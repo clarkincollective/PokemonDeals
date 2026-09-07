@@ -29,6 +29,8 @@ import Pagination, { pageHref } from "@/components/Pagination";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import CardMemoryStrip from "@/components/CardMemoryStrip";
 import HomepageAnalytics from "@/components/analytics/HomepageAnalytics";
+import EmailCapture from "@/components/EmailCapture";
+import { emailEnabled } from "@/lib/email";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -374,6 +376,14 @@ export default async function Home({ searchParams }) {
           below the first deal lane so a returning visitor's private strip
           never sits between a new visitor and the first real deal. */}
       {showPromo && <CardMemoryStrip />}
+
+      {/* CRM-1 - inline email capture after the first proof section. Not a
+          popup. Rendered only when server-side email capture is enabled
+          (RESEND_API_KEY + ALERT_FROM_EMAIL); double opt-in, nothing sent
+          here. */}
+      {showPromo && emailEnabled() && (
+        <EmailCapture placement="homepage" pageType="homepage" />
+      )}
 
       {/* ENDING SOON */}
       {showPromo && endingSoon.length > 0 && (

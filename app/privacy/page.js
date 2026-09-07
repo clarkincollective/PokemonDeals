@@ -4,7 +4,7 @@ import SiteFooter from "@/components/SiteFooter";
 
 const SITE_URL = "https://pokemondealfinder.com";
 const CONTACT_EMAIL = "pokemondealfinder@gmail.com";
-const LAST_UPDATED = "3 September 2026";
+const LAST_UPDATED = "7 September 2026";
 
 const TITLE = "Privacy Policy";
 const DESCRIPTION =
@@ -111,15 +111,33 @@ export default function PrivacyPolicyPage() {
           . When you click through to eBay or TCGPlayer, their own privacy policies apply.
         </p>
 
-        <h2 className={h2}>Price alerts and the weekly email</h2>
+        <h2 className={h2}>Price alerts and deal emails</h2>
         <p className={p}>
-          These are optional and you only take part if you ask to. If you submit your email address
-          for a price alert, or tick the box for the weekly deals digest, we store your email address,
-          the card and target price you chose, and a random unsubscribe token in our database
-          (Supabase). We send a confirmation email and, after you confirm, only the alerts or digest
-          you signed up for, using our transactional email provider (Resend). Every message has an
-          unsubscribe link; unsubscribing stops all further email. This address is not used for
-          anything else and is not shared for marketing.
+          These are optional and you only take part if you ask to. There are two kinds:
+        </p>
+        <ul className={ul}>
+          <li>
+            <strong>Per-card price alerts</strong> — on a card page you can ask to be emailed when
+            that card next has a listing at or below a price you choose. We store your email address,
+            the card and target price, and a random unsubscribe token.
+          </li>
+          <li>
+            <strong>Deal alerts / the deals digest</strong> — an occasional email of standout
+            below-market finds. You can sign up from a short form on the site. We store your email
+            address, a random unsubscribe token, the date, which on-site page the form was submitted
+            from, and any campaign tag (a short <span className="font-mono">utm_source</span> /{" "}
+            <span className="font-mono">utm_campaign</span> code) on the link you arrived from — so we
+            can see which content brings people in. We do not store your name, the page URL, or
+            anything else you type.
+          </li>
+        </ul>
+        <p className={p}>
+          Both use double opt-in: we send a confirmation email and only ever send you the alerts or
+          digest after you click to confirm, using our transactional email provider (Resend). Every
+          message has a one-click unsubscribe link; unsubscribing is final and stops all further
+          email (an old confirmation link will not silently re-subscribe you). These addresses are
+          stored in our database (Supabase), are not used for anything else, and are never sold,
+          rented, or shared for marketing. You can email us to have the record deleted entirely.
         </p>
 
         <h2 className={h2}>Contact</h2>

@@ -28,6 +28,7 @@ import ListingChecks from "@/components/ListingChecks";
 import RecentSales from "@/components/RecentSales";
 import SaveCardButton from "@/components/SaveCardButton";
 import PriceAlertForm from "@/components/PriceAlertForm";
+import EmailCapture from "@/components/EmailCapture";
 import { emailEnabled } from "@/lib/email";
 import DealImage from "@/components/DealImage";
 import { dealImageProps, trustedDealImageUrl } from "@/lib/listingImage";
@@ -316,6 +317,14 @@ export default async function DealDetailPage({ params }) {
         {relatedDeals.length > 0 && (
           <div className="mx-auto max-w-5xl px-6 pb-12">
             <RelatedDeals deals={relatedDeals} pokemonName={speciesHub?.name} />
+          </div>
+        )}
+        {/* CRM-1 - the expired page is a strong return-visit moment. Below
+            the recovery links, never above them. Gated on email capture
+            being enabled. */}
+        {emailEnabled() && (
+          <div className="mx-auto max-w-2xl px-6 pb-14">
+            <EmailCapture placement="expired_deal" pageType="expired_deal" />
           </div>
         )}
         <SiteFooter />
@@ -843,6 +852,13 @@ export default async function DealDetailPage({ params }) {
 
         {relatedDeals.length > 0 && (
           <RelatedDeals deals={relatedDeals} pokemonName={speciesHub?.name} className="mt-6" />
+        )}
+
+        {/* CRM-1 - contextual capture, well below the primary "View on
+            eBay" CTA and the related-deals module. Gated on email capture
+            being enabled. */}
+        {emailEnabled() && (
+          <EmailCapture placement="deal_detail" pageType="deal_detail" className="mt-8" />
         )}
 
         <ListingChecks className="mt-8" />

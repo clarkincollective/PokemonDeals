@@ -92,12 +92,12 @@ export async function POST(request) {
     if (lookupError) {
       console.error("[alerts] newsletter lookup failed:", lookupError.message);
     } else if (!existingSub) {
-      const insertResult = await db.from("newsletter_subscribers").insert({ email, token: cryptoToken(), source: "price_alert_form" });
+      const insertResult = await db.from("newsletter_subscribers").insert({ email, token: cryptoToken(), source: "price_alert_form", status: "PENDING" });
       insertError = insertResult.error;
       if (insertError) console.error("[alerts] newsletter insert failed:", insertError.message);
     } else if (existingSub.confirmed) {
       // if they re-tick it after unsubscribing, resubscribe
-      const updateResult = await db.from("newsletter_subscribers").update({ unsubscribed_at: null }).eq("id", existingSub.id);
+      const updateResult = await db.from("newsletter_subscribers").update({ unsubscribed_at: null, status: "ACTIVE" }).eq("id", existingSub.id);
       updateError = updateResult.error;
       if (updateError) console.error("[alerts] newsletter resubscribe failed:", updateError.message);
     }
@@ -150,12 +150,14 @@ export async function GET(request) {
   const now = new Date().toISOString();
   await db.from("price_alerts").update({ confirmed: true, confirmed_at: now }).eq("id", row.id);
   // This click is also the double-opt-in for a pending newsletter row
-  // for the same address (see the POST handler).
+  // for the same address (see the POST handler). CRM-1: keep `status` in
+  // sync; only a genuinely pending (never-unsubscribed) row is activated.
   await db
     .from("newsletter_subscribers")
-    .update({ confirmed: true, confirmed_at: now })
+    .update({ confirmed: true, confirmed_at: now, status: "ACTIVE" })
     .eq("email", row.email)
-    .eq("confirmed", false);
+    .eq("confirmed", false)
+    .is("unsubscribed_at", null);
   return htmlResponse(
     `You're set. We'll email you when ${escapeHtml(row.card_name)} next has a matching listing.`,
     200,

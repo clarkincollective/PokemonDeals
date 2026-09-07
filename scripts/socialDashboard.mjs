@@ -244,6 +244,39 @@ async function gather() {
     }
   }
 
+  // ---- subscribers summary (CRM-1: counts only, NEVER an address) ----
+  let subscribers = null;
+  if (!NO_DB) {
+    try {
+      const { supabaseAdmin } = await import("../lib/supabaseAdmin.js");
+      const { summaryFromCounts } = await import("../lib/crm/summary.js");
+      const db = supabaseAdmin();
+      const countWhere = async (apply) => {
+        let q = db.from("newsletter_subscribers").select("id", { count: "exact", head: true });
+        q = apply(q);
+        const { count } = await q;
+        return count ?? 0;
+      };
+      const iso = (daysAgo) => new Date(Date.now() - daysAgo * 864e5).toISOString();
+      const [active, pending, unsubscribed, bounced, complained, s7, s30] = await Promise.all([
+        countWhere((q) => q.eq("status", "ACTIVE")),
+        countWhere((q) => q.eq("status", "PENDING")),
+        countWhere((q) => q.eq("status", "UNSUBSCRIBED")),
+        countWhere((q) => q.eq("status", "BOUNCED")),
+        countWhere((q) => q.eq("status", "COMPLAINED")),
+        countWhere((q) => q.gte("created_at", iso(7))),
+        countWhere((q) => q.gte("created_at", iso(30))),
+      ]);
+      subscribers = summaryFromCounts({
+        byStatus: { ACTIVE: active, PENDING: pending, UNSUBSCRIBED: unsubscribed, BOUNCED: bounced, COMPLAINED: complained },
+        signups7d: s7,
+        signups30d: s30,
+      });
+    } catch {
+      subscribers = null;
+    }
+  }
+
   // ---- outreach (status only, NO email addresses) ----
   const outreachRaw = readJson(OUTREACH_RECORDS, []);
   const outreach = ["packz", "pokemonpricetracker"].map((name) => {
@@ -350,6 +383,7 @@ async function gather() {
     quota,
     freshness,
     image_recovery: { state: recoveryState, last_line: recoverLast, imageless_active_rows: imageless },
+    subscribers,
     outreach,
     metrics,
     experiments,
@@ -646,6 +680,19 @@ ${d.outreach.map((o) => row([esc(o.name), pill(o.status, o.status === "SENT" ? "
   ${row(["last log line", esc(d.image_recovery.last_line ?? "—")])}
   ${row(["NO_TRUSTED_IMAGE active rows", esc(d.image_recovery.imageless_active_rows ?? "— (not read)")])}
 </table>
+
+<h2>Subscribers (CRM-1 — counts only, no addresses)</h2>
+${
+  d.subscribers
+    ? `<table>
+  ${row(["active / pending", `${d.subscribers.active} / ${d.subscribers.pending}`])}
+  ${row(["unsubscribed", String(d.subscribers.unsubscribed)])}
+  ${row(["bounced / complained", `${d.subscribers.bounced} / ${d.subscribers.complained}`])}
+  ${row(["signups — 7d / 30d", `${d.subscribers.signups_7d} / ${d.subscribers.signups_30d}`])}
+</table>
+<p class="sub">Full breakdown incl. top signup source: <code>npm run crm:summary</code></p>`
+    : `<p class="muted">not read (—-no-db, or the newsletter_subscribers table is unavailable)</p>`
+}
 
 <h2>Approval commands (§11 — no buttons; run these in a terminal)</h2>
 <table>

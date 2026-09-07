@@ -21,7 +21,7 @@ export async function GET(request) {
   // failure gets reported to the visitor as if their link were merely
   // stale, which is false and hides the failure from anyone watching.
   const lookup = classifyTokenLookup(
-    await db.from("newsletter_subscribers").select("id, email").eq("token", token).maybeSingle()
+    await db.from("newsletter_subscribers").select("id, email, unsubscribed_at").eq("token", token).maybeSingle()
   );
   if (lookup.kind === "infra_error") return html(INFRA_ERROR_MESSAGE, 500);
   if (lookup.kind === "not_found") return html("This link is no longer valid.", 404);
@@ -30,18 +30,28 @@ export async function GET(request) {
   if (action === "unsubscribe") {
     const unsubResult = await db
       .from("newsletter_subscribers")
-      .update({ unsubscribed_at: new Date().toISOString() })
+      // CRM-1: keep the authoritative `status` in sync with the legacy
+      // `unsubscribed_at` the digest cron filters on.
+      .update({ unsubscribed_at: new Date().toISOString(), status: "UNSUBSCRIBED" })
       .eq("id", row.id);
     if (!writeSucceeded(unsubResult)) return html(INFRA_ERROR_MESSAGE, 500);
-    return html("You've been unsubscribed from the weekly deals email.");
+    return html("You've been unsubscribed. You won't receive any more of these emails.");
+  }
+
+  // CRM-1: a stale confirm link must NOT silently resubscribe someone who
+  // has unsubscribed. A deliberate re-opt-in goes through
+  // /api/newsletter/subscribe, which clears unsubscribed_at and issues a
+  // fresh token first.
+  if (row.unsubscribed_at) {
+    return html("You previously unsubscribed. If you'd like these emails again, sign up on the site.");
   }
 
   const confirmResult = await db
     .from("newsletter_subscribers")
-    .update({ confirmed: true, confirmed_at: new Date().toISOString(), unsubscribed_at: null })
+    .update({ confirmed: true, confirmed_at: new Date().toISOString(), status: "ACTIVE" })
     .eq("id", row.id);
   if (!writeSucceeded(confirmResult)) return html(INFRA_ERROR_MESSAGE, 500);
-  return html("You're subscribed to the weekly Pokemon deals email.");
+  return html("You're subscribed. We'll send standout Pokemon card deals when they're worth sharing.");
 }
 
 function html(message, status = 200) {
