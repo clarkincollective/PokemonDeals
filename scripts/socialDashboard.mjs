@@ -48,6 +48,8 @@ import {
   QUOTA_HEALTHY_FLOOR,
 } from "../lib/social/operator.mjs";
 import { loadSourceSnapshot } from "./socialSource.mjs";
+import { resolveSocialPosture, resolveEmailPosture, describePosture } from "../lib/autonomous/config.mjs";
+import { loadCircuit, effectiveMode, lastRun, lastDigest } from "../lib/autonomous/runState.mjs";
 
 const ROOT = process.cwd();
 const OUT_DIR = path.join(ROOT, ".social-preview", "operator-dashboard");
@@ -277,6 +279,39 @@ async function gather() {
     }
   }
 
+  // ---- autonomous orchestration status (AUTO-1: read-only, no secrets) ----
+  let autonomous = null;
+  try {
+    const sp = resolveSocialPosture(process.env, { requestLive: false });
+    const ep = resolveEmailPosture(process.env, { requestLive: false });
+    const sc = loadCircuit("social");
+    const ec = loadCircuit("email");
+    const sLast = lastRun("social");
+    const eLast = lastRun("email");
+    const dLast = lastDigest();
+    autonomous = {
+      social: {
+        mode: effectiveMode(sp.mode, sc), stage: sp.stageId, circuit: sc.state,
+        last_run_at: sLast?.started_at ?? null, last_outcome: sLast?.outcome ?? null,
+        last_skip_reason: sLast?.skip_reasons?.[0] ?? null,
+        failures_24h: (sc.failures ?? []).length,
+        last_publish: (ledger.filter((r) => r.status === "PUBLISHED").sort((a, b) => Date.parse(b.published_at ?? 0) - Date.parse(a.published_at ?? 0))[0]?.published_at) ?? null,
+      },
+      email: {
+        mode: effectiveMode(ep.mode, ec), stage: ep.stageId, circuit: ec.state,
+        last_eval_at: eLast?.started_at ?? null, last_outcome: eLast?.outcome ?? null,
+        last_skip_reason: eLast?.skip_reasons?.[0] ?? null,
+        failures_24h: (ec.failures ?? []).length,
+        last_digest_at: dLast?.sent_at ?? dLast?.created_at ?? null,
+        last_digest_status: dLast?.status ?? null,
+        active_subscribers: subscribers?.active ?? null,
+        digest_send_enabled: String(process.env.DIGEST_SEND_ENABLED ?? "").trim().toLowerCase() === "true",
+      },
+    };
+  } catch {
+    autonomous = null;
+  }
+
   // ---- outreach (status only, NO email addresses) ----
   const outreachRaw = readJson(OUTREACH_RECORDS, []);
   const outreach = ["packz", "pokemonpricetracker"].map((name) => {
@@ -384,6 +419,7 @@ async function gather() {
     freshness,
     image_recovery: { state: recoveryState, last_line: recoverLast, imageless_active_rows: imageless },
     subscribers,
+    autonomous,
     outreach,
     metrics,
     experiments,
@@ -692,6 +728,25 @@ ${
 </table>
 <p class="sub">Full breakdown incl. top signup source: <code>npm run crm:summary</code></p>`
     : `<p class="muted">not read (—-no-db, or the newsletter_subscribers table is unavailable)</p>`
+}
+
+<h2>Autonomous orchestration (AUTO-1 — read-only)</h2>
+${
+  d.autonomous
+    ? `<table>
+  ${row(["SOCIAL autonomous", `${pill(d.autonomous.social.mode, d.autonomous.social.mode === "LIVE" ? "ok" : d.autonomous.social.mode === "SUSPENDED" ? "bad" : "info")} · stage ${esc(d.autonomous.social.stage)} · circuit ${esc(d.autonomous.social.circuit)}`])}
+  ${row(["social — last auto run / outcome", `${esc(d.autonomous.social.last_run_at ?? "—")} · ${esc(d.autonomous.social.last_outcome ?? "—")}`])}
+  ${row(["social — last publish / last skip", `${esc(d.autonomous.social.last_publish ?? "—")} · ${esc(d.autonomous.social.last_skip_reason ?? "—")}`])}
+  ${row(["social — mutation failures 24h", String(d.autonomous.social.failures_24h)])}
+  ${row(["EMAIL autonomous", `${pill(d.autonomous.email.mode, d.autonomous.email.mode === "LIVE" ? "ok" : d.autonomous.email.mode === "SUSPENDED" ? "bad" : "info")} · stage ${esc(d.autonomous.email.stage)} · circuit ${esc(d.autonomous.email.circuit)}`])}
+  ${row(["email — last evaluation / outcome", `${esc(d.autonomous.email.last_eval_at ?? "—")} · ${esc(d.autonomous.email.last_outcome ?? "—")}`])}
+  ${row(["email — last digest / status", `${esc(d.autonomous.email.last_digest_at ?? "—")} · ${esc(d.autonomous.email.last_digest_status ?? "—")}`])}
+  ${row(["email — last skip reason", esc(d.autonomous.email.last_skip_reason ?? "—")])}
+  ${row(["email — ACTIVE subscribers · DIGEST_SEND_ENABLED", `${d.autonomous.email.active_subscribers ?? "—"} · ${d.autonomous.email.digest_send_enabled}`])}
+  ${row(["email — mutation failures 24h", String(d.autonomous.email.failures_24h)])}
+</table>
+<p class="sub">Plan a cycle: <code>npm run social:auto -- --dry-run</code> · <code>npm run crm:auto -- --dry-run</code>. Production flags are OFF (AUTO-1).</p>`
+    : `<p class="muted">not read</p>`
 }
 
 <h2>Approval commands (§11 — no buttons; run these in a terminal)</h2>

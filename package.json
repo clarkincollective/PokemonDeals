@@ -31,7 +31,9 @@
     "social:dashboard": "node scripts/socialDashboard.mjs",
     "social:experiments": "node scripts/socialExperiments.mjs",
     "social:creative-quality": "node scripts/socialCreativeQuality.mjs",
-    "crm:summary": "node scripts/crmSummary.mjs"
+    "social:auto": "node scripts/socialAuto.mjs",
+    "crm:summary": "node scripts/crmSummary.mjs",
+    "crm:auto": "node scripts/crmAuto.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",
