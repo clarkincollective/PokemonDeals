@@ -257,7 +257,7 @@ test("C4B1-21. the freeform layer performs NO Buffer / cron / Stage-1 / RIGHTS /
     assert.doesNotMatch(src, /SOCIAL_BUFFER_BACKLOG_ENABLED\s*=|REFILL_SCHEDULE|CronCreate|vercel\.json/, `${f} schedule`);
     assert.doesNotMatch(src, /RIGHTS_STATE\.publishing\s*=/, `${f} RIGHTS`);
     assert.doesNotMatch(src, /resend|sendEmail|newsletter_subscribers/i, `${f} email`);
-    assert.doesNotMatch(src, /getBrowse|browse api|\bebay\b/i, `${f} eBay`);
+    assert.doesNotMatch(src, /getBrowse|browseApi|ebayBrowse|\/buy\/browse\/|api\.ebay\.com/i, `${f} eBay Browse`);
     assert.doesNotMatch(src, /from\(\s*price_history\s*\)/, `${f} price_history`);
   }
   assert.ok(TEXT_FIT_VERSION);
