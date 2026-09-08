@@ -76,20 +76,68 @@ Source of truth: `lib/social/newsroom/cardLayoutStatus.mjs`.
 | THREE_UNDER_25 | three_up | deal / multi-card | VISUALLY_STRONG_WITH_REDESIGN | ❌ manual review |
 | BIGGEST_MOVERS | movers_countdown | market | DATA_NOT_READY | ❌ withheld |
 
-The three `VISUALLY_STRONG_WITH_REDESIGN` families clear both deterministic
+The four `VISUALLY_STRONG_WITH_REDESIGN` families clear both deterministic
 gates and score 80–90 on most Layer-5 dimensions, but the conservative
-5-sample worst-case gate intermittently returns WATCH on
-thumbnail-story-clarity / scroll-stop. They render for a human to approve;
-they are not cleared for unattended scheduling.
+5-sample worst-case gate intermittently returns WATCH. They render for a
+human to approve; they are not cleared for unattended scheduling.
+
+## 4a. SOCIAL-CREATIVE-3B — deal_hero + bid_vs_total hardening
+
+A dedicated pass tried to lift `deal_hero` and `bid_vs_total` to
+autonomous-safe *without lowering thresholds*. New this pass:
+
+- **`lib/social/newsroom/cardCreativeChecks.mjs`** — an SS17 deterministic
+  contract per family, so a borderline reviewer verdict is caught by
+  something objective first. `deal_hero`: prices real, market > price,
+  rendered % = 1−price/market, one saving statement, market-ref legible
+  (≥ 0.32 of the price font), hero 40–60%, no fake-urgency. `bid_vs_total`:
+  bid + shipping = landed within rounding (single currency), all three
+  present, landed the largest number, non-trivial bid, material shipping,
+  hero occupancy. **All deterministic gates PASS on 100 % of real
+  samples.**
+- **`deal_hero` SS8 commercial-pull gate** (`dealHeroWithholdReason`) — the
+  autonomous picker only renders a deal-drop for an iconic species or a
+  card with a ≥ $80 market reference; a 45 %-off obscure $22 card is
+  WITHHELD (a human may still post it).
+- **`deal_hero` redesign** — the hook no longer restates the % (that was a
+  duplicated price fact); the market reference is now a legible 64 px
+  figure (ratio 0.43), not a strike-through footnote; hero numbers use the
+  display sans with −0.03em tracking instead of cramped mono.
+- **`bid_vs_total` redesign** — a literal vertical equation
+  (`CURRENT BID` `+ SHIPPING` `─` `= YOU PAY`) with real operators and a
+  rule line instead of a decorative box; a non-numeric hook so the numbers
+  appear only once; the landed total is the single biggest element
+  (128 px vs 56 px).
+
+**Result (12 real samples / family × 5-sample worst-case Layer-5,
+`npm run social:creative-harden`):**
+
+| family | det gates | Layer-5 worst-case (2 full runs) | individual reviews | FAIL | verdict |
+|---|---|---|---|---|---|
+| `deal_hero` | every eligible sample PASS | **73 % then 44 %** | 91 % then 80 % | 0 | **MANUAL_ONLY** — misses the ≥ 90 % worst-case bar, and the rate swings 44–73 % between two runs of the *same* samples. The WATCH artifacts score identically to the PASS ones on every rubric dim (TYPO ~71, THUMB ~74, SCROLL ~76) — reviewer nondeterminism at a threshold, not a craft gap. Closest of the manual-only families; blocked on a more deterministic Layer-5 or a policy decision. |
+| `bid_vs_total` | 12/12 PASS | **0 % both runs** | ~73 % | 0 | **MANUAL_ONLY** — a *consistent* ceiling, not nondeterminism: the reviewer reads the arithmetic column as "a useful explainer that takes a moment to process". Three design iterations have not moved it. |
+
+`three_up` and `movers_countdown` were reviewed opportunistically (SS21/22)
+and left MANUAL_ONLY. **FEED-12 simulation → FEED_PASS** (all mix ceilings
+clear once the card-forward CTA zones are used).
 
 ## 5. Readiness
 
 - **Manual-review scheduling:** the three `VISUALLY_STRONG_NOW` card-forward
   families + the four already-proven typographic layouts are ready to be
-  scheduled *with a human approving each asset*.
-- **NEWSROOM-3 autonomous refill:** NOT ready. The target is ≥ 5
+  scheduled *with a human approving each asset*. `deal_hero`,
+  `bid_vs_total`, `three_up`, `movers_countdown` are also fine for
+  human-reviewed scheduling.
+- **NEWSROOM-3 autonomous refill: NOT READY.** The target is ≥ 5
   autonomous-safe families covering market + education + process/story +
-  multi-card + deal. Card-forward currently covers market + education +
-  multi-card autonomously; the **deal floor** (`deal_hero`) and
-  **process/story** (`bid_vs_total`) are still manual-only. Refill stays
-  blocked until those two reach reliable 5/5 Layer-5 PASS.
+  multi-card + deal. Autonomous coverage is still 3 (market + education +
+  multi-card). The **deal floor** (`deal_hero`) and **process/story**
+  (`bid_vs_total`) did not clear the ≥ 90 % 5-sample worst-case bar in
+  SOCIAL-CREATIVE-3B and stay manual-only. Per the phase contract, refill
+  stays blocked.
+- **Remaining blockers:** (1) `deal_hero` — needs the reviewer-threshold
+  nondeterminism resolved (a more deterministic Layer-5, or an agreed
+  policy that 91 % individual + 0 FAIL + all deterministic gates + the SS8
+  pull gate is sufficient); it is one decision away. (2) `bid_vs_total` —
+  needs a genuinely different composition that the reviewer reads as
+  scroll-stopping, or acceptance that process/story stays human-curated.
