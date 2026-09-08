@@ -56,7 +56,21 @@ jobs:
 
       - name: Locate headless Chrome
         id: chrome
-        run: echo "bin=$(which google-chrome || which google-chrome-stable || which chromium-browser || which chromium)" >> "$GITHUB_OUTPUT"
+        run: |
+          set -e
+          BIN=""
+          for c in google-chrome google-chrome-stable chromium chromium-browser; do
+            p="$(command -v "$c" || true)"
+            if [ -n "$p" ] && [ -x "$p" ]; then BIN="$p"; break; fi
+          done
+          if [ -z "$BIN" ]; then
+            echo "::error::no Chrome/Chromium binary found on the runner (tried google-chrome, google-chrome-stable, chromium, chromium-browser)"
+            exit 1
+          fi
+          echo "bin=$BIN" >> "$GITHUB_OUTPUT"
+          echo "Using Chrome: $BIN"
+          # SS8 - show the exact executable + version being used
+          "$BIN" --version || true
 
       - name: Migration + backlog health (read-only)
         run: npm run social:newsroom-migrate-check && npm run social:backlog -- --status
