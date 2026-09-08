@@ -38,7 +38,8 @@
     "social:quality-audit": "node scripts/socialQualityAudit.mjs",
     "social:newsroom-migrate-check": "node scripts/socialNewsroomMigrationCheck.mjs",
     "social:backlog-render": "node scripts/socialBacklogRender.mjs",
-    "infra:vercel-cost": "node scripts/infraVercelCost.mjs"
+    "infra:vercel-cost": "node scripts/infraVercelCost.mjs",
+    "social:creative-pack": "node scripts/socialCreativePack.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",

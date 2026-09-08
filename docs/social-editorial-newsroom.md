@@ -583,3 +583,71 @@ autonomous-safe + data-supported series, caps at the LOW watermark (no
 overfill), returns `BACKLOG_LOW_BUT_NO_QUALITY_CONTENT` rather than filler,
 and reports a `NOT_PLATFORM_FIT` / `PROVIDER_BLOCKED` platform as `BLOCKED`
 (no refill loop).
+
+---
+
+## SOCIAL-CREATIVE-3 — hobby-native visual quality upgrade
+
+Full detail: `docs/social-creative-hobby-native.md` (benchmark checklist,
+per-category rules, series classification) and `docs/social-creative-motion.md`
+(motion storyboard, design-only).
+
+**Why:** the first real scheduled proof posts were technically valid but
+visually underpowered (empty black fields, weak thumbnail impact, almost no
+real card imagery, a generic finance/SaaS-infographic feel). The bar was
+raised before any recurring automation.
+
+**§0 — the two scheduled proof posts were cancelled** (already absent from
+Buffer; local placements `plc_304e6499efe8` / `plc_a0c66a5672a7` reconciled
+to `BUFFER_READY`, `buffer_provider_ref: null`, `provider_state:
+CANCELLED_CREATIVE_BAR`, audit qa_run recorded). No PUBLISHED marker, no
+replacements. The "Scheduled-mode proof" table above is historical.
+
+**New:**
+- `lib/social/newsroom/marketData.mjs` — real-data resolvers for the
+  card-forward layouts. Each returns `{ok:true,…}` or
+  `{ok:false, reason:"VISUALLY_UNDERPOWERED_DATA"}` — a story is WITHHELD,
+  never rendered with placeholder numbers (SS22). Movers delegate to the
+  sanctioned `lib/social/priceMovement` confidence gate — no direct
+  `price_history` access.
+- `lib/social/newsroom/cardEditorialTemplates.mjs` — six card-forward
+  families (`deal_hero`, `bid_vs_total`, `asking_vs_sold`,
+  `printing_compare`, `market_shape`, `three_up`). Real canonical TCGplayer
+  art is the hero via `lib/social/cardArtwork` (file:// only — no AI
+  redraw, no seller photo, no remote URL). Fixed a latent bug: `TOKENS.type.*`
+  are objects, so every `${T.label}px` was rendering `[object Object]px`
+  (browser-default 16px) — flattened to a scalar `S` map.
+- `lib/social/newsroom/collectibleAppeal.mjs` — deterministic SS17 gate
+  (card art present for every shown id, hero ≥ 28%, ≥ 2 real numeric
+  callouts, price contrast, not generic-typographic). **Now a required
+  layer in `qaStack.runQaStack` (`COLLECTIBLE_APPEAL`)** for card-specific
+  data families.
+- `lib/newsroom/visualReview.mjs` — Layer-5 rubric rewritten to the
+  hobby-native dimensions (COLLECTIBLE_VISUAL_APPEAL, CARD_ART_USAGE,
+  DATA_VISUAL_IMPACT, SCROLL_STOP_STRENGTH, HOBBY_NATIVE_FEEL,
+  THUMBNAIL_STORY_CLARITY, VISUAL_SPECIFICITY,
+  EMOTIONAL_COLLECTOR_RELEVANCE, AI_SPAM_RISK, …). "Technically clean but
+  visually weak" → WATCH/FAIL, never PASS. `reviewRenderedCreativeMulti()`
+  runs N samples (default 5) and takes the **worst case**.
+- `lib/social/newsroom/cardLayoutStatus.mjs` — the single source of truth
+  for the series classification and the autonomous-safe set.
+- `scripts/socialCreativePack.mjs` (`npm run social:creative-pack`) — real
+  data + real art → render → deterministic QA + COLLECTIBLE_APPEAL +
+  5-sample worst-case Layer-5 → `feed-grid.html`, `previews.html`
+  (thumb / 25% / mobile), `creative-pack.json` (per-asset scorecard).
+  Nothing published, scheduled, hosted, or sent to Buffer.
+
+**Classification (2026-09-08 real review pack):**
+
+| Grade | Series | Autonomous-safe |
+|---|---|---|
+| VISUALLY_STRONG_NOW | MARKET_SNAPSHOT (market_shape), WHY_SOLD_PRICES_MATTER (asking_vs_sold), EXACT_PRINTING_MATTERS (printing_compare) | ✅ |
+| VISUALLY_STRONG_WITH_REDESIGN | AUCTION_BID_VS_TOTAL (bid_vs_total), DEAL_DROP (deal_hero), THREE_UNDER_25 (three_up) | ❌ manual review only |
+| DATA_NOT_READY | BIGGEST_MOVERS | ❌ withheld |
+
+**Readiness:** 3 card-forward families are cleared for manual-review
+scheduling. **NEWSROOM-3 autonomous refill stays blocked** — the target is
+≥ 5 autonomous-safe families covering market + education + process/story +
+multi-card + deal; the deal floor (`deal_hero`) and process/story
+(`bid_vs_total`) are still manual-only. Stage 1 OFF, `RIGHTS_STATE.publishing`
+DISABLED, `SOCIAL_BUFFER_BACKLOG_ENABLED` unset.

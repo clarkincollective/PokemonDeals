@@ -263,8 +263,9 @@ test("N2-18. OVERFILLED backlog blocks refill (refillNeeds does not target it)",
 });
 
 // ---- §43: visual review WATCH/FAIL/PASS -----------------------
-test("N2-19. visual review rubric has the §18 keys and reviewAvailable follows the OpenAI key", () => {
-  for (const k of ["HOOK_CLARITY", "CARD_DOMINANCE", "SAFE_ZONE_INTEGRITY", "EDITORIAL_VALUE", "AI_SPAM_RISK"]) assert.ok(RUBRIC_KEYS.includes(k));
+test("N2-19. visual review rubric has the hobby-native keys (SOCIAL-CREATIVE-3 SS2) and reviewAvailable follows the OpenAI key", () => {
+  // SOCIAL-CREATIVE-3 replaced the §18 rubric with hobby-native dimensions.
+  for (const k of ["CARD_ART_USAGE", "THUMBNAIL_STORY_CLARITY", "HOBBY_NATIVE_FEEL", "SAFE_ZONE_INTEGRITY", "AI_SPAM_RISK"]) assert.ok(RUBRIC_KEYS.includes(k), `missing ${k}`);
   assert.equal(reviewAvailable({}), false);
   assert.equal(reviewAvailable({ OPENAI_API_KEY: "sk-x" }), true);
 });
