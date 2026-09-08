@@ -191,6 +191,8 @@ function fullMock({ fidelity = 90, factState = "NONE", quality = "PASS", missing
     if (url.includes("/images/edits") || isForm) return image();
     const body = _b?.messages?.[0]?.content?.find?.((c) => c.type === "text")?.text ?? JSON.stringify(_b);
     if (/fidelity_score/.test(body)) return chat({ artwork_materially_changed: fidelity < 62, card_details_altered: false, card_shape_mangled: false, fake_card_variation_introduced: false, fidelity_score: fidelity, notes: [] });
+    // 5A semantic claim extraction - a clean deal_hero (listed < market, correct % / arrow / green)
+    if (/Extract, as one JSON object/.test(body)) return chat({ headline: "45% below recent market", comparisons: [{ left: "DEAL $12.93", right: "MARKET $23", stated_relation: "below market", stated_pct: "-45%", arrow_direction: "down", colour_of_main_number: "green" }], takeaways: ["See the live deal"], claims: [], all_numbers: ["$12.93", "$23", "45%"], logos_detected: ["a magnifier icon and the Pokemon Deal Finder wordmark"], brand_wordmark_text: "Pokemon Deal Finder", two_cards_look_identical: false });
     if (/REQUIRED TEXT/.test(body)) return chat({ missing_required_text: missing, wrong_numbers: wrong, invented_numbers: invented, invented_claims: [], cta_is_ebay_first: ebay, branding_present: branding, typos_or_garbled_text: [], severity: factState });
     return chat({ scores: Object.fromEntries(["scroll_stop", "professional_polish", "premium_feel", "card_is_hero", "story_instantly_clear", "supporting_graphics_useful", "information_rich_not_cluttered", "looks_like_a_real_media_brand", "save_share_likelihood", "click_curiosity", "ai_spam_risk"].map((k) => [k, k === "ai_spam_risk" ? 25 : 80])), verdict: quality, notes: [] });
   });
@@ -206,10 +208,13 @@ test("SC5-12. runFullGenerativeSocial: a clean generate+verify -> BUFFER_READY w
   assert.equal(r.ok, true, r.reason);
   assert.equal(r.state, "BUFFER_READY");
   assert.ok(r.imageB64);
-  assert.equal(r.repaired, false);
+  // 5A: the final artifact is the brand-composited HTML
+  assert.ok(r.finalHtml && /viewBox="0 0 150 150"/.test(r.finalHtml));
+  assert.equal(r.brand_locked, true);
   assert.ok(r.factManifest.required_text.includes("$12.93"));
   assert.equal(r.verification.card_fidelity, true);
   assert.equal(r.verification.fact_verify, "PASS");
+  assert.equal(r.verification.semantic, "PASS");
   assert.ok(r.caption_handoff && "why_it_matters" in r.caption_handoff);
 });
 
@@ -233,7 +238,7 @@ test("SC5-14. runFullGenerativeSocial: card fidelity failure -> CARD_FIDELITY_FA
   assert.equal(r.state, "CARD_FIDELITY_FAIL");
 });
 
-test("SC5-15. runFullGenerativeSocial: a footer-repairable slip -> BUFFER_READY with repaired:true + repair HTML", async () => {
+test("SC5-15. runFullGenerativeSocial: a footer-repairable slip -> BUFFER_READY, brand-composited final HTML (5A: brand asset always overlaid)", async () => {
   const r = await runFullGenerativeSocial({
     story: STORY, platform: "instagram", layout: "deal_hero",
     resolved: { data: { priceUsd: 12.93, marketUsd: 23, discountPct: 45 } },
@@ -241,7 +246,8 @@ test("SC5-15. runFullGenerativeSocial: a footer-repairable slip -> BUFFER_READY 
   });
   assert.equal(r.ok, true, r.reason);
   assert.equal(r.repaired, true);
-  assert.match(r.repairedHtml, /PokemonDealFinder/);
+  assert.ok(r.finalHtml);
+  assert.match(r.finalHtml, /Deal Finder/);
 });
 
 test("SC5-16. runFullGenerativeSocial: the unrelated-era Umbreon is still EDITORIAL_WITHHOLD (gate first)", async () => {
