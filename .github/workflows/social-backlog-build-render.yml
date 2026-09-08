@@ -1,0 +1,80 @@
+# Phase SOCIAL-NEWSROOM-3B (SS14/SS15) - the automated RENDER RUNNER for
+# the planned editorial backlog.
+#
+# Vercel functions cannot run headless Chrome, so the render stage runs
+# here (ubuntu-latest ships Chrome). It does STAGE A only:
+#   build story opportunities -> render card-forward artifacts -> QA stack
+#   -> staged visual consensus (policy 3c.1) for CONDITIONAL families ->
+#   host to Supabase -> persist BUFFER_READY.
+# STAGE B (queue + reconcile) then runs on the Vercel cron
+# /api/social-backlog-refill one hour later.
+#
+# NOT SCHEDULED YET. `workflow_dispatch` only. To activate recurring
+# operation an owner must (1) add the repo secrets below, (2) uncomment
+# the `schedule:` block, (3) set REFILL_SCHEDULE.activated = true, and
+# (4) add the Vercel Stage-B cron. See docs/social-newsroom-3-runbook.md.
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   NEXT_PUBLIC_SUPABASE_URL       (already set for the SEO workflow)
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY  (already set)
+#   SUPABASE_SERVICE_ROLE_KEY      NEW - the render runner persists stories /
+#                                 placements / QA rows and uploads hosted assets
+#   OPENAI_API_KEY                 NEW - staged visual consensus for CONDITIONAL
+#   BUFFER_ACCESS_TOKEN            NEW - only if you also enable a queue step
+#                                 here; the default flow leaves queueing to Vercel
+
+name: social backlog build+render (Stage A)
+
+on:
+  workflow_dispatch:
+  # schedule:
+  #   # 05:00 Australia/Brisbane Sunday + Wednesday  (UTC+10, no DST)
+  #   - cron: "0 19 * * 6,2"
+
+concurrency:
+  # SS17/SS34 - never let two render runs overlap
+  group: social-backlog-build-render
+  cancel-in-progress: false
+
+jobs:
+  build-render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      # do NOT set SOCIAL_BUFFER_BACKLOG_ENABLED here - Stage A never queues
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+
+      - name: Locate headless Chrome
+        id: chrome
+        run: echo "bin=$(which google-chrome || which google-chrome-stable || which chromium-browser || which chromium)" >> "$GITHUB_OUTPUT"
+
+      - name: Migration + backlog health (read-only)
+        run: npm run social:newsroom-migrate-check && npm run social:backlog -- --status
+
+      - name: Build story opportunities (persist PLANNED)
+        run: npm run social:backlog -- --build
+
+      - name: Render + QA + consensus + host  (Stage A)
+        env:
+          CHROME_BIN: ${{ steps.chrome.outputs.bin }}
+        run: node scripts/socialBacklogRender.mjs --render
+
+      - name: Legacy creative audit (mark SUPERSEDED)
+        run: node scripts/socialBacklogRender.mjs --audit-legacy --apply
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "::group::render-results"
+          test -f .social-preview/editorial-newsroom/render-results.json && cat .social-preview/editorial-newsroom/render-results.json | head -c 4000 || echo "no render-results.json"
+          echo "::endgroup::"

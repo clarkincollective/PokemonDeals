@@ -1331,5 +1331,281 @@
         "note": "record built (not yet uploaded)"
       }
     ]
+  },
+  {
+    "asset_id": "ha_c8bb6b6e63b56f0f9a0fcf26",
+    "content_id": "why_sold_prices_matter-why-sold-prices-matter-proof-2cdca8d638",
+    "creative_family": "asking_vs_sold",
+    "artifact_type": "image_916",
+    "platform_eligibility": [
+      "youtube"
+    ],
+    "local_source_path": "C:\\Users\\James\\OneDrive\\Desktop\\pokemon-deals\\.social-preview\\editorial-newsroom\\renders\\why_sold_prices_matter_asking_vs_sold_youtube_dca8d638.png",
+    "sha256": "c8bb6b6e63b56f0f9a0fcf26319b2677070ed19df22874d338267732355c83c1",
+    "mime_type": "image/png",
+    "bytes": 884395,
+    "width": 1080,
+    "height": 1920,
+    "duration_s": null,
+    "storage_provider": "supabase",
+    "storage_key": "by-hash/c8bb6b6e63b56f0f9a0fcf26319b2677070ed19df22874d338267732355c83c1.png",
+    "public_url": "https://gxourdsnpaohnosknxtb.supabase.co/storage/v1/object/public/social-public/by-hash/c8bb6b6e63b56f0f9a0fcf26319b2677070ed19df22874d338267732355c83c1.png",
+    "uploaded_at": "2026-09-08T04:00:01.997Z",
+    "source_commit": "4865524",
+    "qa_verdict": {
+      "ok": true,
+      "passed": 3,
+      "total": 3,
+      "failed": []
+    },
+    "rights_state": {
+      "ppt_social_data": "CLEARED",
+      "card_image": "CLEARED",
+      "ebay_seller_images": "NOT_CLEARED",
+      "ebay_genai": "NOT_ALLOWED",
+      "publishing": "DISABLED"
+    },
+    "verified": {
+      "at": "2026-09-08T04:00:02.450Z",
+      "status": 200,
+      "contentType": "image/png",
+      "contentLength": 884395
+    },
+    "history": [
+      {
+        "at": "2026-09-08T04:00:01.997Z",
+        "note": "record built (not yet uploaded)"
+      }
+    ]
+  },
+  {
+    "asset_id": "ha_498402c61fce861d62b75465",
+    "content_id": "market_snapshot-market-snapshot-proof-c5f2151f2c",
+    "creative_family": "market_shape",
+    "artifact_type": "image_45",
+    "platform_eligibility": [
+      "instagram"
+    ],
+    "local_source_path": "C:\\Users\\James\\OneDrive\\Desktop\\pokemon-deals\\.social-preview\\editorial-newsroom\\renders\\market_snapshot_market_shape_instagram_f2151f2c.png",
+    "sha256": "498402c61fce861d62b754652e9e9aa0b93201fd976cd3b5cf451d66e2227ce8",
+    "mime_type": "image/png",
+    "bytes": 217465,
+    "width": 1080,
+    "height": 1350,
+    "duration_s": null,
+    "storage_provider": "supabase",
+    "storage_key": "by-hash/498402c61fce861d62b754652e9e9aa0b93201fd976cd3b5cf451d66e2227ce8.png",
+    "public_url": "https://gxourdsnpaohnosknxtb.supabase.co/storage/v1/object/public/social-public/by-hash/498402c61fce861d62b754652e9e9aa0b93201fd976cd3b5cf451d66e2227ce8.png",
+    "uploaded_at": "2026-09-08T04:00:13.315Z",
+    "source_commit": "4865524",
+    "qa_verdict": {
+      "ok": true,
+      "passed": 3,
+      "total": 3,
+      "failed": []
+    },
+    "rights_state": {
+      "ppt_social_data": "CLEARED",
+      "card_image": "CLEARED",
+      "ebay_seller_images": "NOT_CLEARED",
+      "ebay_genai": "NOT_ALLOWED",
+      "publishing": "DISABLED"
+    },
+    "verified": {
+      "at": "2026-09-08T04:00:13.816Z",
+      "status": 200,
+      "contentType": "image/png",
+      "contentLength": 217465
+    },
+    "history": [
+      {
+        "at": "2026-09-08T04:00:13.315Z",
+        "note": "record built (not yet uploaded)"
+      }
+    ]
+  },
+  {
+    "asset_id": "ha_16b3cfaf844f257d7f54892d",
+    "content_id": "exact_printing_matters-exact-printing-matters-proof-2ed65d31c2",
+    "creative_family": "printing_compare",
+    "artifact_type": "image_45",
+    "platform_eligibility": [
+      "x"
+    ],
+    "local_source_path": "C:\\Users\\James\\OneDrive\\Desktop\\pokemon-deals\\.social-preview\\editorial-newsroom\\renders\\exact_printing_matters_printing_compare_x_d65d31c2.png",
+    "sha256": "16b3cfaf844f257d7f54892d5b5d26065bdeda3b3146990fec296844653f1819",
+    "mime_type": "image/png",
+    "bytes": 872397,
+    "width": 1080,
+    "height": 1350,
+    "duration_s": null,
+    "storage_provider": "supabase",
+    "storage_key": "by-hash/16b3cfaf844f257d7f54892d5b5d26065bdeda3b3146990fec296844653f1819.png",
+    "public_url": "https://gxourdsnpaohnosknxtb.supabase.co/storage/v1/object/public/social-public/by-hash/16b3cfaf844f257d7f54892d5b5d26065bdeda3b3146990fec296844653f1819.png",
+    "uploaded_at": "2026-09-08T04:00:25.587Z",
+    "source_commit": "4865524",
+    "qa_verdict": {
+      "ok": true,
+      "passed": 3,
+      "total": 3,
+      "failed": []
+    },
+    "rights_state": {
+      "ppt_social_data": "CLEARED",
+      "card_image": "CLEARED",
+      "ebay_seller_images": "NOT_CLEARED",
+      "ebay_genai": "NOT_ALLOWED",
+      "publishing": "DISABLED"
+    },
+    "verified": {
+      "at": "2026-09-08T04:00:26.043Z",
+      "status": 200,
+      "contentType": "image/png",
+      "contentLength": 872397
+    },
+    "history": [
+      {
+        "at": "2026-09-08T04:00:25.587Z",
+        "note": "record built (not yet uploaded)"
+      }
+    ]
+  },
+  {
+    "asset_id": "ha_2ab267123715341eadfc8371",
+    "content_id": "deal_drop-deal-drop-proof-57f9d912fd",
+    "creative_family": "deal_hero",
+    "artifact_type": "image_45",
+    "platform_eligibility": [
+      "instagram"
+    ],
+    "local_source_path": "C:\\Users\\James\\OneDrive\\Desktop\\pokemon-deals\\.social-preview\\editorial-newsroom\\renders\\deal_drop_deal_hero_instagram_f9d912fd.png",
+    "sha256": "2ab267123715341eadfc83713ab1a660c5909adc7b804b707ffd1701131cf8e7",
+    "mime_type": "image/png",
+    "bytes": 984993,
+    "width": 1080,
+    "height": 1350,
+    "duration_s": null,
+    "storage_provider": "supabase",
+    "storage_key": "by-hash/2ab267123715341eadfc83713ab1a660c5909adc7b804b707ffd1701131cf8e7.png",
+    "public_url": "https://gxourdsnpaohnosknxtb.supabase.co/storage/v1/object/public/social-public/by-hash/2ab267123715341eadfc83713ab1a660c5909adc7b804b707ffd1701131cf8e7.png",
+    "uploaded_at": "2026-09-08T04:01:17.778Z",
+    "source_commit": "4865524",
+    "qa_verdict": {
+      "ok": true,
+      "passed": 3,
+      "total": 3,
+      "failed": []
+    },
+    "rights_state": {
+      "ppt_social_data": "CLEARED",
+      "card_image": "CLEARED",
+      "ebay_seller_images": "NOT_CLEARED",
+      "ebay_genai": "NOT_ALLOWED",
+      "publishing": "DISABLED"
+    },
+    "verified": {
+      "at": "2026-09-08T04:01:18.279Z",
+      "status": 200,
+      "contentType": "image/png",
+      "contentLength": 984993
+    },
+    "history": [
+      {
+        "at": "2026-09-08T04:01:17.778Z",
+        "note": "record built (not yet uploaded)"
+      }
+    ]
+  },
+  {
+    "asset_id": "ha_08b8ab441db7730ffd08ca7b",
+    "content_id": "why_sold_prices_matter-why-sold-prices-matter-proof-2cdca8d638",
+    "creative_family": "asking_vs_sold",
+    "artifact_type": "image_45",
+    "platform_eligibility": [
+      "instagram"
+    ],
+    "local_source_path": "C:\\Users\\James\\OneDrive\\Desktop\\pokemon-deals\\.social-preview\\editorial-newsroom\\renders\\why_sold_prices_matter_asking_vs_sold_instagram_dca8d638.png",
+    "sha256": "08b8ab441db7730ffd08ca7bf254eeb3dd1c77f063c2bf8f925d827ed8632c5c",
+    "mime_type": "image/png",
+    "bytes": 531921,
+    "width": 1080,
+    "height": 1350,
+    "duration_s": null,
+    "storage_provider": "supabase",
+    "storage_key": "by-hash/08b8ab441db7730ffd08ca7bf254eeb3dd1c77f063c2bf8f925d827ed8632c5c.png",
+    "public_url": "https://gxourdsnpaohnosknxtb.supabase.co/storage/v1/object/public/social-public/by-hash/08b8ab441db7730ffd08ca7bf254eeb3dd1c77f063c2bf8f925d827ed8632c5c.png",
+    "uploaded_at": "2026-09-08T04:02:17.008Z",
+    "source_commit": "4865524",
+    "qa_verdict": {
+      "ok": true,
+      "passed": 3,
+      "total": 3,
+      "failed": []
+    },
+    "rights_state": {
+      "ppt_social_data": "CLEARED",
+      "card_image": "CLEARED",
+      "ebay_seller_images": "NOT_CLEARED",
+      "ebay_genai": "NOT_ALLOWED",
+      "publishing": "DISABLED"
+    },
+    "verified": {
+      "at": "2026-09-08T04:02:17.571Z",
+      "status": 200,
+      "contentType": "image/png",
+      "contentLength": 531921
+    },
+    "history": [
+      {
+        "at": "2026-09-08T04:02:17.008Z",
+        "note": "record built (not yet uploaded)"
+      }
+    ]
+  },
+  {
+    "asset_id": "ha_71d6d66c611c93ba96f5873b",
+    "content_id": "market_snapshot-market-snapshot-proof-c5f2151f2c",
+    "creative_family": "market_shape",
+    "artifact_type": "image_916",
+    "platform_eligibility": [
+      "youtube"
+    ],
+    "local_source_path": "C:\\Users\\James\\OneDrive\\Desktop\\pokemon-deals\\.social-preview\\editorial-newsroom\\renders\\market_snapshot_market_shape_youtube_f2151f2c.png",
+    "sha256": "71d6d66c611c93ba96f5873b5af1a9de05ac9cea12ebeb30c3b40bf86786d99f",
+    "mime_type": "image/png",
+    "bytes": 287188,
+    "width": 1080,
+    "height": 1920,
+    "duration_s": null,
+    "storage_provider": "supabase",
+    "storage_key": "by-hash/71d6d66c611c93ba96f5873b5af1a9de05ac9cea12ebeb30c3b40bf86786d99f.png",
+    "public_url": "https://gxourdsnpaohnosknxtb.supabase.co/storage/v1/object/public/social-public/by-hash/71d6d66c611c93ba96f5873b5af1a9de05ac9cea12ebeb30c3b40bf86786d99f.png",
+    "uploaded_at": "2026-09-08T04:02:23.896Z",
+    "source_commit": "4865524",
+    "qa_verdict": {
+      "ok": true,
+      "passed": 3,
+      "total": 3,
+      "failed": []
+    },
+    "rights_state": {
+      "ppt_social_data": "CLEARED",
+      "card_image": "CLEARED",
+      "ebay_seller_images": "NOT_CLEARED",
+      "ebay_genai": "NOT_ALLOWED",
+      "publishing": "DISABLED"
+    },
+    "verified": {
+      "at": "2026-09-08T04:02:24.322Z",
+      "status": 200,
+      "contentType": "image/png",
+      "contentLength": 287188
+    },
+    "history": [
+      {
+        "at": "2026-09-08T04:02:23.896Z",
+        "note": "record built (not yet uploaded)"
+      }
+    ]
   }
 ]

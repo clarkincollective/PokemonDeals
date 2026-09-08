@@ -59,7 +59,10 @@ test("N3-3. planRefill: IG + X only; initial horizon caps; NOT_PLATFORM_FIT/YouT
 // ---- schedule / timezone ---------------------------------------
 test("N3-4. refill schedule is prepared (NOT activated) and documents Brisbane semantics", () => {
   assert.equal(REFILL_SCHEDULE.activated, false);
-  assert.equal(REFILL_SCHEDULE.cron_hint, "0 20 * * 0,3");
+  // SOCIAL-NEWSROOM-3B corrected the UTC<->Brisbane mapping (06:00 Brisbane
+  // Sun/Wed = 20:00 UTC Sat/Tue) and split it into two stages.
+  assert.equal(REFILL_SCHEDULE.queue_cron_utc, "0 20 * * 6,2");
+  assert.equal(REFILL_SCHEDULE.cron_hint, "0 20 * * 6,2"); // back-compat alias = Stage B
   assert.match(REFILL_SCHEDULE.brisbane_local, /06:00 Australia\/Brisbane/);
   assert.match(REFILL_SCHEDULE.cron_utc, /20:00 UTC/);
   // NOT yet added to vercel.json

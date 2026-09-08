@@ -17,6 +17,7 @@
 // scheduled here. No eBay call.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { config as loadDotenv } from "dotenv";
 if (existsSync(".env.local")) loadDotenv({ path: ".env.local", quiet: true });
@@ -37,7 +38,9 @@ import {
   placementsForStory, organicScore, runQaStack, feedReview, logEvent, captionDuplicateCheck,
 } from "../lib/social/newsroom/index.mjs";
 import { SERIES_RENDER, seriesRenderable, seriesAutonomousSafe, AUTONOMOUS_SAFE_LAYOUTS, layoutFamilyFor, renderablePlatformsFor, buildEditorialAsset, newsroomRights } from "../lib/social/newsroom/renderRegistry.mjs";
-import { familyStatusFor as cardFamilyStatusFor, VISUAL_REVIEW_POLICY_VERSION } from "../lib/social/newsroom/cardLayoutStatus.mjs";
+import { familyStatusFor as cardFamilyStatusFor, VISUAL_REVIEW_POLICY_VERSION, CARD_LAYOUT_CTA_ZONE } from "../lib/social/newsroom/cardLayoutStatus.mjs";
+import { renderCardForwardStory, isCardForwardSeries, CARD_FORWARD_SERIES } from "../lib/newsroom/cardForwardRender.mjs";
+import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 import { EDITORIAL_TARGETS } from "../lib/social/newsroom/editorialTemplates.mjs";
 import { platformCaptions } from "../lib/social/newsroom/captions.mjs";
 import { reviewRenderedCreative, reviewAvailable } from "../lib/newsroom/visualReview.mjs";
@@ -51,8 +54,10 @@ const argVal = (f) => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] :
 const JSON_OUT = has("--json");
 const DO_SEED = has("--proof-seed");
 const DO_QUEUE = has("--queue-proof");
+const DO_AUDIT_LEGACY = has("--audit-legacy");
+const APPLY_AUDIT = has("--apply");
 const CANCEL_DRAFT = has("--cancel-draft") ? argVal("--cancel-draft") : null;
-const DO_RENDER = has("--render") || (!DO_SEED && !DO_QUEUE && !CANCEL_DRAFT);
+const DO_RENDER = has("--render") || (!DO_SEED && !DO_QUEUE && !CANCEL_DRAFT && !DO_AUDIT_LEGACY);
 const NOW = Date.now();
 const ROOT = process.cwd();
 const RENDER_DIR = path.join(ROOT, ".social-preview", "editorial-newsroom", "renders");
@@ -61,7 +66,12 @@ const log = (...a) => { if (!JSON_OUT) console.log(...a); };
 const gitHead = () => { try { return execSync("git rev-parse --short HEAD", { encoding: "utf8" }).trim(); } catch { return null; } };
 
 // The fixed proof set: 5 series, 5 distinct layout families, mixed CTA.
-const PROOF_SERIES = ["PRICE_STORY", "BIGGEST_MOVERS", "MARKET_SNAPSHOT", "HOW_WE_FIND_DEALS", "METHODOLOGY", "WHY_SOLD_PRICES_MATTER", "EXACT_PRINTING_MATTERS", "AUCTION_BID_VS_TOTAL"];
+// SOCIAL-NEWSROOM-3B: the proof set is now the CARD-FORWARD families. The
+// old typographic proof series (PRICE_STORY / BIGGEST_MOVERS / ...) are no
+// longer seeded - they were the weak creative bar this whole arc replaced.
+const PROOF_SERIES = has("--legacy-proof-set")
+  ? ["MARKET_SNAPSHOT", "HOW_WE_FIND_DEALS", "METHODOLOGY", "WHY_SOLD_PRICES_MATTER", "EXACT_PRINTING_MATTERS"]
+  : ["MARKET_SNAPSHOT", "EXACT_PRINTING_MATTERS", "WHY_SOLD_PRICES_MATTER", "THREE_UNDER_25", "DEAL_DROP"];
 
 async function seedProof() {
   const sourceCommit = gitHead();
@@ -75,16 +85,26 @@ async function seedProof() {
     const subjectId = `${series.toLowerCase()}-proof`;
     const capturedAt = quantizedCapturedAtIso(series, { now: NOW });
     const facts = proofFacts(series);
-    const story = makeStory({ series, subjectType: SERIES_RENDER[series] ? "editorial" : "concept", subjectId, capturedAt, facts, sourceCommit, now: NOW });
+    const cardForward = isCardForwardSeries(series);
+    const story = makeStory({ series, subjectType: cardForward ? "card_forward" : SERIES_RENDER[series] ? "editorial" : "concept", subjectId, capturedAt, facts, sourceCommit, now: NOW });
     story.story_id = stableStoryId({ series, subjectType: "editorial", subjectId, now: NOW });
     story.organic_score = organicScore(story);
     story.status = "PLANNED";
+    // SS10/SS14 - a DEAL_DROP card-forward story is near-term/live-like:
+    // a SHORT shelf life so it can only take a near-term slot.
+    if (series === "DEAL_DROP") { story.shelf_life_class = "SHORT"; story.latest_safe_publish_at = new Date(NOW + 30 * 3_600_000).toISOString(); story.valid_until = story.latest_safe_publish_at; }
     const sr = await upsertStory(storyRow(story, { now: NOW, sourceCommit }));
     if (sr.error) throw new Error(`seed story ${series}: ${sr.error}`);
     stories += sr.wrote;
-    // only renderable platforms
-    const wanted = renderablePlatformsFor(series);
-    const pls = placementsForStory(story).filter((p) => wanted.includes(p.platform)).map((p) => ({ ...p, content_id: story.story_id }));
+    // card-forward proof -> IG + X (static post); typographic -> renderRegistry platforms
+    const wanted = cardForward ? ["instagram", "x"] : renderablePlatformsFor(series);
+    const basePls = cardForward
+      ? wanted.map((platform) => ({
+          placement_id: `plc_${createHash("sha256").update(`${story.story_id}::${platform}`).digest("hex").slice(0, 12)}`,
+          platform, placement_type: "post", clock: story.shelf_life_class ?? "EDITORIAL",
+        }))
+      : placementsForStory(story).filter((p) => wanted.includes(p.platform));
+    const pls = basePls.map((p) => ({ ...p, content_id: story.story_id }));
     const rows = placementRows(story, pls, { now: NOW }).map((row) => {
       const ex = existing[row.placement_id];
       if (ex && ex.status && ex.status !== "PLANNED") {
@@ -172,6 +192,39 @@ function editorialMetaFor(layout, target, hookText, story, ctaIntensity, bodyTex
   };
 }
 
+// SOCIAL-NEWSROOM-3B SS23 - classify every existing BUFFER_READY /
+// BUFFER_QUEUED placement against the CURRENT creative bar. A placement
+// whose layout family is one of the OLD typographic layouts is
+// LEGACY_WEAK_CREATIVE and must not autonomously queue - mark it
+// SUPERSEDED (history preserved: artifact_hash / hosted_url kept).
+const TYPOGRAPHIC_LAYOUTS = new Set(["editorial_dashboard", "data_ranking", "story_reveal", "process_explainer", "trust_editorial", "compare_split"]);
+async function auditLegacyBufferReady({ apply = false } = {}) {
+  if (!(await tablesReady())) return { error: "MIGRATION_REQUIRED" };
+  const { rows: placements } = await loadPlacements({ statuses: ["BUFFER_READY", "BUFFER_QUEUED", "QA_WATCH"] });
+  const { rows: stories } = await loadStories({});
+  const byId = Object.fromEntries(stories.map((s) => [s.story_id, s]));
+  const findings = [];
+  for (const p of placements) {
+    const st = byId[p.story_id];
+    const lf = p.caption_style?.layout_family ?? null;
+    const cf = st && isCardForwardSeries(st.series);
+    let cls;
+    if (st && queuedContentStale(st, p, { now: NOW })) cls = "STALE";
+    else if (cf && lf && CARD_FORWARD_SERIES[st.series]?.layout === lf) cls = "CURRENT_CREATIVE_BAR_PASS";
+    else if (lf && TYPOGRAPHIC_LAYOUTS.has(lf)) cls = "LEGACY_WEAK_CREATIVE";
+    else if (cf) cls = "SUPERSEDED"; // card-forward series but rendered with a non-card-forward layout
+    else cls = "SUPERSEDED";
+    const f = { placement_id: p.placement_id, story_id: p.story_id, series: st?.series ?? null, platform: p.platform, status: p.status, layout_family: lf, classification: cls, has_provider_ref: Boolean(p.buffer_provider_ref) };
+    if (apply && (cls === "LEGACY_WEAK_CREATIVE" || cls === "SUPERSEDED") && p.status === "BUFFER_READY" && !p.buffer_provider_ref) {
+      await patchPlacement(p.placement_id, { status: "SUPERSEDED", provider_state: "SUPERSEDED_CREATIVE_BAR" });
+      f.applied = "status -> SUPERSEDED";
+    }
+    findings.push(f);
+  }
+  const counts = findings.reduce((a, f) => { a[f.classification] = (a[f.classification] ?? 0) + 1; return a; }, {});
+  return { total: findings.length, counts, applied: apply, findings };
+}
+
 async function renderPass() {
   if (!(await tablesReady())) return { error: "MIGRATION_REQUIRED" };
   if (!existsSync("C:/Program Files/Google/Chrome/Application/chrome.exe") && !process.env.CHROME_BIN) {
@@ -186,10 +239,23 @@ async function renderPass() {
   // Scope to the PROOF set only (subject_id ends in "-proof") so earlier
   // calendar-built stories of the same series don't collide. Dedup by
   // (story_id, platform).
+  // SS3/SS5 - MANUAL_ONLY families NEVER render to an autonomous artifact.
+  // Card-forward families use the card-forward path; a small set of still-
+  // valid typographic editorial series (methodology / product) may still
+  // render. The retired weak typographic proof series are excluded.
+  const TYPO_EDITORIAL_OK = new Set(["METHODOLOGY", "PRODUCT_EXPLAINER", "HOW_WE_FIND_DEALS"]);
+  const renderInScope = (series) => {
+    const S = String(series || "").toUpperCase();
+    if (cardFamilyStatusFor(S) === "MANUAL_ONLY") return false;
+    if (isCardForwardSeries(S)) return true;
+    return TYPO_EDITORIAL_OK.has(S) && seriesRenderable(S);
+  };
+
   const seen = new Set();
   const targets = placementRowsAll.filter((p) => {
     const st = storyById[p.story_id];
-    if (!st || !seriesRenderable(st.series)) return false;
+    if (!st) return false;
+    if (!renderInScope(st.series)) return false;
     if (!String(st.subject_id ?? "").endsWith("-proof")) return false;
     // BUFFER_QUEUED is included so a re-render can CATCH + downgrade a
     // draft whose exact artifact no longer PASSes (SS2 - never leave
@@ -207,10 +273,80 @@ async function renderPass() {
   const results = [];
   const readySet = [];
 
+  const db = supabaseAdmin();
   try {
     for (const p of targets) {
       const story = storyById[p.story_id];
       if (!story) continue;
+
+      // ---- SOCIAL-NEWSROOM-3B: CARD-FORWARD render path (SS3-SS12) -----
+      if (isCardForwardSeries(story.series)) {
+        const cf = await renderCardForwardStory(story, p.platform, { renderer, db, renderDir: RENDER_DIR, sha256 });
+        if (!cf.ok) {
+          // SS5 - NO typographic fallback. Record the withhold, leave the
+          // placement PLANNED (a future run may find data), downgrade a
+          // stale BUFFER_READY/QUEUED.
+          await recordQaRun(qaRunRow({ storyId: story.story_id, placementId: p.placement_id, qaType: "STACK", result: "WATCH", blockers: [cf.withheld.reason], detail: { card_forward: true, withheld: cf.withheld } }));
+          if (["BUFFER_READY", "BUFFER_QUEUED"].includes(p.status)) await patchPlacement(p.placement_id, { status: "QA_WATCH" });
+          results.push({ placement_id: p.placement_id, story_id: story.story_id, series: story.series, platform: p.platform, card_forward: true, withheld: cf.withheld, status: "WITHHELD" });
+          continue;
+        }
+        const cVerdict = cf.conditional
+          ? (cf.consensus?.result === "PASS" ? "PASS" : cf.consensus?.result === "BLOCKED" ? "FAIL" : "WATCH")
+          : (cf.review?.verdict ?? "WATCH");
+        const detPass = cf.det_pass;
+        const canProceed = detPass && cVerdict === "PASS";
+
+        let hostedUrl = null, hostErr = null;
+        if (canProceed) {
+          const existing = findByHash(hosted, cf.sha256Hex);
+          if (existing?.public_url) hostedUrl = existing.public_url;
+          else {
+            const gate = canHost({ localPath: cf.localPath, bytes: cf.bytes, mime: "image/png",
+              qa: { ok: true, passed: 3, total: 3, failed: [] }, rights: newsroomRights(), currentRights: RIGHTS_STATE });
+            if (!gate.ok) hostErr = `canHost: ${gate.reason}`;
+            else {
+              const up = await storage.upload({ storageKey: storageKeyFor(cf.sha256Hex, ".png"), bytes: cf.bytes, contentType: "image/png" });
+              if (!up.ok) hostErr = `upload: ${up.reason}`;
+              else {
+                hostedUrl = up.publicUrl;
+                const rec = buildHostedRecord({ content_id: story.story_id, creative_family: cf.layout, artifact_type: cf.target === "short_916" ? "image_916" : "image_45", platform_eligibility: [p.platform], localPath: cf.localPath, bytes: cf.bytes, mime: "image/png", width: 1080, height: cf.target === "short_916" ? 1920 : 1350, qa: { ok: true, passed: 3, total: 3, failed: [] }, rights: newsroomRights(), sourceCommit: gitHead() });
+                rec.storage_provider = "supabase"; rec.public_url = up.publicUrl; rec.uploaded_at = new Date().toISOString();
+                const hd = await storage.head(up.publicUrl);
+                rec.verified = { at: new Date().toISOString(), status: hd.status, contentType: hd.contentType, contentLength: hd.contentLength };
+                hosted.push(rec); saveHostedAssets(hosted);
+                logEvent("ASSET_HOSTED", { story_id: story.story_id, platform: p.platform, sha: cf.sha256Hex.slice(0, 12), card_forward: true });
+              }
+            }
+          }
+        }
+
+        // SS11/SS12 - persist the artifact-scoped QA rows the queue path consumes
+        await recordQaRun(qaRunRow({ storyId: story.story_id, placementId: p.placement_id, qaType: "STACK", result: detPass ? "PASS" : (cf.det_ok ? "WATCH" : "FAIL"), blockers: cf.deterministic.failed, detail: { card_forward: true, layout: cf.layout, eqa: cf.deterministic.eqa, ca: cf.deterministic.ca, family: cf.deterministic.family, artifact_sha256: cf.sha256Hex } }));
+        await recordQaRun(qaRunRow({ storyId: story.story_id, placementId: p.placement_id, qaType: "VISUAL_REVIEW", result: cVerdict, blockers: cf.consensus?.reasons ?? cf.review?.blockers ?? [],
+          detail: cf.conditional
+            ? { card_forward: true, artifact_sha256: cf.sha256Hex, consensus_result: cf.consensus?.result ?? "HELD", policy_version: cf.policy_version, review_count: cf.consensus?.review_count ?? null, pass_count: cf.consensus?.pass_count ?? null, watch_count: cf.consensus?.watch_count ?? null, fail_count: cf.consensus?.fail_count ?? null, core_score: cf.consensus?.core_score ?? null, verdicts: cf.consensus?.verdicts ?? null, calls: cf.consensus?.calls ?? null }
+            : { card_forward: true, artifact_sha256: cf.sha256Hex, verdict: cf.review?.verdict, ai_spam: cf.review?.scores?.AI_SPAM_RISK ?? null, notes: (cf.review?.notes ?? []).slice(0, 3), policy_version: cf.policy_version } }));
+
+        const ready = canProceed && Boolean(hostedUrl) && !hostErr;
+        if (ready) {
+          await patchPlacement(p.placement_id, { status: "BUFFER_READY", artifact_hash: cf.sha256Hex, hosted_url: hostedUrl,
+            caption_style: { platform: p.platform, layout_family: cf.layout, cta_zone: CARD_LAYOUT_CTA_ZONE[cf.layout] ?? "foot_note", cta_intensity: cf.layout === "deal_hero" || cf.layout === "three_up" ? "SOFT" : "BRAND_ONLY", hook: story.facts_json?.headline_fact ?? story.series.replace(/_/g, " "), text: "", hashtags: [], link: null } });
+          readySet.push({ story, placement: p, layout: cf.layout, cta_zone: CARD_LAYOUT_CTA_ZONE[cf.layout] ?? "foot_note", platform: p.platform });
+        } else if (["BUFFER_READY", "BUFFER_QUEUED"].includes(p.status)) {
+          await patchPlacement(p.placement_id, { status: "QA_WATCH", artifact_hash: cf.sha256Hex });
+        }
+        results.push({ placement_id: p.placement_id, story_id: story.story_id, series: story.series, platform: p.platform, card_forward: true,
+          layout_family: cf.layout, target: cf.target, artifact_sha256: cf.sha256Hex, bytes: cf.bytes.length,
+          deterministic_qa: detPass ? "PASS" : (cf.det_ok ? "WATCH" : "FAIL"), det_failed: cf.deterministic.failed,
+          visual_review: cf.conditional ? { verdict: cVerdict, consensus: cf.consensus?.result, verdicts: cf.consensus?.verdicts, calls: cf.consensus?.calls, core_score: cf.consensus?.core_score } : { verdict: cVerdict, ai_spam_risk: cf.review?.scores?.AI_SPAM_RISK ?? null },
+          family_status: cf.family_status, policy_version: cf.policy_version,
+          hosted_url: hostedUrl, host_error: hostErr, local_path: path.relative(ROOT, cf.localPath),
+          art: cf.art_stats, near_term_only: cf.near_term_only,
+          status: ready ? "BUFFER_READY" : "HELD" });
+        continue;
+      }
+
       const asset = buildEditorialAsset(story, p.platform);
       if (!asset) { results.push({ placement_id: p.placement_id, platform: p.platform, skipped: "series not renderable for this platform" }); continue; }
       const caps = platformCaptions(story, { cta: asset.cta_intensity });
@@ -542,10 +678,20 @@ async function cancelDraft(ref) {
     return;
   }
 
+  if (DO_AUDIT_LEGACY) {
+    const a = await auditLegacyBufferReady({ apply: APPLY_AUDIT });
+    payload.legacy_audit = a;
+    log(`legacy audit: ${JSON.stringify(a.counts)}${a.applied ? " (APPLIED)" : " (dry - pass --apply to mark SUPERSEDED)"}`);
+    for (const f of a.findings ?? []) log(`  ${f.classification.padEnd(24)} ${(f.series ?? "?").padEnd(22)} ${f.platform.padEnd(10)} ${f.status.padEnd(13)} ${f.layout_family ?? "-"}${f.applied ? "  -> " + f.applied : ""}`);
+    writeFileSync(path.join(OUT, "legacy-audit.json"), JSON.stringify({ generated_at: payload.generated_at, legacy_audit: a }, null, 2) + "\n");
+    if (JSON_OUT) console.log(JSON.stringify(payload, null, 2));
+    return;
+  }
+
   if (DO_SEED) {
     const s = await seedProof();
     payload.proof_seed = s;
-    log(`proof-seed: stories +${s.stories}, placements +${s.placements} (5 series / 5 layouts)`);
+    log(`proof-seed: stories +${s.stories}, placements +${s.placements} (card-forward: ${PROOF_SERIES.join(", ")})`);
   }
 
   if (DO_RENDER) {
@@ -555,7 +701,9 @@ async function cancelDraft(ref) {
       log(`render: ${r.error}`);
     } else {
       for (const it of r.results) {
-        log(`  ${it.series.padEnd(18)} ${it.platform.padEnd(10)} ${it.layout_family.padEnd(20)} QA=${it.deterministic_qa} L5=${it.visual_review.verdict}${it.visual_review.ai_spam_risk != null ? `(spam ${it.visual_review.ai_spam_risk})` : ""} -> ${it.status}${it.host_error ? ` [${it.host_error}]` : ""}`);
+        const lf = it.layout_family ?? it.withheld?.reason ?? it.skipped ?? (it.downgraded_from ? `downgraded<-${it.downgraded_from}` : "-");
+        const l5 = it.visual_review?.verdict ?? it.visual_review?.consensus ?? "-";
+        log(`  ${String(it.series ?? "?").padEnd(20)} ${String(it.platform ?? "-").padEnd(10)} ${String(lf).padEnd(24)} QA=${it.deterministic_qa ?? "-"} L5=${l5}${it.visual_review?.ai_spam_risk != null ? `(spam ${it.visual_review.ai_spam_risk})` : ""} -> ${it.status ?? "-"}${it.host_error ? ` [${it.host_error}]` : ""}${it.card_forward ? " [card-forward]" : ""}`);
       }
       log(`  feed review: ${r.feed.verdict}${r.feed.warnings?.length ? ` (${r.feed.warnings.join("; ")})` : ""}`);
       log(`  BUFFER_READY: ${r.buffer_ready}`);
