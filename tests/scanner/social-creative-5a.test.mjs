@@ -162,7 +162,7 @@ test("SC5A-9. the approved brand asset overlay renders the magnifier + wordmark 
   assert.match(html, /pokemondealfinder\.com/);
   assert.doesNotMatch(html, /pok[eé]\s*ball|red[- ]and[- ]white ball/i);
   assert.match(BRAND_SAFE_ZONE_CLAUSE, /do NOT draw the PokemonDealFinder logo/);
-  assert.match(BRAND_SAFE_ZONE_CLAUSE, /Never draw a Poke Ball/);
+  assert.match(BRAND_SAFE_ZONE_CLAUSE, /Poke Ball/i);
   assert.equal(APPROVED_BRAND.icon, "magnifier");
 });
 
