@@ -349,6 +349,26 @@ async function gather() {
       newest_queued: queuedTimes.length ? new Date(queuedTimes[queuedTimes.length - 1]).toISOString() : null,
       circuit: backlogCircuitStatus(),
       posture: resolveBacklogPosture(process.env, { requestQueue: false }),
+      // SOCIAL-NEWSROOM-3 (SS26) - recurring refill readiness + retention
+      refill: await (async () => {
+        try {
+          const { REFILL_SCHEDULE, EDITORIAL_REFILL_PLATFORMS, refillConsiderable, refillNeedsConsensus } = await import("../lib/social/newsroom/refill.mjs");
+          const { qaRetentionReport } = await import("../lib/social/newsroom/qaRetention.mjs");
+          const { CARD_LAYOUT_STATUS } = await import("../lib/social/newsroom/cardLayoutStatus.mjs");
+          const placementState = Object.fromEntries(placed.map((p) => [p.placement_id, p.status]));
+          const fams = Object.entries(CARD_LAYOUT_STATUS).reduce((a, [k, v]) => { (a[v.family_status] ??= []).push(k); return a; }, {});
+          return {
+            cron_activated: REFILL_SCHEDULE.activated,
+            schedule: `${REFILL_SCHEDULE.cron_hint}  (${REFILL_SCHEDULE.cron_utc}  =  ${REFILL_SCHEDULE.brisbane_local})`,
+            editorial_platforms: EDITORIAL_REFILL_PLATFORMS,
+            tiktok: "NOT_PLATFORM_FIT", youtube: "manual/selective (not in editorial refill)",
+            families: fams,
+            enabled_flag: process.env.SOCIAL_BUFFER_BACKLOG_ENABLED === "true",
+            provider_mode: process.env.SOCIAL_BUFFER_BACKLOG_MODE ?? "(unset)",
+            qa_retention: qaRetentionReport(qaRows, placementState),
+          };
+        } catch (e) { return { error: String(e?.message ?? e) }; }
+      })(),
       pack: packSummary
         ? {
             generated_at: packSummary.generated_at,

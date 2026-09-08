@@ -65,7 +65,7 @@ import {
   noteBacklogSuccess,
   logEvent,
 } from "../lib/social/newsroom/index.mjs";
-import { loadStories, loadPlacements, tablesReady, upsertStory, upsertPlacements, patchPlacement, recordQaRun } from "../lib/social/newsroom/db.mjs";
+import { loadStories, loadPlacements, loadQaRuns, tablesReady, upsertStory, upsertPlacements, patchPlacement, recordQaRun } from "../lib/social/newsroom/db.mjs";
 import { reviewAvailable } from "../lib/newsroom/visualReview.mjs";
 import { scheduleOne, reconcileOne, queuedContentStale, resolveProviderMode } from "../lib/newsroom/bufferBacklog.mjs";
 
@@ -74,7 +74,7 @@ const OUT_DIR = path.join(ROOT, ".social-preview", "editorial-newsroom");
 const args = process.argv.slice(2);
 const has = (f) => args.includes(f) || args.includes(f.replace(/^--/, ""));
 const JSON_OUT = has("--json");
-const MODE = has("--reconcile") ? "reconcile" : has("--status") ? "status" : "plan";
+const MODE = has("--refill") ? "refill" : has("--reconcile") ? "reconcile" : has("--status") ? "status" : "plan";
 const DO_BUILD = has("--build") || has("--queue"); // --queue implies build
 const DO_QUEUE = has("--queue");
 const HORIZON_DAYS = has("--week") ? 7 : 14;
@@ -265,6 +265,43 @@ function scoreStory(story, context) {
     const rn = refillNeeds(health);
     log(rn.length ? `  refill: ${rn.map((r) => `${r.platform}(+${r.need_slots})`).join(", ")}` : "  refill: none");
     if (!ready) log("\n  (social_stories table not found - run supabase/social_editorial_newsroom_migration.sql; health shown is for an empty backlog)");
+    return;
+  }
+
+  if (MODE === "refill") {
+    // SOCIAL-NEWSROOM-3 - the recurring PLANNED-BACKLOG refill. SAME shared
+    // implementation the /api/social-backlog-refill cron uses (SS40 - no
+    // second impl). Renders/QA/consensus/host must have run first (this
+    // stage schedules already-BUFFER_READY placements). dryRun unless
+    // SOCIAL_BUFFER_BACKLOG_ENABLED=true + SOCIAL_BUFFER_BACKLOG_MODE=scheduled.
+    const { refillQueueReconcile } = await import("../lib/newsroom/backlogRefill.mjs");
+    const { acquireRefillLock, releaseRefillLock } = await import("../lib/social/newsroom/db.mjs");
+    const { qaRetentionReport, classifyQaRows } = await import("../lib/social/newsroom/qaRetention.mjs");
+    const lock = await acquireRefillLock({ holder: "cli" });
+    const payload = { generated_at: new Date(NOW).toISOString(), tables_ready: ready };
+    if (!lock.acquired) {
+      payload.refill = { ok: false, outcome: lock.reason ?? "LOCK_UNAVAILABLE" };
+    } else {
+      try {
+        const enabled = process.env.SOCIAL_BUFFER_BACKLOG_ENABLED === "true";
+        payload.refill = await refillQueueReconcile({ dryRun: !enabled, initial: true });
+        const { rows: qa } = ready ? await loadQaRuns({ limit: 5000 }) : { rows: [] };
+        const placementState = Object.fromEntries(placed.map((p) => [p.placement_id, p.status]));
+        payload.qa_retention = qaRetentionReport(qa, placementState, {
+          rowsPerRefill: (payload.refill.candidates_considered || 0) * 2 + 5, refillsPerWeek: 2,
+        });
+      } finally {
+        await releaseRefillLock({ holder: "cli" });
+      }
+    }
+    if (JSON_OUT) return console.log(JSON.stringify(payload, null, 2));
+    const rr = payload.refill;
+    log(`REFILL: ${rr.outcome} (dryRun=${rr.dry_run})`);
+    log(`  circuit ${rr.circuit?.state} | posture ${rr.posture?.mode ?? "-"} | considered ${rr.candidates_considered} curated ${rr.curated} queued ${rr.queued?.length ?? 0} skipped ${rr.skipped?.length ?? 0}`);
+    log(`  feed ${rr.feed_verdict ?? "-"} | commercial share ${rr.commercial_share ?? "-"}`);
+    for (const q of rr.queued ?? []) log(`  + ${q.series} ${q.platform} [${q.family_status}] -> ${q.provider_state}${q.provider_ref ? ` ref=${q.provider_ref}` : ""} @ ${q.scheduled_brisbane}`);
+    for (const s of (rr.skipped ?? []).slice(0, 12)) log(`  - ${s.series ?? s.placement_id}: ${s.reason}`);
+    if (payload.qa_retention) log(`  qa_runs: ${payload.qa_retention.total} rows (${payload.qa_retention.severity}) - ${payload.qa_retention.action}`);
     return;
   }
 
