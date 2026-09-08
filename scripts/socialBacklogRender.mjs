@@ -37,6 +37,7 @@ import {
   placementsForStory, organicScore, runQaStack, feedReview, logEvent, captionDuplicateCheck,
 } from "../lib/social/newsroom/index.mjs";
 import { SERIES_RENDER, seriesRenderable, seriesAutonomousSafe, AUTONOMOUS_SAFE_LAYOUTS, layoutFamilyFor, renderablePlatformsFor, buildEditorialAsset, newsroomRights } from "../lib/social/newsroom/renderRegistry.mjs";
+import { familyStatusFor as cardFamilyStatusFor, VISUAL_REVIEW_POLICY_VERSION } from "../lib/social/newsroom/cardLayoutStatus.mjs";
 import { EDITORIAL_TARGETS } from "../lib/social/newsroom/editorialTemplates.mjs";
 import { platformCaptions } from "../lib/social/newsroom/captions.mjs";
 import { reviewRenderedCreative, reviewAvailable } from "../lib/newsroom/visualReview.mjs";
@@ -465,7 +466,14 @@ async function queueProof() {
     // SS3/SS4 - the artifact-scoped QA invariant. The LATEST STACK + the
     // LATEST LAYER-5 verdict FOR THIS EXACT artifact sha must both be
     // PASS. A stale/story-level/layout-level PASS never authorises.
-    const artifactQa = await artifactQueueEligible({ placementId: p.placement_id, artifactSha: p.artifact_hash });
+    // SOCIAL-CREATIVE-3C: a CONDITIONAL card-forward family (e.g. deal_hero)
+    // additionally needs a visual-CONSENSUS PASS under the current policy
+    // version; AUTONOMOUS_SAFE families keep the original contract.
+    const famStatus = cardFamilyStatusFor(st.series) ?? "AUTONOMOUS_SAFE";
+    const artifactQa = await artifactQueueEligible({
+      placementId: p.placement_id, artifactSha: p.artifact_hash,
+      familyStatus: famStatus, policyVersion: VISUAL_REVIEW_POLICY_VERSION,
+    });
     const stackVerdict = artifactQa.stack?.verdict ?? "MISSING";
     if (!artifactQa.ok) {
       results.push({ story_id: p.story_id, series: st.series, placement_id: p.placement_id, platform: p.platform, queued: false, reason: `artifact_qa_invariant: ${artifactQa.reason}`, artifact_hash: (p.artifact_hash ?? "").slice(0, 16) });

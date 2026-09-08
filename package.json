@@ -41,7 +41,8 @@
     "infra:vercel-cost": "node scripts/infraVercelCost.mjs",
     "infra:db-health": "node scripts/infraDbHealth.mjs",
     "social:creative-pack": "node scripts/socialCreativePack.mjs",
-    "social:creative-harden": "node scripts/socialCreativeHarden.mjs"
+    "social:creative-harden": "node scripts/socialCreativeHarden.mjs",
+    "social:review-policy": "node scripts/socialReviewPolicy.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",

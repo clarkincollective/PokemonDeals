@@ -129,13 +129,11 @@ test("C3B-15. bid_vs_total renders the CURRENT bid, not opening bid / market ref
 });
 
 // ---- autonomous-safe status only after the reliability test -----
-test("C3B-16. deal_hero / bid_vs_total autonomous_safe is only true when CARD_LAYOUT_STATUS says so, and matches its grade", () => {
-  for (const s of ["DEAL_DROP", "AUCTION_BID_VS_TOTAL"]) {
-    const row = CARD_LAYOUT_STATUS[s];
-    assert.ok(row);
-    if (row.autonomous_safe) assert.equal(row.grade, "VISUALLY_STRONG_NOW");
-    assert.equal(cardForwardAutonomousSafe(s), Boolean(row.autonomous_safe));
-  }
+test("C3B-16. deal_hero is CONDITIONAL and bid_vs_total is MANUAL_ONLY; neither is blind-autonomous (SOCIAL-CREATIVE-3C)", () => {
+  assert.equal(CARD_LAYOUT_STATUS.DEAL_DROP.family_status, "CONDITIONAL");
+  assert.equal(CARD_LAYOUT_STATUS.AUCTION_BID_VS_TOTAL.family_status, "MANUAL_ONLY");
+  assert.equal(cardForwardAutonomousSafe("DEAL_DROP"), false);
+  assert.equal(cardForwardAutonomousSafe("AUCTION_BID_VS_TOTAL"), false);
 });
 
 test("C3B-17. the harden harness gates autonomous-safe on >=90% Layer-5 PASS, no FAIL, no recurring det blocker", () => {

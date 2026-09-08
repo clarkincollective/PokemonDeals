@@ -145,20 +145,19 @@ test("C3-12. marketData resolvers return VISUALLY_UNDERPOWERED_DATA and never fa
 });
 
 test("C3-13. the movers series is never autonomous-safe and renders only from the sanctioned confidence gate", () => {
-  assert.equal(CARD_LAYOUT_STATUS.BIGGEST_MOVERS.autonomous_safe, false);
+  assert.equal(CARD_LAYOUT_STATUS.BIGGEST_MOVERS.family_status, "MANUAL_ONLY");
   // no direct price_history access - it delegates to lib/social/priceMovement
   const md = read("lib/social/newsroom/marketData.mjs");
   assert.doesNotMatch(md.replace(/\/\/[^\n]*/g, ""), /\.from\(\s*["']price_history["']\s*\)/);
   assert.match(md, /priceMovement/);
 });
 
-// ---- SS23/SS31: classification + autonomous-safe set ------------
-test("C3-14. every card layout maps to a classification; autonomous-safe is a strict subset", () => {
+// ---- SS23/SS31 (updated by SOCIAL-CREATIVE-3C): FAMILY_STATUS model ----
+test("C3-14. every card layout maps to a FAMILY_STATUS; the autonomous-safe set excludes conditional/manual", () => {
   const layouts = new Set(Object.values(CARD_LAYOUT_STATUS).map((s) => s.layout));
   for (const lf of CARD_LAYOUTS) assert.ok(layouts.has(lf), `${lf} unclassified`);
   for (const s of Object.values(CARD_LAYOUT_STATUS)) {
-    assert.ok(["VISUALLY_STRONG_NOW", "VISUALLY_STRONG_WITH_REDESIGN", "DATA_NOT_READY", "TOO_THIN_FOR_SOCIAL"].includes(s.grade));
-    if (s.autonomous_safe) assert.equal(s.grade, "VISUALLY_STRONG_NOW");
+    assert.ok(["AUTONOMOUS_SAFE", "CONDITIONAL", "MANUAL_ONLY", "WITHHELD"].includes(s.family_status), `bad family_status ${s.family_status}`);
   }
   assert.ok(AUTONOMOUS_SAFE_CARD_LAYOUTS.length >= 1);
   for (const lf of AUTONOMOUS_SAFE_CARD_LAYOUTS) assert.ok(!MANUAL_ONLY_CARD_LAYOUTS.includes(lf));

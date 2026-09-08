@@ -66,7 +66,8 @@ test("2D-3. db.artifactQueueEligible requires a HASH-MATCHED latest PASS for BOT
   // reads a matching detail.artifact_sha256, newest-first, both qa_types PASS
   assert.match(src, /String\(r\.detail\?\.artifact_sha256 \?\? ""\) === String\(artifactSha\)/);
   assert.match(src, /order\("checked_at", \{ ascending: false \}\)/);
-  const fn = src.slice(src.indexOf("export async function artifactQueueEligible"), src.indexOf("export async function artifactQueueEligible") + 900);
+  const fnStart = src.indexOf("export async function artifactQueueEligible");
+  const fn = src.slice(fnStart, fnStart + 2200);
   assert.match(fn, /qaType: "STACK"/);
   assert.match(fn, /qaType: "VISUAL_REVIEW"/);
   assert.match(fn, /stack\.verdict !== "PASS"/);
@@ -84,7 +85,8 @@ test("2D-4. the render pass persists artifact_sha256 on every QA run AND downgra
 
 test("2D-5. the queue path reads artifactQueueEligible for the EXACT hash and stops on failure (source)", () => {
   const src = readFileSync(join(REPO, "scripts", "socialBacklogRender.mjs"), "utf8");
-  assert.match(src, /const artifactQa = await artifactQueueEligible\(\{ placementId: p\.placement_id, artifactSha: p\.artifact_hash \}\)/);
+  // SOCIAL-CREATIVE-3C: the call now also threads familyStatus + policyVersion
+  assert.match(src, /const artifactQa = await artifactQueueEligible\(\{\s*placementId: p\.placement_id, artifactSha: p\.artifact_hash/);
   assert.match(src, /if \(!artifactQa\.ok\) \{[\s\S]*?reason: `artifact_qa_invariant/);
   assert.doesNotMatch(src, /professionalResult: "PASS", mode/); // no hardcoded PASS anymore
 });

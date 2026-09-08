@@ -29,7 +29,7 @@ import { pathToFileURL } from "node:url";
 
 import { renderCardEditorialHtml, CARD_TARGETS, CARD_LAYOUTS } from "../lib/social/newsroom/cardEditorialTemplates.mjs";
 import { collectibleAppeal, CARD_SPECIFIC_FAMILIES } from "../lib/social/newsroom/collectibleAppeal.mjs";
-import { CARD_LAYOUT_STATUS, AUTONOMOUS_SAFE_CARD_LAYOUTS, MANUAL_ONLY_CARD_LAYOUTS } from "../lib/social/newsroom/cardLayoutStatus.mjs";
+import { CARD_LAYOUT_STATUS, AUTONOMOUS_SAFE_CARD_LAYOUTS, CONDITIONAL_CARD_LAYOUTS, MANUAL_ONLY_CARD_LAYOUTS } from "../lib/social/newsroom/cardLayoutStatus.mjs";
 import { editorialCreativeQa } from "../lib/social/newsroom/editorialQa.mjs";
 import * as MD from "../lib/social/newsroom/marketData.mjs";
 import { reviewRenderedCreativeMulti, reviewAvailable } from "../lib/newsroom/visualReview.mjs";
@@ -189,8 +189,8 @@ async function buildFamilies() {
         render: path.relative(ROOT, p), artifact_sha256: sha256(bytes).slice(0, 16), bytes: bytes.length,
         card_ids: cardIds, card_art_ready: art.readyIds.length, card_art_wanted: cardIds.length,
         real_numbers: (fam.numeric ?? []).map(String),
-        classification: cls ? cls.grade : null,
-        autonomous_safe: Boolean(cls?.autonomous_safe),
+        family_status: cls ? cls.family_status : null,
+        autonomous_safe: cls?.family_status === "AUTONOMOUS_SAFE",
         deterministic_editorial_qa: eqa.grade,
         collectible_appeal: { grade: ca.grade, failed: ca.failed },
         layer5: { verdict: l5.verdict, consistent: l5.consistent, verdicts: l5.verdicts, scores: l5.scores, notes: (l5.notes ?? []).slice(0, 4) },
@@ -218,7 +218,7 @@ async function buildFamilies() {
     <div style="display:flex;gap:28px;align-items:flex-start;padding:24px 0;border-bottom:1px solid #222">
       <div style="flex:0 0 auto">
         <div style="color:#fff;font:600 14px sans-serif">${a.series}</div>
-        <div style="color:#888;font:12px sans-serif;margin:2px 0 10px">${a.layout} · ${a.classification ?? "—"} · <b style="color:${a.overall === "PASS" ? "#3FCF8E" : a.overall === "FAIL" ? "#F0322E" : "#E5B800"}">${a.overall}</b></div>
+        <div style="color:#888;font:12px sans-serif;margin:2px 0 10px">${a.layout} · ${a.family_status ?? "—"} · <b style="color:${a.overall === "PASS" ? "#3FCF8E" : a.overall === "FAIL" ? "#F0322E" : "#E5B800"}">${a.overall}</b></div>
         <div style="display:flex;gap:16px;align-items:flex-start">
           <figure style="margin:0"><img src="${fu(a.render)}" style="width:120px;display:block;border-radius:6px"><figcaption style="color:#666;font:11px sans-serif;text-align:center;margin-top:4px">thumb 120px</figcaption></figure>
           <figure style="margin:0"><img src="${fu(a.render)}" style="width:270px;display:block;border-radius:6px"><figcaption style="color:#666;font:11px sans-serif;text-align:center;margin-top:4px">25% (270px)</figcaption></figure>
@@ -238,10 +238,11 @@ async function buildFamilies() {
     watch: assets.filter((a) => a.overall === "WATCH").map((a) => `${a.series}/${a.layout}`),
     fail: assets.filter((a) => a.overall === "FAIL").map((a) => `${a.series}/${a.layout}`),
     classification: {
-      VISUALLY_STRONG_NOW: assets.filter((a) => a.classification === "VISUALLY_STRONG_NOW").map((a) => a.series),
-      VISUALLY_STRONG_WITH_REDESIGN: assets.filter((a) => a.classification === "VISUALLY_STRONG_WITH_REDESIGN").map((a) => a.series),
-      DATA_NOT_READY: assets.filter((a) => (a.classification ?? (a.verdict === "WITHHELD" ? "DATA_NOT_READY" : null)) === "DATA_NOT_READY").map((a) => a.series),
+      AUTONOMOUS_SAFE: assets.filter((a) => a.family_status === "AUTONOMOUS_SAFE").map((a) => a.series),
+      CONDITIONAL: assets.filter((a) => a.family_status === "CONDITIONAL").map((a) => a.series),
+      MANUAL_ONLY: assets.filter((a) => a.family_status === "MANUAL_ONLY").map((a) => a.series),
       autonomous_safe_layouts: AUTONOMOUS_SAFE_CARD_LAYOUTS,
+      conditional_layouts: CONDITIONAL_CARD_LAYOUTS,
       manual_only_layouts: MANUAL_ONLY_CARD_LAYOUTS,
     },
     feed_grid: path.relative(ROOT, path.join(OUT, "feed-grid.html")),
