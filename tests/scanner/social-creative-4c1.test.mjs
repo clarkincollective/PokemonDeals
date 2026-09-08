@@ -140,7 +140,7 @@ test("SC4C1-9. the generative document layers the DESIGNED boards + a determinis
   assert.equal(total, p.duration);
   assert.match(html, /width:1080px;height:1920px/);
   assert.equal((html.match(/class="board"/g) || []).length, bs.length);
-  assert.match(html, /object-fit:cover/);            // the designed board fills the frame
+  assert.match(html, /width:100%;height:auto/);      // fit to width - nothing cropped horizontally
   assert.match(html, /animation-play-state:paused/);
   assert.match(html, /<b>Pokemon<\/b> Deal Finder/); // approved deterministic brand
   assert.doesNotMatch(html, /Poke\s?Ball|red-and-white ball/i);
