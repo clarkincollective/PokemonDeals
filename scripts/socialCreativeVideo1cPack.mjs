@@ -90,18 +90,18 @@ for (const s of stories) {
   const semanticHash = videoSemanticHash(sem);
   const ch = { story_id: id, semantic_hash: `cap-${id}`, image_artifact_id: `img-${id}`, cta: contract?.classification === "COMMERCIAL" ? "See the live deal" : "pokemondealfinder.com" };
 
-  // §4/§26 seed the master cache from the pre-approved artifact (no generation)
-  const reg = V.registerExistingMaster({ storyId: id, semanticHash, family, imagePath: masterPath, dir: CACHE, verification: { source_kind: "pre-approved", note: "reused approved FULL_GENERATIVE_SOCIAL / 5A.1 artifact" } });
+  // §4/§26 seed the master cache from the pre-approved artifact (no generation).
+  // the 5A.1 artifacts already carry the composited brand mark; the raw
+  // 4C.1 board does not - so the motion doc adds its own corner chip only
+  // for DEAL_DROP.
+  const brandInMaster = id !== "DEAL_DROP";
+  const reg = V.registerExistingMaster({ storyId: id, semanticHash, family, imagePath: masterPath, dir: CACHE, brandInMaster, verification: { source_kind: "pre-approved", note: "reused approved FULL_GENERATIVE_SOCIAL / 5A.1 artifact" } });
   // §26 dedupe - a second register must NOT rewrite
   const reg2 = V.registerExistingMaster({ storyId: id, semanticHash, family, imagePath: masterPath, dir: CACHE });
   if (reg2._deduped) dedupeProven = true;
 
-  // §19 exact rounding - audit whatever integer % the master shows against the manifest (tol 0)
-  const shownPct = [];
-  try {
-    const buf = readFileSync(masterPath);
-    // cheap: the proof records the declared value; a real run vision-extracts.
-  } catch { /* */ }
+  // §19 exact rounding - the proof records the declared value; a real run
+  // vision-extracts the master's shown % and fails a >=1 delta (tol 0).
   const exactDeclared = { comparison_pct: sem.comparison_pct, claim_value: sem.claim_value, discount_pct: sem.required_numeric_facts?.discount_pct };
 
   // §3 run master-layered-motion (cache HIT -> $0)
@@ -131,17 +131,16 @@ for (const s of stories) {
     const np = path.join(OUT, "media", `${id}_4C2.poster.png`);
     const nr = await V.renderMasterLayeredMotionToMp4(r, nm, { posterPath: np }).catch((e) => ({ ok: false, reason: e.message }));
     rec.render_4c2 = nr.ok ? { size_kb: Math.round(statSync(nm).size / 1024), frames: nr.frames } : { fail: nr.reason };
-    // OLD 4C
-    const od = V.runVideoDirector({ story: { story_id: id }, semanticManifest: sem, factTrace, captionHandoff: ch, cardImagePaths: [], family });
-    if (od.plan) {
-      const om = path.join(OUT, "media", `${id}_4C.mp4`);
-      const op = path.join(OUT, "media", `${id}_4C.poster.png`);
-      const or = await V.renderVideoPlanToMp4(od.plan, om, { posterPath: op }).catch((e) => ({ ok: false, reason: e.message }));
-      rec.render_4c = or.ok ? { size_kb: Math.round(statSync(om).size / 1024) } : { fail: or.reason };
+    // OLD 4C - reuse the MP4 already rendered by the 4C phase proof if present
+    for (const [dst, srcs] of [
+      [`${id}_4C.mp4`, [`video-1/media/${id}_1.mp4`, `video-1/media/${id}.mp4`]],
+      [`${id}_4C1_multiboard.mp4`, [`video-1b-generative/media/${id}_NEW.mp4`]],
+    ]) {
+      const hit = srcs.map((s) => path.join(ROOT, ".social-preview", s)).find((p) => existsSync(p));
+      if (hit) writeFileSync(path.join(OUT, "media", dst), readFileSync(hit));
     }
-    // link the existing 4C.1 multi-board MP4 for DEAL_DROP if present
-    const mb = path.join(ROOT, ".social-preview", "video-1b-generative", "media", `${id}_NEW.mp4`);
-    if (existsSync(mb)) { const dst = path.join(OUT, "media", `${id}_4C1_multiboard.mp4`); writeFileSync(dst, readFileSync(mb)); rec.has_4c1 = true; }
+    rec.has_4c = existsSync(path.join(OUT, "media", `${id}_4C.mp4`));
+    rec.has_4c1 = existsSync(path.join(OUT, "media", `${id}_4C1_multiboard.mp4`));
   }
   results[id] = rec;
   console.log(`  ${id}: ${r.state} | master ${r.master?.source} ${rec.master.dims} | premium ${rec.premium_motion?.verdict}(${rec.premium_motion?.score}) | cost $${r.cost.master_generation_cost + r.cost.video_incremental_api_cost}${rec.render_4c2 ? ` | 4C2 MP4 ${rec.render_4c2.size_kb ?? rec.render_4c2.fail}kb` : ""}`);
