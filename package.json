@@ -39,6 +39,7 @@
     "social:newsroom-migrate-check": "node scripts/socialNewsroomMigrationCheck.mjs",
     "social:backlog-render": "node scripts/socialBacklogRender.mjs",
     "infra:vercel-cost": "node scripts/infraVercelCost.mjs",
+    "infra:db-health": "node scripts/infraDbHealth.mjs",
     "social:creative-pack": "node scripts/socialCreativePack.mjs"
   },
   "dependencies": {
