@@ -40,6 +40,7 @@ import {
 import { SERIES_RENDER, seriesRenderable, seriesAutonomousSafe, AUTONOMOUS_SAFE_LAYOUTS, layoutFamilyFor, renderablePlatformsFor, buildEditorialAsset, newsroomRights } from "../lib/social/newsroom/renderRegistry.mjs";
 import { familyStatusFor as cardFamilyStatusFor, VISUAL_REVIEW_POLICY_VERSION, CARD_LAYOUT_CTA_ZONE } from "../lib/social/newsroom/cardLayoutStatus.mjs";
 import { renderCardForwardStory, isCardForwardSeries, CARD_FORWARD_SERIES } from "../lib/newsroom/cardForwardRender.mjs";
+import { hybridEnabled } from "../lib/newsroom/hybrid/pipeline.mjs";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 import { EDITORIAL_TARGETS } from "../lib/social/newsroom/editorialTemplates.mjs";
 import { platformCaptions } from "../lib/social/newsroom/captions.mjs";
@@ -281,7 +282,10 @@ async function renderPass() {
 
       // ---- SOCIAL-NEWSROOM-3B: CARD-FORWARD render path (SS3-SS12) -----
       if (isCardForwardSeries(story.series)) {
-        const cf = await renderCardForwardStory(story, p.platform, { renderer, db, renderDir: RENDER_DIR, sha256 });
+        const cf = await renderCardForwardStory(story, p.platform, {
+          renderer, db, renderDir: RENDER_DIR, sha256,
+          hybrid: hybridEnabled() ? { enabled: true } : null,
+        });
         if (!cf.ok) {
           // SS5 - NO typographic fallback. Record the withhold, leave the
           // placement PLANNED (a future run may find data), downgrade a
