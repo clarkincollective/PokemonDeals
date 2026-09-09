@@ -223,12 +223,19 @@ test("AUTO1-21. this phase never reaches a live Buffer submit - dryRun:false is 
   assert.equal(r.state, "BUFFER_HOLD");
 });
 
-test("AUTO1-22. no module in lib/autonomous ever calls the real Buffer provider's createPost", async () => {
+test("AUTO1-22. socialStoryEngine's dry-run orchestrator never calls the real Buffer provider, and the dry-run queueBufferPlacement function body has no path to createPost", async () => {
   const { readFileSync } = await import("node:fs");
-  for (const f of ["bufferHandoff.mjs", "socialStoryEngine.mjs"]) {
-    const src = readFileSync(new URL(`../../lib/autonomous/${f}`, import.meta.url), "utf8");
-    assert.doesNotMatch(src, /from\s+["'].*providers\/buffer["']|\.createPost\(/, `${f} must not import or call the live Buffer provider this phase`);
-  }
+  const engineSrc = readFileSync(new URL("../../lib/autonomous/socialStoryEngine.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(engineSrc, /from\s+["'].*providers\/buffer["']|\.createPost\(/, "socialStoryEngine.mjs must not import or call the live Buffer provider this phase");
+  // AUTOPILOT-2 (a later phase) added a REAL, gated submit path
+  // (submitBufferPlacementLive) to bufferHandoff.mjs behind
+  // SOCIAL_BUFFER_LIVE_SUBMIT + OWNER_APPROVED - see social-autopilot-2.test.mjs
+  // for its own safety proofs. The invariant this phase actually cares
+  // about is narrower: the DRY-RUN function itself never reaches it.
+  const bufferSrc = readFileSync(new URL("../../lib/autonomous/bufferHandoff.mjs", import.meta.url), "utf8");
+  const dryRunFnMatch = bufferSrc.match(/export function queueBufferPlacement\([\s\S]*?\n}/);
+  assert.ok(dryRunFnMatch, "queueBufferPlacement function body not found");
+  assert.doesNotMatch(dryRunFnMatch[0], /\.createPost\(/, "the dry-run queueBufferPlacement must never call createPost");
 });
 
 // ===================== §17 QA GATE =====================
