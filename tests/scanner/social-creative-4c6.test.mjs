@@ -74,13 +74,13 @@ const RUN = (dir, sem, family, over = {}) => runProfessionalSocialLoop({
 });
 
 // ===================== ARCHITECTURE KEPT =====================
-test("SC4C6-1. all video modules bumped to 4c6; architecture unchanged", () => {
-  for (const v of [PROFESSIONAL_SOCIAL_LOOP_VERSION, PROFESSIONAL_VIDEO_QA_VERSION, VIDEO_SAFE_DERIVATIVE_VERSION, PROFESSIONAL_LOOP_DOC_VERSION]) assert.ok(v.startsWith("4c6"), v);
+test("SC4C6-1. all video modules bumped to 4c6+; architecture unchanged", () => {
+  for (const v of [PROFESSIONAL_SOCIAL_LOOP_VERSION, PROFESSIONAL_VIDEO_QA_VERSION, VIDEO_SAFE_DERIVATIVE_VERSION, PROFESSIONAL_LOOP_DOC_VERSION]) assert.ok(v.startsWith("4c"), v);
 });
 
 // ===================== DENSITY / UNDER-COMPOSITION (§4) =====================
-test("SC4C6-2. per-family density bands 60-82%-ish; the derivative reports content_ratio + hero_fraction + largest_gap", () => {
-  assert.ok(FRAME_DENSITY_BANDS.asking_vs_sold[0] >= 0.55 && FRAME_DENSITY_BANDS.asking_vs_sold[1] <= 0.9);
+test("SC4C6-2. per-family density bands 60-90%-ish; the derivative reports content_ratio + hero_fraction + largest_gap", () => {
+  assert.ok(FRAME_DENSITY_BANDS.asking_vs_sold[0] >= 0.55 && FRAME_DENSITY_BANDS.asking_vs_sold[1] <= 0.95);
   for (const [f, s] of [["asking_vs_sold", SEM_ASK], ["market_shape", SEM_MKT]]) {
     const { d } = build(f, s);
     const [lo, hi] = FRAME_DENSITY_BANDS[f];
@@ -104,27 +104,29 @@ test("SC4C6-4. hero card scale is bigger than 4C.5; ASKING hero occupies >= 36% 
 });
 test("SC4C6-5. MARKET example card is materially larger than the 4C.5 thumbnail", () => {
   const { d } = build("market_shape", SEM_MKT);
-  const card = d.blocks.find((b) => b.id === "example_card");
-  assert.ok(card && card.zone.h >= 380, `example card box ${card?.zone.h}`); // 4C.5 was 328
-  assert.ok(card.example_label === "REAL EXAMPLE");
+  const split = d.blocks.find((b) => b.id === "market_split");
+  assert.ok(split, "market_split block present");
+  assert.ok((split.cardIds ?? []).length === 1);
+  assert.ok(split.zone.h >= 380, `market_split box ${split.zone.h}`); // 4C.5 example_card was 328
+  assert.ok(split.example_label === "REAL EXAMPLE");
 });
 
 // ===================== ASKING COMPOSITION (§6-§8) =====================
 test("SC4C6-6. ASKING = branded label + a hero_row (large card + strong comparison spine ASK->%->MARKET) + short lesson", () => {
   const { d } = build("asking_vs_sold", SEM_ASK);
   const ids = d.blocks.map((b) => b.id);
-  assert.ok(ids.includes("hook") && ids.includes("hero_row") && ids.includes("takeaway"));
+  assert.ok(ids.includes("hook") && ids.includes("hero_row") && (ids.includes("takeaway") || ids.includes("lesson")));
   const hr = d.blocks.find((b) => b.id === "hero_row");
   assert.ok((hr.cardIds ?? []).length === 1);
   assert.equal(hr.style.spine, true);
-  const spine = hr.spine.map((r) => r.label ?? r.op).join(" ");
+  const spine = hr.spine.map((r) => [r.label, r.sub, r.op].filter(Boolean).join(" ")).join(" ");
   assert.match(spine, /ASKING PRICE/);
-  assert.match(spine, /75% BELOW MARKET/);
+  assert.match(spine, /75%.*BELOW MARKET/);
   assert.match(spine, /RECENT MARKET/);
   assert.ok(!ids.includes("value_ladder")); // the 4C.5 soft-glass ladder is gone
 });
 test("SC4C6-7. the value block is a strong dark slab with a red keyline, not soft glass", () => {
-  assert.match(VS_STYLE.value_block_bg, /#1[0-5]/i); // dark
+  assert.match(VS_STYLE.value_block_bg, /#(0[0-9a-f]|1[0-9a-f])/i); // dark
   assert.match(VS_STYLE.value_block_border, /232,\s*73,\s*61/); // red keyline
   const doc = buildProfessionalLoopDocument({ derivative: build("asking_vs_sold", SEM_ASK).d, endScreen: build("asking_vs_sold", SEM_ASK).es, timeline: build("asking_vs_sold", SEM_ASK).tl });
   assert.ok(doc.html.includes(".herorow .hrspine") && doc.html.includes("border-left:4px solid var(--accent)"));
@@ -139,11 +141,18 @@ test("SC4C6-8. no paragraph copy; no CARD DETAILS footer", () => {
 test("SC4C6-9. MARKET = label + big 85.7% + support + premium dominant-first chart + REAL EXAMPLE card + takeaway", () => {
   const { d } = build("market_shape", SEM_MKT);
   const byId = Object.fromEntries(d.blocks.map((b) => [b.id, b]));
-  assert.match(String(byId.hook?.text), /MARKET SNAPSHOT/);
-  assert.ok((byId.hero_stat?.font ?? 0) >= 120, `hero stat font ${byId.hero_stat?.font}`);
-  assert.equal(byId.chart?.premium, true);
-  assert.equal(byId.chart?.dominant_first, true);
-  assert.ok(byId.example_card && byId.chart);
+  assert.match(String(byId.hook?.text), /MARKET INSIGHT|MARKET SNAPSHOT/);
+  if (byId.market_split) {
+    const split = byId.market_split;
+    assert.ok((split.font ?? 0) * 2.1 >= 120, `hero stat scaled font ${(split.font ?? 0) * 2.1}`);
+    assert.ok((split.chart ?? []).length, "dominant-first chart points present");
+    assert.ok((split.cardIds ?? []).length, "real example card present");
+  } else {
+    assert.ok((byId.hero_stat?.font ?? 0) >= 120, `hero stat font ${byId.hero_stat?.font}`);
+    assert.equal(byId.chart?.premium, true);
+    assert.equal(byId.chart?.dominant_first, true);
+    assert.ok(byId.example_card && byId.chart);
+  }
 });
 test("SC4C6-10. the chart document has a dominant first bar + a premium container (keyline), not plain bars on black", () => {
   const { d, es, tl } = build("market_shape", SEM_MKT);

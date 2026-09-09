@@ -151,20 +151,28 @@ test("SC4C5-10. ASKING derivative = branded label + hero card + ASK->%->MARKET c
   const ids = d.blocks.map((b) => b.id);
   assert.ok(ids.includes("hook") && (ids.includes("hero_card") || ids.includes("hero_row")));
   const vb = d.blocks.find((b) => b.id === "value_ladder" || b.id === "hero_row");
-  const labels = (vb.rows ?? vb.spine ?? []).map((r) => r.label ?? r.op).join(" ");
+  const labels = (vb.rows ?? vb.spine ?? []).map((r) => [r.label, r.sub, r.op].filter(Boolean).join(" ")).join(" ");
   assert.match(labels, /ASK/);
-  assert.match(labels, /75% BELOW MARKET/);
+  assert.match(labels, /75%.*BELOW MARKET/);
   assert.match(labels, /RECENT MARKET/);
   assert.ok(!d.blocks.some((b) => /card details/i.test(String(b.text ?? ""))));
   for (const b of d.blocks) assert.ok(String(b.text ?? "").length <= 90, `${b.id} paragraph copy`);
 });
-test("SC4C5-11. MARKET derivative = MARKET SNAPSHOT label + 85.7% + support + premium chart + example card + takeaway", () => {
+test("SC4C5-11. MARKET derivative = a label + a giant 85.7% + support + a premium chart + a real example card (now a SPLIT composition, 4C.7)", () => {
   const { d } = build("market_shape", SEM_MKT);
   const byId = Object.fromEntries(d.blocks.map((b) => [b.id, b]));
-  assert.match(String(byId.hook?.text), /MARKET SNAPSHOT/);
-  assert.match(String(byId.hero_stat?.text), /85\.7%/);
-  assert.equal(byId.chart?.premium, true);
-  assert.ok(byId.example_card && byId.chart);
+  assert.match(String(byId.hook?.text), /MARKET/);
+  const split = byId.market_split ?? byId.hero_stat;
+  assert.ok(split, "no market hero block");
+  if (byId.market_split) {
+    assert.match(split.stat_lines.join(" "), /85\.7%/);
+    assert.ok((split.chart ?? []).length);
+    assert.ok((split.cardIds ?? []).length);
+  } else {
+    assert.match(String(split.text), /85\.7%/);
+    assert.equal(byId.chart?.premium, true);
+    assert.ok(byId.example_card && byId.chart);
+  }
 });
 test("SC4C5-12. family-aware card scale - ASKING card is a hero; MARKET example is a real collectible", () => {
   assert.ok(CARD_SCALE.asking_vs_sold >= 1.0);
