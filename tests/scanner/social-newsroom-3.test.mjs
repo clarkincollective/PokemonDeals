@@ -57,17 +57,17 @@ test("N3-3. planRefill: IG + X only; initial horizon caps; NOT_PLATFORM_FIT/YouT
 });
 
 // ---- schedule / timezone ---------------------------------------
-test("N3-4. refill schedule is prepared (NOT activated) and documents Brisbane semantics", () => {
-  assert.equal(REFILL_SCHEDULE.activated, false);
+test("N3-4. refill schedule is activated (post-proof) and documents Brisbane semantics", () => {
+  assert.equal(REFILL_SCHEDULE.activated, true);
   // SOCIAL-NEWSROOM-3B corrected the UTC<->Brisbane mapping (06:00 Brisbane
   // Sun/Wed = 20:00 UTC Sat/Tue) and split it into two stages.
   assert.equal(REFILL_SCHEDULE.queue_cron_utc, "0 20 * * 6,2");
   assert.equal(REFILL_SCHEDULE.cron_hint, "0 20 * * 6,2"); // back-compat alias = Stage B
   assert.match(REFILL_SCHEDULE.brisbane_local, /06:00 Australia\/Brisbane/);
   assert.match(REFILL_SCHEDULE.cron_utc, /20:00 UTC/);
-  // NOT yet added to vercel.json
+  // added to vercel.json after the Phase-13 proof refill reconciled cleanly
   const v = JSON.parse(read("vercel.json"));
-  assert.ok(!v.crons.some((c) => /social-backlog-refill|backlog-refill/.test(c.path)), "refill cron must NOT be in vercel.json until proof");
+  assert.ok(v.crons.some((c) => c.path === "/api/social-backlog-refill" && c.schedule === "0 20 * * 6,2"), "refill cron must be in vercel.json matching REFILL_SCHEDULE.queue_cron_utc");
 });
 
 // ---- shared queue+reconcile guardrails (source contract) --------
@@ -168,10 +168,10 @@ test("N3-12. Stage 1 / live social / email / eBay Browse / verify are untouched 
   }
 });
 
-test("N3-13. the refill cron route is NOT in vercel.json and REFILL_SCHEDULE.activated is false (activate only after proof)", () => {
+test("N3-13. the refill cron route is in vercel.json and REFILL_SCHEDULE.activated is true (Phase-13 activation, post-proof)", () => {
   const v = JSON.parse(read("vercel.json"));
-  assert.ok(!v.crons.some((c) => c.path.includes("social-backlog-refill")));
-  assert.equal(REFILL_SCHEDULE.activated, false);
+  assert.ok(v.crons.some((c) => c.path.includes("social-backlog-refill")));
+  assert.equal(REFILL_SCHEDULE.activated, true);
 });
 
 test("N3-14. UTM attribution scheme is unchanged (no new scheme introduced)", () => {

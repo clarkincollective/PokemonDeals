@@ -129,13 +129,17 @@ test("N3B-10. a GitHub Actions render runner exists, is workflow_dispatch-only (
   assert.doesNotMatch(w, /--refill|--queue-proof|queue-reconcile/);
 });
 
-test("N3B-11. the two-stage cadence is documented in Brisbane + UTC; recurring not activated (SS16/SS28)", () => {
-  assert.equal(REFILL_SCHEDULE.activated, false);
+test("N3B-11. the two-stage cadence is documented in Brisbane + UTC; Stage B activated post-proof, Stage A (render) stays manual/CI-dispatch (SS16/SS28)", () => {
+  assert.equal(REFILL_SCHEDULE.activated, true);
   assert.match(REFILL_SCHEDULE.build_render_cron_utc, /0 19 \* \* 6,2/);
   assert.match(REFILL_SCHEDULE.queue_cron_utc, /0 20 \* \* 6,2/);
   assert.match(REFILL_SCHEDULE.brisbane_local, /06:00 Australia\/Brisbane Sun \+ Wed/);
   const v = JSON.parse(read("vercel.json"));
-  assert.ok(!v.crons.some((c) => c.path.includes("social-backlog-refill")), "Stage-B cron not in vercel.json yet");
+  assert.ok(v.crons.some((c) => c.path.includes("social-backlog-refill")), "Stage-B cron must be in vercel.json after activation");
+  // Stage A (GH Actions build+render) is a separate owner step, not part of
+  // this activation - its `schedule:` block stays commented out.
+  const w = read(".github/workflows/social-backlog-build-render.yml");
+  assert.match(w, /^\s*# schedule:/m);
 });
 
 // ---- SAFETY (SS1) -----------------------------------------
