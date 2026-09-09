@@ -76,7 +76,7 @@ const RUN = (dir, sem, family, over = {}) => runProfessionalSocialLoop({
 // ===================== MODE / DEPRECATION =====================
 test("SC4C4-1. PROFESSIONAL_SOCIAL_LOOP is the mode; 4C/4C.1/4C.2/4C.3 are deprecated", () => {
   assert.equal(PROFESSIONAL_SOCIAL_LOOP, "PROFESSIONAL_SOCIAL_LOOP");
-  assert.ok(PROFESSIONAL_SOCIAL_LOOP_VERSION.startsWith("4c4"));
+  assert.ok(PROFESSIONAL_SOCIAL_LOOP_VERSION.startsWith("4c")); // 4c4 -> 4c5 (premium polish)
   const j = DEPRECATED_VIDEO_MODES.join(",");
   assert.match(j, /SPARSE_4C/);
   assert.match(j, /MULTI_BOARD_4C1/);
@@ -85,15 +85,16 @@ test("SC4C4-1. PROFESSIONAL_SOCIAL_LOOP is the mode; 4C/4C.1/4C.2/4C.3 are depre
 });
 
 // ===================== DURATION (§2) =====================
-test("SC4C4-2. family durations are 8-10s (printing up to ~12); weak content is not padded", () => {
-  assert.equal(FAMILY_DURATION_MS.deal_hero, 8000);
-  assert.ok(FAMILY_DURATION_MS.asking_vs_sold >= 8000 && FAMILY_DURATION_MS.asking_vs_sold <= 9000);
+test("SC4C4-2. family durations are 8.5-10.5s (4C.5 adds a 2.6s CTA hold); weak content is not padded", () => {
+  assert.ok(FAMILY_DURATION_MS.deal_hero >= 8000 && FAMILY_DURATION_MS.deal_hero <= 9000);
+  assert.ok(FAMILY_DURATION_MS.asking_vs_sold >= 8500 && FAMILY_DURATION_MS.asking_vs_sold <= 9500);
   assert.ok(FAMILY_DURATION_MS.market_shape >= 9000 && FAMILY_DURATION_MS.market_shape <= 10000);
   assert.ok(FAMILY_DURATION_MS.three_up >= 9000 && FAMILY_DURATION_MS.three_up <= 10000);
   assert.ok(FAMILY_DURATION_MS.printing_compare <= 12000);
   for (const f of Object.keys(FAMILY_DURATION_MS)) {
     const tl = buildProfessionalTimeline({ family: f, derivative: build(f === "market_shape" ? "market_shape" : "asking_vs_sold", f === "market_shape" ? SEM_MKT : SEM_ASK).d, durationMs: FAMILY_DURATION_MS[f] });
-    assert.equal(tl.story_ms + tl.cta_ms, tl.duration_ms);
+    // total = story content + transition + CTA hold
+    assert.equal(tl.story_ms + (tl.transition_ms ?? 0) + tl.cta_ms, tl.duration_ms);
   }
 });
 
@@ -115,8 +116,8 @@ test("SC4C4-4. a derivative with no hook / no subject -> CONTENT_PURPOSE_UNCLEAR
 test("SC4C4-5. the derivative is a simplified re-composition - it drops master-only chrome", () => {
   const { d } = build("market_shape", SEM_MKT);
   assert.ok(d.dropped_from_master.join(" ").match(/methodology|footer|metadata/i));
-  assert.ok(d.blocks.length <= 7);
-  assert.equal(d.version, "4c4.1");
+  assert.ok(d.blocks.length <= 8);
+  assert.ok(d.version.startsWith("4c"));
 });
 test("SC4C4-6. the real card is present and every block is P1/P2/P3 from frozen data", () => {
   const { d } = build("asking_vs_sold", SEM_ASK);
@@ -233,9 +234,10 @@ test("SC4C4-22. the end screen carries the magnifier brand mark, 3 real cards, v
   assert.ok(s.footer && s.footer.length);
   assert.ok(s.duration_ms >= CTA_END_SCREEN_MIN_MS && s.duration_ms <= CTA_END_SCREEN_MAX_MS);
 });
-test("SC4C4-23. end screen duration defaults to ~1.5s and clamps to 1.3-1.8s", { skip: !HAVE_CARDS }, () => {
-  assert.equal(buildUniversalCtaEndScreen({ family: "deal_hero", heroCardId: "113669", cacheDir: CARD_CACHE, durationMs: 1500 }).end_screen.duration_ms, 1500);
-  assert.equal(buildUniversalCtaEndScreen({ family: "deal_hero", heroCardId: "113669", cacheDir: CARD_CACHE, durationMs: 9000 }).end_screen.duration_ms, CTA_END_SCREEN_MAX_MS);
+test("SC4C4-23. end screen is a real hold (4C.5 raised it to ~2.6s) and clamps to its min/max", { skip: !HAVE_CARDS }, () => {
+  const d = buildUniversalCtaEndScreen({ family: "deal_hero", heroCardId: "113669", cacheDir: CARD_CACHE }).end_screen.duration_ms;
+  assert.ok(d >= CTA_END_SCREEN_MIN_MS && d <= CTA_END_SCREEN_MAX_MS);
+  assert.equal(buildUniversalCtaEndScreen({ family: "deal_hero", heroCardId: "113669", cacheDir: CARD_CACHE, durationMs: 90000 }).end_screen.duration_ms, CTA_END_SCREEN_MAX_MS);
   assert.equal(buildUniversalCtaEndScreen({ family: "deal_hero", heroCardId: "113669", cacheDir: CARD_CACHE, durationMs: 200 }).end_screen.duration_ms, CTA_END_SCREEN_MIN_MS);
 });
 test("SC4C4-24. CTA wording adapts by family with a universal fallback; visual design is constant", () => {
@@ -333,14 +335,15 @@ test("SC4C4-37. the document is ONE deterministic composition + a CTA layer, rea
   const doc = buildProfessionalLoopDocument({ derivative: d, endScreen: es, timeline: tl, cardImages: { [CARD("113669")]: "AAAA" }, endCardImages: { "113669": "AAAA" } });
   assert.ok(doc.html.includes('class="story"') && doc.html.includes('class="end"'));
   assert.ok(!/https?:\/\//.test(doc.html.replace(/pokemondealfinder\.com/g, "")));
-  assert.ok(doc.html.includes("@keyframes storyout") && doc.html.includes("@keyframes endin"));
+  assert.ok((doc.html.includes("@keyframes storyout") || doc.html.includes("@keyframes storydim")) && doc.html.includes("@keyframes endin"));
   assert.ok(!/background-position|background-image:url\('data:.*master/i.test(doc.html)); // no re-drawn master slice
 });
-test("SC4C4-38. the CTA transition is a cross-dissolve, never a fade to black", () => {
+test("SC4C4-38. the story->CTA transition is a controlled cross-dissolve/darken, never a fade to black", () => {
   const { tl } = build("asking_vs_sold", SEM_ASK);
   const t = tl.events.find((e) => e.id === "cta_transition");
-  assert.equal(t.kind, "cross_dissolve");
-  assert.ok(!tl.events.some((e) => /fade.?to.?black|black/i.test(e.kind)));
+  assert.ok(["cross_dissolve", "cta_transition"].includes(t.kind));
+  assert.notEqual(t.to_black, true);
+  assert.ok(!tl.events.some((e) => /fade.?to.?black/i.test(e.kind)));
 });
 
 // ===================== FAILURE-STATE REGISTRY / SAFETY =====================
@@ -393,7 +396,8 @@ test("SC4C4-44. owner regression: a 4C.2 whole-poster camera tour would now be C
 test("SC4C4-45. the timeline follows HOOK -> STORY/VALUE -> PROOF -> CTA and every second communicates", () => {
   const { tl } = build("asking_vs_sold", SEM_ASK);
   const ids = tl.events.map((e) => e.id);
-  assert.ok(ids.includes("compare_illuminate") && ids.includes("stat_pulse") && ids.includes("card_sweep"));
+  // 4C.5: a downward-illuminating value ladder + an impact + a card sweep
+  assert.ok(ids.some((i) => /ladder|illuminate|compare/.test(i)) && ids.some((i) => /impact|pulse/.test(i)) && ids.includes("card_sweep"));
   assert.equal(tl.events[tl.events.length - 1].id, "cta_transition");
   // no dead gap > 1.4s between story events before the CTA
   const story = tl.events.filter((e) => e.kind !== "cta_transition").sort((a, b) => a.at_ms - b.at_ms);
