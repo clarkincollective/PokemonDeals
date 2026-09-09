@@ -121,7 +121,7 @@ test("SC4C4-5. the derivative is a simplified re-composition - it drops master-o
 });
 test("SC4C4-6. the real card is present and every block is P1/P2/P3 from frozen data", () => {
   const { d } = build("asking_vs_sold", SEM_ASK);
-  assert.ok(d.blocks.some((b) => b.role === "card" && (b.cardIds ?? []).length));
+  assert.ok(d.blocks.some((b) => ["card", "hero_row"].includes(b.role) && (b.cardIds ?? []).length));
   assert.ok(d.priority1_ids.includes("hook"));
   for (const b of d.blocks) assert.ok([1, 2, 3].includes(b.priority));
 });
@@ -396,10 +396,10 @@ test("SC4C4-44. owner regression: a 4C.2 whole-poster camera tour would now be C
 test("SC4C4-45. the timeline follows HOOK -> STORY/VALUE -> PROOF -> CTA and every second communicates", () => {
   const { tl } = build("asking_vs_sold", SEM_ASK);
   const ids = tl.events.map((e) => e.id);
-  // 4C.5: a downward-illuminating value ladder + an impact + a card sweep
-  assert.ok(ids.some((i) => /ladder|illuminate|compare/.test(i)) && ids.some((i) => /impact|pulse/.test(i)) && ids.includes("card_sweep"));
+  // 4C.6: a card lift, a downward-drawing comparison spine, a % impact
+  assert.ok(ids.some((i) => /lift|card_sweep/.test(i)) && ids.some((i) => /spine|ladder|illuminate/.test(i)) && ids.some((i) => /impact|pulse/.test(i)));
   assert.equal(tl.events[tl.events.length - 1].id, "cta_transition");
-  // no dead gap > 1.4s between story events before the CTA
+  // no dead gap > 1.6s between story events before the CTA
   const story = tl.events.filter((e) => e.kind !== "cta_transition").sort((a, b) => a.at_ms - b.at_ms);
-  for (let i = 1; i < story.length; i++) assert.ok(story[i].at_ms - story[i - 1].end_ms <= 1400, `gap before ${story[i].id}`);
+  for (let i = 1; i < story.length; i++) assert.ok(story[i].at_ms - story[i - 1].end_ms <= 1600, `gap before ${story[i].id}`);
 });

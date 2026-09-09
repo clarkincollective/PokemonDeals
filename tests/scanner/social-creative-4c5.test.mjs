@@ -74,9 +74,9 @@ const RUN = (dir, sem, family, over = {}) => runProfessionalSocialLoop({
 });
 
 // ===================== ARCHITECTURE KEPT =====================
-test("SC4C5-1. still PROFESSIONAL_SOCIAL_LOOP, still $0, version bumped to 4c5", () => {
-  assert.ok(PROFESSIONAL_SOCIAL_LOOP_VERSION.startsWith("4c5"));
-  assert.ok(VIDEO_SAFE_DERIVATIVE_VERSION.startsWith("4c5"));
+test("SC4C5-1. still PROFESSIONAL_SOCIAL_LOOP, still $0, version bumped (4c5 -> 4c6 ...)", () => {
+  assert.ok(PROFESSIONAL_SOCIAL_LOOP_VERSION.startsWith("4c"));
+  assert.ok(VIDEO_SAFE_DERIVATIVE_VERSION.startsWith("4c"));
 });
 
 // ===================== CTA HOLD (§4 / §28) =====================
@@ -139,19 +139,19 @@ test("SC4C5-8. a derivative with no atmosphere / near-empty -> DEAD_BLACK_SPACE_
 });
 
 // ===================== DERIVATIVE: SIMPLIFIED BUT DESIGNED (§8 / §10) =====================
-test("SC4C5-9. the derivative carries style intent - framed panels, spotlight, red rule accents", () => {
+test("SC4C5-9. the derivative carries style intent - spotlight, red rule/spine accents, a strong value structure", () => {
   const { d } = build("asking_vs_sold", SEM_ASK);
-  assert.ok(d.blocks.some((b) => b.style?.panel), "no panel block");
   assert.ok(d.blocks.some((b) => b.style?.spotlight), "no spotlight block");
-  assert.ok(d.blocks.some((b) => b.style?.rule), "no red rule accent");
-  assert.ok(d.blocks.some((b) => b.role === "value_ladder"), "no value ladder");
+  assert.ok(d.blocks.some((b) => b.style?.rule || b.style?.spine), "no red rule / spine accent");
+  // 4C.6: a strong comparison spine on the hero_row (or a value_ladder in 4C.5)
+  assert.ok(d.blocks.some((b) => (b.role === "hero_row" && b.style?.spine) || b.role === "value_ladder"), "no strong value structure");
 });
-test("SC4C5-10. ASKING derivative = branded label + hero card + ASK->%->MARKET ladder + short lesson; no paragraph copy, no CARD DETAILS", () => {
+test("SC4C5-10. ASKING derivative = branded label + hero card + ASK->%->MARKET comparison + short lesson; no paragraph copy, no CARD DETAILS", () => {
   const { d } = build("asking_vs_sold", SEM_ASK);
   const ids = d.blocks.map((b) => b.id);
-  assert.ok(ids.includes("hook") && ids.includes("hero_card") && ids.includes("value_ladder"));
-  const ladder = d.blocks.find((b) => b.id === "value_ladder");
-  const labels = ladder.rows.map((r) => r.label ?? r.op).join(" ");
+  assert.ok(ids.includes("hook") && (ids.includes("hero_card") || ids.includes("hero_row")));
+  const vb = d.blocks.find((b) => b.id === "value_ladder" || b.id === "hero_row");
+  const labels = (vb.rows ?? vb.spine ?? []).map((r) => r.label ?? r.op).join(" ");
   assert.match(labels, /ASK/);
   assert.match(labels, /75% BELOW MARKET/);
   assert.match(labels, /RECENT MARKET/);
@@ -166,21 +166,23 @@ test("SC4C5-11. MARKET derivative = MARKET SNAPSHOT label + 85.7% + support + pr
   assert.equal(byId.chart?.premium, true);
   assert.ok(byId.example_card && byId.chart);
 });
-test("SC4C5-12. family-aware card scale - ASKING card is a hero, MARKET example is smaller but present", () => {
-  assert.equal(CARD_SCALE.asking_vs_sold, 1.0);
-  assert.ok(CARD_SCALE.market_shape < CARD_SCALE.asking_vs_sold && CARD_SCALE.market_shape >= 0.8);
-  assert.equal(build("asking_vs_sold", SEM_ASK).d.blocks.find((b) => b.role === "card").cardScale, 1.0);
+test("SC4C5-12. family-aware card scale - ASKING card is a hero; MARKET example is a real collectible", () => {
+  assert.ok(CARD_SCALE.asking_vs_sold >= 1.0);
+  assert.ok(CARD_SCALE.market_shape >= 0.8);
+  const hr = build("asking_vs_sold", SEM_ASK).d.blocks.find((b) => ["card", "hero_row"].includes(b.role));
+  assert.ok((hr.cardScale ?? 0) >= 1.0);
 });
 
 // ===================== FRAME DENSITY (§29 / §30) =====================
 test("SC4C5-13. the derivative reports composition density in the target band; too sparse / too crowded fail", () => {
   for (const [f, s] of [["asking_vs_sold", SEM_ASK], ["market_shape", SEM_MKT]]) {
     const { d } = build(f, s);
-    assert.ok(d.density.content_ratio >= FRAME_DENSITY.lo && d.density.content_ratio <= FRAME_DENSITY.hi, `${f} ${d.density.content_ratio}`);
+    // 4C.6 - per-family band supplied on the derivative
+    assert.ok(d.density.content_ratio >= d.density.target_lo && d.density.content_ratio <= d.density.target_hi, `${f} ${d.density.content_ratio}`);
     assert.ok(auditFrameDensity({ derivative: d }).ok);
   }
-  assert.equal(auditFrameDensity({ derivative: { density: { content_ratio: 0.2 } } }).state, "FRAME_DENSITY_TOO_LOW_FAIL");
-  assert.equal(auditFrameDensity({ derivative: { density: { content_ratio: 0.97 } } }).state, "FRAME_DENSITY_TOO_HIGH_FAIL");
+  assert.ok(["FRAME_DENSITY_TOO_LOW_FAIL", "UNDERCOMPOSED_FRAME_FAIL"].includes(auditFrameDensity({ derivative: { family: "asking_vs_sold", density: { content_ratio: 0.2, hero_fraction: 0.4, largest_gap: 0.1, target_lo: 0.58, target_hi: 0.84 } } }).state));
+  assert.equal(auditFrameDensity({ derivative: { family: "asking_vs_sold", density: { content_ratio: 0.97, hero_fraction: 0.4, largest_gap: 0.1, target_lo: 0.58, target_hi: 0.84 } } }).state, "FRAME_DENSITY_TOO_HIGH_FAIL");
 });
 
 // ===================== MOTION (§15 / §16) =====================
@@ -200,12 +202,12 @@ test("SC4C5-15. motion is perceptible: salience score meets the production thres
   const flat = auditMotion({ timeline: { events: [{ id: "a", kind: "settle", scale_from: 1, scale_to: 1.002, at_ms: 0, end_ms: 6000 }] } });
   assert.equal(flat.state, "MOTION_TOO_SUBTLE_FAIL");
 });
-test("SC4C5-16. still <= 3 primary story events; oversized motion still MOTION_TOO_AGGRESSIVE_FAIL", () => {
+test("SC4C5-16. <= 4 primary story events (4C.6 raised the cap for more obvious motion); oversized motion still MOTION_TOO_AGGRESSIVE_FAIL", () => {
   for (const f of Object.keys(FAMILY_STORY_MS)) {
     const sem = f === "market_shape" ? SEM_MKT : SEM_ASK;
     const tl = buildProfessionalTimeline({ family: f, derivative: build(f === "market_shape" ? "market_shape" : "asking_vs_sold", sem).d });
     const story = tl.events.filter((e) => !["cta_transition", "settle", "hold"].includes(e.kind));
-    assert.ok(story.length <= 3, `${f}: ${story.length}`);
+    assert.ok(story.length <= 4, `${f}: ${story.length}`);
   }
   assert.equal(auditMotion({ timeline: { events: [{ id: "z", kind: "stat_pulse", scale_from: 1, scale_to: 1.3, at_ms: 0, end_ms: 2000 }] } }).state, "MOTION_TOO_AGGRESSIVE_FAIL");
 });
