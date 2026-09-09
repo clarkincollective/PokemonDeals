@@ -56,6 +56,13 @@ function goodPlacement(pkg, platform = "instagram") {
   const built = buildBufferPlacement({ storyPackage: pkg, platform, placementType: "post", assetHash: "abc123", captionText: pkg.captions[captionKey].caption_text });
   return built.placement;
 }
+// A verified media package matching goodPlacement()'s "abc123" asset hash
+// - these tests exercise OTHER gates (QA/drift/duplicate/etc), not the
+// SOCIAL-AUTOPILOT-3 media-hosting gate, so this fixture just needs to
+// pass assertMediaPresent cleanly.
+function goodMediaPackage(platform = "instagram") {
+  return { sha256: "abc123", hosted_url: "https://example.supabase.co/storage/v1/object/public/social-public/by-hash/abc123.png", accessibility: "PUBLIC_VERIFIED", media_type: platform === "tiktok" || platform === "youtube_shorts" ? "VIDEO" : "STATIC_IMAGE" };
+}
 function fakeDb(rows = {}) {
   const store = new Map(Object.entries(rows));
   return {
@@ -112,7 +119,7 @@ test("AUTO2-4. QA failure blocks the provider call - never reaches createPost", 
   const placement = goodPlacement(pkg);
   let called = false;
   const provider = fakeProvider({ createPost: async () => { called = true; return { accepted: true, id: "x" }; } });
-  const r = await submitBufferPlacementLive(placement, pkg, { env: LIVE_ENV, provider, db: fakeDb() });
+  const r = await submitBufferPlacementLive(placement, pkg, { env: LIVE_ENV, provider, db: fakeDb(), mediaPackage: goodMediaPackage() });
   assert.equal(r.ok, false);
   assert.equal(called, false);
 });
@@ -124,7 +131,7 @@ test("AUTO2-5. snapshot drift blocks the provider call", async () => {
   const placement = goodPlacement(pkg);
   let called = false;
   const provider = fakeProvider({ createPost: async () => { called = true; return { accepted: true, id: "x" }; } });
-  const r = await submitBufferPlacementLive(placement, pkg, { env: LIVE_ENV, provider, db: fakeDb() });
+  const r = await submitBufferPlacementLive(placement, pkg, { env: LIVE_ENV, provider, db: fakeDb(), mediaPackage: goodMediaPackage() });
   assert.equal(r.ok, false);
   assert.equal(r.state, "STORY_SNAPSHOT_DRIFT_FAIL");
   assert.equal(called, false);
@@ -137,7 +144,7 @@ test("AUTO2-6. caption/asset hash mismatch blocks the provider call (PLACEMENT_P
   pkg.captions.instagram.caption_text = "a different caption entirely"; // placement was built with the old text
   let called = false;
   const provider = fakeProvider({ createPost: async () => { called = true; return { accepted: true, id: "x" }; } });
-  const r = await submitBufferPlacementLive(placement, pkg, { env: LIVE_ENV, provider, db: fakeDb() });
+  const r = await submitBufferPlacementLive(placement, pkg, { env: LIVE_ENV, provider, db: fakeDb(), mediaPackage: goodMediaPackage() });
   assert.equal(r.ok, false);
   assert.equal(r.state, "PLACEMENT_PACKAGE_DRIFT_FAIL");
   assert.equal(called, false);
@@ -161,7 +168,7 @@ test("AUTO2-7. a placement that already has a provider_ref refuses a second subm
   const db = fakeDb({ [placement.placement_id]: { ...placement, buffer_provider_ref: "buf_123" } });
   let called = false;
   const provider = fakeProvider({ createPost: async () => { called = true; return { accepted: true, id: "buf_999" }; } });
-  const r = await submitBufferPlacementLive(placement, pkg, { env: LIVE_ENV, provider, db });
+  const r = await submitBufferPlacementLive(placement, pkg, { env: LIVE_ENV, provider, db, mediaPackage: goodMediaPackage() });
   assert.equal(r.state, "ALREADY_SUBMITTED");
   assert.equal(r.provider_ref, "buf_123");
   assert.equal(called, false);
@@ -174,7 +181,7 @@ test("AUTO2-8. a placement stuck at BUFFER_SUBMITTING (a crashed prior attempt) 
   const db = fakeDb({ [placement.placement_id]: { ...placement, status: "BUFFER_SUBMITTING" } });
   let called = false;
   const provider = fakeProvider({ createPost: async () => { called = true; return { accepted: true, id: "buf_999" }; } });
-  const r = await submitBufferPlacementLive(placement, pkg, { env: LIVE_ENV, provider, db });
+  const r = await submitBufferPlacementLive(placement, pkg, { env: LIVE_ENV, provider, db, mediaPackage: goodMediaPackage() });
   assert.equal(r.state, "BUFFER_SUBMIT_UNKNOWN");
   assert.equal(called, false);
 });
@@ -186,11 +193,11 @@ test("AUTO2-9. running the same submit twice in sequence results in exactly ONE 
   const db = fakeDb();
   let calls = 0;
   const provider = fakeProvider({ createPost: async () => { calls += 1; return { accepted: true, id: "buf_1", statusRaw: "scheduled" }; } });
-  const first = await submitBufferPlacementLive(placement, pkg, { env: LIVE_ENV, provider, db });
+  const first = await submitBufferPlacementLive(placement, pkg, { env: LIVE_ENV, provider, db, mediaPackage: goodMediaPackage() });
   assert.equal(first.submitted, true);
   assert.equal(calls, 1);
   // rerun with the (now updated) DB state - must not create a second post
-  const second = await submitBufferPlacementLive(placement, pkg, { env: LIVE_ENV, provider, db });
+  const second = await submitBufferPlacementLive(placement, pkg, { env: LIVE_ENV, provider, db, mediaPackage: goodMediaPackage() });
   assert.equal(second.state, "ALREADY_SUBMITTED");
   assert.equal(calls, 1, "a rerun must not call the provider a second time");
 });
@@ -200,7 +207,7 @@ test("AUTO2-10. an unclassifiable provider rejection becomes BUFFER_SUBMIT_UNKNO
   const pkg = goodPackage();
   const placement = goodPlacement(pkg);
   const provider = fakeProvider({ createPost: async () => ({ accepted: false, reason: "buffer_UnexpectedError", detail: "something odd" }) });
-  const r = await submitBufferPlacementLive(placement, pkg, { env: LIVE_ENV, provider, db: fakeDb() });
+  const r = await submitBufferPlacementLive(placement, pkg, { env: LIVE_ENV, provider, db: fakeDb(), mediaPackage: goodMediaPackage() });
   assert.equal(r.ok, false);
   // "unexpected_error" matches the PROVIDER_VALIDATION_FAILURE class in this
   // taxonomy (a named provider error type), so it holds rather than being
