@@ -1641,7 +1641,10 @@
         "at": "2026-09-09T07:42:22.100Z",
         "note": "record built (not yet uploaded)"
       }
-    ]
+    ],
+    "unsafe_for_platform_reuse": true,
+    "unsafe_reason": "PLATFORM_SAFEAREA_FAIL - bottom content clipped (0px margin); superseded by 8e256d8c6630d19403c5dab59f577f8ee0dbd7d74f644dbd425c9e16807c0d57",
+    "superseded_by_sha256": "8e256d8c6630d19403c5dab59f577f8ee0dbd7d74f644dbd425c9e16807c0d57"
   },
   {
     "asset_id": "ha_47500fbcdfe11dcb1de9d744",
@@ -1674,6 +1677,41 @@
     "history": [
       {
         "at": "2026-09-09T07:45:12.754Z",
+        "note": "record built (not yet uploaded)"
+      }
+    ]
+  },
+  {
+    "asset_id": "ha_8e256d8c6630d19403c5dab5",
+    "content_id": null,
+    "creative_family": "market_snapshot",
+    "artifact_type": "image_45",
+    "platform_eligibility": [],
+    "local_source_path": "C:\\Users\\James\\OneDrive\\Desktop\\pokemon-deals\\.social-preview\\social-safearea-1\\AFTER_SAFE.png",
+    "sha256": "8e256d8c6630d19403c5dab59f577f8ee0dbd7d74f644dbd425c9e16807c0d57",
+    "mime_type": "image/png",
+    "bytes": 1794460,
+    "width": 1080,
+    "height": 1350,
+    "duration_s": null,
+    "storage_provider": "supabase",
+    "storage_key": "by-hash/8e256d8c6630d19403c5dab59f577f8ee0dbd7d74f644dbd425c9e16807c0d57.png",
+    "public_url": "https://gxourdsnpaohnosknxtb.supabase.co/storage/v1/object/public/social-public/by-hash/8e256d8c6630d19403c5dab59f577f8ee0dbd7d74f644dbd425c9e16807c0d57.png",
+    "uploaded_at": "2026-09-09T09:40:21.532Z",
+    "source_commit": null,
+    "qa_verdict": {
+      "ok": true,
+      "passed": 1,
+      "total": 1,
+      "failed": []
+    },
+    "rights_state": {
+      "hosting_is_not_publishing": true
+    },
+    "verified": null,
+    "history": [
+      {
+        "at": "2026-09-09T09:40:19.500Z",
         "note": "record built (not yet uploaded)"
       }
     ]
