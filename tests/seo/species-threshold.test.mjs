@@ -154,8 +154,8 @@ test("8. a newly indexable species gets the complete Phase 2A catalogue template
 // --- 9-10: metadata stable + no false deal claim ------------
 
 test("9. newly indexable metadata is stable (catalogue pattern, no counts, no ranges)", () => {
-  assert.match(c6parsed.title, /^Spinda Card Prices & Values \| Pokemon Deal Finder$/);
-  assert.match(c7parsed.title, /^Blacephalon Card Prices & Values \| Pokemon Deal Finder$/);
+  assert.match(c6parsed.title, /^Spinda Cards – Full List, Prices & Values \| Pokemon Deal Finder$/);
+  assert.match(c7parsed.title, /^Blacephalon Cards – Full List, Prices & Values \| Pokemon Deal Finder$/);
   for (const p of [c6parsed, c7parsed]) {
     const d = p.metaDescription ?? "";
     assert.ok(d.length > 0);

@@ -9,6 +9,8 @@ import {
   splitCardSlug,
   isRealCardName,
   catalogCardTitle,
+  catalogCardIdentity,
+  catalogCardHeading,
   catalogPriceOk,
   pickCatalogMatch,
   catalogCardResolvable,
@@ -171,7 +173,10 @@ test("pickCatalogMatch: same-slug tie is broken on a STABLE key, never price", (
 });
 
 test("catalogCardTitle: stays within the SEO title budget, never truncates a short name", () => {
-  assert.equal(catalogCardTitle("Kakuna", "Base Set (Shadowless)"), "Kakuna (Base Set (Shadowless)) Price & Value");
+  // SEO-2: a set name that already carries parentheses is joined with a
+  // dash rather than wrapped in a second pair
+  assert.equal(catalogCardTitle("Kakuna", "Base Set (Shadowless)"), "Kakuna – Base Set (Shadowless) Price & Value");
+  assert.equal(catalogCardTitle("Kakuna", "Base Set"), "Kakuna (Base Set) Price & Value");
   // long name+set: drops the tail, then the set, before touching the name
   const long = catalogCardTitle(
     "Code Card - Battle Styles 3 Pack Blister [Jolteon]",
@@ -208,6 +213,90 @@ test("catalogCardTitle: a name already ending with the number does not duplicate
 test("catalogCardTitle: no trustworthy number -> the natural name (set) form, no fabricated #", () => {
   assert.equal(catalogCardTitle("Mew", "EX Legend Maker", null), "Mew (EX Legend Maker) Price & Value");
   assert.ok(!catalogCardTitle("Mew", "EX Legend Maker").includes("#"));
+});
+
+// --- SEO-2: one shared identity, number exactly once, whole words only ---
+
+test("catalogCardIdentity: relocates an embedded number (any position, any wrapper) to one '#<n>'", () => {
+  // the real production defects
+  assert.equal(catalogCardIdentity("Zapdos (H32)", "H32/H32"), "Zapdos #H32/H32");
+  assert.equal(catalogCardIdentity("Noivern ex - 220/091", "220/091"), "Noivern ex #220/091");
+  assert.equal(
+    catalogCardIdentity("Professor Elm's Lecture - 188a/214 (League Challenge) [4th Place]", "188a/214"),
+    "Professor Elm's Lecture (League Challenge) [4th Place] #188a/214"
+  );
+  // wrappers / separators
+  assert.equal(catalogCardIdentity("Charizard 4/102", "4/102"), "Charizard #4/102");
+  assert.equal(catalogCardIdentity("Pikachu (58/102)", "58/102"), "Pikachu #58/102");
+  assert.equal(catalogCardIdentity("Ninetales -199/197", "199/197"), "Ninetales #199/197");
+  assert.equal(catalogCardIdentity("Pikachu - SM162", "SM162"), "Pikachu #SM162");
+  assert.equal(catalogCardIdentity("Moltres (12)", "12/62"), "Moltres #12/62");
+  // a number-led variant parenthetical keeps its qualifier
+  assert.equal(catalogCardIdentity("Gengar EX (114 Full Art)", "114/119"), "Gengar EX (Full Art) #114/119");
+  // leading zeroes on either side are the same number
+  assert.equal(catalogCardIdentity("Basic Fire Energy - 002", "2"), "Basic Fire Energy #2");
+  assert.equal(catalogCardIdentity("Charizard 4/102", "004/102"), "Charizard #004/102");
+  // structured number wins, leading zeroes preserved
+  assert.equal(catalogCardIdentity("Charizard", "004/102"), "Charizard #004/102");
+  // no number -> the name untouched; a trailing year is never mistaken for one
+  assert.equal(catalogCardIdentity("Mew", null), "Mew");
+  assert.equal(catalogCardIdentity("Charizard 2016 Evolutions Promo", "16"), "Charizard 2016 Evolutions Promo #16");
+  // other parentheticals are real identity and stay verbatim
+  assert.equal(catalogCardIdentity("Unown (!)", "14/75"), "Unown (!) #14/75");
+  assert.equal(catalogCardIdentity("Klara - 2023 (Shao Tong Yen)", "145/198"), "Klara - 2023 (Shao Tong Yen) #145/198");
+});
+
+test("catalogCardIdentity/Title/Heading: the collector number appears exactly once, never doubled or malformed", () => {
+  const cases = [
+    ["Zapdos (H32)", "Aquapolis", "H32/H32"],
+    ["Noivern ex - 220/091", "SV: Paldean Fates", "220/091"],
+    ["Charizard - 4/102", "Base Set", "4/102"],
+    ["Basic Darkness Energy - 007", "SWSH Energies", "7"],
+    ["Pikachu V", "SWSH11: Lost Origin Trainer Gallery", "TG16/TG30"],
+  ];
+  for (const [name, set, num] of cases) {
+    for (const out of [catalogCardIdentity(name, num), catalogCardTitle(name, set, num), catalogCardHeading(name, set, num)]) {
+      assert.equal((out.match(/#/g) ?? []).length, 1, `${out}: '#' count`);
+      // exactly one canonical "#<num>", and once that is removed the
+      // numerator no longer appears anywhere as its own token
+      assert.equal(out.split(`#${num}`).length - 1, 1, `${out}: '#${num}' count`);
+      const rest = out.replace(`#${num}`, "");
+      const numerator = num.split("/")[0].replace(/^([A-Za-z]*)0+/, "$1");
+      const stray = rest.match(new RegExp(`(^|[^A-Za-z0-9])0*${numerator.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}(?![A-Za-z0-9])`, "gi")) ?? [];
+      assert.equal(stray.length, 0, `${out}: number still embedded elsewhere ${stray.length}x`);
+      assert.ok(!/##|#\s|#$|\(\)|\[\]|\s[-–—]\s*$/.test(out), `${out}: malformed`);
+    }
+  }
+});
+
+test("catalogCardTitle: deterministic whole-word ladder - never clips mid-word", () => {
+  // 1. identity + set + tail
+  assert.equal(catalogCardTitle("Zapdos (H32)", "Aquapolis", "H32/H32"), "Zapdos #H32/H32 (Aquapolis) Price & Value");
+  // 2. identity + set (tail dropped)
+  assert.equal(
+    catalogCardTitle("Pikachu V", "SWSH11: Lost Origin Trainer Gallery", "TG16/TG30"),
+    "Pikachu V #TG16/TG30 (SWSH11: Lost Origin Trainer Gallery)"
+  );
+  // 3. identity + tail (set dropped)
+  assert.equal(
+    catalogCardTitle("Klara - 2023 (Shao Tong Yen)", "World Championship Decks", "145/198"),
+    "Klara - 2023 (Shao Tong Yen) #145/198 Price & Value"
+  );
+  // 4. identity alone, whole, even past the budget - the old code cut this
+  //    to "...[4th Pla" in production
+  const elm = catalogCardTitle("Professor Elm's Lecture - 188a/214 (League Challenge) [4th Place]", "League & Championship Cards", "188a/214");
+  assert.equal(elm, "Professor Elm's Lecture (League Challenge) [4th Place] #188a/214");
+  const wc = catalogCardTitle("Double Colorless Energy - 90/108 (North America Championships) [Staff]", "League & Championship Cards", "090/123");
+  assert.ok(wc.endsWith("[Staff] #090/123"), wc);
+  assert.ok(!/[A-Za-z]$/.test(wc) || /\]$|\)$|\d$/.test(wc), `looks clipped: ${wc}`);
+  assert.ok(!/ \[4th Pla$|Pla$/.test(elm));
+});
+
+test("catalogCardHeading: same identity as the title, set + intent tail", () => {
+  assert.equal(catalogCardHeading("Charizard", "Base Set", "004/102"), "Charizard #004/102 — Base Set Price & Value");
+  assert.equal(catalogCardHeading("Zapdos (H32)", "Aquapolis", "H32/H32"), "Zapdos #H32/H32 — Aquapolis Price & Value");
+  assert.equal(catalogCardHeading("Noivern ex - 220/091", "SV: Paldean Fates", "220/091"), "Noivern ex #220/091 — SV: Paldean Fates Price & Value");
+  assert.equal(catalogCardHeading("Mew", "EX Legend Maker", null), "Mew — EX Legend Maker Price & Value");
 });
 
 test("catalogCardTitle: number survives the length squeeze longer than the set/tail", () => {

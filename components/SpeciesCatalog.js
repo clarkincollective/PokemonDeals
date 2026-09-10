@@ -14,6 +14,7 @@ import { buildEbaySearchLink } from "@/lib/ebay";
 import { hasPrice } from "@/lib/money";
 import { cardTier } from "@/lib/catalogueView";
 import { speciesPriceSnapshot, speciesBySet } from "@/lib/speciesSummary";
+import { speciesPageTitle } from "@/lib/speciesHub";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -86,7 +87,7 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
       ? {
           "@context": "https://schema.org",
           "@type": "CollectionPage",
-          name: `${speciesName} Pokemon Cards — Prices & Values`,
+          name: speciesPageTitle(speciesName),
           description: `${stats.cardCount} ${speciesName} Pokemon cards across ${stats.setCount} ${
             stats.setCount === 1 ? "set" : "sets"
           }, with real recent-sold market reference prices${range ? ` from ${range}` : ""}.`,
@@ -134,7 +135,7 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
         />
 
         <h1 className="mt-4 text-3xl font-bold tracking-tight text-black dark:text-zinc-50">
-          {indexable ? `${speciesName} Card Prices & Values` : `${speciesName} Pokemon Cards`}
+          {indexable ? speciesPageTitle(speciesName) : `${speciesName} Pokemon Cards`}
         </h1>
 
         <SpeciesFactStrip speciesName={speciesName} />

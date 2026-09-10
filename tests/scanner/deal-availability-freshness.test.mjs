@@ -248,11 +248,16 @@ test("10. verify-deals: the reserve guard runs before any listing calls, and pro
   assert.ok(batch > 12 && batch <= 40, "BATCH raised from the old 12, but still conservatively bounded");
 });
 
-test("11. verify-deals: exact_verified_at is only ever written after a real getListingFreshness call, never fabricated", () => {
+test("11. verify-deals: exact_verified_at is only ever written after a real eBay listing call, never fabricated", () => {
+  // EBAY-14Q: the BIN branch's freshness call moved from getListingFreshness
+  // to getListingSnapshot (same one-call cost, adds image-recovery data) -
+  // the ordering guarantee this test protects (a real eBay response must
+  // resolve before exact_verified_at is ever written) is what still
+  // matters, not which specific function name makes that call.
   const src = readFileSync(join(HERE, "..", "..", "app", "api", "verify-deals", "route.js"), "utf8");
   const loopStart = src.indexOf("for (const r of batch)");
   const loopBody = src.slice(loopStart, src.indexOf("\n  }\n", loopStart));
-  const getCallIdx = loopBody.indexOf("getListingFreshness(");
+  const getCallIdx = loopBody.indexOf("getListingSnapshot(");
   const firstWriteIdx = loopBody.indexOf("exact_verified_at:");
   assert.ok(getCallIdx >= 0 && firstWriteIdx > getCallIdx, "exact_verified_at is written only after the eBay call resolves");
 });
@@ -288,7 +293,15 @@ test("13. the expired-deal branch never renders an active-purchase CTA for the o
   const branch = src.slice(branchStart, branchEnd);
   assert.doesNotMatch(branch, /href=\{deal\.affiliate_url\}/, "must not link the old listing as if still buyable");
   assert.doesNotMatch(branch, /View Deal|Bid Now/i, "must not reuse the live-deal CTA copy");
-  assert.doesNotMatch(branch, /redirect\(/i, "must not auto-redirect");
+  // SEO-2 lifecycle: the ONLY redirect is the lib/dealPage.js decision,
+  // which sends a genuinely inactive listing to the SAME card's permanent
+  // /cards/[slug] page (never home / index / search / set / species), and
+  // never redirects a row that is still is_active.
+  assert.match(branch, /permanentRedirect\(destination\.href\)/, "expired lifecycle redirect missing");
+  assert.doesNotMatch(branch, /redirect\((?!destination\.href)/i, "must not auto-redirect anywhere but the lifecycle destination");
+  const lifecycle = readFileSync(join(HERE, "..", "..", "lib", "dealPage.js"), "utf8");
+  for (const m of lifecycle.matchAll(/href:\s*`([^`]*)`/g)) assert.match(m[1], /^\/cards\//, `lifecycle redirect target ${m[1]} is not a card page`);
+  assert.match(lifecycle, /if \(deal\.is_active\) return \{ action: "render"/, "an active row must render, never redirect");
   assert.match(branch, /ended|expired|not found/i);
   // a truthful path forward is offered
   assert.match(branch, /current listings|Back to all deals/i);

@@ -5,7 +5,9 @@ import { GUIDES } from "@/lib/guides";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
-const TITLE = "Guides";
+// SEO-2: names the actual guide content (pricing, condition, grading)
+// instead of the bare section label.
+const TITLE = "Pokemon Card Buying Guides: Prices, Condition & Grading";
 const DESCRIPTION =
   "Short, factual guides to buying Pokemon cards: how prices are set, condition and grading scales, raw vs. graded, and vintage vs. modern.";
 

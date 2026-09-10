@@ -124,13 +124,22 @@ describe("deals sitemap <-> /deals/[id] robots parity", () => {
 
   test("control: deal 24195 is 200 + noindex,follow + no Product/Offer + absent from the deals sitemap", async () => {
     const res = await get("/deals/24195");
-    // 200 (the row still exists) or 404 (row later hard-deleted) - never a
-    // live indexable page. Both render noindex.
-    assert.ok(res.status === 200 || res.status === 404, `/deals/24195 -> HTTP ${res.status}`);
-    assert.ok(isNoindex(res.body), "/deals/24195 is not noindex");
-    const types = ldTypes(res.body);
-    assert.ok(!types.has("Product"), "/deals/24195 (noindex) still emits Product schema");
-    assert.ok(!types.has("Offer"), "/deals/24195 (noindex) still emits Offer schema");
+    // Never a live indexable page. While the row is still is_active but
+    // display-gated it renders 200 + noindex (no Product/Offer); once it
+    // is genuinely inactive the SEO-2 lifecycle applies: 308 to the same
+    // card's permanent /cards page, or 404 when no such page exists.
+    if (res.status === 308) {
+      const loc = String(res.location ?? "").split(",")[0].trim();
+      assert.match(pathOf(loc), /^\/cards\//, `/deals/24195 redirected somewhere other than a card page: ${loc}`);
+    } else {
+      assert.ok(res.status === 200 || res.status === 404, `/deals/24195 -> HTTP ${res.status}`);
+      if (res.status === 200) {
+        assert.ok(isNoindex(res.body), "/deals/24195 is not noindex");
+        const types = ldTypes(res.body);
+        assert.ok(!types.has("Product"), "/deals/24195 (noindex) still emits Product schema");
+        assert.ok(!types.has("Offer"), "/deals/24195 (noindex) still emits Offer schema");
+      }
+    }
 
     const { locs } = await sitemapUrls();
     const present = locs.filter((l) => pathOf(l) === "/deals/24195");

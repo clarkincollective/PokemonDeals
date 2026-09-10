@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { resolveCardSlug, resolveCatalogCard, fetchCardOffers, fetchCardRelations, fetchSetSlugs, fetchCardPriceHistory } from "@/lib/deals";
-import { catalogCardTitle } from "@/lib/cardSlug";
+import { catalogCardTitle, catalogCardHeading } from "@/lib/cardSlug";
 import { cardDisplayName, collectorNumberFromName } from "@/lib/cardName";
 import { catalogImageUrl } from "@/lib/cardImage";
 import { trustedDealImageUrl } from "@/lib/listingImage";
@@ -386,8 +386,11 @@ export default async function CardHubPage({ params }) {
             <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
               {offers.length} active {offers.length === 1 ? "listing" : "listings"}
             </span>
+            {/* SEO-2: the H1 carries the same identity as the <title>
+                (lib/cardSlug catalogCardIdentity) - collector number
+                exactly once, in one canonical position. */}
             <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">
-              {cardName} — {hub.set} Price &amp; Value
+              {catalogCardHeading(cardName, hub.set, cardCollectorNumber)}
             </h1>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-zinc-500">
               {setHasPage ? (

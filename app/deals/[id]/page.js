@@ -1,8 +1,10 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import Link from "next/link";
+import { notFound, permanentRedirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { findCardHubByWatchlistId, resolveSpeciesByName, fetchSetSlugs, fetchRelatedActiveDeals, cardColsReady, withCard } from "@/lib/deals";
+import { findCardHubByWatchlistId, resolveSpeciesByName, resolveCatalogCard, fetchSetSlugs, fetchRelatedActiveDeals, cardColsReady, withCard } from "@/lib/deals";
+import { dealPageTitle, dealCatalogSlugCandidate, expiredDealDestination } from "@/lib/dealPage";
 import { timeAgo } from "@/lib/time";
 import { shouldIndexDeal } from "@/lib/indexability";
 import { conditionLabel, isDisplayableDeal } from "@/lib/dealQuality";
@@ -126,24 +128,11 @@ export async function generateMetadata({ params }) {
   const cardName = cardDisplayName({ name: normalizePublicText(deal.watchlist?.name ?? deal.title) });
   const cardSet = deal.watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
-  // Length-aware, same approach as the card hub: keep the real card (and
-  // set) name intact and drop the "- N% below market" suffix rather than
-  // let the title run long once the site-name template is appended.
-  const titleBase = `${cardName}${cardSet ? ` (${cardSet})` : ""}`;
-  const titleSuffix = ` - ${discountPct}% below market`;
-  // Keep the distinctive part inside Google's ~63-char display budget
-  // (tests/seo/pages.test.mjs titleCore <= 65): prefer name+set+suffix,
-  // then name+set, then drop the "(set)" parenthetical, then clip the
-  // name - only a long name+set pair (e.g. a Trainer Kit sub-name) ever
-  // reaches the last two branches.
-  const title =
-    titleBase.length + titleSuffix.length <= 58
-      ? `${titleBase}${titleSuffix}`
-      : titleBase.length <= 63
-        ? titleBase
-        : cardName.length <= 63
-          ? cardName
-          : cardName.slice(0, 62).trimEnd();
+  // SEO-2: card identity + the deal hook survive ahead of the "(set)"
+  // context (lib/dealPage.js dealPageTitle) - a long set name used to
+  // silently drop "- N% below market" and leave this URL titled exactly
+  // like the permanent card page.
+  const title = dealPageTitle({ cardName, cardSet, discountPct });
   // Real card/set context up front, not just bare price numbers - a
   // search result showing only "$74.99 vs a $214.20 market price" gives a
   // searcher no reason to click over a competing result unless they've
@@ -235,11 +224,39 @@ export default async function DealDetailPage({ params }) {
   // real-looking pricing/CTAs. The card's own /cards/[slug] hub still
   // offers a plain "Find on eBay".
   if (!shouldIndexDeal(deal) || !isDisplayableDeal(deal)) {
+    // SEO-2 lifecycle (lib/dealPage.js expiredDealDestination): a listing
+    // that is genuinely gone (is_active=false) permanently redirects to
+    // the SAME card's permanent page - its live hub if one exists, else
+    // its verified catalogue page - so the equity and the visitor land on
+    // current listings for that exact card. No permanent page for that
+    // card (Japanese prints, unmatched names) or no row at all -> 404.
+    // Never a homepage / index / species / set page just to avoid a dead
+    // URL. A row that is still is_active but display-gated keeps the
+    // honest "ended" state below (200 + noindex) - it can become
+    // displayable again, so it is never redirected away.
+    const [hubForRedirect, catalogForRedirect] = await Promise.all([
+      deal && !deal.is_active && deal.watchlist_id ? findCardHubByWatchlistId(deal.watchlist_id) : Promise.resolve(null),
+      (async () => {
+        if (!deal || deal.is_active) return null;
+        const candidate = dealCatalogSlugCandidate(deal);
+        if (!candidate) return null;
+        const card = await resolveCatalogCard(candidate);
+        return card ? candidate : null;
+      })(),
+    ]);
+    const destination = expiredDealDestination({
+      deal,
+      hubSlug: hubForRedirect?.slug ?? null,
+      catalogSlug: catalogForRedirect,
+    });
+    if (destination.action === "redirect") permanentRedirect(destination.href);
+    if (destination.action === "gone") notFound();
+
     // P0.2: truthful expiry, not a dead end. `deal` (if a row exists at
     // all) still carries its card identity even once inactive/stale, so a
     // real "not this exact listing anymore, but here's what to do next"
     // page is possible without ever showing the old listing as an active
-    // purchase opportunity or auto-redirecting anywhere.
+    // purchase opportunity.
     const cardName = deal ? cardDisplayName({ name: normalizePublicText(deal.watchlist?.name ?? deal.title) }) : null;
     const cardSet = deal?.watchlist?.set ?? null;
     const speciesName =

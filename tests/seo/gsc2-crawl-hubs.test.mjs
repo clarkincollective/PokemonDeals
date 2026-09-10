@@ -127,7 +127,7 @@ test("7. every page carries the footer Browse row - hubs reachable from ANY page
 test("8. /pokemon raw HTML links every indexable species hub (no client-only crawl tree)", () => {
   const species = new Set([...pokemonHtml.body.matchAll(/href="(\/pokemon\/[a-z0-9-]+)"/g)].map((m) => m[1]));
   assert.ok(species.size >= 800, `only ${species.size} /pokemon/[slug] links in raw /pokemon HTML`);
-  assert.match(pokemonHtml.body, /<h1[^>]*>[^<]*Browse Pokemon/i, "no clear H1 on /pokemon");
+  assert.match(pokemonHtml.body, /<h1[^>]*>[^<]*All Pokemon Cards by Pokemon/i, "no clear H1 on /pokemon");
 });
 
 test("9. /cards raw HTML now fans out to the full set universe (SetLinkIndex)", () => {

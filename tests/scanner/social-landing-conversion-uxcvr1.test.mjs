@@ -77,7 +77,10 @@ test("UX-CVR-1-4. the ended-deal branch renders NO live purchase CTA for the dea
   assert.doesNotMatch(b, /View Deal|Bid Now|View on eBay|Bid on eBay/i, "expired branch reused a live-deal CTA");
   assert.doesNotMatch(b, /href=\{deal\.affiliate_url\}/, "expired branch linked the dead listing");
   assert.doesNotMatch(b, /wrapEbayAffiliateUrl\(deal\.affiliate_url/, "expired branch wrapped the dead listing URL");
-  assert.doesNotMatch(b, /redirect\(/i, "expired branch auto-redirects");
+  // SEO-2: the only redirect is the lifecycle decision (inactive listing
+  // -> the same card's permanent /cards page); the rendered ended state
+  // itself never auto-redirects anywhere else.
+  assert.doesNotMatch(b, /redirect\((?!destination\.href)/i, "expired branch auto-redirects somewhere other than the lifecycle destination");
   assert.match(b, /ended|expired|not found/i);
 });
 

@@ -69,12 +69,12 @@ const CAT_CANDIDATES = [
 ];
 
 // Phase 8A: the species title/H1 is now the SAME stable
-// "... Card Prices & Values" for both deal-backed and catalogue-only
+// "... Cards – Full List, Prices & Values" for both deal-backed and catalogue-only
 // pages (search intent doesn't change because a deal appeared). So the
 // catalogue-only STATE is identified from the body, not the title:
 // the honest "no qualifying below-market <Name> deal to feature right
 // now" line is present and there is no "Best <Name> deals" section.
-const SPECIES_TITLE_RE = /^(.+?) Card Prices & Values \| Pokemon Deal Finder$/;
+const SPECIES_TITLE_RE = /^(.+?) Cards – Full List, Prices & Values \| Pokemon Deal Finder$/;
 
 function catalogueOnlyState(res) {
   if (res.status !== 200) return null;
@@ -83,7 +83,7 @@ function catalogueOnlyState(res) {
   const m = (p.title ?? "").match(SPECIES_TITLE_RE);
   if (!m) return null;
   const name = m[1].trim();
-  if (!p.h1s[0] || !new RegExp(`^${esc(name)} Card Prices & Values$`).test(p.h1s[0])) return null;
+  if (!p.h1s[0] || !new RegExp(`^${esc(name)} Cards – Full List, Prices & Values$`).test(p.h1s[0])) return null;
   const body = text(res.body);
   if (!new RegExp(`no qualifying below-market ${esc(name)} deal to feature right now`, "i").test(body)) return null;
   if (new RegExp(`Best ${esc(name)} deals`, "i").test(body)) return null;
@@ -194,8 +194,8 @@ test("2c. the species title/H1 is STABLE - identical for deal-backed and catalog
   // The authored part (before " | Pokemon Deal Finder") is what matters.
   assert.match(dealParsed.title, SPECIES_TITLE_RE);
   assert.match(catParsed.title, SPECIES_TITLE_RE);
-  assert.match(dealParsed.h1s[0] ?? "", /^.+ Card Prices & Values$/);
-  assert.match(catParsed.h1s[0] ?? "", /^.+ Card Prices & Values$/);
+  assert.match(dealParsed.h1s[0] ?? "", /^.+ Cards – Full List, Prices & Values$/);
+  assert.match(catParsed.h1s[0] ?? "", /^.+ Cards – Full List, Prices & Values$/);
   // the H1 (no site-name suffix) does not advertise "deals"
   assert.ok(!/deals?\b/i.test(dealParsed.h1s[0] ?? ""), `deal-backed H1 advertises deals: ${dealParsed.h1s[0]}`);
   assert.ok(!/deals?\b/i.test(catParsed.h1s[0] ?? ""));
@@ -205,7 +205,7 @@ test("2c. the species title/H1 is STABLE - identical for deal-backed and catalog
 
 test("3. catalogue-only species metadata is stable (no counts, no ranges)", () => {
   assert.equal(catRes.status, 200);
-  assert.match(catParsed.title, new RegExp(`^${esc(CAT_NAME)} Card Prices & Values \\| Pokemon Deal Finder$`));
+  assert.match(catParsed.title, new RegExp(`^${esc(CAT_NAME)} Cards – Full List, Prices & Values \\| Pokemon Deal Finder$`));
   const d = catParsed.metaDescription ?? "";
   assert.ok(d.length > 0, "no meta description");
   assert.ok(!/\$\d/.test(d), `description has a price: ${d}`);
@@ -214,7 +214,7 @@ test("3. catalogue-only species metadata is stable (no counts, no ranges)", () =
 
 test("4. deal-backed species metadata is stable (no counts, no ranges)", () => {
   assert.equal(dealRes.status, 200);
-  assert.match(dealParsed.title, /^Charizard Card Prices & Values \| Pokemon Deal Finder$/);
+  assert.match(dealParsed.title, /^Charizard Cards – Full List, Prices & Values \| Pokemon Deal Finder$/);
   const d = dealParsed.metaDescription ?? "";
   assert.ok(d.length > 0, "no meta description");
   assert.ok(!/\$\d/.test(d), `description has a price: ${d}`);
@@ -248,14 +248,14 @@ test("6. no volatile price range in a species meta description", async () => {
 
 test("7. deal-backed H1 uses the stable prices/values phrasing (no deal-state flip)", () => {
   assert.ok(dealParsed.h1s.length >= 1);
-  assert.match(dealParsed.h1s[0], /^Charizard Card Prices & Values$/);
+  assert.match(dealParsed.h1s[0], /^Charizard Cards – Full List, Prices & Values$/);
   // deal content is still visible on the page, just not in the H1
   assert.match(text(dealRes.body), /Best Charizard deals/i);
 });
 
 test("8. catalogue-only H1 does not claim active deals", () => {
   assert.ok(catParsed.h1s.length >= 1);
-  assert.match(catParsed.h1s[0], new RegExp(`^${esc(CAT_NAME)} Card Prices & Values$`));
+  assert.match(catParsed.h1s[0], new RegExp(`^${esc(CAT_NAME)} Cards – Full List, Prices & Values$`));
   assert.ok(!/deals?\b/i.test(catParsed.h1s[0]), `catalogue-only H1 mentions deals: ${catParsed.h1s[0]}`);
   // body is honest about no current deal
   assert.match(

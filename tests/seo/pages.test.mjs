@@ -172,7 +172,12 @@ function assertPage({ path, parsed }) {
   assert.ok(parsed.title && parsed.title.length > 0, `${path}: empty <title>`);
   assert.ok(parsed.title.length <= 100, `${path}: <title> is ${parsed.title.length} chars (>100): ${parsed.title}`);
   const core = titleCore(parsed.title);
-  assert.ok(core.length <= 65, `${path}: distinctive title part is ${core.length} chars (>65): ${core}`);
+  // SEO-2: a /cards/[slug] title is never clipped mid-word - its ladder
+  // ends at the whole card identity (name + collector number), which for
+  // ~0.1% of real tournament-promo names runs past 65. Everything else
+  // keeps the ~60-char display budget.
+  const coreCap = path.startsWith("/cards/") ? 90 : 65;
+  assert.ok(core.length <= coreCap, `${path}: distinctive title part is ${core.length} chars (>${coreCap}): ${core}`);
 
   // --- meta description: present, non-trivial ---
   assert.ok(parsed.metaDescription && parsed.metaDescription.length >= 20, `${path}: missing/short meta description`);

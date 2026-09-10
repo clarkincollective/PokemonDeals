@@ -18,7 +18,9 @@ export async function generateMetadata({ searchParams }) {
   const params = await searchParams;
   const pageParam = typeof params.page === "string" ? Number(params.page) : 1;
   const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
-  const title = page > 1 ? `Japanese Pokemon Cards - Page ${page}` : "Japanese Pokemon Cards";
+  // SEO-2: aligned with the H1 and the page's actual purpose (below-market
+  // Japanese-print deals), not a bare category label.
+  const title = page > 1 ? `Japanese Pokemon Card Deals - Page ${page}` : "Japanese Pokemon Card Deals – Below Market on eBay";
   const description =
     "Real Japanese-print Pokemon card deals on eBay, priced against real Japanese-catalog market data - not converted from English pricing.";
   const canonical = page > 1 ? `/japanese-cards?page=${page}` : "/japanese-cards";

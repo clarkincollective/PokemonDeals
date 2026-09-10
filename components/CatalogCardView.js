@@ -6,6 +6,7 @@ import { upgradeCatalogImage } from "@/lib/cardImage";
 import { cardSpeciesLink } from "@/lib/cardLinks";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { cardDisplayName } from "@/lib/cardName";
+import { catalogCardHeading } from "@/lib/cardSlug";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -132,8 +133,10 @@ export default function CatalogCardView({ card, analysis, priceHistory = null, s
             <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
               No live eBay deals right now
             </span>
+            {/* SEO-2: same identity as the <title> - the collector number
+                appears exactly once (lib/cardSlug catalogCardHeading). */}
             <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">
-              {name} — {set} Price &amp; Value
+              {catalogCardHeading(name, set, cardNumber)}
             </h1>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-zinc-500">
               {setHasPage ? (

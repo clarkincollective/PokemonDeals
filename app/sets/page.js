@@ -51,7 +51,7 @@ export default async function SetsIndexPage() {
         <div className="mx-auto max-w-7xl px-6 py-10">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Browse</p>
           <h1 className="mt-1 max-w-2xl text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl">
-            Browse by set
+            Pokemon Card Sets: Checklists, Prices &amp; Values
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
             Pick a set for its card checklist, market-reference prices, the Pokemon in it, and any

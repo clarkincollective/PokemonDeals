@@ -10,7 +10,9 @@ import { filterHref, PriceFilterRow, CountryFilterRow } from "@/components/Filte
 
 export const revalidate = 300;
 
-const TITLE = "Today's Best Finds";
+// SEO-2: the page is a Top 10 of the biggest genuine below-market
+// discounts (raw or graded); the title now says so.
+const TITLE = "Best Pokemon Card Deals Today – Top 10 Below Market";
 const DESCRIPTION = "The biggest real discounts on higher-value Pokemon cards, found on eBay right now.";
 
 // See app/sets/page.js's identical fix - was falling back to the root

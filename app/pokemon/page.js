@@ -8,7 +8,10 @@ import { breadcrumbList, collectionPage, itemList } from "@/lib/jsonLd";
 
 export const revalidate = 3600;
 
-const TITLE = "Browse Pokemon Cards by Generation";
+// SEO-2: says what the page is - every Pokemon's cards, prices and values
+// - rather than only how it happens to be grouped.
+const TITLE = "All Pokemon Cards by Pokemon – Prices & Values";
+const H1 = "All Pokemon Cards by Pokemon";
 const DESCRIPTION =
   "Every Pokemon, grouped by generation. Each links to that species' card prices and values across all its sets and prints, plus any current below-market eBay listings.";
 
@@ -99,7 +102,7 @@ export default async function PokemonIndexPage() {
         <div className="mx-auto max-w-7xl px-6 py-10">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Browse</p>
           <h1 className="mt-1 max-w-2xl text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl">
-            Browse Pokemon Cards by Generation
+            {H1}
           </h1>
           <p className="mt-3 max-w-2xl text-base text-zinc-600 dark:text-zinc-400">
             Every Pokemon, in National Pokedex order, grouped into collapsible generations.{" "}

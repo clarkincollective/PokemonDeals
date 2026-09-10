@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
+import { speciesPageTitle } from "@/lib/speciesHub";
+import { collectionPage } from "@/lib/jsonLd";
 import {
   resolveSpeciesSlug,
   fetchSpeciesDealsPage,
@@ -47,8 +49,28 @@ export async function generateStaticParams() {
 // indexability threshold are derived - no fabricated content, just a
 // species-scoped view of the same real active deals, plus a real index
 // of that species' prints linking to their /cards/[slug] hubs.
+// SEO-2: the canonical species URL is the lowercase slug. A mixed-case
+// request permanently redirects (see the page component) - metadata here
+// is computed for the lowercase form so a redirected request can never
+// advertise a second, case-variant canonical.
+function canonicalSpeciesSlug(slug) {
+  return String(slug ?? "").toLowerCase();
+}
+
+// The catalogue-only path's real representative image: the highest
+// trustworthy-reference standard card we track for the species (same
+// ranking the visible "most valuable" grid uses). Null when nothing
+// priced + imaged exists - never a placeholder or an invented image.
+function representativeCatalogImage(cards) {
+  const pick = [...(cards ?? [])]
+    .filter((c) => c.image && hasPrice(c.refPrice))
+    .sort((a, b) => cardTier(a) - cardTier(b) || Number(b.refPrice) - Number(a.refPrice))[0];
+  return pick?.image ?? null;
+}
+
 export async function generateMetadata({ params }) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = canonicalSpeciesSlug(rawSlug);
   const resolved = await resolveSpeciesSlug(slug);
   if (!resolved) {
     // No active deal for this species - if it's still a real dex species,
@@ -59,20 +81,21 @@ export async function generateMetadata({ params }) {
       // P1: a species with enough real, priced, imaged catalog cards gets
       // a durable indexable "prices & values" hub; a thinner one keeps the
       // lean noindex fallback.
-      const { stats, indexable } = await fetchSpeciesCatalog(speciesName);
+      const { cards, stats, indexable } = await fetchSpeciesCatalog(speciesName);
       const canonical = `/pokemon/${slug}`;
       if (indexable && stats) {
         // Stable, species-specific - no volatile price range in the
         // description (it moves with the market + every catalogue sync).
         // The visible page carries the real counts and range.
-        const t = `${speciesName} Card Prices & Values`;
+        const t = speciesPageTitle(speciesName);
         const description = `Every ${speciesName} Pokemon card we track, with real recent-sold market references grouped by set — compare ${speciesName} card prices and values, see the most valuable cards, and check current below-market eBay deals where available.`;
+        const image = representativeCatalogImage(cards);
         return {
           title: t,
           description,
           alternates: { canonical },
-          openGraph: { title: t, description, url: `${SITE_URL}${canonical}`, type: "website" },
-          twitter: { card: "summary", title: t, description },
+          openGraph: { title: t, description, url: `${SITE_URL}${canonical}`, type: "website", images: image ? [image] : undefined },
+          twitter: { card: image ? "summary_large_image" : "summary", title: t, description, images: image ? [image] : undefined },
         };
       }
       const t = `${speciesName} Pokemon Cards`;
@@ -95,7 +118,7 @@ export async function generateMetadata({ params }) {
   // churns the index. Deals stay a prominent visible module; the title
   // does not advertise them. No volatile count or price range - those
   // live in the page body.
-  const title = `${resolved.name} Card Prices & Values`;
+  const title = speciesPageTitle(resolved.name);
   const description = `Every ${resolved.name} Pokemon card we track, with real recent-sold market references grouped by set — compare ${resolved.name} card prices and values, see the most valuable cards, and check current below-market eBay deals where available.`;
   const canonical = `/pokemon/${slug}`;
 
@@ -126,7 +149,12 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function PokemonSpeciesPage({ params }) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  // SEO-2: one canonical (lowercase) URL per species - "/pokemon/PIKACHU"
+  // used to render as its own self-canonical page. Bogus slugs still 404
+  // (after the redirect, on the lowercase form).
+  const slug = canonicalSpeciesSlug(rawSlug);
+  if (rawSlug !== slug) permanentRedirect(`/pokemon/${slug}`);
 
   // Kick off the card-hubs scan now so it runs concurrently with the
   // species-hubs scan below (resolveSpeciesSlug) instead of after it -
@@ -257,9 +285,20 @@ export default async function PokemonSpeciesPage({ params }) {
         }
       : null;
 
+  // SEO-2: the deal-backed and catalogue-backed templates describe the
+  // same page type, so both carry a CollectionPage (the catalogue path -
+  // components/SpeciesCatalog.js - already did). Same shared builder as
+  // the index pages; no Product / Offer here (a species is not one item).
+  const collectionJsonLd = collectionPage({
+    name: speciesPageTitle(resolved.name),
+    description: `${resolved.name} Pokemon card checklist across ${priceSnapshot.setCount} ${priceSnapshot.setCount === 1 ? "set" : "sets"}, with real recent-sold market reference prices.`,
+    url: basePath,
+  });
+
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }} />
       {itemListJsonLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
       )}
@@ -282,7 +321,7 @@ export default async function PokemonSpeciesPage({ params }) {
             ← Back to Pokemon
           </Link>
           <h1 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
-            {resolved.name} Card Prices &amp; Values
+            {speciesPageTitle(resolved.name)}
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
             Every {resolved.name} card we track across {priceSnapshot.setCount}{" "}

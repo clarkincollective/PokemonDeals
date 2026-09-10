@@ -42,7 +42,15 @@ export async function generateMetadata({ searchParams }) {
   const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
   const canonical = page > 1 ? `/?page=${page}` : "/";
   if (page > 1) {
-    return { title: { absolute: `Pokemon Deal Finder - Page ${page}` }, alternates: { canonical } };
+    // SEO-2: page 2+ of the rolling deal list is a low-value pagination
+    // variant - keep it self-canonical (it IS distinct paginated content,
+    // not a copy of page 1) but out of the index; follow so the deal /
+    // card links on it still pass equity.
+    return {
+      title: { absolute: `Pokemon Deal Finder - Page ${page}` },
+      alternates: { canonical },
+      robots: { index: false, follow: true },
+    };
   }
   // Page 1: a real head-term title + description rather than the root
   // layout's bare "Pokemon Deal Finder" brand default. Leads with the
