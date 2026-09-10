@@ -15,6 +15,7 @@ import { familyStatusFor } from "../../lib/social/newsroom/cardLayoutStatus.mjs"
 import { REFILL_SCHEDULE } from "../../lib/social/newsroom/refill.mjs";
 import { RIGHTS_STATE } from "../../lib/social/rights.mjs";
 import { VISUAL_REVIEW_POLICY_VERSION } from "../../lib/newsroom/visualConsensus.mjs";
+import { platformCaptions } from "../../lib/social/newsroom/captions.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..", "..");
@@ -176,4 +177,59 @@ test("N3B-14. the retired weak typographic proof set is no longer the default se
 test("N3B-15. idempotency: card-forward placements use the stable placementId hash (SS17)", () => {
   const s = read("scripts/socialBacklogRender.mjs");
   assert.match(s, /plc_\$\{createHash\("sha256"\)\.update\(`\$\{story\.story_id\}::\$\{platform\}`\)/);
+});
+
+// ---- SOCIAL-NEWSROOM-14D - card-forward caption regression coverage ----
+// Phase 14C's dry-run canary found that every card-forward BUFFER_READY
+// placement was persisted with caption_style.text hardcoded to "" - the
+// only text a real submission could ever carry was a bare hook line, via
+// an unrelated fallback in backlogRefill.mjs (itself also a bug: it read
+// non-existent caption_text/caption columns). Fixed by having the
+// card-forward render branch call the SAME platformCaptions() engine the
+// typographic branch already used. These tests pin that fix so a future
+// change can't silently reintroduce a blank/hook-only card-forward
+// caption.
+
+const CARD_FORWARD_TEST_SERIES = Object.keys(CARD_FORWARD_SERIES);
+
+test("N3B-16. every card-forward series has real body/hook copy in platformCaptions (not just a hook, not blank)", () => {
+  for (const series of CARD_FORWARD_TEST_SERIES) {
+    const story = { story_id: `${series.toLowerCase()}-t`, series, pillar: "MARKET", content_goal: "TRUST", cta_intensity: "BRAND_ONLY", facts_json: {} };
+    const caps = platformCaptions(story, { cta: "BRAND_ONLY" });
+    for (const platform of ["instagram", "x"]) {
+      const cap = caps[platform];
+      assert.ok(cap.text && cap.text.trim().length > 0, `${series}/${platform}: caption text must not be blank`);
+      assert.ok(cap.hook && cap.text.length > cap.hook.length, `${series}/${platform}: caption must carry more than just the hook line (found "${cap.text}")`);
+      assert.ok(Array.isArray(cap.hashtags) && cap.hashtags.length > 0, `${series}/${platform}: must carry at least one hashtag`);
+      // never the raw series enum or a generic placeholder standing in for real copy
+      assert.doesNotMatch(cap.text, new RegExp(series, "i"), `${series}/${platform}: caption must not just echo the series enum as filler`);
+    }
+  }
+});
+
+test("N3B-17. no card-forward caption contains guarantee/urgency/fabrication language or proof/test wording", () => {
+  const forbidden = /buy now|guaranteed|will explode|before it.s too late|free money|don.t miss out|profit opportunity|act fast|limited time|hurry|\bproof\b|\btest\b/i;
+  for (const series of CARD_FORWARD_TEST_SERIES) {
+    const story = { story_id: `${series.toLowerCase()}-t`, series, pillar: "MARKET", content_goal: "TRUST", cta_intensity: "BRAND_ONLY", facts_json: {} };
+    const caps = platformCaptions(story, { cta: "BRAND_ONLY" });
+    for (const platform of ["instagram", "x"]) {
+      assert.doesNotMatch(caps[platform].text, forbidden, `${series}/${platform} caption contains forbidden language`);
+    }
+  }
+});
+
+test("N3B-18. the card-forward BUFFER_READY branch sources caption_style from platformCaptions(), not a hardcoded blank", () => {
+  const s = code("scripts/socialBacklogRender.mjs");
+  // the card-forward completion block must call platformCaptions and wire
+  // its result into caption_style - not the old hardcoded text:""/[]/null
+  const anchor = s.indexOf("const ready = canProceed");
+  const cardForwardBlock = s.slice(anchor, anchor + 900);
+  assert.match(cardForwardBlock, /platformCaptions\(story/, "card-forward BUFFER_READY path must call platformCaptions()");
+  assert.doesNotMatch(cardForwardBlock, /text:\s*""\s*,\s*hashtags:\s*\[\]\s*,\s*link:\s*null/, "must not hardcode a blank caption for card-forward placements");
+});
+
+test("N3B-19. backlogRefill's real + dry-run caption sourcing reads caption_style, not nonexistent placement.caption_text/caption columns", () => {
+  const s = code("lib/newsroom/backlogRefill.mjs");
+  assert.doesNotMatch(s, /e\.p\.caption_text\s*\?\?\s*e\.p\.caption\s*\?\?/, "must not read the nonexistent top-level caption_text/caption fields");
+  assert.match(s, /e\.p\.caption_style\?\.text/, "must read the real persisted caption from caption_style.text");
 });

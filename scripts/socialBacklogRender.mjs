@@ -334,8 +334,20 @@ async function renderPass() {
 
         const ready = canProceed && Boolean(hostedUrl) && !hostErr;
         if (ready) {
+          // SOCIAL-NEWSROOM-14D DEFECT FIX: this branch previously hardcoded
+          // text:"" / hashtags:[] / link:null for every card-forward series
+          // - the ONLY caption content it ever produced was a bare hook
+          // line (via the fallback in backlogRefill.mjs's caption sourcing,
+          // itself also fixed this phase). platformCaptions() already has
+          // real, fact-scoped body/hook/hashtag copy for every card-forward
+          // series (captions.mjs) and is the SAME engine the typographic
+          // branch above already uses - reusing it here is the smallest
+          // fix, not a second caption system.
+          const cfCtaIntensity = cf.layout === "deal_hero" || cf.layout === "three_up" ? "SOFT" : "BRAND_ONLY";
+          const cfCaps = platformCaptions(story, { cta: cfCtaIntensity });
+          const cfCap = cfCaps[p.platform] ?? cfCaps.x;
           await patchPlacement(p.placement_id, { status: "BUFFER_READY", artifact_hash: cf.sha256Hex, hosted_url: hostedUrl,
-            caption_style: { platform: p.platform, layout_family: cf.layout, cta_zone: CARD_LAYOUT_CTA_ZONE[cf.layout] ?? "foot_note", cta_intensity: cf.layout === "deal_hero" || cf.layout === "three_up" ? "SOFT" : "BRAND_ONLY", hook: story.facts_json?.headline_fact ?? story.series.replace(/_/g, " "), text: "", hashtags: [], link: null } });
+            caption_style: { platform: p.platform, layout_family: cf.layout, cta_zone: CARD_LAYOUT_CTA_ZONE[cf.layout] ?? "foot_note", cta_intensity: cfCtaIntensity, hook: cfCap.hook, text: cfCap.text, hashtags: cfCap.hashtags, link: cfCap.link } });
           readySet.push({ story, placement: p, layout: cf.layout, cta_zone: CARD_LAYOUT_CTA_ZONE[cf.layout] ?? "foot_note", platform: p.platform });
         } else if (["BUFFER_READY", "BUFFER_QUEUED"].includes(p.status)) {
           await patchPlacement(p.placement_id, { status: "QA_WATCH", artifact_hash: cf.sha256Hex });
