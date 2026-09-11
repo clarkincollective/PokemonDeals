@@ -1,0 +1,54 @@
+-- DATA CORRECTION (separate from the schema migration) - NOT YET APPROVED.
+-- Do not run as part of supabase/price_condition_provenance_migration.sql.
+-- Requires that migration first (reference_condition / reference_printing
+-- must exist). Touches exactly the rows named below; the series key
+-- (`condition`) and every price are left untouched.
+--
+-- Subject: price_history 'catalog' rows for tcgplayer_id 107003 -
+-- Magneton 009/102, "Base Set (Shadowless)" - observed 2026-08-30 through
+-- 2026-09-11 (13 rows), all written with condition = 'Near Mint' by the
+-- daily catalogue snapshot.
+--
+-- CONTEMPORANEOUS EVIDENCE (gathered 2026-09-11, read-only):
+--
+-- 1. The provider's own dated per-condition history for 107003
+--    (PokemonPriceTracker /cards?includeHistory=true&days=30, fetched
+--    2026-09-11) over the same window:
+--      Near Mint         134.69 on EVERY day 2026-08-28 .. 2026-09-10 (flat)
+--      Lightly Played     73.14 (08-28), 74.49 (08-29, 08-30), 73.14
+--                         (08-31, 09-01), 73.99 (09-02 .. 09-10)
+--      Moderately Played  39.48 / 39.29 / 39.53 / 39.19
+--      Heavily Played     25.69 / 25.56 / 25.52
+--      Damaged            19.35 / 19.24 / 18.81
+--    The 13 stored prices are 73.14, 73.14, 74.49, 73.14, 73.14, then
+--    73.99 x 8. Every one of them occurs ONLY in the provider's Lightly
+--    Played series for that window; none occurs in its Near Mint series
+--    (which never left 134.69). The stored sequence matches the Lightly
+--    Played series with the ~2-day lag of the daily printings export.
+--
+-- 2. The code that wrote them (git): the first-entry fallback in
+--    pickMarketPrice() landed in 58b4f7a (2026-08-27); the WOTC second
+--    pass that re-derives these sets from /cards (getCatalogNmPrice ->
+--    pickMarketPrice) landed in 77ba993 (2026-08-31). On every one of the
+--    13 days the deployed selection for this card resolved to the
+--    Unlimited Holofoil variant's only entry, keyed "Lightly Played
+--    Unlimited Holofoil" (the plain /cards response carried no Near Mint
+--    entry for the Unlimited printing - verified 2026-09-11).
+--
+-- This is provider-dated history plus the writer's code path - not a
+-- comparison against today's price. It is still an inference about
+-- past rows; if that standard is not accepted, leave these rows'
+-- reference_condition NULL ("not recorded") - that is the default and
+-- nothing in the site reads NULL as Near Mint.
+--
+-- Statement (run only on explicit approval):
+--
+-- update price_history
+--    set reference_condition = 'Lightly Played',
+--        reference_printing  = 'Unlimited Holofoil'
+--  where tcgplayer_id = '107003'
+--    and source = 'catalog'
+--    and language = 'english'
+--    and observed_on between '2026-08-30' and '2026-09-11'
+--    and reference_condition is null;
+-- -- expected: 13 rows

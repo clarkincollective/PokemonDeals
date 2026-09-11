@@ -187,21 +187,11 @@ async function syncViaExport(db, manualKeys) {
       continue;
     }
     // Price-condition provenance: the Near Mint column is Near Mint; the
-    // aggregate marketPrice column's condition is not stated by PPT and is
-    // only inferred when it equals exactly one of the row's own played-
-    // condition figures - else null. Never assumed Near Mint.
+    // aggregate marketPrice column has no documented condition, so it is
+    // null (unknown) - never inferred from a matching ladder figure, never
+    // assumed Near Mint.
     const fromNm = Number.isFinite(parseFloat(row.marketNearMint));
-    let reference_condition = fromNm ? "Near Mint" : null;
-    if (!fromNm) {
-      const same = (v) => Number.isFinite(parseFloat(v)) && Math.abs(parseFloat(v) - price) < 0.005;
-      const hits = [
-        ["Lightly Played", row.marketLightlyPlayed],
-        ["Moderately Played", row.marketModeratelyPlayed],
-        ["Heavily Played", row.marketHeavilyPlayed],
-        ["Damaged", row.marketDamaged],
-      ].filter(([, v]) => same(v));
-      if (hits.length === 1) reference_condition = hits[0][0];
-    }
+    const reference_condition = fromNm ? "Near Mint" : null;
 
     const existing = byCard.get(row.tcgPlayerId);
     if (!existing || price > existing.price) {

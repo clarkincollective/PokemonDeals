@@ -62,6 +62,10 @@ function signalSubtext(signal) {
       return "Recent price readings for this card disagree — trend on hold.";
     if (signal?.reason === "endpoint-anomaly" || signal?.reason === "low-confidence")
       return "A recent price reading looks unusual — trend on hold until it's confirmed.";
+    if (signal?.reason === "reference-changed")
+      // price-condition provenance: the reference now tracks a different
+      // condition / printing than the earlier readings - not a price move
+      return "The reference price now tracks a different condition or printing than earlier readings — trend on hold.";
     return "Not enough history yet for a 30-day trend.";
   }
   const p = fmtPct(signal.changePct);
@@ -70,6 +74,7 @@ function signalSubtext(signal) {
 }
 
 function noWindowsMessage(signal) {
+  if (signal?.reason === "reference-changed") return "The reference changed condition or printing recently, so earlier readings aren't comparable yet.";
   return signal?.reason === "source-disagreement" || signal?.reason === "endpoint-anomaly" || signal?.reason === "low-confidence"
     ? "A recent price reading is being confirmed before we show a trend."
     : "More price history is being collected.";
