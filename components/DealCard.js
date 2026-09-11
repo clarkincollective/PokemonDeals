@@ -3,7 +3,7 @@ import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import { surfaceForPageName } from "@/lib/affiliateSurfaces";
 import { slugifySet } from "@/lib/slugify";
 import { currencyForDeal, refInListingCurrency } from "@/lib/money";
-import { timeAgo, timeUntil, isWithin } from "@/lib/time";
+import RelativeTime, { WithinWindow } from "@/components/RelativeTime";
 import { conditionLabel } from "@/lib/dealQuality";
 import { normalizePublicText } from "@/lib/publicText";
 import { cardDisplayName } from "@/lib/cardName";
@@ -91,7 +91,6 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
   // validSetSlugs). A set that fell below the threshold has no page and a
   // link to it 404s. No list passed -> render the set as plain text.
   const setHasPage = setSlug != null && Array.isArray(validSetSlugs) && validSetSlugs.includes(setSlug);
-  const justFound = !isAuction && isWithin(deal.first_seen_at, JUST_FOUND_MS);
 
   // Never default to "Near Mint". Unknown / grading-status -> "Condition
   // not verified" (see lib/dealQuality). Grading status stays separate
@@ -167,12 +166,16 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
               {marketInfo.flag}
             </span>
           )}
-          {justFound && (
-            <span
-              className={`absolute left-2 ${rank != null ? "top-[4.5rem]" : "top-10"} rounded-md bg-live/95 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-900 shadow-sm`}
-            >
-              Just found
-            </span>
+          {/* Hydration-safe window: computed on the server's clock for the
+              HTML + first paint, the viewer's clock after hydration. */}
+          {!isAuction && (
+            <WithinWindow date={deal.first_seen_at} withinMs={JUST_FOUND_MS}>
+              <span
+                className={`absolute left-2 ${rank != null ? "top-[4.5rem]" : "top-10"} rounded-md bg-live/95 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-900 shadow-sm`}
+              >
+                Just found
+              </span>
+            </WithinWindow>
           )}
 
           <span
@@ -254,7 +257,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
         <p className="mt-0.5 text-[11px] text-zinc-400">
           {isAuction ? (
             <>
-              Auction · ends {deal.auction_end_at ? timeUntil(deal.auction_end_at) : "soon"}
+              Auction · ends {deal.auction_end_at ? <RelativeTime date={deal.auction_end_at} mode="until" /> : "soon"}
               {deal.bid_count != null && ` · ${deal.bid_count} bids`}
             </>
           ) : (
@@ -270,7 +273,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                   {" · "}
                 </>
               )}
-              found {timeAgo(deal.first_seen_at)}
+              found <RelativeTime date={deal.first_seen_at} />
             </>
           )}
         </p>

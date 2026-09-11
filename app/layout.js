@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import CurrencyProvider from "@/components/CurrencyProvider";
+import { RenderClockProvider } from "@/components/RenderClock";
 import AnalyticsBootstrap from "@/components/analytics/AnalyticsBootstrap";
 import { organizationSameAs } from "@/lib/socialProfiles";
 import "./globals.css";
@@ -123,10 +124,18 @@ export default function RootLayout({ children }) {
               "(function(i,m,p,a,c,t){c.ire_o=p;c[p]=c[p]||function(){(c[p].a=c[p].a||[]).push(arguments)};t=a.createElement(m);var z=a.getElementsByTagName(m)[0];t.async=1;t.src=i;z.parentNode.insertBefore(t,z)})('https://utt.impactcdn.com/P-A7555826-7fdc-4df9-b34b-dccd926953fe1.js','script','impactStat',document,window);impactStat('transformLinks');impactStat('trackImpression');",
           }}
         />
-        <CurrencyProvider>
-          <AnalyticsBootstrap />
-          {children}
-        </CurrencyProvider>
+        {/* The server render's clock, captured once per render so it is
+            baked into this same HTML + flight payload. Relative timestamps
+            (components/RelativeTime.js) hydrate against it instead of the
+            browser's clock/zone - see components/RenderClock.js. Date.now()
+            does not opt a route into dynamic rendering, so static/ISR pages
+            stay static and carry their own render-time clock. */}
+        <RenderClockProvider now={Date.now()}>
+          <CurrencyProvider>
+            <AnalyticsBootstrap />
+            {children}
+          </CurrencyProvider>
+        </RenderClockProvider>
         <Analytics />
         <SpeedInsights />
       </body>

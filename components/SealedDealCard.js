@@ -3,7 +3,7 @@ import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import { surfaceForPageName } from "@/lib/affiliateSurfaces";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { currencyForDeal, refInListingCurrency, dealTotalUsd } from "@/lib/money";
-import { timeAgo, timeUntil } from "@/lib/time";
+import RelativeTime from "@/components/RelativeTime";
 import { normalizePublicText } from "@/lib/publicText";
 import AffiliateLink from "@/components/AffiliateLink";
 import DealScoreBadge from "@/components/DealScoreBadge";
@@ -138,12 +138,12 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
         </div>
         {isAuction && deal.auction_end_at && (
           <div className="-mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-            Auction ends {timeUntil(deal.auction_end_at)}
+            Auction ends <RelativeTime date={deal.auction_end_at} mode="until" />
           </div>
         )}
 
         <p className="text-[11px] text-zinc-400">
-          Found {timeAgo(deal.first_seen_at)}
+          Found <RelativeTime date={deal.first_seen_at} />
           {deal.seller_feedback_pct != null && ` · ${Number(deal.seller_feedback_pct).toFixed(1)}% seller feedback`}
         </p>
 
