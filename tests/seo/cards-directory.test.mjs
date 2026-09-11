@@ -68,7 +68,11 @@ before(async () => {
     if (dealCardPath && catCardPath) break;
   }
 
-  cardsSitemap = (await get("/sitemaps/cards.xml")).body || "";
+  // SEO-3: the card-entity segment is four value-band shards; the checks
+  // below treat their union as "the cards sitemap"
+  cardsSitemap = (
+    await Promise.all(["cards-high", "cards-mid", "cards-low", "cards-bulk"].map(async (s) => (await get(`/sitemaps/${s}.xml`)).body || ""))
+  ).join("\n");
   pagesSitemap = (await get("/sitemaps/pages.xml")).body || "";
 });
 
@@ -299,7 +303,7 @@ test("22. card-detail sitemap parity is unchanged (bare /cards not counted as a 
   // not inflate or deflate it
   assert.ok(detail >= 20000 && detail <= 30000, `card-detail sitemap count ${detail} outside expected band`);
   const src = readFileSync(join(REPO, "lib", "sitemap.js"), "utf8");
-  const cardsCase = src.slice(src.indexOf('case "cards"'), src.indexOf('case "deals"'));
+  const cardsCase = src.slice(src.indexOf("if (isCardSitemapSegment(segment))"), src.indexOf('case "deals"'));
   assert.ok(!/\/cards["'`]\s*,/.test(cardsCase.replace(/\/cards\/\$\{/g, "")), "bare /cards added to the cards sitemap case");
 });
 

@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import CurrencyProvider from "@/components/CurrencyProvider";
 import AnalyticsBootstrap from "@/components/analytics/AnalyticsBootstrap";
+import { organizationSameAs } from "@/lib/socialProfiles";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -33,8 +34,9 @@ const WEBSITE_ID = `${SITE_URL}/#website`;
 // the name and URL are the site's own, the logo is the real favicon mark
 // at /icon.svg, and the description is a factual one-sentence summary of
 // what the tool does - matching the prose on /how-it-works and
-// /methodology. No sameAs (no verified external profiles exist), no
-// Person/founder, no superlatives, no affiliation claims.
+// /methodology. No Person/founder, no superlatives, no affiliation claims.
+// sameAs (Phase 17B) = exactly the verified profiles the footer shows
+// (lib/socialProfiles.js - one source for both).
 const organizationJsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
@@ -44,6 +46,7 @@ const organizationJsonLd = {
   logo: `${SITE_URL}/icon.svg`,
   description:
     "Pokemon Deal Finder is a free tool that scans eBay listings for Pokemon trading cards and identifies the ones priced below their market value, using real market prices and recent sold-listing data.",
+  sameAs: organizationSameAs(),
 };
 
 const websiteJsonLd = {

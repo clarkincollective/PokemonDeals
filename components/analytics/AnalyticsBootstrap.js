@@ -8,6 +8,7 @@ import { analyticsEnabled } from "@/lib/analytics/config";
 import { deriveFilterEvent } from "@/lib/analytics/filterEvent";
 import { readLandingAttribution, deviceClass, isDoNotTrackEnabled } from "@/lib/analytics/session";
 import { viewerCountryFromMarketplace } from "@/lib/analytics/props";
+import { pageTypeFromPath } from "@/lib/analytics/pageType";
 
 // Nothing in this component touches browser storage. When analytics is
 // off (no key) or the visitor opted out, it does nothing at all.
@@ -88,6 +89,17 @@ export default function AnalyticsBootstrap() {
           props = JSON.parse(explicit.getAttribute("data-analytics-props") || "{}");
         } catch {
           props = {};
+        }
+        // Phase 17B - a site-wide component (the footer follow row) can't
+        // know its page; it marks page_type "auto" and the coarse type is
+        // filled from the path here (lib/analytics/pageType - never the
+        // path itself).
+        if (props && props.page_type === "auto") {
+          try {
+            props = { ...props, page_type: pageTypeFromPath(window.location.pathname) };
+          } catch {
+            props = { ...props, page_type: "other" };
+          }
         }
         if (name) {
           capture(name, props);

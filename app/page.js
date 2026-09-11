@@ -291,6 +291,17 @@ export default async function Home({ searchParams }) {
               Browse today&apos;s deals
               <span aria-hidden="true">↓</span>
             </a>
+            {/* Phase 17B - the SECONDARY path: value intent -> the price
+                checker. Outline style so the deal CTA above stays primary. */}
+            <Link
+              href="/search"
+              data-analytics-click="price_checker_entry_clicked"
+              data-analytics-props={JSON.stringify({ section: "hero" })}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-800 transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900"
+            >
+              Check a card&apos;s price
+              <span aria-hidden="true">→</span>
+            </Link>
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
               or try a search:{" "}
               {SEARCH_EXAMPLES.map((q, i) => (

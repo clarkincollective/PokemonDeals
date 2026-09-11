@@ -1,4 +1,5 @@
 import SearchClient from "./SearchClient";
+import PriceCheckerGuide from "@/components/PriceCheckerGuide";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbList } from "@/lib/jsonLd";
 import { fetchSetSlugs } from "@/lib/deals";
@@ -118,6 +119,10 @@ export default async function SearchPage({ searchParams }) {
         initialQuery={q}
         initialSearchState={initialSearchState}
         initialSearchKey={initialSearchState ? initialSearchKey : null}
+        // Phase 17B - server-rendered price-checker guide (a server
+        // component passed through as a prop, so it is in the initial HTML
+        // for the bare /search tool page, not only after hydration).
+        guide={<PriceCheckerGuide />}
       />
     </>
   );

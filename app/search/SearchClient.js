@@ -98,6 +98,10 @@ export default function SearchClient({
   initialQuery = "",
   initialSearchState = null,
   initialSearchKey = null,
+  // Phase 17B - server-rendered price-checker guide (components/
+  // PriceCheckerGuide) passed in by app/search/page.js; rendered below the
+  // results so the search UI stays primary.
+  guide = null,
 }) {
   const { viewer, rates } = useCurrency();
   const displayCcy = viewer || "USD";
@@ -690,6 +694,8 @@ export default function SearchClient({
             .
           </p>
         )}
+
+        {guide}
       </main>
 
       <SiteFooter />

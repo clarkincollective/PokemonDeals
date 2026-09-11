@@ -1,24 +1,25 @@
-import { segmentEntries, urlsetXml, SITEMAP_SEGMENTS, cacheControlForSegment } from "@/lib/sitemap";
+import { segmentXml, SITEMAP_SEGMENTS, cacheControlForSegment } from "@/lib/sitemap";
 
 // One child sitemap per page type. Request path is /sitemaps/<segment>.xml
 // (the ".xml" is stripped); an unknown segment 404s rather than serving an
 // empty urlset.
 //
-// 300s: the stable segments (pages/sets/pokemon/cards) are backed by
-// their own longer-lived caches so this just re-serialises them; the
-// value that matters is the deal / sealed segments, where a shorter
-// window keeps a just-expired (now-noindex) listing from lingering in
-// the sitemap. Served stale-while-revalidate, so no request ever waits.
-// VERCEL-COST-1: 300 -> 900. The per-segment `cache-control`
-// (cacheControlForSegment) already gives the ephemeral deal/sealed
-// segments a 300s edge window, so a just-expired listing still clears in
-// minutes; the route-level ISR data cache only needs to re-serialise the
-// stable segments occasionally.
-export const revalidate = 900;
-
-export function generateStaticParams() {
-  return SITEMAP_SEGMENTS.map((segment) => ({ segment: `${segment}.xml` }));
-}
+// SEO-3.1: rendered per request from the shared data caches (lib/sitemap.js
+// unstable_cache'd datasets - 6h for the catalogue/card snapshot, 300s
+// for the ephemeral deal ids) instead of a per-child ISR copy. Every
+// child is therefore serialised from the SAME current cached dataset
+// generation at the moment it is requested: the four card shards can no
+// longer diverge because one child's ISR copy aged independently of
+// another's. Serialisation is milliseconds; the queries stay behind the
+// data caches. The edge window is set per segment by
+// cacheControlForSegment (stable segments 15m/24h SWR, card shards and
+// ephemeral segments 5m/5m).
+export const dynamic = "force-dynamic";
+// Only the very first population of the 6h data caches after a deploy
+// does real work (parallel catalogue pages + the lastmod RPC, a few
+// seconds); everything after is served stale-while-revalidate from the
+// data cache in milliseconds. This guards that one cold path.
+export const maxDuration = 60;
 
 export async function GET(_request, { params }) {
   const { segment } = await params;
@@ -28,12 +29,10 @@ export async function GET(_request, { params }) {
     return new Response("Not found", { status: 404 });
   }
 
-  const entries = await segmentEntries(key);
-  return new Response(urlsetXml(entries ?? []), {
+  const xml = await segmentXml(key);
+  return new Response(xml ?? "", {
     headers: {
       "content-type": "application/xml",
-      // ephemeral segments (deals/sealed-deals) get a short edge cache so
-      // a just-expired -> noindex listing clears in minutes, not ~48h.
       "cache-control": cacheControlForSegment(key),
     },
   });

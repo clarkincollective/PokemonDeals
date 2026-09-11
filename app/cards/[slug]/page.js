@@ -2,7 +2,11 @@ import { unstable_cache } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { resolveCardSlug, resolveCatalogCard, fetchCardOffers, fetchCardRelations, fetchSetSlugs, fetchCardPriceHistory } from "@/lib/deals";
+import { resolveCardSlug, resolveCatalogCard, fetchCardOffers, fetchCardRelations, fetchSetSlugs, fetchCardPriceHistory, fetchSets, fetchSpeciesHubs } from "@/lib/deals";
+import { cardWorthAnswer, pageShowsGraded, isUsableUsdPrice } from "@/lib/cardWorth";
+import { cardNextSteps } from "@/lib/cardNextSteps";
+import CardWorthAnswer from "@/components/CardWorthAnswer";
+import CardNextSteps from "@/components/CardNextSteps";
 import { catalogCardTitle, catalogCardHeading } from "@/lib/cardSlug";
 import { cardDisplayName, collectorNumberFromName } from "@/lib/cardName";
 import { catalogImageUrl } from "@/lib/cardImage";
@@ -10,7 +14,7 @@ import { trustedDealImageUrl } from "@/lib/listingImage";
 import { cardSpeciesLink } from "@/lib/cardLinks";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
-import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebay";
+import { MARKETPLACES, wrapEbayAffiliateUrl, buildEbaySearchLink } from "@/lib/ebay";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import SiteHeader from "@/components/SiteHeader";
 import CardDealFilters from "@/components/CardDealFilters";
@@ -196,19 +200,31 @@ export default async function CardHubPage({ params }) {
     // instead (Phase 4 P0). It has no offers, so no Product/Offer schema.
     const card = await resolveCatalogCard(slug);
     if (!card) notFound();
-    const [analysis, validSetSlugs, relations, priceHistory] = await Promise.all([
+    const catalogSpecies = cardSpeciesLink({ name: card.name, cardType: card.cardType, species: card.species });
+    const [analysis, validSetSlugs, relations, priceHistory, { species: speciesHubs }, { sets: liveSets }] = await Promise.all([
       loadPriceAnalysis(card.tcgplayerId),
       fetchSetSlugs("english"),
       fetchCardRelations(slug, card.name, card.set, card.species),
       fetchCardPriceHistory(card.tcgplayerId),
+      // Phase 17B next-step counts: real active-listing aggregates (the
+      // same cached snapshot the species / set pages use). A species or
+      // set under its listing threshold simply has no entry -> no count.
+      fetchSpeciesHubs({ language: "english" }),
+      fetchSets({ language: "english" }),
     ]);
+    const setSlugHere = slugifySet(card.set);
     return (
       <CatalogCardView
         card={card}
         analysis={analysis}
         priceHistory={priceHistory}
-        setHasPage={validSetSlugs.includes(slugifySet(card.set))}
+        setHasPage={validSetSlugs.includes(setSlugHere)}
         relations={relations}
+        speciesLiveCount={catalogSpecies ? (speciesHubs ?? []).find((s) => s.slug === catalogSpecies.slug)?.count ?? null : null}
+        setLiveCount={(liveSets ?? []).find((s) => s.slug === setSlugHere)?.count ?? null}
+        alertsEnabled={emailEnabled()}
+        ebaySearchHref={buildEbaySearchLink(`${card.displayName ?? cardDisplayName(card)} ${card.set}`.trim(), undefined, "card")}
+        nowMs={Date.now()}
       />
     );
   }
@@ -221,13 +237,15 @@ export default async function CardHubPage({ params }) {
   // OG - the exact catalogue name, only TCGplayer's "(#NN)" collector-
   // number parenthetical removed (it's on the identity line below).
   const cardName = cardDisplayName(hub);
-  const [{ deals: offers, error }, analysis, relations, validSetSlugs, priceHistory] =
+  const [{ deals: offers, error }, analysis, relations, validSetSlugs, priceHistory, { species: speciesHubs }, { sets: liveSets }] =
     await Promise.all([
       fetchCardOffers(hub.id),
       loadPriceAnalysis(hub.tcgplayerId),
       fetchCardRelations(slug, hub.name, hub.set, null),
       fetchSetSlugs("english"),
       fetchCardPriceHistory(hub.tcgplayerId),
+      fetchSpeciesHubs({ language: "english" }),
+      fetchSets({ language: "english" }),
     ]);
   const allOffers = offers;
   // Collector number + rarity for the visible identity line (Phase 8A /
@@ -285,6 +303,32 @@ export default async function CardHubPage({ params }) {
       }
     : analysis?.raw;
   const tcgplayerLink = buildTcgplayerLink(hub.name, hub.tcgplayerId);
+
+  // Phase 17B - the "How much is <card> worth?" answer: the SAME raw Near
+  // Mint figure CardPriceSummary shows (analysis.raw.currentPrice) and the
+  // real live-listing count / cheapest asking price already on this page.
+  const hubRaw = analysis?.raw?.currentPrice;
+  const worth = cardWorthAnswer({
+    name: cardName,
+    set: hub.set,
+    cardNumber: cardCollectorNumber,
+    rarity: cardRarity,
+    marketUsd: isUsableUsdPrice(hubRaw) ? Number(hubRaw) : null,
+    priceSource: "analysis",
+    priceUpdatedAt: analysis?.priceUpdatedAt ?? null,
+    firstEditionExcluded: Boolean(analysis?.firstEditionExcluded),
+    gradedAvailable: pageShowsGraded(analysis),
+    liveListings: { count: offers.length, lowUsd: rangeLowUsd },
+    nowMs: Date.now(),
+  });
+  const exploreLinks = cardNextSteps({
+    species: speciesLink,
+    speciesLive: speciesLink ? (speciesHubs ?? []).find((s) => s.slug === speciesLink.slug)?.count ?? null : null,
+    set: setHasPage ? { name: hub.set, slug: setSlug } : null,
+    setLive: (liveSets ?? []).find((s) => s.slug === setSlug)?.count ?? null,
+    marketUsd: isUsableUsdPrice(hubRaw) ? Number(hubRaw) : null,
+    setName: hub.set,
+  });
 
   // Minimal descriptor for the viewer's local "recently viewed" / "saved"
   // lists (lib/recentCards) - enough to render a tile and link back here.
@@ -441,6 +485,8 @@ export default async function CardHubPage({ params }) {
           </div>
         </div>
 
+        <CardWorthAnswer answer={worth} />
+
         <CardPriceSummary
           analysis={analysis}
           offersCount={offers.length}
@@ -517,6 +563,8 @@ export default async function CardHubPage({ params }) {
           setLink={setHasPage ? { name: hub.set, slug: setSlug } : null}
           className="mt-10"
         />
+
+        <CardNextSteps variant="explore" links={exploreLinks} className="mt-10" />
 
         <ListingChecks className="mt-8" />
 

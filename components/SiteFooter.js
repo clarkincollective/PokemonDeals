@@ -1,5 +1,13 @@
 import { Fragment } from "react";
 import Link from "next/link";
+import { SOCIAL_PROFILES } from "@/lib/socialProfiles";
+
+// Phase 17B - the follow row: only the verified profiles in
+// lib/socialProfiles.js (the same list Organization.sameAs uses). Plain
+// external links - rel="me" (identity), noopener noreferrer (safety), new
+// tab - tracked by the passive delegated click listener, so tracking can
+// never delay or block the navigation. No modal, no popup. Text labels
+// (with the handle) rather than brand icons - restrained and unambiguous.
 
 // Shared site footer: the affiliate disclosure (previously copy-pasted,
 // slightly differently, into every page) plus a links row to the
@@ -73,6 +81,29 @@ export default function SiteFooter({ note }) {
           </Fragment>
         ))}
       </nav>
+      {SOCIAL_PROFILES.length > 0 && (
+        <nav
+          aria-label="Follow Pokemon Deal Finder"
+          className="mx-auto mt-4 flex max-w-3xl flex-wrap items-center justify-center gap-x-4 gap-y-2"
+        >
+          <span className="text-zinc-400">Follow new finds:</span>
+          {SOCIAL_PROFILES.map((s) => (
+            <a
+              key={s.platform}
+              href={s.url}
+              target="_blank"
+              rel="me noopener noreferrer"
+              aria-label={`Pokemon Deal Finder on ${s.label} (opens in a new tab)`}
+              data-analytics-click="social_follow_clicked"
+              data-analytics-props={JSON.stringify({ platform: s.platform, placement: "footer", page_type: "auto" })}
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-zinc-600 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500"
+            >
+              <span className="font-medium">{s.label}</span>
+              <span className="text-zinc-400">@{s.handle}</span>
+            </a>
+          ))}
+        </nav>
+      )}
     </footer>
   );
 }

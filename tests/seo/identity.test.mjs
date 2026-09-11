@@ -4,12 +4,15 @@ import { get, parseHtml } from "./lib.mjs";
 
 // Machine-readable identity + data-freshness layer (app/layout.js +
 // app/page.js). Guards against the regressions that layer is meant to
-// prevent: a missing / inconsistent Organization, a fabricated sameAs, a
+// prevent: a missing / inconsistent Organization, a fabricated or
+// unverified sameAs, a
 // Person/founder claim, and a hardcoded or render-time freshness date.
 
 const ORIGIN = "https://pokemondealfinder.com";
 const ORG_ID = `${ORIGIN}/#organization`;
 const WEBSITE_ID = `${ORIGIN}/#website`;
+// The only external profiles the brand may claim (Phase 17B verification).
+const VERIFIED_SAME_AS = ["https://www.instagram.com/pokemondealfinder/", "https://x.com/pkmdealfinder"];
 
 function nodes(parsed) {
   return parsed.jsonLd.flatMap((b) => {
@@ -47,8 +50,15 @@ for (const path of IDENTITY_PAGES) {
     assert.equal(org.url, `${ORIGIN}/`, `${path}: Organization url is "${org.url}"`);
     assert.ok(org.name && /pokemon deal finder/i.test(org.name), `${path}: Organization name "${org.name}"`);
 
-    // No fabricated external profiles - none exist for this brand.
-    assert.ok(!("sameAs" in org), `${path}: Organization has a sameAs (${JSON.stringify(org.sameAs)})`);
+    // No fabricated external profiles. Phase 17B: sameAs is EXACTLY the
+    // verified profiles in lib/socialProfiles.js (Instagram + X, verified
+    // via Buffer's connected channels and the live profile URLs) - nothing
+    // else, and never an unverified TikTok/YouTube URL.
+    assert.deepEqual(
+      org.sameAs,
+      VERIFIED_SAME_AS,
+      `${path}: Organization.sameAs ${JSON.stringify(org.sameAs)} is not the verified profile list`
+    );
 
     // No superlatives / affiliation claims in the description.
     if (org.description) {

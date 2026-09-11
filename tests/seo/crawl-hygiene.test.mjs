@@ -48,9 +48,11 @@ test("1. sitemap index is a valid <sitemapindex> with the expected child segment
   assert.equal(idxRes.status, 200);
   assert.match(idxRes.contentType, /xml/i);
   assert.match(idxBody, /<sitemapindex[\s>]/);
-  for (const seg of ["pages", "sets", "pokemon", "cards", "deals", "sealed-deals"]) {
+  // SEO-3: the flat cards child is now four value-band shards
+  for (const seg of ["pages", "sets", "pokemon", "cards-high", "cards-mid", "cards-low", "cards-bulk", "deals", "sealed-deals"]) {
     assert.match(idxBody, new RegExp(`<loc>https://pokemondealfinder\\.com/sitemaps/${seg}\\.xml</loc>`), `index missing ${seg}`);
   }
+  assert.ok(!/\/sitemaps\/cards\.xml</.test(idxBody), "the retired flat cards.xml child is still listed");
 });
 
 test("2. sitemap index emits NO <lastmod> (no fabricated always-current timestamp)", () => {
@@ -63,7 +65,8 @@ test("2. sitemap index emits NO <lastmod> (no fabricated always-current timestam
   assert.ok(!/<lastmod>/.test(indexFn), "indexXml() still writes <lastmod>");
 });
 
-test("3. per-URL <lastmod> only appears in the deal / sealed segments and is a real timestamp", () => {
+test("3. per-URL <lastmod> only appears where a truthful source exists (deals / sealed timestamps; card shards' reference-change dates)", () => {
+  const today = new Date().toISOString().slice(0, 10);
   for (const { seg, body } of allChildBodies) {
     const lm = [...body.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)].map((m) => m[1]);
     if (seg === "deals" || seg === "sealed-deals") {
@@ -72,6 +75,13 @@ test("3. per-URL <lastmod> only appears in the deal / sealed segments and is a r
       // real data, not "right now": at least one entry older than an hour
       const anyOld = lm.some((v) => Date.now() - Date.parse(v) > 3600_000);
       assert.ok(anyOld, `${seg} lastmods all look freshly stamped`);
+    } else if (seg.startsWith("cards-")) {
+      // SEO-3: date-only, never future, never one identical "stamped
+      // right now" value across the shard; may be absent entirely when
+      // the reference-change source is unavailable (never fabricated).
+      for (const v of lm) assert.match(v, /^\d{4}-\d{2}-\d{2}$/, `${seg} lastmod is not a W3C date: ${v}`);
+      for (const v of lm) assert.ok(v <= today, `${seg} future lastmod ${v}`);
+      if (lm.length > 100) assert.ok(new Set(lm).size > 1, `${seg} every lastmod is the same value - looks stamped, not observed`);
     } else {
       assert.equal(lm.length, 0, `${seg} emits <lastmod> but has no trustworthy source (should omit)`);
     }

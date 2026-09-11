@@ -21,6 +21,10 @@ import AffiliateLink from "@/components/AffiliateLink";
 import ListingChecks from "@/components/ListingChecks";
 import RelatedCards from "@/components/RelatedCards";
 import RecordCardView from "@/components/RecordCardView";
+import CardWorthAnswer from "@/components/CardWorthAnswer";
+import CardNextSteps from "@/components/CardNextSteps";
+import { cardWorthAnswer, pageShowsGraded, isUsableUsdPrice } from "@/lib/cardWorth";
+import { cardNextSteps } from "@/lib/cardNextSteps";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -32,7 +36,18 @@ const SITE_URL = "https://pokemondealfinder.com";
 // card, resolveCardSlug (the deal hub) takes over the same URL and the
 // full deal-hub template (Product/Offer schema, listings grid) renders
 // instead - see app/cards/[slug]/page.js.
-export default function CatalogCardView({ card, analysis, priceHistory = null, setHasPage, relations = null }) {
+export default function CatalogCardView({
+  card,
+  analysis,
+  priceHistory = null,
+  setHasPage,
+  relations = null,
+  speciesLiveCount = null,
+  setLiveCount = null,
+  alertsEnabled = false,
+  ebaySearchHref = null,
+  nowMs = null,
+}) {
   const { slug, set, cardNumber, rarity, image, species, refPrice } = card;
   // shared display identity - the ex/EX/GX/Mega/owner name kept verbatim,
   // only TCGplayer's "(#NN)" collector-number parenthetical removed (the
@@ -79,6 +94,39 @@ export default function CatalogCardView({ card, analysis, priceHistory = null, s
     price: refPrice ?? null,
     currency: "USD",
   };
+
+  // Phase 17B - the worth answer states the SAME figure the Price & value
+  // box below shows, under the same precedence: the live analysis raw
+  // price; else, only when the analysis call itself failed, the catalogue
+  // copy; else no figure at all (a rejected analysis price is never
+  // papered over with the catalogue value).
+  const analysisRaw = analysis?.raw?.currentPrice;
+  const worthUsd = analysisHasPrice
+    ? (isUsableUsdPrice(analysisRaw) ? Number(analysisRaw) : null)
+    : analysis == null && isUsableUsdPrice(refPrice)
+      ? Number(refPrice)
+      : null;
+  const worth = cardWorthAnswer({
+    name,
+    set,
+    cardNumber,
+    rarity,
+    marketUsd: worthUsd,
+    priceSource: analysisHasPrice ? "analysis" : "catalog",
+    priceUpdatedAt: analysisHasPrice ? analysis?.priceUpdatedAt ?? null : null,
+    firstEditionExcluded: analysisHasPrice ? Boolean(analysis?.firstEditionExcluded) : false,
+    gradedAvailable: analysisHasPrice && pageShowsGraded(analysis),
+    liveListings: null,
+    nowMs,
+  });
+  const nextLinks = cardNextSteps({
+    species: speciesLink,
+    speciesLive: speciesLiveCount,
+    set: setHasPage ? { name: set, slug: setSlug } : null,
+    setLive: setLiveCount,
+    marketUsd: worthUsd,
+    setName: set,
+  });
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
@@ -176,6 +224,8 @@ export default function CatalogCardView({ card, analysis, priceHistory = null, s
           </div>
         </div>
 
+        <CardWorthAnswer answer={worth} />
+
         {/* Live PPT analysis first. If it has no showable number, fall back
             to the daily-synced card_catalog figure ONLY when the analysis
             fetch itself failed (analysis == null) - never to paper over a
@@ -226,11 +276,12 @@ export default function CatalogCardView({ card, analysis, priceHistory = null, s
           </section>
         )}
 
-        <p className="mt-6 rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950">
-          No active below-market eBay listing for this exact card right now. The prices above are real
-          recent-sold references, not live listings. Check back after the next scan, or use the
-          TCGPlayer link.
-        </p>
+        <CardNextSteps
+          variant="no-deal"
+          links={nextLinks}
+          alert={alertsEnabled ? { cardSlug: slug, cardName: card.name } : null}
+          ebaySearchHref={ebaySearchHref}
+        />
 
         {chartPoints.length >= 2 && (
           <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
