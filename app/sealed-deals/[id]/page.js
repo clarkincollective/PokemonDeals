@@ -10,7 +10,7 @@ import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
 import { getSealedPriceHistory } from "@/lib/pokemonPriceTracker";
 import { shouldIndexDeal } from "@/lib/indexability";
-import { isExactEbayDealDestination, auctionEnded } from "@/lib/dealQuality";
+import { isDisplayableSealedDeal, preReleaseListing } from "@/lib/dealQuality";
 import { timeAgo, timeUntil } from "@/lib/time";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import SiteHeader from "@/components/SiteHeader";
@@ -80,7 +80,7 @@ export async function generateMetadata({ params }) {
   // are no longer real (a link shared or indexed before the deal
   // expired), even in a link-preview card, which never hits the page
   // component's own is_active check below.
-  if (!shouldIndexDeal(deal) || auctionEnded(deal) || !isExactEbayDealDestination(deal))
+  if (!shouldIndexDeal(deal) || !isDisplayableSealedDeal(deal))
     return { title: "Deal not found", robots: { index: false, follow: true } };
 
   const productName = normalizePublicText(deal.sealed_watchlist?.name ?? deal.title);
@@ -131,12 +131,25 @@ export default async function SealedDealDetailPage({ params }) {
   // the link - a genuine correctness and trust problem, not just an SEO
   // one, but it also means Google would keep re-crawling stale content
   // instead of a clear "gone" signal.
-  if (!shouldIndexDeal(deal) || auctionEnded(deal) || !isExactEbayDealDestination(deal)) {
+  if (!shouldIndexDeal(deal) || !isDisplayableSealedDeal(deal)) {
+    // 17C.7: an active presale for an upcoming expansion is gated, not
+    // expired - say so with the release date, and claim no discount.
+    const preRelease = deal?.is_active ? preReleaseListing(deal) : null;
     return (
       <div className="min-h-screen bg-paper">
         <SiteHeader />
         <div className="mx-auto max-w-2xl px-6 py-16 text-center">
-          <p className="text-zinc-500">Couldn&apos;t find that deal - it may have expired.</p>
+          {preRelease ? (
+            <>
+              <h1 className="text-xl font-bold text-black dark:text-zinc-50">{preRelease.label}</h1>
+              <p className="mt-2 text-sm text-zinc-500">
+                This listing is for {preRelease.officialName}, which hasn&apos;t been released yet. We don&apos;t
+                show pre-release or preorder listings as deals, so no discount or delivery date is claimed here.
+              </p>
+            </>
+          ) : (
+            <p className="text-zinc-500">Couldn&apos;t find that deal - it may have expired.</p>
+          )}
           <Link href="/sealed-deals" className="mt-4 inline-block text-sm font-medium underline">
             Back to sealed product deals
           </Link>

@@ -8,7 +8,7 @@ import { dealPageTitle, dealCatalogSlugCandidate, expiredDealDestination } from 
 import { listingAvailabilityEvidence, dealDetailTag } from "@/lib/listingAvailability";
 import RelativeTime from "@/components/RelativeTime";
 import { shouldIndexDeal } from "@/lib/indexability";
-import { conditionLabel, isDisplayableDeal } from "@/lib/dealQuality";
+import { conditionLabel, isDisplayableDeal, preReleaseListing } from "@/lib/dealQuality";
 import { normalizePublicText } from "@/lib/publicText";
 import { cardDisplayName } from "@/lib/cardName";
 import { extractSpecies } from "@/lib/pokemonSpecies";
@@ -265,6 +265,9 @@ export default async function DealDetailPage({ params }) {
     // purchase opportunity.
     const cardName = deal ? cardDisplayName({ name: normalizePublicText(deal.watchlist?.name ?? deal.title) }) : null;
     const cardSet = deal?.watchlist?.set ?? null;
+    // 17C.7: an upcoming-expansion listing is display-gated, not ended -
+    // say so, with the release date, instead of "This deal has ended".
+    const preRelease = deal?.is_active ? preReleaseListing(deal) : null;
     const speciesName =
       deal && deal.watchlist?.language !== "japanese"
         ? extractSpecies(deal.watchlist?.name ?? deal.title)
@@ -293,12 +296,14 @@ export default async function DealDetailPage({ params }) {
         <SiteHeader />
         <div className="mx-auto max-w-2xl px-6 py-16 text-center">
           <h1 className="text-xl font-bold text-black dark:text-zinc-50">
-            {deal ? "This deal has ended" : "Deal not found"}
+            {preRelease ? preRelease.label : deal ? "This deal has ended" : "Deal not found"}
           </h1>
           <p className="mt-2 text-sm text-zinc-500">
-            {deal
-              ? `The listing${cardName ? ` for ${cardName}` : ""} is no longer active, sold, or no longer passes our listing checks - it is not a live purchase opportunity anymore. Here is where to look next.`
-              : "That deal doesn't exist, or has expired."}
+            {preRelease
+              ? `This listing${cardName ? ` for ${cardName}` : ""} is for ${preRelease.officialName}, which hasn't been released yet. We don't show pre-release or preorder listings as deals, so no discount or delivery date is claimed here. Here is where to look next.`
+              : deal
+                ? `The listing${cardName ? ` for ${cardName}` : ""} is no longer active, sold, or no longer passes our listing checks - it is not a live purchase opportunity anymore. Here is where to look next.`
+                : "That deal doesn't exist, or has expired."}
           </p>
           <div className="mt-6 flex flex-col items-center gap-3">
             {cardHub && (
