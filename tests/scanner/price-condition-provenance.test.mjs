@@ -347,57 +347,138 @@ test("11. missing-column retry fires ONLY for the schema error naming a provenan
   assert.equal(f.calls[1].values.market_price, 1);
 });
 
-test("12. trend windows never read a change of reference condition / printing as a price movement; unrecorded provenance is compared as before and never called Near Mint", () => {
-  const { mergeHistoryRows, confidentTrendWindows, referenceChanged, marketSignal } = ph();
-  const day = (i) => new Date(Date.UTC(2026, 7, 1) + i * 86400_000).toISOString().slice(0, 10);
-  // 40 days at the LP reference ($74), then the provider starts pricing Near Mint ($135) for 5 days
-  const rows = [];
-  for (let i = 0; i < 40; i++) rows.push({ observed_on: day(i), price: 74, source: "catalog", reference_condition: "Lightly Played", reference_printing: "Unlimited Holofoil" });
-  for (let i = 40; i < 45; i++) rows.push({ observed_on: day(i), price: 135, source: "catalog", reference_condition: "Near Mint", reference_printing: "Unlimited Holofoil" });
-  const series = mergeHistoryRows(rows);
-  assert.equal(series[0].referenceCondition, "Lightly Played");
-  assert.equal(series[series.length - 1].referenceCondition, "Near Mint");
-  const { windows, confidence } = confidentTrendWindows(series, { rawRows: rows });
-  assert.equal(windows.d7, null, "7-day window spans the reference change - withheld");
-  assert.equal(windows.d30, null, "30-day window spans the reference change - withheld");
-  assert.equal(confidence.reason, "reference-changed");
-  assert.deepEqual([...confidence.referenceChangedWindows].sort(), ["d30", "d7"]);
-  const sig = marketSignal(windows, confidence);
-  assert.equal(sig.status, "limited");
-  assert.equal(sig.reason, "reference-changed");
-  assert.doesNotMatch(JSON.stringify({ windows, confidence, sig }), /Near Mint/, "nothing in the trend output labels the series Near Mint");
+// ---- round 3: comparable history only ------------------------------------
+//
+// A trend / market signal is a claim that two observations of the SAME
+// reference moved. It is made only when every point from the comparison
+// date to the latest recorded both condition and printing AND all of them
+// equal the latest point's. Unknown or partial provenance anywhere in the
+// span, or a change of reference anywhere in the span (even NM -> LP -> NM
+// with matching endpoints), withholds the window.
 
-  // the SAME numbers with an unchanged reference are a corroborated 5-day plateau: the existing anomaly
-  // gate lets it through as real movement (+82%) - so only the provenance rule can stop a condition
-  // switch from being shown as a price move
-  const same = rows.map((r) => ({ ...r, reference_condition: "Lightly Played" }));
-  const w2 = confidentTrendWindows(mergeHistoryRows(same), { rawRows: same });
-  assert.ok(w2.windows.d30 && w2.windows.d30.changePct > 80, "same-reference step is shown as movement");
-  assert.equal(w2.confidence.reason, null);
-  // a gentle same-reference drift is reported normally
-  const drift = []; for (let i = 0; i < 45; i++) drift.push({ observed_on: day(i), price: 74 + i * 0.1, source: "catalog", reference_condition: "Lightly Played", reference_printing: "Unlimited Holofoil" });
-  const w3 = confidentTrendWindows(mergeHistoryRows(drift), { rawRows: drift });
-  assert.ok(w3.windows.d30 && w3.windows.d30.changePct > 0);
-  assert.equal(w3.confidence.reason, null);
+const day = (i) => new Date(Date.UTC(2026, 7, 1) + i * 86400_000).toISOString().slice(0, 10);
+const drifting = (n, prov = () => ({ reference_condition: "Near Mint", reference_printing: "Holofoil" })) =>
+  Array.from({ length: n }, (_, i) => ({ observed_on: day(i), price: +(74 + i * 0.1).toFixed(2), source: "catalog", ...prov(i) }));
+const run = (rows) => { const { mergeHistoryRows, confidentTrendWindows, marketSignal } = ph(); const series = mergeHistoryRows(rows); const r = confidentTrendWindows(series, { rawRows: rows }); return { ...r, series, signal: marketSignal(r.windows, r.confidence) }; };
 
-  // a printing change alone (same condition) is also not a price move
-  const printing = drift.map((r, i) => ({ ...r, reference_printing: i >= 40 ? "1st Edition Holofoil" : "Unlimited Holofoil" }));
-  assert.equal(confidentTrendWindows(mergeHistoryRows(printing), { rawRows: printing }).windows.d30, null);
+test("12. unknown endpoints: any window whose span includes an unrecorded point is withheld - legacy history, an unrecorded latest, an unrecorded comparison point", () => {
+  // (a) fully verified, same reference -> the gentle drift IS reported
+  const ok = run(drifting(45));
+  assert.ok(ok.windows.d30 && ok.windows.d30.changePct > 0);
+  assert.equal(ok.confidence.reason, null);
+  assert.deepEqual(ok.confidence.withheld, {});
+  assert.equal(ok.signal.status, "stable", "+4% over 30 days sits inside the stable band - the window is present, not withheld");
+  assert.equal(ok.signal.basisWindowDays, 30);
 
-  // pre-migration rows (nothing recorded) behave exactly as before - compared, never relabelled
-  const legacy = drift.map(({ reference_condition, reference_printing, ...r }) => r);
-  const s4 = mergeHistoryRows(legacy);
-  assert.equal(s4[0].referenceCondition, undefined, "no provenance key at all on a legacy point (canonical shape intact)");
-  assert.deepEqual(Object.keys(s4[0]), ["date", "price", "source"]);
-  assert.equal(referenceChanged(s4[0], s4[s4.length - 1]), false);
-  const w4 = confidentTrendWindows(s4, { rawRows: legacy });
-  assert.ok(w4.windows.d30 && w4.windows.d30.changePct > 0);
-  // one side recorded, the other not -> cannot judge -> compared (no false suppression)
-  const half = drift.map((r, i) => (i < 20 ? { observed_on: r.observed_on, price: r.price, source: r.source } : r));
-  assert.ok(confidentTrendWindows(mergeHistoryRows(half), { rawRows: half }).windows.d30);
+  // (b) legacy rows (nothing recorded) -> every window withheld, signal limited with the reason
+  const legacy = run(drifting(45, () => ({})));
+  assert.deepEqual(legacy.windows, { d7: null, d30: null, d90: null, d365: null });
+  assert.equal(legacy.confidence.reason, "provenance-unknown");
+  assert.equal(legacy.confidence.level, "low");
+  assert.equal(legacy.signal.status, "limited");
+  assert.equal(legacy.signal.reason, "provenance-unknown");
+  assert.doesNotMatch(JSON.stringify(legacy), /Near Mint/, "unknown history is never called Near Mint");
+
+  // (c) latest verified, but the comparison point (and everything before it) unrecorded -> withheld
+  const olderUnknown = run(drifting(45, (i) => (i >= 40 ? { reference_condition: "Near Mint", reference_printing: "Holofoil" } : {})));
+  assert.equal(olderUnknown.windows.d7, null);
+  assert.equal(olderUnknown.windows.d30, null);
+  assert.equal(olderUnknown.confidence.withheld.d7, "provenance-unknown");
+
+  // (d) everything verified except the latest point -> withheld (an unverified endpoint)
+  const latestUnknown = run(drifting(45, (i) => (i === 44 ? {} : { reference_condition: "Near Mint", reference_printing: "Holofoil" })));
+  assert.equal(latestUnknown.windows.d7, null);
+  assert.equal(latestUnknown.windows.d30, null);
+  assert.equal(latestUnknown.confidence.reason, "provenance-unknown");
+
+  // (e) a single unrecorded point INSIDE the window (endpoints fine) still withholds it
+  const holeInside = run(drifting(45, (i) => (i === 30 ? {} : { reference_condition: "Near Mint", reference_printing: "Holofoil" })));
+  assert.equal(holeInside.windows.d30, null, "30-day span crosses the unrecorded day");
+  assert.ok(holeInside.windows.d7, "7-day span is entirely verified");
 });
 
-test("13. consumer audit: chart / trend / lastmod keep the legacy series key for compatibility, label nothing Near Mint from it, and the read path tolerates only the specific schema gap", () => {
+test("13. partial provenance: a point that recorded only the condition, or only the printing, is not verified", () => {
+  const { pointProvenanceComplete, spanComparability, mergeHistoryRows } = ph();
+  assert.equal(pointProvenanceComplete({ referenceCondition: "Near Mint", referencePrinting: "Holofoil" }), true);
+  assert.equal(pointProvenanceComplete({ referenceCondition: "Near Mint", referencePrinting: null }), false);
+  assert.equal(pointProvenanceComplete({ referenceCondition: null, referencePrinting: "Holofoil" }), false);
+  assert.equal(pointProvenanceComplete({}), false);
+  assert.equal(pointProvenanceComplete(null), false);
+
+  const condOnly = run(drifting(45, (i) => (i < 20 ? { reference_condition: "Near Mint", reference_printing: null } : { reference_condition: "Near Mint", reference_printing: "Holofoil" })));
+  assert.equal(condOnly.windows.d30, null);
+  assert.equal(condOnly.confidence.withheld.d30, "provenance-unknown");
+  assert.ok(condOnly.windows.d7);
+  const printOnly = run(drifting(45, (i) => (i === 44 ? { reference_condition: null, reference_printing: "Holofoil" } : { reference_condition: "Near Mint", reference_printing: "Holofoil" })));
+  assert.equal(printOnly.windows.d7, null);
+  assert.equal(printOnly.confidence.reason, "provenance-unknown");
+  // a partially-recorded row is merged without a provenance key that could pass as verified
+  const merged = mergeHistoryRows([{ observed_on: "2026-09-01", price: 1, source: "catalog", reference_condition: "Near Mint" }]);
+  assert.equal(pointProvenanceComplete(merged[0]), false);
+  assert.equal(spanComparability(merged, "2026-09-01", "2026-09-01").reason, "provenance-unknown");
+});
+
+test("14. intermediate reference change: NM -> LP -> NM must not pass because the endpoints match", () => {
+  const { spanComparability, comparableTail, referenceChanged } = ph();
+  const nmLpNm = run(drifting(45, (i) => ({ reference_condition: i >= 20 && i < 30 ? "Lightly Played" : "Near Mint", reference_printing: "Holofoil" })));
+  assert.equal(nmLpNm.windows.d30, null, "endpoints both Near Mint, but the span crossed Lightly Played");
+  assert.equal(nmLpNm.confidence.withheld.d30, "reference-changed");
+  assert.equal(nmLpNm.confidence.reason, "reference-changed");
+  assert.equal(nmLpNm.signal.status, "limited");
+  assert.ok(nmLpNm.windows.d7, "the last 7 days are all Near Mint - comparable");
+  assert.equal(referenceChanged(nmLpNm.series[0], nmLpNm.series[44]), false, "endpoint-only comparison would have passed - which is why the whole span is checked");
+  // printing flip in the middle, same condition -> likewise withheld
+  const printFlip = run(drifting(45, (i) => ({ reference_condition: "Near Mint", reference_printing: i >= 20 && i < 30 ? "1st Edition Holofoil" : "Holofoil" })));
+  assert.equal(printFlip.windows.d30, null);
+  assert.equal(printFlip.confidence.withheld.d30, "reference-changed");
+  // the comparable tail stops at the change, never reaching across it
+  const tail = comparableTail(nmLpNm.series);
+  assert.equal(tail.length, 15);
+  assert.equal(tail[0].date, day(30));
+  assert.ok(tail.every((p) => p.referenceCondition === "Near Mint"));
+  assert.deepEqual(spanComparability(nmLpNm.series, day(31), day(44)), { ok: true, reason: null });
+  assert.deepEqual(spanComparability(nmLpNm.series, day(10), day(44)), { ok: false, reason: "reference-changed" });
+  // a real LP -> NM switch at the end (the Magneton scenario) is withheld too, not shown as +82%
+  const switched = run([...drifting(40, () => ({ reference_condition: "Lightly Played", reference_printing: "Unlimited Holofoil" })).map((r) => ({ ...r, price: 74 })), ...Array.from({ length: 5 }, (_, i) => ({ observed_on: day(40 + i), price: 135, source: "catalog", reference_condition: "Near Mint", reference_printing: "Unlimited Holofoil" }))]);
+  assert.equal(switched.windows.d7, null);
+  assert.equal(switched.windows.d30, null);
+  assert.equal(switched.confidence.reason, "reference-changed");
+});
+
+test("15. chart: unknown points stay on the chart but are distinguished by THEIR OWN record - never labelled from the live reference; ranges use comparable history only", () => {
+  const deals = code("lib/deals.js");
+  assert.match(deals, /const tail = comparableTail\(series\);/);
+  assert.match(deals, /v \? \{ t: Date\.parse\(p\.date\), p: p\.price, v: 1, c: p\.referenceCondition, pr: p\.referencePrinting \} : \{ t: Date\.parse\(p\.date\), p: p\.price, v: 0 \}/, "each chart point carries its own recorded provenance, or v:0");
+  assert.match(deals, /comparableRange: tail\.length \? \{ min: Math\.min\(\.\.\.tail\.map\(\(p\) => p\.price\)\), max: Math\.max\(\.\.\.tail\.map\(\(p\) => p\.price\)\) \} : null/);
+  assert.doesNotMatch(deals.slice(deals.indexOf("fetchCardPriceHistoryUncached"), deals.indexOf("card-price-history-v1")), /analysis|catalogRawMarket|getFullPriceAnalysis|loadPriceAnalysis/, "history is built from history rows only - never the live analysis");
+  for (const f of ["components/PriceHistoryChart.js", "components/MiniSparkline.js"]) {
+    const src = code(f);
+    assert.match(src, /keyOf\(a\) != null && keyOf\(a\) === keyOf\(b\)/, f + ": a segment is comparable only between two verified, same-reference points");
+    assert.match(src, /data-history="unverified"[\s\S]*strokeDasharray/, f + ": non-comparable history is dashed");
+    assert.match(src, /data-history="comparable"/, f);
+    assert.doesNotMatch(src, /referenceCondition|analysis|useCurrency\(\)[^]*?referenceCondition/, f + ": no live-reference input");
+  }
+  const chart = read("components/PriceHistoryChart.js");
+  assert.match(chart, /condition not recorded/, "tooltip names an unrecorded point as such");
+  assert.match(chart, /No verified comparable history yet/, "legend when nothing comparable exists");
+  assert.match(chart, /Verified\{" "\}\s*\{last\.c\}, \{last\.pr\} reference since/, "legend wording comes from the latest point's own record");
+  // both card render paths take the tile range from the comparable run, not the whole series
+  for (const f of ["app/cards/[slug]/page.js", "components/CatalogCardView.js"]) {
+    const src = code(f);
+    assert.match(src, /minPrice: priceHistory\?\.comparableRange\?\.min \?\? null,\s*maxPrice: priceHistory\?\.comparableRange\?\.max \?\? null,/, f);
+    assert.doesNotMatch(src, /Math\.min\(\.\.\.chartPoints/, f + ": no whole-series range");
+  }
+  // the intelligence panel explains both withheld reasons
+  const cpi = read("components/CardPriceIntelligence.js");
+  assert.match(cpi, /provenance-unknown/);
+  assert.match(cpi, /reference-changed/);
+  // the comparable tail is empty when the latest point is unverified (nothing to compare TO)
+  const { comparableTail, mergeHistoryRows } = ph();
+  assert.deepEqual(comparableTail(mergeHistoryRows(drifting(10, () => ({})))), []);
+  assert.equal(comparableTail(mergeHistoryRows(drifting(10))).length, 10);
+});
+
+test("16. consumer audit: chart / trend / lastmod keep the legacy series key for compatibility, label nothing Near Mint from it, and the read path tolerates only the specific schema gap", () => {
   const hist = code("lib/priceHistory.js");
   assert.match(hist, /reference_condition, reference_printing/, "canonical read selects the provenance");
   assert.match(hist, /if \(error && isMissingProvenanceColumnError\(error\)\) \(\{ data, error \} = await build\(BASE_COLS\)\);/, "fallback only on the specific schema error");

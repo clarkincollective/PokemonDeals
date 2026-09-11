@@ -63,12 +63,15 @@ export default function CatalogCardView({
   // Phase 11C: canonical merged price_history spine (not a provider
   // history call). Bounded + downsampled server-side.
   const chartPoints = priceHistory?.chartPoints ?? [];
+  // Price-condition provenance: the tile's range covers only VERIFIED
+  // history comparable to the latest recorded reference (null until such
+  // history exists) - see fetchCardPriceHistory's comparableRange.
   const canonRaw = analysis?.raw
     ? {
         ...analysis.raw,
         history: chartPoints,
-        minPrice: chartPoints.length ? Math.min(...chartPoints.map((p) => p.p)) : null,
-        maxPrice: chartPoints.length ? Math.max(...chartPoints.map((p) => p.p)) : null,
+        minPrice: priceHistory?.comparableRange?.min ?? null,
+        maxPrice: priceHistory?.comparableRange?.max ?? null,
       }
     : analysis?.raw;
   const hasAnalysis = Boolean(analysis && (chartPoints.length >= 2 || analysis.graded?.length));

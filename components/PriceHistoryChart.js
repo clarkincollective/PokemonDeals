@@ -14,9 +14,18 @@ function formatDate(t) {
   return new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-// A single-series line chart (price over time) for one card/grade. No
-// legend needed - there's only one series, and the card title above it
-// already says what's plotted.
+// Price-condition provenance (2026-09-11). Each point carries ITS OWN
+// recorded provenance: `v` (1 = the row recorded both the condition and
+// the printing the price was for) plus `c` / `pr` (what was recorded).
+// The point's own record is the only thing that labels it - never the
+// page's current live reference. Points are kept on the chart whatever
+// their provenance, but only a segment whose two ends are verified AND
+// the same reference is drawn as solid "comparable" history; any segment
+// touching an unverified point, or crossing a change of reference, is
+// drawn dashed and faded.
+const keyOf = (p) => (p.v ? `${p.c}|${p.pr}` : null);
+
+// A single-series line chart (price over time) for one card/grade.
 export default function PriceHistoryChart({ points }) {
   const svgRef = useRef(null);
   const [hoverIndex, setHoverIndex] = useState(null);
@@ -55,6 +64,18 @@ export default function PriceHistoryChart({ points }) {
   const x = (t) => PADDING.left + ((t - minT) / (maxT - minT || 1)) * plotWidth;
   const y = (p) => PADDING.top + plotHeight - ((p - minP) / priceRange) * plotHeight;
 
+  // Split the polyline into comparable (solid) and non-comparable (dashed)
+  // sub-paths, segment by segment.
+  let solidPath = "";
+  let dashedPath = "";
+  for (let i = 1; i < sorted.length; i++) {
+    const a = sorted[i - 1];
+    const b = sorted[i];
+    const comparable = keyOf(a) != null && keyOf(a) === keyOf(b);
+    const seg = `M ${x(a.t)} ${y(a.p)} L ${x(b.t)} ${y(b.p)} `;
+    if (comparable) solidPath += seg;
+    else dashedPath += seg;
+  }
   const linePath = sorted.map((pt, i) => `${i === 0 ? "M" : "L"} ${x(pt.t)} ${y(pt.p)}`).join(" ");
   const areaPath = `${linePath} L ${x(sorted[sorted.length - 1].t)} ${PADDING.top + plotHeight} L ${x(
     sorted[0].t
@@ -62,6 +83,17 @@ export default function PriceHistoryChart({ points }) {
 
   const yTicks = [minP, (minP + maxP) / 2, maxP];
   const last = sorted[sorted.length - 1];
+
+  // Legend facts come from the points themselves.
+  const unverifiedCount = sorted.filter((p) => !p.v).length;
+  const lastKey = keyOf(last);
+  let comparableFrom = null;
+  if (lastKey) {
+    let i = sorted.length - 1;
+    while (i >= 0 && keyOf(sorted[i]) === lastKey) i--;
+    comparableFrom = sorted[i + 1];
+  }
+  const hasSolid = solidPath.length > 0;
 
   function handlePointerMove(e) {
     const rect = svgRef.current.getBoundingClientRect();
@@ -115,27 +147,44 @@ export default function PriceHistoryChart({ points }) {
         ))}
 
         {/* Area wash */}
-        <path d={areaPath} fill="currentColor" fillOpacity={0.1} stroke="none" />
+        <path d={areaPath} fill="currentColor" fillOpacity={0.06} stroke="none" />
 
-        {/* Line */}
-        <path
-          d={linePath}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        {/* Non-comparable history: unverified provenance or a different reference */}
+        {dashedPath && (
+          <path
+            d={dashedPath}
+            data-history="unverified"
+            fill="none"
+            stroke="currentColor"
+            strokeOpacity={0.45}
+            strokeWidth={2}
+            strokeDasharray="4 4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+        {/* Verified, comparable history */}
+        {solidPath && (
+          <path
+            d={solidPath}
+            data-history="comparable"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
 
         {/* End marker + endpoint label */}
         <circle
           cx={x(last.t)}
           cy={y(last.p)}
           r={5}
-          fill="currentColor"
-          stroke="white"
+          fill={last.v ? "currentColor" : "white"}
+          stroke={last.v ? "white" : "currentColor"}
           strokeWidth={2}
-          className="dark:stroke-zinc-950"
+          className={last.v ? "dark:stroke-zinc-950" : "dark:fill-zinc-950"}
         />
         <text
           x={x(last.t)}
@@ -177,8 +226,30 @@ export default function PriceHistoryChart({ points }) {
         >
           <div className="font-semibold text-black dark:text-zinc-50">{formatPrice(hovered.p)}</div>
           <div className="text-zinc-400">{formatDate(hovered.t)}</div>
+          <div className="text-zinc-400" data-point-provenance={hovered.v ? "verified" : "unverified"}>
+            {hovered.v ? `${hovered.c} · ${hovered.pr}` : "condition not recorded"}
+          </div>
         </div>
       )}
+
+      {/* Legend - from the points' own records only */}
+      <p className="mt-2 text-[11px] text-zinc-400" data-history-legend>
+        {hasSolid && comparableFrom ? (
+          <>
+            <span className="inline-block h-0.5 w-4 translate-y-[-2px] bg-current text-red-600 dark:text-red-500" /> Verified{" "}
+            {last.c}, {last.pr} reference since {formatDate(comparableFrom.t)}.{" "}
+          </>
+        ) : (
+          <>No verified comparable history yet. </>
+        )}
+        {unverifiedCount > 0 && (
+          <>
+            <span className="inline-block w-4 translate-y-[-2px] border-t-2 border-dashed border-current text-red-600/60 dark:text-red-500/60" />{" "}
+            {unverifiedCount} earlier {unverifiedCount === 1 ? "reading" : "readings"} didn&apos;t record which condition
+            and printing they were for (or were for a different reference) — shown dashed, not comparable.
+          </>
+        )}
+      </p>
     </div>
   );
 }

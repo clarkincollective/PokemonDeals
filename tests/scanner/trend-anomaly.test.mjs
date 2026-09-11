@@ -30,10 +30,14 @@ const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:]
 
 const DAY = 86400_000;
 const iso = (ms) => new Date(ms).toISOString().slice(0, 10);
-// build a daily merged-series ending "today", newest last
+// build a daily merged-series ending "today", newest last. Every point is a
+// VERIFIED, same-reference observation (price-condition provenance,
+// 2026-09-11): the anomaly gates under test only ever run on comparable
+// history - an unverified or changed reference is withheld before them
+// (see tests/scanner/price-condition-provenance.test.mjs).
 function daily(prices, source = "catalog", endMs = Date.parse("2026-12-01")) {
   const n = prices.length;
-  return prices.map((p, i) => ({ date: iso(endMs - (n - 1 - i) * DAY), price: p, source }));
+  return prices.map((p, i) => ({ date: iso(endMs - (n - 1 - i) * DAY), price: p, source, referenceCondition: "Near Mint", referencePrinting: "Holofoil" }));
 }
 const flat = (v, days) => daily(Array.from({ length: days }, () => v));
 // linear ramp from a to b over `days`, then hold `b` for `holdDays`

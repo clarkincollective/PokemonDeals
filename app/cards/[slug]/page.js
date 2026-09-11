@@ -294,12 +294,16 @@ export default async function CardHubPage({ params }) {
   // prefix, WOTC = first-party only), NOT a per-request provider history
   // call. Already downsampled + bounded server-side (fetchCardPriceHistory).
   const chartPoints = priceHistory?.chartPoints ?? [];
+  // Price-condition provenance: the tile's range covers only VERIFIED
+  // history comparable to the latest recorded reference (null until such
+  // history exists) - never the whole series, whose older points may be
+  // for an unrecorded or different condition / printing.
   const canonRaw = analysis?.raw
     ? {
         ...analysis.raw,
         history: chartPoints,
-        minPrice: chartPoints.length ? Math.min(...chartPoints.map((p) => p.p)) : null,
-        maxPrice: chartPoints.length ? Math.max(...chartPoints.map((p) => p.p)) : null,
+        minPrice: priceHistory?.comparableRange?.min ?? null,
+        maxPrice: priceHistory?.comparableRange?.max ?? null,
       }
     : analysis?.raw;
   const tcgplayerLink = buildTcgplayerLink(hub.name, hub.tcgplayerId);

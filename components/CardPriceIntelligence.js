@@ -63,9 +63,13 @@ function signalSubtext(signal) {
     if (signal?.reason === "endpoint-anomaly" || signal?.reason === "low-confidence")
       return "A recent price reading looks unusual — trend on hold until it's confirmed.";
     if (signal?.reason === "reference-changed")
-      // price-condition provenance: the reference now tracks a different
-      // condition / printing than the earlier readings - not a price move
-      return "The reference price now tracks a different condition or printing than earlier readings — trend on hold.";
+      // price-condition provenance: the reference changed condition /
+      // printing somewhere in the window - not a price move
+      return "The reference changed condition or printing within this window, so the readings aren't comparable — trend on hold.";
+    if (signal?.reason === "provenance-unknown")
+      // earlier readings never recorded which condition / printing they
+      // were for, so they can't be compared to today's reference
+      return "Earlier readings didn't record which condition and printing they were for, so they can't be compared yet.";
     return "Not enough history yet for a 30-day trend.";
   }
   const p = fmtPct(signal.changePct);
@@ -75,6 +79,7 @@ function signalSubtext(signal) {
 
 function noWindowsMessage(signal) {
   if (signal?.reason === "reference-changed") return "The reference changed condition or printing recently, so earlier readings aren't comparable yet.";
+  if (signal?.reason === "provenance-unknown") return "Earlier readings didn't record their condition and printing, so verified comparable history is still being collected.";
   return signal?.reason === "source-disagreement" || signal?.reason === "endpoint-anomaly" || signal?.reason === "low-confidence"
     ? "A recent price reading is being confirmed before we show a trend."
     : "More price history is being collected.";
