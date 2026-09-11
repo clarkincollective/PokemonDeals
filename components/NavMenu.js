@@ -61,6 +61,10 @@ export default function NavMenu() {
                     href={link.href}
                     rel={link.href.includes("?") ? "nofollow" : undefined}
                     onClick={close}
+                    // same nav model as the desktop bar, so an entry that
+                    // declares an event is measurable here too
+                    data-analytics-click={link.analyticsClick ?? undefined}
+                    data-analytics-props={link.analyticsClick ? JSON.stringify(link.analyticsProps ?? {}) : undefined}
                     className={linkClass(link.emphasis)}
                   >
                     {link.label}
