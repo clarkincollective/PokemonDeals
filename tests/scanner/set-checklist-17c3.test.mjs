@@ -100,11 +100,32 @@ test("C3-5. legend branches: all unrecorded, all one recorded condition, differe
   }
 });
 
-test("C3-6. missing prices stay explicit and are never linked to a noindex page", () => {
+test("C3-6. missing prices stay explicit, and the card keeps its link when its exact page resolves", () => {
   const rows = buildChecklistRows([card({ refPrice: null }), card({ refPrice: 0 }), card({ refPrice: 999.99 }), card({ refPrice: 12 })]);
   assert.deepEqual(rows.map((r) => r.reference?.usd ?? null), [null, null, null, 12]);
-  assert.deepEqual(rows.map((r) => Boolean(r.href)), [false, false, false, true]);
+  assert.deepEqual(rows.map((r) => Boolean(r.href)), [true, true, true, true]);
   assert.match(code("components/SetChecklist.js"), /<i>No reliable reference<\/i>/);
+});
+
+test("C3-8. REGRESSION (17C.3 link preservation): unlinked only when the destination is missing or ambiguous - never because a price is missing", () => {
+  // unpriced + resolvable catalogue page -> linked (the art grid links it too)
+  const [unpriced] = buildChecklistRows([card({ refPrice: null, catalogSlug: "marill-boundaries-crossed", name: "Marill", displayName: "Marill" })]);
+  assert.equal(unpriced.href, "/cards/marill-boundaries-crossed");
+  assert.equal(unpriced.reference, null, "still reads No reliable reference");
+  // unpriced + live hub -> the hub
+  const [hub] = buildChecklistRows([card({ refPrice: null, hubSlug: "marill-hub" })]);
+  assert.equal(hub.href, "/cards/marill-hub");
+  // missing destination: no hub and no resolvable catalogue page
+  const [missing] = buildChecklistRows([card({ refPrice: 3, catalogSlug: null })]);
+  assert.equal(missing.href, null);
+  // ambiguous destination: two rows share one slug -> only the row the URL resolves to
+  const rows = buildChecklistRows([
+    card({ tcgplayerId: "900", cardNumber: "10/64", refPrice: null, catalogSlug: "shared-jungle", name: "Shared (A)", displayName: "Shared (A)" }),
+    card({ tcgplayerId: "800", cardNumber: "11/64", refPrice: null, catalogSlug: "shared-jungle", name: "Shared (B)", displayName: "Shared (B)" }),
+  ]);
+  assert.deepEqual(rows.map((r) => [r.name, r.href]), [["Shared (A)", null], ["Shared (B)", "/cards/shared-jungle"]]);
+  // the component still renders a plain name (no anchor) when href is null
+  assert.match(code("components/SetChecklist.js"), /\{r\.href \? <a href=\{r\.href\}>\{r\.name\}<\/a> : r\.name\}/);
 });
 
 test("C3-7. the page and data wiring are unchanged apart from the allowlist + guard: same component, same heading id, art grid, URLs and metadata", () => {

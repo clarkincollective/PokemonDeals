@@ -51,15 +51,17 @@ test("C2-2. collector-number order, including secret rares past the printed tota
   assert.ok(compareCollectorNumber({ cardNumber: "2" }, { cardNumber: "10" }) < 0, "numeric, not lexical");
 });
 
-test("C2-3. names link only to an indexable permanent page: hub first, catalogue page when it has a real price", () => {
+test("C2-3. names link to the exact card's permanent page: hub first, else its resolvable catalogue page (priced or not)", () => {
   const [hub] = buildChecklistRows([card({ hubSlug: "dark-gengar-neo-destiny-hub" })]);
   assert.equal(hub.href, "/cards/dark-gengar-neo-destiny-hub");
   const [cat] = buildChecklistRows([card()]);
   assert.equal(cat.href, "/cards/dark-gengar-neo-destiny");
+  // 17C.3 correction: an unpriced card's page still resolves (200,
+  // noindex,follow) and the art grid already links it - keep the link
   const [unpriced] = buildChecklistRows([card({ refPrice: null })]);
-  assert.equal(unpriced.href, null, "a noindex (unpriced) catalogue page is not linked, same as the old index");
+  assert.equal(unpriced.href, "/cards/dark-gengar-neo-destiny");
   const [sentinel] = buildChecklistRows([card({ refPrice: 9999.99 })]);
-  assert.equal(sentinel.href, null);
+  assert.equal(sentinel.href, "/cards/dark-gengar-neo-destiny");
   const [noPage] = buildChecklistRows([card({ catalogSlug: null })]);
   assert.equal(noPage.href, null);
   assert.equal(noPage.name, "Dark Gengar", "the card is still listed by name");
@@ -96,7 +98,7 @@ test("C2-6. reference: USD value; condition / printing only when recorded; unava
 
 test("C2-7. the summary counts cards and flags unstated / mixed conditions - it never totals prices", () => {
   const allUnknown = checklistSummary(buildChecklistRows([card(), card({ tcgplayerId: "2", catalogSlug: "b", refPrice: null })]));
-  assert.deepEqual(allUnknown, { total: 2, linked: 1, priced: 1, unpriced: 1, rarityRecorded: 2, conditionStated: 0, mixedOrUnstatedConditions: true });
+  assert.deepEqual(allUnknown, { total: 2, linked: 2, priced: 1, unpriced: 1, rarityRecorded: 2, conditionStated: 0, mixedOrUnstatedConditions: true });
   const mixed = checklistSummary(buildChecklistRows([card({ refCondition: "Near Mint" }), card({ tcgplayerId: "2", catalogSlug: "b", refCondition: "Lightly Played" })]));
   assert.equal(mixed.mixedOrUnstatedConditions, true);
   const partial = checklistSummary(buildChecklistRows([card({ refCondition: "Near Mint" }), card({ tcgplayerId: "2", catalogSlug: "b" })]));
