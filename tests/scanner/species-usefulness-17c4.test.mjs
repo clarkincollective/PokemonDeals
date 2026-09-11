@@ -41,8 +41,9 @@ const card = (over = {}) => {
   };
 };
 
-test("SP-1. the pilot is exactly one species", () => {
-  assert.deepEqual([...SPECIES_PILOT], ["Dragonite"]);
+test("SP-1. Dragonite stays first on the reviewed allowlist (17C.5 adds five more)", () => {
+  assert.equal(SPECIES_PILOT[0], "Dragonite");
+  assert.equal(SPECIES_PILOT.length, 6);
   assert.equal(isSpeciesPilot("Dragonite"), true);
   assert.equal(isSpeciesPilot("Pikachu"), false);
   assert.equal(isSpeciesPilot("dragonite"), false, "exact species name, as resolved");

@@ -153,7 +153,14 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
 
         <SpeciesFactStrip speciesName={speciesName} />
 
-        {indexable && stats ? (
+        {pilot && coverageFacts?.earliestSet ? (
+          <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+            Every {speciesName} card in our English catalogue, starting with {coverageFacts.earliestSet},
+            the earliest dated set we track, and listed by era and set below with its collector number,
+            rarity and recent-sold market reference. There is no qualifying below-market {speciesName}{" "}
+            deal to feature right now — this page updates automatically when one appears.
+          </p>
+        ) : indexable && stats ? (
           <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
             Browse every {speciesName} Pokemon card we track across {stats.setCount}{" "}
             {stats.setCount === 1 ? "set" : "sets"} and compare current market references. There is no
