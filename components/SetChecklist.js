@@ -1,5 +1,5 @@
 import Price from "@/components/Price";
-import { buildChecklistRows, checklistSummary } from "@/lib/setChecklist";
+import { buildChecklistRows, checklistSummary, checklistLegend } from "@/lib/setChecklist";
 
 // Phase 17C.2 - SERVER component. The readable set checklist for a pilot
 // set. It REPLACES that set's plain <CatalogueLinkIndex> (same heading id,
@@ -38,6 +38,7 @@ export default function SetChecklist({ setName, cards, headingId = "full-set-ind
   const rows = buildChecklistRows(cards);
   if (rows.length === 0) return null;
   const s = checklistSummary(rows);
+  const legend = checklistLegend(s, rows);
 
   return (
     <section aria-labelledby={headingId} className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
@@ -50,13 +51,9 @@ export default function SetChecklist({ setName, cards, headingId = "full-set-ind
       <p className="mt-2 max-w-3xl text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
         Market reference = a recent-sold price for one raw (ungraded) copy, stored in US dollars and
         shown in your currency (marked ≈) when you have chosen another.{" "}
-        {s.mixedOrUnstatedConditions
-          ? s.conditionStated === 0
-            ? "Condition not recorded: our catalogue has not captured which condition these references are for yet, so they are not like-for-like across cards."
-            : `A condition is shown where our catalogue has recorded it (${s.conditionStated} of ${s.priced}); where none is shown the condition is not recorded, so references are not like-for-like across cards.`
-          : `Every reference here is for a ${rows.find((r) => r.reference)?.reference.conditionLabel} copy.`}{" "}
+        {legend.condition ? `${legend.condition} ` : ""}
         They are individual card references, not a value for the complete set.
-        {s.unpriced > 0 ? ` ${s.unpriced} ${s.unpriced === 1 ? "card has" : "cards have"} no reliable reference right now.` : ""}
+        {legend.unpriced ? ` ${legend.unpriced}` : ""}
       </p>
 
       <div className="mt-4 overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">

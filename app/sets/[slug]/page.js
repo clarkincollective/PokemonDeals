@@ -180,8 +180,9 @@ export default async function SetDetailPage({ params }) {
   const speciesInSet = speciesList;
   const featuredItems = buildCatalogueItems(topValueCards, validSetSlugs, "set").slice(0, 12);
 
-  // Phase 17C.2 pilot (lib/setChecklist CHECKLIST_PILOT_SETS): a readable
-  // checklist table replaces the plain link index for the pilot set only.
+  // Phase 17C.2/17C.3 (lib/setChecklist CHECKLIST_SETS + identity guard):
+  // a readable checklist table replaces the plain link index for the
+  // allowlisted sets only; every other set keeps the index.
   const checklistPilot = Array.isArray(checklistCards) && checklistCards.length > 0;
 
   const showSealed = sealedProducts.length >= SET_SEALED_MIN_PRODUCTS;

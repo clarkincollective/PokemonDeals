@@ -6,9 +6,9 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  CHECKLIST_PILOT_SETS,
+  CHECKLIST_SETS,
   SET_CHECKLIST_MAX_ROWS,
-  isChecklistPilotSet,
+  isChecklistSet,
   buildChecklistRows,
   checklistSummary,
   compareCollectorNumber,
@@ -33,10 +33,10 @@ const card = (over = {}) => ({
   ...over,
 });
 
-test("C2-1. the pilot is one normal-sized set, bounded to a readable size", () => {
-  assert.deepEqual([...CHECKLIST_PILOT_SETS], ["Neo Destiny"]);
-  assert.equal(isChecklistPilotSet("Neo Destiny"), true);
-  assert.equal(isChecklistPilotSet("Base Set"), false);
+test("C2-1. the pilot set stays on the allowlist, bounded to a readable size", () => {
+  assert.equal(CHECKLIST_SETS[0], "Neo Destiny");
+  assert.equal(isChecklistSet("Neo Destiny"), true);
+  assert.equal(isChecklistSet("Base Set"), false);
   assert.equal(SET_CHECKLIST_MAX_ROWS, 400);
 });
 
@@ -117,12 +117,15 @@ test("C2-8. the component: semantic table, plain crawlable <a> links, no set tot
   assert.doesNotMatch(src, /from "next\/link"/);
   assert.match(src, /No reliable reference/);
   assert.match(src, /not a value for the complete set/);
-  assert.match(src, /not like-for-like across cards/);
-  // NULL provenance = our catalogue has not captured the condition; it
-  // must never read as the provider lacking condition data
-  assert.match(src, /Condition not recorded: our catalogue has not captured which condition/);
-  assert.match(src, /where none is shown the condition is not recorded/);
-  assert.doesNotMatch(src, /provider does not state|provider states|was not stated/);
+  // the condition sentences come from lib/setChecklist.checklistLegend
+  // (17C.3); NULL provenance = our catalogue has not captured the
+  // condition - never the provider lacking it
+  assert.match(src, /checklistLegend\(s, rows\)/);
+  const lib = code("lib/setChecklist.js");
+  assert.match(lib, /not like-for-like across cards/);
+  assert.match(lib, /Condition not recorded: our catalogue has not captured which condition/);
+  assert.match(lib, /where none is shown the condition is not recorded/);
+  assert.doesNotMatch(src + lib, /provider does not state|provider states|was not stated/);
   assert.match(src, /currency: "USD"/);
   assert.doesNotMatch(src, /\.reduce\(|\bsum\b|totalValue|setValue/i, "nothing adds references up");
   assert.doesNotMatch(src, /display:\s*none|aria-hidden|sr-only[^"]*"[^>]*>\{r\./, "nothing crawlable is hidden");
@@ -144,6 +147,6 @@ test("C2-9. the page: pilot set swaps the plain index for the checklist; every o
   assert.match(page, /export const revalidate = 3600;/);
   assert.doesNotMatch(page, /robots: \{ index: false[^}]*\}\s*\}\s*;?\s*\n\s*return \{\s*title,/, "no new noindex");
   const deals = code("lib/deals.js");
-  assert.match(deals, /isChecklistPilotSet\(setName\) && cards\.length <= SET_CHECKLIST_MAX_ROWS \? cards : null/);
+  assert.match(deals, /isChecklistSet\(setName\) && checklistIdentityCheck\(cards\)\.ok \? cards : null/);
   assert.match(deals, /if \(error && cols !== BASE_COLS && isMissingProvenanceColumnError\(error\)\)/);
 });
