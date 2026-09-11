@@ -94,11 +94,12 @@ To pause later (STAGE-B CONTAINMENT, 2026-09-11 — in order of reliability):
    ```sql
    insert into social_qa_runs (qa_type, result, detail) values (
      'BACKLOG_CIRCUIT', 'FAIL',
-     jsonb_build_object('circuit', jsonb_build_object(
-       'surface','backlog','state','OWNER_SUSPENDED','failures','[]'::jsonb,
-       'tripped_at', now(),'reason','owner_suspend','resumed_at',null,
-       'resumed_by',null,'suspended_by','sql-editor'), 'at', now()));
+     jsonb_build_object('event','SUSPEND','by','sql-editor',
+                        'reason','owner_suspend','at', now()));
    ```
+   (Resume = the same insert with `'event','RESUME'` and result `'PASS'`.)
+   The store is append-only events; a later or concurrent success/failure
+   row can never clear a SUSPEND — only a RESUME row can.
 2. **Env flags need a redeploy:** setting `SOCIAL_BUFFER_BACKLOG_KILL=true`
    or unsetting `SOCIAL_BUFFER_BACKLOG_ENABLED` in Vercel changes only the
    NEXT deployment — the running deployment keeps the env it was built
