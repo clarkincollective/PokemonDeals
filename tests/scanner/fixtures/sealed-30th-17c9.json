@@ -1,0 +1,1889 @@
+{
+ "_source": "stored rows read 2026-09-12 (sealed_deals #76, sealed_catalog, sealed_watchlist); no provider calls",
+ "products": [
+  {
+   "tcgplayer_id": "242811",
+   "name": "Celebrations Elite Trainer Box",
+   "set": "Celebrations",
+   "product_type": "Elite Trainer Box",
+   "market_price": 361.84
+  },
+  {
+   "tcgplayer_id": "251199",
+   "name": "Celebrations Pokemon Center Elite Trainer Box (Exclusive)",
+   "set": "Celebrations",
+   "product_type": "Elite Trainer Box",
+   "market_price": 552.57
+  },
+  {
+   "tcgplayer_id": "261802",
+   "name": "Celebrations Pokemon Center Elite Trainer Box Case (Exclusive)",
+   "set": "Celebrations",
+   "product_type": "Case",
+   "market_price": 2340
+  },
+  {
+   "tcgplayer_id": "704143",
+   "name": "30th Celebration Elite Trainer Box",
+   "set": "ME: 30th Celebration",
+   "product_type": "Elite Trainer Box",
+   "market_price": 177.39
+  },
+  {
+   "tcgplayer_id": "704144",
+   "name": "30th Celebration Pokemon Center Elite Trainer Box",
+   "set": "ME: 30th Celebration",
+   "product_type": "Elite Trainer Box",
+   "market_price": 493.92
+  },
+  {
+   "tcgplayer_id": "709036",
+   "name": "30th Celebration Elite Trainer Box Case",
+   "set": "ME: 30th Celebration",
+   "product_type": "Case",
+   "market_price": 1643.31
+  }
+ ],
+ "watchlist": [
+  {
+   "id": 76,
+   "name": "Celebrations Elite Trainer Box",
+   "set": "Celebrations",
+   "tcgplayer_id": "242811",
+   "active": true
+  },
+  {
+   "id": 122,
+   "name": "30th Celebration Pokemon Center Elite Trainer Box",
+   "set": "ME: 30th Celebration",
+   "tcgplayer_id": "704144",
+   "active": true
+  },
+  {
+   "id": 123,
+   "name": "30th Celebration Elite Trainer Box",
+   "set": "ME: 30th Celebration",
+   "tcgplayer_id": "704143",
+   "active": true
+  },
+  {
+   "id": 177,
+   "name": "Celebrations Pokemon Center Elite Trainer Box (Exclusive)",
+   "set": "Celebrations",
+   "tcgplayer_id": "251199",
+   "active": true
+  }
+ ],
+ "listings": [
+  {
+   "id": 193,
+   "title": "Pokemon Celebrations 25th Elite Trainer Box ETB Black Card Sleeves New (13) LOT",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 133.66,
+   "first_seen_at": "2026-08-30T20:28:11.106677+00:00",
+   "last_seen_at": "2026-09-04T06:01:11.133+00:00"
+  },
+  {
+   "id": 194,
+   "title": "Greninja - Gold Star (Celebrations Elite Trainer Box) Holo #SWSH144",
+   "is_active": false,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 97.24,
+   "first_seen_at": "2026-08-30T20:28:11.14779+00:00",
+   "last_seen_at": "2026-09-02T06:01:08.773+00:00"
+  },
+  {
+   "id": 202,
+   "title": "Greninja - Gold Star (Celebrations Elite Trainer Box) Holo #SWSH144",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 152.32999999999998,
+   "first_seen_at": "2026-08-30T20:28:11.312547+00:00",
+   "last_seen_at": "2026-09-02T06:01:09.233+00:00"
+  },
+  {
+   "id": 204,
+   "title": "GRENINJA  POKEMON 2021 BLACK STAR PROMOS SWSH 144 CELEBRATIONS ELITE TRAINER BOX",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 136,
+   "first_seen_at": "2026-08-30T20:28:11.397775+00:00",
+   "last_seen_at": "2026-09-04T06:01:11.198+00:00"
+  },
+  {
+   "id": 205,
+   "title": "Pokémon TCG: 25th Anniversary Celebrations Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 112,
+   "first_seen_at": "2026-08-30T20:28:11.412705+00:00",
+   "last_seen_at": "2026-09-04T06:01:11.773+00:00"
+  },
+  {
+   "id": 213,
+   "title": "Pokemon Celebrations 25th Elite Trainer Box ETB Black Card Sleeves New (13) LOT",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 152.98,
+   "first_seen_at": "2026-08-30T20:28:11.644691+00:00",
+   "last_seen_at": "2026-09-04T06:01:11.975+00:00"
+  },
+  {
+   "id": 214,
+   "title": "GRENINJA POKEMON 2021 BLACK STAR PROMOS-SWSH144 CELEBRATIONS ELITE TRAINER BOX",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 140.42,
+   "first_seen_at": "2026-08-30T20:28:11.665694+00:00",
+   "last_seen_at": "2026-09-04T06:01:12.376+00:00"
+  },
+  {
+   "id": 216,
+   "title": "GRENINJA POKEMON 2021 BLACK STAR PROMOS-SWSH144 CELEBRATIONS ELITE TRAINER BOX",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 124.59,
+   "first_seen_at": "2026-08-30T20:28:11.710787+00:00",
+   "last_seen_at": "2026-09-04T06:01:11.202+00:00"
+  },
+  {
+   "id": 219,
+   "title": "Pokémon TCG: 25th Anniversary Celebrations Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 187.68,
+   "first_seen_at": "2026-08-30T20:28:11.747785+00:00",
+   "last_seen_at": "2026-09-04T06:01:12.003+00:00"
+  },
+  {
+   "id": 225,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB PRESALE 9/16",
+   "is_active": false,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 145,
+   "first_seen_at": "2026-08-30T20:28:11.851799+00:00",
+   "last_seen_at": "2026-08-30T20:30:22.614+00:00"
+  },
+  {
+   "id": 226,
+   "title": "Pokemon Celebrations Elite Trainer Box Incomplete",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 154.95,
+   "first_seen_at": "2026-08-30T20:28:11.867454+00:00",
+   "last_seen_at": "2026-09-04T06:01:12.527+00:00"
+  },
+  {
+   "id": 227,
+   "title": "Pokémon TCG 30th Celebrations Elite Trainer Box ETB",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 139,
+   "first_seen_at": "2026-08-30T20:28:11.908404+00:00",
+   "last_seen_at": "2026-09-03T06:01:25.62+00:00"
+  },
+  {
+   "id": 232,
+   "title": "GRENINJA POKEMON 2021 BLACK STAR PROMOS-SWSH144 CELEBRATIONS ELITE TRAINER BOX",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 193.7,
+   "first_seen_at": "2026-08-30T20:28:11.999475+00:00",
+   "last_seen_at": "2026-09-04T06:01:12.502+00:00"
+  },
+  {
+   "id": 235,
+   "title": "[PRESALE] !! Pokémon 30th Anniversary Celebrations Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 149.99,
+   "first_seen_at": "2026-08-30T20:28:12.112389+00:00",
+   "last_seen_at": "2026-09-04T06:01:12.864+00:00"
+  },
+  {
+   "id": 237,
+   "title": "GRENINJA POKEMON 2021 BLACK STAR PROMOS-SWSH144 CELEBRATIONS ELITE TRAINER BOX",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 161,
+   "first_seen_at": "2026-08-30T20:28:12.147375+00:00",
+   "last_seen_at": "2026-09-04T06:01:12.899+00:00"
+  },
+  {
+   "id": 238,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB  Elite Trainer Box Presale",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 186.45999999999998,
+   "first_seen_at": "2026-08-30T20:28:12.174304+00:00",
+   "last_seen_at": "2026-09-04T06:01:12.866+00:00"
+  },
+  {
+   "id": 242,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box  (Release 9/16)",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 240.33999999999997,
+   "first_seen_at": "2026-08-30T20:28:12.32986+00:00",
+   "last_seen_at": "2026-09-04T06:01:12.883+00:00"
+  },
+  {
+   "id": 246,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB *PRESALE*",
+   "is_active": false,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 155,
+   "first_seen_at": "2026-08-30T20:28:12.388766+00:00",
+   "last_seen_at": "2026-08-30T20:30:23.131+00:00"
+  },
+  {
+   "id": 248,
+   "title": "Greninja - Gold Star (Celebrations Elite Trainer Box) Holo #SWSH144",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 173.91,
+   "first_seen_at": "2026-08-30T20:28:12.412787+00:00",
+   "last_seen_at": "2026-09-02T06:01:10.839+00:00"
+  },
+  {
+   "id": 250,
+   "title": "Pokemon Center Elite Trainer Box 30th Celebrations PRESALE",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 215.39,
+   "first_seen_at": "2026-08-30T20:28:12.447791+00:00",
+   "last_seen_at": "2026-09-04T06:01:14.415+00:00"
+  },
+  {
+   "id": 253,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB pre-sale Rel. 16sept",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 222.48,
+   "first_seen_at": "2026-08-30T20:28:12.503787+00:00",
+   "last_seen_at": "2026-08-30T20:30:24.07+00:00"
+  },
+  {
+   "id": 255,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box ",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 240,
+   "first_seen_at": "2026-08-30T20:28:12.654129+00:00",
+   "last_seen_at": "2026-08-30T20:30:23.97+00:00"
+  },
+  {
+   "id": 258,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box CONFIRMED PRESALE 09/19",
+   "is_active": false,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 159.99,
+   "first_seen_at": "2026-08-30T20:28:12.706771+00:00",
+   "last_seen_at": "2026-09-01T06:01:16.09+00:00"
+  },
+  {
+   "id": 261,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 214.03,
+   "first_seen_at": "2026-08-30T20:28:12.806376+00:00",
+   "last_seen_at": "2026-09-04T06:01:14.076+00:00"
+  },
+  {
+   "id": 262,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB *PRESALE*",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 215.53,
+   "first_seen_at": "2026-08-30T20:28:12.836051+00:00",
+   "last_seen_at": "2026-08-30T20:30:24.261+00:00"
+  },
+  {
+   "id": 264,
+   "title": "Pokémon TCG: 25th Anniversary Celebrations Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 244.76,
+   "first_seen_at": "2026-08-30T20:28:12.886471+00:00",
+   "last_seen_at": "2026-09-04T06:01:18.163+00:00"
+  },
+  {
+   "id": 266,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB pre-sale Rel. 16sept",
+   "is_active": false,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 160,
+   "first_seen_at": "2026-08-30T20:28:12.899319+00:00",
+   "last_seen_at": "2026-08-30T20:30:23.712+00:00"
+  },
+  {
+   "id": 268,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB Presale 9/16 ✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 206.41,
+   "first_seen_at": "2026-08-30T20:28:13.01027+00:00",
+   "last_seen_at": "2026-09-01T06:01:15.123+00:00"
+  },
+  {
+   "id": 271,
+   "title": "✅PRESALE✅30th Anniversary Celebrations Elite Trainer Box ETB",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 245.9,
+   "first_seen_at": "2026-08-30T20:28:13.079446+00:00",
+   "last_seen_at": "2026-09-04T06:01:18.437+00:00"
+  },
+  {
+   "id": 272,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB PRESALE Ships 9/18",
+   "is_active": false,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 169.99,
+   "first_seen_at": "2026-08-30T20:28:13.084778+00:00",
+   "last_seen_at": "2026-08-30T20:30:24.046+00:00"
+  },
+  {
+   "id": 274,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box CONFIRMED PRESALE 09/19",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 257.68,
+   "first_seen_at": "2026-08-30T20:28:13.173803+00:00",
+   "last_seen_at": "2026-09-01T06:01:16.01+00:00"
+  },
+  {
+   "id": 277,
+   "title": "30th Anniversary Celebrations Elite Trainer Box ETB✅PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 245.9,
+   "first_seen_at": "2026-08-30T20:28:13.274713+00:00",
+   "last_seen_at": "2026-09-04T06:01:18.702+00:00"
+  },
+  {
+   "id": 278,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB Pre-sale 9/16",
+   "is_active": false,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 181.43,
+   "first_seen_at": "2026-08-30T20:28:13.276843+00:00",
+   "last_seen_at": "2026-08-30T20:30:24.234+00:00"
+  },
+  {
+   "id": 280,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB PRE SALE Ships 9/15",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 213.79,
+   "first_seen_at": "2026-08-30T20:28:13.345251+00:00",
+   "last_seen_at": "2026-09-04T06:01:14.318+00:00"
+  },
+  {
+   "id": 283,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 249,
+   "first_seen_at": "2026-08-30T20:28:13.454121+00:00",
+   "last_seen_at": "2026-08-30T20:30:24.674+00:00"
+  },
+  {
+   "id": 286,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB PRESALE Ships 9/18",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 182,
+   "first_seen_at": "2026-08-30T20:28:13.49382+00:00",
+   "last_seen_at": "2026-09-04T06:01:14.61+00:00"
+  },
+  {
+   "id": 287,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB Ships 9/16 Sealed",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 207.18,
+   "first_seen_at": "2026-08-30T20:28:13.543266+00:00",
+   "last_seen_at": "2026-08-30T20:30:25.253+00:00"
+  },
+  {
+   "id": 294,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 249.9,
+   "first_seen_at": "2026-08-30T20:28:13.681426+00:00",
+   "last_seen_at": "2026-09-01T06:01:18.432+00:00"
+  },
+  {
+   "id": 296,
+   "title": "PRESALE Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB PRESALE 9/16",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 189.99,
+   "first_seen_at": "2026-08-30T20:28:13.717789+00:00",
+   "last_seen_at": "2026-09-04T06:01:15.125+00:00"
+  },
+  {
+   "id": 297,
+   "title": "Pokémon 30th Celebrations Elite Trainer Box ETB PRESALE Ships 9/18",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 222.32,
+   "first_seen_at": "2026-08-30T20:28:13.746552+00:00",
+   "last_seen_at": "2026-09-02T06:01:12.279+00:00"
+  },
+  {
+   "id": 304,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box ✅️ FREE SHIPPING",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 250,
+   "first_seen_at": "2026-08-30T20:28:13.972828+00:00",
+   "last_seen_at": "2026-08-30T20:30:25.226+00:00"
+  },
+  {
+   "id": 307,
+   "title": "Pokémon TCG Celebrations 25th Anniversary Elite Trainer Box Factory Sealed",
+   "is_active": false,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 219.99,
+   "first_seen_at": "2026-08-30T20:28:14.03125+00:00",
+   "last_seen_at": "2026-08-30T20:30:24.786+00:00"
+  },
+  {
+   "id": 308,
+   "title": "Pokémon TCG 30th Celebrations ETB - Elite Trainer Box (Preorder 9/16 Release)",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 221.09,
+   "first_seen_at": "2026-08-30T20:28:14.052992+00:00",
+   "last_seen_at": "2026-08-30T20:30:25.78+00:00"
+  },
+  {
+   "id": 317,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 231.06,
+   "first_seen_at": "2026-08-30T20:28:14.217707+00:00",
+   "last_seen_at": "2026-09-04T06:01:15.999+00:00"
+  },
+  {
+   "id": 321,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 254.99,
+   "first_seen_at": "2026-08-30T20:28:14.380772+00:00",
+   "last_seen_at": "2026-09-04T06:01:19.785+00:00"
+  },
+  {
+   "id": 322,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB *PRESALE*",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 210.41,
+   "first_seen_at": "2026-08-30T20:28:14.3849+00:00",
+   "last_seen_at": "2026-09-01T06:01:16.649+00:00"
+  },
+  {
+   "id": 331,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB CONFIRMED PREORDER",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 229.99,
+   "first_seen_at": "2026-08-30T20:28:14.542782+00:00",
+   "last_seen_at": "2026-09-04T06:01:15.429+00:00"
+  },
+  {
+   "id": 334,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB Pre-sale 9/16",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 277.81,
+   "first_seen_at": "2026-08-30T20:28:14.646276+00:00",
+   "last_seen_at": "2026-08-30T20:30:26.234+00:00"
+  },
+  {
+   "id": 335,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 245,
+   "first_seen_at": "2026-08-30T20:28:14.663784+00:00",
+   "last_seen_at": "2026-09-04T06:01:17.669+00:00"
+  },
+  {
+   "id": 343,
+   "title": "Presale Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB SHIPS 9/16",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 230,
+   "first_seen_at": "2026-08-30T20:28:14.787595+00:00",
+   "last_seen_at": "2026-09-04T06:01:15.696+00:00"
+  },
+  {
+   "id": 347,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB PRESALE Ships 9/18",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 277.47,
+   "first_seen_at": "2026-08-30T20:28:14.861888+00:00",
+   "last_seen_at": "2026-09-04T06:01:15.536+00:00"
+  },
+  {
+   "id": 348,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 255,
+   "first_seen_at": "2026-08-30T20:28:14.88361+00:00",
+   "last_seen_at": "2026-08-30T20:30:26.012+00:00"
+  },
+  {
+   "id": 354,
+   "title": "*CONFIRMED PRESALE* Pokémon 30th Anniversary Celebrations Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 235.25,
+   "first_seen_at": "2026-08-30T20:28:15.028788+00:00",
+   "last_seen_at": "2026-09-04T06:01:16.274+00:00"
+  },
+  {
+   "id": 360,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 233.35,
+   "first_seen_at": "2026-08-30T20:28:15.118803+00:00",
+   "last_seen_at": "2026-08-30T20:30:26.754+00:00"
+  },
+  {
+   "id": 361,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box  (Release 9/16)",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 271.84,
+   "first_seen_at": "2026-08-30T20:28:15.123049+00:00",
+   "last_seen_at": "2026-09-04T06:01:21.027+00:00"
+  },
+  {
+   "id": 367,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 241.23,
+   "first_seen_at": "2026-08-30T20:28:15.227774+00:00",
+   "last_seen_at": "2026-09-04T06:01:16.54+00:00"
+  },
+  {
+   "id": 374,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 228.93,
+   "first_seen_at": "2026-08-30T20:28:15.373804+00:00",
+   "last_seen_at": "2026-09-04T06:01:15.174+00:00"
+  },
+  {
+   "id": 375,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ,CONFIRMED Pre-sale",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 249.99,
+   "first_seen_at": "2026-08-30T20:28:15.41279+00:00",
+   "last_seen_at": "2026-09-04T06:01:18.122+00:00"
+  },
+  {
+   "id": 376,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 275,
+   "first_seen_at": "2026-08-30T20:28:15.434137+00:00",
+   "last_seen_at": "2026-09-01T06:01:21.487+00:00"
+  },
+  {
+   "id": 384,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB SHIPS 9/16 PRESALE",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 245.52,
+   "first_seen_at": "2026-08-30T20:28:15.619818+00:00",
+   "last_seen_at": "2026-09-04T06:01:15.765+00:00"
+  },
+  {
+   "id": 385,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box PRE ORDER",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 250,
+   "first_seen_at": "2026-08-30T20:28:15.633947+00:00",
+   "last_seen_at": "2026-09-04T06:01:18.387+00:00"
+  },
+  {
+   "id": 387,
+   "title": "(PRESALE) Pokémon TCG - 30th Anniversary Celebrations ETB Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 275,
+   "first_seen_at": "2026-08-30T20:28:15.670408+00:00",
+   "last_seen_at": "2026-09-04T06:01:21.298+00:00"
+  },
+  {
+   "id": 391,
+   "title": "PRESALE Pokémon Celebrations Elite Trainer Box 30th Anniversary Pikachu",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 256.55,
+   "first_seen_at": "2026-08-30T20:28:15.80481+00:00",
+   "last_seen_at": "2026-09-04T06:01:16.031+00:00"
+  },
+  {
+   "id": 392,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB pre-sale Rel. 16sept",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 276.9,
+   "first_seen_at": "2026-08-30T20:28:15.845338+00:00",
+   "last_seen_at": "2026-08-30T20:30:26.958+00:00"
+  },
+  {
+   "id": 393,
+   "title": "Nintendo Pokémon TCG Celebrations Elite Trainer Box",
+   "is_active": false,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 275,
+   "first_seen_at": "2026-08-30T20:28:15.856109+00:00",
+   "last_seen_at": "2026-09-02T06:01:16.162+00:00"
+  },
+  {
+   "id": 397,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB PRESALE Ships 9/18",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 236.37,
+   "first_seen_at": "2026-08-30T20:28:15.967442+00:00",
+   "last_seen_at": "2026-08-30T20:30:27.529+00:00"
+  },
+  {
+   "id": 398,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB  Elite Trainer Box Presale",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 239,
+   "first_seen_at": "2026-08-30T20:28:15.999578+00:00",
+   "last_seen_at": "2026-09-04T06:01:16.029+00:00"
+  },
+  {
+   "id": 402,
+   "title": "PRESALE Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB PRESALE 9/16",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 345.03999999999996,
+   "first_seen_at": "2026-08-30T20:28:16.134866+00:00",
+   "last_seen_at": "2026-09-04T06:01:19.804+00:00"
+  },
+  {
+   "id": 403,
+   "title": "PRESALE Pokémon TCG 30th Anniversary Celebrations ETB  Elite Trainer Box PRESALE",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 299,
+   "first_seen_at": "2026-08-30T20:28:16.155565+00:00",
+   "last_seen_at": "2026-09-04T06:01:22.256+00:00"
+  },
+  {
+   "id": 406,
+   "title": "Pokemon TCG 30th Anniversary Celebrations - Elite Trainer Box [ETB] ✅PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 277.24,
+   "first_seen_at": "2026-08-30T20:28:16.259595+00:00",
+   "last_seen_at": "2026-09-04T06:01:18.635+00:00"
+  },
+  {
+   "id": 408,
+   "title": "PRE SALE Pokémon Celebrations Elite Trainer Box 30th Anniversary Pikachu",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 262.09,
+   "first_seen_at": "2026-08-30T20:28:16.312431+00:00",
+   "last_seen_at": "2026-09-04T06:01:16.78+00:00"
+  },
+  {
+   "id": 409,
+   "title": "Pokemon TCG 30th Anniversary Celebrations ETB Elite Trainer Box Presale",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 299.99,
+   "first_seen_at": "2026-08-30T20:28:16.324297+00:00",
+   "last_seen_at": "2026-09-04T06:01:22.764+00:00"
+  },
+  {
+   "id": 412,
+   "title": "Pokemon TCG 30th Anniversary Celebrations ETB Elite Trainer Box Presale",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 203.32,
+   "first_seen_at": "2026-08-30T20:28:16.43416+00:00",
+   "last_seen_at": "2026-09-04T06:01:18.922+00:00"
+  },
+  {
+   "id": 414,
+   "title": "Pokémon 30th Anniversary Celebrations ETB Elite Trainer Box SHIPS 9/16 - PRESALE",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 262.07,
+   "first_seen_at": "2026-08-30T20:28:16.486315+00:00",
+   "last_seen_at": "2026-09-04T06:01:17.061+00:00"
+  },
+  {
+   "id": 415,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB PRESALE Ships 9/18",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 309.74,
+   "first_seen_at": "2026-08-30T20:28:16.494253+00:00",
+   "last_seen_at": "2026-08-30T20:30:27.792+00:00"
+  },
+  {
+   "id": 417,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB CONFIRMED Pre-sale",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 230.81,
+   "first_seen_at": "2026-08-30T20:28:16.599554+00:00",
+   "last_seen_at": "2026-09-04T06:01:19.198+00:00"
+  },
+  {
+   "id": 420,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB *PRESALE*",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 311.32,
+   "first_seen_at": "2026-08-30T20:28:16.668587+00:00",
+   "last_seen_at": "2026-08-30T20:30:27.981+00:00"
+  },
+  {
+   "id": 421,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box PRESALE Shipping 9/16",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 262.09,
+   "first_seen_at": "2026-08-30T20:28:16.684502+00:00",
+   "last_seen_at": "2026-09-04T06:01:17.303+00:00"
+  },
+  {
+   "id": 423,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 318.71999999999997,
+   "first_seen_at": "2026-08-30T20:28:16.911932+00:00",
+   "last_seen_at": "2026-09-04T06:01:17.611+00:00"
+  },
+  {
+   "id": 431,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB Presale 9/16 ✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 314.29999999999995,
+   "first_seen_at": "2026-08-30T20:28:17.03048+00:00",
+   "last_seen_at": "2026-09-01T06:01:23.513+00:00"
+  },
+  {
+   "id": 434,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 332.76,
+   "first_seen_at": "2026-08-30T20:28:17.091788+00:00",
+   "last_seen_at": "2026-09-04T06:01:18.177+00:00"
+  },
+  {
+   "id": 437,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 315,
+   "first_seen_at": "2026-08-30T20:28:17.22599+00:00",
+   "last_seen_at": "2026-09-04T06:01:23.646+00:00"
+  },
+  {
+   "id": 439,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 317.8,
+   "first_seen_at": "2026-08-30T20:28:17.389663+00:00",
+   "last_seen_at": "2026-09-04T06:01:23.926+00:00"
+  },
+  {
+   "id": 441,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB ✅️ Presale ✅️ Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 318.7,
+   "first_seen_at": "2026-08-30T20:28:17.544525+00:00",
+   "last_seen_at": "2026-08-30T20:30:28.656+00:00"
+  },
+  {
+   "id": 443,
+   "title": "Pokémon TCG 30th Anniversary Celebrations Elite Trainer Box (ETB) ✅️ Presale ✅️",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 318.7,
+   "first_seen_at": "2026-08-30T20:28:17.698054+00:00",
+   "last_seen_at": "2026-09-04T06:01:24.215+00:00"
+  },
+  {
+   "id": 445,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box CONFIRMED PRESALE 09/19",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 319.01,
+   "first_seen_at": "2026-08-30T20:28:17.859086+00:00",
+   "last_seen_at": "2026-09-01T06:01:24.532+00:00"
+  },
+  {
+   "id": 447,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB ✅️ Presale ✅️ Elite Trainer Box ",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 320,
+   "first_seen_at": "2026-08-30T20:28:18.025081+00:00",
+   "last_seen_at": "2026-09-04T06:01:24.514+00:00"
+  },
+  {
+   "id": 448,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB  Elite Trainer Box PRESALE",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 320,
+   "first_seen_at": "2026-08-30T20:28:18.191965+00:00",
+   "last_seen_at": "2026-09-04T06:01:24.762+00:00"
+  },
+  {
+   "id": 450,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB Pre-sale 9/16",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 321.21,
+   "first_seen_at": "2026-08-30T20:28:18.345943+00:00",
+   "last_seen_at": "2026-08-30T20:30:29.519+00:00"
+  },
+  {
+   "id": 455,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB PRE SALE Ships 9/15",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 323.83,
+   "first_seen_at": "2026-08-30T20:28:18.516198+00:00",
+   "last_seen_at": "2026-09-04T06:01:25.066+00:00"
+  },
+  {
+   "id": 459,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB PRESALE Ships 9/18",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 324.46,
+   "first_seen_at": "2026-08-30T20:28:18.688288+00:00",
+   "last_seen_at": "2026-09-04T06:01:25.343+00:00"
+  },
+  {
+   "id": 464,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB Ships 9/16 Sealed",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 327.15999999999997,
+   "first_seen_at": "2026-08-30T20:28:18.854586+00:00",
+   "last_seen_at": "2026-08-30T20:30:30.099+00:00"
+  },
+  {
+   "id": 468,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB ✅ Pre-Sale ✅ Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 329,
+   "first_seen_at": "2026-08-30T20:28:19.026878+00:00",
+   "last_seen_at": "2026-09-04T06:01:25.671+00:00"
+  },
+  {
+   "id": 472,
+   "title": "PRESALE Pokémon Celebrations Elite Trainer Box 30th Anniversary Pikachu",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 331.34000000000003,
+   "first_seen_at": "2026-08-30T20:28:19.262474+00:00",
+   "last_seen_at": "2026-09-04T06:01:25.982+00:00"
+  },
+  {
+   "id": 473,
+   "title": "Pokémon 30th Celebrations Elite Trainer Box ETB PRESALE Ships 9/18",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 334.33,
+   "first_seen_at": "2026-08-30T20:28:19.436327+00:00",
+   "last_seen_at": "2026-09-02T06:01:20.513+00:00"
+  },
+  {
+   "id": 475,
+   "title": "Pokémon TCG 30th Celebrations ETB - Elite Trainer Box (Preorder 9/16 Release)",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.72,
+   "total_price": 330.13,
+   "first_seen_at": "2026-08-30T20:28:19.592035+00:00",
+   "last_seen_at": "2026-08-30T20:30:30.74+00:00"
+  },
+  {
+   "id": 476,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB *PRESALE*",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 329.23,
+   "first_seen_at": "2026-08-30T20:28:19.795352+00:00",
+   "last_seen_at": "2026-09-01T06:01:26.066+00:00"
+  },
+  {
+   "id": 477,
+   "title": "[PRESALE] Pokémon TCG 30th Anniversary Celebrations ETB  Elite Trainer Box NEW",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 335.95,
+   "first_seen_at": "2026-08-30T20:28:19.955169+00:00",
+   "last_seen_at": "2026-09-04T06:01:26.214+00:00"
+  },
+  {
+   "id": 478,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB CONFIRMED Pre-sale",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 340.46,
+   "first_seen_at": "2026-08-30T20:28:20.13979+00:00",
+   "last_seen_at": "2026-09-04T06:01:26.468+00:00"
+  },
+  {
+   "id": 479,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB ✅ Pre-Sale ✅ Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 349,
+   "first_seen_at": "2026-08-30T20:28:20.319962+00:00",
+   "last_seen_at": "2026-09-04T06:01:26.739+00:00"
+  },
+  {
+   "id": 481,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB ✅ Pre-Sale ✅ Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 353.68,
+   "first_seen_at": "2026-08-30T20:28:20.492156+00:00",
+   "last_seen_at": "2026-09-03T06:01:39.31+00:00"
+  },
+  {
+   "id": 482,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB SHIPS 9/16 PRESALE",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 361.73,
+   "first_seen_at": "2026-08-30T20:28:20.707136+00:00",
+   "last_seen_at": "2026-09-03T06:01:39.576+00:00"
+  },
+  {
+   "id": 1061,
+   "title": "🇬🇧Pokémon 30th Celebrations Elite Trainer Box ETB ENG Vorbestellung bestätigt ✅️",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 215,
+   "first_seen_at": "2026-09-01T06:01:13.085642+00:00",
+   "last_seen_at": "2026-09-04T06:01:11.159+00:00"
+  },
+  {
+   "id": 1075,
+   "title": "Greninja - Gold Star (Celebrations Elite Trainer Box) Holo #SWSH144",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 118.65,
+   "first_seen_at": "2026-09-01T06:01:13.520771+00:00",
+   "last_seen_at": "2026-09-02T06:01:08.746+00:00"
+  },
+  {
+   "id": 1100,
+   "title": "Pokémon TCG: 30th Anniversary Celebrations Elite Trainer Box (ETB) - PRESALE",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 173.01999999999998,
+   "first_seen_at": "2026-09-01T06:01:14.136636+00:00",
+   "last_seen_at": "2026-09-04T06:01:11.679+00:00"
+  },
+  {
+   "id": 1105,
+   "title": "🇬🇧Pokémon 30th Celebrations Elite Trainer Box ETB ✅️ ENG Preorder ✅️",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 239.89,
+   "first_seen_at": "2026-09-01T06:01:14.252833+00:00",
+   "last_seen_at": "2026-09-04T06:01:12.417+00:00"
+  },
+  {
+   "id": 1117,
+   "title": "🇬🇧Pokémon 30th Celebrations Elite Trainer Box ETB ENG Preorder confirmed ✅️",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 223.7,
+   "first_seen_at": "2026-09-01T06:01:14.642651+00:00",
+   "last_seen_at": "2026-09-04T06:01:11.804+00:00"
+  },
+  {
+   "id": 1119,
+   "title": "Pokémon TCG Celebrations Elite Trainer Box Wave 2 30th  PreSALE SHIPS 10/12/2026",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 225.44,
+   "first_seen_at": "2026-09-01T06:01:14.706788+00:00",
+   "last_seen_at": "2026-09-01T06:01:14.423+00:00"
+  },
+  {
+   "id": 1120,
+   "title": "🇬🇧Pokémon 30th Celebrations Elite Trainer Box ETB ENG Preorder confirmed ✅️",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 184.81,
+   "first_seen_at": "2026-09-01T06:01:14.795775+00:00",
+   "last_seen_at": "2026-09-04T06:01:12.333+00:00"
+  },
+  {
+   "id": 1127,
+   "title": "Pokémon TCG Celebrations Elite Trainer Box Wave 2 30th  PreSALE SHIPS 10/12/2026",
+   "is_active": false,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 145,
+   "first_seen_at": "2026-09-01T06:01:14.932928+00:00",
+   "last_seen_at": "2026-09-01T06:01:14.54+00:00"
+  },
+  {
+   "id": 1139,
+   "title": "Pokémon TCG: 25th Anniversary Celebrations Elite Trainer Box (2021)",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 256.59000000000003,
+   "first_seen_at": "2026-09-01T06:01:15.573788+00:00",
+   "last_seen_at": "2026-09-01T06:01:15.376+00:00"
+  },
+  {
+   "id": 1143,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 232.84,
+   "first_seen_at": "2026-09-01T06:01:15.660164+00:00",
+   "last_seen_at": "2026-09-04T06:01:14.639+00:00"
+  },
+  {
+   "id": 1148,
+   "title": "Pokémon TCG: 25th Anniversary Celebrations Elite Trainer Box (2021)",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 258.06,
+   "first_seen_at": "2026-09-01T06:01:15.875534+00:00",
+   "last_seen_at": "2026-09-02T06:01:11.315+00:00"
+  },
+  {
+   "id": 1151,
+   "title": "1x Pokémon TCG 30th Anniversary Celebrations ETB  Elite Trainer Box PRESALE",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 233.5,
+   "first_seen_at": "2026-09-01T06:01:15.9311+00:00",
+   "last_seen_at": "2026-09-01T06:01:15.798+00:00"
+  },
+  {
+   "id": 1152,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box  (Release 9/16)",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 155.99,
+   "first_seen_at": "2026-09-01T06:01:15.954517+00:00",
+   "last_seen_at": "2026-09-04T06:01:14.304+00:00"
+  },
+  {
+   "id": 1167,
+   "title": "Pokémon TCG: 25th Anniversary Celebrations Elite Trainer Box (2021)",
+   "is_active": false,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 162.59,
+   "first_seen_at": "2026-09-01T06:01:16.631944+00:00",
+   "last_seen_at": "2026-09-01T06:01:16.52+00:00"
+  },
+  {
+   "id": 1172,
+   "title": "Pokémon TCG: 25th Anniversary Celebrations Elite Trainer Box (2021)",
+   "is_active": false,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 162.59,
+   "first_seen_at": "2026-09-01T06:01:16.961721+00:00",
+   "last_seen_at": "2026-09-02T06:01:11.337+00:00"
+  },
+  {
+   "id": 1187,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB ✅️ Presale ✅️ Elite Trainer Box",
+   "is_active": false,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 192.91,
+   "first_seen_at": "2026-09-01T06:01:17.852841+00:00",
+   "last_seen_at": "2026-09-02T06:01:12.453+00:00"
+  },
+  {
+   "id": 1191,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ✅ CONFIRMED PRESALE ✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 239.99,
+   "first_seen_at": "2026-09-01T06:01:18.051358+00:00",
+   "last_seen_at": "2026-09-04T06:01:17.343+00:00"
+  },
+  {
+   "id": 1196,
+   "title": "PRESALE - Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 249,
+   "first_seen_at": "2026-09-01T06:01:18.304362+00:00",
+   "last_seen_at": "2026-09-01T06:01:18.173+00:00"
+  },
+  {
+   "id": 1210,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 250,
+   "first_seen_at": "2026-09-01T06:01:18.875448+00:00",
+   "last_seen_at": "2026-09-04T06:01:19.075+00:00"
+  },
+  {
+   "id": 1233,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB ✅️ Presale ✅️ Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 268.06,
+   "first_seen_at": "2026-09-01T06:01:19.851146+00:00",
+   "last_seen_at": "2026-09-02T06:01:15.563+00:00"
+  },
+  {
+   "id": 1234,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box ",
+   "is_active": false,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 200.06,
+   "first_seen_at": "2026-09-01T06:01:20.087984+00:00",
+   "last_seen_at": "2026-09-02T06:01:15.159+00:00"
+  },
+  {
+   "id": 1238,
+   "title": "✅Pokémon Trading Card Game 30th Celebrations Elite Trainer Box ✅ Ships 16th Sep✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 255,
+   "first_seen_at": "2026-09-01T06:01:20.191378+00:00",
+   "last_seen_at": "2026-09-01T06:01:19.601+00:00"
+  },
+  {
+   "id": 1243,
+   "title": "Pokémon TCG Celebrations Elite Trainer Box Wave 2 30th  PreSALE SHIPS 10/12/2026",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 264.41,
+   "first_seen_at": "2026-09-01T06:01:20.542422+00:00",
+   "last_seen_at": "2026-09-01T06:01:20.333+00:00"
+  },
+  {
+   "id": 1246,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box ✅️ FREE SHIPPING",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 265,
+   "first_seen_at": "2026-09-01T06:01:20.839339+00:00",
+   "last_seen_at": "2026-09-04T06:01:20.717+00:00"
+  },
+  {
+   "id": 1247,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB ✅️ Presale ✅️ Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 269.99,
+   "first_seen_at": "2026-09-01T06:01:21.095257+00:00",
+   "last_seen_at": "2026-09-02T06:01:15.454+00:00"
+  },
+  {
+   "id": 1248,
+   "title": "PRESALE Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 304.52,
+   "first_seen_at": "2026-09-01T06:01:21.112803+00:00",
+   "last_seen_at": "2026-09-03T06:01:32.838+00:00"
+  },
+  {
+   "id": 1251,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB CONFIRMED PREORDER",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 318.35,
+   "first_seen_at": "2026-09-01T06:01:21.39204+00:00",
+   "last_seen_at": "2026-09-03T06:01:33.078+00:00"
+  },
+  {
+   "id": 1256,
+   "title": "Pokémon TCG: 30th Anniversary Celebrations Elite Trainer Box (ETB) - PRESALE",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 264.95,
+   "first_seen_at": "2026-09-01T06:01:22.115255+00:00",
+   "last_seen_at": "2026-09-04T06:01:20.098+00:00"
+  },
+  {
+   "id": 1257,
+   "title": "🇬🇧Pokémon 30th Celebrations Elite Trainer Box ETB ENG Preorder confirmed ✅️",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 249.96,
+   "first_seen_at": "2026-09-01T06:01:22.260546+00:00",
+   "last_seen_at": "2026-09-04T06:01:17.789+00:00"
+  },
+  {
+   "id": 1259,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB ✅ Pre-Sale ✅ Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 223.03,
+   "first_seen_at": "2026-09-01T06:01:22.51755+00:00",
+   "last_seen_at": "2026-09-04T06:01:19.794+00:00"
+  },
+  {
+   "id": 1261,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 302.8,
+   "first_seen_at": "2026-09-01T06:01:22.855055+00:00",
+   "last_seen_at": "2026-09-04T06:01:22.998+00:00"
+  },
+  {
+   "id": 1262,
+   "title": "Pokémon TCG: 25th Anniversary Celebrations Elite Trainer Box (2021)",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 275.45,
+   "first_seen_at": "2026-09-01T06:01:23.122458+00:00",
+   "last_seen_at": "2026-09-01T06:01:22.999+00:00"
+  },
+  {
+   "id": 1263,
+   "title": "Pokémon TCG: 25th Anniversary Celebrations Elite Trainer Box (2021)",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 279.16,
+   "first_seen_at": "2026-09-01T06:01:23.374953+00:00",
+   "last_seen_at": "2026-09-02T06:01:17.343+00:00"
+  },
+  {
+   "id": 1282,
+   "title": "PRESALE Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB PRESALE 9/16",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 366.02000000000004,
+   "first_seen_at": "2026-09-01T06:01:28.257337+00:00",
+   "last_seen_at": "2026-09-01T06:01:28.139+00:00"
+  },
+  {
+   "id": 1364,
+   "title": "Pokemon Center 25th Celebrations Elite Trainer Box (custodia sigillata di 4 ETB)",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 142.01999999999998,
+   "first_seen_at": "2026-09-02T06:01:09.444298+00:00",
+   "last_seen_at": "2026-09-02T06:01:09.244+00:00"
+  },
+  {
+   "id": 1371,
+   "title": "Pokemon Center 25th Celebrations Elite Trainer Box (Sealed Case of 4 ETBs)",
+   "is_active": false,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 103.83,
+   "first_seen_at": "2026-09-02T06:01:09.566243+00:00",
+   "last_seen_at": "2026-09-02T06:01:09.346+00:00"
+  },
+  {
+   "id": 1379,
+   "title": "Pokemon Center 25th Celebrations Elite Trainer Box (Sealed Case of 4 ETBs)",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 181.51,
+   "first_seen_at": "2026-09-02T06:01:09.801757+00:00",
+   "last_seen_at": "2026-09-02T06:01:09.591+00:00"
+  },
+  {
+   "id": 1386,
+   "title": "Pokémon Center Elite Trainer Box 30th Celebrations - READ DESCRIPTION ",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 170.8,
+   "first_seen_at": "2026-09-02T06:01:09.945073+00:00",
+   "last_seen_at": "2026-09-02T06:01:09.744+00:00"
+  },
+  {
+   "id": 1428,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box CONFIRMED PRESALE 09/19",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 159.99,
+   "first_seen_at": "2026-09-02T06:01:11.19853+00:00",
+   "last_seen_at": "2026-09-03T06:01:27.039+00:00"
+  },
+  {
+   "id": 1430,
+   "title": "Pokémon TCG: 25th Anniversary Celebrations Elite Trainer Box (2021) ETB Sealed",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 201.41,
+   "first_seen_at": "2026-09-02T06:01:11.250118+00:00",
+   "last_seen_at": "2026-09-02T06:01:11.139+00:00"
+  },
+  {
+   "id": 1450,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box CONFIRMED PRESALE 09/19",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 258.28000000000003,
+   "first_seen_at": "2026-09-02T06:01:11.877393+00:00",
+   "last_seen_at": "2026-09-03T06:01:26.902+00:00"
+  },
+  {
+   "id": 1453,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 235,
+   "first_seen_at": "2026-09-02T06:01:11.938773+00:00",
+   "last_seen_at": "2026-09-02T06:01:11.781+00:00"
+  },
+  {
+   "id": 1493,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 223.31,
+   "first_seen_at": "2026-09-02T06:01:13.00524+00:00",
+   "last_seen_at": "2026-09-04T06:01:14.676+00:00"
+  },
+  {
+   "id": 1513,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 239,
+   "first_seen_at": "2026-09-02T06:01:13.591945+00:00",
+   "last_seen_at": "2026-09-04T06:01:16.505+00:00"
+  },
+  {
+   "id": 1542,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB CONFIRMED Pre-sale",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 262.09,
+   "first_seen_at": "2026-09-02T06:01:14.604373+00:00",
+   "last_seen_at": "2026-09-04T06:01:16.477+00:00"
+  },
+  {
+   "id": 1545,
+   "title": "Pokemon Center 25th Celebrations Elite Trainer Box (Sealed Case of 4 ETBs)",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 235,
+   "first_seen_at": "2026-09-02T06:01:14.696389+00:00",
+   "last_seen_at": "2026-09-02T06:01:14.552+00:00"
+  },
+  {
+   "id": 1564,
+   "title": "Pokémon TCG Celebrations Elite Trainer Box ETB – Factory Sealed",
+   "is_active": false,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 275,
+   "first_seen_at": "2026-09-02T06:01:16.013337+00:00",
+   "last_seen_at": "2026-09-02T06:01:15.399+00:00"
+  },
+  {
+   "id": 1581,
+   "title": "🇬🇧Pokémon 30th Celebrations Elite Trainer Box ETB ENG Preorder confirmed ✅️",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 344.8,
+   "first_seen_at": "2026-09-02T06:01:16.647572+00:00",
+   "last_seen_at": "2026-09-04T06:01:19.365+00:00"
+  },
+  {
+   "id": 1612,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box CONFIRMED PRESALE SEPT",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 325.29,
+   "first_seen_at": "2026-09-02T06:01:18.115224+00:00",
+   "last_seen_at": "2026-09-03T06:01:33.332+00:00"
+  },
+  {
+   "id": 1639,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box CONFIRMED PRESALE 09/19",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 322.49,
+   "first_seen_at": "2026-09-02T06:01:19.233241+00:00",
+   "last_seen_at": "2026-09-03T06:01:37.337+00:00"
+  },
+  {
+   "id": 1680,
+   "title": "Pokemon TCG 30th Anniversary Celebrations - Elite Trainer Box [ETB] ✅PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.32,
+   "total_price": 370,
+   "first_seen_at": "2026-09-02T06:01:22.690939+00:00",
+   "last_seen_at": "2026-09-02T06:01:22.551+00:00"
+  },
+  {
+   "id": 1745,
+   "title": "Greninja - Gold Star (Celebrations Elite Trainer Box) Holo #SWSH144",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 97.24,
+   "first_seen_at": "2026-09-03T06:01:25.198214+00:00",
+   "last_seen_at": "2026-09-04T06:01:11.163+00:00"
+  },
+  {
+   "id": 1755,
+   "title": "Greninja - Gold Star (Celebrations Elite Trainer Box) Holo #SWSH144",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 151.21,
+   "first_seen_at": "2026-09-03T06:01:25.509203+00:00",
+   "last_seen_at": "2026-09-04T06:01:11.523+00:00"
+  },
+  {
+   "id": 1756,
+   "title": "Greninja - Gold Star (Celebrations Elite Trainer Box) Holo #SWSH144",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 118.32000000000001,
+   "first_seen_at": "2026-09-03T06:01:25.522336+00:00",
+   "last_seen_at": "2026-09-04T06:01:11.215+00:00"
+  },
+  {
+   "id": 1828,
+   "title": "Greninja - Gold Star (Celebrations Elite Trainer Box) Holo #SWSH144",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 172.54999999999998,
+   "first_seen_at": "2026-09-03T06:01:27.533822+00:00",
+   "last_seen_at": "2026-09-04T06:01:14.336+00:00"
+  },
+  {
+   "id": 1847,
+   "title": "PRESALE - Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 233,
+   "first_seen_at": "2026-09-03T06:01:28.156531+00:00",
+   "last_seen_at": "2026-09-04T06:01:15.12+00:00"
+  },
+  {
+   "id": 1852,
+   "title": "PRESALE 23/9/26 Pokemon TCG: 30th Celebrations Elite Trainer Box ETB EXPRESS",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 234.99,
+   "first_seen_at": "2026-09-03T06:01:28.447086+00:00",
+   "last_seen_at": "2026-09-04T06:01:15.378+00:00"
+  },
+  {
+   "id": 1859,
+   "title": "PRESALE - Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 235,
+   "first_seen_at": "2026-09-03T06:01:28.701926+00:00",
+   "last_seen_at": "2026-09-03T06:01:28.582+00:00"
+  },
+  {
+   "id": 1868,
+   "title": "Pokemon TCG: 30th Celebrations Elite Trainer Box ETB - Presale - Express Ship!",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 239,
+   "first_seen_at": "2026-09-03T06:01:28.988783+00:00",
+   "last_seen_at": "2026-09-04T06:01:16.825+00:00"
+  },
+  {
+   "id": 1876,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 239,
+   "first_seen_at": "2026-09-03T06:01:29.25499+00:00",
+   "last_seen_at": "2026-09-03T06:01:29.122+00:00"
+  },
+  {
+   "id": 1886,
+   "title": "Pokémon 30th Celebrations Elite Trainer Box English 2026 Acrylic Case",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 190.83,
+   "first_seen_at": "2026-09-03T06:01:29.648998+00:00",
+   "last_seen_at": "2026-09-04T06:01:16.824+00:00"
+  },
+  {
+   "id": 1891,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box ✅CONFIRM PRESALE",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 239.99,
+   "first_seen_at": "2026-09-03T06:01:29.84579+00:00",
+   "last_seen_at": "2026-09-03T06:01:29.679+00:00"
+  },
+  {
+   "id": 1892,
+   "title": "Pokémon 30th Celebrations Elite Trainer Box English 2026 Acrylic Case",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 190.83,
+   "first_seen_at": "2026-09-03T06:01:29.946694+00:00",
+   "last_seen_at": "2026-09-04T06:01:17.153+00:00"
+  },
+  {
+   "id": 1949,
+   "title": "PRESALE - Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 250,
+   "first_seen_at": "2026-09-03T06:01:31.744967+00:00",
+   "last_seen_at": "2026-09-03T06:01:31.547+00:00"
+  },
+  {
+   "id": 1957,
+   "title": "Pokémon 30th Celebrations Elite Trainer Box English 2026 Acrylic Case",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 263.23,
+   "first_seen_at": "2026-09-03T06:01:32.199488+00:00",
+   "last_seen_at": "2026-09-04T06:01:18.46+00:00"
+  },
+  {
+   "id": 1959,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB CONFIRMED PRESALE",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 299.99,
+   "first_seen_at": "2026-09-03T06:01:32.249029+00:00",
+   "last_seen_at": "2026-09-04T06:01:19.497+00:00"
+  },
+  {
+   "id": 1962,
+   "title": "Pokémon 30th Celebrations Elite Trainer Box English 2026 Acrylic Case",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 263.23,
+   "first_seen_at": "2026-09-03T06:01:32.439246+00:00",
+   "last_seen_at": "2026-09-04T06:01:18.713+00:00"
+  },
+  {
+   "id": 1980,
+   "title": "Pokémon 30th Celebrations Elite Trainer Box English 2026 Acrylic Case",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 281.6,
+   "first_seen_at": "2026-09-03T06:01:33.622441+00:00",
+   "last_seen_at": "2026-09-04T06:01:21.711+00:00"
+  },
+  {
+   "id": 1983,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB  PRESALE SHIPS 9/16",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 318.3,
+   "first_seen_at": "2026-09-03T06:01:33.795075+00:00",
+   "last_seen_at": "2026-09-03T06:01:33.656+00:00"
+  },
+  {
+   "id": 1987,
+   "title": "Pokémon 30th Celebrations Elite Trainer Box English 2026 Acrylic Case",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 281.6,
+   "first_seen_at": "2026-09-03T06:01:33.869155+00:00",
+   "last_seen_at": "2026-09-04T06:01:21.997+00:00"
+  },
+  {
+   "id": 2142,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB *PRESALE* SHIPS 9/16",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 155,
+   "first_seen_at": "2026-09-04T06:01:14.130783+00:00",
+   "last_seen_at": "2026-09-04T06:01:13.313+00:00"
+  },
+  {
+   "id": 2143,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB *PRESALE* SHIPS 9/16",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 250.21,
+   "first_seen_at": "2026-09-04T06:01:14.155571+00:00",
+   "last_seen_at": "2026-09-04T06:01:13.264+00:00"
+  },
+  {
+   "id": 2144,
+   "title": "Pokemon Center Celebrations 25th Elite Trainer Box ETB NO PACKS No Promo 2x",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 168.66,
+   "first_seen_at": "2026-09-04T06:01:14.179755+00:00",
+   "last_seen_at": "2026-09-04T06:01:13.431+00:00"
+  },
+  {
+   "id": 2190,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box CONFIRM PRESALE✅",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 235,
+   "first_seen_at": "2026-09-04T06:01:15.89093+00:00",
+   "last_seen_at": "2026-09-04T06:01:15.678+00:00"
+  },
+  {
+   "id": 2221,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB ✅P R E S A L E✅ Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 239,
+   "first_seen_at": "2026-09-04T06:01:17.206813+00:00",
+   "last_seen_at": "2026-09-04T06:01:17.094+00:00"
+  },
+  {
+   "id": 2233,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB ✅P R E S A L E✅ Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 247.57999999999998,
+   "first_seen_at": "2026-09-04T06:01:17.658158+00:00",
+   "last_seen_at": "2026-09-04T06:01:17.448+00:00"
+  },
+  {
+   "id": 2276,
+   "title": "Pokémon TCG 30th Anniversary Celebrations ETB ✅P R E S A L E✅ Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 341.51,
+   "first_seen_at": "2026-09-04T06:01:19.226837+00:00",
+   "last_seen_at": "2026-09-04T06:01:19.058+00:00"
+  },
+  {
+   "id": 2283,
+   "title": "PRESALE - Pokémon TCG 30th Anniversary Celebrations ETB Elite Trainer Box",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 250,
+   "first_seen_at": "2026-09-04T06:01:19.640773+00:00",
+   "last_seen_at": "2026-09-04T06:01:19.369+00:00"
+  },
+  {
+   "id": 2327,
+   "title": "Pokémon 30th Anniversary Celebrations Elite Trainer Box ETB *PRESALE* SHIPS 9/16",
+   "is_active": true,
+   "sealed_watchlist_id": 76,
+   "market_price": 353.12,
+   "total_price": 313.16,
+   "first_seen_at": "2026-09-04T06:01:23.525779+00:00",
+   "last_seen_at": "2026-09-04T06:01:23.265+00:00"
+  }
+ ]
+}
