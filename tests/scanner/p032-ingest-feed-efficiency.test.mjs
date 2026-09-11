@@ -179,8 +179,10 @@ test("12. a genuinely-new, never-verified candidate is queued for verification (
 
 test("12b. the route still runs the full verify+match+upsert pipeline for queued items", () => {
   const ingest = read("app/api/ingest-feed/route.js");
-  // the pipeline the queued candidates flow through is unchanged
-  for (const gate of ["qualifiesAsTradingCard(listing)", "isTrustworthyListing(listing)", "matchCatalog(listing, catalogIndex)", "languageCompatible(listingLang, match.language)", "db.from(\"deals\").upsert("]) {
+  // the pipeline the queued candidates flow through is unchanged (the final
+  // write is now the guarded sighting write - sold-item freshness - which
+  // performs the same column write but never reactivates a retired row)
+  for (const gate of ["qualifiesAsTradingCard(listing)", "isTrustworthyListing(listing)", "matchCatalog(listing, catalogIndex)", "languageCompatible(listingLang, match.language)", "writeDiscoverySighting("]) {
     assert.ok(ingest.includes(gate), `pipeline gate missing: ${gate}`);
   }
   assert.match(ingest, /partitionCandidates\(/);

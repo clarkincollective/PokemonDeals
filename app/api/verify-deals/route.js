@@ -1,3 +1,4 @@
+import { revalidateTag } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getListingSnapshot, getBrowseRateLimit } from "@/lib/ebay";
 import { isDisplayableDeal } from "@/lib/dealQuality";
@@ -7,6 +8,7 @@ import { allocateVerifyBatch } from "@/lib/verifyAllocator";
 import { decideImageRecovery } from "@/lib/imageRecoveryPolicy";
 import { IMAGE_VERDICT } from "@/lib/listingImage";
 import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError, recordDedupeSavedImage } from "@/lib/ebayTelemetry";
+import { availabilityRetirementReason, retirementInvalidationPlan, expireTags } from "@/lib/listingAvailability";
 
 // BOUNDED, RESERVE-GUARDED exact-listing re-verification. One Browse call
 // per row, hard-capped at BATCH per run, and it runs ONLY when the daily
@@ -52,10 +54,18 @@ import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError, re
 // was always 100% auctions - production showed 0 BIN rows verified in 24h
 // while 20 auctions sat at <=1h. See docs/verify-allocation-p043.md.
 //
-// Outcomes:
-//   ENDED / SOLD -> is_active=false, exact_verified_at=now (retired; row
-//                   kept for history; the check-time is recorded too, for
-//                   observability, even though is_active already hides it)
+// Outcomes (provider verdict mapping: lib/listingAvailability):
+//   SOLD         -> eBay says the item is sold out (item-level quantity).
+//                   is_active=false, exact_verified_at=now (the check
+//                   time, for observability), disqualified_reason=
+//                   'availability:sold'.
+//   ENDED        -> 404/410 for this item IN THIS ROW'S MARKETPLACE. Same
+//                   write, reason 'availability:not_found_in_marketplace'.
+//                   Written to this row only - never to the same item's
+//                   rows in other marketplaces.
+//   The availability reason is what stops a later search / feed sighting
+//   reactivating the row (lib/listingAvailability.writeDiscoverySighting)
+//   and keeps it hidden (any disqualified_reason fails isDisplayableDeal).
 //   RETIRED      -> (auction only) live re-price put the recomputed
 //                   discount below the publish floor - is_active=false,
 //                   with the truthful numbers written to the dead row
@@ -80,7 +90,7 @@ const PAGE = 1000;
 const H = 60 * 60 * 1000;
 
 const COLS =
-  "id, listing_id, marketplace, market_price, discount_pct, first_seen_at, last_seen_at, is_active, is_graded, " +
+  "id, watchlist_id, listing_id, marketplace, market_price, discount_pct, first_seen_at, last_seen_at, is_active, is_graded, " +
   "condition, card_language, disqualified_reason, visual_authenticity_status, visual_authenticity_reason, " +
   "auction_end_at, listing_type, listing_url, affiliate_url, card_name, card_set, title, card_tcgplayer_id, image_url";
 
@@ -163,6 +173,10 @@ export async function GET(request) {
   const out = { ACTIVE: 0, ENDED: 0, SOLD: 0, UNKNOWN: 0, RETIRED: 0, REPRICED: 0, IMAGE_RECOVERED: 0 };
   let calls = 0;
   const detail = [];
+  // Rows this run took off the site (any retirement verdict) - their card
+  // offers, card page and deal page caches are expired once, after the
+  // loop, deduplicated by card.
+  const retiredRows = [];
   for (const r of batch) {
     const checkedAt = new Date().toISOString();
     // Extra fields folded into the ACTIVE / retire patch: for an auction
@@ -174,6 +188,7 @@ export async function GET(request) {
     let auctionActiveExtra = {};
     let auctionRetireExtra = {};
     let status;
+    let evidence = null;
 
     if (isAuctionRow(r)) {
       // ONE get_item_by_legacy_id call: freshness status AND the live bid /
@@ -183,6 +198,7 @@ export async function GET(request) {
       // an inconclusive read -> untouched (same as UNKNOWN).
       const snap = await getListingSnapshot(legacyOf(r.listing_id), r.marketplace);
       calls += snap.calls ?? 1;
+      evidence = snap.evidence ?? null;
       const decision = repricedAuctionPatch({ row: r, snapshot: snap, rates, nowIso: checkedAt });
       if (decision.action === "retire") {
         status =
@@ -241,6 +257,7 @@ export async function GET(request) {
       // auction-only), so `status` below means exactly what it always did.
       const snap = await getListingSnapshot(legacyOf(r.listing_id), r.marketplace);
       calls += snap.calls ?? 1;
+      evidence = snap.evidence ?? null;
       status = snap.status;
       if (status === "ACTIVE") {
         const decided = decideImageRecovery({ row: r, snapStatus: snap.status, snapPrimaryImage: snap.primaryImage, snapImageUrls: snap.imageUrls });
@@ -256,13 +273,19 @@ export async function GET(request) {
     }
 
     out[status] = (out[status] ?? 0) + 1;
-    detail.push({ id: r.id, status, type: r.listing_type });
+    detail.push({ id: r.id, status, type: r.listing_type, evidence });
 
     if (status === "ENDED" || status === "SOLD" || status === "RETIRED") {
+      // RETIRED (auction re-priced below the floor) is a price outcome on
+      // a live listing: no availability reason, so a genuine later
+      // sighting can still re-publish it at its real price.
+      const reason = availabilityRetirementReason(status);
       const patch = exactColReady
         ? { ...auctionRetireExtra, is_active: false, exact_verified_at: checkedAt }
         : { is_active: false };
-      await db.from("deals").update(patch).eq("id", r.id);
+      if (reason) patch.disqualified_reason = reason;
+      const { error: retireError } = await db.from("deals").update(patch).eq("id", r.id);
+      if (!retireError) retiredRows.push(r);
     } else if (status === "ACTIVE") {
       const patch = exactColReady
         ? { ...auctionActiveExtra, last_seen_at: checkedAt, exact_verified_at: checkedAt }
@@ -272,6 +295,12 @@ export async function GET(request) {
     // UNKNOWN: untouched - never retire, never stamp exact_verified_at, on
     // an inconclusive call.
   }
+
+  // Targeted invalidation: only the cards whose offers just changed. No
+  // provider call happens here - each expired card page re-renders lazily
+  // on its next request (see lib/listingAvailability for the cost note).
+  const plan = retirementInvalidationPlan(retiredRows);
+  const invalidation = { cards: plan.cards, deals: plan.deals, ...expireTags(revalidateTag, plan.tags) };
 
   const after = await getBrowseRateLimit();
   setQuotaSnapshot({ remainingEnd: after?.remaining ?? null });
@@ -288,6 +317,8 @@ export async function GET(request) {
     // P0.4.3 batch-allocation observability
     allocation,
     detail,
+    // sold-item freshness: targeted cache expiry for this run's retirements
+    invalidation,
   });
   } catch (err) {
     markError(err);

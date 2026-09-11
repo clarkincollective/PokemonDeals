@@ -42,10 +42,22 @@ listings are skipped in v1 (no grader-specific reference price here).
 `getBrowseRateLimit()` with a **high floor (800)** — it only supplements
 when there's real headroom, it is *not* a substitute for a spent quota;
 **≤ 40 new items verified per cycle**; hourly, not 15-min. Feed-only deals
-(`discovery_source = 'external'` AND `watchlist_id IS NULL`) expire on
-**absence from the board** past a 2-day grace; deals also seen by the
+(`discovery_source = 'external'` AND `watchlist_id IS NULL`) expire once
+no **eBay item lookup** has re-seen them for a 2-day grace; deals also seen by the
 scanner (`'scan+external'`) or linked to a watchlist row are reconciled by
-the scanner's own per-card expiry. Real cost ≈ **240–720 Browse calls/day**
+the scanner's own per-card expiry. Board presence alone is a discovery hint
+and never refreshes `last_seen_at` (sold-item freshness, 2026-09-11 - it
+used to bump every still-active row the board named).
+
+**Sold-item freshness (2026-09-11).** `verify-deals` persists a confirmed
+availability retirement in `disqualified_reason` (`availability:sold` for an
+HTTP 200 sold-out item, `availability:not_found_in_marketplace` for a 404/410
+in that row's marketplace; never propagated to other marketplaces). Every
+discovery write (`refresh-deals` scan + sweep, `ingest-feed`) goes through
+`lib/listingAvailability.writeDiscoverySighting`, which cannot reactivate or
+refresh such a row. A retirement expires the card's offers cache, its
+`/cards/[slug]` page and the deal page by tag, deduplicated per card. Full
+verdict mapping: `lib/listingAvailability.js`. Real cost ≈ **240–720 Browse calls/day**
 (hard cap ~960). Schema: `supabase/deals_feed_discovery_migration.sql`
 (nullable `watchlist_id`, `card_catalog_id` FK, `discovery_source`,
 resolved `card_*` columns + triggers).

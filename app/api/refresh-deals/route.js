@@ -10,6 +10,7 @@ import {
 import { getConditionPrices, getGradedPrice } from "@/lib/pokemonPriceTracker";
 import { getUsdRates, toUsd } from "@/lib/fx";
 import { logDiscoveryEvent } from "@/lib/discoveryLog";
+import { writeDiscoverySighting } from "@/lib/listingAvailability";
 import {
   SANITY_FLOOR_PCT,
   coreTokens,
@@ -374,6 +375,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
   const cheapestGraded = listings.find((l) => l.isGraded) ?? null;
 
   let dealsFound = 0;
+  let blockedRetired = 0; // sightings of verifier-retired rows, not re-published
 
   // STAGE 5 (reference-price sanity). If this card has a healthy supply of
   // genuine, matched, trustworthy raw listings and EVERY ONE of them sits
@@ -407,12 +409,14 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     );
   }
 
+  // A search result is a discovery sighting, not an availability check:
+  // writeDiscoverySighting never reactivates (or refreshes) a row the
+  // verifier retired as sold / not found (lib/listingAvailability).
   const tryUpsert = async (row_) => {
     const { image_urls, ...core } = row_;
-    const { error } = await db
-      .from("deals")
-      .upsert(core, { onConflict: "source,marketplace,listing_id" });
+    const { outcome, error } = await writeDiscoverySighting(db, core);
     if (error) console.error(`Failed to upsert deal ${core.listing_id}:`, error.message);
+    else if (outcome === "blocked") blockedRetired++;
     else {
       dealsFound++;
       // Best-effort discovery-analytics event (Phase 2). Never awaited on
@@ -622,7 +626,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
   // signals to update scan_target_state; other callers just read
   // `.dealsFound`. `uniqueListings` = distinct listings this search
   // returned (turnover signal).
-  return { dealsFound, uniqueListings: listings.length };
+  return { dealsFound, uniqueListings: listings.length, blockedRetired };
 }
 
 // Inverted index: token -> watchlist rows containing it. Lets sweep mode
@@ -721,6 +725,7 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
   }
 
   let dealsFound = 0;
+  let blockedRetired = 0; // sightings of verifier-retired rows, not re-published
   let matched = 0;
   let gradedLookups = 0;
   // Bounds worst-case extra eBay getItem + PokemonPriceTracker calls if an
@@ -735,10 +740,12 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
   const rawCondCache = new Map();
   const errors = [];
 
+  // Same guarded sighting write as the per-card scan (see tryUpsert there).
   const tryUpsert = async (row_, cardId) => {
     const { image_urls, ...core } = row_;
-    const { error } = await db.from("deals").upsert(core, { onConflict: "source,marketplace,listing_id" });
+    const { outcome, error } = await writeDiscoverySighting(db, core);
     if (error) console.error(`Failed to upsert deal ${core.listing_id}:`, error.message);
+    else if (outcome === "blocked") blockedRetired++;
     else {
       dealsFound++;
       logDiscoveryEvent(db, {
@@ -850,6 +857,9 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
         highValueVintage: isHighValueVintage({ set: row.set, marketPrice }),
       });
       if (resolved.hold) continue;
+      // eBay's own item record says sold out - same rule as the per-card
+      // scan (the sweep previously ignored this signal and published it).
+      if (resolved.soldOut) continue;
       if (!conditionAllowsPromotion(resolved.condition)) continue;
       if (resolved.condition !== condition) {
         condition = resolved.condition;
@@ -876,7 +886,7 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
     }
   }
 
-  return { swept: listings.length, matched, dealsFound, errors };
+  return { swept: listings.length, matched, dealsFound, blockedRetired, errors };
 }
 
 export async function GET(request) {
@@ -1135,6 +1145,7 @@ export async function GET(request) {
       : null;
 
   let dealsFound = 0;
+  let blockedRetired = 0;
   let scanned = 0;
   const errors = [];
 
@@ -1190,6 +1201,7 @@ export async function GET(request) {
             tier || "manual"
           );
           dealsFound += r.dealsFound;
+          blockedRetired += r.blockedRetired || 0;
           if (typeof onCardScanned === "function") onCardScanned(row, marketplaceId, r);
         } catch (err) {
           errors.push(`${row.name} (${marketplaceId}): ${err.message}`);
@@ -1273,6 +1285,7 @@ export async function GET(request) {
   return Response.json({
     scanned,
     dealsFound,
+    blockedRetired,
     errors,
     rateLimitRemaining,
     scannedAt: new Date().toISOString(),

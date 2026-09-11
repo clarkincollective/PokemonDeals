@@ -1,3 +1,4 @@
+import { revalidateTag } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   MARKETPLACES,
@@ -25,6 +26,13 @@ import {
   languageCompatible,
 } from "@/lib/dealQuality";
 import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError } from "@/lib/ebayTelemetry";
+import {
+  AVAILABILITY_RETIREMENT,
+  isAvailabilityRetired,
+  writeDiscoverySighting,
+  retirementInvalidationPlan,
+  expireTags,
+} from "@/lib/listingAvailability";
 
 // External discovery ingestion.
 //
@@ -55,9 +63,16 @@ const CATALOG_PAGE = 1000;
 
 // The scanner stores listing_id as eBay's RESTful id; for a single-variation
 // listing that's exactly `v1|<legacy>|0` (verified). Constructing it lets us
-// (a) skip the Browse call for an item we verified recently and (b) refresh
-// last_seen_at for a still-listed item without a lookup. A variation-item
-// mismatch just means one wasted lookup - the upsert still dedups correctly.
+// skip the Browse call for an item we already saw recently (or know is
+// retired). A variation-item mismatch just means one wasted lookup - the
+// sighting write still dedups correctly.
+//
+// Sold-item freshness (2026-09-11): the board is a DISCOVERY HINT, never
+// availability evidence. A board sighting alone no longer touches
+// last_seen_at (it used to bump every still-active row it named, which
+// kept third-party-listed rows looking freshly seen on eBay and outside
+// the stale sweep). last_seen_at moves only on a real eBay item lookup
+// below; everything else ages normally and is re-verified or expired.
 const restId = (legacy) => `v1|${legacy}|0`;
 
 export async function GET(request) {
@@ -121,32 +136,27 @@ export async function GET(request) {
 
   // 2a. Existing check: a candidate we already have a `deals` row for.
   //     Fresh row (last_seen inside the window) -> skip the Browse call.
-  //     Any still-listed active row -> bump last_seen_at so the 2-day
-  //     grace window stays honest.
+  //     Row the verifier retired as sold / not found in that marketplace
+  //     -> skip too: no sighting may reactivate it, so a lookup would only
+  //     spend quota. Board presence is NOT written anywhere (see restId).
   const freshDealKeys = new Set();
+  let skippedAvailabilityRetired = 0;
   {
     const restIds = candidateKeys.map((k) => restId(k.split(":").slice(1).join(":")));
-    const stillListed = [];
     for (let i = 0; i < restIds.length; i += 200) {
       const chunk = restIds.slice(i, i + 200);
       const { data: rows } = await db
         .from("deals")
-        .select("listing_id, marketplace, last_seen_at, is_active")
+        .select("listing_id, marketplace, last_seen_at, is_active, disqualified_reason")
         .eq("source", "ebay")
         .in("listing_id", chunk);
       for (const r of rows ?? []) {
         const key = discoveryListingKey(r.marketplace, r.listing_id);
-        if (r.last_seen_at > recentCutoff) freshDealKeys.add(key);
-        if (r.is_active) stillListed.push(r.listing_id);
+        if (isAvailabilityRetired(r)) {
+          if (!freshDealKeys.has(key)) skippedAvailabilityRetired++;
+          freshDealKeys.add(key);
+        } else if (r.last_seen_at > recentCutoff) freshDealKeys.add(key);
       }
-    }
-    for (let i = 0; i < stillListed.length; i += 200) {
-      await db
-        .from("deals")
-        .update({ last_seen_at: new Date().toISOString() })
-        .eq("source", "ebay")
-        .eq("is_active", true)
-        .in("listing_id", stillListed.slice(i, i + 200));
     }
   }
 
@@ -228,6 +238,7 @@ export async function GET(request) {
   let browseCalls = 0;
   let verified = 0;
   const counts = { untrusted: 0, graded: 0, noMatch: 0, noPrice: 0, notDeal: 0, upserted: 0 };
+  const retiredRows = []; // rows retired here on a sold-out item lookup
 
   for (const [marketplace, items] of toVerify) {
     const feedByLegacy = new Map(items.map((it) => [String(it.ebayItemId), it]));
@@ -253,6 +264,27 @@ export async function GET(request) {
           ...extra,
         });
 
+      // The item lookup itself says sold out (OUT_OF_STOCK / 0 remaining -
+      // item-level quantity). Never re-publish it; and if THIS marketplace's
+      // row is still live, retire exactly that row with the same reason the
+      // verifier uses. Other marketplaces' rows are left to their own
+      // verification (no cross-market propagation).
+      if (listing.soldOut === true) {
+        counts.soldOnLookup = (counts.soldOnLookup ?? 0) + 1;
+        const { data: retired, error: retireError } = await db
+          .from("deals")
+          .update({
+            is_active: false,
+            disqualified_reason: AVAILABILITY_RETIREMENT.SOLD,
+            exact_verified_at: new Date().toISOString(),
+          })
+          .match({ source: "ebay", marketplace: listing.marketplace, listing_id: listing.listingId })
+          .eq("is_active", true)
+          .select("id, watchlist_id, card_tcgplayer_id");
+        if (!retireError) retiredRows.push(...(retired ?? []));
+        logFeed(false);
+        continue;
+      }
       if (!qualifiesAsTradingCard(listing) || admitsProxyOrCounterfeit(listing, null)) {
         counts.untrusted++;
         logFeed(false);
@@ -322,7 +354,10 @@ export async function GET(request) {
       }
 
       const watchlistId = watchedId.get(String(match.tcgplayer_id)) ?? null;
-      const { error } = await db.from("deals").upsert(
+      // Guarded sighting write (lib/listingAvailability): never reactivates
+      // a row retired as sold / not found in this marketplace.
+      const { outcome, error } = await writeDiscoverySighting(
+        db,
         {
           watchlist_id: watchlistId,
           card_catalog_id: match.tcgplayer_id,
@@ -357,16 +392,23 @@ export async function GET(request) {
           seller_feedback_pct: listing.sellerFeedbackPct,
           is_active: true,
           last_seen_at: new Date().toISOString(),
-        },
-        { onConflict: "source,marketplace,listing_id" }
+        }
       );
       if (error) counts.upsertError = (counts.upsertError ?? 0) + 1;
-      else {
+      else if (outcome === "blocked") {
+        counts.blockedRetired = (counts.blockedRetired ?? 0) + 1;
+        logFeed(false, { cardTcgplayerId: match.tcgplayer_id, discountPct });
+      } else {
         counts.upserted++;
         logFeed(true, { cardTcgplayerId: match.tcgplayer_id, discountPct });
       }
     }
   }
+
+  // 5b. Expire the caches of any card whose live row was just retired
+  //     above (deduplicated by card; no provider call here).
+  const retirePlan = retirementInvalidationPlan(retiredRows);
+  const invalidation = { cards: retirePlan.cards, deals: retirePlan.deals, ...expireTags(revalidateTag, retirePlan.tags) };
 
   // 6. Expire feed-ONLY deals that have been off the board past the grace
   //    window. Deals also seen by the scanner (discovery_source
@@ -406,6 +448,7 @@ export async function GET(request) {
     skippedRecentlyVerified: part.skippedRecentlyVerified,
     skippedStableReject: part.skippedStableReject,
     skippedPrefilter: part.skippedPrefilter,
+    skippedAvailabilityRetired,
     neverSeenQueued: part.neverSeen.length,
     dueRecheckQueued: part.dueRecheck.length,
     queuedForVerify,
@@ -416,6 +459,9 @@ export async function GET(request) {
     accepted: counts.upserted,
     rejected,
     rejectionBreakdown,
+    soldOnLookup: counts.soldOnLookup ?? 0,
+    blockedRetired: counts.blockedRetired ?? 0,
+    retiredOnLookup: retiredRows.length,
     expiredFeedOnly: expired?.length ?? 0,
     rateLimitRemaining: rl?.remaining ?? null,
     tookMs: Date.now() - startedAt,
@@ -429,6 +475,7 @@ export async function GET(request) {
     skippedRecentlyVerified: part.skippedRecentlyVerified,
     skippedStableReject: part.skippedStableReject,
     skippedPrefilter: part.skippedPrefilter,
+    skippedAvailabilityRetired,
     alreadyFresh: seenListingIds.size, // legacy field name
     newDiscovered: newCount,
     neverSeenQueued: part.neverSeen.length,
@@ -440,6 +487,8 @@ export async function GET(request) {
     browseCalls,
     ...counts,
     rejected,
+    retiredOnLookup: retiredRows.length,
+    invalidation,
     expiredFeedOnly: expired?.length ?? 0,
     rateLimitRemaining: rl?.remaining ?? null,
     tookMs: Date.now() - startedAt,

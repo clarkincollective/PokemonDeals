@@ -5,7 +5,8 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { findCardHubByWatchlistId, resolveSpeciesByName, resolveCatalogCard, fetchSetSlugs, fetchRelatedActiveDeals, cardColsReady, withCard } from "@/lib/deals";
 import { dealPageTitle, dealCatalogSlugCandidate, expiredDealDestination } from "@/lib/dealPage";
-import { timeAgo } from "@/lib/time";
+import { listingAvailabilityEvidence, dealDetailTag } from "@/lib/listingAvailability";
+import RelativeTime from "@/components/RelativeTime";
 import { shouldIndexDeal } from "@/lib/indexability";
 import { conditionLabel, isDisplayableDeal } from "@/lib/dealQuality";
 import { normalizePublicText } from "@/lib/publicText";
@@ -101,7 +102,12 @@ const loadDealUncached = async (id) => {
 // is what keeps a sold/expired deal from continuing to render as live and
 // buyable, so it shouldn't sit stale as long as data that only affects
 // reference pricing.
-const loadDealFromDataCache = unstable_cache(loadDealUncached, ["deal-detail"], { revalidate: 60 });
+// Per-id tag (sold-item freshness): a verifier retirement expires this
+// deal's cached data and - via Next's tag propagation - its ISR page, so
+// the existing expired-deal redirect applies on the very next request
+// instead of after the page's 600s window. Key and 60s window unchanged.
+const loadDealFromDataCache = (id) =>
+  unstable_cache(loadDealUncached, ["deal-detail"], { revalidate: 60, tags: [dealDetailTag(id)] })(id);
 
 // cache() dedupes this within a single request on top of the above -
 // generateMetadata and the page component below both need the same deal,
@@ -405,6 +411,11 @@ export default async function DealDetailPage({ params }) {
       : { href: "/deals", label: "all deals" };
   const discountPct = Math.round(deal.discount_pct * 100);
   const isAuction = deal.listing_type === "AUCTION";
+  // What the freshness line may claim: an exact availability confirmation
+  // (exact_verified_at, only when it was a successful check) or merely the
+  // last time the listing appeared in eBay results. See
+  // lib/listingAvailability.listingAvailabilityEvidence.
+  const availabilityEvidence = listingAvailabilityEvidence(deal);
   const marketInfo = MARKETPLACES[deal.marketplace];
 
   // Native currency on the server (keeps this page statically cacheable);
@@ -673,9 +684,14 @@ export default async function DealDetailPage({ params }) {
                   How we price this →
                 </Link>
               </p>
-              {deal.last_seen_at && (
+              {availabilityEvidence?.kind === "confirmed" && (
                 <p className="mt-1 text-xs text-zinc-400">
-                  Listing checked {timeAgo(deal.last_seen_at)} · price and availability can change.
+                  Availability confirmed on eBay <RelativeTime date={availabilityEvidence.at} /> · price and availability can change.
+                </p>
+              )}
+              {availabilityEvidence?.kind === "seen" && (
+                <p className="mt-1 text-xs text-zinc-400">
+                  Last seen in eBay listings <RelativeTime date={availabilityEvidence.at} /> · availability not yet individually confirmed · price and availability can change.
                 </p>
               )}
               <p className="mt-1 text-xs text-zinc-400">
