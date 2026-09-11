@@ -29,7 +29,7 @@ import SiteFooter from "@/components/SiteFooter";
 import { hasPrice } from "@/lib/money";
 import { cardTier } from "@/lib/catalogueView";
 import { speciesPriceSnapshot, speciesBySet } from "@/lib/speciesSummary";
-import { isSpeciesPilot, speciesEraGroups, speciesCoverageFacts, speciesConditionNote } from "@/lib/speciesCoverage";
+import { isSpeciesPilot, speciesEraGroups, speciesCoverageFacts, speciesConditionNote, speciesReferencesLikeForLike } from "@/lib/speciesCoverage";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -234,6 +234,9 @@ export default async function PokemonSpeciesPage({ params }) {
   const pilot = isSpeciesPilot(resolved.name);
   const eraGroups = pilot ? speciesEraGroups(allCards, validSetSlugs) : null;
   const coverageFacts = pilot ? speciesCoverageFacts(allCards) : null;
+  // unknown / mixed conditions -> the value section is labelled by what it
+  // is (highest stored references), never as a like-for-like valuation
+  const likeForLike = pilot ? speciesReferencesLikeForLike(allCards) : true;
   const conditionNote = pilot ? speciesConditionNote(allCards) : "";
   const byEra = pilot ? eraGroups.map((g) => ({ key: g.era.key, label: g.era.label, years: g.era.years, sets: g.sets.map((s) => s.set) })) : null;
   const datedSets = pilot ? eraGroups.filter((g) => g.era.key !== "undated").flatMap((g) => g.sets.map((s) => ({ set: s.set, slug: s.slug }))) : null;
@@ -336,9 +339,10 @@ export default async function PokemonSpeciesPage({ params }) {
           </h1>
           {pilot && coverageFacts?.earliestSet ? (
             <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
-              Every {resolved.name} card in our English catalogue, from {coverageFacts.earliestSet} onward,
-              listed by era and set below with its collector number, rarity and recent-sold market
-              reference — plus any live below-market eBay deals.
+              Every {resolved.name} card in our English catalogue, starting with{" "}
+              {coverageFacts.earliestSet}, the earliest dated set we track, and listed by era and set
+              below with its collector number, rarity and recent-sold market reference — plus any live
+              below-market eBay deals.
             </p>
           ) : (
             <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
@@ -416,11 +420,12 @@ export default async function PokemonSpeciesPage({ params }) {
         {featuredItems.length >= 4 && (
           <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
             <h2 className="text-lg font-bold text-black dark:text-zinc-50">
-              Most valuable {resolved.name} cards we track
+              {likeForLike ? `Most valuable ${resolved.name} cards we track` : `Highest market references among ${resolved.name} cards we track`}
             </h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              The highest market references currently in our catalogue — not an all-time ranking. Open
-              a card for full pricing, graded values and any live deal.
+              The highest market references currently in our catalogue — not an all-time ranking
+              {likeForLike ? "" : " and not a like-for-like valuation"}. Open a card for full pricing,
+              graded values and any live deal.
               {pilot && conditionNote ? ` ${conditionNote}` : ""}
             </p>
             <FeaturedValueCards speciesName={resolved.name} items={featuredItems} />

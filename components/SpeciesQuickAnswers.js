@@ -39,16 +39,16 @@ export default function SpeciesQuickAnswers({ speciesName, snapshot, setRows, ha
       <h3 className={q}>How many {speciesName} cards are there?</h3>
       {f ? (
         <p className={a}>
-          Our English catalogue has{" "}
-          <span className="font-semibold text-black dark:text-zinc-50">{f.total}</span> {speciesName} cards:{" "}
+          We track{" "}
+          <span className="font-semibold text-black dark:text-zinc-50">{f.total}</span> {speciesName} cards in our English catalogue:{" "}
           {f.standard} standard {f.standard === 1 ? "card" : "cards"}
           {f.specialty > 0 ? ` and ${f.specialty} Jumbo / World Championship ${f.specialty === 1 ? "printing" : "printings"}` : ""}, across{" "}
           <span className="font-semibold text-black dark:text-zinc-50">{f.setCount}</span> {f.setCount === 1 ? "set" : "sets"}.
+          {` That is our tracked catalogue, not a count of every ${speciesName} card ever released.`}
           {f.datedSetCount > 0 && f.firstEra && f.lastEra
             ? ` ${f.datedSetCount} of those sets are in our dated release list, from the ${f.firstEra.label} (${f.firstEra.years})${f.lastEra.key !== f.firstEra.key ? ` to ${f.lastEra.label} (${f.lastEra.years})` : ""}${f.undatedSetCount > 0 ? `; the other ${f.undatedSetCount} are promos, exclusives or special releases that list doesn't date` : ""}.`
             : ""}{" "}
-          Code cards and sealed products that only mention {speciesName} are not counted, and this is
-          the catalogue we price — not necessarily every {speciesName} card ever printed.
+          Code cards and sealed products that only mention {speciesName} are not counted.
         </p>
       ) : (
         <p className={a}>

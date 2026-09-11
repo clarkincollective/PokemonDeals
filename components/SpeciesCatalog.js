@@ -15,7 +15,7 @@ import { hasPrice } from "@/lib/money";
 import { cardTier } from "@/lib/catalogueView";
 import { speciesPriceSnapshot, speciesBySet } from "@/lib/speciesSummary";
 import { speciesPageTitle } from "@/lib/speciesHub";
-import { isSpeciesPilot, speciesEraGroups, speciesCoverageFacts, speciesConditionNote } from "@/lib/speciesCoverage";
+import { isSpeciesPilot, speciesEraGroups, speciesCoverageFacts, speciesConditionNote, speciesReferencesLikeForLike } from "@/lib/speciesCoverage";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -51,6 +51,9 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
   const pilot = indexable && isSpeciesPilot(speciesName);
   const eraGroups = pilot ? speciesEraGroups(cards, validSetSlugs) : null;
   const coverageFacts = pilot ? speciesCoverageFacts(cards) : null;
+  // unknown / mixed conditions -> the value section is labelled by what it
+  // is (highest stored references), never as a like-for-like valuation
+  const likeForLike = pilot ? speciesReferencesLikeForLike(cards) : true;
   const conditionNote = pilot ? speciesConditionNote(cards) : "";
   const byEra = pilot ? eraGroups.map((g) => ({ key: g.era.key, label: g.era.label, years: g.era.years, sets: g.sets.map((s) => s.set) })) : null;
   const datedSets = pilot ? eraGroups.filter((g) => g.era.key !== "undated").flatMap((g) => g.sets.map((s) => ({ set: s.set, slug: s.slug }))) : null;
@@ -182,11 +185,12 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
         {featuredItems.length >= 4 && (
           <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
             <h2 className="text-lg font-bold text-black dark:text-zinc-50">
-              Most valuable {speciesName} cards we track
+              {likeForLike ? `Most valuable ${speciesName} cards we track` : `Highest market references among ${speciesName} cards we track`}
             </h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              The highest market references currently in our catalogue — not an all-time ranking. Open
-              a card for full pricing, graded values and any live deal.
+              The highest market references currently in our catalogue — not an all-time ranking
+              {likeForLike ? "" : " and not a like-for-like valuation"}. Open a card for full pricing,
+              graded values and any live deal.
               {pilot && conditionNote ? ` ${conditionNote}` : ""}
             </p>
             <FeaturedValueCards speciesName={speciesName} items={featuredItems} />

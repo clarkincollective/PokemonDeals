@@ -14,6 +14,7 @@ import {
   speciesEraGroups,
   speciesCoverageFacts,
   speciesConditionNote,
+  speciesReferencesLikeForLike,
 } from "../../lib/speciesCoverage.js";
 import { SET_RELEASE_ORDER } from "../../lib/pokemonSets.js";
 
@@ -161,4 +162,25 @@ test("SP-9. no unsupported content: no value ranking, no biography, no mixed-con
   const qa = code("components/SpeciesQuickAnswers.js");
   assert.match(qa, /Code cards and sealed products that only mention/);
   assert.doesNotMatch(qa, /most popular|best card|rarest/i);
+});
+
+test("SP-10. claim check: 'earliest' = earliest DATED set we track; counts = our tracked catalogue; no like-for-like value claim when condition is unknown", () => {
+  const page = code("app/pokemon/[slug]/page.js");
+  assert.match(page, /\{coverageFacts\.earliestSet\}, the earliest dated set we track/);
+  assert.doesNotMatch(page, /from \{coverageFacts\.earliestSet\} onward/);
+  const qa = code("components/SpeciesQuickAnswers.js");
+  assert.match(qa, /cards in our English catalogue:/);
+  assert.match(qa, /That is our tracked catalogue, not a count of every \$\{speciesName\} card ever released\./);
+  // the value section: heading + intro depend on whether references are like-for-like
+  assert.equal(speciesReferencesLikeForLike([card(), card()]), false, "unknown condition -> not like-for-like");
+  assert.equal(speciesReferencesLikeForLike([card({ refCondition: "Near Mint" }), card()]), false, "partly recorded -> not like-for-like");
+  assert.equal(speciesReferencesLikeForLike([card({ refCondition: "Near Mint" }), card({ refCondition: "Lightly Played" })]), false, "different conditions -> not like-for-like");
+  assert.equal(speciesReferencesLikeForLike([card({ refCondition: "Near Mint" }), card({ refCondition: "Near Mint" })]), true, "one recorded condition -> like-for-like");
+  assert.equal(speciesReferencesLikeForLike([card({ refPrice: null })]), false, "nothing priced");
+  for (const [f, name] of [["app/pokemon/[slug]/page.js", "resolved.name"], ["components/SpeciesCatalog.js", "speciesName"]]) {
+    const src = code(f);
+    assert.match(src, /const likeForLike = pilot \? speciesReferencesLikeForLike\(/, f);
+    assert.ok(src.includes("{likeForLike ? `Most valuable ${" + name + "} cards we track` : `Highest market references among ${" + name + "} cards we track`}"), `${f}: heading switches off "most valuable" when not like-for-like`);
+    assert.match(src, /not an all-time ranking\s*\{likeForLike \? "" : " and not a like-for-like valuation"\}/, f);
+  }
 });
