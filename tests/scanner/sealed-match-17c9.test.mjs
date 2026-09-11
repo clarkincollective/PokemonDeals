@@ -94,8 +94,10 @@ test("S-4. a single card that merely names a product is never that product", () 
   // a ship date is not a collector number - the real ETB stays an ETB
   assert.equal(productKindOfTitle("Pokemon 30th Anniversary Celebrations ETB PRESALE 9/16"), "etb");
   assert.equal(productKindOfTitle("Pokemon 30th Celebrations Elite Trainer Box (Release 9/16)"), "etb");
-  // a SET code (two digits) is not a promo card code (three digits)
-  assert.equal(productKindOfTitle("Pokemon TCG Brilliant Stars Build & Battle Stadium Sealed Box SWSH09 1"), "build_battle");
+  // a SET code (two digits) is not a promo card code (three digits).
+  // Build & Battle resolves to the STADIUM variant here - it is a separate
+  // catalogue SKU from the plain box (see S-8).
+  assert.equal(productKindOfTitle("Pokemon TCG Brilliant Stars Build & Battle Stadium Sealed Box SWSH09 1"), "build_battle_stadium");
   assert.equal(productKindOfTitle("Pokemon SHINING FATES EeveeVmax Black Star Promo Swsh087 aus Elite Trainer Box"), "single_card");
   assert.equal(productKindOfTitle("Pokemon SWSH12 Silver Tempest Booster Box"), "booster_box");
 });
@@ -158,4 +160,90 @@ test("S-7. an early sealed listing needs eBay's own confirmation before it is sh
   const sql = readFileSync(join(ROOT, "supabase/sealed_availability_migration.sql"), "utf8");
   assert.match(sql, /alter table sealed_deals add column if not exists exact_verified_at timestamptz;/);
   assert.match(sql, /create index if not exists sealed_deals_exact_verified_at/);
+});
+
+// --- S-8 -------------------------------------------------------------
+// PINNED expectations. Every representative listing resolves either to
+// exactly ONE catalogue product id, or to an explicit rejection reason.
+// Ids are the real tcgplayer_ids in the fixture, so a future matcher
+// change that silently re-homes a listing fails here rather than in
+// production pricing.
+const CANDIDATES = F.products.map((p) => ({
+  id: String(p.tcgplayer_id),
+  name: p.name,
+  set: p.set,
+  productType: p.product_type,
+}));
+const byId = (id) => CANDIDATES.find((p) => p.id === id);
+const acceptedIds = (title, pool = CANDIDATES) =>
+  pool.filter((p) => listingIsThisSealedProduct(title, p)).map((p) => p.id).sort();
+
+test("S-8. representative listings are pinned to one product id, or to a stated reason", () => {
+  const PINNED = [
+    // --- accepted: exactly one product each -------------------------
+    { t: "Pokemon TCG 30th Anniversary Celebrations Elite Trainer Box ETB PRESALE Ships 9/16", ids: ["704143"] },
+    { t: "Pokemon Center Elite Trainer Box 30th Celebrations PRESALE", ids: ["704144"] },
+    { t: "Pokemon 30th Celebration Elite Trainer Box Case (Sealed Case of 4)", ids: ["709036"] },
+    { t: "Pokémon TCG: 25th Anniversary Celebrations Elite Trainer Box (2021)", ids: ["242811"] },
+    // a factory CASE is a multi-unit SKU: its own count is not a lot
+    { t: "Pokemon Center 25th Celebrations Elite Trainer Box (Sealed Case of 4 ETBs)", ids: ["261802"] },
+    // protective packaging is not the case SKU - still the plain 30th ETB
+    { t: "Pokémon 30th Celebrations Elite Trainer Box English 2026 Acrylic Case", ids: ["704143"] },
+
+    // --- rejected: stated reason, against its nearest product --------
+    // a seller's 13-box lot must never price against ONE ETB
+    { t: "Pokemon Celebrations 25th Elite Trainer Box ETB Black Card Sleeves New (13) LOT", ids: [], against: "242811", reason: "quantity_lot" },
+    { t: "Pokemon Celebrations Elite Trainer Box Factory Sealed", ids: [], against: "242811", reason: "edition_unstated:25th" },
+    // Edition is checked BEFORE kind, so this card - which names no
+    // anniversary - is rejected as unstated rather than as a card. Both
+    // rejections are correct; pinning the real one documents the order.
+    { t: "Greninja - Gold Star (Celebrations Elite Trainer Box) Holo #SWSH144", ids: [], against: "242811", reason: "edition_unstated:25th" },
+    // a card that DOES state its edition reaches the kind check
+    { t: "Pokemon 30th Anniversary Celebrations Elite Trainer Box Promo #SWSH144 Holo", ids: [], against: "704143", reason: "kind_mismatch:single_card" },
+    { t: "Pokemon TCG 30th Anniversary Celebrations Elite Trainer Box ETB", ids: ["704143"], against: "242811", reason: "edition_mismatch:30th_vs_25th" },
+  ];
+
+  for (const row of PINNED) {
+    assert.deepEqual(acceptedIds(row.t), [...row.ids].sort(), `accepted ids for: ${row.t.slice(0, 64)}`);
+    if (row.reason) {
+      assert.equal(
+        sealedListingDecision(row.t, byId(row.against)).reason,
+        row.reason,
+        `rejection reason vs ${row.against} for: ${row.t.slice(0, 60)}`
+      );
+    }
+  }
+});
+
+test("S-9. Build & Battle box, stadium and display are three different SKUs", () => {
+  // Real catalogue rows (sealed_catalog) - three separate products at very
+  // different prices, all satisfying each other's name tokens.
+  const BB = [
+    { id: "672400", name: "Perfect Order Build & Battle Box", set: "Perfect Order", productType: "Build & Battle Box" }, //      $37.62
+    { id: "690172", name: "Perfect Order Build & Battle Box Display", set: "Perfect Order", productType: "Build & Battle Box Display" }, // $315.37
+    { id: "514070", name: "Paradox Rift Build & Battle Stadium", set: "Paradox Rift", productType: "Build & Battle Stadium" }, //  $94.51
+  ];
+  const bbId = (id) => BB.find((p) => p.id === id);
+
+  assert.equal(productKindOfProduct(bbId("672400")), "build_battle_box");
+  assert.equal(productKindOfProduct(bbId("690172")), "build_battle_display");
+  assert.equal(productKindOfProduct(bbId("514070")), "build_battle_stadium");
+
+  // each listing lands on its own SKU and on no other
+  assert.deepEqual(acceptedIds("Pokemon Perfect Order Build & Battle Box Sealed", BB), ["672400"]);
+  assert.deepEqual(acceptedIds("Pokemon Perfect Order Build & Battle Box Display Sealed", BB), ["690172"]);
+  assert.deepEqual(acceptedIds("Pokemon Paradox Rift Build & Battle Stadium Factory Sealed", BB), ["514070"]);
+  assert.deepEqual(acceptedIds("Pokemon Paradox Rift Build and Battle Stadium", BB), ["514070"]);
+
+  // and the mismatches are stated, not silent
+  assert.equal(
+    sealedListingDecision("Pokemon Paradox Rift Build & Battle Stadium Factory Sealed", bbId("672400")).reason,
+    "kind_mismatch:build_battle_stadium_vs_build_battle_box"
+  );
+  assert.equal(
+    sealedListingDecision("Pokemon Perfect Order Build & Battle Box Display Sealed", bbId("672400")).reason,
+    "kind_mismatch:build_battle_display_vs_build_battle_box"
+  );
+  // a 4-box lot is not the single Build & Battle box
+  assert.equal(sealedListingDecision("Pokemon * Paradox Rift * SV04 Build and Battle Box (x4)", bbId("672400")).reason, "quantity_lot");
 });

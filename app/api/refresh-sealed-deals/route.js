@@ -3,7 +3,7 @@ import { MARKETPLACES, searchListings, getBrowseRateLimit } from "@/lib/ebay";
 import { getSealedPrice } from "@/lib/pokemonPriceTracker";
 import { getUsdRates, toUsd } from "@/lib/fx";
 import { SANITY_FLOOR_PCT, isTrustworthySealedListing, listingMatchesSealedProduct } from "@/lib/dealMatching";
-import { listingIsThisSealedProduct } from "@/lib/sealedProductMatch";
+import { ingestSealedListings } from "@/lib/sealedIngest";
 import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError } from "@/lib/ebayTelemetry";
 
 // Real work (API calls + database writes) - never cached, and a small
@@ -67,34 +67,28 @@ async function scanProductInMarketplace(row, marketplaceId, marketPrice, db, dis
     categoryId: null,
   });
 
-  let dealsFound = 0;
-
-  for (const listing of listings) {
-    if (!isTrustworthySealedListing(listing)) continue;
-    if (!listingMatchesSealedProduct(listing, row)) continue;
-    // 17C.9 - name tokens are necessary but not sufficient: "30th
-    // Anniversary Celebrations Elite Trainer Box" satisfies every word of
-    // the 2021 "Celebrations Elite Trainer Box". This rejects a listing
-    // that carries evidence of a DIFFERENT edition (2026 vs 2021) or a
-    // different product kind (case / Pokemon Center exclusive / a single
-    // card that merely names the product), and rejects an ambiguous title
-    // rather than guessing. The row is not upserted at all, so the
-    // first-writer-wins unique key (source,marketplace,listing_id) can no
-    // longer bind a listing to the wrong product.
-    if (!listingIsThisSealedProduct(listing.title, { name: row.name, set: row.set, productType: row.product_type })) continue;
-
-    const { totalLocal, totalUsd, discountPct } = pricedListing(listing, marketPrice, rates);
-    if (discountPct < discountThreshold) continue;
-    if (totalUsd < marketPrice * SANITY_FLOOR_PCT) continue;
-
-    const { error } = await db
-      .from("sealed_deals")
-      .upsert(
-        dealRow({ productId: row.id, listing, totalPrice: totalLocal, totalPriceUsd: totalUsd, marketPrice, discountPct }),
-        { onConflict: "source,marketplace,listing_id" }
-      );
-    if (error) console.error(`Failed to upsert sealed deal ${listing.listingId}:`, error.message);
-    else dealsFound++;
+  // 17C.9 - the decide-and-write path lives in lib/sealedIngest so the real
+  // write behaviour (including repairing a row bound to the wrong product,
+  // and clearing that product's comparison on reassignment) is testable
+  // without a network or a database. Name tokens are necessary but not
+  // sufficient: "30th Anniversary Celebrations Elite Trainer Box"
+  // satisfies every word of the 2021 "Celebrations Elite Trainer Box", so
+  // the identity decision (edition / kind / quantity) runs inside.
+  const stats = await ingestSealedListings({
+    db,
+    product: row,
+    listings,
+    marketPrice,
+    discountThreshold,
+    floorUsd: marketPrice * SANITY_FLOOR_PCT,
+    isTrustworthy: isTrustworthySealedListing,
+    matchesName: listingMatchesSealedProduct,
+    priceListing: (listing, mp) => pricedListing(listing, mp, rates),
+    buildRow: dealRow,
+  });
+  const dealsFound = stats.written;
+  if (stats.repaired > 0) {
+    console.log(`sealed: repaired ${stats.repaired} listing(s) onto "${row.name}" (${row.set})`);
   }
 
   // Same expire pattern and grace window as the card scanner (see
