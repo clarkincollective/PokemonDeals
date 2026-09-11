@@ -55,7 +55,7 @@ test("C5-2. Jumbo / World Championship COUNT uses the stored set classification 
   assert.equal(isSpecialtyCard(nameOnly), true, "the display-tier helper still demotes it (unchanged behaviour)");
   const f = speciesCoverageFacts([card(), card(), jumboSet, wcd, nameOnly]);
   assert.equal(f.specialty, 2, "only the two stored specialty rows are counted as Jumbo / World Championship");
-  assert.equal(f.standard, 3);
+  assert.equal(f.otherTracked, 3, "cards outside the stored specialty sets");
   assert.match(code("lib/speciesCoverage.js"), /const specialty = list\.filter\(\(c\) => isStoredSpecialtyCard\(c\)\)\.length;/);
 });
 
@@ -63,7 +63,12 @@ test("C5-3. species with zero stored specialty rows: the answer never mentions J
   const f = speciesCoverageFacts([card(), card({ set: "Team Rocket" })]);
   assert.equal(f.specialty, 0);
   const qa = code("components/SpeciesQuickAnswers.js");
-  assert.match(qa, /\{f\.specialty > 0 \? ` and \$\{f\.specialty\} Jumbo \/ World Championship/, "the Jumbo clause is conditional on a stored count");
+  assert.match(qa, /\{f\.specialty > 0\s*\? `: \$\{f\.specialty\} Jumbo \/ World Championship/, "the Jumbo clause is conditional on a stored count");
+  // specialty is known only from set membership: the rest are "other tracked
+  // cards", never labelled "standard" (17C.5 count-label check)
+  assert.match(qa, /other tracked \$\{f\.otherTracked === 1 \? "card" : "cards"\}/);
+  assert.doesNotMatch(qa, /\bstandard\b/);
+  assert.equal(Object.hasOwn(f, "standard"), false, "no 'standard' field to misuse");
 });
 
 test("C5-4. mixed and missing provenance: per-row condition only where recorded; legend and value heading follow it", () => {

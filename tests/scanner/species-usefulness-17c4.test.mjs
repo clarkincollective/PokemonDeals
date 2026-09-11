@@ -101,7 +101,7 @@ test("SP-4. coverage facts are counts only - standard vs Jumbo, dated vs undated
   assert.equal(f.earliestSet, "Fossil");
   assert.equal(f.priced, 5);
   assert.equal(f.unpriced, 1);
-  assert.equal(f.standard + f.specialty, 6);
+  assert.equal(f.otherTracked + f.specialty, 6);
   for (const k of Object.keys(f)) assert.doesNotMatch(k, /price$|value|median|max|min|best|top/i, `no value field: ${k}`);
 });
 
@@ -170,7 +170,7 @@ test("SP-10. claim check: 'earliest' = earliest DATED set we track; counts = our
   assert.match(page, /\{coverageFacts\.earliestSet\}, the earliest dated set we track/);
   assert.doesNotMatch(page, /from \{coverageFacts\.earliestSet\} onward/);
   const qa = code("components/SpeciesQuickAnswers.js");
-  assert.match(qa, /cards in our English catalogue:/);
+  assert.match(qa, /cards in our English catalogue/);
   assert.match(qa, /That is our tracked catalogue, not a count of every \$\{speciesName\} card ever released\./);
   // the value section: heading + intro depend on whether references are like-for-like
   assert.equal(speciesReferencesLikeForLike([card(), card()]), false, "unknown condition -> not like-for-like");

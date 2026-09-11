@@ -40,9 +40,13 @@ export default function SpeciesQuickAnswers({ speciesName, snapshot, setRows, ha
       {f ? (
         <p className={a}>
           We track{" "}
-          <span className="font-semibold text-black dark:text-zinc-50">{f.total}</span> {speciesName} cards in our English catalogue:{" "}
-          {f.standard} standard {f.standard === 1 ? "card" : "cards"}
-          {f.specialty > 0 ? ` and ${f.specialty} Jumbo / World Championship ${f.specialty === 1 ? "printing" : "printings"}` : ""}, across{" "}
+          <span className="font-semibold text-black dark:text-zinc-50">{f.total}</span> {speciesName} cards in our English catalogue
+          {/* Specialty status is known only from the two stored sets, so the
+              rest are "other tracked cards", never asserted "standard". */}
+          {f.specialty > 0
+            ? `: ${f.specialty} Jumbo / World Championship ${f.specialty === 1 ? "printing" : "printings"} and ${f.otherTracked} other tracked ${f.otherTracked === 1 ? "card" : "cards"},`
+            : ","}{" "}
+          across{" "}
           <span className="font-semibold text-black dark:text-zinc-50">{f.setCount}</span> {f.setCount === 1 ? "set" : "sets"}.
           {` That is our tracked catalogue, not a count of every ${speciesName} card ever released.`}
           {f.datedSetCount > 0 && f.firstEra && f.lastEra
