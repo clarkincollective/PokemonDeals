@@ -166,9 +166,13 @@ function sourceFiles(dir) {
     .filter((f) => /\.(m?js|jsx)$/.test(f))
     .map((f) => join(dir, f));
 }
+// lib/latestReleases.js is a PURE model (17C.8): it derives the release
+// lineup but renders nothing, so the cache rule applies to the routes that
+// render it, which this guard still checks.
+const MODEL_MODULES = [join("lib", "pokemonSets.js"), join("lib", "latestReleases.js")];
 const importers = ["app", "components", "lib"]
   .flatMap(sourceFiles)
-  .filter((f) => !f.endsWith(join("lib", "pokemonSets.js")))
+  .filter((f) => !MODEL_MODULES.some((m) => f.endsWith(m)))
   .filter((f) => HELPERS.test(readFileSync(join(ROOT, f), "utf8")));
 
 test("C-5. cache guard: release status is only rendered by routes that re-render within an hour", () => {
