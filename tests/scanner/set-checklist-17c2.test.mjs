@@ -118,6 +118,11 @@ test("C2-8. the component: semantic table, plain crawlable <a> links, no set tot
   assert.match(src, /No reliable reference/);
   assert.match(src, /not a value for the complete set/);
   assert.match(src, /not like-for-like across cards/);
+  // NULL provenance = our catalogue has not captured the condition; it
+  // must never read as the provider lacking condition data
+  assert.match(src, /Condition not recorded: our catalogue has not captured which condition/);
+  assert.match(src, /where none is shown the condition is not recorded/);
+  assert.doesNotMatch(src, /provider does not state|provider states|was not stated/);
   assert.match(src, /currency: "USD"/);
   assert.doesNotMatch(src, /\.reduce\(|\bsum\b|totalValue|setValue/i, "nothing adds references up");
   assert.doesNotMatch(src, /display:\s*none|aria-hidden|sr-only[^"]*"[^>]*>\{r\./, "nothing crawlable is hidden");

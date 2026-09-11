@@ -52,8 +52,8 @@ export default function SetChecklist({ setName, cards, headingId = "full-set-ind
         shown in your currency (marked ≈) when you have chosen another.{" "}
         {s.mixedOrUnstatedConditions
           ? s.conditionStated === 0
-            ? "The price provider does not state which condition these references are for, so they are not like-for-like across cards."
-            : `A condition is shown only where the price provider states it (${s.conditionStated} of ${s.priced}); where none is shown it was not stated, so references are not like-for-like across cards.`
+            ? "Condition not recorded: our catalogue has not captured which condition these references are for yet, so they are not like-for-like across cards."
+            : `A condition is shown where our catalogue has recorded it (${s.conditionStated} of ${s.priced}); where none is shown the condition is not recorded, so references are not like-for-like across cards.`
           : `Every reference here is for a ${rows.find((r) => r.reference)?.reference.conditionLabel} copy.`}{" "}
         They are individual card references, not a value for the complete set.
         {s.unpriced > 0 ? ` ${s.unpriced} ${s.unpriced === 1 ? "card has" : "cards have"} no reliable reference right now.` : ""}
