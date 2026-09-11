@@ -22,6 +22,11 @@ import { isVisualScreeningCandidate } from "../../lib/visualAuthenticity.js";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const HOUR = 3_600_000;
 const ago = (h) => new Date(Date.now() - h * HOUR).toISOString();
+// Sold-item freshness: a verify-deals ACTIVE verdict stamps last_seen_at and
+// exact_verified_at with ONE timestamp; verified fixtures share one instant
+// (separate clock reads could differ by a millisecond and fail the rule).
+const VERIFIED_AT = ago(2);
+
 
 // a fully-populated displayable deal
 const deal = (over = {}) => ({
@@ -39,12 +44,12 @@ const deal = (over = {}) => ({
   discount_pct: 0.3,
   listing_type: "FIXED_PRICE",
   auction_end_at: null,
-  last_seen_at: ago(2),
+  last_seen_at: VERIFIED_AT,
   // P0.2: isPremiumDealEligible now also requires a recent EXACT eBay
   // verification (lib/dealQuality.isExactVerifiedFresh), separate from
   // last_seen_at - fresh by default here so every pre-existing test in
   // this file keeps testing the ONE thing it names, not availability.
-  exact_verified_at: ago(2),
+  exact_verified_at: VERIFIED_AT,
   listing_id: "v1|123456789012|0",
   listing_url: "https://www.ebay.com/itm/123456789012?x=1",
   affiliate_url: "https://www.ebay.com/itm/123456789012?x=1&campid=5",

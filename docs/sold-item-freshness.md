@@ -105,6 +105,16 @@ another sighting and another 24 hours.
   code, or confirmed and then sighted again, fail this test.
 - Otherwise "Last seen in eBay listings {time} · not individually re-checked since".
 
+## Premium placement
+
+Best Deals, Auctions Ending Soon, Just Added, the digest and the (suspended)
+social gate all go through `isPremiumDealEligible`, whose freshness check
+(`isExactVerifiedFresh`) now applies the **same** rule
+(`isPositiveActiveConfirmation`) plus the existing 12-hour window. A recent
+retirement timestamp never qualifies, UNKNOWN never writes one, and a later
+search sighting conservatively ends eligibility until the next successful
+check.
+
 ## Caches
 
 A retirement or recovery reactivation expires, once per card per run and

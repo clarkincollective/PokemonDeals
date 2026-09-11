@@ -29,6 +29,7 @@ import {
   RECOVERY_MAX_AGE_DAYS,
   recoveryDecision,
   baseAvailabilityReason,
+  isPositiveActiveConfirmation,
   classifyItemLookup,
   soldOutFromItemBody,
   availabilityRetirementReason,
@@ -40,7 +41,14 @@ import {
   retirementInvalidationPlan,
   expireTags,
 } from "../../lib/listingAvailability.js";
-import { isDisplayableDeal } from "../../lib/dealQuality.js";
+import {
+  isDisplayableDeal,
+  isPremiumDealEligible,
+  isExactVerifiedFresh,
+  isPositiveActiveConfirmation as isPositiveActiveConfirmationDQ,
+  PREMIUM_EXACT_VERIFICATION_MAX_AGE_HOURS,
+} from "../../lib/dealQuality.js";
+import { isSociallyEligible } from "../../lib/social/eligibility.mjs";
 import { expiredDealDestination } from "../../lib/dealPage.js";
 import { repricedAuctionPatch } from "../../lib/auctionPricing.js";
 
@@ -670,4 +678,136 @@ test("SIF-30. verify-deals recovery is bounded: seen-again FIXED_PRICE rows only
   assert.match(code, /\.eq\("disqualified_reason", r\.disqualified_reason\)/, "conditional on the marker read");
   // the quota guard still reserves the full BATCH
   assert.match(code, /if \(rl\.remaining - BATCH < RESERVE\)/);
+});
+
+// ---------------------------------------------------------------------------
+// premium placement uses the SAME positive-ACTIVE evidence rule
+// (fixtures only - no eBay calls)
+// ---------------------------------------------------------------------------
+
+const HOUR_MS = 3_600_000;
+const hoursAgo = (h, base) => new Date(base - h * HOUR_MS).toISOString();
+// A fully displayable, premium-shaped BIN row (same shape as the
+// deal-availability-freshness fixture), with the timestamps supplied.
+const premiumRow = ({ lastSeen, exact, reason = null, active = true }) => ({
+  id: 4242,
+  is_active: active,
+  is_graded: false,
+  title: "Charizard GX 9/68 SM Hidden Fates Holo Rare",
+  condition: "Near Mint",
+  card_language: "english",
+  card_name: "Charizard GX",
+  card_set: "SM - Hidden Fates",
+  card_tcgplayer_id: "191319",
+  market_price: 40,
+  discount_pct: 0.3,
+  listing_type: "FIXED_PRICE",
+  auction_end_at: null,
+  first_seen_at: lastSeen,
+  last_seen_at: lastSeen,
+  exact_verified_at: exact,
+  listing_id: "v1|123456789012|0",
+  listing_url: "https://www.ebay.com/itm/123456789012?x=1",
+  affiliate_url: "https://www.ebay.com/itm/123456789012?x=1&campid=5",
+  disqualified_reason: reason,
+  visual_authenticity_status: null,
+});
+
+test("SIF-31. one rule: the deal page wording and premium eligibility share isPositiveActiveConfirmation", () => {
+  assert.equal(isPositiveActiveConfirmationDQ, isPositiveActiveConfirmation, "dealQuality re-exports the same function");
+  const src = stripComments(read("lib/dealQuality.js"));
+  const fn = src.slice(src.indexOf("function isExactVerifiedFresh"), src.indexOf("}", src.indexOf("function isExactVerifiedFresh")) + 1);
+  assert.match(fn, /if \(!isPositiveActiveConfirmation\(row\)\) return false;/);
+  assert.match(fn, /PREMIUM_EXACT_VERIFICATION_MAX_AGE_HOURS/, "the 12h window still applies on top");
+  const la = stripComments(read("lib/listingAvailability.js"));
+  assert.match(la, /if \(isPositiveActiveConfirmation\(deal\)\) return \{ kind: "confirmed"/);
+});
+
+test("SIF-32. a genuine fresh ACTIVE confirmation qualifies for premium placement (and only inside the 12h window)", () => {
+  const now = Date.now();
+  const t = hoursAgo(1, now);
+  const r = premiumRow({ lastSeen: t, exact: t });
+  assert.equal(isDisplayableDeal(r), true, "fixture sanity: displayable");
+  assert.equal(isPositiveActiveConfirmation(r), true);
+  assert.equal(isExactVerifiedFresh(r, now), true);
+  assert.equal(isPremiumDealEligible(r, now), true);
+  assert.equal(listingAvailabilityEvidence(r).kind, "confirmed");
+  // same instant, Postgres serialisation vs JS serialisation
+  const pg = t.replace("Z", "+00:00");
+  assert.equal(isPremiumDealEligible(premiumRow({ lastSeen: pg, exact: t }), now), true);
+  // a genuine confirmation older than the window does not
+  const old = hoursAgo(PREMIUM_EXACT_VERIFICATION_MAX_AGE_HOURS + 1, now);
+  assert.equal(isPremiumDealEligible(premiumRow({ lastSeen: old, exact: old }), now), false);
+});
+
+test("SIF-33. a recent SOLD or NOT_FOUND retirement followed by a sighting can never qualify - with or without the reason surviving", () => {
+  const now = Date.now();
+  const retiredAt = hoursAgo(2, now); // the verifier's retirement stamp (exact_verified_at alone)
+  const sightedAt = hoursAgo(1, now); // a later discovery sighting
+  for (const reason of [AVAILABILITY_RETIREMENT.SOLD, AVAILABILITY_RETIREMENT.NOT_FOUND_IN_MARKETPLACE]) {
+    // (a) the new code path: the reason is persisted, the sighting is blocked;
+    //     even a row something forced back to is_active stays out
+    const withReason = premiumRow({ lastSeen: sightedAt, exact: retiredAt, reason });
+    assert.equal(isPremiumDealEligible(withReason, now), false, reason);
+    assert.equal(isSociallyEligible(withReason, now), false, reason);
+    // (b) the LEGACY shape: retired by the old code (no reason), then
+    //     revived by a sighting - recent stamp, displayable row
+    const legacy = premiumRow({ lastSeen: sightedAt, exact: retiredAt, reason: null });
+    assert.equal(isDisplayableDeal(legacy), true, "fixture sanity: the legacy row IS displayable");
+    assert.equal(isExactVerifiedFresh(legacy, now), false, "a recent retirement timestamp must never qualify");
+    assert.equal(isPremiumDealEligible(legacy, now), false);
+    assert.equal(isSociallyEligible(legacy, now), false);
+    assert.equal(listingAvailabilityEvidence(legacy).kind, "seen");
+    // (c) the retirement stamp with no later sighting (exact AFTER last seen)
+    const stampOnly = premiumRow({ lastSeen: hoursAgo(3, now), exact: retiredAt, reason: null });
+    assert.equal(isPremiumDealEligible(stampOnly, now), false);
+  }
+  // (d) through the real write sequence on the table model: retire, then a
+  //     sighting tries to revive it
+  return (async () => {
+    const t = hoursAgo(1, now);
+    const db = fakeDb([{ ...premiumRow({ lastSeen: t, exact: t }), source: "ebay", marketplace: "EBAY_US" }]);
+    assert.equal(isPremiumDealEligible(db.rows[0], now), true, "confirmed and eligible before the sale");
+    await db.from("deals").update({ is_active: false, exact_verified_at: hoursAgo(0.5, now), disqualified_reason: AVAILABILITY_RETIREMENT.SOLD }).eq("id", 4242);
+    await writeDiscoverySighting(db, { source: "ebay", marketplace: "EBAY_US", listing_id: "v1|123456789012|0", is_active: true, last_seen_at: new Date(now).toISOString() });
+    assert.equal(db.rows[0].is_active, false);
+    assert.equal(isPremiumDealEligible(db.rows[0], now), false);
+  })();
+});
+
+test("SIF-34. a later sighting conservatively ends premium eligibility until the verifier confirms again", () => {
+  const now = Date.now();
+  const confirmed = hoursAgo(3, now);
+  const r = premiumRow({ lastSeen: hoursAgo(1, now), exact: confirmed });
+  assert.equal(isPremiumDealEligible(r, now), false);
+  const reconfirmed = hoursAgo(0.1, now);
+  assert.equal(isPremiumDealEligible(premiumRow({ lastSeen: reconfirmed, exact: reconfirmed }), now), true);
+});
+
+test("SIF-35. UNKNOWN cannot create a confirmation: no availability data -> UNKNOWN -> no write, so nothing becomes eligible", () => {
+  // every inconclusive response class maps to UNKNOWN
+  for (const input of [
+    { httpStatus: 200, body: { itemId: "x" } },
+    { httpStatus: 200, body: { estimatedAvailabilities: [{ estimatedAvailabilityStatus: "IN_STOCK" }, {}] } },
+    { httpStatus: 429 }, { httpStatus: 503 }, { fetchFailed: true }, { httpStatus: 200, parseFailed: true },
+  ]) {
+    assert.equal(classifyItemLookup(input).status, "UNKNOWN", JSON.stringify(input));
+  }
+  // verify-deals writes last_seen_at + exact_verified_at together ONLY in
+  // the ACTIVE branch; UNKNOWN has no write at all
+  const code = stripComments(read("app/api/verify-deals/route.js"));
+  const writes = code.slice(code.indexOf('if (status === "ENDED" || status === "SOLD" || status === "RETIRED")'));
+  assert.match(writes, /\} else if \(status === "ACTIVE"\) \{\s*const patch = exactColReady\s*\? \{ \.\.\.auctionActiveExtra, last_seen_at: checkedAt, exact_verified_at: checkedAt \}/);
+  assert.doesNotMatch(writes.slice(0, writes.indexOf("const plan = retirementInvalidationPlan")), /status === "UNKNOWN"/);
+  // an auction UNKNOWN is "none" - no re-price patch, no stamp
+  assert.equal(repricedAuctionPatch({ row: { price: 5, marketplace: "EBAY_US", market_price: 40 }, snapshot: { status: "UNKNOWN" } }).action, "none");
+  // so rows keep whatever they had: never verified stays ineligible, a
+  // confirmation that has aged out stays ineligible
+  const now = Date.now();
+  const seen = hoursAgo(1, now);
+  assert.equal(isPremiumDealEligible(premiumRow({ lastSeen: seen, exact: null }), now), false);
+  const aged = hoursAgo(PREMIUM_EXACT_VERIFICATION_MAX_AGE_HOURS + 2, now);
+  assert.equal(isPremiumDealEligible(premiumRow({ lastSeen: aged, exact: aged }), now), false);
+  // a recovery UNKNOWN only consumes the marker - no timestamps
+  assert.deepEqual(Object.keys(recoveryDecision({ row: { disqualified_reason: SEEN_AGAIN.SOLD }, snapshot: { status: "UNKNOWN" } }).patch), ["disqualified_reason"]);
 });

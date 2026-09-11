@@ -28,6 +28,11 @@ import {
 } from "../../lib/dealMatching.js";
 import { disqualificationReason } from "../../lib/dealQuality.js";
 
+// Sold-item freshness: a verify-deals ACTIVE verdict stamps last_seen_at and
+// exact_verified_at with ONE timestamp; verified fixtures share one instant
+// (separate clock reads could differ by a millisecond and fail the rule).
+const VERIFIED_AT = new Date().toISOString();
+
 const T = (title) => ({ title });
 const match = (title, card) => listingMatchesCard({ title }, card);
 
@@ -185,7 +190,7 @@ test("15. Hypno regression fixture (deal 31721) is rejected on every axis", () =
     title: HYPNO_LOT, card_name: "Hypno (8)", card_set: "Fossil", card_language: "english",
     is_active: true, is_graded: true, grader: "PSA", grade: "10",
     listing_url: "https://www.ebay.com/itm/377464748193", affiliate_url: "https://www.ebay.com/itm/377464748193",
-    last_seen_at: new Date().toISOString(), exact_verified_at: new Date().toISOString(),
+    last_seen_at: VERIFIED_AT, exact_verified_at: VERIFIED_AT,
     total_price_usd: 352.62, market_price: 1388.97, discount_pct: 0.746,
   };
   assert.equal(disqualificationReason(row), "type:not_a_card");
@@ -197,7 +202,7 @@ test("16. Aerodactyl regression fixture (deal 31556) is rejected", () => {
     title: AERODACTYL_IT, card_name: "Aerodactyl", card_set: "Fossil", card_language: "english",
     is_active: true, is_graded: true, grader: "PSA", grade: "1",
     listing_url: "https://www.ebay.com/itm/1", affiliate_url: "https://www.ebay.com/itm/1",
-    last_seen_at: new Date().toISOString(), exact_verified_at: new Date().toISOString(),
+    last_seen_at: VERIFIED_AT, exact_verified_at: VERIFIED_AT,
     total_price_usd: 100, market_price: 350, discount_pct: 0.71,
   };
   // graded row: display gate rejects via listingStillMatchesCatalogue (language)

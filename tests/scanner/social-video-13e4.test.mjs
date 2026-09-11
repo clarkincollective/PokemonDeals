@@ -32,6 +32,11 @@ import { buildDealPayload, buildMoverPayload, buildSpotlightPayload } from "../.
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
 const HOUR = 3_600_000;
+// Sold-item freshness: a verify-deals ACTIVE verdict stamps last_seen_at and
+// exact_verified_at with ONE timestamp; verified fixtures share one instant
+// (separate clock reads could differ by a millisecond and fail the rule).
+const VERIFIED_AT = new Date(Date.now() - HOUR).toISOString();
+
 
 const VIDEO_FILES = readdirSync(join(ROOT, "lib/social"))
   .filter((f) => /^video[A-Z].*\.mjs$/.test(f))
@@ -53,9 +58,9 @@ const dealRow = (over = {}) => ({
   total_price: over.total_price_usd ?? 120,
   market_price: over.market_price ?? 300,
   discount_pct: over.discount_pct ?? 0.6,
-  exact_verified_at: new Date(Date.now() - HOUR).toISOString(),
+  exact_verified_at: VERIFIED_AT,
   first_seen_at: new Date(Date.now() - 3 * HOUR).toISOString(),
-  last_seen_at: new Date(Date.now() - HOUR).toISOString(),
+  last_seen_at: VERIFIED_AT,
   auction_end_at: null,
   ...over,
 });

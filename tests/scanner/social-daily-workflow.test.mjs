@@ -31,6 +31,11 @@ const read = (p) => readFileSync(join(ROOT, p), "utf8");
 const HOUR = 3_600_000;
 const NOW = Date.parse("2026-09-06T12:00:00.000Z");
 const ago = (h) => new Date(NOW - h * HOUR).toISOString();
+// Sold-item freshness: a verify-deals ACTIVE verdict stamps last_seen_at and
+// exact_verified_at with ONE timestamp; verified fixtures share one instant
+// (separate clock reads could differ by a millisecond and fail the rule).
+const VERIFIED_AT = ago(1);
+
 
 // A fully-populated, clean, socially-eligible BIN deal row - the same
 // shape lib/social/db.mjs returns. Overridable per test. `watchlist_id`
@@ -69,8 +74,8 @@ function dealRow(over = {}) {
     grade: null,
     is_active: true,
     first_seen_at: ago(3),
-    last_seen_at: ago(1),
-    exact_verified_at: ago(1),
+    last_seen_at: VERIFIED_AT,
+    exact_verified_at: VERIFIED_AT,
     auction_end_at: null,
     disqualified_reason: null,
     visual_authenticity_status: "MATCH",

@@ -31,6 +31,11 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
 const HOUR = 3_600_000;
 const ago = (h) => new Date(Date.now() - h * HOUR).toISOString();
+// Sold-item freshness: a verify-deals ACTIVE verdict stamps last_seen_at and
+// exact_verified_at with ONE timestamp; verified fixtures share one instant
+// (separate clock reads could differ by a millisecond and fail the rule).
+const VERIFIED_AT = ago(1);
+
 
 // a minimally-complete displayable, socially-eligible row
 const row = (over = {}) => ({
@@ -49,8 +54,8 @@ const row = (over = {}) => ({
   is_active: true,
   condition: "Near Mint",
   first_seen_at: ago(6),
-  last_seen_at: ago(1),
-  exact_verified_at: ago(1),
+  last_seen_at: VERIFIED_AT,
+  exact_verified_at: VERIFIED_AT,
   auction_end_at: null,
   disqualified_reason: null,
   visual_authenticity_status: null,

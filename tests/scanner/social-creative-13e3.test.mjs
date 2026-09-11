@@ -33,6 +33,11 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
 
 const HOUR = 3_600_000;
+// Sold-item freshness: a verify-deals ACTIVE verdict stamps last_seen_at and
+// exact_verified_at with ONE timestamp; verified fixtures share one instant
+// (separate clock reads could differ by a millisecond and fail the rule).
+const VERIFIED_AT = new Date(Date.now() - HOUR).toISOString();
+
 const dealRow = (over = {}) => ({
   id: 700, watchlist_id: 700, card_tcgplayer_id: "12345",
   card_name: over.card_name ?? "Charizard", card_set: over.card_set ?? "Base Set",
@@ -40,9 +45,9 @@ const dealRow = (over = {}) => ({
   listing_type: "FIXED_PRICE", marketplace: over.marketplace ?? "EBAY_US",
   total_price_usd: over.total_price_usd ?? 120, total_price: over.total_price_usd ?? 120,
   market_price: over.market_price ?? 300, discount_pct: over.discount_pct ?? 0.6,
-  exact_verified_at: new Date(Date.now() - HOUR).toISOString(),
+  exact_verified_at: VERIFIED_AT,
   first_seen_at: new Date(Date.now() - 3 * HOUR).toISOString(),
-  last_seen_at: new Date(Date.now() - HOUR).toISOString(),
+  last_seen_at: VERIFIED_AT,
   auction_end_at: null, ...over,
 });
 const realMovement = {

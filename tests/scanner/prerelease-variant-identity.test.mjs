@@ -36,6 +36,11 @@ const match = (title, card) => listingMatchesCard({ title }, card);
 
 const HOUR = 3_600_000;
 const ago = (h) => new Date(Date.now() - h * HOUR).toISOString();
+// Sold-item freshness: a verify-deals ACTIVE verdict stamps last_seen_at and
+// exact_verified_at with ONE timestamp; verified fixtures share one instant
+// (separate clock reads could differ by a millisecond and fail the rule).
+const VERIFIED_AT = ago(1);
+
 
 // A fully-populated, otherwise-clean deal row for isDisplayableDeal/
 // isPremiumDealEligible testing - mirrors the real shape returned by
@@ -54,9 +59,9 @@ const dealRow = (over = {}) => ({
   grade: "9",
   condition: "Graded",
   card_language: "english",
-  last_seen_at: ago(1),
+  last_seen_at: VERIFIED_AT,
   first_seen_at: ago(1),
-  exact_verified_at: ago(1),
+  exact_verified_at: VERIFIED_AT,
   market_price: 776.36,
   discount_pct: 0.56,
   ...over,

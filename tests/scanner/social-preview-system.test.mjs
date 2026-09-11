@@ -62,7 +62,13 @@ const ago = (h) => new Date(Date.now() - h * HOUR).toISOString();
 const dealRow = (over = {}) => {
   const cardName = over.card_name ?? "Charizard GX";
   const cardSet = over.card_set ?? "SM - Hidden Fates";
-  return {
+  // Sold-item freshness: a verify-deals ACTIVE verdict stamps last_seen_at
+  // and exact_verified_at with ONE timestamp (the positive-ACTIVE evidence
+  // rule, lib/listingAvailability.isPositiveActiveConfirmation). Fixtures
+  // model that write: one shared instant, and an overridden
+  // exact_verified_at mirrors into last_seen_at unless a test sets both.
+  const stamp = ago(1);
+  const row = {
     id: 501,
     watchlist_id: 9001,
     card_tcgplayer_id: null,
@@ -88,14 +94,16 @@ const dealRow = (over = {}) => {
   grade: null,
   is_active: true,
   first_seen_at: ago(1),
-  last_seen_at: ago(1),
-  exact_verified_at: ago(1),
+  last_seen_at: stamp,
+  exact_verified_at: stamp,
   auction_end_at: null,
   disqualified_reason: null,
   visual_authenticity_status: null,
     visual_authenticity_reason: null,
     ...over,
   };
+  if (over.exact_verified_at && !("last_seen_at" in over)) row.last_seen_at = over.exact_verified_at;
+  return row;
 };
 
 // === 1-4. eligibility: reuses existing truth contracts, adds only freshness ===

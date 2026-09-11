@@ -41,30 +41,40 @@ const HOUR = 3_600_000;
 const ago = (h) => new Date(Date.now() - h * HOUR).toISOString();
 const inFuture = (h) => new Date(Date.now() + h * HOUR).toISOString();
 
-const deal = (over = {}) => ({
-  id: 1,
-  is_active: true,
-  is_graded: false,
-  title: "Charizard GX 9/68 SM Hidden Fates Holo Rare",
-  condition: "Near Mint",
-  card_language: "english",
-  card_name: "Charizard GX",
-  card_set: "SM - Hidden Fates",
-  card_tcgplayer_id: "191319",
-  market_price: 40,
-  discount_pct: 0.3,
-  listing_type: "FIXED_PRICE",
-  auction_end_at: null,
-  first_seen_at: ago(1),
-  last_seen_at: ago(1),
-  exact_verified_at: ago(1),
-  listing_id: "v1|123456789012|0",
-  listing_url: "https://www.ebay.com/itm/123456789012?x=1",
-  affiliate_url: "https://www.ebay.com/itm/123456789012?x=1&campid=5",
-  disqualified_reason: null,
-  visual_authenticity_status: null,
-  ...over,
-});
+const deal = (over = {}) => {
+  // Sold-item freshness: a verify-deals ACTIVE verdict stamps last_seen_at
+  // and exact_verified_at with ONE timestamp (the positive-ACTIVE evidence
+  // rule, lib/listingAvailability.isPositiveActiveConfirmation). Fixtures
+  // model that write: one shared instant, and an overridden
+  // exact_verified_at mirrors into last_seen_at unless a test sets both.
+  const stamp = ago(1);
+  const row = {
+    id: 1,
+    is_active: true,
+    is_graded: false,
+    title: "Charizard GX 9/68 SM Hidden Fates Holo Rare",
+    condition: "Near Mint",
+    card_language: "english",
+    card_name: "Charizard GX",
+    card_set: "SM - Hidden Fates",
+    card_tcgplayer_id: "191319",
+    market_price: 40,
+    discount_pct: 0.3,
+    listing_type: "FIXED_PRICE",
+    auction_end_at: null,
+    first_seen_at: ago(1),
+    last_seen_at: stamp,
+    exact_verified_at: stamp,
+    listing_id: "v1|123456789012|0",
+    listing_url: "https://www.ebay.com/itm/123456789012?x=1",
+    affiliate_url: "https://www.ebay.com/itm/123456789012?x=1&campid=5",
+    disqualified_reason: null,
+    visual_authenticity_status: null,
+    ...over,
+  };
+  if (over.exact_verified_at && !("last_seen_at" in over)) row.last_seen_at = over.exact_verified_at;
+  return row;
+};
 
 // --- 1: the exact bug class - recent last_seen_at, no/old exact verification
 
@@ -88,7 +98,7 @@ test("1c. an old exact_verified_at (past the bound) is not fresh", () => {
   assert.equal(isPremiumDealEligible(r), false);
 });
 
-test("1d. a recent exact_verified_at (within the bound) IS fresh, and the deal remains eligible", () => {
+test("1d. a recent exact_verified_at (within the bound) from a genuine ACTIVE verdict IS fresh, and the deal remains eligible", () => {
   const r = deal({ exact_verified_at: ago(PREMIUM_EXACT_VERIFICATION_MAX_AGE_HOURS - 1) });
   assert.equal(isExactVerifiedFresh(r), true);
   assert.equal(isPremiumDealEligible(r), true);
