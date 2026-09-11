@@ -55,7 +55,8 @@ test("SP-2. eras come only from the curated release list; unlisted sets are unda
     Fossil: "wotc", "Neo Destiny": "wotc", "EX Dragon": "ex", "EX Dragon Frontiers": "ex", "Legends Awakened": "dp",
     Triumphant: "dp", "Plasma Freeze": "bwxy", "XY - Evolutions": "bwxy", "SM - Unified Minds": "sm",
     "SWSH07: Evolving Skies": "swsh", "Pokemon GO": "swsh", "SV03: Obsidian Flames": "sv", "SV: Scarlet & Violet 151": "sv",
-    "Dragon Majesty": "undated", "Jumbo Cards": "undated", "SWSH: Sword & Shield Promo Cards": "undated", "Made Up Set": "undated",
+    "Dragon Majesty": "sm", // dated by its evidence-backed supplement entry (17C.6)
+    "Deck Exclusives": "undated", "Jumbo Cards": "undated", "SWSH: Sword & Shield Promo Cards": "undated", "Made Up Set": "undated",
   };
   for (const [set, key] of Object.entries(cases)) assert.equal(eraForSet(set).key, key, set);
   assert.equal(UNDATED_ERA.years, null, "undated sets get no invented years");
@@ -69,7 +70,7 @@ test("SP-3. grouping: eras oldest first (undated last), sets in release order, c
       card({ set: "Team Rocket", cardNumber: "22/82" }),
       card({ set: "Fossil", cardNumber: "19/62" }),
       card({ set: "Fossil", cardNumber: "4/62" }),
-      card({ set: "Dragon Majesty", cardNumber: "49/70" }),
+      card({ set: "Deck Exclusives", cardNumber: "3" }),
       card({ set: "Blister Exclusives", cardNumber: "2" }),
     ],
     ["fossil", "sv03-obsidian-flames"]
@@ -77,7 +78,7 @@ test("SP-3. grouping: eras oldest first (undated last), sets in release order, c
   assert.deepEqual(groups.map((g) => g.era.key), ["wotc", "sv", "undated"]);
   assert.deepEqual(groups[0].sets.map((s) => s.set), ["Fossil", "Team Rocket"], "release order, not card count");
   assert.deepEqual(groups[0].sets[0].cards.map((c) => c.cardNumber), ["4/62", "19/62"]);
-  assert.deepEqual(groups[2].sets.map((s) => s.set), ["Blister Exclusives", "Dragon Majesty", "Jumbo Cards"], "undated: by name");
+  assert.deepEqual(groups[2].sets.map((s) => s.set), ["Blister Exclusives", "Deck Exclusives", "Jumbo Cards"], "undated: by name");
   assert.equal(groups[0].sets[0].slug, "fossil");
   assert.equal(groups[0].sets[1].slug, null, "no /sets link without a real set page");
 });
@@ -89,7 +90,7 @@ test("SP-4. coverage facts are counts only - standard vs Jumbo, dated vs undated
     card({ set: "EX Dragon" }),
     card({ set: "SV03: Obsidian Flames", refPrice: null }),
     card({ set: "Jumbo Cards", name: "Dragonite (Jumbo)", rarity: "Promo" }),
-    card({ set: "Dragon Majesty" }),
+    card({ set: "SM Promos" }),
   ]);
   assert.equal(f.total, 6);
   assert.equal(f.setCount, 5);
