@@ -158,8 +158,12 @@ test("a noindex deal (deal-24195 shape) cannot enter the deals sitemap - by char
 
 test("lib/sitemap.js uses the shared display gate as the deals-table page-indexable predicate", () => {
   assert.match(SITEMAP_SRC, /import \{[^}]*isDisplayableDeal[^}]*\} from "@\/lib\/dealQuality"/);
-  // deals table -> isDisplayableDeal; sealed -> the exact-CTA + live-auction subset.
-  assert.match(SITEMAP_SRC, /pageIndexable\s*=\s*sealed[\s\S]*?:\s*isDisplayableDeal/);
+  // deals table -> isDisplayableDeal; sealed -> isDisplayableSealedDeal.
+  // 17C.7 adds savingsClaimTrusted to both: a plain listing (shown, but
+  // with no evidenced savings claim) renders noindex, so it must not be
+  // listed in the sitemap either.
+  assert.match(SITEMAP_SRC, /pageIndexable\s*=\s*sealed[\s\S]*?isDisplayableSealedDeal\(r\) && savingsClaimTrusted\(r\)/);
+  assert.match(SITEMAP_SRC, /:\s*\(r\) => isDisplayableDeal\(r\) && savingsClaimTrusted\(r\)/);
   assert.match(SITEMAP_SRC, /if \(!pageIndexable\(row\)\) continue/);
 });
 

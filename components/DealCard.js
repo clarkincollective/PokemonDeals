@@ -4,7 +4,7 @@ import { surfaceForPageName } from "@/lib/affiliateSurfaces";
 import { slugifySet } from "@/lib/slugify";
 import { currencyForDeal, refInListingCurrency } from "@/lib/money";
 import RelativeTime, { WithinWindow } from "@/components/RelativeTime";
-import { conditionLabel } from "@/lib/dealQuality";
+import { conditionLabel, listingPresentation } from "@/lib/dealQuality";
 import { normalizePublicText } from "@/lib/publicText";
 import { cardDisplayName } from "@/lib/cardName";
 import { priceBandUsd, discountBand, listingTypeProp, rawVsGraded } from "@/lib/analytics/props";
@@ -97,6 +97,13 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
   // from physical condition.
   const conditionText = conditionLabel(deal);
 
+  // 17C.7: a listing whose discount has no evidenced reference for this
+  // exact product and condition renders PLAIN - price, shipping and the
+  // release/seller-claim notes, with no badge, strikethrough, saving or
+  // "% below market" anywhere.
+  const presentation = listingPresentation(deal);
+  const showSavings = presentation.savings === "trusted";
+
   // Phase 13A - structural, non-PII payload for the discovery-lane
   // impression + click events. Only emitted when a lane opts in by
   // passing `analytics={{ section }}` (the big "All deals" grid does not,
@@ -110,7 +117,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
         listing_type: listingTypeProp(deal.listing_type),
         raw_vs_graded: rawVsGraded(deal.is_graded),
         price_band_usd: priceBandUsd(usdTotal),
-        discount_band: discountBand(discountPct),
+        discount_band: showSavings ? discountBand(discountPct) : "no_savings_claim",
         country: deal.marketplace ? String(deal.marketplace).replace("EBAY_", "") : "unknown",
       }
     : null;
@@ -178,11 +185,13 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             </WithinWindow>
           )}
 
-          <span
-            className={`absolute right-2 top-2 rounded-md px-2 py-1 text-sm font-extrabold leading-none shadow-sm ${discountBadgeClass(discountPct)}`}
-          >
-            −{discountPct}%
-          </span>
+          {showSavings && (
+            <span
+              className={`absolute right-2 top-2 rounded-md px-2 py-1 text-sm font-extrabold leading-none shadow-sm ${discountBadgeClass(discountPct)}`}
+            >
+              −{discountPct}%
+            </span>
+          )}
         </a>
       </div>
 
@@ -215,9 +224,9 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           // as though it were the bid.
           <AuctionPrice
             deal={deal}
-            marketUsd={marketUsd}
-            marketNative={marketNative}
-            discountPct={discountPct}
+            marketUsd={showSavings ? marketUsd : null}
+            marketNative={showSavings ? marketNative : null}
+            discountPct={showSavings ? discountPct : 0}
             variant="card"
             className="mt-1.5"
           />
@@ -228,7 +237,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
               native={{ amount: total, currency: nativeCurrency }}
               className="tnum text-lg font-bold text-zinc-900 dark:text-zinc-50"
             />
-            {showRef && (
+            {showSavings && showRef && (
               // Fixed price: the market reference is a "typical" figure the
               // asking price sits below (struck through).
               <span className="tnum text-xs text-zinc-400 line-through">
@@ -242,7 +251,13 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             )}
           </div>
         )}
-        {isAuction ? null : showRef ? (
+        {!showSavings ? (
+          presentation.notes.map((note) => (
+            <p key={note} className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+              {note}
+            </p>
+          ))
+        ) : isAuction ? null : showRef ? (
           <p className="tnum text-xs font-semibold text-emerald-700 dark:text-emerald-500">
             Save{" "}
             <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}

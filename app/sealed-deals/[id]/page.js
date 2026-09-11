@@ -10,7 +10,7 @@ import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
 import { getSealedPriceHistory } from "@/lib/pokemonPriceTracker";
 import { shouldIndexDeal } from "@/lib/indexability";
-import { isDisplayableSealedDeal, preReleaseListing } from "@/lib/dealQuality";
+import { isDisplayableSealedDeal, listingPresentation } from "@/lib/dealQuality";
 import { timeAgo, timeUntil } from "@/lib/time";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import SiteHeader from "@/components/SiteHeader";
@@ -85,6 +85,17 @@ export async function generateMetadata({ params }) {
 
   const productName = normalizePublicText(deal.sealed_watchlist?.name ?? deal.title);
   const productSet = deal.sealed_watchlist?.set;
+  // 17C.7: no evidenced reference for this exact product -> no discount
+  // claim in the title, description or link preview, and no indexing.
+  if (listingPresentation(deal).savings !== "trusted") {
+    const plainName = `${productName}${productSet ? ` (${productSet})` : ""}`;
+    return {
+      title: `${plainName} - eBay listing`,
+      description: `${plainName} listed on eBay. Shown without a savings claim: we have no verified market reference for this exact product yet.`,
+      alternates: { canonical: `/sealed-deals/${id}` },
+      robots: { index: false, follow: true },
+    };
+  }
   const discountPct = Math.round(deal.discount_pct * 100);
   // Length-aware, same approach as the card hub: keep the real product
   // (and set) name intact and drop the "- N% below market" suffix rather
@@ -132,19 +143,21 @@ export default async function SealedDealDetailPage({ params }) {
   // one, but it also means Google would keep re-crawling stale content
   // instead of a clear "gone" signal.
   if (!shouldIndexDeal(deal) || !isDisplayableSealedDeal(deal)) {
-    // 17C.7: an active presale for an upcoming expansion is gated, not
-    // expired - say so with the release date, and claim no discount.
-    const preRelease = deal?.is_active ? preReleaseListing(deal) : null;
+    // 17C.7: an active early listing awaiting eBay's own confirmation is
+    // gated, not expired - say so, and claim no discount.
+    const gatedPresentation = deal?.is_active ? listingPresentation(deal) : null;
+    const preRelease = gatedPresentation?.early ? gatedPresentation : null;
     return (
       <div className="min-h-screen bg-paper">
         <SiteHeader />
         <div className="mx-auto max-w-2xl px-6 py-16 text-center">
           {preRelease ? (
             <>
-              <h1 className="text-xl font-bold text-black dark:text-zinc-50">{preRelease.label}</h1>
+              <h1 className="text-xl font-bold text-black dark:text-zinc-50">{preRelease.notes[0]}</h1>
               <p className="mt-2 text-sm text-zinc-500">
-                This listing is for {preRelease.officialName}, which hasn&apos;t been released yet. We don&apos;t
-                show pre-release or preorder listings as deals, so no discount or delivery date is claimed here.
+                This listing predates its set&apos;s release and eBay hasn&apos;t confirmed it is active. We show
+                such a listing once eBay confirms it - that confirms the listing, not that the seller holds the
+                product or when it would arrive. No discount or delivery date is claimed here.
               </p>
             </>
           ) : (
@@ -162,6 +175,9 @@ export default async function SealedDealDetailPage({ params }) {
   const productName = normalizePublicText(watchlist?.name ?? deal.title);
   const productSet = watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
+  // 17C.7: savings claims need an evidenced reference for this exact product.
+  const presentation = listingPresentation(deal);
+  const showSavings = presentation.savings === "trusted";
   // Native currency on the server (keeps this page cacheable); <Price>
   // localises after hydration. market_price / "saved" are USD.
   const nativeCurrency = currencyForDeal(deal);
@@ -234,7 +250,9 @@ export default async function SealedDealDetailPage({ params }) {
 
   return (
     <div className="min-h-screen bg-paper">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
+      {/* 17C.7: a plain listing makes no price/availability claim in
+          structured data either - only the breadcrumb below. */}
+      {showSavings && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <SiteHeader />
       <div className="mx-auto max-w-5xl px-6 py-10">
@@ -257,9 +275,11 @@ export default async function SealedDealDetailPage({ params }) {
 
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-md bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">
-                {discountPct}% below market
-              </span>
+              {showSavings && (
+                <span className="rounded-md bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">
+                  {discountPct}% below market
+                </span>
+              )}
               <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                 Sealed
               </span>
@@ -273,7 +293,7 @@ export default async function SealedDealDetailPage({ params }) {
                 app/deals/[id]/page.js's identical reasoning. */}
             <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">
               {productName}
-              <span className="font-medium text-zinc-500"> - {discountPct}% Below Market</span>
+              {showSavings && <span className="font-medium text-zinc-500"> - {discountPct}% Below Market</span>}
             </h1>
             {productSet && <p className="text-zinc-500">{productSet}</p>}
             <p className="mt-1 line-clamp-2 text-sm text-zinc-400">{normalizePublicText(deal.title)}</p>
@@ -284,9 +304,9 @@ export default async function SealedDealDetailPage({ params }) {
                 // shipping + estimated landed total on their own lines.
                 <AuctionPrice
                   deal={deal}
-                  marketUsd={marketUsd}
-                  marketNative={marketNative}
-                  discountPct={discountPct}
+                  marketUsd={showSavings ? marketUsd : null}
+                  marketNative={showSavings ? marketNative : null}
+                  discountPct={showSavings ? discountPct : 0}
                   variant="detail"
                 />
               ) : (
@@ -297,7 +317,7 @@ export default async function SealedDealDetailPage({ params }) {
                       native={{ amount: total, currency: nativeCurrency }}
                       className="text-2xl font-bold text-black dark:text-zinc-50"
                     />
-                    {showRef && (
+                    {showSavings && showRef && (
                       <span className="text-lg text-zinc-400 line-through">
                         <Price
                           usd={marketUsd}
@@ -307,7 +327,7 @@ export default async function SealedDealDetailPage({ params }) {
                       </span>
                     )}
                   </div>
-                  {showRef ? (
+                  {!showSavings ? null : showRef ? (
                     <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-500">
                       You save{" "}
                       <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}
@@ -320,6 +340,12 @@ export default async function SealedDealDetailPage({ params }) {
                   )}
                 </>
               )}
+              {!showSavings &&
+                presentation.notes.map((note) => (
+                  <p key={note} className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                    {note}
+                  </p>
+                ))}
             </div>
             {isAuction && deal.auction_end_at && (
               <p className="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">
@@ -358,8 +384,12 @@ export default async function SealedDealDetailPage({ params }) {
               </AffiliateLink>
               <ShareButton
                 url={`${SITE_URL}/sealed-deals/${deal.id}`}
-                title={`${productName} - ${discountPct}% below market`}
-                text={`${productName}${productSet ? ` (${productSet})` : ""}${dealTotalUsd(deal) ? ` - $${dealTotalUsd(deal).toFixed(2)},` : " -"} ${discountPct}% below market on Pokemon Deal Finder`}
+                title={showSavings ? `${productName} - ${discountPct}% below market` : productName}
+                text={
+                  showSavings
+                    ? `${productName}${productSet ? ` (${productSet})` : ""}${dealTotalUsd(deal) ? ` - $${dealTotalUsd(deal).toFixed(2)},` : " -"} ${discountPct}% below market on Pokemon Deal Finder`
+                    : `${productName}${productSet ? ` (${productSet})` : ""} on Pokemon Deal Finder`
+                }
                 label="Share"
                 className="rounded-lg px-4 py-2"
               />
@@ -383,12 +413,17 @@ export default async function SealedDealDetailPage({ params }) {
                   approxPrefix=""
                 />
               </span>
-              {" "}
-              — this listing is{" "}
-              <span className="font-semibold text-emerald-600 dark:text-emerald-500">
-                {discountPct}% below
-              </span>{" "}
-              it.
+              {showSavings && (
+                <>
+                  {" "}
+                  — this listing is{" "}
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-500">
+                    {discountPct}% below
+                  </span>{" "}
+                  it
+                </>
+              )}
+              .
             </p>
           )}
         </div>

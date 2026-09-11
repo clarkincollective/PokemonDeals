@@ -1,7 +1,7 @@
 import { revalidateTag } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getListingSnapshot, getBrowseRateLimit } from "@/lib/ebay";
-import { isDisplayableDeal } from "@/lib/dealQuality";
+import { isVerificationCandidate } from "@/lib/dealQuality";
 import { getUsdRates } from "@/lib/fx";
 import { repricedAuctionPatch } from "@/lib/auctionPricing";
 import { allocateVerifyBatch } from "@/lib/verifyAllocator";
@@ -158,7 +158,10 @@ export async function GET(request) {
     if (error) return Response.json({ ok: false, stage: "select", error: error.message }, { status: 200 });
     if (!data?.length) break;
     for (const r of data) {
-      if (!isDisplayableDeal(r)) continue;
+      // 17C.7: the pool includes early listings that are display-gated ONLY
+      // for lacking an availability confirmation - this pass is how they
+      // earn one. Quota and ranking are unchanged.
+      if (!isVerificationCandidate(r)) continue;
       if (!legacyOf(r.listing_id)) continue;
       pool.push(r);
     }

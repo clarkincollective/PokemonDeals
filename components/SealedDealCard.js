@@ -11,6 +11,7 @@ import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import ShareButton from "@/components/ShareButton";
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
+import { listingPresentation } from "@/lib/dealQuality";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -39,6 +40,10 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
   const affiliateHref = wrapEbayAffiliateUrl(deal.affiliate_url, { surface: surfaceForPageName(pageName) });
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
+  // 17C.7: no evidenced reference for this exact product -> plain listing
+  // (no badge, score, strikethrough, saving or "% below market").
+  const presentation = listingPresentation(deal);
+  const showSavings = presentation.savings === "trusted";
 
   return (
     <div className="group flex h-full flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950">
@@ -59,10 +64,12 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
             {rank}
           </span>
         )}
-        <span className="absolute right-2 top-2 flex flex-col items-center rounded-md bg-emerald-600 px-2 py-1 leading-none text-white shadow-sm">
-          <span className="text-sm font-extrabold">{discountPct}%</span>
-          <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wide">below market</span>
-        </span>
+        {showSavings && (
+          <span className="absolute right-2 top-2 flex flex-col items-center rounded-md bg-emerald-600 px-2 py-1 leading-none text-white shadow-sm">
+            <span className="text-sm font-extrabold">{discountPct}%</span>
+            <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wide">below market</span>
+          </span>
+        )}
         {marketInfo && (
           <span
             className={`absolute left-2 ${rank != null ? "top-10" : "top-2"} rounded-md bg-white/90 px-2 py-1 text-xs shadow-sm dark:bg-zinc-950/90`}
@@ -75,7 +82,7 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
 
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex flex-wrap items-center gap-1.5">
-          <DealScoreBadge score={scoreBadge} />
+          <DealScoreBadge score={showSavings ? scoreBadge : null} />
           <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             Sealed
           </span>
@@ -99,9 +106,9 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
             // landed total is never shown labelled as "the bid".
             <AuctionPrice
               deal={deal}
-              marketUsd={marketUsd}
-              marketNative={marketNative}
-              discountPct={discountPct}
+              marketUsd={showSavings ? marketUsd : null}
+              marketNative={showSavings ? marketNative : null}
+              discountPct={showSavings ? discountPct : 0}
               variant="card"
             />
           ) : (
@@ -112,7 +119,7 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
                   native={{ amount: total, currency: nativeCurrency }}
                   className="text-lg font-bold text-black dark:text-zinc-50"
                 />
-                {showRef && (
+                {showSavings && showRef && (
                   <span className="text-sm text-zinc-400 line-through">
                     <Price
                       usd={marketUsd}
@@ -122,7 +129,13 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
                   </span>
                 )}
               </div>
-              {showRef ? (
+              {!showSavings ? (
+                presentation.notes.map((note) => (
+                  <p key={note} className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+                    {note}
+                  </p>
+                ))
+              ) : showRef ? (
                 <p className="text-xs font-medium text-emerald-600 dark:text-emerald-500">
                   You save{" "}
                   <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}
@@ -150,8 +163,12 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
         <div className="mt-auto flex gap-1.5 pt-2">
           <ShareButton
             url={`${SITE_URL}/sealed-deals/${deal.id}`}
-            title={`${productName} - ${discountPct}% below market`}
-            text={`${productName}${productSet ? ` (${productSet})` : ""}${dealTotalUsd(deal) ? ` - $${dealTotalUsd(deal).toFixed(2)},` : " -"} ${discountPct}% below market on Pokemon Deal Finder`}
+            title={showSavings ? `${productName} - ${discountPct}% below market` : productName}
+            text={
+              showSavings
+                ? `${productName}${productSet ? ` (${productSet})` : ""}${dealTotalUsd(deal) ? ` - $${dealTotalUsd(deal).toFixed(2)},` : " -"} ${discountPct}% below market on Pokemon Deal Finder`
+                : `${productName}${productSet ? ` (${productSet})` : ""} on Pokemon Deal Finder`
+            }
             className="rounded-md px-2.5"
           />
           <AffiliateLink

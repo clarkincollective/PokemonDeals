@@ -8,7 +8,7 @@ import { dealPageTitle, dealCatalogSlugCandidate, expiredDealDestination } from 
 import { listingAvailabilityEvidence, dealDetailTag } from "@/lib/listingAvailability";
 import RelativeTime from "@/components/RelativeTime";
 import { shouldIndexDeal } from "@/lib/indexability";
-import { conditionLabel, isDisplayableDeal, preReleaseListing } from "@/lib/dealQuality";
+import { conditionLabel, isDisplayableDeal, listingPresentation } from "@/lib/dealQuality";
 import { normalizePublicText } from "@/lib/publicText";
 import { cardDisplayName } from "@/lib/cardName";
 import { extractSpecies } from "@/lib/pokemonSpecies";
@@ -133,6 +133,18 @@ export async function generateMetadata({ params }) {
 
   const cardName = cardDisplayName({ name: normalizePublicText(deal.watchlist?.name ?? deal.title) });
   const cardSet = deal.watchlist?.set;
+  // 17C.7: a plain listing (no evidenced reference for this exact product
+  // and condition) carries no discount claim in its title, description or
+  // link preview, and is not indexed.
+  if (listingPresentation(deal).savings !== "trusted") {
+    const plainName = `${cardName}${cardSet ? ` (${cardSet})` : ""}`;
+    return {
+      title: `${plainName} - eBay listing`,
+      description: `${plainName} listed on eBay. Shown without a savings claim: we have no verified market reference for this exact product and condition yet.`,
+      alternates: { canonical: `/deals/${id}` },
+      robots: { index: false, follow: true },
+    };
+  }
   const discountPct = Math.round(deal.discount_pct * 100);
   // SEO-2: card identity + the deal hook survive ahead of the "(set)"
   // context (lib/dealPage.js dealPageTitle) - a long set name used to
@@ -265,9 +277,10 @@ export default async function DealDetailPage({ params }) {
     // purchase opportunity.
     const cardName = deal ? cardDisplayName({ name: normalizePublicText(deal.watchlist?.name ?? deal.title) }) : null;
     const cardSet = deal?.watchlist?.set ?? null;
-    // 17C.7: an upcoming-expansion listing is display-gated, not ended -
-    // say so, with the release date, instead of "This deal has ended".
-    const preRelease = deal?.is_active ? preReleaseListing(deal) : null;
+    // 17C.7: an early listing awaiting eBay's own confirmation is display-
+    // gated, not ended - say so instead of "This deal has ended".
+    const gatedPresentation = deal?.is_active ? listingPresentation(deal) : null;
+    const preRelease = gatedPresentation?.early ? gatedPresentation : null;
     const speciesName =
       deal && deal.watchlist?.language !== "japanese"
         ? extractSpecies(deal.watchlist?.name ?? deal.title)
@@ -296,11 +309,11 @@ export default async function DealDetailPage({ params }) {
         <SiteHeader />
         <div className="mx-auto max-w-2xl px-6 py-16 text-center">
           <h1 className="text-xl font-bold text-black dark:text-zinc-50">
-            {preRelease ? preRelease.label : deal ? "This deal has ended" : "Deal not found"}
+            {preRelease ? preRelease.notes[0] : deal ? "This deal has ended" : "Deal not found"}
           </h1>
           <p className="mt-2 text-sm text-zinc-500">
             {preRelease
-              ? `This listing${cardName ? ` for ${cardName}` : ""} is for ${preRelease.officialName}, which hasn't been released yet. We don't show pre-release or preorder listings as deals, so no discount or delivery date is claimed here. Here is where to look next.`
+              ? `This listing${cardName ? ` for ${cardName}` : ""} predates its set's release, and eBay hasn't confirmed the listing is active. We only show such a listing once eBay confirms it - that confirms the listing, not that the seller holds the card or when it would arrive. Here is where to look next.`
               : deal
                 ? `The listing${cardName ? ` for ${cardName}` : ""} is no longer active, sold, or no longer passes our listing checks - it is not a live purchase opportunity anymore. Here is where to look next.`
                 : "That deal doesn't exist, or has expired."}
@@ -415,6 +428,10 @@ export default async function DealDetailPage({ params }) {
       ? { href: `/sets/${setSlug}`, label: cardSet }
       : { href: "/deals", label: "all deals" };
   const discountPct = Math.round(deal.discount_pct * 100);
+  // 17C.7: savings claims (badge, H1 suffix, strikethrough, "you save",
+  // Product structured data, share text) need an evidenced reference.
+  const presentation = listingPresentation(deal);
+  const showSavings = presentation.savings === "trusted";
   const isAuction = deal.listing_type === "AUCTION";
   // What the freshness line may claim: an exact availability confirmation
   // (only when the latest eBay evidence was a successful active verdict -
@@ -522,10 +539,14 @@ export default async function DealDetailPage({ params }) {
 
   return (
     <div className="min-h-screen bg-paper">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
-      />
+      {/* 17C.7: a plain listing makes no price/availability claim in
+          structured data either - only the breadcrumb below. */}
+      {showSavings && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+        />
+      )}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
@@ -570,9 +591,11 @@ export default async function DealDetailPage({ params }) {
 
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-md bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">
-                {discountPct}% below market
-              </span>
+              {showSavings && (
+                <span className="rounded-md bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">
+                  {discountPct}% below market
+                </span>
+              )}
               {deal.watchlist?.language === "japanese" && (
                 <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                   🇯🇵 Japanese Print
@@ -604,7 +627,7 @@ export default async function DealDetailPage({ params }) {
                 already target but the page's own primary heading didn't. */}
             <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">
               {cardName}
-              <span className="font-medium text-zinc-500"> - {discountPct}% Below Market</span>
+              {showSavings && <span className="font-medium text-zinc-500"> - {discountPct}% Below Market</span>}
             </h1>
             {cardSet && (
               setSlug ? (
@@ -645,9 +668,9 @@ export default async function DealDetailPage({ params }) {
                 // reference.
                 <AuctionPrice
                   deal={deal}
-                  marketUsd={marketUsd}
-                  marketNative={marketNative}
-                  discountPct={discountPct}
+                  marketUsd={showSavings ? marketUsd : null}
+                  marketNative={showSavings ? marketNative : null}
+                  discountPct={showSavings ? discountPct : 0}
                   variant="detail"
                 />
               ) : (
@@ -658,7 +681,7 @@ export default async function DealDetailPage({ params }) {
                       native={{ amount: total, currency: nativeCurrency }}
                       className="text-2xl font-bold text-black dark:text-zinc-50"
                     />
-                    {showRef && (
+                    {showSavings && showRef && (
                       <span className="text-base text-zinc-400 line-through">
                         <Price
                           usd={marketUsd}
@@ -668,7 +691,7 @@ export default async function DealDetailPage({ params }) {
                       </span>
                     )}
                   </div>
-                  {showRef ? (
+                  {!showSavings ? null : showRef ? (
                     <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
                       You save{" "}
                       <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}
@@ -681,8 +704,14 @@ export default async function DealDetailPage({ params }) {
                   )}
                 </>
               )}
+              {!showSavings &&
+                presentation.notes.map((note) => (
+                  <p key={note} className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                    {note}
+                  </p>
+                ))}
               <p className="mt-1 text-xs text-zinc-400">
-                Compared against a recent market reference.{" "}
+                {showSavings ? "Compared against a recent market reference. " : "No savings claimed for this listing. "}
                 <Link
                   href="/methodology"
                   className="hover:text-red-600 hover:underline dark:hover:text-red-500"
@@ -742,8 +771,12 @@ export default async function DealDetailPage({ params }) {
               </AffiliateLink>
               <ShareButton
                 url={`${SITE_URL}/deals/${deal.id}`}
-                title={`${cardName} - ${discountPct}% below market`}
-                text={`${cardName}${cardSet ? ` (${cardSet})` : ""}${dealTotalUsd(deal) ? ` - $${dealTotalUsd(deal).toFixed(2)},` : " -"} ${discountPct}% below market on Pokemon Deal Finder`}
+                title={showSavings ? `${cardName} - ${discountPct}% below market` : cardName}
+                text={
+                  showSavings
+                    ? `${cardName}${cardSet ? ` (${cardSet})` : ""}${dealTotalUsd(deal) ? ` - $${dealTotalUsd(deal).toFixed(2)},` : " -"} ${discountPct}% below market on Pokemon Deal Finder`
+                    : `${cardName}${cardSet ? ` (${cardSet})` : ""} on Pokemon Deal Finder`
+                }
                 label="Share"
                 className="rounded-lg px-4 py-2"
               />
@@ -792,12 +825,17 @@ export default async function DealDetailPage({ params }) {
                   approxPrefix=""
                 />
               </span>
-              {" "}
-              — this listing is{" "}
-              <span className="font-semibold text-emerald-600 dark:text-emerald-500">
-                {discountPct}% below
-              </span>{" "}
-              it.
+              {showSavings && (
+                <>
+                  {" "}
+                  — this listing is{" "}
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-500">
+                    {discountPct}% below
+                  </span>{" "}
+                  it
+                </>
+              )}
+              .
             </p>
           )}
         </div>
