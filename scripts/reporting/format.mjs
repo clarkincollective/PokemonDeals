@@ -35,10 +35,16 @@ export function formatText(report) {
   if (c) {
     out.push(
       c.complete
-        ? `Completeness:       VERIFIED - grouped rows sum to the independent per-event counts (${c.groupedTotal} = ${c.independentTotal} events, ${report.completenessPages ?? "?"} page(s))`
+        ? `Completeness:       VERIFIED - grouped rows sum to the independent per-event counts (${c.groupedTotal} = ${c.independentTotal} report-scope events, ${report.completenessPages ?? "?"} page(s))`
         : `Completeness:       FAILED - ${c.mismatches.length} event(s) differ from their independent count; DO NOT USE these figures`
     );
     for (const mm of c.mismatches ?? []) out.push(`                    ${mm.event}: grouped ${mm.grouped} vs independent ${mm.independent}`);
+    if (c.scope) {
+      const sc = c.scope;
+      out.push(`Report scope:       ${sc.inScopeTotal} of ${sc.allEventsTotal} events in this window are this report's ${sc.reportEventNames} selected event types;`);
+      out.push(`                    the other ${sc.outOfScopeTotal} are events this homepage report does not read:`);
+      out.push(`                    ${sc.outOfScope.map((o) => `${o.event} ${o.n}`).join(", ") || "(none)"}`);
+    }
   }
   out.push(`Page views:         ${report.pageViews} (page_view only - the site-wide pageview, recorded from 17C.0 onwards)`);
   if (report.pageViewsByType && Object.keys(report.pageViewsByType).length) out.push(`  by page type:     ${JSON.stringify(report.pageViewsByType)}`);

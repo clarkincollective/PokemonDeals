@@ -43,18 +43,39 @@ export function eventTotalsFromResponse(response) {
 }
 
 // Pure - grouped rows vs independent totals, event by event.
+// `totals` covers EVERY event in the window. Completeness is judged on
+// the report's own events (plus anything the grouped pages returned that
+// is not one of them - that would be a query bug); everything else in the
+// window is reported as OUT OF SCOPE, never silently ignored.
 export function checkCompleteness(rows, totals, eventNames = REPORT_EVENTS) {
+  const t = totals ?? {};
   const grouped = {};
   for (const r of rows ?? []) grouped[r.event] = (grouped[r.event] || 0) + (Number(r.n) || 0);
-  const events = [...new Set([...eventNames, ...Object.keys(grouped), ...Object.keys(totals ?? {})])].sort();
-  const perEvent = events.map((event) => ({ event, grouped: grouped[event] || 0, independent: (totals ?? {})[event] || 0 }));
-  const mismatches = perEvent.filter((e) => e.grouped !== e.independent);
+  const inScope = new Set(eventNames);
+  const events = [...new Set([...eventNames, ...Object.keys(grouped)])].sort();
+  const perEvent = events.map((event) => ({ event, grouped: grouped[event] || 0, independent: t[event] || 0 }));
+  const mismatches = perEvent.filter((e) => e.grouped !== e.independent || !inScope.has(e.event));
+  const outOfScope = Object.entries(t)
+    .filter(([event]) => !inScope.has(event))
+    .map(([event, n]) => ({ event, n }))
+    .sort((a, b) => b.n - a.n || (a.event < b.event ? -1 : 1));
+  const groupedTotal = perEvent.reduce((a, e) => a + e.grouped, 0);
+  const independentTotal = perEvent.reduce((a, e) => a + e.independent, 0);
+  const allEventsTotal = Object.values(t).reduce((a, n) => a + n, 0);
   return {
     complete: mismatches.length === 0,
-    groupedTotal: perEvent.reduce((a, e) => a + e.grouped, 0),
-    independentTotal: perEvent.reduce((a, e) => a + e.independent, 0),
+    groupedTotal,
+    independentTotal,
     perEvent,
     mismatches,
+    // scope: the report covers REPORT_EVENTS only
+    scope: {
+      reportEventNames: eventNames.length,
+      inScopeTotal: independentTotal,
+      allEventsTotal,
+      outOfScopeTotal: allEventsTotal - independentTotal,
+      outOfScope,
+    },
   };
 }
 
@@ -79,7 +100,7 @@ export async function fetchCompleteReport({ creds, from, to, pageSize = REPORT_P
     if (next == null || next === afterKey) throw new IncompleteReportError("Keyset pagination did not advance - refusing to report a partial result", { pages, rows: rows.length });
     afterKey = next;
   }
-  const totals = eventTotalsFromResponse(await run({ ...creds, query: buildEventTotalsQuery(from, to, REPORT_EVENTS) }));
+  const totals = eventTotalsFromResponse(await run({ ...creds, query: buildEventTotalsQuery(from, to) }));
   return { rows, totals, completeness: checkCompleteness(rows, totals), pages };
 }
 

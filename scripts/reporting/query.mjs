@@ -190,7 +190,13 @@ export function lastGroupKey(response) {
 // Pure - the INDEPENDENT completeness check: one count per event over the
 // same window, with nothing grouped but the event name. The grouped pages
 // must sum to exactly these numbers, event by event.
-export function buildEventTotalsQuery(fromIso, toIso, eventNames = REPORT_EVENTS) {
+// Counts EVERY event name in the window (not just the report's), so the
+// report can (a) verify its own events exactly and (b) state its scope
+// honestly: "N of M events in this window are in this report". Event names
+// are a small fixed taxonomy (+ SDK "$" events), so TOTALS_LIMIT is ample;
+// a truncated answer is still refused (eventTotalsFromResponse).
+export const TOTALS_LIMIT = 1000;
+export function buildEventTotalsQuery(fromIso, toIso) {
   if (!fromIso || !toIso) throw new Error("buildEventTotalsQuery requires fromIso and toIso");
   const hogql = [
     "SELECT",
@@ -199,10 +205,9 @@ export function buildEventTotalsQuery(fromIso, toIso, eventNames = REPORT_EVENTS
     "FROM events",
     `WHERE timestamp >= toDateTime(${hogqlStringLiteral(fromIso)})`,
     `  AND timestamp < toDateTime(${hogqlStringLiteral(toIso)})`,
-    `  AND event IN (${hogqlList(eventNames)})`,
     "GROUP BY event",
     "ORDER BY event",
-    `LIMIT ${Math.max(eventNames.length, 1) * 2}`,
+    `LIMIT ${TOTALS_LIMIT}`,
   ].join("\n");
   return { kind: "HogQLQuery", query: hogql };
 }

@@ -13,7 +13,8 @@ import { dirname, join } from "node:path";
 import { createPageViewTracker, ATTRIBUTION_SCOPES, NAV_TYPES } from "../../lib/analytics/pageview.js";
 import { EVENTS, ALLOWED_EVENTS } from "../../lib/analytics/events.js";
 import { classifyTrafficSource, sanitizeUtmValue, geoCountryProp, viewerCountryFromMarketplace, isAiAssistantUtm } from "../../lib/analytics/props.js";
-import { sanitizeProps } from "../../lib/analytics/sanitize.js";
+import { sanitizeProps, buildBeforeSend, CLICK_ID_KEYS } from "../../lib/analytics/sanitize.js";
+import { buildPostHogConfig } from "../../lib/analytics/config.js";
 import { buildHomepageQuery, buildEventTotalsQuery, lastGroupKey, REPORT_PAGE_SIZE } from "../../scripts/reporting/query.mjs";
 import { fetchCompleteReport, checkCompleteness, eventTotalsFromResponse, withoutSuspectedTestDays, IncompleteReportError } from "../../scripts/reporting/fetch.mjs";
 import { aggregateRows, buildReport, headlineCounts } from "../../scripts/reporting/aggregate.mjs";
@@ -201,7 +202,8 @@ test("13. every page query is explicitly ordered + limited and keyset-paged (nev
   assert.equal(REPORT_PAGE_SIZE, 5000);
   const totals = buildEventTotalsQuery("2026-09-03T00:00:00Z", "2026-09-11T00:00:00Z").query;
   assert.match(totals, /SELECT\n  event,\n  count\(\) AS n\nFROM events/);
-  assert.match(totals, /GROUP BY event\nORDER BY event\nLIMIT \d+$/);
+  assert.match(totals, /GROUP BY event\nORDER BY event\nLIMIT 1000$/);
+  assert.doesNotMatch(totals, /event IN/, "the independent count covers EVERY event, so the report can state its scope");
   // the historical AI reclassification compares against a fixed allowlist - it never SELECTs utm_source
   assert.match(first, /lower\(ifNull\(properties\.utm_source, ''\)\) IN \('chatgpt\.com'/);
   assert.doesNotMatch(first, /properties\.utm_source AS|properties\.\$referring_domain AS/);
@@ -304,4 +306,107 @@ test("19. continuity is labelled from VERIFIED behaviour: server-side sessions s
   for (const f of ["lib/analytics/pageview.js", "components/analytics/AnalyticsBootstrap.js", "lib/analytics/props.js"]) {
     assert.doesNotMatch(code(f), /localStorage|sessionStorage|document\.cookie|indexedDB/i, f);
   }
+});
+
+// ===================================================================
+// 6. final pre-send checks (17C.0 closeout)
+// ===================================================================
+
+const runBeforeSend = (event) => buildBeforeSend().reduce((e, fn) => (e == null ? e : fn(e)), event);
+
+test("20. the SDK no longer copies landing-URL campaign params onto events (save_campaign_params off)", () => {
+  const cfg = buildPostHogConfig({ beforeSend: [] });
+  assert.equal(cfg.save_campaign_params, false);
+  // the rest of the privacy posture is unchanged
+  assert.equal(cfg.cookieless_mode, "always");
+  assert.equal(cfg.persistence, "memory");
+});
+
+test("21. the FINAL payload keeps only approved attribution: click IDs, utm_term, bad utm values, null campaign keys, search keywords and their $initial_ copies are removed", () => {
+  const sdkShaped = {
+    event: EVENTS.SEARCH_RESULT_CLICKED,
+    properties: {
+      token: "phc_x",
+      distinct_id: "$posthog_cookieless",
+      $lib: "web",
+      $current_url: "https://pokemondealfinder.com/cards/charizard-base-set?gclid=Cj0&utm_term=psa",
+      // what posthog-js attaches from the landing URL when campaign capture is on
+      utm_source: "chatgpt.com",
+      utm_medium: "social",
+      utm_campaign: "reach-me@example.com",
+      utm_content: null,
+      utm_term: "psa 10 charizard",
+      ph_keyword: "charizard psa 10",
+      $search_keyword: "charizard",
+      $initial_gclid: "Cj0",
+      $initial_utm_source: "chatgpt.com",
+      $initial_utm_term: "psa",
+      ...Object.fromEntries(CLICK_ID_KEYS.map((k) => [k, "abc123"])),
+      // our structural props, which must survive
+      card_slug: "charizard-base-set",
+      result_type: "card",
+      surface: "catalog",
+      rank: 3,
+      traffic_source: "ai_assistant",
+      geo_country: "BR",
+    },
+  };
+  const out = runBeforeSend(sdkShaped);
+  assert.ok(out, "the event itself is kept");
+  const p = out.properties;
+  for (const k of [...CLICK_ID_KEYS, "utm_term", "ph_keyword", "$search_keyword", "$initial_gclid", "$initial_utm_term", "utm_campaign", "utm_content"]) {
+    assert.ok(!(k in p), `${k} must not leave the browser`);
+  }
+  assert.equal(p.utm_source, "chatgpt.com", "an approved AI-assistant source is kept");
+  assert.equal(p.utm_medium, "social");
+  assert.equal(p.$initial_utm_source, "chatgpt.com");
+  assert.equal(p.$current_url, "https://pokemondealfinder.com/cards/charizard-base-set", "querystring (with click ids) stripped");
+  assert.equal(p.card_slug, "charizard-base-set", "valid card slug preserved");
+  assert.equal(p.result_type, "card", "result_type preserved");
+  assert.equal(p.token, "phc_x", "ingestion token untouched");
+  assert.equal(p.distinct_id, "$posthog_cookieless");
+  assert.equal(p.geo_country, "BR");
+  // an unapproved utm value is removed, an approved one is kept verbatim
+  assert.equal(runBeforeSend({ event: EVENTS.PAGE_VIEW, properties: { utm_source: "https://evil.example/x" } }).properties.utm_source, undefined);
+  assert.equal(runBeforeSend({ event: EVENTS.PAGE_VIEW, properties: { utm_campaign: "spring_sale" } }).properties.utm_campaign, "spring_sale");
+  // the step runs LAST, on the fully assembled event
+  const src = code("lib/analytics/sanitize.js");
+  assert.match(src, /return \[dropDisallowedEvents, scrubProperties, enforceAttributionAllowlist\];/);
+});
+
+test("22. /api/rates can never be shared between visitors: dynamic, private, no shared-cache directives; the FX rate cache is unchanged and holds no visitor data", () => {
+  const route = code("app/api/rates/route.js");
+  assert.match(route, /export const dynamic = "force-dynamic";/);
+  assert.match(route, /"Cache-Control": "private, max-age=900"/);
+  assert.doesNotMatch(route, /s-maxage|public|CDN-Cache-Control|Vercel-CDN-Cache-Control|stale-while-revalidate|revalidate\s*=/i);
+  assert.doesNotMatch(route, /unstable_cache|"use cache"/);
+  // the only cached thing is the exchange-rate table (module memory, 6h) - no header / geo input
+  const fx = code("lib/fx.js");
+  assert.match(fx, /const CACHE_TTL_MS = 6 \* 60 \* 60 \* 1000;/);
+  assert.match(fx, /async function getUsdRates\(\) \{/, "takes no request input");
+  assert.doesNotMatch(fx, /headers\(|x-vercel|country/i);
+  // nothing re-headers /api/rates for a shared cache
+  assert.doesNotMatch(read("vercel.json"), /api\/rates/);
+  assert.doesNotMatch(read("next.config.mjs"), /api\/rates/);
+});
+
+test("23. the report states its event scope and reconciles it with the all-event total", () => {
+  const rows = [{ event: "homepage_view", n: 664 }, { event: "affiliate_click", n: 287 }];
+  const totals = { homepage_view: 664, affiliate_click: 287, search_request: 463, homepage_scroll_depth: 500 };
+  const c = checkCompleteness(rows, totals, ["homepage_view", "affiliate_click"]);
+  assert.equal(c.complete, true, "out-of-scope events are not mismatches");
+  assert.deepEqual(c.scope, {
+    reportEventNames: 2,
+    inScopeTotal: 951,
+    allEventsTotal: 1914,
+    outOfScopeTotal: 963,
+    outOfScope: [{ event: "homepage_scroll_depth", n: 500 }, { event: "search_request", n: 463 }],
+  });
+  const text = formatText(buildReport(aggregateRows(rows), { from: "a", to: "b", completeness: c, completenessPages: 1 }));
+  assert.match(text, /951 = 951 report-scope events/);
+  assert.match(text, /Report scope:\s+951 of 1914 events in this window are this report's 2 selected event types;/);
+  assert.match(text, /the other 963 are events this homepage report does not read:/);
+  assert.match(text, /homepage_scroll_depth 500, search_request 463/);
+  // a grouped row for an event outside the report's list is a query bug -> mismatch
+  assert.equal(checkCompleteness([...rows, { event: "rogue", n: 1 }], { ...totals, rogue: 1 }, ["homepage_view", "affiliate_click"]).complete, false);
 });
