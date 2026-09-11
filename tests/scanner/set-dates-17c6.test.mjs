@@ -27,7 +27,7 @@ const EXPECT = {
   "McDonald's Promos 2022": { era: "swsh", next: "SWSH11: Lost Origin", dates: ["2022-07-01", "2022-09-09"] },
   "SWSH11: Lost Origin Trainer Gallery": { era: "swsh", next: "SWSH12: Silver Tempest", dates: ["2022-09-09", "2022-11-11"] },
   // 17C.7: part of the last listed set, so it has no next set to bound it
-  "ME: 30th Celebration Classic Collection": { era: "me", next: undefined, dates: ["2026-09-16", "9999-12-31"] },
+  "ME: 30th Celebration Classic Collection": { era: "anniversary", next: undefined, dates: ["2026-09-16", "9999-12-31"] },
 };
 
 // Undated sets on the six pilot pages that must stay under "Other sets":

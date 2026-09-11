@@ -50,13 +50,16 @@ test("SP-1. Dragonite stays first on the reviewed allowlist (17C.5 adds five mor
 });
 
 test("SP-2. eras come only from the curated release list; unlisted sets are undated, never guessed", () => {
-  for (const e of SET_ERAS) assert.ok(SET_RELEASE_ORDER.includes(e.startSet), `${e.startSet} is in SET_RELEASE_ORDER`);
+  for (const e of SET_ERAS) {
+    if (e.startSet) assert.ok(SET_RELEASE_ORDER.includes(e.startSet), `${e.startSet} is in SET_RELEASE_ORDER`);
+    else assert.ok(e.sets.every((s) => SET_RELEASE_ORDER.includes(s) || s.endsWith("Classic Collection")), `${e.key}: explicit members are dated`);
+  }
   const cases = {
     Fossil: "wotc", "Neo Destiny": "wotc", "EX Dragon": "ex", "EX Dragon Frontiers": "ex", "Legends Awakened": "dp",
     Triumphant: "dp", "Plasma Freeze": "bwxy", "XY - Evolutions": "bwxy", "SM - Unified Minds": "sm",
     "SWSH07: Evolving Skies": "swsh", "Pokemon GO": "swsh", "SV03: Obsidian Flames": "sv", "SV: Scarlet & Violet 151": "sv",
     "Dragon Majesty": "sm", // dated by its evidence-backed supplement entry (17C.6)
-    "SV: White Flare": "sv", "ME01: Mega Evolution": "me", "ME: Ascended Heroes": "me", "ME: 30th Celebration": "me", // 17C.7
+    "SV: White Flare": "sv", "ME01: Mega Evolution": "me", "ME: Ascended Heroes": "me", "ME: 30th Celebration": "anniversary", // 17C.7
     "ME: Mega Evolution Promo": "undated",
     "Deck Exclusives": "undated", "Jumbo Cards": "undated", "SWSH: Sword & Shield Promo Cards": "undated", "Made Up Set": "undated",
   };
