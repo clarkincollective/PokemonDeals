@@ -102,7 +102,16 @@ test("7. all four card shards carry the SAME snapshot id (one dataset generation
     ids.add(m[1]);
     const res = await fetch(`${BASE}/sitemaps/${s}.xml`, { method: "HEAD" }).catch(() => null);
     const cc = res?.headers.get("cache-control") ?? "";
-    assert.equal(cc, "public, max-age=0, s-maxage=300, stale-while-revalidate=300", `${s}: cache-control ${cc}`);
+    // `next start` passes the route's header through verbatim. Vercel's CDN
+    // CONSUMES s-maxage / stale-while-revalidate (it caches the response at
+    // the edge for 300s) and rewrites the client-facing header to
+    // "public, max-age=0" - verified live 2026-09-11 (X-Vercel-Cache: HIT,
+    // Age rising). Either form is the intended short edge-cache policy.
+    if (res?.headers.has("x-vercel-cache")) {
+      assert.equal(cc, "public, max-age=0", `${s}: cache-control ${cc}`);
+    } else {
+      assert.equal(cc, "public, max-age=0, s-maxage=300, stale-while-revalidate=300", `${s}: cache-control ${cc}`);
+    }
   }
   assert.equal(ids.size, 1, `card shards were served from ${ids.size} different snapshots: ${[...ids].join(", ")}`);
 });
