@@ -17,8 +17,12 @@
 //                                analytics config rejects one)
 //
 // This script:
-//   - makes exactly ONE network call (a single grouped HogQL aggregate
-//     query) - see scripts/reporting/query.mjs
+//   - reads with a small, bounded number of HogQL aggregate queries: the
+//     grouped report, paged with an explicit ORDER BY + LIMIT/OFFSET until
+//     exhausted, plus ONE independent per-event count used to VERIFY the
+//     pages sum correctly (17C.0 - the original single query had no LIMIT,
+//     hit HogQL's default 100-row cap, and silently reported 0 for most
+//     events) - see scripts/reporting/fetch.mjs
 //   - never calls posthog.capture(), never creates/edits a dashboard,
 //     insight, cohort, feature flag, or person record
 //   - never requests or prints person/session/card/Pokemon/listing/query
@@ -35,7 +39,9 @@
 import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
 import { config as loadDotenv } from "dotenv";
-import { loadCredentials, MissingCredentialsError, buildHomepageQuery, runPostHogQuery, rowsFromResponse } from "./reporting/query.mjs";
+import { loadCredentials, MissingCredentialsError } from "./reporting/query.mjs";
+import { fetchCompleteReport, withoutSuspectedTestDays, IncompleteReportError } from "./reporting/fetch.mjs";
+import { SUSPECTED_TEST_TRAFFIC, CONTINUITY_NOTES } from "./reporting/homepageEvents.mjs";
 
 // 13C.6.1 - the other scripts/ tools in this repo load credentials from
 // .env.local the same way; this CLI does too (never .env.example, never
@@ -47,7 +53,7 @@ import { loadCredentials, MissingCredentialsError, buildHomepageQuery, runPostHo
 // promises pure parseable JSON on stdout for piping/automation).
 if (existsSync(".env.local")) loadDotenv({ path: ".env.local", quiet: true });
 else loadDotenv({ quiet: true });
-import { aggregateRows, buildReport } from "./reporting/aggregate.mjs";
+import { aggregateRows, buildReport, headlineCounts } from "./reporting/aggregate.mjs";
 import { formatText } from "./reporting/format.mjs";
 
 // Phase 13C.6.2 - TWO distinct timestamps, deliberately kept separate and
@@ -173,18 +179,21 @@ async function main() {
     throw e;
   }
 
-  const query = buildHomepageQuery(args.from, args.to);
-
-  let response;
+  let fetched;
   try {
-    response = await runPostHogQuery({ ...creds, query });
+    fetched = await fetchCompleteReport({ creds, from: args.from, to: args.to });
   } catch (e) {
+    if (e instanceof IncompleteReportError) {
+      console.error(`Refusing to report: ${e.message}`);
+      process.exitCode = 2;
+      return;
+    }
     console.error(`Could not fetch the PostHog report: ${e.message}`);
     process.exitCode = 1;
     return;
   }
 
-  const rows = rowsFromResponse(response);
+  const { rows, completeness, pages } = fetched;
   const metrics = aggregateRows(rows);
   const report = buildReport(metrics, {
     from: args.from,
@@ -192,7 +201,19 @@ async function main() {
     instrumentationStart: ANALYTICS_INSTRUMENTATION_START,
     currentProductStart: CURRENT_PRODUCT_MEASUREMENT_START,
     productState: PRODUCT_STATE,
+    completeness,
+    completenessPages: pages,
+    continuityNotes: CONTINUITY_NOTES,
+    // a SIDE-BY-SIDE comparison only: the main figures above use all rows
+    sensitivity: {
+      flags: SUSPECTED_TEST_TRAFFIC,
+      all: headlineCounts(metrics),
+      withoutFlagged: headlineCounts(aggregateRows(withoutSuspectedTestDays(rows))),
+    },
   });
+  // An unverified report still prints (so the mismatch is visible) but
+  // exits non-zero so no automation treats it as good.
+  if (!completeness.complete) process.exitCode = 2;
 
   if (args.json) {
     console.log(JSON.stringify(report, null, 2));

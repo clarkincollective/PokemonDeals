@@ -1,18 +1,26 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { useCurrency } from "@/components/CurrencyProvider";
 import { capture, initAnalytics, setCommonContext } from "@/lib/analytics/client";
 import { EVENTS, SECTION_CLICK_EVENT } from "@/lib/analytics/events";
 import { analyticsEnabled } from "@/lib/analytics/config";
 import { deriveFilterEvent } from "@/lib/analytics/filterEvent";
 import { readLandingAttribution, deviceClass, isDoNotTrackEnabled } from "@/lib/analytics/session";
-import { viewerCountryFromMarketplace } from "@/lib/analytics/props";
+import { viewerCountryFromMarketplace, geoCountryProp } from "@/lib/analytics/props";
 import { pageTypeFromPath } from "@/lib/analytics/pageType";
+import { createPageViewTracker, currentNavigationType } from "@/lib/analytics/pageview";
 
 // Nothing in this component touches browser storage. When analytics is
 // off (no key) or the visitor opted out, it does nothing at all.
 const ANALYTICS_ACTIVE = analyticsEnabled();
+
+// Module memory = one page-load chain. Survives client navigations (the
+// layout never remounts), resets on a full page load. Module scope (not a
+// ref) also makes a strict-mode double mount a no-op.
+const pageViews = createPageViewTracker();
+let landingTrafficSource = "unknown";
 
 // Mounted once, globally, inside CurrencyProvider (app/layout.js).
 //   1. starts the deferred analytics init (no-op without a key / with DNT)
@@ -22,13 +30,17 @@ const ANALYTICS_ACTIVE = analyticsEnabled();
 //      [data-analytics-click] / [data-analytics-deal] element on any page,
 //      so individual server components only need data-attributes.
 export default function AnalyticsBootstrap() {
-  const { marketplace, viewer } = useCurrency();
+  const { marketplace, viewer, geoCountry } = useCurrency();
+  const pathname = usePathname();
 
   // Deferred init + landing-scoped context (derived from the CURRENT
   // url/referrer, held only in memory for this page's event stream).
+  // Set once per page-load chain: client navigations keep the ORIGINAL
+  // landing attribution (they never re-read the url/referrer).
   useEffect(() => {
     if (!ANALYTICS_ACTIVE || isDoNotTrackEnabled()) return;
     const attribution = readLandingAttribution();
+    landingTrafficSource = attribution.traffic_source;
     setCommonContext({
       device_class: deviceClass(),
       traffic_source: attribution.traffic_source,
@@ -44,14 +56,35 @@ export default function AnalyticsBootstrap() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Country / currency arrive after /api/rates resolves.
+  // One page_view per distinct pathname (initial / reload / back_forward
+  // / client) - declared AFTER the attribution effect so the first view
+  // already carries the landing context. See lib/analytics/pageview.js.
+  useEffect(() => {
+    if (!ANALYTICS_ACTIVE || isDoNotTrackEnabled()) return;
+    const view = pageViews.next(pathname, {
+      navigationType: currentNavigationType(),
+      trafficSource: landingTrafficSource,
+    });
+    if (!view) return;
+    if (view.landingContext) setCommonContext(view.landingContext);
+    capture(EVENTS.PAGE_VIEW, view.props);
+  }, [pathname]);
+
+  // Geography vs shopping context, kept separate:
+  //   geo_country     - visitor's coarse country from the edge geo header
+  //                     of THIS page load ("unknown" until /api/rates
+  //                     answers, or when it can't say). Never inferred.
+  //   viewer_currency - the display currency (a shopping context)
+  //   viewer_country  - LEGACY marketplace bucket, kept for continuity
+  //                     (see lib/analytics/props.js) - not geography.
   useEffect(() => {
     if (!ANALYTICS_ACTIVE) return;
     setCommonContext({
+      geo_country: geoCountryProp(geoCountry),
       viewer_country: viewerCountryFromMarketplace(marketplace),
       viewer_currency: viewer || "USD",
     });
-  }, [marketplace, viewer]);
+  }, [marketplace, viewer, geoCountry]);
 
   // Global click delegation.
   useEffect(() => {

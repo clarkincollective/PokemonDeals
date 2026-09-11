@@ -1,6 +1,6 @@
 import { getUsdRates } from "@/lib/fx";
 import { viewerCurrency } from "@/lib/viewerCurrency";
-import { detectedMarketplace } from "@/lib/geo";
+import { detectedMarketplace, edgeCountry } from "@/lib/geo";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +16,15 @@ export async function GET() {
     detectedMarketplace(),
     getUsdRates(),
   ]);
+  // Phase 17C.0 - the coarse ISO-2 country the edge already reported for
+  // this request (the same header viewerCurrency / detectedMarketplace
+  // read above), so analytics can separate GEOGRAPHY from the shopping
+  // marketplace. null when absent (local dev) or malformed - never guessed.
+  // The response stays `private` (per-visitor), and the client never
+  // persists this field.
+  const geoCountry = await edgeCountry();
   return Response.json(
-    { viewer, marketplace, rates },
+    { viewer, marketplace, rates, geo_country: geoCountry },
     { headers: { "Cache-Control": "private, max-age=900" } }
   );
 }

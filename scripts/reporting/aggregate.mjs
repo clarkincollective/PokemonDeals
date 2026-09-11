@@ -49,6 +49,11 @@ export function aggregateRows(rows) {
   };
 
   return {
+    // 17C.0 - pageviews come from page_view ONLY. homepage_view is the
+    // homepage-module event (variant / filters) and is never added to it:
+    // on "/" both fire, once each, for the same view.
+    pageViews: sum(byEvent(EVENTS.PAGE_VIEW)),
+    pageViewsByType: breakdownBy(EVENTS.PAGE_VIEW, "page_type"),
     homepageViews: sum(byEvent(EVENTS.HOMEPAGE_VIEW)),
     discoverClicks: sum(byEvent(EVENTS.DISCOVER_DEALS_CLICKED)),
 
@@ -122,6 +127,8 @@ export function aggregateRows(rows) {
     },
     trafficSourceBreakdown: {
       homepage_view: breakdownBy(EVENTS.HOMEPAGE_VIEW, "traffic_source"),
+      page_view: breakdownBy(EVENTS.PAGE_VIEW, "traffic_source"),
+      affiliate_click: breakdownBy(EVENTS.AFFILIATE_CLICK, "traffic_source"),
     },
   };
 }
@@ -136,7 +143,18 @@ export function aggregateRows(rows) {
 // here already is.
 export function buildReport(
   m,
-  { from, to, generatedAt = new Date().toISOString(), instrumentationStart = null, currentProductStart = null, productState = null } = {}
+  {
+    from,
+    to,
+    generatedAt = new Date().toISOString(),
+    instrumentationStart = null,
+    currentProductStart = null,
+    productState = null,
+    completeness = null,
+    completenessPages = null,
+    continuityNotes = [],
+    sensitivity = null,
+  } = {}
 ) {
   const searchStarts = m.heroSearchStarted + m.stickySearchStarted;
   const searchSubmits = m.heroSearchSubmitted + m.stickySearchSubmitted;
@@ -222,6 +240,14 @@ export function buildReport(
   return {
     window: { from, to, generatedAt },
     measurementContext: { instrumentationStart, currentProductStart, productState },
+    // 17C.0 - a report is only trustworthy when every grouped event sum
+    // equals its independent count (scripts/reporting/fetch.mjs).
+    completeness,
+    completenessPages,
+    continuityNotes,
+    sensitivity,
+    pageViews: m.pageViews,
+    pageViewsByType: m.pageViewsByType,
     homepageViews: m.homepageViews,
     searchVsDiscover,
     bestDeals,
@@ -239,5 +265,23 @@ export function buildReport(
     device: m.deviceBreakdown,
     trafficSource: m.trafficSourceBreakdown,
     decisionReadiness,
+  };
+}
+
+// 17C.0 - the headline counts shown side by side in the sensitivity
+// comparison (all traffic vs without suspected test days).
+export function headlineCounts(m) {
+  return {
+    page_view: m.pageViews,
+    homepage_view: m.homepageViews,
+    search_started_hero_sticky: m.heroSearchStarted + m.stickySearchStarted,
+    search_submitted_hero_sticky: m.heroSearchSubmitted + m.stickySearchSubmitted,
+    discover_deals_clicked: m.discoverClicks,
+    best_deals_section_impressions: m.sections.best_deals.impressions,
+    deal_card_impressions:
+      (m.sections.best_deals.dealImpressions ?? 0) + (m.sections.ending_soon.dealImpressions ?? 0) + (m.sections.just_added.dealImpressions ?? 0),
+    affiliate_click: m.qca.affiliate_click,
+    search_result_clicked: m.qca.search_result_clicked,
+    qualified_detail_view: m.qca.qualified_detail_view,
   };
 }

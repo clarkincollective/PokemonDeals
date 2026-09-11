@@ -183,7 +183,8 @@ test("13C.6.0 - events are imported from the real taxonomy, never redeclared", (
 test("13C.6.0 - only approved structural properties are ever selected; no identity/query properties", () => {
   const forbidden = ["query", "card_name", "pokemon", "title", "deal_id", "content_id", "card_slug", "affiliate_url", "distinct_id", "person", "$session_id", "rank", "price_band_usd", "discount_band"];
   for (const p of forbidden) assert.ok(!REPORT_PROPERTIES.includes(p), `${p} must not be a selected report property`);
-  assert.deepEqual([...REPORT_PROPERTIES].sort(), ["device_class", "listing_type", "origin_section", "section", "source", "traffic_source"].sort());
+  // 17C.0 added page_type (page_view's fixed page-family enum - never a path)
+  assert.deepEqual([...REPORT_PROPERTIES].sort(), ["device_class", "listing_type", "origin_section", "page_type", "section", "source", "traffic_source"].sort());
 
   const query = buildHomepageQuery("2026-09-04T20:18:17Z", "2026-09-11T00:00:00Z");
   // check the exact property-ACCESS form ("properties.<name>"), not a
@@ -366,10 +367,22 @@ test("13C.6.0 - the tool issues exactly one query, never a write/mutation call",
 
 // === 12. API efficiency ===============================================
 
-test("13C.6.0 - the whole report is built from a single grouped query (no per-metric loop of calls)", () => {
+// 17C.0 - the original "exactly one grouped query" design had no LIMIT and
+// HogQL's default 100-row cap truncated it (the report read 0 homepage
+// views against 664 real ones). The contract is now: ONE grouped query
+// shape, fetched in explicitly ordered + limited keyset pages until
+// exhausted, plus ONE independent per-event count to verify it - still no
+// per-metric loop of calls, still a single network call site.
+test("17C.0 - the report is one grouped query shape, keyset-paged + independently verified (no per-metric loop)", () => {
   const q = read("scripts/reporting/query.mjs");
   assert.match(q, /GROUP BY/);
+  assert.match(q, /ORDER BY group_key_n/);
+  assert.match(q, /`LIMIT \$\{limit\}`/);
+  assert.doesNotMatch(q.replace(/\/\/[^\n]*/g, ""), /OFFSET/, "PostHog rejects OFFSET for personal-API-key queries - keyset only");
   assert.ok(!/for\s*\(.*await runPostHogQuery/s.test(q), "must not loop calling the API per metric");
+  const fetchSrc = read("scripts/reporting/fetch.mjs");
+  assert.equal((fetchSrc.match(/await run\(/g) ?? []).length, 2, "two call shapes only: a grouped page, and the independent totals");
   const cli = read("scripts/reportHomepageConversion.mjs");
-  assert.equal((cli.match(/runPostHogQuery\(/g) ?? []).length, 1);
+  assert.equal((cli.match(/runPostHogQuery\(/g) ?? []).length, 0, "the CLI goes through fetchCompleteReport");
+  assert.equal((cli.match(/fetchCompleteReport\(/g) ?? []).length, 1);
 });

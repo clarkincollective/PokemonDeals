@@ -19,7 +19,24 @@
 // to (eu.i.posthog.com, in lib/analytics/config.js) - PostHog serves
 // reads from the app host, not the capture subdomain.
 
-import { REPORT_EVENTS, REPORT_PROPERTIES } from "./homepageEvents.mjs";
+import {
+  REPORT_EVENTS,
+  REPORT_PROPERTIES,
+  REPORT_DERIVED_COLUMNS,
+  SUSPECTED_TEST_TRAFFIC,
+  AI_ASSISTANT_UTM_SOURCES,
+  AI_ASSISTANT_REFERRING_DOMAINS,
+} from "./homepageEvents.mjs";
+
+// 17C.0 - explicit page size for the grouped query. HogQL applies a
+// DEFAULT LIMIT of 100 rows to any query without one; the original single
+// grouped query had none, returned exactly 100 rows with hasMore:true, and
+// the report silently read 0 for every event after the first six
+// alphabetically (homepage_view, section impressions, search, QCA...).
+// Every page is now explicitly ordered + limited, pages are fetched until
+// exhausted (scripts/reporting/fetch.mjs), and the result is checked
+// against an independent per-event count (buildEventTotalsQuery).
+export const REPORT_PAGE_SIZE = 5000;
 
 // Same EU-only app host the site's own analytics config uses
 // (lib/analytics/config.js POSTHOG_EU_UI_HOST) - duplicated as a literal
@@ -72,22 +89,120 @@ function hogqlStringLiteral(s) {
 // reads, counted, grouped, over the requested window. No query ever
 // selects distinct_id, person properties, $ip, raw event properties as a
 // whole, or any property outside REPORT_PROPERTIES.
-export function buildHomepageQuery(fromIso, toIso, eventNames = REPORT_EVENTS) {
+function hogqlList(values) {
+  return values.map(hogqlStringLiteral).join(", ");
+}
+
+// Derived traffic_source: the stored value, except that pre-17C.0
+// AI-assistant visits (stored as direct / referral / organic_search) are
+// mapped to "ai_assistant" by comparing the SDK's utm_source / referring
+// domain against a fixed allowlist. Only a category is returned - never
+// the compared value. "internal" (full-load continuation) is kept as is.
+export function trafficSourceExpression() {
+  return [
+    "multiIf(",
+    "    ifNull(properties.traffic_source, '') = 'internal', properties.traffic_source,",
+    `    lower(ifNull(properties.utm_source, '')) IN (${hogqlList(AI_ASSISTANT_UTM_SOURCES)}), 'ai_assistant',`,
+    `    lower(ifNull(properties.$referring_domain, '')) IN (${hogqlList(AI_ASSISTANT_REFERRING_DOMAINS)}), 'ai_assistant',`,
+    "    properties.traffic_source)",
+  ].join("\n");
+}
+
+export function dayFlagExpression(flags = SUSPECTED_TEST_TRAFFIC) {
+  const days = flags.map((f) => f.day);
+  if (!days.length) return "'normal'";
+  return `if(toString(toDate(timestamp)) IN (${hogqlList(days)}), 'suspected_test', 'normal')`;
+}
+
+// One expression per grouping column (the value it groups on).
+function groupColumnExpressions() {
+  return [
+    ["event", "event"],
+    ...REPORT_PROPERTIES.map((p) => [p, p === "traffic_source" ? trafficSourceExpression() : `properties.${p}`]),
+    ["day_flag", dayFlagExpression()],
+  ];
+}
+
+// A stable 64-bit key per group, used for KEYSET pagination (PostHog does
+// not allow OFFSET on personal-API-key queries). Computed from the same
+// expressions the query groups on, so every row of one group gets the
+// same key. A hash collision between two different groups would merge
+// them in paging - the completeness check would not catch a merge (sums
+// still match), but it cannot drop or double-count an event either.
+export function groupKeyExpression() {
+  const parts = groupColumnExpressions().map(([, expr]) => `ifNull(toString(${expr}), '\u2205')`);
+  // HogQL cityHash64 takes ONE argument: hash a separator-joined string of
+  // every grouping value (null -> a sentinel). The separator is a string
+  // literal no grouping value uses.
+  return `cityHash64(concat(${parts.join(", '\u241F', ")}))`;
+}
+
+// Pure - builds ONE PAGE of the grouped aggregate query: event x every
+// structural property this tool reads x the derived day_flag, counted,
+// over [fromIso, toIso), explicitly ORDERED by the group key and
+// explicitly LIMITED; the next page starts after the last key seen
+// (keyset pagination). No query ever selects distinct_id, person
+// properties, $ip, raw event properties as a whole, or any property
+// outside REPORT_PROPERTIES.
+export function buildHomepageQuery(fromIso, toIso, eventNames = REPORT_EVENTS, { limit = REPORT_PAGE_SIZE, afterKey = null } = {}) {
   if (!fromIso || !toIso) throw new Error("buildHomepageQuery requires fromIso and toIso");
-  const eventList = eventNames.map(hogqlStringLiteral).join(", ");
-  const propCols = REPORT_PROPERTIES.map((p) => `properties.${p} AS ${p}`).join(",\n      ");
-  const groupCols = ["event", ...REPORT_PROPERTIES].join(", ");
+  if (!Number.isInteger(limit) || limit <= 0) throw new Error("buildHomepageQuery requires a positive integer limit");
+  if (afterKey != null && !/^\d{1,20}$/.test(String(afterKey))) throw new Error("buildHomepageQuery afterKey must be an unsigned integer string");
+  const eventList = hogqlList(eventNames);
+  const cols = groupColumnExpressions();
+  const selectCols = cols
+    .filter(([name]) => name !== "event")
+    .map(([name, expr]) => (name === "day_flag" || name === "traffic_source" || expr !== `properties.${name}` ? `${expr} AS ${name}` : `properties.${name} AS ${name}`))
+    .join(",\n      ");
+  const key = groupKeyExpression();
+  const groupCols = ["event", ...REPORT_PROPERTIES, ...REPORT_DERIVED_COLUMNS].join(", ");
   const hogql = [
     "SELECT",
     "  event,",
-    `  ${propCols},`,
-    "  count() AS n",
+    `  ${selectCols},`,
+    "  count() AS n,",
+    // numeric key for ordering / comparison; returned as a STRING too, so a
+    // 64-bit value never loses precision as a JSON number
+    `  ${key} AS group_key_n,`,
+    "  toString(group_key_n) AS group_key",
     "FROM events",
     `WHERE timestamp >= toDateTime(${hogqlStringLiteral(fromIso)})`,
     `  AND timestamp < toDateTime(${hogqlStringLiteral(toIso)})`,
     `  AND event IN (${eventList})`,
-    `GROUP BY ${groupCols}`,
+    ...(afterKey != null ? [// afterKey is validated above as 1-20 decimal digits, so it is safe as
+      // a plain integer literal (HogQL has no toUInt64)
+      `  AND ${key} > ${String(afterKey)}`] : []),
+    `GROUP BY ${groupCols}, group_key_n`,
+    "ORDER BY group_key_n",
+    `LIMIT ${limit}`,
+  ].join("\n");
+  return { kind: "HogQLQuery", query: hogql };
+}
+
+// Pure - the last group key on a page (a decimal string), for keyset paging.
+export function lastGroupKey(response) {
+  const i = (response?.columns ?? []).indexOf("group_key");
+  const rows = response?.results ?? [];
+  if (i < 0 || !rows.length) return null;
+  return String(rows[rows.length - 1][i]);
+}
+
+// Pure - the INDEPENDENT completeness check: one count per event over the
+// same window, with nothing grouped but the event name. The grouped pages
+// must sum to exactly these numbers, event by event.
+export function buildEventTotalsQuery(fromIso, toIso, eventNames = REPORT_EVENTS) {
+  if (!fromIso || !toIso) throw new Error("buildEventTotalsQuery requires fromIso and toIso");
+  const hogql = [
+    "SELECT",
+    "  event,",
+    "  count() AS n",
+    "FROM events",
+    `WHERE timestamp >= toDateTime(${hogqlStringLiteral(fromIso)})`,
+    `  AND timestamp < toDateTime(${hogqlStringLiteral(toIso)})`,
+    `  AND event IN (${hogqlList(eventNames)})`,
+    "GROUP BY event",
     "ORDER BY event",
+    `LIMIT ${Math.max(eventNames.length, 1) * 2}`,
   ].join("\n");
   return { kind: "HogQLQuery", query: hogql };
 }
@@ -105,7 +220,7 @@ export function rowsFromResponse(response) {
   return results.map((r) => {
     const row = {};
     columns.forEach((c, i) => {
-      if (c === "event" || c === "n" || REPORT_PROPERTIES.includes(c)) row[c] = r[i];
+      if (c === "event" || c === "n" || REPORT_PROPERTIES.includes(c) || REPORT_DERIVED_COLUMNS.includes(c)) row[c] = r[i];
     });
     row.n = Number(row.n) || 0;
     return row;

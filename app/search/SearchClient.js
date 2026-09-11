@@ -602,6 +602,8 @@ export default function SearchClient({
                     track("Price Checker Deal Click", { deal: deal.id });
                     capture(EVENTS.SEARCH_RESULT_CLICKED, {
                       surface: "deal",
+                      // explicit result kind (17C.0): a live-deal result
+                      result_type: "deal",
                       rank: i + 1,
                       content_id: String(deal.id),
                       deal_id: deal.id,
@@ -969,6 +971,9 @@ function ResultTile({ c, rank, ccyApprox, inDisplayCcy }) {
           track("Price Checker Result Click", { slug: c.cardHref, hasDeal: Boolean(c.deal) });
           capture(EVENTS.SEARCH_RESULT_CLICKED, {
             surface: "catalog",
+            // explicit result kind (17C.0): a catalogue card result (it may
+            // also have a live deal - that stays has_deal)
+            result_type: "card",
             rank,
             has_deal: Boolean(c.deal),
             card_slug: typeof c.cardHref === "string" ? c.cardHref.replace(/^\/cards\//, "") : undefined,

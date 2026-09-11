@@ -31,7 +31,18 @@ export function formatText(report) {
     out.push(`Historical instrumentation start: ${report.measurementContext.instrumentationStart}`);
   }
   out.push(`Generated:          ${report.window.generatedAt}`);
-  out.push(`Homepage views:     ${report.homepageViews}`);
+  const c = report.completeness;
+  if (c) {
+    out.push(
+      c.complete
+        ? `Completeness:       VERIFIED - grouped rows sum to the independent per-event counts (${c.groupedTotal} = ${c.independentTotal} events, ${report.completenessPages ?? "?"} page(s))`
+        : `Completeness:       FAILED - ${c.mismatches.length} event(s) differ from their independent count; DO NOT USE these figures`
+    );
+    for (const mm of c.mismatches ?? []) out.push(`                    ${mm.event}: grouped ${mm.grouped} vs independent ${mm.independent}`);
+  }
+  out.push(`Page views:         ${report.pageViews} (page_view only - the site-wide pageview, recorded from 17C.0 onwards)`);
+  if (report.pageViewsByType && Object.keys(report.pageViewsByType).length) out.push(`  by page type:     ${JSON.stringify(report.pageViewsByType)}`);
+  out.push(`Homepage views:     ${report.homepageViews} (homepage_view - the homepage-module event; never added to page views)`);
   out.push("");
   out.push("All figures are AGGREGATE COUNTS only. No person, session, card,");
   out.push("Pokemon, listing, or query-text data is included anywhere below.");
@@ -124,6 +135,30 @@ export function formatText(report) {
   out.push(line());
   for (const [event, counts] of Object.entries(report.trafficSource)) {
     out.push(`  ${event}: ${JSON.stringify(counts)}`);
+  }
+
+  if (report.sensitivity) {
+    const sv = report.sensitivity;
+    out.push("");
+    out.push("SENSITIVITY - suspected test traffic (main figures above INCLUDE it)");
+    out.push(line());
+    for (const f of sv.flags) out.push(`  flagged day ${f.day}: ${f.reason}`);
+    out.push(`  ${"metric".padEnd(32)} ${"all traffic".padStart(12)} ${"without flagged".padStart(16)}`);
+    for (const k of Object.keys(sv.all)) {
+      out.push(`  ${k.padEnd(32)} ${String(sv.all[k]).padStart(12)} ${String(sv.withoutFlagged[k]).padStart(16)}`);
+    }
+    out.push("  (a comparison only - no figure in this report is automatically excluded)");
+  }
+
+  if (report.continuityNotes?.length) {
+    out.push("");
+    out.push("MEASUREMENT CONTINUITY (what these numbers can and cannot mean)");
+    out.push(line());
+    for (const n of report.continuityNotes) out.push(`  - ${n}`);
+    out.push('  - traffic_source "ai_assistant" = the visit came from an AI assistant link (e.g. ChatGPT). It says nothing');
+    out.push("    about who the visitor is and is not a customer or purchase signal. Pre-17C.0 rows are reclassified IN THIS");
+    out.push("    REPORT from the SDK's utm_source / referring domain; stored data is unchanged.");
+    out.push("  - affiliate_click = an outbound eBay click, not a purchase and not revenue.");
   }
 
   out.push("");

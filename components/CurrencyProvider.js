@@ -26,7 +26,12 @@ const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 // Stable references: useSyncExternalStore requires getSnapshot /
 // getServerSnapshot to return the same value until something actually
 // changes, or it re-renders forever.
-const SERVER_SNAPSHOT = { viewer: null, marketplace: null, rates: null };
+// geoCountry (Phase 17C.0): the coarse ISO-2 country /api/rates reported
+// for THIS page load, used only by analytics as visitor geography. It is
+// deliberately NOT part of the localStorage cache below - a cached prime
+// always has geoCountry null, so geography is either this load's live
+// answer or unknown, never a stored value.
+const SERVER_SNAPSHOT = { viewer: null, marketplace: null, rates: null, geoCountry: null };
 let clientSnapshot = SERVER_SNAPSHOT;
 
 let primed = false;
@@ -52,6 +57,7 @@ function readCache() {
       viewer: parsed.viewer ?? null,
       marketplace: parsed.marketplace ?? null,
       rates: parsed.rates,
+      geoCountry: null,
     };
   } catch {
     return null;
@@ -86,11 +92,14 @@ function refresh() {
         viewer: d.viewer ?? null,
         marketplace: d.marketplace ?? null,
         rates: d.rates,
+        geoCountry: typeof d.geo_country === "string" ? d.geo_country : null,
       };
       try {
+        // the cache carries currency/marketplace/rates only - never geoCountry
+        const { geoCountry: _notCached, ...cacheable } = clientSnapshot;
         window.localStorage.setItem(
           CACHE_KEY,
-          JSON.stringify({ ...clientSnapshot, ts: Date.now() })
+          JSON.stringify({ ...cacheable, ts: Date.now() })
         );
       } catch {
         // private mode / quota - the in-memory snapshot is still fine
