@@ -4,6 +4,7 @@ import GuideFigure from "@/components/guides/GuideFigure";
 import GradeScaleTable from "@/components/guides/GradeScaleTable";
 import ConditionAxes from "@/components/guides/ConditionAxes";
 import { guideMetadata } from "@/lib/guides";
+import { GUIDE_CARDS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 
 const SLUG = "pokemon-card-grading-scale";
 export const metadata = guideMetadata(SLUG);
@@ -108,7 +109,14 @@ export default function Page() {
         Because the criteria and the label differ, the same card can come back a 9 at one company and
         an 8 or a 10 at another, and the market pays different amounts for each &mdash; usually the
         most for PSA at the top end for Pokemon. When you compare graded prices, compare the same
-        company and the same number. A fuller company-by-company overview is on the{" "}
+        company and the same number &mdash; a card page here lists each company&apos;s grades as
+        separate rows once there are enough recent sales, as on{" "}
+        {/* identity by number + set (this guide's copy guard forbids the word the
+            catalogue uses for the rarity tier) */}
+        <Link href={GUIDE_CARDS.umbreonVmaxAltArt.href} className={GUIDE_LINK_CLASS}>
+          Umbreon VMAX #215/203 from Evolving Skies
+        </Link>
+        . A fuller company-by-company overview is on the{" "}
         <Link href="/guides/card-condition-grading" className="text-red-600 hover:underline dark:text-red-500">
           condition &amp; grading guide
         </Link>
@@ -166,6 +174,10 @@ export default function Page() {
           , or look up any card&apos;s raw and graded value by{" "}
           <Link href="/pokemon" className="text-red-600 hover:underline dark:text-red-500">
             Pokemon
+          </Link>{" "}
+          or in the{" "}
+          <Link href={PRICE_CHECKER_HREF} className={GUIDE_LINK_CLASS}>
+            price checker
           </Link>
           .
         </li>

@@ -3,6 +3,7 @@ import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import GuideFigure from "@/components/guides/GuideFigure";
 import RawVsGraded from "@/components/guides/RawVsGraded";
 import { guideMetadata } from "@/lib/guides";
+import { GUIDE_CARDS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 
 const SLUG = "raw-vs-graded-pokemon-cards";
 export const metadata = guideMetadata(SLUG);
@@ -47,14 +48,17 @@ export default function Page() {
         The size of the premium varies enormously by card and grade. A common modern card in a PSA 9
         might be worth little more than raw; a sought-after vintage card in a PSA 10 can trade at many
         multiples of a raw near-mint copy. There is no fixed multiplier — you have to look at real
-        sold prices for that exact card and grade. Each{" "}
-        <Link
-          href="/market-data/most-listed-cards"
-          className="text-red-600 hover:underline dark:text-red-500"
-        >
-          card page
-        </Link>{" "}
-        on this site shows the raw price and each graded tier side by side.
+        sold prices for that exact card and grade. Card pages on this site show the raw price and,
+        where there are enough recent graded sales for that exact printing, each grader and grade
+        alongside it &mdash; for example{" "}
+        <Link href={GUIDE_CARDS.pikachuVFullArt.href} className={GUIDE_LINK_CLASS}>
+          {GUIDE_CARDS.pikachuVFullArt.label}
+        </Link>
+        . Any card can be looked up in the{" "}
+        <Link href={PRICE_CHECKER_HREF} className={GUIDE_LINK_CLASS}>
+          price checker
+        </Link>
+        .
       </GP>
 
       <GH2>What grading costs and takes</GH2>

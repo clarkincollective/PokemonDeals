@@ -3,6 +3,7 @@ import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import GuideFigure from "@/components/guides/GuideFigure";
 import PriceForkDiagram from "@/components/guides/PriceForkDiagram";
 import { guideMetadata } from "@/lib/guides";
+import { GUIDE_CARDS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 
 const SLUG = "how-pokemon-card-prices-work";
 export const metadata = guideMetadata(SLUG);
@@ -37,7 +38,20 @@ export default function Page() {
           <strong>Playability and collectability.</strong> A card can be valuable because it&apos;s
           strong in competitive play, because it&apos;s a chase card (alternate art, secret rare),
           because the Pokemon is popular, or all three. Demand for a specific Charizard art is not the
-          same as demand for the card next to it in the set.
+          same as demand for the card next to it in the set. Evolving Skies alone has three Umbreon
+          VMAX cards &mdash; the regular{" "}
+          <Link href={GUIDE_CARDS.umbreonVmax.href} className={GUIDE_LINK_CLASS}>
+            #095/203
+          </Link>
+          , the{" "}
+          <Link href={GUIDE_CARDS.umbreonVmaxSecret.href} className={GUIDE_LINK_CLASS}>
+            Secret #214/203
+          </Link>{" "}
+          and the{" "}
+          <Link href={GUIDE_CARDS.umbreonVmaxAltArt.href} className={GUIDE_LINK_CLASS}>
+            Alternate Art Secret #215/203
+          </Link>{" "}
+          &mdash; and each is a separate card with its own market.
         </li>
         <li>
           <strong>Reprints.</strong> A card that gets reprinted in a later set, a special collection,
@@ -53,13 +67,30 @@ export default function Page() {
       <GUL>
         <li>
           <strong>Printing / set.</strong> The same Pokemon and artwork can exist in Base Set, a
-          later reprint, and a promo, each with its own market. On this site, each exact printing with
-          two or more live listings gets its own consolidated{" "}
+          later reprint, and a promo, each with its own market. On this site each printing has its own
+          card page: Charizard from the original{" "}
+          <Link href={GUIDE_CARDS.charizardBaseSet.href} className={GUIDE_LINK_CLASS}>
+            Base Set
+          </Link>{" "}
+          (#004/102), its early{" "}
+          <Link href={GUIDE_CARDS.charizardShadowless.href} className={GUIDE_LINK_CLASS}>
+            Shadowless
+          </Link>{" "}
+          print run, the{" "}
+          <Link href={GUIDE_CARDS.charizardBaseSet2.href} className={GUIDE_LINK_CLASS}>
+            Base Set 2
+          </Link>{" "}
+          reprint (#004/130) and{" "}
+          <Link href={GUIDE_CARDS.charizardEvolutions.href} className={GUIDE_LINK_CLASS}>
+            XY Evolutions
+          </Link>{" "}
+          (#11/108, a 2016 remake of Base Set) are four cards with four prices. The printings with the
+          most live listings right now are on{" "}
           <Link
             href="/market-data/most-listed-cards"
             className="text-red-600 hover:underline dark:text-red-500"
           >
-            card page
+            most listed cards
           </Link>
           .
         </li>
@@ -109,7 +140,11 @@ export default function Page() {
         outlier (a bad photo, an impatient seller, a bidding war); the cheapest listing might be a
         worse condition or a different printing than you think. The practical approach is to look at a
         spread of recent sales for the exact printing and condition you want, then judge a listing
-        against that.
+        against that. The{" "}
+        <Link href={PRICE_CHECKER_HREF} className={GUIDE_LINK_CLASS}>
+          price checker
+        </Link>{" "}
+        finds an exact printing by name, set or card number.
       </GP>
 
       <GP>

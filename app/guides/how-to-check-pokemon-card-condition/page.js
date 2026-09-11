@@ -4,6 +4,7 @@ import GuideFigure from "@/components/guides/GuideFigure";
 import ConditionAxes from "@/components/guides/ConditionAxes";
 import ConditionScale from "@/components/guides/ConditionScale";
 import { guideMetadata } from "@/lib/guides";
+import { PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 
 const SLUG = "how-to-check-pokemon-card-condition";
 export const metadata = guideMetadata(SLUG);
@@ -129,11 +130,16 @@ export default function Page() {
         <Link href="/methodology" className="text-red-600 hover:underline dark:text-red-500">
           methodology
         </Link>
-        . To check a specific card&apos;s raw and graded values, look it up by{" "}
+        . To check a specific card&apos;s raw and graded values, search for it by name, set or card
+        number in the{" "}
+        <Link href={PRICE_CHECKER_HREF} className={GUIDE_LINK_CLASS}>
+          price checker
+        </Link>
+        , or browse by{" "}
         <Link href="/pokemon" className="text-red-600 hover:underline dark:text-red-500">
           Pokemon
         </Link>{" "}
-        or in the{" "}
+        or the{" "}
         <Link href="/cards" className="text-red-600 hover:underline dark:text-red-500">
           card database
         </Link>

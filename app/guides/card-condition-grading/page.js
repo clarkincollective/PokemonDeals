@@ -3,6 +3,7 @@ import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import GuideFigure from "@/components/guides/GuideFigure";
 import ConditionScale from "@/components/guides/ConditionScale";
 import { guideMetadata } from "@/lib/guides";
+import { GUIDE_CARDS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 
 const SLUG = "card-condition-grading";
 export const metadata = guideMetadata(SLUG);
@@ -162,6 +163,22 @@ export default function Page() {
         <li>Judge a raw card from clear, in-focus photos of all four corners and the full surface.</li>
         <li>&ldquo;Mint&rdquo; in a raw listing is a seller&apos;s opinion; a graded &ldquo;10&rdquo; is a company&apos;s.</li>
         <li>A cheap graded card at a mid grade (say a PSA 6) is a legitimately cheaper card, not a bargain on a PSA 10.</li>
+        <li>
+          Compare a listing only with the same printing: the set and card number tell look-alikes apart
+          &mdash;{" "}
+          <Link href={GUIDE_CARDS.charizardBaseSet.href} className={GUIDE_LINK_CLASS}>
+            Base Set Charizard
+          </Link>{" "}
+          is #004/102, the{" "}
+          <Link href={GUIDE_CARDS.charizardBaseSet2.href} className={GUIDE_LINK_CLASS}>
+            Base Set 2 reprint
+          </Link>{" "}
+          is #004/130. The{" "}
+          <Link href={PRICE_CHECKER_HREF} className={GUIDE_LINK_CLASS}>
+            price checker
+          </Link>{" "}
+          searches by card number as well as name.
+        </li>
         <li>
           Browse graded deals specifically on{" "}
           <Link href="/?type=graded" className="text-red-600 hover:underline dark:text-red-500">
