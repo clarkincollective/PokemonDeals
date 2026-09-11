@@ -22,6 +22,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import SpeciesCardList from "@/components/SpeciesCardList";
 import CatalogueBrowser from "@/components/CatalogueBrowser";
 import CatalogueLinkIndex from "@/components/CatalogueLinkIndex";
+import SetChecklist from "@/components/SetChecklist";
 import FeaturedValueCards from "@/components/FeaturedValueCards";
 import SetFactStrip from "@/components/SetFactStrip";
 import SetPriceSummary from "@/components/SetPriceSummary";
@@ -123,6 +124,7 @@ export default async function SetDetailPage({ params }) {
     {
       cards: catalogCards,
       indexCards: catalogIndexCards,
+      checklistCards,
       totalCards: catalogTotal,
       truncated: catalogTruncated,
       stats,
@@ -177,6 +179,10 @@ export default async function SetDetailPage({ params }) {
   const snapshot = priceSnapshot;
   const speciesInSet = speciesList;
   const featuredItems = buildCatalogueItems(topValueCards, validSetSlugs, "set").slice(0, 12);
+
+  // Phase 17C.2 pilot (lib/setChecklist CHECKLIST_PILOT_SETS): a readable
+  // checklist table replaces the plain link index for the pilot set only.
+  const checklistPilot = Array.isArray(checklistCards) && checklistCards.length > 0;
 
   const showSealed = sealedProducts.length >= SET_SEALED_MIN_PRODUCTS;
   const sealedDealCount = sealedProducts.filter((p) => p.deal).length;
@@ -330,14 +336,24 @@ export default async function SetDetailPage({ params }) {
         {showCatalog && (
           <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
             <h2 className="text-lg font-bold text-black dark:text-zinc-50">
-              {catalogTruncated
-                ? `${resolved.set} card checklist (${catalogCards.length} of ${catalogTotal})`
-                : `${resolved.set} card checklist (${catalogTotal})`}
+              {checklistPilot
+                ? `Browse ${resolved.set} cards (${catalogTotal})`
+                : catalogTruncated
+                  ? `${resolved.set} card checklist (${catalogCards.length} of ${catalogTotal})`
+                  : `${resolved.set} card checklist (${catalogTotal})`}
             </h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
               Every {resolved.set} card we track. Search by name, number or rarity; filter by rarity;
               sort by value or card number. Open a card for full pricing. Reference prices are
               recent-sold data, not guaranteed values.
+              {checklistPilot && (
+                <>
+                  {" "}
+                  <a href="#full-set-index" className="font-medium text-zinc-700 underline underline-offset-2 hover:text-red-600 dark:text-zinc-300">
+                    Prefer a plain list? Jump to the numbered checklist.
+                  </a>
+                </>
+              )}
             </p>
             <CatalogueBrowser
               variant="set"
@@ -349,7 +365,11 @@ export default async function SetDetailPage({ params }) {
               }
               totalCount={catalogueItems.length}
             />
-            <CatalogueLinkIndex label={resolved.set} cards={catalogueIndexItems} headingId="full-set-index" />
+            {checklistPilot ? (
+              <SetChecklist setName={resolved.set} cards={checklistCards} headingId="full-set-index" />
+            ) : (
+              <CatalogueLinkIndex label={resolved.set} cards={catalogueIndexItems} headingId="full-set-index" />
+            )}
           </section>
         )}
 
