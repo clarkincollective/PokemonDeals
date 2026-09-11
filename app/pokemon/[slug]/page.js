@@ -29,6 +29,7 @@ import SiteFooter from "@/components/SiteFooter";
 import { hasPrice } from "@/lib/money";
 import { cardTier } from "@/lib/catalogueView";
 import { speciesPriceSnapshot, speciesBySet } from "@/lib/speciesSummary";
+import { isSpeciesPilot, speciesEraGroups, speciesCoverageFacts, speciesConditionNote } from "@/lib/speciesCoverage";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -227,6 +228,16 @@ export default async function PokemonSpeciesPage({ params }) {
   const priceSnapshot = speciesPriceSnapshot(allCards);
   const bySetRows = speciesBySet(allCards, validSetSlugs);
 
+  // Phase 17C.4 pilot (lib/speciesCoverage SPECIES_PILOT): verified
+  // coverage facts, era grouping and the recorded-condition note. Every
+  // other species renders exactly as before (all null / empty).
+  const pilot = isSpeciesPilot(resolved.name);
+  const eraGroups = pilot ? speciesEraGroups(allCards, validSetSlugs) : null;
+  const coverageFacts = pilot ? speciesCoverageFacts(allCards) : null;
+  const conditionNote = pilot ? speciesConditionNote(allCards) : "";
+  const byEra = pilot ? eraGroups.map((g) => ({ key: g.era.key, label: g.era.label, years: g.era.years, sets: g.sets.map((s) => s.set) })) : null;
+  const datedSets = pilot ? eraGroups.filter((g) => g.era.key !== "undated").flatMap((g) => g.sets.map((s) => ({ set: s.set, slug: s.slug }))) : null;
+
   // Discovery shortcut: the highest recent-sold-value cards we track for
   // this species, ranked ONLY by trustworthy reference price - never by
   // anything we'd earn on. Standard collectible cards fill these prime
@@ -323,12 +334,20 @@ export default async function PokemonSpeciesPage({ params }) {
           <h1 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
             {speciesPageTitle(resolved.name)}
           </h1>
-          <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
-            Every {resolved.name} card we track across {priceSnapshot.setCount}{" "}
-            {priceSnapshot.setCount === 1 ? "catalogue set" : "catalogue sets"}, with real recent-sold
-            market references. Compare prices and values, see the most valuable {resolved.name} cards,
-            and check the qualifying below-market eBay deals identified below.
-          </p>
+          {pilot && coverageFacts?.earliestSet ? (
+            <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
+              Every {resolved.name} card in our English catalogue, from {coverageFacts.earliestSet} onward,
+              listed by era and set below with its collector number, rarity and recent-sold market
+              reference — plus any live below-market eBay deals.
+            </p>
+          ) : (
+            <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
+              Every {resolved.name} card we track across {priceSnapshot.setCount}{" "}
+              {priceSnapshot.setCount === 1 ? "catalogue set" : "catalogue sets"}, with real recent-sold
+              market references. Compare prices and values, see the most valuable {resolved.name} cards,
+              and check the qualifying below-market eBay deals identified below.
+            </p>
+          )}
           <SpeciesFactStrip speciesName={resolved.name} />
           {/* Two distinct populations, labelled as such: the CATALOGUE
               (every card we track, and the sets it spans) and, separately,
@@ -389,7 +408,7 @@ export default async function PokemonSpeciesPage({ params }) {
         {/* Species-level price snapshot (real catalogue references, never
             a single "the Pokemon is worth $X"). */}
         <div className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
-          <SpeciesPriceSummary speciesName={resolved.name} snapshot={priceSnapshot} />
+          <SpeciesPriceSummary speciesName={resolved.name} snapshot={priceSnapshot} conditionNote={conditionNote} />
         </div>
 
         {/* Most valuable cards - ranked purely by trustworthy market
@@ -402,13 +421,14 @@ export default async function PokemonSpeciesPage({ params }) {
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
               The highest market references currently in our catalogue — not an all-time ranking. Open
               a card for full pricing, graded values and any live deal.
+              {pilot && conditionNote ? ` ${conditionNote}` : ""}
             </p>
             <FeaturedValueCards speciesName={resolved.name} items={featuredItems} />
           </section>
         )}
 
         {/* By-set coverage summary (compact, above the full grid). */}
-        <SpeciesBySet speciesName={resolved.name} rows={bySetRows} />
+        <SpeciesBySet speciesName={resolved.name} rows={bySetRows} eras={byEra} conditionNote={conditionNote} />
 
         {/* SECTION 5 - the complete catalogue, by set, with search + progressive disclosure */}
         {allCards.length > 0 && (
@@ -424,6 +444,7 @@ export default async function PokemonSpeciesPage({ params }) {
               speciesName={resolved.name}
               cards={allCards}
               validSetSlugs={validSetSlugs}
+              eraGroups={eraGroups}
             />
           </section>
         )}
@@ -433,6 +454,7 @@ export default async function PokemonSpeciesPage({ params }) {
           snapshot={priceSnapshot}
           setRows={bySetRows}
           hasDeals={deals.length > 0}
+          coverage={pilot ? { facts: coverageFacts, datedSets, conditionNote } : null}
         />
 
         <div className="mt-10 flex justify-center">

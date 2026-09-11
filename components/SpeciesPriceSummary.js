@@ -7,7 +7,10 @@ import Price from "@/components/Price";
 // that <Price> localises to the viewer's currency after hydration.
 //
 // `snapshot` comes from lib/speciesSummary.speciesPriceSnapshot(cards).
-export default function SpeciesPriceSummary({ speciesName, snapshot, className = "" }) {
+// `conditionNote` (Phase 17C.4 pilot): the recorded-condition sentence
+// (lib/speciesCoverage.speciesConditionNote). When given it replaces the
+// generic "condition, set, printing and grade all move a card's price".
+export default function SpeciesPriceSummary({ speciesName, snapshot, className = "", conditionNote = "" }) {
   if (!snapshot) return null;
   const { cardCount, pricedCount, setCount, minPrice, maxPrice, medianPrice, specialtyPricedCount } =
     snapshot;
@@ -55,8 +58,9 @@ export default function SpeciesPriceSummary({ speciesName, snapshot, className =
         )}
       </p>
       <p className="mt-2 text-xs text-zinc-400">
-        These are recent-sold reference prices for individual cards, not a single value for the
-        Pokemon — condition, set, printing and grade all move a card&apos;s price.
+        {conditionNote
+          ? `These are recent-sold references for individual raw cards, not a single value for the Pokemon. ${conditionNote}`
+          : "These are recent-sold reference prices for individual cards, not a single value for the Pokemon — condition, set, printing and grade all move a card's price."}
         {specialtyPricedCount > 0
           ? ` ${specialtyPricedCount} Jumbo / World Championship ${
               specialtyPricedCount === 1 ? "card is" : "cards are"

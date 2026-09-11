@@ -18,11 +18,19 @@ import Price from "@/components/Price";
 // `rows` comes from lib/speciesSummary.speciesBySet(cards, validSetSlugs).
 const INITIAL = 12;
 
-export default function SpeciesBySet({ speciesName, rows }) {
+// `eras` (Phase 17C.4 pilot only): [{ key, label, years, sets: [set names
+// in release order] }] from lib/speciesCoverage.speciesEraGroups. When
+// given, the rows are shown oldest era first, in set release order, under
+// an era heading row - instead of by card count - and all sets show.
+export default function SpeciesBySet({ speciesName, rows, eras = null, conditionNote = "" }) {
   const [expanded, setExpanded] = useState(false);
   if (!rows || rows.length === 0) return null;
 
-  const overflow = rows.length > INITIAL + 2; // no "show all" to reveal 1-2
+  const rowBySet = new Map(rows.map((r) => [r.set, r]));
+  const grouped = Array.isArray(eras) && eras.length > 0
+    ? eras.map((e) => ({ ...e, rows: e.sets.map((s) => rowBySet.get(s)).filter(Boolean) })).filter((e) => e.rows.length > 0)
+    : null;
+  const overflow = !grouped && rows.length > INITIAL + 2; // no "show all" to reveal 1-2
   const money = (n) =>
     n == null ? <span className="text-zinc-400">—</span> : (
       <Price usd={n} native={{ amount: Number(n), currency: "USD" }} />
@@ -32,8 +40,10 @@ export default function SpeciesBySet({ speciesName, rows }) {
     <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
       <h2 className="text-lg font-bold text-black dark:text-zinc-50">{speciesName} cards by set</h2>
       <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-        Every set we track a {speciesName} card in, with how many we price and their market-reference
-        range. Ranges exclude Jumbo / World Championship printings.
+        {grouped
+          ? `Every set we track a ${speciesName} card in, oldest era first, with how many we price and their market-reference range. Ranges exclude Jumbo / World Championship printings.`
+          : `Every set we track a ${speciesName} card in, with how many we price and their market-reference range. Ranges exclude Jumbo / World Championship printings.`}
+        {grouped && conditionNote ? ` ${conditionNote}` : ""}
       </p>
 
       <div className="mt-4 overflow-x-auto">
@@ -46,8 +56,17 @@ export default function SpeciesBySet({ speciesName, rows }) {
               <th className="py-2 text-right font-semibold">Market range</th>
             </tr>
           </thead>
-          <tbody>
-            {rows.map((r, i) => (
+          {(grouped ?? [{ key: "all", label: null, rows }]).map((group) => (
+          <tbody key={group.key}>
+            {group.label && (
+              <tr className="border-b border-zinc-200 dark:border-zinc-800">
+                <th colSpan={4} scope="rowgroup" className="pb-1 pt-4 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  {group.label}
+                  {group.years ? <span className="font-normal normal-case">{` · ${group.years}`}</span> : null}
+                </th>
+              </tr>
+            )}
+            {group.rows.map((r, i) => (
               <tr
                 key={r.set}
                 className={`border-b border-zinc-100 dark:border-zinc-900 ${
@@ -86,6 +105,7 @@ export default function SpeciesBySet({ speciesName, rows }) {
               </tr>
             ))}
           </tbody>
+          ))}
         </table>
       </div>
 

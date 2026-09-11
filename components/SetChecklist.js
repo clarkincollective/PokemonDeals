@@ -18,7 +18,9 @@ import { buildChecklistRows, checklistSummary, checklistLegend } from "@/lib/set
 //   col 2  Card     name link; <small> = rarity, shown only below `sm`
 //   col 3  Rarity   hidden below `sm` (the <small> in col 2 carries it)
 //   col 4  Market reference  right-aligned; <b> = figure, <small> = context
-const TABLE_CLASS = [
+// Exported for the Pokemon-page checklist (components/SpeciesChecklist).
+export const CHECKLIST_TABLE_CLASS = [
+
   "w-full border-collapse text-left text-sm tabular-nums",
   "[&_th]:px-3 [&_th]:py-2 [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wide [&_th]:text-zinc-500 dark:[&_th]:text-zinc-400",
   "[&_td]:px-3 [&_td]:py-2 [&_td]:align-top",
@@ -33,6 +35,36 @@ const TABLE_CLASS = [
   "[&_td:nth-child(4)_small]:block [&_td:nth-child(4)_small]:text-xs [&_td:nth-child(4)_small]:text-zinc-500 dark:[&_td:nth-child(4)_small]:text-zinc-400",
   "[&_i]:text-xs [&_i]:text-zinc-500 dark:[&_i]:text-zinc-400",
 ].join(" ");
+const TABLE_CLASS = CHECKLIST_TABLE_CLASS;
+
+// One checklist row - shared with components/SpeciesChecklist so both
+// render references, links and missing prices identically.
+export function ChecklistRow({ r }) {
+  return (
+    <tr>
+      <td>{r.number ?? "—"}</td>
+      <td>
+        {r.href ? <a href={r.href}>{r.name}</a> : r.name}
+        <small>{r.rarity ?? "Rarity not recorded"}</small>
+      </td>
+      <td>{r.rarity ?? "Not recorded"}</td>
+      <td>
+        {r.reference ? (
+          <>
+            <b>
+              <Price usd={r.reference.usd} native={{ amount: r.reference.usd, currency: "USD" }} />
+            </b>
+            {(r.reference.conditionKnown || r.reference.printing) && (
+              <small>{[r.reference.conditionLabel, r.reference.printing].filter(Boolean).join(" · ")}</small>
+            )}
+          </>
+        ) : (
+          <i>No reliable reference</i>
+        )}
+      </td>
+    </tr>
+  );
+}
 
 export default function SetChecklist({ setName, cards, headingId = "full-set-index" }) {
   const rows = buildChecklistRows(cards);
@@ -69,28 +101,7 @@ export default function SetChecklist({ setName, cards, headingId = "full-set-ind
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.key}>
-                <td>{r.number ?? "—"}</td>
-                <td>
-                  {r.href ? <a href={r.href}>{r.name}</a> : r.name}
-                  <small>{r.rarity ?? "Rarity not recorded"}</small>
-                </td>
-                <td>{r.rarity ?? "Not recorded"}</td>
-                <td>
-                  {r.reference ? (
-                    <>
-                      <b>
-                        <Price usd={r.reference.usd} native={{ amount: r.reference.usd, currency: "USD" }} />
-                      </b>
-                      {(r.reference.conditionKnown || r.reference.printing) && (
-                        <small>{[r.reference.conditionLabel, r.reference.printing].filter(Boolean).join(" · ")}</small>
-                      )}
-                    </>
-                  ) : (
-                    <i>No reliable reference</i>
-                  )}
-                </td>
-              </tr>
+              <ChecklistRow key={r.key} r={r} />
             ))}
           </tbody>
         </table>

@@ -10,15 +10,22 @@ import Price from "@/components/Price";
 //
 // `snapshot` = lib/speciesSummary.speciesPriceSnapshot(cards).
 // `setRows`  = lib/speciesSummary.speciesBySet(cards, validSetSlugs).
-export default function SpeciesQuickAnswers({ speciesName, snapshot, setRows, hasDeals }) {
+// `coverage` (Phase 17C.4 pilot): { facts, datedSets, conditionNote } from
+// lib/speciesCoverage. When given, the "how many / which sets / worth"
+// answers state the verified specifics (standard vs Jumbo counts, era span,
+// undated sets, sets in release order, recorded-condition context) instead
+// of generic copy that repeats the summary above.
+export default function SpeciesQuickAnswers({ speciesName, snapshot, setRows, hasDeals, coverage = null }) {
   if (!snapshot || snapshot.cardCount === 0) return null;
   const { cardCount, pricedCount, setCount, minPrice, maxPrice } = snapshot;
 
   const money = (n) =>
     n == null ? null : <Price usd={n} native={{ amount: Number(n), currency: "USD" }} />;
 
-  const namedSets = (setRows ?? []).slice(0, 6);
+  const setSource = coverage?.datedSets?.length ? coverage.datedSets : setRows ?? [];
+  const namedSets = setSource.slice(0, 6);
   const moreSets = Math.max(0, (setRows ?? []).length - namedSets.length);
+  const f = coverage?.facts ?? null;
 
   const q = "mt-5 text-sm font-bold text-black dark:text-zinc-50";
   const a = "mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400";
@@ -30,14 +37,29 @@ export default function SpeciesQuickAnswers({ speciesName, snapshot, setRows, ha
       </h2>
 
       <h3 className={q}>How many {speciesName} cards are there?</h3>
-      <p className={a}>
-        We currently track{" "}
-        <span className="font-semibold text-black dark:text-zinc-50">{cardCount}</span> {speciesName}{" "}
-        card {cardCount === 1 ? "record" : "records"} across{" "}
-        <span className="font-semibold text-black dark:text-zinc-50">{setCount}</span>{" "}
-        {setCount === 1 ? "catalogue set" : "catalogue sets"}. That is the catalogue of {speciesName} cards we price and
-        monitor for deals — not necessarily every {speciesName} card ever printed.
-      </p>
+      {f ? (
+        <p className={a}>
+          Our English catalogue has{" "}
+          <span className="font-semibold text-black dark:text-zinc-50">{f.total}</span> {speciesName} cards:{" "}
+          {f.standard} standard {f.standard === 1 ? "card" : "cards"}
+          {f.specialty > 0 ? ` and ${f.specialty} Jumbo / World Championship ${f.specialty === 1 ? "printing" : "printings"}` : ""}, across{" "}
+          <span className="font-semibold text-black dark:text-zinc-50">{f.setCount}</span> {f.setCount === 1 ? "set" : "sets"}.
+          {f.datedSetCount > 0 && f.firstEra && f.lastEra
+            ? ` ${f.datedSetCount} of those sets are in our dated release list, from the ${f.firstEra.label} (${f.firstEra.years})${f.lastEra.key !== f.firstEra.key ? ` to ${f.lastEra.label} (${f.lastEra.years})` : ""}${f.undatedSetCount > 0 ? `; the other ${f.undatedSetCount} are promos, exclusives or special releases that list doesn't date` : ""}.`
+            : ""}{" "}
+          Code cards and sealed products that only mention {speciesName} are not counted, and this is
+          the catalogue we price — not necessarily every {speciesName} card ever printed.
+        </p>
+      ) : (
+        <p className={a}>
+          We currently track{" "}
+          <span className="font-semibold text-black dark:text-zinc-50">{cardCount}</span> {speciesName}{" "}
+          card {cardCount === 1 ? "record" : "records"} across{" "}
+          <span className="font-semibold text-black dark:text-zinc-50">{setCount}</span>{" "}
+          {setCount === 1 ? "catalogue set" : "catalogue sets"}. That is the catalogue of {speciesName} cards we price and
+          monitor for deals — not necessarily every {speciesName} card ever printed.
+        </p>
+      )}
 
       <h3 className={q}>How much are {speciesName} cards worth?</h3>
       <p className={a}>
@@ -52,8 +74,10 @@ export default function SpeciesQuickAnswers({ speciesName, snapshot, setRows, ha
             ) : (
               <>sit at {money(minPrice)}</>
             )}
-            . There is no single {speciesName} card value — condition, set, printing and grade all
-            change what an individual card is worth.
+            .{" "}
+            {coverage?.conditionNote
+              ? coverage.conditionNote
+              : `There is no single ${speciesName} card value — condition, set, printing and grade all change what an individual card is worth.`}
           </>
         ) : (
           <>
@@ -68,7 +92,7 @@ export default function SpeciesQuickAnswers({ speciesName, snapshot, setRows, ha
         <>
           <h3 className={q}>Which sets have {speciesName} cards?</h3>
           <p className={a}>
-            {speciesName} cards we track appear in{" "}
+            {coverage?.datedSets?.length ? `Oldest first, ${speciesName} cards we track appear in ` : `${speciesName} cards we track appear in `}
             {namedSets.map((r, i) => (
               <span key={r.set}>
                 {i > 0 ? ", " : ""}

@@ -15,6 +15,7 @@ import { hasPrice } from "@/lib/money";
 import { cardTier } from "@/lib/catalogueView";
 import { speciesPriceSnapshot, speciesBySet } from "@/lib/speciesSummary";
 import { speciesPageTitle } from "@/lib/speciesHub";
+import { isSpeciesPilot, speciesEraGroups, speciesCoverageFacts, speciesConditionNote } from "@/lib/speciesCoverage";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -44,6 +45,15 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
   // lean); the fact strip is shown either way (real, compact context).
   const priceSnapshot = indexable ? speciesPriceSnapshot(cards) : null;
   const bySetRows = indexable ? speciesBySet(cards, validSetSlugs) : [];
+
+  // Phase 17C.4 pilot - identical to the deal-backed template, so the pilot
+  // species keeps the same content whether or not a live deal exists.
+  const pilot = indexable && isSpeciesPilot(speciesName);
+  const eraGroups = pilot ? speciesEraGroups(cards, validSetSlugs) : null;
+  const coverageFacts = pilot ? speciesCoverageFacts(cards) : null;
+  const conditionNote = pilot ? speciesConditionNote(cards) : "";
+  const byEra = pilot ? eraGroups.map((g) => ({ key: g.era.key, label: g.era.label, years: g.era.years, sets: g.sets.map((s) => s.set) })) : null;
+  const datedSets = pilot ? eraGroups.filter((g) => g.era.key !== "undated").flatMap((g) => g.sets.map((s) => ({ set: s.set, slug: s.slug }))) : null;
 
   // Discovery shortcut, same as the with-deals species page: the highest
   // recent-sold-value cards we track, ranked ONLY by trustworthy
@@ -155,7 +165,7 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
         )}
 
         {priceSnapshot && (
-          <SpeciesPriceSummary speciesName={speciesName} snapshot={priceSnapshot} className="mt-5" />
+          <SpeciesPriceSummary speciesName={speciesName} snapshot={priceSnapshot} className="mt-5" conditionNote={conditionNote} />
         )}
 
         <EbaySearchLink
@@ -177,12 +187,13 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
               The highest market references currently in our catalogue — not an all-time ranking. Open
               a card for full pricing, graded values and any live deal.
+              {pilot && conditionNote ? ` ${conditionNote}` : ""}
             </p>
             <FeaturedValueCards speciesName={speciesName} items={featuredItems} />
           </section>
         )}
 
-        <SpeciesBySet speciesName={speciesName} rows={bySetRows} />
+        <SpeciesBySet speciesName={speciesName} rows={bySetRows} eras={byEra} conditionNote={conditionNote} />
 
         {cards.length > 0 ? (
           <>
@@ -191,7 +202,7 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
                   Every {speciesName} card, by set ({cards.length})
                 </h2>
-                <SpeciesCardsBySet speciesName={speciesName} cards={cards} validSetSlugs={validSetSlugs} />
+                <SpeciesCardsBySet speciesName={speciesName} cards={cards} validSetSlugs={validSetSlugs} eraGroups={eraGroups} />
               </section>
             ) : (
               <>
@@ -223,6 +234,7 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
             snapshot={priceSnapshot}
             setRows={bySetRows}
             hasDeals={false}
+            coverage={pilot ? { facts: coverageFacts, datedSets, conditionNote } : null}
           />
         )}
 

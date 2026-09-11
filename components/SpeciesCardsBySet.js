@@ -3,6 +3,7 @@ import { buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import { sortCards, DEFAULT_SORT } from "@/lib/catalogueView";
 import CatalogueBrowser from "@/components/CatalogueBrowser";
 import CatalogueLinkIndex from "@/components/CatalogueLinkIndex";
+import SpeciesChecklist from "@/components/SpeciesChecklist";
 
 // The rich (client) browser only needs the cards a shopper actually
 // engages with - it filters/sorts in memory, so every card it holds is
@@ -43,7 +44,11 @@ export function buildCatalogueItems(cards, validSetSlugs = [], surface) {
   }));
 }
 
-export default function SpeciesCardsBySet({ speciesName, cards, validSetSlugs = [] }) {
+// `eraGroups` (Phase 17C.4 pilot only): lib/speciesCoverage.speciesEraGroups
+// output - when given, the era-grouped <SpeciesChecklist> replaces the
+// plain <CatalogueLinkIndex> (same heading id / crawl role). Otherwise the
+// plain index, unchanged.
+export default function SpeciesCardsBySet({ speciesName, cards, validSetSlugs = [], eraGroups = null }) {
   if (!cards || cards.length === 0) return null;
   const items = buildCatalogueItems(cards, validSetSlugs, "pokemon");
   const richItems =
@@ -53,7 +58,11 @@ export default function SpeciesCardsBySet({ speciesName, cards, validSetSlugs = 
   return (
     <>
       <CatalogueBrowser speciesName={speciesName} items={richItems} totalCount={items.length} />
-      <CatalogueLinkIndex label={speciesName} cards={items} headingId="full-card-index" />
+      {eraGroups ? (
+        <SpeciesChecklist speciesName={speciesName} groups={eraGroups} headingId="full-card-index" />
+      ) : (
+        <CatalogueLinkIndex label={speciesName} cards={items} headingId="full-card-index" />
+      )}
     </>
   );
 }
