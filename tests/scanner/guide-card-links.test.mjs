@@ -93,6 +93,11 @@ test("4. copy stays within what the catalogue and pages support: no prices, no 1
   const prices = read("app/guides/how-pokemon-card-prices-work/page.js");
   assert.doesNotMatch(prices, /two or more live listings gets its own consolidated/, "outdated card-page claim removed (every catalogued printing has a page)");
   assert.match(prices, /four cards with four prices/);
+  // coverage is NOT universal (resolvable = real name + image + product id + resolvable set;
+  // indexable additionally needs a trustworthy price) - so the guide says only what is proven
+  assert.match(prices, /Card pages can exist even when no live\s+deals are available\./);
+  assert.doesNotMatch(prices, /each printing has its own\s+card page/);
+  assert.match(prices, /four cards with four prices, each on its own page\./);
   const scale = read("app/guides/pokemon-card-grading-scale/page.js");
   assert.match(scale, /once there are enough recent sales/, "graded rows are described conditionally, never promised");
   // no claim that a card page shows a by-condition breakdown (none currently does)

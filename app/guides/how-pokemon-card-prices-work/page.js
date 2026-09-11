@@ -67,8 +67,8 @@ export default function Page() {
       <GUL>
         <li>
           <strong>Printing / set.</strong> The same Pokemon and artwork can exist in Base Set, a
-          later reprint, and a promo, each with its own market. On this site each printing has its own
-          card page: Charizard from the original{" "}
+          later reprint, and a promo, each with its own market. Card pages can exist even when no live
+          deals are available. Charizard from the original{" "}
           <Link href={GUIDE_CARDS.charizardBaseSet.href} className={GUIDE_LINK_CLASS}>
             Base Set
           </Link>{" "}
@@ -84,7 +84,8 @@ export default function Page() {
           <Link href={GUIDE_CARDS.charizardEvolutions.href} className={GUIDE_LINK_CLASS}>
             XY Evolutions
           </Link>{" "}
-          (#11/108, a 2016 remake of Base Set) are four cards with four prices. The printings with the
+          (#11/108, a 2016 remake of Base Set) are four cards with four prices, each on its own page.
+          The printings with the
           most live listings right now are on{" "}
           <Link
             href="/market-data/most-listed-cards"
