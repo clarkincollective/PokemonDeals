@@ -62,9 +62,15 @@ export default function SpeciesPriceSummary({ speciesName, snapshot, className =
           ? `These are recent-sold references for individual raw cards, not a single value for the Pokemon. ${conditionNote}`
           : "These are recent-sold reference prices for individual cards, not a single value for the Pokemon — condition, set, printing and grade all move a card's price."}
         {specialtyPricedCount > 0
-          ? ` ${specialtyPricedCount} Jumbo / World Championship ${
-              specialtyPricedCount === 1 ? "card is" : "cards are"
-            } tracked separately and excluded from the range above.`
+          ? conditionNote
+            ? // pilot pages (17C.5): say "priced" so this range exclusion can't be
+              // read against the page's TOTAL Jumbo / World Championship count
+              ` ${specialtyPricedCount} priced Jumbo / World Championship ${
+                specialtyPricedCount === 1 ? "card is" : "cards are"
+              } excluded from the range above.`
+            : ` ${specialtyPricedCount} Jumbo / World Championship ${
+                specialtyPricedCount === 1 ? "card is" : "cards are"
+              } tracked separately and excluded from the range above.`
           : ""}
       </p>
     </section>

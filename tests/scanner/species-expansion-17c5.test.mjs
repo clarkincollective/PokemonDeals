@@ -89,6 +89,12 @@ test("C5-6. undated sets stay under 'Other sets'", () => {
   assert.equal(g.at(-1).era.label, "Other sets");
 });
 
+test("C5-8. the price summary's range exclusion says 'priced' on pilot pages, so it can't contradict the total Jumbo / World Championship count", () => {
+  const src = code("components/SpeciesPriceSummary.js");
+  assert.match(src, /\? conditionNote\s*\?[\s\S]*?priced Jumbo \/ World Championship \$\{[\s\S]*?\} excluded from the range above\./);
+  assert.match(src, /: ` \$\{specialtyPricedCount\} Jumbo \/ World Championship \$\{[\s\S]*?\} tracked separately and excluded from the range above\.`/, "non-pilot wording unchanged");
+});
+
 test("C5-7. both templates get the same scoped content; the catalogue-only intro is now scoped too", () => {
   const cat = code("components/SpeciesCatalog.js");
   assert.match(cat, /const pilot = indexable && isSpeciesPilot\(speciesName\);/);
