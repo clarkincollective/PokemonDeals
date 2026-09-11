@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebay";
+import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import { surfaceForPageName } from "@/lib/affiliateSurfaces";
 import { slugifySet } from "@/lib/slugify";
 import { currencyForDeal, refInListingCurrency } from "@/lib/money";

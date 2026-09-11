@@ -227,8 +227,11 @@ test("5d. the existing visual-authenticity / counterfeit screening is untouched 
 });
 
 test("5e. eBay normalisation now captures ALL seller images (not just the primary)", () => {
+  // EBAY-14R boundary: the pure helper lives in the browser-safe module
+  // (lib/ebayLinks.js); the server normaliser (mapItemSummary in
+  // lib/ebay.js) still applies it to every item.
+  assert.match(read("lib/ebayLinks.js"), /function allListingImages/);
   const src = read("lib/ebay.js");
-  assert.match(src, /function allListingImages/);
   assert.match(src, /imageUrls: allListingImages\(item\)/);
   // and the scanner persists them best-effort, OUT of the core upsert
   const scan = read("app/api/refresh-deals/route.js");
@@ -278,8 +281,11 @@ test("6c. screen-deal-images RECOVERS a missing seller image - bounded, quota-ga
   assert.match(src, /const RECOVER_RESERVE = \d+/, "recovery must protect a Browse-quota reserve");
   // recovery ONLY for rows with genuinely missing image URLs
   assert.match(src, /if \(!hasStoredImages\(row\)\)/);
-  // a row that already has an image URL makes NO eBay call
-  assert.match(src, /hasStoredImages = \(row\) =>\s*\n?\s*isHttp\(row\.image_url\)/);
+  // EBAY-14Q: hasStoredImages now delegates to the shared
+  // lib/imageRecoveryPolicy.hasStoredImage (same http image_url / image_urls
+  // check, now shared with verify-deals instead of duplicated inline).
+  assert.match(src, /const hasStoredImages = hasStoredImage;/);
+  assert.match(src, /from "@\/lib\/imageRecoveryPolicy"/);
   // recovered URLs are written back so the row self-heals
   assert.match(src, /patch\.image_url = row\.image_url/);
   assert.match(src, /patch\.image_urls = row\.image_urls/);
@@ -289,25 +295,31 @@ test("6d. recovery outcomes are safe: ENDED -> leave, UNKNOWN -> retry, no image
   const src = read("app/api/screen-deal-images/route.js");
   const fn = src.slice(src.indexOf("async function recoverListingImages"), src.indexOf("async function screenRow"));
   assert.match(fn, /snap\.status === "ENDED"\) return \{ ended: true \}/);
-  assert.match(fn, /snap\.status === "UNKNOWN"\) return \{ inconclusive: true \}/);
-  assert.match(fn, /if \(!primary\) return \{ noImages: true \}/);
+  // EBAY-14Q: the "no live read" (UNKNOWN) and "genuinely no image"
+  // decisions moved into the shared decideImageRecovery() (see
+  // ebay-14q-quota-optimization.test.mjs 14Q-4/14Q-5 for that logic's own
+  // direct coverage) - this function now just translates its outcome.
+  assert.match(fn, /decideImageRecovery\(/);
+  assert.match(fn, /outcome === "INCONCLUSIVE"/);
+  assert.match(fn, /outcome === "CONFIRMED_NO_IMAGE"/);
+  assert.match(fn, /outcome === "RECOVERED"/);
   // in the loop: ended -> continue (freshness sweep retires); inconclusive -> continue (no stamp); noImages -> NO_TRUSTED_IMAGE + stamp
   assert.match(src, /if \(rec\.ended\)[\s\S]{0,120}continue;/);
   assert.match(src, /if \(rec\.inconclusive\)[\s\S]{0,120}continue;/);
   assert.match(src, /if \(rec\.noImages\)[\s\S]{0,200}NO_TRUSTED_IMAGE/);
 });
 
-test("6e. getListingSnapshot now also returns seller images (zero extra call), reused by verify-deals", () => {
+test("6e. getListingSnapshot now also returns seller images (zero extra call), reused by verify-deals for BOTH auction and BIN rows", () => {
   const ebay = read("lib/ebay.js");
   const fn = ebay.slice(ebay.indexOf("async function getListingSnapshot"), ebay.indexOf("\n}", ebay.indexOf("async function getListingSnapshot")));
   assert.match(fn, /primaryImage: primaryListingImage\(body\)/);
   assert.match(fn, /imageUrls: allListingImages\(body\)/);
-  // verify-deals recovers a NULL image_url from the auction snapshot it
-  // already fetched - no second request - and clears the verdict so the
-  // image worker re-classifies.
+  // verify-deals recovers a NULL image_url from the snapshot it already
+  // fetched (auction OR, since EBAY-14Q, BIN) - no second request - and
+  // clears the verdict so the image worker re-classifies.
   const vd = read("app/api/verify-deals/route.js");
   assert.ok(vd.includes("P0 image false-fallback"), "verify-deals image recovery not documented");
-  assert.ok(vd.includes("image_url: snap.primaryImage"), "verify-deals does not recover image_url from the snapshot");
+  assert.ok(vd.includes("image_url: decided.imageUrl"), "verify-deals does not recover image_url from the shared decision");
   assert.ok(vd.includes("image_verdict: null"), "verify-deals does not clear the verdict for re-classification");
 });
 

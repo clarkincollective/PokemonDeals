@@ -1,7 +1,7 @@
 import AffiliateLink from "@/components/AffiliateLink";
 import Price from "@/components/Price";
 import { normalizePublicText } from "@/lib/publicText";
-import { wrapEbayAffiliateUrl } from "@/lib/ebay";
+import { wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 
 // PokemonPriceTracker's recent-sales feed carries a USD price per sale
 // (no per-sale currency in the data contract); <Price> localises it to

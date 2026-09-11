@@ -5,7 +5,7 @@ import EbaySearchLink from "@/components/EbaySearchLink";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import Price from "@/components/Price";
 import { MARKETPLACE_CURRENCY, hasPrice } from "@/lib/money";
-import { buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebay";
+import { buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import { surfaceForPageName } from "@/lib/affiliateSurfaces";
 import { upgradeCatalogImage } from "@/lib/cardImage";
 import { cardDisplayName, cardIdentityLine } from "@/lib/cardName";

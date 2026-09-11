@@ -1,7 +1,7 @@
 import MiniSparkline from "@/components/MiniSparkline";
 import AffiliateLink from "@/components/AffiliateLink";
 import Price from "@/components/Price";
-import { buildEbaySearchLink } from "@/lib/ebay";
+import { buildEbaySearchLink } from "@/lib/ebayLinks";
 import { hasPrice } from "@/lib/money";
 
 function formatDate(dateString) {

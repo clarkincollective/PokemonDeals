@@ -1,9 +1,12 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { getListingFreshness, getListingSnapshot, getBrowseRateLimit } from "@/lib/ebay";
+import { getListingSnapshot, getBrowseRateLimit } from "@/lib/ebay";
 import { isDisplayableDeal } from "@/lib/dealQuality";
 import { getUsdRates } from "@/lib/fx";
 import { repricedAuctionPatch } from "@/lib/auctionPricing";
 import { allocateVerifyBatch } from "@/lib/verifyAllocator";
+import { decideImageRecovery } from "@/lib/imageRecoveryPolicy";
+import { IMAGE_VERDICT } from "@/lib/listingImage";
+import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError, recordDedupeSavedImage } from "@/lib/ebayTelemetry";
 
 // BOUNDED, RESERVE-GUARDED exact-listing re-verification. One Browse call
 // per row, hard-capped at BATCH per run, and it runs ONLY when the daily
@@ -99,16 +102,26 @@ export async function GET(request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const rl = await getBrowseRateLimit();
-  if (!rl || rl.remaining == null) {
-    return Response.json({ ok: true, skipped: "rate_limit_unknown" });
-  }
-  // Need headroom for the whole batch and still stay above the reserve.
-  if (rl.remaining - BATCH < RESERVE) {
-    return Response.json({ ok: true, skipped: "quota_reserve", remaining: rl.remaining, reserve: RESERVE });
-  }
-
+  // EBAY-14R - job context begins before the pre-flight quota check so a
+  // skip is itself an observed (and persisted) invocation, not a silent
+  // no-op. db is constructed here (a sync, no-I/O client handle - see
+  // lib/supabaseAdmin) purely so it is available to the finally block
+  // below on every exit path, including the two early skips.
   const db = supabaseAdmin();
+  const ctx = beginJobRun({ job: "verify-deals" });
+  try {
+    const rl = await getBrowseRateLimit();
+    setQuotaSnapshot({ remainingStart: rl?.remaining ?? null, limit: rl?.limit ?? null, reserveFloor: RESERVE });
+    if (!rl || rl.remaining == null) {
+      markSkipped("rate_limit_unknown");
+      return Response.json({ ok: true, skipped: "rate_limit_unknown" });
+    }
+    // Need headroom for the whole batch and still stay above the reserve.
+    if (rl.remaining - BATCH < RESERVE) {
+      markSkipped("quota_reserve");
+      return Response.json({ ok: true, skipped: "quota_reserve", remaining: rl.remaining, reserve: RESERVE });
+    }
+
   const now = Date.now();
   const exactColReady = await exactVerifiedColReady(db);
   const selectCols = exactColReady ? `${COLS}, exact_verified_at` : COLS;
@@ -152,10 +165,12 @@ export async function GET(request) {
   const detail = [];
   for (const r of batch) {
     const checkedAt = new Date().toISOString();
-    // Extra fields folded into the ACTIVE / retire patch for an auction
-    // that got re-priced (bid + shipping + landed total + recomputed
-    // discount_pct + bid_count). Empty {} for a fixed-price row - its
-    // ACTIVE / retire patch is exactly what it always was.
+    // Extra fields folded into the ACTIVE / retire patch: for an auction
+    // that got re-priced, the bid + shipping + landed total + recomputed
+    // discount_pct + bid_count; for EITHER row type (EBAY-14Q), any
+    // image-recovery/confirmation fields from lib/imageRecoveryPolicy.
+    // Empty {} when neither applies - the ACTIVE / retire patch is then
+    // exactly what it always was.
     let auctionActiveExtra = {};
     let auctionRetireExtra = {};
     let status;
@@ -184,32 +199,60 @@ export async function GET(request) {
       } else {
         status = "UNKNOWN";
       }
-      // P0 image false-fallback: `snap` already carries the single-item
-      // endpoint's seller photos. If this row's image was never captured
-      // (item_summary/search omitted it -> image_url NULL), recover it
-      // here at ZERO extra call and let screen-deal-images re-classify.
-      if (
-        status === "ACTIVE" &&
-        !/^https?:\/\//.test(String(r.image_url ?? "")) &&
-        /^https?:\/\//.test(String(snap.primaryImage ?? ""))
-      ) {
-        const urls = (Array.isArray(snap.imageUrls) ? snap.imageUrls : []).filter((u) =>
-          /^https?:\/\//.test(String(u))
-        );
-        auctionActiveExtra = {
-          ...auctionActiveExtra,
-          image_url: snap.primaryImage,
-          image_urls: urls.length ? urls : [snap.primaryImage],
-          image_verdict: null,
-          display_image_url: null,
-          image_checked_at: null,
-        };
-        out.IMAGE_RECOVERED = (out.IMAGE_RECOVERED ?? 0) + 1;
+      // P0 image false-fallback, now via the SAME shared decision
+      // app/api/screen-deal-images uses (lib/imageRecoveryPolicy) - `snap`
+      // already carries the single-item endpoint's seller photos, so this
+      // is a ZERO-extra-call recovery/confirmation, not a new request.
+      if (status === "ACTIVE") {
+        const decided = decideImageRecovery({ row: r, snapStatus: snap.status, snapPrimaryImage: snap.primaryImage, snapImageUrls: snap.imageUrls });
+        if (decided.outcome === "RECOVERED") {
+          auctionActiveExtra = {
+            ...auctionActiveExtra,
+            image_url: decided.imageUrl,
+            image_urls: decided.imageUrls,
+            image_verdict: null,
+            display_image_url: null,
+            image_checked_at: null, // queue for screen-deal-images classification ASAP
+          };
+          out.IMAGE_RECOVERED = (out.IMAGE_RECOVERED ?? 0) + 1;
+          // EBAY-14R - this specific outcome is what removes the row from
+          // screen-deal-images' own candidate query going forward (it now
+          // has a stored image), so it is a real future call avoided, not
+          // a generic NOOP.
+          recordDedupeSavedImage();
+        } else if (decided.outcome === "CONFIRMED_NO_IMAGE") {
+          // EBAY-14Q - the SAME convention screen-deal-images already uses
+          // for its own NO_TRUSTED_IMAGE outcome: stamping image_checked_at
+          // now keeps this row out of that route's 14-day re-screen
+          // candidate pool, so it never re-asks eBay the identical
+          // question this run just answered live.
+          auctionActiveExtra = { ...auctionActiveExtra, image_verdict: IMAGE_VERDICT.NO_TRUSTED_IMAGE, display_image_url: null, image_checked_at: checkedAt };
+          recordDedupeSavedImage();
+        }
       }
     } else {
-      const { status: s, calls: c } = await getListingFreshness(legacyOf(r.listing_id), r.marketplace);
-      calls += c;
-      status = s;
+      // EBAY-14Q - was getListingFreshness (status only). getListingSnapshot
+      // hits the SAME get_item_by_legacy_id endpoint for the SAME cost (one
+      // call) but also returns the seller-photo fields that endpoint always
+      // carries - previously discarded here, forcing screen-deal-images to
+      // make a SEPARATE later call for a fact this call already answered.
+      // Price/status verification is completely unchanged: BIN rows are
+      // never re-priced from this endpoint (repricedAuctionPatch is
+      // auction-only), so `status` below means exactly what it always did.
+      const snap = await getListingSnapshot(legacyOf(r.listing_id), r.marketplace);
+      calls += snap.calls ?? 1;
+      status = snap.status;
+      if (status === "ACTIVE") {
+        const decided = decideImageRecovery({ row: r, snapStatus: snap.status, snapPrimaryImage: snap.primaryImage, snapImageUrls: snap.imageUrls });
+        if (decided.outcome === "RECOVERED") {
+          auctionActiveExtra = { image_url: decided.imageUrl, image_urls: decided.imageUrls, image_verdict: null, display_image_url: null, image_checked_at: null };
+          out.IMAGE_RECOVERED = (out.IMAGE_RECOVERED ?? 0) + 1;
+          recordDedupeSavedImage();
+        } else if (decided.outcome === "CONFIRMED_NO_IMAGE") {
+          auctionActiveExtra = { image_verdict: IMAGE_VERDICT.NO_TRUSTED_IMAGE, display_image_url: null, image_checked_at: checkedAt };
+          recordDedupeSavedImage();
+        }
+      }
     }
 
     out[status] = (out[status] ?? 0) + 1;
@@ -231,6 +274,7 @@ export async function GET(request) {
   }
 
   const after = await getBrowseRateLimit();
+  setQuotaSnapshot({ remainingEnd: after?.remaining ?? null });
   return Response.json({
     ok: true,
     poolSize: pool.length,
@@ -245,4 +289,10 @@ export async function GET(request) {
     allocation,
     detail,
   });
+  } catch (err) {
+    markError(err);
+    throw err;
+  } finally {
+    await finishJobRun(db, ctx);
+  }
 }

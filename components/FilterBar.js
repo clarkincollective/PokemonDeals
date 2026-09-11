@@ -1,4 +1,4 @@
-import { MARKETPLACES } from "@/lib/ebay";
+import { MARKETPLACES } from "@/lib/ebayLinks";
 import FilterToggle from "@/components/FilterToggle";
 import { GRADER_CHOICES, GRADE_CHOICES } from "@/lib/dealFilters";
 

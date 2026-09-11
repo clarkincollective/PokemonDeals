@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebay";
+import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import { surfaceForPageName } from "@/lib/affiliateSurfaces";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { currencyForDeal, refInListingCurrency, dealTotalUsd } from "@/lib/money";

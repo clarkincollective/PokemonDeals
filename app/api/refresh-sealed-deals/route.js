@@ -3,6 +3,7 @@ import { MARKETPLACES, searchListings, getBrowseRateLimit } from "@/lib/ebay";
 import { getSealedPrice } from "@/lib/pokemonPriceTracker";
 import { getUsdRates, toUsd } from "@/lib/fx";
 import { SANITY_FLOOR_PCT, isTrustworthySealedListing, listingMatchesSealedProduct } from "@/lib/dealMatching";
+import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError } from "@/lib/ebayTelemetry";
 
 // Real work (API calls + database writes) - never cached, and a small
 // (~30-50 product) watchlist scanned once/day on its own dedicated tier,
@@ -114,6 +115,8 @@ export async function GET(request) {
   }
 
   const db = supabaseAdmin();
+  const ctx = beginJobRun({ job: "refresh-sealed-deals" });
+  try {
   const url = new URL(request.url);
   const rates = await getUsdRates();
 
@@ -124,7 +127,9 @@ export async function GET(request) {
   // daily reset - the run most likely to hit an already-spent quota.
   // Floor 250.
   const rl = await getBrowseRateLimit();
+  setQuotaSnapshot({ remainingStart: rl?.remaining ?? null, limit: rl?.limit ?? null, reserveFloor: 250 });
   if (rl && rl.remaining != null && rl.remaining < 250) {
+    markSkipped("ebay_rate_limited");
     return Response.json({
       skipped: "ebay_rate_limited",
       remaining: rl.remaining,
@@ -220,4 +225,10 @@ export async function GET(request) {
     errors,
     scannedAt: new Date().toISOString(),
   });
+  } catch (err) {
+    markError(err);
+    throw err;
+  } finally {
+    await finishJobRun(db, ctx);
+  }
 }

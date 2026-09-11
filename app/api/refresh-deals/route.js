@@ -29,6 +29,7 @@ import {
   isHighValueVintage,
 } from "@/lib/dealQuality";
 import { allocateScanTargets, nextTargetState, budgetForRun } from "@/lib/scanAllocator";
+import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError, recordDedupeSavedGrading } from "@/lib/ebayTelemetry";
 
 // This route does real work (API calls + database writes) and must never
 // be cached by Next.js. A full priority-tier run measured at ~6.5 min
@@ -662,6 +663,32 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
   const index = buildWatchlistIndex(watchlistRows);
   const listings = await searchNewlyListed(marketplaceId, { pages });
 
+  // EBAY-14Q - the same graded listing can legitimately appear in more
+  // than one sweep run: consecutive 15-minute US sweeps deliberately
+  // overlap their `newlyListed` pages (see searchNewlyListed's own
+  // comment - a real listing near a page boundary can show up again a
+  // run or two later), and a listing can also simply still be "newly
+  // listed" across adjacent runs. Before this phase, a graded match
+  // triggered a fresh getGradingDetails() call every single time it was
+  // re-encountered, even though `deals` already has a grader/grade
+  // column pair from the FIRST time this exact listing was matched
+  // (dealRow() persists both - see lib/deals.js). One bounded read
+  // (keyed on the exact listing_id this sweep saw, never inferred from a
+  // different listing) reuses that known-good value instead.
+  const gradedListingIds = [...new Set(listings.filter((l) => l.isGraded).map((l) => l.listingId))];
+  const knownGrading = new Map();
+  if (gradedListingIds.length) {
+    const { data: known } = await db
+      .from("deals")
+      .select("listing_id, grader, grade")
+      .eq("source", "ebay")
+      .eq("marketplace", marketplaceId)
+      .in("listing_id", gradedListingIds)
+      .not("grader", "is", null)
+      .not("grade", "is", null);
+    for (const row of known ?? []) knownGrading.set(row.listing_id, { grader: row.grader, grade: row.grade });
+  }
+
   const marketPriceCache = new Map();
   async function cachedConditionPrices(row) {
     const key = `${row.justtcg_tcgplayer_id}|${row.language}`;
@@ -740,10 +767,26 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
       matched++;
 
       if (listing.isGraded) {
-        if (gradedLookups >= GRADED_LOOKUP_CAP) continue;
-        gradedLookups++;
+        // EBAY-14Q - reuse a grader/grade this EXACT listing_id already
+        // resolved (this run's own dedup map, sourced from `deals`) before
+        // spending a getGradingDetails() call on it again. Never inferred
+        // from a different listing - the map is keyed strictly by the
+        // listing_id this sweep itself is looking at.
+        const reused = knownGrading.get(listing.listingId);
+        if (!reused && gradedLookups >= GRADED_LOOKUP_CAP) continue;
         try {
-          const grading = await getGradingDetails(listing.listingId, marketplaceId);
+          let grading;
+          if (reused) {
+            grading = reused;
+            // EBAY-14R - a getGradingDetails() call this listing_id would
+            // otherwise have needed (see the EBAY-14Q comment above) was
+            // answered from `deals` instead - a real avoided call, not a
+            // path that was never going to call eBay.
+            recordDedupeSavedGrading();
+          } else {
+            gradedLookups++;
+            grading = await getGradingDetails(listing.listingId, marketplaceId);
+          }
           // P0.3.1 - fail closed on inconsistent/absent graded evidence
           // (see the priority-loop branch above).
           const gradedPrice =
@@ -884,12 +927,27 @@ export async function GET(request) {
           : tier === "priority"
             ? "priority"
             : "default";
+
+  // EBAY-14R - job context begins before the pre-flight quota check (a
+  // skip is itself an observed invocation). This single GET handles two
+  // distinct scheduled shapes (?mode=sweep and ?tier=allocated, per
+  // vercel.json's real crons) plus an unscheduled manual/legacy path, so
+  // the job tag - not a second route - is what distinguishes them in the
+  // daily report (Phase 14R Part 1). country is a best-effort label read
+  // straight off the query string for reporting only; it does not change
+  // how marketplaceId/allocatedCountry are computed below.
+  const job = mode === "sweep" ? "refresh-deals:sweep" : tier === "allocated" ? "refresh-deals:allocated" : "refresh-deals:manual";
+  const jobCountry = url.searchParams.get("country") || (mode === "sweep" ? "EBAY_US" : null);
+  const ctx = beginJobRun({ job, mode: mode || tier || null, country: jobCountry });
+  try {
   const rl = await getBrowseRateLimit();
+  setQuotaSnapshot({ remainingStart: rl?.remaining ?? null, limit: rl?.limit ?? null, reserveFloor: RATE_LIMIT_FLOORS[floorKey] });
   // Surfaced in every response below so the real daily Browse ceiling is
   // observable (the eBay dashboard doesn't expose the number) - lets the
   // cron cadence be tuned to headroom instead of guessed at.
   const rateLimitRemaining = rl?.remaining ?? null;
   if (rl && rl.remaining != null && rl.remaining < RATE_LIMIT_FLOORS[floorKey]) {
+    markSkipped("ebay_rate_limited");
     return Response.json({
       skipped: "ebay_rate_limited",
       floorKey,
@@ -920,6 +978,11 @@ export async function GET(request) {
       const result = await runSweep(marketplaceId, allActiveRows ?? [], db, discountThreshold, pages, rates);
       return Response.json({ mode: "sweep", marketplace: marketplaceId, ...result, rateLimitRemaining, scannedAt: new Date().toISOString() });
     } catch (err) {
+      // EBAY-14R - deliberately not markError/rethrow: this is the
+      // existing "never let a mid-sweep eBay error surface as a cron 500"
+      // guard (a sweep never expires/deletes anything either way), so the
+      // telemetry outcome for this invocation is "skipped", not "error".
+      markSkipped("ebay_error");
       return Response.json({
         mode: "sweep",
         marketplace: marketplaceId,
@@ -1217,4 +1280,10 @@ export async function GET(request) {
       ? { tier: "allocated", country: allocatedCountry, allocatorFallback, allocation: allocationSummary }
       : {}),
   });
+  } catch (err) {
+    markError(err);
+    throw err;
+  } finally {
+    await finishJobRun(db, ctx);
+  }
 }

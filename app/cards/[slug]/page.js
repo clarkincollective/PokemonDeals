@@ -14,7 +14,7 @@ import { trustedDealImageUrl } from "@/lib/listingImage";
 import { cardSpeciesLink } from "@/lib/cardLinks";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
-import { MARKETPLACES, wrapEbayAffiliateUrl, buildEbaySearchLink } from "@/lib/ebay";
+import { MARKETPLACES, wrapEbayAffiliateUrl, buildEbaySearchLink } from "@/lib/ebayLinks";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import SiteHeader from "@/components/SiteHeader";
 import CardDealFilters from "@/components/CardDealFilters";

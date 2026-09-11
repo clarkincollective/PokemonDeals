@@ -14,7 +14,7 @@ import DealCard from "@/components/DealCard";
 import AffiliateLink from "@/components/AffiliateLink";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import FilterToggle from "@/components/FilterToggle";
-import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebay";
+import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebayLinks";
 import { upgradeCatalogImage } from "@/lib/cardImage";
 import { formatMoney, toViewerCurrency } from "@/lib/money";
 import { useCurrency } from "@/components/CurrencyProvider";

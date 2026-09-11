@@ -8,7 +8,7 @@ import Price from "@/components/Price";
 import AffiliateLink from "@/components/AffiliateLink";
 import { capture } from "@/lib/analytics/client";
 import { EVENTS } from "@/lib/analytics/events";
-import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebay";
+import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import { currencyForDeal } from "@/lib/money";
 import {
   appliedFilterChips,

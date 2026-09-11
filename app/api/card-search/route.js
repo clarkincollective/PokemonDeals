@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { MARKETPLACES } from "@/lib/ebay";
+import { MARKETPLACES } from "@/lib/ebayLinks";
 import { getRawPrice, getRawPriceHistory } from "@/lib/pokemonPriceTracker";
 import { isDisplayableDeal } from "@/lib/dealQuality";
 import { readSearchFilters } from "@/lib/searchFacets";

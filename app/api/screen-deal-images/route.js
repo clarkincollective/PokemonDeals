@@ -2,6 +2,8 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { IMAGE_VERDICT } from "@/lib/listingImage";
 import { classifyListingImage } from "@/lib/listingImageClassify";
 import { getListingSnapshot, getBrowseRateLimit } from "@/lib/ebay";
+import { hasStoredImage, decideImageRecovery } from "@/lib/imageRecoveryPolicy";
+import { beginJobRun, finishJobRun, setQuotaSnapshot, markError, recordCallSkipped } from "@/lib/ebayTelemetry";
 
 // OUT-OF-BAND deal-image screening worker. P0 deal-image-integrity.
 //
@@ -61,8 +63,11 @@ async function fetchImage(url) {
 }
 
 const isHttp = (u) => typeof u === "string" && /^https?:\/\//.test(u);
-const hasStoredImages = (row) =>
-  isHttp(row.image_url) || (Array.isArray(row.image_urls) && row.image_urls.some(isHttp));
+// EBAY-14Q - hasStoredImages/the recovery decision now come from
+// lib/imageRecoveryPolicy, the SAME shared logic app/api/verify-deals
+// uses, so the two routes can never quietly diverge on what counts as
+// "already has an image" or "genuinely has none".
+const hasStoredImages = hasStoredImage;
 
 // ONE get_item_by_legacy_id call to recover seller photos the search
 // endpoint dropped. Returns exactly one of:
@@ -80,12 +85,11 @@ async function recoverListingImages(row) {
     return { inconclusive: true };
   }
   if (snap.status === "ENDED") return { ended: true };
-  if (snap.status === "UNKNOWN") return { inconclusive: true };
-  // ACTIVE or SOLD - a real listing read.
-  const urls = (Array.isArray(snap.imageUrls) ? snap.imageUrls : []).filter(isHttp);
-  const primary = isHttp(snap.primaryImage) ? snap.primaryImage : urls[0] ?? null;
-  if (!primary) return { noImages: true };
-  return { recovered: { imageUrl: primary, imageUrls: urls.length ? urls : [primary] } };
+  const decided = decideImageRecovery({ row, snapStatus: snap.status, snapPrimaryImage: snap.primaryImage, snapImageUrls: snap.imageUrls });
+  if (decided.outcome === "INCONCLUSIVE") return { inconclusive: true };
+  if (decided.outcome === "CONFIRMED_NO_IMAGE") return { noImages: true };
+  if (decided.outcome === "RECOVERED") return { recovered: { imageUrl: decided.imageUrl, imageUrls: decided.imageUrls } };
+  return { inconclusive: true }; // NOOP - row already had an image; recoverListingImages is only called when it didn't
 }
 
 // Classify one deal's images. Returns { image_verdict, display_image_url }
@@ -127,6 +131,8 @@ export async function GET(request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
   const db = supabaseAdmin();
+  const ctx = beginJobRun({ job: "screen-deal-images" });
+  try {
   const staleCutoff = new Date(Date.now() - RESCREEN_AFTER_DAYS * 864e5).toISOString();
 
   const candidates = [];
@@ -153,6 +159,7 @@ export async function GET(request) {
   // budget is comfortably above the reserve; otherwise every missing-image
   // row just keeps its canonical fallback this cycle (no state change).
   const rl = await getBrowseRateLimit();
+  setQuotaSnapshot({ remainingStart: rl?.remaining ?? null, limit: rl?.limit ?? null, reserveFloor: RECOVER_RESERVE });
   const recoverBudget =
     rl && rl.remaining != null && rl.remaining - IMAGE_RECOVER_PER_RUN >= RECOVER_RESERVE
       ? IMAGE_RECOVER_PER_RUN
@@ -181,6 +188,7 @@ export async function GET(request) {
     if (!hasStoredImages(row)) {
       if (recoverUsed >= recoverBudget) {
         results.recoverDeferred++;
+        recordCallSkipped();
         continue; // keep the canonical fallback; don't stamp - retry next run
       }
       recoverUsed++;
@@ -260,6 +268,10 @@ export async function GET(request) {
     if (error) results.errors++;
   }
 
+  // EBAY-14R - deliberately NOT a second getBrowseRateLimit() call here:
+  // this route never made one before (unlike verify-deals' existing
+  // before/after pattern), and telemetry must add zero extra Browse/
+  // Analytics calls. quotaRemainingEnd is simply left unobserved.
   return Response.json({
     ok: true,
     screened: candidates.length,
@@ -269,4 +281,10 @@ export async function GET(request) {
     results,
     detail,
   });
+  } catch (err) {
+    markError(err);
+    throw err;
+  } finally {
+    await finishJobRun(db, ctx);
+  }
 }

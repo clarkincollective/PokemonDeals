@@ -1,5 +1,5 @@
 import { slugifySet } from "@/lib/slugify";
-import { buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebay";
+import { buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import { sortCards, DEFAULT_SORT } from "@/lib/catalogueView";
 import CatalogueBrowser from "@/components/CatalogueBrowser";
 import CatalogueLinkIndex from "@/components/CatalogueLinkIndex";

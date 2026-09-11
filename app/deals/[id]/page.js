@@ -13,7 +13,7 @@ import { cardDisplayName } from "@/lib/cardName";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
-import { MARKETPLACES, buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebay";
+import { MARKETPLACES, buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import { currencyForDeal, refInListingCurrency, dealTotalUsd, auctionDisplayParts } from "@/lib/money";
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";

@@ -212,13 +212,19 @@ test("4f. deterministic - same inputs, same patch", () => {
 
 // --- 5. verify-deals wiring ----------------------------------------
 
-test("5a. verify-deals re-prices auctions via getListingSnapshot and keeps BIN on getListingFreshness", () => {
+test("5a. verify-deals re-prices auctions via getListingSnapshot; BIN also moved to getListingSnapshot (EBAY-14Q, same one-call cost, adds free image-recovery data)", () => {
   const src = readFileSync(join(HERE, "..", "..", "app", "api", "verify-deals", "route.js"), "utf8");
   assert.match(src, /getListingSnapshot/);
   assert.match(src, /repricedAuctionPatch/);
   assert.match(src, /isAuctionRow\(r\)/);
-  // BIN path still uses the freshness-only call
-  assert.match(src, /getListingFreshness\(legacyOf\(r\.listing_id\), r\.marketplace\)/);
+  // EBAY-14Q: BIN path no longer calls getListingFreshness (which
+  // discarded the same response's image fields) - it now calls
+  // getListingSnapshot too, at the SAME one-call cost, and reads
+  // `status` straight off it. See ebay-14q-quota-optimization.test.mjs
+  // for full regression coverage of this change.
+  assert.doesNotMatch(src, /getListingFreshness\(/);
+  const calls = (src.match(/await getListingSnapshot\(/g) ?? []).length;
+  assert.equal(calls, 2, "one getListingSnapshot call in the auction branch, one in the BIN branch");
   // still exactly two db update sites in the loop (SOLD/ENDED/RETIRED, ACTIVE)
   const loopStart = src.indexOf("for (const r of batch)");
   const loopBody = src.slice(loopStart, src.indexOf("\n  }\n", loopStart));

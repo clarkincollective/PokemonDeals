@@ -130,7 +130,7 @@ test("10. the quota-floor skip returns before any Browse item lookup and touches
   const ingest = read("app/api/ingest-feed/route.js");
   const floorBlock = ingest.slice(
     ingest.indexOf("rl.remaining < RATE_LIMIT_FLOOR"),
-    ingest.indexOf("const db = supabaseAdmin();")
+    ingest.indexOf("// 1. Pull the board.")
   );
   assert.doesNotMatch(floorBlock, /getItemsByLegacyIds|\.update\(|last_seen_at|exact_verified_at/);
   assert.match(floorBlock, /return Response\.json\(\{\s*\n?\s*skipped: "ebay_rate_limited"/);

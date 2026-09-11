@@ -24,6 +24,7 @@ import {
   classifyListingLanguage,
   languageCompatible,
 } from "@/lib/dealQuality";
+import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError } from "@/lib/ebayTelemetry";
 
 // External discovery ingestion.
 //
@@ -65,15 +66,24 @@ export async function GET(request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // EBAY-14R - job context begins before the pre-flight quota check, same
+  // reasoning as verify-deals: a floor skip is itself an observed
+  // invocation. This is a SEPARATE, uniform record (ebay_job_runs) laid
+  // alongside this route's existing, richer recordIngestRun/
+  // catalog_snapshot history below - not a replacement for it.
+  const db = supabaseAdmin();
+  const ctx = beginJobRun({ job: "ingest-feed" });
+  try {
   // Pre-flight quota guard. A high floor on purpose: this is spare-capacity
   // supplementation - it backs off FIRST so the primary scanner
   // (app/api/refresh-deals, which has no floor) always keeps quota. A
   // failed meta-call (null) -> proceed. A floor skip does ZERO Browse
   // item lookups and touches ZERO timestamps.
   const rl = await getBrowseRateLimit();
+  setQuotaSnapshot({ remainingStart: rl?.remaining ?? null, limit: rl?.limit ?? null, reserveFloor: RATE_LIMIT_FLOOR });
   if (rl && rl.remaining != null && rl.remaining < RATE_LIMIT_FLOOR) {
-    const dbFloor = supabaseAdmin();
-    await recordIngestRun(dbFloor, {
+    markSkipped("ebay_rate_limited");
+    await recordIngestRun(db, {
       at: new Date().toISOString(),
       quotaFloorSkipped: true,
       browseVerifyAttempts: 0,
@@ -88,8 +98,6 @@ export async function GET(request) {
       reset: rl.reset,
     });
   }
-
-  const db = supabaseAdmin();
 
   // 1. Pull the board.
   const { listings: feedItems, error: feedError } = await fetchFeed();
@@ -436,6 +444,12 @@ export async function GET(request) {
     rateLimitRemaining: rl?.remaining ?? null,
     tookMs: Date.now() - startedAt,
   });
+  } catch (err) {
+    markError(err);
+    throw err;
+  } finally {
+    await finishJobRun(db, ctx);
+  }
 }
 
 // P0.3.2 SS6 - persist the last N ingest-feed cycle summaries to the

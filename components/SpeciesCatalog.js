@@ -10,7 +10,7 @@ import SpeciesFactStrip from "@/components/SpeciesFactStrip";
 import SpeciesPriceSummary from "@/components/SpeciesPriceSummary";
 import SpeciesBySet from "@/components/SpeciesBySet";
 import SpeciesQuickAnswers from "@/components/SpeciesQuickAnswers";
-import { buildEbaySearchLink } from "@/lib/ebay";
+import { buildEbaySearchLink } from "@/lib/ebayLinks";
 import { hasPrice } from "@/lib/money";
 import { cardTier } from "@/lib/catalogueView";
 import { speciesPriceSnapshot, speciesBySet } from "@/lib/speciesSummary";
