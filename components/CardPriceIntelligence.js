@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Price from "@/components/Price";
 import { hasPrice } from "@/lib/money";
+import { referenceConditionLabels } from "@/lib/referenceCondition";
 
 // SEO Phase 11C - Card Price Intelligence.
 //
@@ -76,6 +77,9 @@ function noWindowsMessage(signal) {
 
 export default function CardPriceIntelligence({
   marketValueUsd = null,
+  // Price-condition provenance: the condition marketValueUsd is really for
+  // (analysis.raw.referenceCondition); null -> neutral "market reference".
+  referenceCondition = null,
   trends = null,
   signal = null,
   coverage = null,
@@ -117,7 +121,9 @@ export default function CardPriceIntelligence({
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
         {mv != null && (
           <div>
-            <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Current market value · raw, Near Mint</p>
+            <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400" data-reference-condition={referenceConditionLabels(referenceCondition).condition ?? "unknown"}>
+              Current market value · {referenceConditionLabels(referenceCondition).raw}
+            </p>
             <p className="text-3xl font-bold text-black dark:text-zinc-50">
               <Price usd={mv} native={{ amount: mv, currency: "USD" }} approxPrefix="" />
             </p>

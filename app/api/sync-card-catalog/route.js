@@ -1,10 +1,11 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   downloadPrintingsExport,
-  pickCatalogMarketPrice,
+  pickCatalogMarketReference,
   WOTC_DUAL_PRINTING_SETS,
-  getCatalogNmPrice,
+  getCatalogReference,
 } from "@/lib/pokemonPriceTracker";
+import { upsertWithProvenance, updateWithProvenance } from "@/lib/referenceProvenanceDb";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { catalogImageUrl } from "@/lib/cardImage";
 
@@ -77,16 +78,23 @@ export async function GET(request) {
     cur.set_id = cur.set_id ?? firstNonEmpty(r.setId);
     cur.card_number = cur.card_number ?? firstNonEmpty(r.cardNumber);
     cur.rarity = cur.rarity ?? firstNonEmpty(r.rarity);
-    // Keep the printing + full condition ladder so pickCatalogMarketPrice
+    // Keep the printing + full condition ladder so pickCatalogMarketReference
     // can (a) pick the Unlimited printing for a dual-printing WOTC card and
     // (b) reject a Near Mint figure its own ladder contradicts.
     const num = (v) => {
       const n = Number(v);
       return Number.isFinite(n) && n > 0 ? n : null;
     };
+    // Price-condition provenance: the Near Mint column and the aggregate
+    // marketPrice column stay SEPARATE. Folding the aggregate into `nm`
+    // (the old `nm ?? marketPrice`) is what stamped a non-Near-Mint figure
+    // as Near Mint; the chosen figure is still `nm ?? price`, but its
+    // condition is now known (nm -> Near Mint; aggregate -> inferred or
+    // null).
     cur.prices.push({
       printing: r.printing ?? null,
-      nm: num(r.marketNearMint) ?? num(r.marketPrice),
+      nm: num(r.marketNearMint),
+      price: num(r.marketPrice),
       lp: num(r.marketLightlyPlayed),
       mp: num(r.marketModeratelyPlayed),
       hp: num(r.marketHeavilyPlayed),
@@ -95,27 +103,37 @@ export async function GET(request) {
     byId.set(id, cur);
   }
 
-  let records = [...byId.values()].map((c) => ({
-    tcgplayer_id: c.tcgplayer_id,
-    name: c.name ?? "",
-    set: c.set ?? "",
-    set_id: c.set_id,
-    card_number: c.card_number,
-    rarity: c.rarity,
-    card_type: null, // /export doesn't carry it; species null already gates non-Pokemon
-    species: extractSpecies(c.name ?? ""),
-    language,
-    market_price: pickCatalogMarketPrice(c.prices),
-    image_url: catalogImageUrl(c.tcgplayer_id),
-    source: "pokemonpricetracker",
-    synced_at: new Date().toISOString(),
-  }));
+  let records = [...byId.values()].map((c) => {
+    const ref = pickCatalogMarketReference(c.prices);
+    return {
+      tcgplayer_id: c.tcgplayer_id,
+      name: c.name ?? "",
+      set: c.set ?? "",
+      set_id: c.set_id,
+      card_number: c.card_number,
+      rarity: c.rarity,
+      card_type: null, // /export doesn't carry it; species null already gates non-Pokemon
+      species: extractSpecies(c.name ?? ""),
+      language,
+      market_price: ref.price,
+      // Provenance of market_price (nullable columns from the provenance
+      // migration; dropped on write until it has run - see
+      // lib/referenceProvenanceDb). NULL condition = provider doesn't say.
+      market_condition: ref.condition,
+      market_printing: ref.printing,
+      image_url: catalogImageUrl(c.tcgplayer_id),
+      source: "pokemonpricetracker",
+      synced_at: new Date().toISOString(),
+    };
+  });
   if (limit) records = records.slice(0, limit);
 
+  // Per-job memo: did the provenance columns exist? (reported below)
+  const provenanceState = {};
   let upserted = 0;
   for (let i = 0; i < records.length; i += UPSERT_CHUNK) {
     const slice = records.slice(i, i + UPSERT_CHUNK);
-    const { error } = await db.from("card_catalog").upsert(slice, { onConflict: "tcgplayer_id" });
+    const { error } = await upsertWithProvenance(db, "card_catalog", slice, "tcgplayer_id", provenanceState);
     if (error) {
       return Response.json(
         { ok: false, stage: "upsert", upserted, error: error.message },
@@ -143,20 +161,33 @@ export async function GET(request) {
       while (queue.length && Date.now() < deadline) {
         const r = queue.shift();
         wotcChecked++;
-        let nm;
+        let ref;
         try {
-          nm = await getCatalogNmPrice(String(r.tcgplayer_id), language);
+          ref = await getCatalogReference(String(r.tcgplayer_id), language);
         } catch {
           continue;
         }
+        const nm = ref.price;
         if (nm == null) continue;
         const cur = r.market_price == null ? null : Number(r.market_price);
-        if (cur != null && Math.abs(cur - nm) / nm <= 0.02) continue;
-        const { error } = await db
-          .from("card_catalog")
-          .update({ market_price: nm })
-          .eq("tcgplayer_id", r.tcgplayer_id);
-        if (!error) wotcFixed++;
+        // Keep the in-memory record's provenance current either way, so
+        // the history snapshot below stamps the real condition even when
+        // the price itself didn't move.
+        r.market_condition = ref.condition;
+        r.market_printing = ref.printing;
+        const priceUnchanged = cur != null && Math.abs(cur - nm) / nm <= 0.02;
+        if (priceUnchanged && provenanceState.provenance === false) continue;
+        const { error } = await updateWithProvenance(
+          db,
+          "card_catalog",
+          priceUnchanged
+            ? { market_condition: ref.condition, market_printing: ref.printing }
+            : { market_price: nm, market_condition: ref.condition, market_printing: ref.printing },
+          "tcgplayer_id",
+          r.tcgplayer_id,
+          provenanceState
+        );
+        if (!error && !priceUnchanged) wotcFixed++;
       }
     };
     await Promise.all(Array.from({ length: 4 }, worker));
@@ -169,7 +200,12 @@ export async function GET(request) {
   // second-pass fixes are included) - ZERO extra PPT credits, ZERO eBay
   // calls. Idempotent per (card, condition, source, day). Best-effort:
   // a failure here is reported, never thrown.
-  const snap = limit ? { written: 0, error: "skipped (limit pass)" } : await snapshotCatalogHistory(db, language);
+  // The provenance of every price this job just wrote (including the WOTC
+  // second-pass corrections), keyed by card, for the history snapshot.
+  const provenanceById = new Map(records.map((r) => [String(r.tcgplayer_id), { condition: r.market_condition ?? null, printing: r.market_printing ?? null }]));
+  const snap = limit
+    ? { written: 0, error: "skipped (limit pass)", provenance: null }
+    : await snapshotCatalogHistory(db, language, provenanceById, provenanceState);
 
   return Response.json({
     ok: true,
@@ -179,6 +215,11 @@ export async function GET(request) {
     upserted,
     withPrice: records.filter((r) => r.market_price != null).length,
     withSpecies: records.filter((r) => r.species != null).length,
+    // Price-condition provenance: how many priced records carry a stated
+    // condition, how many are Near Mint, and whether the columns exist yet.
+    withCondition: records.filter((r) => r.market_price != null && r.market_condition != null).length,
+    nearMintReferences: records.filter((r) => r.market_condition === "Near Mint").length,
+    provenanceColumns: provenanceState.provenance ?? null,
     wotcChecked,
     wotcFixed,
     creditsApprox: wotcChecked,
@@ -193,7 +234,13 @@ export async function GET(request) {
 const SNAPSHOT_SENTINELS = new Set([999, 999.99, 9999, 9999.99, 99999, 99999.99]);
 const SNAPSHOT_CHUNK = 1000;
 
-async function snapshotCatalogHistory(db, language) {
+// `provenanceById` (tcgplayer_id -> { condition, printing }) is the
+// provenance of the prices this job just wrote. Each row records it as
+// reference_condition / reference_printing. `condition` stays the SERIES
+// KEY ('Near Mint' - part of the unique index, the card_reference_lastmod
+// filter and the chart read) and is NOT the observed condition - see
+// supabase/price_condition_provenance_migration.sql.
+async function snapshotCatalogHistory(db, language, provenanceById = new Map(), provenanceState = {}) {
   const observed_on = new Date().toISOString().slice(0, 10);
   let written = 0;
   let scanned = 0;
@@ -213,26 +260,33 @@ async function snapshotCatalogHistory(db, language) {
     for (const r of data) {
       const p = Number(r.market_price);
       if (!Number.isFinite(p) || p <= 0 || SNAPSHOT_SENTINELS.has(p)) continue;
+      const prov = provenanceById.get(String(r.tcgplayer_id)) ?? { condition: null, printing: null };
       chunk.push({
         tcgplayer_id: String(r.tcgplayer_id),
         name: r.name ?? "",
         set: r.set ?? "",
         card_number: r.card_number ?? null,
         language,
-        condition: "Near Mint",
+        condition: "Near Mint", // series key (legacy name) - NOT the observed condition
         source: "catalog",
         price: p,
         observed_on,
+        reference_condition: prov.condition, // the observed condition; null = provider doesn't state it
+        reference_printing: prov.printing,
       });
     }
     if (chunk.length) {
-      const { error: upErr } = await db
-        .from("price_history")
-        .upsert(chunk, { onConflict: "tcgplayer_id,condition,source,observed_on" });
-      if (upErr) return { written, error: upErr.message };
+      const { error: upErr } = await upsertWithProvenance(
+        db,
+        "price_history",
+        chunk,
+        "tcgplayer_id,condition,source,observed_on",
+        provenanceState
+      );
+      if (upErr) return { written, error: upErr.message, provenance: provenanceState.provenance ?? null };
       written += chunk.length;
     }
     if (data.length < SNAPSHOT_CHUNK) break;
   }
-  return { written, error: null };
+  return { written, error: null, provenance: provenanceState.provenance ?? null };
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Price from "@/components/Price";
 import { hasPrice } from "@/lib/money";
+import { referenceConditionLabels } from "@/lib/referenceCondition";
 
 // A price/value summary that leads the card page - so a "<card> <set>
 // price / value / PSA 10 price" search is answered above the fold, not
@@ -51,6 +52,11 @@ export default function CardPriceSummary({
 }) {
   const rawNmValue = analysis?.raw?.currentPrice ?? null;
   const rawNm = hasPrice(rawNmValue) ? Number(rawNmValue) : null;
+  // Price-condition provenance: the headline is labelled by the condition
+  // the reference is REALLY for (analysis.raw.referenceCondition) - "raw,
+  // Near Mint" only when PPT priced Near Mint; "raw, Lightly Played" when
+  // that is the only tier priced; "raw market reference" when unknown.
+  const refLabel = referenceConditionLabels(analysis?.raw?.referenceCondition);
   const ladder = conditionLadder(analysis);
   const graded = (analysis?.graded ?? [])
     .filter((g) => hasPrice(g.currentPrice) && g.saleCount > 0)
@@ -74,8 +80,8 @@ export default function CardPriceSummary({
 
       {rawNm != null && (
         <div className="mt-3">
-          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-            Market value · raw, Near Mint
+          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400" data-reference-condition={refLabel.condition ?? "unknown"}>
+            Market value · {refLabel.raw}
           </p>
           <p className="text-3xl font-bold text-black dark:text-zinc-50">
             <Price usd={rawNm} native={{ amount: rawNm, currency: "USD" }} approxPrefix="" />

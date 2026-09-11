@@ -203,7 +203,10 @@ test("getFullPriceAnalysis suppresses low-confidence tiers, never reorders/rewri
 test("raw price + history + trend logic are untouched", () => {
   const ppt = read("lib/pokemonPriceTracker.js");
   const rawBlock = ppt.slice(ppt.indexOf("raw: {"), ppt.indexOf("raw: {") + 220);
-  assert.match(rawBlock, /currentPrice: catalogRawMarketPrice\(d\.prices\)/); // unchanged
+  // unchanged selection: currentPrice is still catalogRawMarketReference(d.prices).price
+  // (price-condition provenance fix - the same figure, now carrying its condition)
+  assert.match(rawBlock, /currentPrice: rawRef\.price/);
+  assert.match(ppt, /const rawRef = catalogRawMarketReference\(d\.prices\);/);
   assert.doesNotMatch(read("lib/priceHistory.js"), /graded|gradedTierConfidence|slab/i);
 });
 

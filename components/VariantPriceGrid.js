@@ -3,6 +3,7 @@ import AffiliateLink from "@/components/AffiliateLink";
 import Price from "@/components/Price";
 import { buildEbaySearchLink } from "@/lib/ebayLinks";
 import { hasPrice } from "@/lib/money";
+import { referenceConditionLabels } from "@/lib/referenceCondition";
 
 function formatDate(dateString) {
   if (!dateString) return null;
@@ -101,7 +102,9 @@ export default function VariantPriceGrid({ raw, graded, activeKey, cardName, sur
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
       <Tile
         label="Raw"
-        badge={<span className="text-[10px] text-zinc-400">Near Mint</span>}
+        // Price-condition provenance: the badge names the condition the raw
+        // reference is REALLY for; "Market reference" when PPT doesn't say.
+        badge={<span className="text-[10px] text-zinc-400">{referenceConditionLabels(raw?.referenceCondition).short}</span>}
         isActive={activeKey === "raw"}
         searchQuery={cardName}
         eventData={{ card: cardName, page: "variant_grid", variant: "raw" }}

@@ -135,7 +135,10 @@ test("6/7. duplicate card/date/source rows do not multiply; re-running is idempo
     /unique index[\s\S]*?tcgplayer_id[\s\S]*?condition[\s\S]*?source[\s\S]*?observed_on/i
   );
   assert.match(BACKFILL_SRC, /onConflict: "tcgplayer_id,condition,source,observed_on"/);
-  assert.match(CATALOG_ROUTE, /onConflict: "tcgplayer_id,condition,source,observed_on"/);
+  // the catalogue route now upserts through lib/referenceProvenanceDb
+  // (price-condition provenance, best-effort extra columns) - the daily
+  // key it passes is unchanged
+  assert.match(CATALOG_ROUTE, /upsertWithProvenance\([\s\S]*?"tcgplayer_id,condition,source,observed_on"/);
   // merge collapses same-day rows to one
   const merged = mergeHistoryRows([
     row({ observed_on: "2026-06-01", price: 100 }),

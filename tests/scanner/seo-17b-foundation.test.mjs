@@ -24,6 +24,8 @@ const NOW = Date.parse("2026-09-11T12:00:00Z");
 const charizard = {
   name: "Charizard", set: "Base Set", cardNumber: "004/102", rarity: "Holo Rare",
   marketUsd: 897.19, priceSource: "analysis", priceUpdatedAt: "2026-09-10T08:00:00Z",
+  // price-condition provenance: this fixture's figure IS a Near Mint entry
+  referenceCondition: "Near Mint",
 };
 
 test("2/5/6. worth answer uses the exact printing identity: name, collector number once, set", () => {

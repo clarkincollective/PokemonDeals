@@ -29,12 +29,17 @@ export default function CardWorthAnswer({ answer, className = "" }) {
 
       {answer.status === "priced" ? (
         <div className="mt-2 space-y-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
-          <p data-worth-answer="priced">
-            {answer.subject} has a market price of about{" "}
+          <p data-worth-answer="priced" data-worth-condition={answer.referenceCondition ?? "unknown"}>
+            {answer.subject} has a {answer.marketNoun ?? "market price"} of about{" "}
             <strong className="tnum text-black dark:text-zinc-50">{answer.marketText}</strong> for a{" "}
             {answer.condition} copy, based on recent sold data from PokemonPriceTracker
             {answer.updatedOn ? <> (last updated {answer.updatedOn})</> : null}.
           </p>
+          {answer.conditionKnown === false && (
+            // The provider prices this printing without stating a condition
+            // tier - say so rather than imply Near Mint.
+            <p>The provider doesn&apos;t state which condition this reference is for, so treat it as a general raw-card guide.</p>
+          )}
           {answer.firstEditionExcluded && (
             <p>1st Edition copies of this card are priced separately and are not included in this figure.</p>
           )}

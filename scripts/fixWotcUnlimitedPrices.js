@@ -14,7 +14,12 @@
 
 require("dotenv").config({ path: ".env.local" });
 const { createClient } = require("@supabase/supabase-js");
-const { WOTC_DUAL_PRINTING_SETS, getCatalogNmPrice } = require("../lib/pokemonPriceTracker");
+const { WOTC_DUAL_PRINTING_SETS, getCatalogReference } = require("../lib/pokemonPriceTracker");
+const { updateWithProvenance } = require("../lib/referenceProvenanceDb");
+// Price-condition provenance: the corrected figure is written together
+// with the condition / printing it is really for (dropped automatically
+// until the provenance migration has run).
+const provenanceState = {};
 
 const APPLY = process.argv.includes("--apply");
 const CONCURRENCY = 4;
@@ -45,13 +50,14 @@ const log = (...a) => console.log(...a);
     let r;
     while ((r = queue.shift())) {
       checked++;
-      let nm;
+      let ref;
       try {
-        nm = await getCatalogNmPrice(String(r.tcgplayer_id));
+        ref = await getCatalogReference(String(r.tcgplayer_id));
       } catch (e) {
         log(`   ! ${r.tcgplayer_id} ${r.name}: ${e.message}`);
         continue;
       }
+      const nm = ref.price;
       if (nm == null) {
         noPrice++;
         continue;
@@ -64,9 +70,16 @@ const log = (...a) => console.log(...a);
         continue;
       }
       changed++;
-      if (samples.length < 30) samples.push(`${cur} -> ${nm}  ${r.name} / ${r.set} (${r.rarity})`);
+      if (samples.length < 30) samples.push(`${cur} -> ${nm} [${ref.condition ?? "condition unknown"}${ref.printing ? `, ${ref.printing}` : ""}]  ${r.name} / ${r.set} (${r.rarity})`);
       if (APPLY) {
-        const { error } = await db.from("card_catalog").update({ market_price: nm }).eq("tcgplayer_id", r.tcgplayer_id);
+        const { error } = await updateWithProvenance(
+          db,
+          "card_catalog",
+          { market_price: nm, market_condition: ref.condition, market_printing: ref.printing },
+          "tcgplayer_id",
+          r.tcgplayer_id,
+          provenanceState
+        );
         if (error) throw new Error(error.message);
       }
       if (checked % 100 === 0) process.stdout.write(`  ...${checked}/${rows.length}\r`);

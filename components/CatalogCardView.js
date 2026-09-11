@@ -114,6 +114,10 @@ export default function CatalogCardView({
     marketUsd: worthUsd,
     priceSource: analysisHasPrice ? "analysis" : "catalog",
     priceUpdatedAt: analysisHasPrice ? analysis?.priceUpdatedAt ?? null : null,
+    // Price-condition provenance, from whichever source supplied the figure:
+    // the live analysis's recorded condition, else the catalogue's stored
+    // market_condition (null until the provenance migration + a sync).
+    referenceCondition: analysisHasPrice ? analysis?.raw?.referenceCondition ?? null : card.refCondition ?? null,
     firstEditionExcluded: analysisHasPrice ? Boolean(analysis?.firstEditionExcluded) : false,
     gradedAvailable: analysisHasPrice && pageShowsGraded(analysis),
     liveListings: null,
@@ -235,6 +239,7 @@ export default function CatalogCardView({
             <CardPriceSummary analysis={analysis} offersCount={0} listingsLowUsd={null} />
             <CardPriceIntelligence
               marketValueUsd={analysis?.raw?.currentPrice ?? null}
+              referenceCondition={analysis?.raw?.referenceCondition ?? null}
               trends={priceHistory?.trends ?? null}
               signal={priceHistory?.signal ?? null}
               coverage={priceHistory?.coverage ?? null}
@@ -246,7 +251,10 @@ export default function CatalogCardView({
           <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Price &amp; value</h2>
             <div className="mt-3">
-              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Market reference · raw</p>
+              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400" data-reference-condition={card.refCondition ?? "unknown"}>
+                {/* the catalogue copy's stored condition when it has one (post-migration); otherwise neutral */}
+                {card.refCondition ? `Market value · raw, ${card.refCondition}` : "Market reference · raw"}
+              </p>
               <p className="text-3xl font-bold text-black dark:text-zinc-50">
                 <Price usd={refPrice} native={{ amount: refPrice, currency: "USD" }} approxPrefix="" />
               </p>

@@ -102,7 +102,7 @@ export async function generateMetadata({ params }) {
     const title = catalogCardTitle(dn, card.set, catNumber);
     const idBits = [catNumber, card.rarity].filter(Boolean).join(", ");
     const description = card.refPrice != null
-      ? `${dn} (${card.set}) Pokemon card price & value${idBits ? ` — ${idBits}` : ""}. Raw Near Mint market reference and condition-by-condition prices from real recent sold data, plus a TCGPlayer link.`
+      ? `${dn} (${card.set}) Pokemon card price & value${idBits ? ` — ${idBits}` : ""}. Raw market reference (labelled by its real condition) and condition-by-condition prices from real recent sold data, plus a TCGPlayer link.`
       : `${dn} (${card.set}) Pokemon card${idBits ? ` — ${idBits}` : ""}. Identity, image and a TCGPlayer link. Market price currently unavailable.`;
     return {
       title,
@@ -171,7 +171,7 @@ export async function generateMetadata({ params }) {
   const hubName = cardDisplayName(hub);
   const hubNumber = analysis?.cardNumber ?? collectorNumberFromName(hub.name);
   const title = catalogCardTitle(hubName, hub.set, hubNumber);
-  const description = `${hubName}${hubNumber ? ` #${hubNumber}` : ""} (${hub.set}) Pokemon card price & value — raw Near Mint market reference and condition-by-condition prices from real recent sold data, graded (PSA/CGC/BGS) tiers where available, and live eBay listings compared cheapest first.`;
+  const description = `${hubName}${hubNumber ? ` #${hubNumber}` : ""} (${hub.set}) Pokemon card price & value — raw market reference (labelled by its real condition) and condition-by-condition prices from real recent sold data, graded (PSA/CGC/BGS) tiers where available, and live eBay listings compared cheapest first.`;
 
   return {
     title,
@@ -316,6 +316,8 @@ export default async function CardHubPage({ params }) {
     marketUsd: isUsableUsdPrice(hubRaw) ? Number(hubRaw) : null,
     priceSource: "analysis",
     priceUpdatedAt: analysis?.priceUpdatedAt ?? null,
+    // Price-condition provenance: the condition the figure is really for.
+    referenceCondition: analysis?.raw?.referenceCondition ?? null,
     firstEditionExcluded: Boolean(analysis?.firstEditionExcluded),
     gradedAvailable: pageShowsGraded(analysis),
     liveListings: { count: offers.length, lowUsd: rangeLowUsd },
@@ -495,6 +497,7 @@ export default async function CardHubPage({ params }) {
 
         <CardPriceIntelligence
           marketValueUsd={analysis?.raw?.currentPrice ?? null}
+          referenceCondition={analysis?.raw?.referenceCondition ?? null}
           trends={priceHistory?.trends ?? null}
           signal={priceHistory?.signal ?? null}
           coverage={priceHistory?.coverage ?? null}

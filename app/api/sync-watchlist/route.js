@@ -3,9 +3,10 @@ import {
   listSets,
   listSetCards,
   downloadPrintingsExport,
-  pickMarketPrice,
+  pickMarketReference,
   isSentinelPrice,
 } from "@/lib/pokemonPriceTracker";
+import { upsertWithProvenance } from "@/lib/referenceProvenanceDb";
 
 // Pages through the entire Pokemon catalog, so this can take a while -
 // give it room instead of the default timeout.
@@ -79,22 +80,25 @@ async function logPriceHistory(db, records) {
     name: r.name,
     set: r.set,
     language: r.language,
-    condition: "Near Mint",
+    condition: "Near Mint", // series key (legacy name) - NOT the observed condition
     source: "catalog",
     price: Number(r.price),
     observed_on,
+    // Price-condition provenance: what the logged figure is really for.
+    // null = the provider doesn't state it (never assumed Near Mint).
+    reference_condition: r.reference_condition ?? null,
+    reference_printing: r.reference_printing ?? null,
   }));
 
   let written = 0;
+  const provenanceState = {};
   for (let i = 0; i < rows.length; i += UPSERT_CHUNK_SIZE) {
     const chunk = rows.slice(i, i + UPSERT_CHUNK_SIZE);
-    const { error } = await db
-      .from("price_history")
-      .upsert(chunk, { onConflict: "tcgplayer_id,condition,source,observed_on" });
+    const { error } = await upsertWithProvenance(db, "price_history", chunk, "tcgplayer_id,condition,source,observed_on", provenanceState);
     if (error) return { written, error: error.message };
     written += chunk.length;
   }
-  return { written, error: null };
+  return { written, error: null, provenance: provenanceState.provenance ?? null };
 }
 
 async function chunkedUpsert(db, rows) {
@@ -182,10 +186,26 @@ async function syncViaExport(db, manualKeys) {
       skipped++;
       continue;
     }
+    // Price-condition provenance: the Near Mint column is Near Mint; the
+    // aggregate marketPrice column's condition is not stated by PPT and is
+    // only inferred when it equals exactly one of the row's own played-
+    // condition figures - else null. Never assumed Near Mint.
+    const fromNm = Number.isFinite(parseFloat(row.marketNearMint));
+    let reference_condition = fromNm ? "Near Mint" : null;
+    if (!fromNm) {
+      const same = (v) => Number.isFinite(parseFloat(v)) && Math.abs(parseFloat(v) - price) < 0.005;
+      const hits = [
+        ["Lightly Played", row.marketLightlyPlayed],
+        ["Moderately Played", row.marketModeratelyPlayed],
+        ["Heavily Played", row.marketHeavilyPlayed],
+        ["Damaged", row.marketDamaged],
+      ].filter(([, v]) => same(v));
+      if (hits.length === 1) reference_condition = hits[0][0];
+    }
 
     const existing = byCard.get(row.tcgPlayerId);
     if (!existing || price > existing.price) {
-      byCard.set(row.tcgPlayerId, { name: row.name, set: row.setName, price });
+      byCard.set(row.tcgPlayerId, { name: row.name, set: row.setName, price, reference_condition, reference_printing: row.printing ?? null });
     }
   }
 
@@ -209,6 +229,8 @@ async function syncViaExport(db, manualKeys) {
       set: card.set,
       language: "english",
       price: card.price,
+      reference_condition: card.reference_condition ?? null,
+      reference_printing: card.reference_printing ?? null,
     });
 
     if (manualKeys.has(`${card.name}|${card.set}`)) {
@@ -299,7 +321,15 @@ async function syncViaSetCrawl(db, manualKeys, maxSets, language) {
         continue;
       }
 
-      const price = card.prices?.conditions?.["Near Mint"]?.price ?? pickMarketPrice(card.prices, "Near Mint");
+      // Price-condition provenance: a real prices.conditions["Near Mint"]
+      // entry IS Near Mint; otherwise pickMarketReference says what the
+      // figure it selects is actually for (the price is unchanged).
+      const directNm = card.prices?.conditions?.["Near Mint"]?.price;
+      const ref =
+        directNm != null
+          ? { price: directNm, condition: "Near Mint", printing: card.prices?.primaryPrinting ?? null }
+          : pickMarketReference(card.prices, "Near Mint");
+      const price = ref.price;
       const tier = price != null ? classifyTier(price) : null;
       if (!tier) {
         skipped++;
@@ -315,6 +345,8 @@ async function syncViaSetCrawl(db, manualKeys, maxSets, language) {
         set: cardSet,
         language,
         price,
+        reference_condition: ref.condition,
+        reference_printing: ref.printing,
       });
 
       if (manualKeys.has(`${cardName}|${cardSet}`)) {
