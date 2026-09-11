@@ -57,7 +57,7 @@ function dealRow({ productId, listing, totalPrice, totalPriceUsd, marketPrice, d
   };
 }
 
-async function scanProductInMarketplace(row, marketplaceId, marketPrice, db, discountThreshold, rates) {
+async function scanProductInMarketplace(row, marketplaceId, marketPrice, db, discountThreshold, rates, supportsDisqualifiedReason) {
   const query = row.set ? `${row.name} ${row.set}` : row.name;
   // categoryId: null - see searchListings in lib/ebay.js for why (sealed
   // product's real eBay category id isn't verified; the query text itself
@@ -85,6 +85,7 @@ async function scanProductInMarketplace(row, marketplaceId, marketPrice, db, dis
     matchesName: listingMatchesSealedProduct,
     priceListing: (listing, mp) => pricedListing(listing, mp, rates),
     buildRow: dealRow,
+    supportsDisqualifiedReason,
   });
   const dealsFound = stats.written;
   if (stats.repaired > 0) {
@@ -124,6 +125,12 @@ export async function GET(request) {
   try {
   const url = new URL(request.url);
   const rates = await getUsdRates();
+
+  // 17C.9 - supabase/sealed_availability_migration.sql is NOT applied yet.
+  // Until it is, sealed_deals has no `disqualified_reason` column and
+  // writing one would fail the whole upsert (42703). Probe once per run and
+  // degrade, the same way verify-deals probes exact_verified_at.
+  const supportsDisqualifiedReason = !(await db.from("sealed_deals").select("disqualified_reason").limit(1)).error;
 
   // Pre-flight Browse API quota check - same guard as app/api/refresh-deals
   // (see docs/ebay-rate-limits.md). This run scans ~194 products (48
@@ -207,7 +214,7 @@ export async function GET(request) {
       marketplaceIds.map(async (marketplaceId) => {
         scanned++;
         try {
-          dealsFound += await scanProductInMarketplace(row, marketplaceId, marketPrice, db, discountThreshold, rates);
+          dealsFound += await scanProductInMarketplace(row, marketplaceId, marketPrice, db, discountThreshold, rates, supportsDisqualifiedReason);
         } catch (err) {
           errors.push(`${row.name} (${marketplaceId}): ${err.message}`);
         }

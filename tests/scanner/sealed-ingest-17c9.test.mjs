@@ -7,7 +7,22 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { ingestSealedListings, reassignmentReset, COMPARISON_PROVENANCE_COLUMNS } from "../../lib/sealedIngest.js";
+import { ingestSealedListings, reassignmentReset, RECOMPUTED_ON_REASSIGNMENT } from "../../lib/sealedIngest.js";
+
+// The REAL sealed_deals columns, read from the live schema (read-only,
+// 2026-09-12). The write path must never send a column outside this set:
+// PostgREST rejects the whole upsert with 42703, so one phantom column
+// silently kills every sealed write. `disqualified_reason` and
+// `exact_verified_at` are deliberately absent - they arrive with
+// supabase/sealed_availability_migration.sql, which is not applied.
+const COLUMNS_TODAY = new Set([
+  "affiliate_url", "auction_end_at", "bid_count", "currency", "discount_pct",
+  "first_seen_at", "id", "image_url", "is_active", "is_local",
+  "item_location_country", "last_seen_at", "listing_id", "listing_type",
+  "listing_url", "market_price", "marketplace", "price", "sealed_watchlist_id",
+  "seller_feedback_pct", "seller_username", "shipping", "source", "title",
+  "total_price", "total_price_usd",
+]);
 
 // --- the products in play (real catalogue rows) ----------------------
 const ETB_2021 = { id: 76, name: "Celebrations Elite Trainer Box", set: "Celebrations", product_type: "Elite Trainer Box", price: 361.84 };
@@ -26,12 +41,14 @@ const listing = (over = {}) => ({
 });
 
 // --- a fake sealed_deals table with the real unique-key behaviour ----
-function fakeDb(seed = []) {
+function fakeDb(seed = [], { extraColumns = [] } = {}) {
   const rows = seed.map((r) => ({ ...r }));
+  const upserts = [];
   const keyOf = (r) => `${r.source ?? "ebay"}|${r.marketplace}|${r.listing_id}`;
+  const SEALED_DEALS_COLUMNS = new Set([...COLUMNS_TODAY, ...extraColumns]);
   return {
     rows,
-    upserts: [],
+    upserts,
     from() {
       const q = { _filters: {} };
       q.select = () => q;
@@ -46,11 +63,16 @@ function fakeDb(seed = []) {
         return { data: hit ? { ...hit } : null, error: null };
       };
       q.upsert = async (row) => {
-        this_upsert: {
-          const i = rows.findIndex((r) => keyOf(r) === keyOf(row));
-          if (i >= 0) rows[i] = { ...rows[i], ...row }; // conflict -> replace provided columns
-          else rows.push({ id: rows.length + 1, ...row });
+        upserts.push({ ...row });
+        // PostgREST rejects the WHOLE statement if any column is unknown.
+        for (const col of Object.keys(row)) {
+          if (!SEALED_DEALS_COLUMNS.has(col)) {
+            return { error: { code: "42703", message: `column sealed_deals.${col} does not exist` } };
+          }
         }
+        const i = rows.findIndex((r) => keyOf(r) === keyOf(row));
+        if (i >= 0) rows[i] = { ...rows[i], ...row }; // conflict -> replace provided columns
+        else rows.push({ id: rows.length + 1, ...row });
         return { error: null };
       };
       return q;
@@ -116,10 +138,6 @@ test("W-2. a row ALREADY bound to the wrong product is repaired in place, on the
       market_price: 361.84,
       discount_pct: 0.59,
       total_price: 150,
-      reference_condition: "Near Mint",
-      reference_printing: "Sealed",
-      reference_captured_at: "2026-08-01T00:00:00Z",
-      disqualified_reason: "identity:wrong_product",
       is_active: true,
     },
   ]);
@@ -129,11 +147,49 @@ test("W-2. a row ALREADY bound to the wrong product is repaired in place, on the
   assert.equal(db.rows.length, 1, "same listing_id, same row - not a duplicate");
   const r = row(db);
   assert.equal(r.sealed_watchlist_id, 123, "now the 30th ETB");
-  // item 3: the old product's comparison must not survive
-  assert.equal(r.market_price, 177.39);
+  // item 3: the old product's comparison must not survive. On the real
+  // schema the comparison IS market_price + discount_pct - both rewritten
+  // from the new product's reference price.
+  assert.deepEqual(RECOMPUTED_ON_REASSIGNMENT, ["market_price", "discount_pct"]);
+  assert.equal(r.market_price, 177.39, "the 2021 product's $361.84 reference is gone");
   assert.ok(Math.abs(r.discount_pct - (177.39 - 150) / 177.39) < 1e-9, "discount recomputed against the new product");
-  assert.equal(r.disqualified_reason, null, "the old assignment's disqualification is cleared");
-  for (const c of COMPARISON_PROVENANCE_COLUMNS) assert.equal(r[c], null, `${c} cleared on reassignment`);
+  assert.notEqual(r.discount_pct, 0.59, "the old 59% saving never follows the listing");
+});
+
+test("W-2b. disqualified_reason is cleared on reassignment ONLY once the migration is applied", async () => {
+  const seed = () => [
+    {
+      id: 1, sealed_watchlist_id: 76, source: "ebay", marketplace: "EBAY_US",
+      listing_id: "v1|30thETB|0", title: listing().title, market_price: 361.84,
+      discount_pct: 0.59, total_price: 150, disqualified_reason: "availability:sold", is_active: true,
+    },
+  ];
+  // pre-migration (today): the column does not exist, so it is never written
+  const before = fakeDb(seed());
+  await ingestSealedListings({ db: before, listings: [listing()], ...deps(ETB_30TH) });
+  assert.equal(before.upserts.at(-1) && "disqualified_reason" in before.upserts.at(-1), false,
+    "a column sealed_deals does not have yet is never sent (42703 would fail the whole upsert)");
+
+  // post-migration: the stale reason from the OLD assignment is cleared
+  const after = fakeDb(seed(), { extraColumns: ["disqualified_reason"] });
+  await ingestSealedListings({ db: after, listings: [listing()], ...deps(ETB_30TH), supportsDisqualifiedReason: true });
+  assert.equal(row(after).disqualified_reason, null, "the old assignment's disqualification is cleared");
+});
+
+test("W-2c. every written column actually exists on sealed_deals", async () => {
+  // The guard that would have caught the five reference_* columns this
+  // patch originally invented: they exist on neither table.
+  const db = fakeDb();
+  await ingestSealedListings({ db, listings: [listing()], ...deps(ETB_30TH) });
+  const repair = fakeDb([{ id: 1, sealed_watchlist_id: 76, source: "ebay", marketplace: "EBAY_US", listing_id: "v1|30thETB|0", title: listing().title, market_price: 361.84, is_active: true }]);
+  await ingestSealedListings({ db: repair, listings: [listing()], ...deps(ETB_30TH) });
+
+  for (const written of [...db.upserts, ...repair.upserts]) {
+    for (const col of Object.keys(written)) {
+      assert.ok(COLUMNS_TODAY.has(col), `write sends a column sealed_deals does not have: ${col}`);
+    }
+  }
+  assert.ok(db.upserts.length > 0 && repair.upserts.length > 0, "both an insert and a repair were exercised");
 });
 
 test("W-3. correct product first: a later wrong-product scan cannot take the row", async () => {
@@ -193,9 +249,11 @@ test("W-6. a variant listing goes to its own product, not the sibling it shares 
 });
 
 test("W-7. reassignmentReset is inert when the product is unchanged or the row is new", () => {
-  assert.deepEqual(reassignmentReset(null, 123), {});
-  assert.deepEqual(reassignmentReset({ sealed_watchlist_id: 123 }, 123), {});
-  const moved = reassignmentReset({ sealed_watchlist_id: 76 }, 123);
-  assert.equal(moved.disqualified_reason, null);
-  for (const c of COMPARISON_PROVENANCE_COLUMNS) assert.ok(c in moved, c);
+  const opts = { supportsDisqualifiedReason: true };
+  assert.deepEqual(reassignmentReset(null, 123, opts), {});
+  assert.deepEqual(reassignmentReset({ sealed_watchlist_id: 123 }, 123, opts), {});
+  // a genuine move, post-migration
+  assert.deepEqual(reassignmentReset({ sealed_watchlist_id: 76 }, 123, opts), { disqualified_reason: null });
+  // ...and pre-migration it adds nothing at all
+  assert.deepEqual(reassignmentReset({ sealed_watchlist_id: 76 }, 123), {});
 });
