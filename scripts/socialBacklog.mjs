@@ -434,7 +434,7 @@ function scoreStory(story, context) {
 
   // ---- §7/§22 BUILD (persist) + §10 QUEUE (Buffer future schedule) ----
   const posture = resolveBacklogPosture(process.env, { requestQueue: DO_QUEUE });
-  const circuit = backlogCircuitStatus();
+  const circuit = await backlogCircuitStatus();
   const build = { attempted: DO_BUILD, tables_ready: ready, stories_upserted: 0, placements_upserted: 0, qa_runs: 0, skipped: [], error: null };
   const queue = { attempted: DO_QUEUE, posture, circuit, provider_mode: resolveProviderMode(process.env), requests: 0, queued: 0, results: [], blocked_reason: null };
   const persistedStories = [];

@@ -451,9 +451,13 @@ sustained ≥ 3-deal weeks. Never escalate both surfaces in the same week.
 **Fastest full stop (no redeploy):** in Vercel, **remove** the enabling
 env var(s) — delete `SOCIAL_AUTONOMOUS_ENABLED` and/or
 `EMAIL_AUTONOMOUS_ENABLED` (and/or `DIGEST_SEND_ENABLED` /
-`SOCIAL_PUBLISH_ENABLED`). Vercel applies env changes to the **next cron
-invocation without a redeploy** for scheduled functions; the endpoints
-read `process.env` fresh each call and go to `OFF`. Also flip
+`SOCIAL_PUBLISH_ENABLED`). **Correction (2026-09-11): a Vercel env change
+reaches only the NEXT deployment — the running deployment keeps the env it
+was built with, so after deleting/setting these flags you must redeploy
+for them to take effect.** The endpoints do read `process.env` fresh each
+call, but that env is the deployment's. For an immediate no-deploy stop of
+the backlog refill use the durable circuit
+(`npm run social:backlog-circuit -- suspend`). Also flip
 `SOCIAL_AUTONOMOUS_KILL=true` / `EMAIL_AUTONOMOUS_KILL=true` so mode is
 `SUSPENDED` even if `ENABLED` is later re-added by mistake.
 

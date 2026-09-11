@@ -82,8 +82,29 @@ editorial planning window. `REFILL_SCHEDULE.activated = false`.
    - deploy.
    The route still verifies every flag itself — the cron firing only means *evaluate*.
 
-To pause later: unset `SOCIAL_BUFFER_BACKLOG_ENABLED` (route goes inert,
-cron becomes a no-op) or set `SOCIAL_BUFFER_BACKLOG_KILL=true`.
+To pause later (STAGE-B CONTAINMENT, 2026-09-11 — in order of reliability):
+
+1. **Immediate, no deploy:** `npm run social:backlog-circuit -- suspend "<reason>"`
+   writes an `OWNER_SUSPENDED` snapshot to Supabase (`social_qa_runs`,
+   qa_type `BACKLOG_CIRCUIT`). `/api/social-backlog-refill` reads it on
+   every invocation and returns `BACKLOG_SUSPENDED` before touching the
+   lock or Buffer. It is cleared only by `-- resume`. Equivalent SQL for
+   the Supabase editor (service role, no deploy):
+
+   ```sql
+   insert into social_qa_runs (qa_type, result, detail) values (
+     'BACKLOG_CIRCUIT', 'FAIL',
+     jsonb_build_object('circuit', jsonb_build_object(
+       'surface','backlog','state','OWNER_SUSPENDED','failures','[]'::jsonb,
+       'tripped_at', now(),'reason','owner_suspend','resumed_at',null,
+       'resumed_by',null,'suspended_by','sql-editor'), 'at', now()));
+   ```
+2. **Env flags need a redeploy:** setting `SOCIAL_BUFFER_BACKLOG_KILL=true`
+   or unsetting `SOCIAL_BUFFER_BACKLOG_ENABLED` in Vercel changes only the
+   NEXT deployment — the running deployment keeps the env it was built
+   with. After changing either, redeploy (`vercel redeploy <prod-url>` or
+   push to `main`) for it to take effect.
+3. **Remove the cron entry** from `vercel.json` — also a deploy.
 
 ## Retention (SS35)
 

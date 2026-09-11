@@ -35,6 +35,7 @@
     "crm:summary": "node scripts/crmSummary.mjs",
     "crm:auto": "node scripts/crmAuto.mjs",
     "social:backlog": "node scripts/socialBacklog.mjs",
+    "social:backlog-circuit": "node scripts/socialBacklogCircuit.mjs",
     "social:quality-audit": "node scripts/socialQualityAudit.mjs",
     "social:newsroom-migrate-check": "node scripts/socialNewsroomMigrationCheck.mjs",
     "social:backlog-render": "node scripts/socialBacklogRender.mjs",

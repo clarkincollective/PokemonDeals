@@ -347,7 +347,7 @@ async function gather() {
       vision_watch_count: visionWatch,
       oldest_queued: queuedTimes.length ? new Date(queuedTimes[0]).toISOString() : null,
       newest_queued: queuedTimes.length ? new Date(queuedTimes[queuedTimes.length - 1]).toISOString() : null,
-      circuit: backlogCircuitStatus(),
+      circuit: await backlogCircuitStatus(),
       posture: resolveBacklogPosture(process.env, { requestQueue: false }),
       // SOCIAL-NEWSROOM-3 (SS26) - recurring refill readiness + retention
       refill: await (async () => {

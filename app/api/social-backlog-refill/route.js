@@ -10,10 +10,21 @@
 //
 // Every flag is verified here: a cron firing means EVALUATE, never "force
 // a post". With SOCIAL_BUFFER_BACKLOG_ENABLED unset the route is inert.
+//
+// STAGE-B CONTAINMENT (2026-09-11) - gate order, all before any provider
+// or lock activity:
+//   1. CRON_SECRET
+//   2. SOCIAL_BUFFER_BACKLOG_KILL (env; NOTE: a Vercel env change only
+//      reaches a NEW deployment - it does not alter the running one)
+//   3. durable circuit (Supabase-backed; owner suspend / auto trip survive
+//      every invocation and redeploy, and an unreadable state fails closed)
+//   4. advisory lock
+//   5. refillQueueReconcile, which re-checks 2 + 3 + the enable/mode gates.
 
 import { refillQueueReconcile } from "@/lib/newsroom/backlogRefill";
 import { acquireRefillLock, releaseRefillLock } from "@/lib/social/newsroom/db";
 import { backlogCircuitStatus } from "@/lib/social/newsroom/backlogCircuit";
+import { resolveBacklogPosture } from "@/lib/social/newsroom/backlogConfig";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -26,7 +37,13 @@ async function handle(request) {
   const url = new URL(request.url);
   const dryRun = url.searchParams.get("dryRun") === "1" || process.env.SOCIAL_BUFFER_BACKLOG_ENABLED !== "true";
 
-  const circuit = backlogCircuitStatus();
+  // Kill flag first - cheapest, no I/O.
+  const posture = resolveBacklogPosture(process.env, { requestQueue: !dryRun });
+  if (posture.kill) {
+    return Response.json({ ok: false, outcome: "KILLED", posture }, { status: 200 });
+  }
+
+  const circuit = await backlogCircuitStatus();
   if (circuit.suspended) {
     return Response.json({ ok: false, outcome: "BACKLOG_SUSPENDED", circuit }, { status: 200 });
   }
