@@ -8,7 +8,16 @@ import { allocateVerifyBatch } from "@/lib/verifyAllocator";
 import { decideImageRecovery } from "@/lib/imageRecoveryPolicy";
 import { IMAGE_VERDICT } from "@/lib/listingImage";
 import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError, recordDedupeSavedImage } from "@/lib/ebayTelemetry";
-import { availabilityRetirementReason, retirementInvalidationPlan, expireTags } from "@/lib/listingAvailability";
+import {
+  SEEN_AGAIN,
+  RECOVERY_SLOTS_PER_RUN,
+  RECOVERY_MIN_HOURS_SINCE_CHECK,
+  RECOVERY_MAX_AGE_DAYS,
+  availabilityRetirementReason,
+  recoveryDecision,
+  retirementInvalidationPlan,
+  expireTags,
+} from "@/lib/listingAvailability";
 
 // BOUNDED, RESERVE-GUARDED exact-listing re-verification. One Browse call
 // per row, hard-capped at BATCH per run, and it runs ONLY when the daily
@@ -66,6 +75,12 @@ import { availabilityRetirementReason, retirementInvalidationPlan, expireTags } 
 //   The availability reason is what stops a later search / feed sighting
 //   reactivating the row (lib/listingAvailability.writeDiscoverySighting)
 //   and keeps it hidden (any disqualified_reason fails isDisplayableDeal).
+//   RECOVERY     -> at most RECOVERY_SLOTS_PER_RUN retired FIXED_PRICE row
+//                   that a same-marketplace search sighting marked
+//                   ":seen_again" is re-checked with the SAME one lookup,
+//                   in a slot taken out of BATCH (never added to it). Only
+//                   positive availability in this row's marketplace lifts
+//                   the retirement (lib/listingAvailability.recoveryDecision).
 //   RETIRED      -> (auction only) live re-price put the recomputed
 //                   discount below the publish floor - is_active=false,
 //                   with the truthful numbers written to the dead row
@@ -155,6 +170,26 @@ export async function GET(request) {
   // Scan-time FX for the auction re-price math (no per-row network call).
   const rates = await getUsdRates();
 
+  // RECOVERY candidates (sold-item freshness): retired rows a later
+  // same-marketplace search sighting marked seen-again, last checked
+  // 24h-14d ago. Bounded to RECOVERY_SLOTS_PER_RUN and carved OUT of BATCH
+  // below, so this route's per-run call ceiling is unchanged.
+  let recoveryRows = [];
+  if (exactColReady) {
+    const { data: rec, error: recError } = await db
+      .from("deals")
+      .select(`${selectCols}, price, shipping, currency`)
+      .eq("is_active", false)
+      .eq("listing_type", "FIXED_PRICE")
+      .in("disqualified_reason", [SEEN_AGAIN.SOLD, SEEN_AGAIN.NOT_FOUND_IN_MARKETPLACE])
+      .lte("exact_verified_at", new Date(now - RECOVERY_MIN_HOURS_SINCE_CHECK * H).toISOString())
+      .gte("exact_verified_at", new Date(now - RECOVERY_MAX_AGE_DAYS * 24 * H).toISOString())
+      .order("exact_verified_at", { ascending: true })
+      .limit(RECOVERY_SLOTS_PER_RUN);
+    if (!recError) recoveryRows = (rec ?? []).filter((r) => legacyOf(r.listing_id)).slice(0, RECOVERY_SLOTS_PER_RUN);
+  }
+  const recoveryIds = new Set(recoveryRows.map((r) => r.id));
+
   // P0.4.3 - BATCH COMPOSITION via the pure allocator. It preserves the
   // P0.2 rank/tie-break for the "general" slots, but (a) applies a
   // time-to-end reverify COOLDOWN to auctions so the ~20 soonest-ending
@@ -165,17 +200,20 @@ export async function GET(request) {
   // or the auction re-price path changes. See lib/verifyAllocator.mjs.
   const { batch, allocation } = allocateVerifyBatch({
     pool,
-    batch: BATCH,
+    batch: BATCH - recoveryRows.length,
     now,
     quotaRemaining: rl.remaining,
     reserve: RESERVE,
   });
+  // recovery rows ride in the same loop (same one-call lookup per row)
+  batch.unshift(...recoveryRows);
   const out = { ACTIVE: 0, ENDED: 0, SOLD: 0, UNKNOWN: 0, RETIRED: 0, REPRICED: 0, IMAGE_RECOVERED: 0 };
+  const recovery = { checked: 0, reactivate: 0, release: 0, retain: 0, writeSkipped: 0 };
   let calls = 0;
   const detail = [];
-  // Rows this run took off the site (any retirement verdict) - their card
-  // offers, card page and deal page caches are expired once, after the
-  // loop, deduplicated by card.
+  // Rows whose visibility this run changed (any retirement verdict, or a
+  // recovery reactivation) - their card offers, card page and deal page
+  // caches are expired once, after the loop, deduplicated by card.
   const retiredRows = [];
   for (const r of batch) {
     const checkedAt = new Date().toISOString();
@@ -189,6 +227,7 @@ export async function GET(request) {
     let auctionRetireExtra = {};
     let status;
     let evidence = null;
+    let snapshot = null;
 
     if (isAuctionRow(r)) {
       // ONE get_item_by_legacy_id call: freshness status AND the live bid /
@@ -199,6 +238,7 @@ export async function GET(request) {
       const snap = await getListingSnapshot(legacyOf(r.listing_id), r.marketplace);
       calls += snap.calls ?? 1;
       evidence = snap.evidence ?? null;
+      snapshot = snap;
       const decision = repricedAuctionPatch({ row: r, snapshot: snap, rates, nowIso: checkedAt });
       if (decision.action === "retire") {
         status =
@@ -258,6 +298,7 @@ export async function GET(request) {
       const snap = await getListingSnapshot(legacyOf(r.listing_id), r.marketplace);
       calls += snap.calls ?? 1;
       evidence = snap.evidence ?? null;
+      snapshot = snap;
       status = snap.status;
       if (status === "ACTIVE") {
         const decided = decideImageRecovery({ row: r, snapStatus: snap.status, snapPrimaryImage: snap.primaryImage, snapImageUrls: snap.imageUrls });
@@ -270,6 +311,28 @@ export async function GET(request) {
           recordDedupeSavedImage();
         }
       }
+    }
+
+    if (recoveryIds.has(r.id)) {
+      // RECOVERY write: conditional on the row still being retired with the
+      // exact marker we read, so a concurrent change is never clobbered.
+      recovery.checked++;
+      const decision = recoveryDecision({ row: r, snapshot, nowIso: checkedAt });
+      const patch = decision.action === "reactivate" ? { ...auctionActiveExtra, ...decision.patch } : decision.patch;
+      const { data: changed, error: recoveryError } = await db
+        .from("deals")
+        .update(patch)
+        .eq("id", r.id)
+        .eq("is_active", false)
+        .eq("disqualified_reason", r.disqualified_reason)
+        .select("id");
+      if (recoveryError || !changed?.length) recovery.writeSkipped++;
+      else {
+        recovery[decision.action]++;
+        if (decision.action === "reactivate") retiredRows.push(r);
+      }
+      detail.push({ id: r.id, status, type: r.listing_type, evidence, recovery: decision.action });
+      continue;
     }
 
     out[status] = (out[status] ?? 0) + 1;
@@ -319,6 +382,7 @@ export async function GET(request) {
     detail,
     // sold-item freshness: targeted cache expiry for this run's retirements
     invalidation,
+    recovery,
   });
   } catch (err) {
     markError(err);

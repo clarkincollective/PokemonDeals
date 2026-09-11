@@ -55,9 +55,12 @@ HTTP 200 sold-out item, `availability:not_found_in_marketplace` for a 404/410
 in that row's marketplace; never propagated to other marketplaces). Every
 discovery write (`refresh-deals` scan + sweep, `ingest-feed`) goes through
 `lib/listingAvailability.writeDiscoverySighting`, which cannot reactivate or
-refresh such a row. A retirement expires the card's offers cache, its
-`/cards/[slug]` page and the deal page by tag, deduplicated per card. Full
-verdict mapping: `lib/listingAvailability.js`. Real cost ≈ **240–720 Browse calls/day**
+refresh such a row; a blocked sighting only marks it `:seen_again`, which
+makes it eligible for one bounded exact re-check inside `verify-deals`'
+existing batch (restocked / regional listings). A retirement expires the
+card's offers cache, its `/cards/[slug]` page and the deal page by tag,
+deduplicated per card. Provider fields, verdicts and recovery bounds:
+`docs/sold-item-freshness.md`. Real cost ≈ **240–720 Browse calls/day**
 (hard cap ~960). Schema: `supabase/deals_feed_discovery_migration.sql`
 (nullable `watchlist_id`, `card_catalog_id` FK, `discovery_source`,
 resolved `card_*` columns + triggers).

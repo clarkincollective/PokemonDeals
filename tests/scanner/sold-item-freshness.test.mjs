@@ -22,7 +22,13 @@ import { createRequire } from "node:module";
 
 import {
   AVAILABILITY_RETIREMENT,
+  SEEN_AGAIN,
   SIGHTING_WRITABLE_OR,
+  RECOVERY_SLOTS_PER_RUN,
+  RECOVERY_MIN_HOURS_SINCE_CHECK,
+  RECOVERY_MAX_AGE_DAYS,
+  recoveryDecision,
+  baseAvailabilityReason,
   classifyItemLookup,
   soldOutFromItemBody,
   availabilityRetirementReason,
@@ -63,13 +69,22 @@ const LIVE_BODY = {
   price: { value: "20.00", currency: "USD" },
 };
 
-test("SIF-1. verdict mapping: only a 200 sold-out body is SOLD; only 404/410 is ENDED (marketplace-scoped); every failure is UNKNOWN", () => {
+test("SIF-1. verdict mapping: SOLD and ACTIVE both need explicit availability evidence; 404/410 is ENDED (marketplace-scoped); everything else is UNKNOWN", () => {
   const cases = [
     [{ httpStatus: 200, body: SOLD_BODY }, "SOLD", "item", "out_of_stock"],
     [{ httpStatus: 200, body: { estimatedAvailabilities: [{ estimatedRemainingQuantity: 0 }] } }, "SOLD", "item", "out_of_stock"],
     [{ httpStatus: 200, body: LIVE_BODY }, "ACTIVE", "item", "in_stock"],
     [{ httpStatus: 200, body: { estimatedAvailabilities: [{ estimatedAvailabilityStatus: "LIMITED_STOCK", estimatedRemainingQuantity: 2 }] } }, "ACTIVE", "item", "in_stock"],
-    [{ httpStatus: 200, body: { itemId: "x" } }, "ACTIVE", "item", "no_availability_block"],
+    // positive evidence is REQUIRED for ACTIVE - a bare 200 is not a confirmation
+    [{ httpStatus: 200, body: { itemId: "x" } }, "UNKNOWN", null, "no_availability_data"],
+    [{ httpStatus: 200, body: { itemId: "x", estimatedAvailabilities: [] } }, "UNKNOWN", null, "no_availability_data"],
+    [{ httpStatus: 200, body: { estimatedAvailabilities: [{ estimatedRemainingQuantity: 3 }] } }, "UNKNOWN", null, "unrecognised_availability"],
+    [{ httpStatus: 200, body: { estimatedAvailabilities: [{ estimatedAvailabilityStatus: "SOMETHING_NEW" }] } }, "UNKNOWN", null, "unrecognised_availability"],
+    [{ httpStatus: 200, body: { estimatedAvailabilities: [{ estimatedAvailabilityStatus: "IN_STOCK" }, { estimatedAvailabilityStatus: "OUT_OF_STOCK" }] } }, "UNKNOWN", null, "mixed_availability"],
+    [{ httpStatus: 200, body: { estimatedAvailabilities: [{ estimatedAvailabilityStatus: "IN_STOCK" }, {}] } }, "UNKNOWN", null, "mixed_availability"],
+    [{ httpStatus: 200, body: { estimatedAvailabilities: [{ estimatedAvailabilityStatus: "IN_STOCK", estimatedRemainingQuantity: 0 }] } }, "SOLD", "item", "out_of_stock"],
+    [{ httpStatus: 200, body: { estimatedAvailabilities: [{ estimatedAvailabilityStatus: "IN_STOCK" }, { estimatedAvailabilityStatus: "LIMITED_STOCK", estimatedRemainingQuantity: 2 }] } }, "ACTIVE", "item", "in_stock"],
+    [{ httpStatus: 200, body: { estimatedAvailabilities: [{ estimatedAvailabilityStatus: "OUT_OF_STOCK" }, { estimatedRemainingQuantity: 0 }] } }, "SOLD", "item", "out_of_stock"],
     [{ httpStatus: 404 }, "ENDED", "marketplace", "not_found_in_marketplace"],
     [{ httpStatus: 410 }, "ENDED", "marketplace", "not_found_in_marketplace"],
     [{ httpStatus: 429 }, "UNKNOWN", null, "rate_limited"],
@@ -102,6 +117,7 @@ test("SIF-3. soldOutFromItemBody: true / false from a single-item body, null whe
   assert.equal(soldOutFromItemBody(SOLD_BODY), true);
   assert.equal(soldOutFromItemBody(LIVE_BODY), false);
   assert.equal(soldOutFromItemBody({ itemId: "summary-only" }), null);
+  assert.equal(soldOutFromItemBody({ estimatedAvailabilities: [{ estimatedAvailabilityStatus: "IN_STOCK" }, { estimatedAvailabilityStatus: "OUT_OF_STOCK" }] }), null);
   assert.equal(soldOutFromItemBody(null), null);
 });
 
@@ -135,6 +151,7 @@ test("SIF-4. getListingSnapshot / getListingFreshness return the mapped status +
     [json(404, { errors: [{ errorId: 11001 }] }), "ENDED", "not_found_in_marketplace"],
     [json(429, { errors: [{ errorId: 2001 }] }), "UNKNOWN", "rate_limited"],
     [() => new Response("not json", { status: 200 }), "UNKNOWN", "unparseable"],
+    [json(200, { itemId: "v1|1|0", price: { value: "5.00", currency: "USD" } }), "UNKNOWN", "no_availability_data"],
   ];
   for (const [resp, status, evidence] of expectations) {
     await withMockedEbay(resp, async (ebay, seen) => {
@@ -290,10 +307,12 @@ test("SIF-7. verifier retires as SOLD, THEN a search sighting arrives: blocked -
   assert.equal(res.outcome, "blocked");
   const r = db.rows[0];
   assert.equal(r.is_active, false);
-  assert.equal(r.disqualified_reason, AVAILABILITY_RETIREMENT.SOLD);
+  assert.equal(r.disqualified_reason, SEEN_AGAIN.SOLD, "the sighting is recorded ONLY as the seen-again marker");
+  assert.equal(res.markedSeenAgain, true);
+  assert.equal(baseAvailabilityReason(r.disqualified_reason), AVAILABILITY_RETIREMENT.SOLD);
   assert.equal(r.last_seen_at, T0, "a sighting of a sold row must not refresh freshness");
   assert.equal(r.exact_verified_at, T_SALE_CHECK);
-  assert.equal(r.price, 26, "no column of the retired row is rewritten");
+  assert.equal(r.price, 26, "no sighting column of the retired row is rewritten");
   assert.equal(isDisplayableDeal(r), false);
   assert.equal(db.rows.length, 1, "no duplicate row inserted");
 });
@@ -306,9 +325,13 @@ test("SIF-8. a search sighting, THEN the verifier retires: the retirement wins (
   await verifierRetire(db, 1, "SOLD", "2026-09-11T09:06:00.000Z");
   assert.equal(db.rows[0].is_active, false);
   assert.equal(db.rows[0].disqualified_reason, AVAILABILITY_RETIREMENT.SOLD);
-  // and a further sighting in the same run is now blocked
+  // and a further sighting in the same run is now blocked (and marks once)
   assert.equal((await writeDiscoverySighting(db, sighting({ last_seen_at: "2026-09-11T09:07:00.000Z" }))).outcome, "blocked");
+  const again = await writeDiscoverySighting(db, sighting({ last_seen_at: "2026-09-11T09:08:00.000Z" }));
+  assert.equal(again.outcome, "blocked");
+  assert.equal(again.markedSeenAgain, false, "an already-marked row is not re-marked");
   assert.equal(db.rows[0].is_active, false);
+  assert.equal(db.rows[0].disqualified_reason, SEEN_AGAIN.SOLD);
 });
 
 test("SIF-9. a feed re-fetch sighting (ingest payload) is blocked on a row retired as not found in that marketplace", async () => {
@@ -318,6 +341,7 @@ test("SIF-9. a feed re-fetch sighting (ingest payload) is blocked on a row retir
   const feedPayload = sighting({ marketplace: "EBAY_GB", discovery_source: "external", card_catalog_id: "4242", condition: "Near Mint" });
   assert.equal((await writeDiscoverySighting(db, feedPayload)).outcome, "blocked");
   assert.equal(db.rows[0].is_active, false);
+  assert.equal(db.rows[0].disqualified_reason, SEEN_AGAIN.NOT_FOUND_IN_MARKETPLACE, "not-found keeps its own family - never merged into sold");
   assert.equal(db.rows[0].discovery_source, undefined, "blocked write touched nothing");
 });
 
@@ -466,14 +490,20 @@ test("SIF-20. verify-deals persists the reason on SOLD / ENDED only, per row, an
 test("SIF-21. evidence: exact_verified_at counts as a confirmation only when it was one", () => {
   // ACTIVE verification stamps both with the same instant
   assert.deepEqual(listingAvailabilityEvidence({ last_seen_at: T0, exact_verified_at: T0 }), { kind: "confirmed", at: T0 });
-  // a later search sighting does not erase the earlier confirmation
-  assert.deepEqual(listingAvailabilityEvidence({ last_seen_at: T_SIGHT, exact_verified_at: T0 }), { kind: "confirmed", at: T0 });
+  // same instant, different serialisations (Postgres returns +00:00)
+  assert.equal(listingAvailabilityEvidence({ last_seen_at: "2026-09-11T08:00:00.123+00:00", exact_verified_at: "2026-09-11T08:00:00.123Z" }).kind, "confirmed");
+  // an earlier exact stamp is NOT evidence of a successful active verdict:
+  // legacy rows the old code retired (stamp) and then revived (sighting)
+  // look exactly like this, so it reads as "seen", never "confirmed"
+  assert.deepEqual(listingAvailabilityEvidence({ last_seen_at: T_SIGHT, exact_verified_at: T0 }), { kind: "seen", at: T_SIGHT });
+  // one millisecond apart is already not the same write
+  assert.equal(listingAvailabilityEvidence({ last_seen_at: "2026-09-11T08:00:00.124Z", exact_verified_at: "2026-09-11T08:00:00.123Z" }).kind, "seen");
   // a retirement stamps exact_verified_at alone (later than last_seen_at)
   assert.deepEqual(listingAvailabilityEvidence({ last_seen_at: T0, exact_verified_at: T_SALE_CHECK }), { kind: "seen", at: T0 });
   // a row carrying an availability reason is never "confirmed"
   assert.deepEqual(
-    listingAvailabilityEvidence({ last_seen_at: T_SIGHT, exact_verified_at: T0, disqualified_reason: "availability:sold" }),
-    { kind: "seen", at: T_SIGHT }
+    listingAvailabilityEvidence({ last_seen_at: T0, exact_verified_at: T0, disqualified_reason: "availability:sold" }),
+    { kind: "seen", at: T0 }
   );
   // never verified -> discovery evidence only
   assert.deepEqual(listingAvailabilityEvidence({ last_seen_at: T0, exact_verified_at: null }), { kind: "seen", at: T0 });
@@ -481,12 +511,12 @@ test("SIF-21. evidence: exact_verified_at counts as a confirmation only when it 
   assert.equal(listingAvailabilityEvidence(null), null);
 });
 
-test("SIF-22. the deal page says 'Availability confirmed' only for a confirmation, otherwise 'Last seen in eBay listings'; no 'Listing checked'", () => {
+test("SIF-22. the deal page says 'Availability confirmed' only for a proven active verdict, otherwise 'Last seen in eBay listings'; no 'Listing checked'", () => {
   const src = read("app/deals/[id]/page.js");
   assert.doesNotMatch(src, /Listing checked/);
   assert.match(src, /const availabilityEvidence = listingAvailabilityEvidence\(deal\);/);
   assert.match(src, /availabilityEvidence\?\.kind === "confirmed"[\s\S]{0,200}Availability confirmed on eBay <RelativeTime date=\{availabilityEvidence\.at\} \/>/);
-  assert.match(src, /availabilityEvidence\?\.kind === "seen"[\s\S]{0,200}Last seen in eBay listings <RelativeTime date=\{availabilityEvidence\.at\} \/> · availability not yet individually confirmed/);
+  assert.match(src, /availabilityEvidence\?\.kind === "seen"[\s\S]{0,200}Last seen in eBay listings <RelativeTime date=\{availabilityEvidence\.at\} \/> · not individually re-checked since/);
   // the confirmed line never reads last_seen_at
   const confirmedLine = src.slice(src.indexOf('availabilityEvidence?.kind === "confirmed"'), src.indexOf('availabilityEvidence?.kind === "seen"'));
   assert.doesNotMatch(confirmedLine, /last_seen_at/);
@@ -546,4 +576,98 @@ test("SIF-26. verify-deals and ingest-feed expire tags once per run, after the l
   const verify = stripComments(read("app/api/verify-deals/route.js"));
   assert.ok(verify.indexOf("expireTags(revalidateTag") > verify.indexOf("for (const r of batch)"), "after the per-row loop");
   assert.match(verify, /"id, watchlist_id, listing_id, marketplace,/);
+});
+
+// ---------------------------------------------------------------------------
+// tightening round: insert race, recovery path
+// ---------------------------------------------------------------------------
+
+test("SIF-27. insert race: another writer creates the row between our UPDATE and INSERT -> the guarded retry updates it (never reported as blocked)", async () => {
+  const db = fakeDb([]);
+  const realFrom = db.from;
+  let injected = false;
+  db.from = (t) => {
+    const b = realFrom(t);
+    const realUpsert = b.upsert;
+    b.upsert = (row, opts) => {
+      if (!injected) {
+        injected = true;
+        db.rows.push({ id: 900, disqualified_reason: null, ...row, price: 1 }); // the concurrent writer's committed insert
+      }
+      return realUpsert(row, opts);
+    };
+    return b;
+  };
+  const res = await writeDiscoverySighting(db, sighting({ listing_id: "v1|777|0" }));
+  assert.equal(res.outcome, "updated");
+  assert.equal(db.rows.length, 1);
+  assert.equal(db.rows[0].price, 25, "our sighting's values applied by the retry");
+});
+
+test("SIF-28. recoveryDecision: only positive availability lifts a retirement; sold and not-found stay distinct; UNKNOWN only consumes the marker", () => {
+  const retired = liveRow({ is_active: false, disqualified_reason: SEEN_AGAIN.SOLD, price: 26, shipping: 2, currency: "USD" });
+  const live = { status: "ACTIVE", listingType: "FIXED_PRICE", price: 26, shipping: 2, currency: "USD" };
+  const NOW = "2026-09-13T10:00:00.000Z";
+  assert.deepEqual(recoveryDecision({ row: retired, snapshot: live, nowIso: NOW }), {
+    action: "reactivate",
+    patch: { is_active: true, disqualified_reason: null, last_seen_at: NOW, exact_verified_at: NOW },
+  });
+  // restocked at a different price -> retirement lifted, stays inactive, discovery re-qualifies it
+  for (const moved of [{ price: 30 }, { shipping: 9 }, { currency: "GBP" }, { listingType: "AUCTION" }]) {
+    assert.deepEqual(recoveryDecision({ row: retired, snapshot: { ...live, ...moved }, nowIso: NOW }), {
+      action: "release",
+      patch: { disqualified_reason: null, exact_verified_at: NOW },
+    }, JSON.stringify(moved));
+  }
+  assert.equal(recoveryDecision({ row: retired, snapshot: { ...live, price: 26.2 }, nowIso: NOW }).action, "reactivate", "within 1%");
+  // sold again / not found again: back to the base reason for THAT verdict
+  assert.deepEqual(recoveryDecision({ row: retired, snapshot: { status: "SOLD" }, nowIso: NOW }).patch, { disqualified_reason: AVAILABILITY_RETIREMENT.SOLD, exact_verified_at: NOW });
+  const nf = liveRow({ is_active: false, disqualified_reason: SEEN_AGAIN.NOT_FOUND_IN_MARKETPLACE });
+  assert.deepEqual(recoveryDecision({ row: nf, snapshot: { status: "ENDED" }, nowIso: NOW }).patch, { disqualified_reason: AVAILABILITY_RETIREMENT.NOT_FOUND_IN_MARKETPLACE, exact_verified_at: NOW });
+  assert.equal(recoveryDecision({ row: nf, snapshot: { status: "SOLD" }, nowIso: NOW }).patch.disqualified_reason, AVAILABILITY_RETIREMENT.SOLD, "a sold verdict is stronger evidence than not-found");
+  // UNKNOWN (incl. a 200 without availability data): no verdict, no timestamp, marker consumed
+  for (const snap of [{ status: "UNKNOWN" }, null]) {
+    assert.deepEqual(recoveryDecision({ row: nf, snapshot: snap, nowIso: NOW }), { action: "retain", patch: { disqualified_reason: AVAILABILITY_RETIREMENT.NOT_FOUND_IN_MARKETPLACE } });
+  }
+});
+
+test("SIF-29. recovery end to end on the table model: retire -> sighting marks -> exact re-check reactivates with a confirmed stamp; a stale marker write is skipped", async () => {
+  const db = fakeDb([liveRow({ currency: "USD", shipping: 2 })]);
+  await verifierRetire(db, 1, "SOLD");
+  assert.equal((await writeDiscoverySighting(db, sighting())).outcome, "blocked");
+  const candidate = { ...db.rows[0] };
+  assert.equal(candidate.disqualified_reason, SEEN_AGAIN.SOLD);
+  const NOW = "2026-09-13T10:00:00.000Z";
+  const decision = recoveryDecision({ row: candidate, snapshot: { status: "ACTIVE", listingType: "FIXED_PRICE", price: 26, shipping: 2, currency: "USD" }, nowIso: NOW });
+  // the verify-deals write, conditioned on the marker it read
+  const w = await db.from("deals").update(decision.patch).eq("id", 1).eq("is_active", false).eq("disqualified_reason", candidate.disqualified_reason).select("id");
+  assert.equal(w.data.length, 1);
+  assert.equal(db.rows[0].is_active, true);
+  assert.equal(db.rows[0].disqualified_reason, null, "retirement lifted - the display gate no longer rejects it for availability");
+  assert.equal(isAvailabilityRetired(db.rows[0]), false);
+  assert.equal(listingAvailabilityEvidence(db.rows[0]).kind, "confirmed");
+  // a second (overlapping) recovery write with the same stale marker does nothing
+  const w2 = await db.from("deals").update({ disqualified_reason: AVAILABILITY_RETIREMENT.SOLD }).eq("id", 1).eq("is_active", false).eq("disqualified_reason", candidate.disqualified_reason).select("id");
+  assert.equal(w2.data.length, 0);
+  assert.equal(db.rows[0].is_active, true);
+});
+
+test("SIF-30. verify-deals recovery is bounded: seen-again FIXED_PRICE rows only, 24h-14d since the last check, one slot carved out of BATCH, same single lookup", () => {
+  assert.equal(RECOVERY_SLOTS_PER_RUN, 1);
+  assert.equal(RECOVERY_MIN_HOURS_SINCE_CHECK, 24);
+  assert.equal(RECOVERY_MAX_AGE_DAYS, 14);
+  const code = stripComments(read("app/api/verify-deals/route.js"));
+  const q = code.slice(code.indexOf("let recoveryRows = []"), code.indexOf("const recoveryIds"));
+  assert.match(q, /\.eq\("is_active", false\)/);
+  assert.match(q, /\.eq\("listing_type", "FIXED_PRICE"\)/);
+  assert.match(q, /\.in\("disqualified_reason", \[SEEN_AGAIN\.SOLD, SEEN_AGAIN\.NOT_FOUND_IN_MARKETPLACE\]\)/);
+  assert.match(q, /\.lte\("exact_verified_at", new Date\(now - RECOVERY_MIN_HOURS_SINCE_CHECK \* H\)/);
+  assert.match(q, /\.gte\("exact_verified_at", new Date\(now - RECOVERY_MAX_AGE_DAYS \* 24 \* H\)/);
+  assert.match(q, /\.limit\(RECOVERY_SLOTS_PER_RUN\)/);
+  assert.match(code, /batch: BATCH - recoveryRows\.length,/, "the recovery slot is taken OUT of BATCH");
+  assert.match(code, /batch\.unshift\(\.\.\.recoveryRows\)/);
+  assert.equal((code.match(/await getListingSnapshot\(/g) ?? []).length, 2, "no new lookup call site");
+  assert.match(code, /\.eq\("disqualified_reason", r\.disqualified_reason\)/, "conditional on the marker read");
+  // the quota guard still reserves the full BATCH
+  assert.match(code, /if \(rl\.remaining - BATCH < RESERVE\)/);
 });

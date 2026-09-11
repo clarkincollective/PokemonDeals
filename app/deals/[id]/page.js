@@ -412,7 +412,8 @@ export default async function DealDetailPage({ params }) {
   const discountPct = Math.round(deal.discount_pct * 100);
   const isAuction = deal.listing_type === "AUCTION";
   // What the freshness line may claim: an exact availability confirmation
-  // (exact_verified_at, only when it was a successful check) or merely the
+  // (only when the latest eBay evidence was a successful active verdict -
+  // exact_verified_at and last_seen_at stamped together) or merely the
   // last time the listing appeared in eBay results. See
   // lib/listingAvailability.listingAvailabilityEvidence.
   const availabilityEvidence = listingAvailabilityEvidence(deal);
@@ -691,7 +692,7 @@ export default async function DealDetailPage({ params }) {
               )}
               {availabilityEvidence?.kind === "seen" && (
                 <p className="mt-1 text-xs text-zinc-400">
-                  Last seen in eBay listings <RelativeTime date={availabilityEvidence.at} /> · availability not yet individually confirmed · price and availability can change.
+                  Last seen in eBay listings <RelativeTime date={availabilityEvidence.at} /> · not individually re-checked since · price and availability can change.
                 </p>
               )}
               <p className="mt-1 text-xs text-zinc-400">
