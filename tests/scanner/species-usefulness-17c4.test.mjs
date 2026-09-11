@@ -56,6 +56,8 @@ test("SP-2. eras come only from the curated release list; unlisted sets are unda
     Triumphant: "dp", "Plasma Freeze": "bwxy", "XY - Evolutions": "bwxy", "SM - Unified Minds": "sm",
     "SWSH07: Evolving Skies": "swsh", "Pokemon GO": "swsh", "SV03: Obsidian Flames": "sv", "SV: Scarlet & Violet 151": "sv",
     "Dragon Majesty": "sm", // dated by its evidence-backed supplement entry (17C.6)
+    "SV: White Flare": "sv", "ME01: Mega Evolution": "me", "ME: Ascended Heroes": "me", "ME: 30th Celebration": "me", // 17C.7
+    "ME: Mega Evolution Promo": "undated",
     "Deck Exclusives": "undated", "Jumbo Cards": "undated", "SWSH: Sword & Shield Promo Cards": "undated", "Made Up Set": "undated",
   };
   for (const [set, key] of Object.entries(cases)) assert.equal(eraForSet(set).key, key, set);

@@ -26,25 +26,28 @@ const EXPECT = {
   "SWSH09: Brilliant Stars Trainer Gallery": { era: "swsh", next: "SWSH10: Astral Radiance", dates: ["2022-02-25", "2022-05-27"] },
   "McDonald's Promos 2022": { era: "swsh", next: "SWSH11: Lost Origin", dates: ["2022-07-01", "2022-09-09"] },
   "SWSH11: Lost Origin Trainer Gallery": { era: "swsh", next: "SWSH12: Silver Tempest", dates: ["2022-09-09", "2022-11-11"] },
+  // 17C.7: part of the last listed set, so it has no next set to bound it
+  "ME: 30th Celebration Classic Collection": { era: "me", next: undefined, dates: ["2026-09-16", "9999-12-31"] },
 };
 
 // Undated sets on the six pilot pages that must stay under "Other sets":
 // multi-year promo series, specialty/aggregate groups, and sets with no
-// matching dated English record (McDonald's 2024) or no era block to hold
-// them (ME: Ascended Heroes - dating it would mislabel it Scarlet & Violet).
+// matching dated English record (McDonald's 2024). ME: Ascended Heroes left
+// this list in 17C.7, when it was officially dated and given the Mega
+// Evolution era.
 const STILL_UNDATED = [
   "WoTC Promo", "Nintendo Promos", "HGSS Promos", "Black and White Promos", "XY Promos", "SM Promos",
   "SWSH: Sword & Shield Promo Cards", "SV: Scarlet & Violet Promo Cards", "ME: Mega Evolution Promo",
   "Jumbo Cards", "World Championship Decks", "Deck Exclusives", "Blister Exclusives", "League & Championship Cards",
   "Prize Pack Series Cards", "Miscellaneous Cards & Products", "Battle Academy 2024", "My First Battle",
   "Trick or Trade BOOster Bundle 2023", "Trick or Trade BOOster Bundle 2024", "EX Trainer Kit 2: Plusle & Minun",
-  "Trading Card Game Classic", "McDonald's Promos 2024", "ME: Ascended Heroes",
+  "Trading Card Game Classic", "McDonald's Promos 2024", "MEE: Mega Evolution Energies",
 ];
 
 const card = (set, cardNumber = "1", over = {}) => ({ set, cardNumber, name: "Growlithe", refPrice: 1, ...over });
 
 test("D-1. search is untouched: SET_RELEASE_ORDER is unchanged and supplements have no search rank", () => {
-  assert.equal(SET_RELEASE_ORDER.length, 118);
+  assert.equal(SET_RELEASE_ORDER.length, 126, "118 + the 8 officially dated 17C.7 insertions");
   assert.equal(SET_RELEASE_ORDER[0], "Base Set (Shadowless)");
   assert.equal(SET_RELEASE_ORDER.at(-1), "ME: 30th Celebration");
   for (const s of SET_RELEASE_SUPPLEMENTS) {
@@ -54,12 +57,12 @@ test("D-1. search is untouched: SET_RELEASE_ORDER is unchanged and supplements h
   for (const [i, name] of SET_RELEASE_ORDER.entries()) assert.equal(setChronologyRank(name), i, name);
 });
 
-test("D-2. exactly the ten evidence-backed sets, each with a date, a source record and a catalogue check", () => {
+test("D-2. exactly the evidence-backed sets (17C.6's ten + 17C.7's Classic Collection), each with a date, a source record and a catalogue check", () => {
   assert.ok(Object.isFrozen(SET_RELEASE_SUPPLEMENTS));
   assert.deepEqual(SET_RELEASE_SUPPLEMENTS.map((s) => s.set).sort(), Object.keys(EXPECT).sort());
   for (const s of SET_RELEASE_SUPPLEMENTS) {
     assert.match(s.released, /^\d{4}-\d{2}-\d{2}$/, s.set);
-    assert.ok(s.ptcgio && s.check, s.set);
+    assert.ok((s.ptcgio || s.source) && s.check, s.set);
     assert.ok(SET_RELEASE_ORDER.includes(s.after), `${s.set}: anchor ${s.after} is listed`);
   }
 });
