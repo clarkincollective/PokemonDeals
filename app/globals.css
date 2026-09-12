@@ -117,9 +117,9 @@ body {
      page structure and drop every block that neither IS the checklist
      section nor CONTAINS it (Chrome, which drives print here, supports
      :has()). Descendants of the section are left alone. */
-  body > * > *:not(:has([data-checklist-print-root])),
-  main > *:not(:has([data-checklist-print-root])),
-  main section > *:not([data-checklist-print-root]):not(:has([data-checklist-print-root])):not([data-checklist-print-root] *) {
+  /* Only isolate pages that actually contain a checklist. Keep the root
+     itself and every ancestor regardless of template nesting depth. */
+  body:has([data-checklist-print-root]) *:not([data-checklist-print-root]):not(:has([data-checklist-print-root])):not([data-checklist-print-root] *) {
     display: none !important;
   }
   [data-print-hide],
