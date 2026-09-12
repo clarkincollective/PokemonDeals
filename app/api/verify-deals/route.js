@@ -5,6 +5,10 @@ import { isVerificationCandidate } from "@/lib/dealQuality";
 import { getUsdRates } from "@/lib/fx";
 import { repricedAuctionPatch } from "@/lib/auctionPricing";
 import { allocateVerifyBatch } from "@/lib/verifyAllocator";
+// 17C.9 - the sealed slice comes from the SAME allocator, imported
+// separately so the card allocator's import line stays exactly as it was.
+import { sealedVerifySlots, SEALED_MAX_PER_RUN } from "@/lib/verifyAllocator";
+import { runSealedVerifyLane } from "@/lib/sealedVerifyLane";
 import { decideImageRecovery } from "@/lib/imageRecoveryPolicy";
 import { IMAGE_VERDICT } from "@/lib/listingImage";
 import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError, recordDedupeSavedImage } from "@/lib/ebayTelemetry";
@@ -193,6 +197,28 @@ export async function GET(request) {
   }
   const recoveryIds = new Set(recoveryRows.map((r) => r.id));
 
+  // 17C.9 - THE SEALED LANE. Its slots are carved OUT of BATCH, never added
+  // to it, so this route's per-run ceiling (and the RESERVE guard above,
+  // which already sized itself against BATCH) is unchanged. It runs BEFORE
+  // the card allocator so that slots it does not use are returned to the
+  // card lanes rather than wasted. Every sealed provider call and sealed
+  // write lives in lib/sealedVerifyLane - deliberately not inlined here, so
+  // the card loop below keeps exactly its two update sites and two
+  // getListingSnapshot calls.
+  const sealedSlots = sealedVerifySlots({
+    batch: BATCH - recoveryRows.length,
+    sealedDue: SEALED_MAX_PER_RUN, // upper bound; the lane uses only what is actually due
+    quotaRemaining: rl.remaining,
+    reserve: RESERVE,
+  });
+  const sealed = await runSealedVerifyLane({
+    db,
+    getSnapshot: getListingSnapshot,
+    maxSlots: sealedSlots,
+    now,
+    columnsReady: exactColReady,
+  });
+
   // P0.4.3 - BATCH COMPOSITION via the pure allocator. It preserves the
   // P0.2 rank/tie-break for the "general" slots, but (a) applies a
   // time-to-end reverify COOLDOWN to auctions so the ~20 soonest-ending
@@ -203,7 +229,7 @@ export async function GET(request) {
   // or the auction re-price path changes. See lib/verifyAllocator.mjs.
   const { batch, allocation } = allocateVerifyBatch({
     pool,
-    batch: BATCH - recoveryRows.length,
+    batch: BATCH - recoveryRows.length - sealed.used,
     now,
     quotaRemaining: rl.remaining,
     reserve: RESERVE,
@@ -212,7 +238,7 @@ export async function GET(request) {
   batch.unshift(...recoveryRows);
   const out = { ACTIVE: 0, ENDED: 0, SOLD: 0, UNKNOWN: 0, RETIRED: 0, REPRICED: 0, IMAGE_RECOVERED: 0 };
   const recovery = { checked: 0, reactivate: 0, release: 0, retain: 0, writeSkipped: 0 };
-  let calls = 0;
+  let calls = sealed.calls; // the sealed lane's calls count against the same ceiling
   const detail = [];
   // Rows whose visibility this run changed (any retirement verdict, or a
   // recovery reactivation) - their card offers, card page and deal page
@@ -386,6 +412,16 @@ export async function GET(request) {
     // sold-item freshness: targeted cache expiry for this run's retirements
     invalidation,
     recovery,
+    // 17C.9 - sealed lane observability. `calls` above already includes the
+    // sealed calls, and verified + sealed.used can never exceed BATCH.
+    sealed: {
+      slots: sealedSlots,
+      used: sealed.used,
+      calls: sealed.calls,
+      poolSize: sealed.poolSize,
+      results: sealed.results,
+      recovery: sealed.recovery,
+    },
   });
   } catch (err) {
     markError(err);
