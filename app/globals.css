@@ -76,6 +76,33 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Deal-first R1 - the shared foundation the premium components build on.
+   Spacing stays Tailwind's 4px scale (1/2/3/4/6/8/12/16 = 4-64px); the
+   tokens below name the few things components were each re-deciding.
+     --radius-control  buttons, inputs, chips          (8px)
+     --radius-card     offer cards, panels             (12px, existing)
+     --color-accent    the ONE red for primary actions and active state
+     --color-positive  a supported comparison / owned state (restrained)
+   Motion is brief and functional only; a reduced-motion preference turns
+   it off everywhere rather than per component. */
+@theme {
+  --radius-control: 0.5rem;
+  --color-accent: var(--color-red-600);
+  --color-accent-strong: var(--color-red-700);
+  --color-positive: var(--color-emerald-700);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Phase 17C.11 - printable set checklist.
    The page already renders the whole checklist server-side; printing just
    removes the site chrome around it so a collector gets a usable list to

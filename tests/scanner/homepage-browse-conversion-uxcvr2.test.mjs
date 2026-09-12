@@ -53,9 +53,13 @@ test("UX-CVR-2-1. the homepage has one dominant primary CTA", () => {
 
 // ---- deal CTA contract (§7) ---------------------------------
 
-test("UX-CVR-2-2. every deal CTA names eBay; BIN = 'View on eBay', auction = 'Bid on eBay'", () => {
+test("UX-CVR-2-2. every deal CTA names eBay; BIN = 'View (deal) on eBay', auction = 'Bid on eBay' / 'View auction on eBay'", () => {
+  // Deal-first R1: DealCard reads "View deal on eBay" / "View auction on
+  // eBay" (the deal-card contract wording); the older tiles keep "View on
+  // eBay" / "Bid on eBay" until their own slice. Both name eBay and neither
+  // implies a settled purchase.
   for (const [name, src] of [["DealCard", DEALCARD], ["SpeciesCard", SPECIESCARD], ["CatalogueBrowser", CATALOGUE]]) {
-    assert.match(src, /isAuction \? "Bid on eBay(?: →)?" : "View on eBay(?: →)?"/, `${name} CTA is not the unified contract`);
+    assert.match(src, /isAuction \? "(Bid on eBay|View auction on eBay)(?: →)?" : "View (deal )?on eBay(?: →)?"/, `${name} CTA is not the unified contract`);
     // the deferred P2 lexical variants are gone from the VISIBLE label
     // (an internal Vercel-Analytics `eventName` may keep its old string
     //  for historical continuity - it carries no arrow glyph).
@@ -67,9 +71,9 @@ test("UX-CVR-2-3. no deal CTA implies purchase certainty", () => {
   for (const src of [DEALCARD, SPECIESCARD, CATALOGUE, HOME, DEALS_INDEX]) {
     assert.doesNotMatch(src, />\s*(Buy Now|Buy It Now →|Bid Now|Purchase|Get it now)\s*</i);
   }
-  // auctions stay auction-worded (never "View on eBay" for an auction)
+  // auctions stay auction-worded (never a plain "View on eBay" for an auction)
   for (const src of [DEALCARD, SPECIESCARD, CATALOGUE]) {
-    assert.match(src, /"Bid on eBay/);
+    assert.match(src, /"(Bid on eBay|View auction on eBay)/);
   }
 });
 

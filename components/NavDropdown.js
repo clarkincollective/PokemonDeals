@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
-// One "Browse ▾" / "Learn ▾" dropdown in the desktop header.
+// One "Deals ▾" / "Cards & Sets ▾" dropdown in the desktop header.
 //
 // Interaction model:
 //  - Mouse: opens on hover, closes on mouse-out (short delay so crossing
@@ -11,6 +11,11 @@ import { useEffect, useId, useRef, useState } from "react";
 //    mouse-out and only closes on an outside click, Escape, or picking an
 //    item. This stops a click-opener from losing the menu the moment they
 //    move the pointer.
+//
+// Items are NAV_PRIMARY entries (lib/navLinks). An entry that declares
+// `analyticsClick` / `analyticsProps` is emitted here exactly as the
+// inline and mobile renderers emit it, so a destination is measurable
+// wherever it is shown. Filter-style hrefs ("?") are nofollow'd.
 export default function NavDropdown({ label, items }) {
   const [open, setOpen] = useState(false);
   const pinnedRef = useRef(false);
@@ -69,7 +74,7 @@ export default function NavDropdown({ label, items }) {
         aria-expanded={open}
         aria-controls={id}
         onClick={toggle}
-        className="flex items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-semibold tracking-tight text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-red-600 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-red-500"
+        className="flex min-h-10 items-center gap-1 rounded-lg px-3 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-red-500"
       >
         {label}
         <svg
@@ -92,14 +97,17 @@ export default function NavDropdown({ label, items }) {
       <div
         id={id}
         hidden={!open}
-        className="absolute left-1/2 top-full z-40 mt-2 w-48 -translate-x-1/2 rounded-lg border border-zinc-200 bg-white p-1.5 shadow-lg dark:border-zinc-800 dark:bg-zinc-950"
+        className="absolute left-0 top-full z-40 mt-1.5 w-56 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950"
       >
         {items.map((it) => (
           <a
             key={it.href}
             href={it.href}
             onClick={close}
-            className="block rounded-md px-3 py-2 text-sm text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-red-600 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-red-500"
+            rel={it.href.includes("?") ? "nofollow" : undefined}
+            data-analytics-click={it.analyticsClick ?? undefined}
+            data-analytics-props={it.analyticsClick ? JSON.stringify(it.analyticsProps ?? {}) : undefined}
+            className="block rounded-lg px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-red-600 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-red-500"
           >
             {it.label}
           </a>

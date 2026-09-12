@@ -92,7 +92,7 @@ test("2. no 'save' / below-market styling on an ordinary catalogue card", () => 
 test("3. deal CTAs name eBay / the destination (no vague 'view' / 'go' / 'click here')", () => {
   for (const f of ["components/DealCard.js", "components/SpeciesCard.js", "components/SealedDealCard.js"]) {
     const src = read(f);
-    assert.match(src, /(View on eBay|Check deal on eBay|View Deal on eBay|Bid on eBay|Bid Now|Check on eBay)/, `${f} has no eBay-named deal CTA`);
+    assert.match(src, /(View on eBay|View deal on eBay|View auction on eBay|Check deal on eBay|View Deal on eBay|Bid on eBay|Bid Now|Check on eBay)/, `${f} has no eBay-named deal CTA`);
     assert.ok(!/>\s*(Click here|Go|View)\s*<\//i.test(src), `${f} has a vague CTA`);
   }
 });

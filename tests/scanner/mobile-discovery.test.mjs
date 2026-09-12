@@ -144,9 +144,12 @@ test("the /search input can shrink inside its flex row (no button overflow at 37
 
 // ===== DealCard identity legibility (§10/§11) ====================
 
-test("DealCard keeps a long name/set on one truncated line (no wrap overflow)", () => {
+test("DealCard bounds a long name to two clamped lines and truncates the set line (no wrap overflow)", () => {
+  // Deal-first R1: identity must not become microtext, so the name gets
+  // two clamped lines at 16px instead of one truncated 15px line; the
+  // set + condition line still truncates. Neither can push the card wide.
   const src = read("components/DealCard.js");
-  assert.match(src, /truncate[^"]*text-\[15px\][^"]*font-semibold/, "card name should truncate");
+  assert.match(src, /line-clamp-2 text-base font-semibold/, "card name should clamp to two lines");
   assert.match(src, /truncate text-xs text-zinc-500/, "set + condition line should truncate");
 });
 
@@ -159,9 +162,12 @@ test("DealCard distinguishes auction from BIN and never strikes the auction ref"
   const auctionPrice = read("components/AuctionPrice.js");
   assert.match(auctionPrice, /Current bid/, "AuctionPrice shows a 'Current bid' label");
   assert.doesNotMatch(auctionPrice, /line-through/, "an auction price block never strikes a figure");
-  // line-through survives ONLY in DealCard's fixed-price branch.
-  const binOnly = src.slice(src.indexOf(") : (\n          <div className=\"mt-1.5 flex"));
-  assert.match(binOnly, /line-through/, "BIN keeps its struck-through typical price");
+  // the fixed-price branch headlines the landed total and labels the
+  // reference beside it (deal-first R1: no struck-through anchor either).
+  const binOnly = src.slice(src.indexOf(") : (\n          <div className=\"mt-3\">"));
+  assert.match(binOnly, /Listing total/, "BIN headlines the listing total");
+  assert.match(binOnly, /Market reference/, "BIN labels its reference");
+  assert.doesNotMatch(src, /line-through/, "no struck-through figure anywhere on the card");
 });
 
 test("DealCard image reserves space (no CLS)", () => {

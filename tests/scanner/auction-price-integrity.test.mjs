@@ -125,12 +125,19 @@ test("2b. AuctionPrice headlines the BID and labels the landed figure as an esti
   assert.ok(main.indexOf("usd={bid.usd}") < main.indexOf("usd={total.usd}"));
 });
 
-test("2c. fixed-price (BIN) rendering is unchanged - still landed total, struck-through typical, You save", () => {
+test("2c. fixed-price (BIN) rendering: the landed total is the ONE dominant price, the reference is labelled beside it, and the saving is stated", () => {
+  // Deal-first R1 replaced the struck-through "typical" anchor with a
+  // labelled "Market reference X · <condition>" line under a "Listing
+  // total" headline (the offer / comparison regions of the deal-card
+  // contract). The behavioural contract is unchanged: for a fixed-price
+  // listing the headline is the landed total, never the bid, and the
+  // saving is only rendered from the trusted reference.
   const src = readFileSync(join(HERE, "..", "..", "components", "DealCard.js"), "utf8");
   const binBranch = src.slice(src.indexOf("isAuction ? ("), src.length);
-  assert.match(binBranch, /line-through/);
-  assert.match(binBranch, /typical/);
-  assert.match(src, /Save\{" "\}/);
+  assert.match(binBranch, /Listing total/);
+  assert.match(binBranch, /Market reference/);
+  assert.match(src, /Save <Price usd=\{savedUsd\}/);
+  assert.doesNotMatch(binBranch, /line-through/, "no struck-through 'was' anchor on a fixed-price listing");
 });
 
 // --- 3. isDisplayableDeal: auction discount safety net ----------------

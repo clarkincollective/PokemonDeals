@@ -141,12 +141,18 @@ test("H-8. a visible navigation entry, shared by the desktop bar and the mobile 
   // the entry declares its own event rather than leaving the name unused
   assert.equal(entry.analyticsClick, EVENTS.LATEST_RELEASES_CLICKED);
   assert.deepEqual(entry.analyticsProps, { section: "nav", source: "nav" });
-  // both renderers read the same model AND emit the declared attributes
-  for (const f of ["components/SiteHeader.js", "components/NavMenu.js"]) {
-    assert.match(src(f), /NAV_PRIMARY\.map/, f);
-    assert.match(src(f), /data-analytics-click=\{\s*link\.analyticsClick/, `${f}: emits the entry's event`);
-    assert.match(src(f), /link\.analyticsClick[\s\S]{0,40}JSON\.stringify\(link\.analyticsProps \?\? \{\}\)/, `${f}: emits its props`);
+  // both renderers read the same model AND emit the declared attributes.
+  // Deal-first R1: on desktop the entry lives inside the "Deals" submenu,
+  // which SiteHeader renders through NavDropdown from the same NAV_PRIMARY
+  // model (navGroupItems); NavDropdown emits the entry's markers per item.
+  assert.equal(entry.group, "deals", "lives in the Deals submenu");
+  assert.match(src("components/SiteHeader.js"), /navGroupItems\(group\.id\)/, "desktop submenus are built from NAV_PRIMARY");
+  assert.match(src("components/SiteHeader.js"), /NAV_PRIMARY\.filter\(\(link\) => link\.group == null\)\.map/, "desktop inline entries are built from NAV_PRIMARY");
+  for (const [f, v] of [["components/NavDropdown.js", "it"], ["components/SiteHeader.js", "link"], ["components/NavMenu.js", "link"]]) {
+    assert.match(src(f), new RegExp(`data-analytics-click=\\{\\s*${v}\\.analyticsClick`), `${f}: emits the entry's event`);
+    assert.match(src(f), new RegExp(`${v}\\.analyticsClick[\\s\\S]{0,40}JSON\\.stringify\\(${v}\\.analyticsProps \\?\\? \\{\\}\\)`), `${f}: emits its props`);
   }
+  assert.match(src("components/NavMenu.js"), /NAV_PRIMARY\.filter\(\(link\) => link\.group === group\.id\)\.map\(linkFor\)/, "mobile menu is built from NAV_PRIMARY");
   // the established graded entry is untouched
   assert.match(src("components/SiteHeader.js"), /graded_clicked/);
 });

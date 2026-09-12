@@ -62,9 +62,11 @@ test("UX-CVR-1-2. the sticky CTA default + the deal-page sticky both name eBay a
 });
 
 test("UX-CVR-1-3. auction CTAs stay auction-worded (no settled-purchase framing)", () => {
-  // the auction branch everywhere is "Bid on eBay", never "View on eBay"
+  // the auction branch everywhere is auction-worded ("Bid on eBay", or
+  // deal-first R1's "View auction on eBay" on DealCard) - never a plain
+  // "View on eBay" for an auction
   for (const [name, src] of [["deal page", DEAL_PAGE], ["sealed page", SEALED_PAGE], ["DealCard", DEALCARD], ["SealedDealCard", SEALEDCARD]]) {
-    assert.match(src, /Bid on eBay →/, `${name} lost its auction CTA wording`);
+    assert.match(src, /Bid on eBay →|"View auction on eBay"/, `${name} lost its auction CTA wording`);
   }
   // the sticky auction price is still labelled "current bid"
   assert.match(DEAL_PAGE, /priceLabel=\{isAuction \? "current bid" : undefined\}/);

@@ -3,74 +3,62 @@ import Logo from "@/components/Logo";
 import NavMenu from "@/components/NavMenu";
 import NavDropdown from "@/components/NavDropdown";
 import RegionControl from "@/components/RegionControl";
-import { NAV_PRIMARY, NAV_GROUPS, NAV_SEARCH } from "@/lib/navLinks";
+import { NAV_PRIMARY, NAV_GROUPS, NAV_SEARCH, navGroupItems } from "@/lib/navLinks";
 
-// Shared sticky header. Desktop (>= lg): primary deal links inline +
-// "Browse"/"Learn" dropdowns + a search icon, right-aligned. Mobile: the
-// slide-in NavMenu. Both read the same nav model from lib/navLinks.js.
+// Shared sticky header (deal-first R1). Desktop (>= lg): the logo, then
+// three destinations - "Deals ▾", "Cards & Sets ▾" (every current route
+// inside a labelled submenu) and "Guides & Research" - with the
+// market/currency control and a search icon as utilities on the right.
+// Mobile: the slide-in NavMenu. Every renderer reads the same nav model
+// from lib/navLinks.js.
 export default function SiteHeader() {
   return (
-    <div className="sticky top-0 z-30 border-b border-zinc-200 bg-paper/85 shadow-[0_1px_0_rgb(20_18_15/0.04)] backdrop-blur-md dark:border-zinc-800 dark:bg-black/85">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3.5">
-        <Link href="/" className="transition-opacity hover:opacity-80">
+    <div className="sticky top-0 z-30 border-b border-zinc-200 bg-paper/90 backdrop-blur-md dark:border-zinc-800 dark:bg-black/85">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3">
+        <Link href="/" className="shrink-0 rounded-md transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600">
           <Logo size="small" />
         </Link>
 
-        <div className="flex items-center gap-3">
+        <nav aria-label="Primary" className="hidden flex-1 items-center gap-1 lg:flex">
+          {NAV_GROUPS.map((group) => (
+            <NavDropdown key={group.id} label={group.label} items={navGroupItems(group.id)} />
+          ))}
+          {/* inline top-level entries - today only Guides & Research. The
+              graded entry (inside Deals ▾) keeps its established event via
+              NavDropdown; listed here so both renderers emit the same
+              markers: graded_clicked for /deals/graded, else the entry's own. */}
+          {NAV_PRIMARY.filter((link) => link.group == null).map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              rel={link.href.includes("?") ? "nofollow" : undefined}
+              data-analytics-click={link.analyticsClick ?? (link.href === "/deals/graded" ? "graded_clicked" : undefined)}
+              data-analytics-props={
+                link.analyticsClick
+                  ? JSON.stringify(link.analyticsProps ?? {})
+                  : link.href === "/deals/graded"
+                    ? JSON.stringify({ section: "nav", source: "nav", graded_entry: true })
+                    : undefined
+              }
+              className="flex min-h-10 items-center rounded-lg px-3 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-red-500"
+            >
+              {link.label}
+            </a>
+          ))}
+        </nav>
+
+        <div className="flex items-center gap-2">
           <RegionControl />
-
-          <nav className="hidden items-center gap-1 lg:flex">
-            {NAV_PRIMARY.map((link) =>
-              link.emphasis ? (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  className="rounded-full bg-red-600 px-3.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-red-700"
-                >
-                  {link.label}
-                </a>
-              ) : (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  // "Graded" / "Auctions" are ?type=/?listing= filter views
-                  // that canonicalise to "/" - keep them out of the crawl
-                  // frontier on every page.
-                  rel={link.href.includes("?") ? "nofollow" : undefined}
-                  // an entry may declare its own event (lib/navLinks); the
-                  // graded entry keeps its established one.
-                  data-analytics-click={
-                    link.analyticsClick ?? (link.href === "/deals/graded" ? "graded_clicked" : undefined)
-                  }
-                  data-analytics-props={
-                    link.analyticsClick
-                      ? JSON.stringify(link.analyticsProps ?? {})
-                      : link.href === "/deals/graded"
-                        ? JSON.stringify({ section: "nav", source: "nav", graded_entry: true })
-                        : undefined
-                  }
-                  className="rounded-full px-3 py-1.5 text-[13px] font-semibold tracking-tight text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-red-600 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-red-500"
-                >
-                  {link.label}
-                </a>
-              )
-            )}
-            {NAV_GROUPS.map((group) => (
-              <NavDropdown key={group.label} label={group.label} items={group.items} />
-            ))}
-          </nav>
-
           <a
             href={NAV_SEARCH.href}
-            aria-label="Search"
-            className="hidden rounded-full p-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-red-600 lg:inline-flex dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-red-500"
+            aria-label="Search cards and sets"
+            className="hidden h-10 w-10 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 lg:inline-flex dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-red-500"
           >
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="h-5 w-5">
               <circle cx="8.5" cy="8.5" r="5.5" />
               <line x1="16" y1="16" x2="12.5" y2="12.5" />
             </svg>
           </a>
-
           <div className="lg:hidden">
             <NavMenu />
           </div>
