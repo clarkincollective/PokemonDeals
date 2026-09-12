@@ -37,6 +37,12 @@ export default async function MarketDataPage() {
       description: "The highest raw, ungraded market references across every set we track.",
     },
     {
+      href: "/market-data/pokemon-reference-price-changes",
+      title: "30-Day Reference-Price Changes",
+      description:
+        "A dated study of 150 sampled product records: how many moved, and why a product summary differs from its individual condition and printing variants.",
+    },
+    {
       href: "/market-data/most-listed-cards",
       title: "Most-Listed Cards",
       description: "Cards with the most active eBay listings we're tracking right now.",
