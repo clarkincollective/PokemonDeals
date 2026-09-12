@@ -16,6 +16,7 @@ import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import { currencyForDeal, refInListingCurrency, dealTotalUsd, auctionDisplayParts } from "@/lib/money";
+import { offerShipping } from "@/lib/offerPresentation";
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
@@ -474,8 +475,9 @@ export default async function DealDetailPage({ params }) {
   //
   // brand and shippingDetails are both real data, not filled in to please
   // Search Console: "Pokemon" is genuinely the brand of every card here,
-  // and shippingRate is deal.shipping - the actual cost eBay's own API
-  // returned for this exact listing, already used to compute total_price.
+  // shippingRate is emitted only for a recorded positive charge. Zero
+  // currently means free OR unstated, so it cannot support a free-shipping
+  // claim. Missing/invalid breakdowns likewise omit the optional details.
   // Deliberately NOT adding hasMerchantReturnPolicy - the real return
   // policy is set by whichever eBay seller has the listing and genuinely
   // varies per listing; asserting one here would mean stating something
@@ -501,18 +503,18 @@ export default async function DealDetailPage({ params }) {
       price: Number(auctionParts ? auctionParts.bid.native : deal.total_price).toFixed(2),
       availability: deal.is_active ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/UsedCondition",
-      shippingDetails: {
+      shippingDetails: offerShipping(deal).state === "confirmed" ? {
         "@type": "OfferShippingDetails",
         shippingRate: {
           "@type": "MonetaryAmount",
-          value: Number(deal.shipping ?? 0).toFixed(2),
+          value: Number(deal.shipping).toFixed(2),
           currency: nativeCurrency,
         },
         shippingDestination: {
           "@type": "DefinedRegion",
           addressCountry: deal.marketplace?.replace("EBAY_", "") ?? "US",
         },
-      },
+      } : undefined,
     },
   };
 
