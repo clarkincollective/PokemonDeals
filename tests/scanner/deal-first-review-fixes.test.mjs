@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { slimPoolRow, POOL_ROW_FIELDS, DEAL_POOL_SELECT } from "../../lib/dealPoolShape.mjs";
 import { offerShipping, shippingState } from "../../lib/offerPresentation.js";
-import { auctionDisplayParts } from "../../lib/money.js";
+import { auctionDisplayParts, currencyForDeal } from "../../lib/money.js";
 import { buildHomepageLanes, LANES } from "../../lib/homepageVariety.js";
 import { NAV_PRIMARY } from "../../lib/navLinks.js";
 import { ALLOWED_EVENTS } from "../../lib/analytics/events.js";
@@ -70,6 +70,23 @@ test("P1-4. a legacy cached row WITHOUT the field is 'unknown': still 'Listing t
   assert.notEqual(s.headline, "Listing price");
 });
 
+test("P1-4b. projection edge rows: DB null shipping -> unknown; non-USD row keeps native price/shipping; strings and NaN never confirm", () => {
+  // shipping NULL in the database (not 0): unknown, never "Listing price"
+  const dbNull = offerShipping(slimPoolRow(rawRow({ shipping: null })));
+  assert.deepEqual([dbNull.state, dbNull.headline, dbNull.note, dbNull.amount], ["unknown", "Listing total", "Shipping not confirmed", null]);
+  // a GB listing: shipping is in the listing currency, untouched by the projection
+  const gb = slimPoolRow(rawRow({ marketplace: "EBAY_GB", item_location_country: "GB", is_local: false, price: 20, shipping: 3.5, total_price: 23.5, total_price_usd: 31.7 }));
+  assert.equal(currencyForDeal(gb), "GBP");
+  const s = offerShipping(gb);
+  assert.deepEqual([s.state, s.amount, s.headline], ["confirmed", 3.5, "Listing total"]);
+  assert.equal(gb.total_price_usd, 31.7, "the USD figure the card converts from survives too");
+  // driver strings / garbage never confirm a charge
+  assert.equal(offerShipping({ shipping: "4.25" }).state, "confirmed");
+  assert.equal(offerShipping({ shipping: "abc" }).state, "unknown");
+  assert.equal(offerShipping({ shipping: NaN }).state, "unknown");
+  assert.equal(offerShipping({ shipping: -1 }).state, "unconfirmed", "a negative figure is not a recorded charge");
+});
+
 test("P1-5. the cache keys were bumped so entries of the older slim shape are not served to the new card", () => {
   const src = read("lib/deals.js");
   assert.match(src, /\["homepage-lanes-v3"\]/);
@@ -102,6 +119,22 @@ test("AUC-1. AuctionPrice: current bid from `price` (now in the slim row); shipp
   // pre-existing fallback (no stored bid) is untouched: still an estimate, never "current bid"
   assert.equal(auctionDisplayParts({ ...slim, price: null }), null);
   assert.match(ap, /Est\. total\n\s*<\/p>/);
+});
+
+test("AUC-2. AuctionPrice fallback + non-USD through the projection: no stored bid -> landed-total fallback (never 'Current bid'); GB auction splits in GBP", () => {
+  const noBid = slimPoolRow(rawRow({ listing_type: "AUCTION", bid_count: 2, price: null, shipping: 0, total_price: 40, total_price_usd: 40 }));
+  assert.equal(auctionDisplayParts(noBid), null, "no bid stored -> the component's estimate fallback");
+  const ap = read("components/AuctionPrice.js");
+  const fbStart = ap.indexOf("if (!parts) {");
+  const fallback = ap.slice(fbStart, ap.indexOf("\n  }\n", fbStart));
+  assert.match(fallback, /Est\. total/);
+  assert.doesNotMatch(fallback, /Current bid/, "the fallback never labels the landed total as the bid");
+  const gb = slimPoolRow(rawRow({ marketplace: "EBAY_GB", item_location_country: "GB", is_local: false, listing_type: "AUCTION", bid_count: 1, price: 5.92, shipping: 12.42, total_price: 18.34, total_price_usd: 24.81 }));
+  const parts = auctionDisplayParts(gb);
+  assert.ok(parts);
+  assert.equal(parts.bid.native, 5.92);
+  assert.equal(parts.shipping.native, 12.42);
+  assert.equal(currencyForDeal(gb), "GBP");
 });
 
 // ---- P3: hidden lanes must not reserve printings ----------------------
@@ -166,6 +199,22 @@ test("P4-1. graded_clicked is declared on the nav model and emitted by every ren
   // the bootstrap only ADDS a graded_clicked when the marker is not already it
   const boot = read("components/analytics/AnalyticsBootstrap.js");
   assert.match(boot, /props\.graded_entry && name !== EVENTS\.GRADED_CLICKED/);
+  // the footer labels its population; the menu / dropdown carry the model props
+  assert.match(read("components/SiteFooter.js"), /JSON\.stringify\(\{ \.\.\.\(l\.analyticsProps \?\? \{\}\), source: "footer" \}\)/);
+  assert.match(read("components/NavMenu.js"), /JSON\.stringify\(link\.analyticsProps \?\? \{\}\)/);
+  const latest = NAV_PRIMARY.find((l) => l.href === "/latest-releases");
+  assert.equal(latest.analyticsClick, "latest_releases_clicked");
+});
+
+test("P5-2. the measurement doc's mode count and new nav populations match the page and the model", () => {
+  const page = read("app/page.js");
+  const chips = [...page.matchAll(/chip: "([a-z_0-9]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(chips, ["featured", "buy_it_now", "auctions", "graded", "under_25", "under_50", "sealed", "japanese", "newest"]);
+  const doc = read("docs/deal-first-measurement.md");
+  assert.match(doc, /nine chips \(featured, buy_it_now, auctions, graded, under_25, under_50, sealed, japanese, newest\)/);
+  assert.doesNotMatch(doc, /eight chips/);
+  for (const ev of ["graded_clicked", "latest_releases_clicked"]) assert.ok(doc.includes(`\`${ev}\``), `${ev} documented`);
+  assert.match(doc, /source: "footer"/);
 });
 
 // ---- P5: measurement doc uses the real attribution values ---------------

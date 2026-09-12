@@ -24,7 +24,10 @@ reaches the other inventories through a mode row of existing routes.
 | Vercel Web Analytics "eBay Click" `page` = `home_ending` / `home_fresh` / `home_under25` | the DealCard `pageName` forwarded as `page` on the separate Vercel event | **do not fire** | `home_best` and `home_all_deals` continue. This is a different stream from PostHog - never summed with it |
 | EPN `customid` `home_auction`, `home_just_added` | sub-IDs on outbound links from the auction / just-added lanes (`lib/affiliateSurfaces.js` maps `home_ending` → `home_auction`, `home_fresh` → `home_just_added`) | **no new clicks carry them** | surfaces stay in the closed enum, reserved and unused - not renamed. The under-$25 lane's `home_under25` was never mapped, so its clicks carried `customid=other`; that `other` share shrinks accordingly |
 | `discover_deals_clicked` | hero "Browse today's deals ↓" (scrolled to the first lane) | **does not fire** | CTA removed: the first offers are already in the first screen. Event name stays declared so historical dashboards resolve |
-| `start_here_clicked` `{section: "hero", chip}` | six hero chips (under_25, under_50, over_100, sealed, graded, japanese) | fires with **`{section: "feed_modes", chip}`** for eight chips (buy_it_now, auctions, graded, under_25, under_50, sealed, japanese, newest) | same event, same `chip` prop family; the `section` value changed and two chips were added, one (`over_100`) dropped |
+| `start_here_clicked` `{section: "hero", chip}` | six hero chips (under_25, under_50, over_100, sealed, graded, japanese) | fires with **`{section: "feed_modes", chip}`** for nine chips (featured, buy_it_now, auctions, graded, under_25, under_50, sealed, japanese, newest) | same event, same `chip` prop family; the `section` value changed, four chips were added (`featured` = the default mixed feed at `/`, `buy_it_now` = the existing `?listing=FIXED_PRICE` filter, `auctions`, `newest`) and one (`over_100`) dropped. The `graded` chip keeps `graded_entry: true` + `source: "start_here"` |
+| `graded_clicked` | header inline link only (desktop; the mobile menu never emitted it) | fires from **every** renderer of the nav model, once per click: desktop "Deals" submenu and mobile menu with `{section: "nav", source: "nav", graded_entry: true}`, footer "Deals" column with `source: "footer"` | R1 had dropped the desktop event when the entry moved into the submenu (review fix P4). The mobile-menu and footer populations are **new** - split by `source` before comparing with the pre-R1 desktop-only series |
+| `latest_releases_clicked` | header inline link (17C.8) | desktop submenu + mobile menu `{section: "nav", source: "nav"}`, footer "Deals" column `source: "footer"` | same model entry; the footer population is new, the mobile one carries the same props as desktop |
+| `guides_research_clicked` | header inline link + mobile menu | unchanged (header inline + mobile menu, `{section: "nav", source: "nav"}`); the footer "Learn" column carries no marker | - |
 
 Everything else on the homepage is unchanged: `homepage_view`, `page_view`,
 `homepage_section_impression` for `best_deals`, `all_deals`, `browse`,
@@ -72,8 +75,10 @@ Per the brief's metric definitions (§7), read with the existing scripts:
 - **Outbound rate** - `affiliate_click` on `/` divided by `page_view
   {page_type: home}` (pageview-based, labelled as such: the daily-salted
   session model does not support reliable cross-day sessions).
-- **Mode usage** - `start_here_clicked {section: feed_modes}` by `chip`;
-  `filter_opened {context: all_deals}` for "More filters".
+- **Mode usage** - `start_here_clicked {section: feed_modes}` by `chip`
+  (nine chips; `featured` is the current mode, `buy_it_now` the
+  FIXED_PRICE filter); `filter_opened {context: all_deals}` for "More
+  filters".
 - **EPN** - surface-level earnings for `home_best` and `home_all` from the
   EPN transaction detail report (date basis, status and currency stated;
   pending vs reversed kept distinct). A click is not a transaction.
@@ -89,10 +94,15 @@ set to the deploy date of the R2 slice before any post-change read.
   (e.g. `ending_soon` selection rate) have **no post-change counterpart**;
   do not compare them to `all_deals` or to the mode-chip clicks.
 - `start_here_clicked` before (`section: hero`, six chips) and after
-  (`section: feed_modes`, eight chips) are different populations of chips in
+  (`section: feed_modes`, nine chips) are different populations of chips in
   a different position; compare per-chip only where the chip existed in both
   (`under_25`, `under_50`, `sealed`, `graded`, `japanese`) and label the
-  position change.
+  position change. `featured` is the current mode's own chip (a click on it
+  reloads `/`), so its count is not a navigation choice like the others.
+- `graded_clicked` and `latest_releases_clicked` gained new emitting
+  surfaces (mobile menu, footer). Split by `source` (`nav` vs `footer`) and
+  by device before comparing with the pre-R1 desktop-header-only series;
+  the `nav` series itself now includes mobile-menu clicks it never carried.
 - Compare **page-level** measures only, on equivalent date windows, split by
   device, landing family and marketplace: homepage outbound rate per
   `page_view`, `best_deals` reach and selection, and surface-level EPN
