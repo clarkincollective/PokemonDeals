@@ -26,7 +26,7 @@ reaches the other inventories through a mode row of existing routes.
 | `discover_deals_clicked` | hero "Browse today's deals ↓" (scrolled to the first lane) | **does not fire** | CTA removed: the first offers are already in the first screen. Event name stays declared so historical dashboards resolve |
 | `start_here_clicked` `{section: "hero", chip}` | six hero chips (under_25, under_50, over_100, sealed, graded, japanese) | fires with **`{section: "feed_modes", chip}`** for nine chips (featured, buy_it_now, auctions, graded, under_25, under_50, sealed, japanese, newest) | same event, same `chip` prop family; the `section` value changed, four chips were added (`featured` = the default mixed feed at `/`, `buy_it_now` = the existing `?listing=FIXED_PRICE` filter, `auctions`, `newest`) and one (`over_100`) dropped. The `graded` chip keeps `graded_entry: true` + `source: "start_here"` |
 | `graded_clicked` | header inline link only (desktop; the mobile menu never emitted it) | fires from **every** renderer of the nav model, once per click: desktop "Deals" submenu and mobile menu with `{section: "nav", source: "nav", graded_entry: true}`, footer "Deals" column with `source: "footer"` | R1 had dropped the desktop event when the entry moved into the submenu (review fix P4). The mobile-menu and footer populations are **new** - split by `source` before comparing with the pre-R1 desktop-only series |
-| `latest_releases_clicked` | header inline link (17C.8) | desktop submenu + mobile menu `{section: "nav", source: "nav"}`, footer "Deals" column `source: "footer"` | same model entry; the footer population is new, the mobile one carries the same props as desktop |
+| `latest_releases_clicked` | header inline link + mobile menu (17C.8 declared it on `NAV_PRIMARY`, which the base `NavMenu` already rendered with its marker) | desktop submenu + mobile menu `{section: "nav", source: "nav"}`, footer "Deals" column `source: "footer"` | same model entry; ONLY the footer population is new - the mobile series existed before and carries the same props as desktop |
 | `guides_research_clicked` | header inline link + mobile menu | unchanged (header inline + mobile menu, `{section: "nav", source: "nav"}`); the footer "Learn" column carries no marker | - |
 
 Everything else on the homepage is unchanged: `homepage_view`, `page_view`,
@@ -56,9 +56,23 @@ report zero from the deploy date onward.
 
 Per the brief's metric definitions (§7), read with the existing scripts:
 
-- **Offer reach** - `homepage_section_impression {section: best_deals}` (the
-  flagship row is the first offer surface; it is in the first 1280×900
-  screen, so reach ≈ homepage views on desktop) and `{section: all_deals}`.
+- **Offer reach** - `homepage_section_impression {section: best_deals}` and
+  `{section: all_deals}`. **What a section impression means** (from
+  `components/analytics/HomepageAnalytics.js`): the section's wrapper
+  element was intersecting the viewport with a visible height of at least
+  half of min(section height, viewport height), once per page view. It
+  does NOT mean a visitor saw an offer's price or its eBay button, and it is
+  not "homepage views": on the saved 1280×900 desktop capture the first
+  screen ends at the top of the four flagship artworks (prices and CTAs are
+  below the fold), and on the saved 390-wide capture no offer is in the
+  first screen at all. Treat `best_deals` reach as "scrolled far enough for
+  the flagship section to count as seen", nothing stronger; the only
+  offer-level exposure signal is `deal_card_impression` (≥ 40 % of the card
+  visible), which is instrumented for the flagship row only. **R2
+  owner-review limitation:** whether the first screen should show a
+  complete offer (artwork + price + action) at 1280×900 and at 390 is a
+  design decision still open for the owner; nothing in this document infers
+  that it does.
 - **Offer selection rate** - `deal_card_impression` → `best_deal_clicked` /
   `affiliate_click {origin_section: best_deals}` for the flagship row (card
   impressions are only instrumented there, by design); grid-level for
@@ -99,10 +113,14 @@ set to the deploy date of the R2 slice before any post-change read.
   (`under_25`, `under_50`, `sealed`, `graded`, `japanese`) and label the
   position change. `featured` is the current mode's own chip (a click on it
   reloads `/`), so its count is not a navigation choice like the others.
-- `graded_clicked` and `latest_releases_clicked` gained new emitting
-  surfaces (mobile menu, footer). Split by `source` (`nav` vs `footer`) and
-  by device before comparing with the pre-R1 desktop-header-only series;
-  the `nav` series itself now includes mobile-menu clicks it never carried.
+- `graded_clicked` gained two new emitting surfaces (mobile menu AND
+  footer): its `nav` series now includes mobile-menu clicks it never
+  carried, so split by `source` (`nav` vs `footer`) and by device before
+  comparing with the pre-R1 desktop-header-only series.
+  `latest_releases_clicked` was already emitted by the base mobile menu
+  (base `NAV_PRIMARY` + `NavMenu`); only its `footer` population is new,
+  and its `nav` series stays comparable once `source: "footer"` is split
+  out.
 - Compare **page-level** measures only, on equivalent date windows, split by
   device, landing family and marketplace: homepage outbound rate per
   `page_view`, `best_deals` reach and selection, and surface-level EPN
