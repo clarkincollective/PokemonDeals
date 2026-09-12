@@ -14,6 +14,7 @@ import { writeDiscoverySighting } from "@/lib/listingAvailability";
 // 17C.10 - reference provenance for the comparison this scanner stores.
 import { selectConditionReference } from "@/lib/dealMatching";
 import { CARD_REFERENCE_COLUMNS, buildCardReference, clearedReference } from "@/lib/referenceProvenance";
+import { probeReferenceColumns, writesReferenceColumns } from "@/lib/referenceProvenanceDb";
 
 // Provenance travels WITH the comparison, in the same statement - never as
 // a follow-up update. A separate write that fails or races would leave the
@@ -24,10 +25,13 @@ import { CARD_REFERENCE_COLUMNS, buildCardReference, clearedReference } from "@/
 // simply stay plain.
 let _referenceColumnsReady = null;
 async function referenceColumnsReady(db) {
-  if (_referenceColumnsReady === null) {
-    _referenceColumnsReady = !(await db.from("deals").select("reference_source").limit(1)).error;
-  }
-  return _referenceColumnsReady;
+  if (_referenceColumnsReady !== null) return _referenceColumnsReady;
+  const probe = await probeReferenceColumns(db, "deals");
+  // Only a DEFINITIVE answer is memoised. An inconclusive probe is retried
+  // on the next write rather than frozen in for the life of the process -
+  // and meanwhile it still writes evidence, never a comparison-only row.
+  if (probe !== "unknown") _referenceColumnsReady = writesReferenceColumns(probe);
+  return writesReferenceColumns(probe);
 }
 import {
   SANITY_FLOOR_PCT,

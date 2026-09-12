@@ -13,6 +13,7 @@ import { logDiscoveryEvent, legacyIdFromListingId, discoveryListingKey } from "@
 // 17C.10 - this writer changes a comparison but has no provider-dated
 // reference of its own, so it CLEARS provenance in the same write.
 import { CARD_REFERENCE_COLUMNS, clearedReference } from "@/lib/referenceProvenance";
+import { probeReferenceColumns, writesReferenceColumns } from "@/lib/referenceProvenanceDb";
 import { candidateKey, partitionCandidates, allocateVerifyBudget } from "@/lib/ingestFeedQueue";
 import {
   SANITY_FLOOR_PCT,
@@ -85,7 +86,7 @@ export async function GET(request) {
   // market_price, and stale evidence can pass every value check when the
   // new reference happens to carry the same amount. So the columns are
   // probed once per run and, when present, merged into the row itself.
-  const supportsReferenceColumns = !(await supabaseAdmin().from("deals").select("reference_source").limit(1)).error;
+  const supportsReferenceColumns = writesReferenceColumns(await probeReferenceColumns(supabaseAdmin(), "deals"));
   const startedAt = Date.now();
   if (request.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });

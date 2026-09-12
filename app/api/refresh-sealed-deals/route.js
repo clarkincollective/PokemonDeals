@@ -3,6 +3,7 @@ import { MARKETPLACES, searchListings, getBrowseRateLimit } from "@/lib/ebay";
 import { getSealedPrice } from "@/lib/pokemonPriceTracker";
 // 17C.10 - provenance of the sealed reference this scan prices against.
 import { buildSealedReference } from "@/lib/referenceProvenance";
+import { probeReferenceColumns, writesReferenceColumns } from "@/lib/referenceProvenanceDb";
 import { getUsdRates, toUsd } from "@/lib/fx";
 import { SANITY_FLOOR_PCT, isTrustworthySealedListing, listingMatchesSealedProduct } from "@/lib/dealMatching";
 import { ingestSealedListings } from "@/lib/sealedIngest";
@@ -138,7 +139,7 @@ export async function GET(request) {
   // 17C.10 - same degrade-gracefully probe for the reference columns
   // (supabase/reference_provenance_migration.sql). While they are absent
   // the scan writes no provenance at all rather than a partial row.
-  const supportsReferenceColumns = !(await db.from("sealed_deals").select("reference_source").limit(1)).error;
+  const supportsReferenceColumns = writesReferenceColumns(await probeReferenceColumns(db, "sealed_deals"));
 
   // Pre-flight Browse API quota check - same guard as app/api/refresh-deals
   // (see docs/ebay-rate-limits.md). This run scans ~194 products (48

@@ -299,6 +299,59 @@ test("RP-13. provenance is written ATOMICALLY with the comparison - no separate 
   assert.match(read("lib/sealedIngest.js"), /\.\.\.\(supportsReferenceColumns \? reference \?\? clearedReference\(SEALED_REFERENCE_COLUMNS\) : \{\}\)/);
 });
 
+test("RP-16. the column probe tells a genuinely MISSING column from a permission/network failure", async () => {
+  const db = (error) => ({ from: () => ({ select: () => ({ limit: async () => ({ error }) }) }) });
+  assert.equal(await RPDB.probeReferenceColumns(db(null), "deals"), "present");
+  assert.equal(
+    await RPDB.probeReferenceColumns(db({ code: "42703", message: "column deals.reference_source does not exist" }), "deals"),
+    "missing"
+  );
+  assert.equal(
+    await RPDB.probeReferenceColumns(db({ code: "PGRST204", message: "Could not find the 'reference_amount' column of 'deals'" }), "deals"),
+    "missing"
+  );
+  // everything else is INCONCLUSIVE - never "missing"
+  for (const e of [
+    { code: "42501", message: "permission denied for table deals" },
+    { code: "PGRST301", message: "JWT expired" },
+    { code: "23505", message: "duplicate key value violates unique constraint" },
+    { message: "fetch failed" },
+    { code: "500", message: "internal server error" },
+    { code: "42703", message: "column deals.some_other_column does not exist" },
+  ]) {
+    assert.equal(await RPDB.probeReferenceColumns(db(e), "deals"), "unknown", JSON.stringify(e));
+  }
+  // a thrown error (network) is inconclusive too, never missing
+  const throws = { from: () => ({ select: () => ({ limit: async () => { throw new Error("ECONNRESET"); } }) }) };
+  assert.equal(await RPDB.probeReferenceColumns(throws, "deals"), "unknown");
+});
+
+test("RP-17. once the columns exist, a probe failure never downgrades to a comparison-only write", () => {
+  assert.equal(RPDB.writesReferenceColumns("present"), true);
+  assert.equal(
+    RPDB.writesReferenceColumns("unknown"),
+    true,
+    "an inconclusive probe still writes evidence: omitting it would leave the OLD evidence on a NEW market_price"
+  );
+  assert.equal(
+    RPDB.writesReferenceColumns("missing"),
+    false,
+    "only a definitively absent column omits them - and then there is no old evidence to retain"
+  );
+  // every writer routes its probe through this rule, none re-derives it
+  for (const f of [
+    "app/api/refresh-deals/route.js",
+    "app/api/ingest-feed/route.js",
+    "app/api/refresh-sealed-deals/route.js",
+    "scripts/fix1stEditionDeals.js",
+    "scripts/fixConditionPricing.js",
+  ]) {
+    const src = read(f);
+    assert.match(src, /writesReferenceColumns\(await probeReferenceColumns\(|writesReferenceColumns\(probe\)/, `${f} must use the shared probe`);
+    assert.doesNotMatch(src, /!\(await [^)]*select\("reference_source"\)[^)]*\)\.error/, `${f} must not treat any error as "missing"`);
+  }
+});
+
 // ---------------------------------------------------------------- (7)
 test("RP-14. the migration is additive and certifies nothing historical", () => {
   const sql = read("supabase/reference_provenance_migration.sql");

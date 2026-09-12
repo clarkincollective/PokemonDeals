@@ -16,6 +16,7 @@ const { supabaseAdmin } = require("../lib/supabaseAdmin");
 // any stored reference no longer describes the comparison. It CLEARS in the
 // SAME update as the price, so the two can never disagree.
 const { CARD_REFERENCE_COLUMNS, clearedReference } = require("../lib/referenceProvenance");
+const { probeReferenceColumns, writesReferenceColumns } = require("../lib/referenceProvenanceDb");
 
 const DISCOUNT_THRESHOLD = 0.1;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -24,7 +25,7 @@ async function main() {
   const db = supabaseAdmin();
   // Probe once: while the reference columns are absent this script writes
   // no provenance at all (and the rows simply carry none).
-  const refColumnsReady = !(await db.from("deals").select("reference_source").limit(1)).error;
+  const refColumnsReady = writesReferenceColumns(await probeReferenceColumns(db, "deals"));
   const referenceReset = refColumnsReady ? clearedReference(CARD_REFERENCE_COLUMNS) : {};
 
   let deals = [];
