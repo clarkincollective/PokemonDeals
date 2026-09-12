@@ -25,17 +25,41 @@ import { parseSearchIntent, collectorNumberVariants } from "../../lib/searchInte
 import { resolveSearchIntent, createArrayLookup } from "../../lib/searchResolve.js";
 import { rerankCatalogResults } from "../../lib/searchRanking.js";
 
-// Real card_catalog rows (verified read-only 2026-09-12). RC5/RC32 and
-// RC17/RC32 are present deliberately: they share the "/RC32" tail with
-// RC3/RC32, so a suffix-matching bug would resolve the wrong card.
+// Catalogue rows used by these tests.
+//
+// Scope of what is actually verified, because an earlier version of this
+// fixture overstated it: for the rows marked "verified", only the IDENTITY
+// fields (tcgplayer_id, name, set, card_number) were read from card_catalog
+// (read-only). `rarity`, `market_price` and `image_url` are PLACEHOLDERS on
+// every row - they were never read, and no test asserts on them.
+//
+// Corrected 2026-09-12: the first version of this fixture paired the RC
+// siblings with the wrong names and ids, claiming "RC5/RC32 is Flabebe"
+// (it is Charizard) and "RC17/RC32 is Charizard, id 113760" (it is
+// Flabebe, id 113759). The tests still passed because they asserted
+// against the fixture's own wrong values - which is exactly why the rows
+// now carry their provenance inline.
+//
+// RC5/RC32 and RC17/RC32 are present deliberately: they share the "/RC32"
+// tail with RC3/RC32, so a suffix-matching bug would resolve the wrong card.
 const CATALOG = [
+  // verified identity
   { tcgplayer_id: "113744", name: "Charmander", set: "Generations: Radiant Collection", set_id: "1729", card_number: "RC3/RC32", rarity: "Common", species: "Charmander", language: "english", market_price: 21.07, image_url: "x" },
-  { tcgplayer_id: "113746", name: "Flabebe", set: "Generations: Radiant Collection", set_id: "1729", card_number: "RC5/RC32", rarity: "Common", species: "Flabebe", language: "english", market_price: 1.5, image_url: "x" },
-  { tcgplayer_id: "113760", name: "Charizard", set: "Generations: Radiant Collection", set_id: "1729", card_number: "RC17/RC32", rarity: "Ultra Rare", species: "Charizard", language: "english", market_price: 120, image_url: "x" },
+  // verified identity - RC5/RC32 is CHARIZARD (was wrongly Flabebe here)
+  { tcgplayer_id: "113746", name: "Charizard", set: "Generations: Radiant Collection", set_id: "1729", card_number: "RC5/RC32", rarity: "Ultra Rare", species: "Charizard", language: "english", market_price: 120, image_url: "x" },
+  // verified identity - RC17/RC32 is FLABEBE, id 113759 (was wrongly 113760/Charizard)
+  { tcgplayer_id: "113759", name: "Flabebe", set: "Generations: Radiant Collection", set_id: "1729", card_number: "RC17/RC32", rarity: "Common", species: "Flabebe", language: "english", market_price: 1.5, image_url: "x" },
+  // verified identity
   { tcgplayer_id: "197780", name: "Charizard GX", set: "Hidden Fates: Shiny Vault", set_id: "2129", card_number: "SV49/SV94", rarity: "Ultra Rare", species: "Charizard", language: "english", market_price: 180, image_url: "x" },
+  // SYNTHETIC - not a catalogue record and never verified. A second
+  // Charmander print so the species path has more than one row to choose
+  // between; its id and number are illustrative only.
   { tcgplayer_id: "42375", name: "Charmander", set: "Base Set", set_id: "604", card_number: "046/102", rarity: "Common", species: "Charmander", language: "english", market_price: 12, image_url: "x" },
+  // verified identity
   { tcgplayer_id: "42382", name: "Charizard", set: "Base Set", set_id: "604", card_number: "004/102", rarity: "Holo Rare", species: "Charizard", language: "english", market_price: 869.02, image_url: "x" },
+  // verified identity
   { tcgplayer_id: "106999", name: "Charizard", set: "Base Set (Shadowless)", set_id: "1663", card_number: "004/102", rarity: "Holo Rare", species: "Charizard", language: "english", market_price: 1163.6, image_url: "x" },
+  // verified identity
   { tcgplayer_id: "246723", name: "Umbreon VMAX (Alternate Art Secret)", set: "SWSH07: Evolving Skies", set_id: "2848", card_number: "215/203", rarity: "Secret Rare", species: "Umbreon", language: "english", market_price: 2368.34, image_url: "x" },
 ];
 
@@ -81,9 +105,17 @@ test("4. 'sv49/sv94' is one number, not 'sv49' plus junk (the SV family is the l
 test("5. RC5/RC32 and RC17/RC32 are DIFFERENT cards - the shared '/RC32' tail must not collide", async () => {
   const five = await resolve("rc5/rc32");
   const seventeen = await resolve("rc17/rc32");
-  assert.equal(five.exact.tcgplayer_id, "113746", "rc5/rc32 is Flabebe");
-  assert.equal(seventeen.exact.tcgplayer_id, "113760", "rc17/rc32 is Charizard");
+  // Identities per card_catalog: RC5/RC32 is Charizard (113746) and
+  // RC17/RC32 is Flabebe (113759). Both id AND name are asserted so a
+  // future fixture edit cannot re-introduce a mismatched pairing.
+  assert.equal(five.exact.tcgplayer_id, "113746", "rc5/rc32 is Charizard 113746");
+  assert.equal(five.exact.name, "Charizard");
+  assert.equal(seventeen.exact.tcgplayer_id, "113759", "rc17/rc32 is Flabebe 113759");
+  assert.equal(seventeen.exact.name, "Flabebe");
+  // three distinct cards sharing the "/RC32" tail: none may resolve to another
   assert.notEqual(five.exact.tcgplayer_id, seventeen.exact.tcgplayer_id);
+  assert.notEqual(five.exact.tcgplayer_id, "113744", "rc5/rc32 is not the RC3 card");
+  assert.notEqual(seventeen.exact.tcgplayer_id, "113744", "rc17/rc32 is not the RC3 card");
 });
 
 // ===== identity guards preserved ====================================
