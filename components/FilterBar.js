@@ -235,6 +235,9 @@ export default function FilterBar({
   minPrice,
   sort,
   basePath = "/",
+  // Deal-first R2 (homepage feed): the whole bar sits behind a "More
+  // filters" button at every width; the rows stay in the DOM.
+  collapsible = false,
 }) {
   const activeCount = [
     country,
@@ -252,8 +255,8 @@ export default function FilterBar({
   const binActive = listingType === "FIXED_PRICE" || listingType === "BIN";
 
   return (
-    <div className="mb-8 lg:rounded-xl lg:border lg:border-zinc-200 lg:bg-white lg:p-4 lg:shadow-card dark:lg:border-zinc-800 dark:lg:bg-zinc-950">
-      <FilterToggle defaultOpen={activeCount > 0} activeCount={activeCount}>
+    <div className={collapsible ? "mb-6" : "mb-8 lg:rounded-xl lg:border lg:border-zinc-200 lg:bg-white lg:p-4 lg:shadow-card dark:lg:border-zinc-800 dark:lg:bg-zinc-950"}>
+      <FilterToggle defaultOpen={activeCount > 0} activeCount={activeCount} collapsible={collapsible} label={collapsible ? "More filters" : "Filters"}>
         <div className="flex flex-col gap-4">
           <SortRow params={params} sort={sort} basePath={basePath} defaultValue="newest" />
 

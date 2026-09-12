@@ -39,16 +39,16 @@ const CATPAGE = read("components/DealCategoryPage.js");
 
 // ---- homepage primary CTA (§2) --------------------------------
 
-test("UX-CVR-2-1. the homepage has one dominant primary CTA", () => {
-  // the filled dark "Browse today's deals" button is the single primary
-  assert.match(HOME, /href="#best-deals"[\s\S]{0,400}Browse today&apos;s deals/);
-  assert.match(HOME, /discover_deals_clicked/);
-  // it is a SOLID button (bg-zinc-900 / dark bg-zinc-100); the example
-  // searches beside it are plain text links, not competing filled buttons
-  assert.match(HOME, /discover_deals_clicked[\s\S]{0,200}bg-zinc-900 px-4 py-2\.5/);
-  // the "or try a search:" examples are underline links, not buttons
+test("UX-CVR-2-1. the homepage has one dominant primary action per offer, and no competing hero buttons", () => {
+  // Deal-first R2: the primary action is each offer's own red "View deal
+  // on eBay"; the hero carries the search shortcut only. No filled hero
+  // button competes with the offers, and the example searches beside the
+  // search box are plain text links, not buttons.
+  const hero = HOME.slice(HOME.indexOf("<header"), HOME.indexOf("</header>"));
+  assert.doesNotMatch(hero, /bg-zinc-900 px-4 py-2\.5|bg-red-600 px-4/, "no filled hero CTA button");
   assert.match(HOME, /or try a search:/);
   assert.doesNotMatch(HOME, /hero_example_clicked[\s\S]{0,120}(bg-zinc-900|bg-red-600|rounded-lg bg-)/);
+  assert.match(DEALCARD, /View deal on eBay/);
 });
 
 // ---- deal CTA contract (§7) ---------------------------------
@@ -105,8 +105,9 @@ test("UX-CVR-2-5. an empty grid offers real recovery actions, never a dead blank
   // DealGrid uses them for BOTH the filtered and the non-filtered empty
   assert.match(DEALGRID, /filtered \? \(\s*<FilteredEmptyState/);
   assert.match(DEALGRID, /<EmptyGridState label=\{emptyLabel\}/);
-  // the homepage All Deals empty branch is a real block with Clear filters
-  assert.match(HOME, /deals\?\.length === 0 && \(/);
+  // the homepage feed empty branch is a real block with Clear filters
+  assert.match(HOME, /const feedEmpty = !error && flagshipDeals\.length === 0 && \(deals\?\.length \?\? 0\) === 0;/);
+  assert.match(HOME, /\{feedEmpty && \(/);
   assert.match(HOME, /Clear filters/);
   assert.match(HOME, /<EmptyStateEscapes \/>/);
   // truthful - no fabricated matches: the copy says the filters run
@@ -148,9 +149,11 @@ test("UX-CVR-2-9. P0.4.1 diversity / rotation wiring is untouched", () => {
     assert.ok(HOME.includes(sym), `app/page.js no longer uses ${sym}`);
   }
   assert.match(HOME, /speciesCap: 3/); // the species soft cap on the filtered grid
-  // the under-$25 lane + its dedicated route link are intact
-  assert.match(HOME, /home_under25/);
+  // the under-$25 route is reached from the feed's mode row (deal-first R2
+  // folded the separate lane into the single feed; the selector still
+  // builds it, the page just renders one grid)
   assert.match(HOME, /\/deals\/under-25/);
+  assert.match(HOME, /buildHomepageLanes\(homeLanesResult\?\.pools \?\? \{\}, \{ bucket \}\)/);
 });
 
 // ---- related discovery (§15) ----------------------------

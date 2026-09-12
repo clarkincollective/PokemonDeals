@@ -233,13 +233,18 @@ test("8/9/10. /search keeps its canonical + noindex policy and renders the guide
   assert.match(read("app/price-checker/page.js"), /permanentRedirect\("\/search"\)/);
 });
 
-test("11. homepage keeps deals PRIMARY and adds the price checker as the SECONDARY action", () => {
+test("11. homepage keeps deals PRIMARY and keeps the price checker as the SECONDARY action", () => {
+  // Deal-first R2: the offers themselves are the primary action (each
+  // card's "View deal on eBay", first offers in view under the hero); the
+  // hero no longer carries a scroll CTA. The 17B value-intent entry stays
+  // as a measurable text link in the hero, above the first offer.
   const home = read("app/page.js");
-  const primary = home.indexOf('data-analytics-click="discover_deals_clicked"');
   const secondary = home.indexOf('data-analytics-click="price_checker_entry_clicked"');
-  assert.ok(primary > 0 && secondary > primary, "secondary action must follow the primary deal CTA");
+  const firstOffer = home.indexOf('data-analytics-section="best_deals"');
+  assert.ok(secondary > 0 && firstOffer > secondary, "the price-checker entry sits in the hero, before the feed");
   assert.match(home.slice(secondary - 200, secondary), /href="\/search"/);
   assert.match(home, /Check a card&apos;s price/);
+  assert.match(read("components/DealCard.js"), /View deal on eBay/);
 });
 
 // ----------------------------------------------------------- schema

@@ -43,10 +43,15 @@ test("13C.5 - the hero entry-path events are declared (Search vs Discover is mea
   assert.equal(EVENTS.HERO_EXAMPLE_CLICKED, "hero_example_clicked");
   assert.ok(ALLOWED_EVENTS.has("discover_deals_clicked"));
   assert.ok(ALLOWED_EVENTS.has("hero_example_clicked"));
-  // and they are actually wired on the homepage
+  // and the search example path is still wired on the homepage. Deal-first
+  // R2 removed the hero "Browse today's deals" scroll CTA (the first offers
+  // are in view without it); its event name stays declared so historical
+  // dashboards keep resolving, but no marker renders it any more.
   const page = read("app/page.js");
-  assert.match(page, /data-analytics-click="discover_deals_clicked"/);
   assert.match(page, /data-analytics-click="hero_example_clicked"/);
+  assert.doesNotMatch(page, /data-analytics-click="discover_deals_clicked"/);
+  // the feed's mode row reuses the established start_here_clicked marker
+  assert.match(page, /data-analytics-click="start_here_clicked"/);
 });
 
 // === lane click vs affiliate click must be disjoint ================
@@ -68,14 +73,16 @@ test("13C.5 - a click inside the affiliate CTA does NOT also fire the lane click
 
 test("13C.5 - the homepage All Deals grid tags its own origin_section", () => {
   const page = read("app/page.js");
-  const grid = page.slice(page.indexOf('data-analytics-filter-bar="all_deals"'));
-  // window widened in UX-CVR-2: a real empty-state block now sits between
-  // the filter bar and the grid.
-  assert.match(grid.slice(0, 3200), /<DealCard[^>]*pageName="home_all_deals"/);
-  // the promo lanes keep their distinct pageNames
+  // deal-first R2: the all_deals grid is its own section after the
+  // flagship row; anchor on the section marker rather than the filter bar
+  const grid = page.slice(page.indexOf('data-analytics-section="all_deals"'));
+  assert.match(grid.slice(0, 1200), /<DealCard[^>]*pageName="home_all_deals"/);
+  // the flagship row keeps its distinct pageName; deal-first R2 folded the
+  // auction / just-added lanes into the feed's mode row, so home_ending /
+  // home_fresh (EPN surfaces home_auction / home_just_added) are simply
+  // unused now - never renamed, never re-purposed
   assert.match(page, /pageName="home_best"/);
-  assert.match(page, /pageName="home_ending"/);
-  assert.match(page, /pageName="home_fresh"/);
+  assert.doesNotMatch(page, /pageName="home_ending"|pageName="home_fresh"/);
 });
 
 // === returning-visitor lane impression (only when shown) ===========

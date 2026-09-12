@@ -325,7 +325,9 @@ test("15. app/page.js no longer shuffles per-request and renders the Under $25 l
   assert.doesNotMatch(code, /function shuffled\s*\(/, "dead shuffled() helper still present");
   assert.match(code, /buildHomepageLanes\(/);
   assert.match(code, /rotationBucket\(\)/);
-  assert.match(code, /underPriceDeals/);
+  // deal-first R2: the selector still builds the Under $25 lane (lane
+  // contract untouched); the page reaches its route from the feed's mode
+  // row instead of rendering a fourth grid
   assert.match(code, /\/deals\/under-25/);
   assert.match(code, /href="\/deals"/); // the Browse all live deals CTA
 });

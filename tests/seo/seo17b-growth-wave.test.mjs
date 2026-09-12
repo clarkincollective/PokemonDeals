@@ -120,10 +120,13 @@ test("/search: server-rendered price-checker guide, canonical /search, indexable
 });
 
 test("home: deals stay primary; 'Check a card's price' is the secondary action to /search", () => {
+  // Deal-first R2: the first offers (best_deals) are the primary content
+  // directly under the hero; the price-checker entry is a text link in
+  // the hero, before them.
   const html = pages["/"].body;
-  const primary = html.indexOf("discover_deals_clicked");
   const secondary = html.indexOf("price_checker_entry_clicked");
-  assert.ok(primary > 0 && secondary > primary);
+  const firstOffer = html.indexOf('data-analytics-section="best_deals"');
+  assert.ok(secondary > 0 && firstOffer > secondary);
   assert.match(html.slice(secondary - 400, secondary + 400), /href="\/search"/);
   assert.match(text(html), /Check a card's price/);
 });
