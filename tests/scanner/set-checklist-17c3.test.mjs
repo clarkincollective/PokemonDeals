@@ -37,9 +37,9 @@ const card = (over = {}) => {
   };
 };
 
-test("C3-1. the allowlist is exactly Neo Destiny plus five reviewed sets - never 'every set'", () => {
-  assert.deepEqual([...CHECKLIST_SETS], ["Neo Destiny", "Jungle", "Neo Genesis", "EX Deoxys", "Diamond and Pearl", "Boundaries Crossed"]);
-  assert.equal(CHECKLIST_SETS.length, 6, "the pilot plus at most five");
+test("C3-1. the allowlist is exactly Neo Destiny plus fifteen reviewed sets - never 'every set'", () => {
+  assert.deepEqual([...CHECKLIST_SETS], ["Neo Destiny", "Jungle", "Neo Genesis", "EX Deoxys", "Diamond and Pearl", "Boundaries Crossed", "Gym Heroes", "Base Set 2", "Team Rocket", "Neo Revelation", "Fossil", "Mysterious Treasures", "Secret Wonders", "EX Ruby and Sapphire", "Great Encounters", "EX Sandstorm"]);
+  assert.equal(CHECKLIST_SETS.length, 16, "the pilot plus fifteen reviewed sets - a reviewed list, never 'every set'");
   for (const s of ["Base Set", "Skyridge", "World Championship Decks", "Shining Fates: Shiny Vault", "SWSH: Sword & Shield Promo Cards", "Legendary Collection"]) {
     assert.equal(isChecklistSet(s), false, s);
   }
