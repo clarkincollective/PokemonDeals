@@ -145,14 +145,22 @@ test("C2-8. the component: semantic table, plain crawlable <a> links, no set tot
   // status - never a row, a name or a link.
   assert.doesNotMatch(row, /display:\s*none|aria-hidden|sr-only/, "row cells hide nothing");
   assert.doesNotMatch(table, /sr-only[^"]*"[^>]*>\{r\./, "no row content inside an sr-only element");
-  // the ONLY breakpoint-hidden content is the duplicated rarity: rarity
-  // column below `sm`, and its <small> copy in the Card column from `sm`
-  // up - in BOTH the 4-column (species) and 5-column (set) class sets.
+  // the ONLY breakpoint-hidden content is DUPLICATED content: a column
+  // hidden below `sm` whose value is repeated in the Card cell's <small>,
+  // which in turn hides from `sm` up - in BOTH class sets.
+  // 4-column (species): rarity is col 3, its <small> copy in col 2.
+  // 6-column (set, 17C.11: Own | Art | No. | Card | Rarity | Ref): rarity
+  // is col 5 and - since the visual follow-up - the number is col 3; both
+  // are repeated in col 4's <small> ("01/64 · Holo Rare") below `sm`.
   const hiddenRules = (row.match(/[^\s"]*:hidden(?![\w-])/g) ?? []).sort();
   assert.deepEqual(hiddenRules, [
     "[&_td:nth-child(3)]:hidden", "[&_th:nth-child(3)]:hidden", "sm:[&_td:nth-child(2)_small]:hidden",
-    "[&_td:nth-child(4)]:hidden", "[&_th:nth-child(4)]:hidden", "sm:[&_td:nth-child(3)_small]:hidden",
+    "[&_td:nth-child(3)]:hidden", "[&_th:nth-child(3)]:hidden",
+    "[&_td:nth-child(5)]:hidden", "[&_th:nth-child(5)]:hidden", "sm:[&_td:nth-child(4)_small]:hidden",
   ].sort());
+  // the number really is repeated where the column hides
+  assert.match(row, /compact && r\.number \? `\$\{r\.number\} · ` : ""/);
+  assert.match(table, /<ChecklistCells r=\{r\} compact \/>/);
   assert.match(row, /<td>\s*\{r\.href \? <a href=\{r\.href\}>\{r\.name\}<\/a> : r\.name\}/, "card names (and links) are never inside a hidden element");
   // rows come from the server-built `rows` prop; the client never fetches
   // or rebuilds the list, so the SSR HTML carries every link

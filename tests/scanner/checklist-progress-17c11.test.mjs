@@ -127,6 +127,49 @@ test("13. no personal progress or filter state is written to the URL", () => {
   assert.doesNotMatch(table, /router\.(push|replace)|history\.(push|replace)State|searchParams\.set|window\.location\s*=/);
 });
 
+test("15. visual: thumbnails are id-keyed catalogue art with explicit dimensions, never name-matched, and hidden in print", async () => {
+  const { buildChecklistRows } = await import("../../lib/setChecklist.js");
+  const [withStored] = buildChecklistRows([{ tcgplayerId: "42382", name: "Charizard", cardNumber: "004/102", image: "https://tcgplayer-cdn.tcgplayer.com/product/42382_in_200x200.jpg", catalogSlug: "x", rarity: "Holo Rare" }]);
+  assert.equal(withStored.image, "https://tcgplayer-cdn.tcgplayer.com/product/42382_in_1000x1000.jpg", "stored asset, upgraded to the large derivative");
+  const [idOnly] = buildChecklistRows([{ tcgplayerId: "42382", name: "Charizard", cardNumber: "004/102", catalogSlug: "x" }]);
+  assert.equal(idOnly.image, "https://tcgplayer-cdn.tcgplayer.com/product/42382_in_1000x1000.jpg", "falls back to the id-derived helper URL");
+  const [none] = buildChecklistRows([{ name: "Charizard", cardNumber: "004/102", catalogSlug: "x" }]);
+  assert.equal(none.image, null, "no id -> no image, never a name-derived guess");
+  const table = readFileSync(new URL("../../components/ChecklistTable.js", import.meta.url), "utf8");
+  assert.match(table, /h-\[62px\] w-11[^"]*sm:h-\[73px\] sm:w-\[52px\]/, "explicit 5:7 wrapper dims at both breakpoints (no layout shift)");
+  assert.match(table, /data-checklist-thumb/);
+  assert.match(table, /alt=""/, "decorative next to the visible name");
+  // The thumbnail reads the row's image; the row's image is derived ONLY
+  // from the stored asset or the product id - never from the card name.
+  assert.match(table, /<Image src=\{row\.image\}/);
+  const lib = readFileSync(new URL("../../lib/setChecklist.js", import.meta.url), "utf8");
+  assert.match(lib, /const image = stored \? upgradeCatalogImage\(stored\) : c\.tcgplayerId \? catalogImageUrl\(c\.tcgplayerId\) : null;/);
+  assert.doesNotMatch(lib, /catalogImageUrl\(c\.name|catalogImageUrl\(c\.displayName|catalogImageUrl\(slug/);
+  const css = readFileSync(new URL("../../app/globals.css", import.meta.url), "utf8");
+  assert.match(css, /\[data-checklist-thumb\][\s\S]{0,200}display:\s*none/, "thumbnails hidden in print");
+  assert.match(css, /\[data-checklist-logo\]/, "logo hidden in print");
+});
+
+test("16. visual: the set logo comes only from the existing verified map, with a typography fallback", () => {
+  const set = readFileSync(new URL("../../components/SetChecklist.js", import.meta.url), "utf8");
+  assert.match(set, /import \{ setImage \} from "@\/lib\/setImages"/);
+  assert.match(set, /setImage\(setName\)\?\.logo \?\? null/);
+  assert.match(set, /\{logo && \(/, "renders only when the map has one");
+  assert.doesNotMatch(set, /logo\.png|\/logos\/|placeholder-logo/i, "no invented logo path");
+});
+
+test("17. visual: progress bar is a real progressbar and owned state is not colour-only", () => {
+  const table = readFileSync(new URL("../../components/ChecklistTable.js", import.meta.url), "utf8");
+  assert.match(table, /role="progressbar"/);
+  assert.match(table, /aria-valuenow=\{counts\.owned\}/);
+  assert.match(table, /aria-valuemax=\{counts\.total\}/);
+  // the checked box carries the state; tint is supplementary
+  assert.match(table, /checked=\{isOwned\}/);
+  assert.match(table, /data-owned=\{isOwned \? "true" : "false"\}/);
+  // 44px tap targets
+  assert.match(table, /min-h-11/);
+});
+
 test("14. SpeciesChecklist keeps the 4-column layout (no Own column leaked into it)", () => {
   const species = readFileSync(new URL("../../components/SpeciesChecklist.js", import.meta.url), "utf8");
   assert.match(species, /CHECKLIST_TABLE_CLASS/);

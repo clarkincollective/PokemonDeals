@@ -137,9 +137,9 @@ test("SP-6. the era checklist reuses the set checklist's table, row, link rule a
   // via the same <ChecklistCells> inside its owned-column row.
   const row = code("components/ChecklistRow.js");
   assert.match(row, /export function ChecklistRow\(\{ r \}\)/);
-  assert.match(row, /export function ChecklistCells\(\{ r \}\)/);
+  assert.match(row, /export function ChecklistCells\(\{ r, compact = false \}\)/);
   assert.match(row, /<a href=\{r\.href\}>\{r\.name\}<\/a>/);
-  assert.match(code("components/ChecklistTable.js"), /<ChecklistCells r=\{r\} \/>/, "the set checklist renders the same shared cells");
+  assert.match(code("components/ChecklistTable.js"), /<ChecklistCells r=\{r\} compact \/>/, "the set checklist renders the same shared cells");
 });
 
 test("SP-7. the pilot is gated: every non-pilot species renders exactly as before", () => {

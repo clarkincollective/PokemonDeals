@@ -1,5 +1,7 @@
+import Image from "next/image";
 import ChecklistTable from "@/components/ChecklistTable";
 import { buildChecklistRows, checklistSummary, checklistLegend } from "@/lib/setChecklist";
+import { setImage } from "@/lib/setImages";
 
 // Phase 17C.2 - the readable set checklist. 17C.11 makes it a collector
 // utility: the same crawlable list, plus owned/missing marking, a
@@ -27,6 +29,11 @@ export default function SetChecklist({ setName, cards, headingId = "full-set-ind
   if (rows.length === 0) return null;
   const s = checklistSummary(rows);
   const legend = checklistLegend(s, rows);
+  // The set's own logo from the existing verified map (lib/setImages,
+  // pokemontcg.io assets) - the same asset the set page header already
+  // renders. When a set has none, the heading stands on typography alone;
+  // nothing is invented. Hidden in print to keep the list compact.
+  const logo = setImage(setName)?.logo ?? null;
 
   return (
     <section
@@ -34,9 +41,18 @@ export default function SetChecklist({ setName, cards, headingId = "full-set-ind
       data-checklist-print-root
       className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800"
     >
-      <h2 id={headingId} className="scroll-mt-24 text-lg font-bold text-black dark:text-zinc-50">
-        {`${setName} checklist (${s.total} ${s.total === 1 ? "card" : "cards"})`}
-      </h2>
+      {/* logo above the heading on phones (a 112px logo beside a wrapping
+          heading read badly at 390px); side by side from `sm` up */}
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
+        {logo && (
+          <span className="relative block h-10 w-28 shrink-0 sm:h-12 sm:w-36 print:hidden" data-checklist-logo>
+            <Image src={logo} alt="" fill sizes="144px" className="object-contain object-left" />
+          </span>
+        )}
+        <h2 id={headingId} className="scroll-mt-24 text-lg font-bold text-black dark:text-zinc-50 sm:text-xl">
+          {`${setName} checklist (${s.total} ${s.total === 1 ? "card" : "cards"})`}
+        </h2>
+      </div>
       <p className="mt-1 max-w-3xl text-sm text-zinc-600 dark:text-zinc-400" data-print-hide>
         {`Every ${setName} card in our catalogue, in collector-number order. Tick what you own to see what's missing, then print the list. Card names link to each card's page with full pricing, graded values and any live deal.`}
       </p>
