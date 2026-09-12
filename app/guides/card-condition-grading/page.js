@@ -164,8 +164,11 @@ export default function Page() {
         <li>&ldquo;Mint&rdquo; in a raw listing is a seller&apos;s opinion; a graded &ldquo;10&rdquo; is a company&apos;s.</li>
         <li>A cheap graded card at a mid grade (say a PSA 6) is a legitimately cheaper card, not a bargain on a PSA 10.</li>
         <li>
-          Compare a listing only with the same printing: the set and card number tell look-alikes apart
-          &mdash;{" "}
+          Compare a listing only with the same printing:{" "}
+          <Link href="/guides/how-to-find-pokemon-card-set-and-number" className={GUIDE_LINK_CLASS}>
+            the set and card number
+          </Link>{" "}
+          tell look-alikes apart &mdash;{" "}
           <Link href={GUIDE_CARDS.charizardBaseSet.href} className={GUIDE_LINK_CLASS}>
             Base Set Charizard
           </Link>{" "}

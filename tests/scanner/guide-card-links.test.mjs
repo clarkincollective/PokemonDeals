@@ -29,6 +29,7 @@ const VERIFIED = {
   umbreonVmaxSecret: ["246722", "Umbreon VMAX (Secret)", "SWSH07: Evolving Skies", "214/203", "/cards/umbreon-vmax-secret-swsh07-evolving-skies"],
   umbreonVmaxAltArt: ["246723", "Umbreon VMAX (Alternate Art Secret)", "SWSH07: Evolving Skies", "215/203", "/cards/umbreon-vmax-alternate-art-secret-swsh07-evolving-skies"],
   pikachuVFullArt: ["226431", "Pikachu V (Full Art)", "SWSH04: Vivid Voltage", "170/185", "/cards/pikachu-v-full-art-swsh04-vivid-voltage"],
+  charmanderGenerations: ["113744", "Charmander", "Generations: Radiant Collection", "RC3/RC32", "/cards/charmander-generations-radiant-collection"],
 };
 
 test("1. every guide card is a verified catalogue identity whose href is DERIVED by the route's own slug function", () => {
@@ -72,6 +73,10 @@ test("3. the contextual links landed where they explain identity, grading or val
     "vintage-vs-modern-pokemon-cards": 7,
     "pokemon-card-grading-scale": 1,
     "how-to-check-pokemon-card-condition": 0,
+    // one Charmander (the Pokedex-vs-collector-number figure), three
+    // Umbreon VMAX (numbered beyond the printed total), three Charizard
+    // (same name, different number). Each is a figure subject, not a dump.
+    "how-to-find-pokemon-card-set-and-number": 7,
   });
   // the price checker is reachable from the guides that talk about looking a card up
   const withChecker = GUIDE_FILES.filter((f) => /href=\{PRICE_CHECKER_HREF\}/.test(read(f))).map((f) => f.split("/")[2]).sort();
@@ -112,6 +117,7 @@ test("5. routes, canonicals and indexability of the guides are untouched", () =>
     "vintage-vs-modern-pokemon-cards",
     "pokemon-card-grading-scale",
     "how-to-check-pokemon-card-condition",
+    "how-to-find-pokemon-card-set-and-number",
   ]);
   const guidesLib = read("lib/guides.js");
   assert.match(guidesLib, /alternates: \{ canonical: `\/guides\/\$\{slug\}` \}/);

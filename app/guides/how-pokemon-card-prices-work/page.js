@@ -150,7 +150,11 @@ export default function Page() {
         <Link href={PRICE_CHECKER_HREF} className={GUIDE_LINK_CLASS}>
           price checker
         </Link>{" "}
-        finds an exact printing by name, set or card number.
+        finds an exact printing by name, set or{" "}
+        <Link href="/guides/how-to-find-pokemon-card-set-and-number" className={GUIDE_LINK_CLASS}>
+          card number
+        </Link>
+        .
       </GP>
 
       <GP>
