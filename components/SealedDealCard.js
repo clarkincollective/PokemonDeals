@@ -10,6 +10,7 @@ import DealScoreBadge from "@/components/DealScoreBadge";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import ShareButton from "@/components/ShareButton";
 import Price from "@/components/Price";
+import { offerShipping } from "@/lib/offerPresentation";
 import AuctionPrice from "@/components/AuctionPrice";
 import { listingPresentation } from "@/lib/dealQuality";
 
@@ -43,7 +44,8 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
   // 17C.7: no evidenced reference for this exact product -> plain listing
   // (no badge, score, strikethrough, saving or "% below market").
   const presentation = listingPresentation(deal);
-  const showSavings = presentation.savings === "trusted";
+  const shipping = offerShipping(deal);
+  const showSavings = presentation.savings === "trusted" && shipping.savingClaim !== "none";
 
   return (
     <div className="group flex h-full flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950">
@@ -113,6 +115,7 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
             />
           ) : (
             <>
+              <p className="text-xs text-zinc-500">{shipping.headline}</p>
               <div className="flex items-baseline gap-2">
                 <Price
                   usd={usdTotal}
@@ -129,6 +132,9 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
                   </span>
                 )}
               </div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                {shipping.note ?? "Includes recorded shipping"}
+              </p>
               {!showSavings ? (
                 presentation.notes.map((note) => (
                   <p key={note} className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
@@ -138,12 +144,12 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
               ) : showRef ? (
                 <p className="text-xs font-medium text-emerald-600 dark:text-emerald-500">
                   You save{" "}
-                  <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}
+                  <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} />{shipping.savingQualifier} ·{" "}
                   {discountPct}% below market
                 </p>
               ) : (
                 <p className="text-xs font-medium text-emerald-600 dark:text-emerald-500">
-                  {discountPct}% below market
+                  {discountPct}% below market{shipping.savingQualifier}
                 </p>
               )}
             </>
@@ -163,10 +169,10 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
         <div className="mt-auto flex gap-1.5 pt-2">
           <ShareButton
             url={`${SITE_URL}/sealed-deals/${deal.id}`}
-            title={showSavings ? `${productName} - ${discountPct}% below market` : productName}
+            title={showSavings ? `${productName} - ${discountPct}% below market${shipping.savingQualifier}` : productName}
             text={
               showSavings
-                ? `${productName}${productSet ? ` (${productSet})` : ""}${dealTotalUsd(deal) ? ` - $${dealTotalUsd(deal).toFixed(2)},` : " -"} ${discountPct}% below market on Pokemon Deal Finder`
+                ? `${productName}${productSet ? ` (${productSet})` : ""}${dealTotalUsd(deal) ? ` - $${dealTotalUsd(deal).toFixed(2)},` : " -"} ${discountPct}% below market${shipping.savingQualifier} on Pokemon Deal Finder`
                 : `${productName}${productSet ? ` (${productSet})` : ""} on Pokemon Deal Finder`
             }
             className="rounded-md px-2.5"
@@ -174,10 +180,11 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
           <AffiliateLink
             href={affiliateHref}
             eventName="eBay Click"
+            analyticsProps={showSavings ? undefined : { discount_band: "no_savings_claim" }}
             eventData={{
               product: productName,
               marketplace: deal.marketplace,
-              discountPct,
+              discountPct: showSavings ? discountPct : null,
               listingType: deal.listing_type,
               page: pageName,
             }}

@@ -4,7 +4,8 @@ import AffiliateLink from "@/components/AffiliateLink";
 import EbaySearchLink from "@/components/EbaySearchLink";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import Price from "@/components/Price";
-import { MARKETPLACE_CURRENCY, hasPrice } from "@/lib/money";
+import { offerShipping } from "@/lib/offerPresentation";
+import { currencyForDeal, hasPrice } from "@/lib/money";
 import { buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import { surfaceForPageName } from "@/lib/affiliateSurfaces";
 import { upgradeCatalogImage } from "@/lib/cardImage";
@@ -68,6 +69,8 @@ export default function SpeciesCard({ card, label, speciesName, pageName = "spec
     ? wrapEbayAffiliateUrl(card.ebayHref, { surface })
     : buildEbaySearchLink(ebayQuery, undefined, surface);
   const isAuction = card.deal?.listingType === "AUCTION";
+  const shipping = offerShipping(card.deal);
+  const showSavings = shipping.savingClaim !== "none" && card.deal?.discountPct != null;
 
   const imageEl = card.image ? (
     <Image
@@ -91,7 +94,7 @@ export default function SpeciesCard({ card, label, speciesName, pageName = "spec
       }`}
     >
       <div className="relative">
-        {isDeal && card.deal.discountPct != null && (
+        {isDeal && showSavings && (
           <span className="absolute right-2 top-2 z-10 rounded-md bg-emerald-600 px-2 py-1 text-sm font-extrabold leading-none text-white shadow-sm">
             −{Math.round(card.deal.discountPct * 100)}%
           </span>
@@ -130,27 +133,29 @@ export default function SpeciesCard({ card, label, speciesName, pageName = "spec
                   "est. total", never as "current bid". The full
                   bid / shipping / total split lives on the deal card and
                   the deal detail page. */}
-              {isAuction && (
-                <p className="text-[10px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-500">
-                  Est. total
-                </p>
-              )}
+              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                {isAuction ? shipping.auctionTotalLabel : shipping.headline}
+              </p>
               <Price
                 usd={card.deal.cheapestUsd}
                 native={{
                   amount: card.deal.cheapestNative,
-                  currency: MARKETPLACE_CURRENCY[card.deal.marketplace] ?? "USD",
+                  currency: currencyForDeal(card.deal),
                 }}
                 className="tnum text-lg font-bold text-zinc-900 dark:text-zinc-50"
               />
             </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              {shipping.note ?? "Includes recorded shipping"}
+            </p>
             {isAuction ? (
               <p className="tnum text-xs font-semibold text-amber-600 dark:text-amber-500">
-                {card.deal.discountPct != null && `${Math.round(card.deal.discountPct * 100)}% under market ref · auction, bids can rise`}
+                {showSavings && `${Math.round(card.deal.discountPct * 100)}% under market ref${shipping.savingQualifier} · `}
+                Auction, bids can rise
               </p>
             ) : (
               <p className="tnum text-xs font-semibold text-emerald-700 dark:text-emerald-500">
-                {card.deal.discountPct != null && `${Math.round(card.deal.discountPct * 100)}% below market · `}
+                {showSavings && `${Math.round(card.deal.discountPct * 100)}% below market${shipping.savingQualifier} · `}
                 {card.deal.count} live {card.deal.count === 1 ? "listing" : "listings"}
               </p>
             )}
@@ -159,6 +164,7 @@ export default function SpeciesCard({ card, label, speciesName, pageName = "spec
                 href={dealUrl}
                 eventName={isAuction ? "Bid on eBay" : "View Deal on eBay"}
                 eventData={{ context, card: card.name, page: pageName, marketplace: card.deal.marketplace }}
+                analyticsProps={showSavings ? undefined : { discount_band: "no_savings_claim" }}
                 className="block rounded-lg bg-emerald-600 px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
               >
                 {isAuction ? "Bid on eBay →" : "View on eBay →"}
