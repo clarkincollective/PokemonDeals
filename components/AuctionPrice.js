@@ -7,7 +7,9 @@ import { auctionDisplayParts, currencyForDeal } from "@/lib/money";
 // is genuinely the bid:
 //
 //   CURRENT BID   <big>
-//   + shipping X   (or "Free shipping")
+//   + shipping X   (or "Shipping not confirmed" - the stored figure is 0
+//                   both for free shipping and when eBay stated no
+//                   shipping option, so it is never called free)
 //   Est. total Y · N% under market ref · bids can raise the final price
 //
 // The "% below market" and the market reference stay attached to the
@@ -72,7 +74,7 @@ export default function AuctionPrice({
             <Price usd={shipping.usd} native={{ amount: shipping.native, currency }} approxPrefix="" /> shipping
           </>
         ) : (
-          "Free shipping"
+          "Shipping not confirmed"
         )}
       </p>
       <p className="tnum text-xs font-semibold text-amber-600 dark:text-amber-500">

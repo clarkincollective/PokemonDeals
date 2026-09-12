@@ -164,13 +164,15 @@ test("DealCard distinguishes auction from BIN and never strikes the auction ref"
   assert.doesNotMatch(auctionPrice, /line-through/, "an auction price block never strikes a figure");
   // the fixed-price branch headlines the landed total and labels the
   // reference beside it (deal-first R1: no struck-through anchor either).
-  const binOnly = src.slice(src.indexOf(") : (\n          <div className=\"mt-3\">"));
-  assert.match(binOnly, /Listing total/, "BIN headlines the listing total");
+  const binOnly = src.slice(src.indexOf(") : (\n          <div className=\"mt-2\">"));
+  assert.match(binOnly, /\{shippingConfirmed \? "Listing total" : "Listing price"\}/, "BIN headlines the listing total, or the listing price when shipping is not confirmed");
   assert.match(binOnly, /Market reference/, "BIN labels its reference");
   assert.doesNotMatch(src, /line-through/, "no struck-through figure anywhere on the card");
 });
 
 test("DealCard image reserves space (no CLS)", () => {
   const src = read("components/DealCard.js");
-  assert.match(src, /aspect-square w-full/, "deal image needs a reserved aspect box");
+  // deal-first R2 revision: a 4:5 box (object-contain, never cropped)
+  // instead of a square - still a reserved aspect box, so no CLS
+  assert.match(src, /aspect-\[4\/5\] w-full/, "deal image needs a reserved aspect box");
 });

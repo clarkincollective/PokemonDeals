@@ -27,24 +27,35 @@ function discountBadgeClass(pct) {
   return "border border-zinc-200 bg-white/95 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950/90 dark:text-zinc-300";
 }
 
-// Deal-first R1 - one offer in a grid, laid out as the deal-card contract
-// (docs: PokemonDealFinder-Deal-First-Overhaul §5):
+// Deal-first R1/R2 - one offer in a grid, laid out as the deal-card
+// contract (docs: PokemonDealFinder-Deal-First-Overhaul §5):
 //
 //   IDENTITY    artwork, full name, set (linked when the set page exists),
 //               language, raw condition or grader + grade
-//   OFFER       ONE dominant price with a clear meaning - the listing total
-//               (item + the shipping recorded at scan) for a fixed-price
-//               listing; the CURRENT BID, its shipping and the estimated
-//               total for an auction (<AuctionPrice>)
+//   OFFER       ONE dominant price with a clear meaning. When the scan
+//               recorded a shipping charge: "Listing total" (item +
+//               shipping) and the charge. When it recorded 0 - which is
+//               BOTH shipping at no charge and "no shipping option stated" - the
+//               headline is the "Listing price" and the card says
+//               "Shipping not confirmed"; it never says free and never
+//               presents the figure as landed. Auctions headline the
+//               CURRENT BID with shipping + estimated total (<AuctionPrice>).
 //   COMPARISON  the matching market reference with its condition context
 //               and the derived saving - ONLY when the existing rules say
-//               the reference is comparable (savings === "trusted");
-//               otherwise the listing renders PLAIN with the reason
+//               the reference is comparable (savings === "trusted"). With
+//               shipping unconfirmed the saving is stated "before
+//               shipping" so it never reads as a verified delivered
+//               saving; otherwise the listing renders PLAIN with the reason.
 //   STATUS      real facts: found when, N active listings, auction end
 //   ACTIONS     primary "View deal on eBay" / "View auction on eBay" (the
 //               existing AffiliateLink wrapper + surface attribution);
 //               the artwork and name open the site's own detail page; the
 //               save control is the existing device-local toggle
+//
+// LAYOUT: one DOM, two shapes. Below `sm` the card is a compact unit -
+// artwork (4:5, object-contain, never cropped) on the left, identity /
+// offer / comparison on the right, the 44px eBay button spanning the
+// width beneath. From `sm` up it stacks: 4:5 artwork, body, button.
 //
 // `rank` shows a number badge only on ranked lists (Top 10, "Best deals").
 // `hub` is `{ count, slug }` from fetchHubCounts when this card has 2+
@@ -109,11 +120,10 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
 
   // The shipping recorded at scan (listing currency). `deals.shipping` is
   // 0 both for a free-shipping listing AND when eBay stated no shipping
-  // option, so the card says what it knows - "no shipping charge listed"
-  // - never "free", and never a landed figure it cannot vouch for.
+  // option (lib/ebay.js `?? 0`), so a 0 is "not confirmed", never "free".
   const shippingNative = Number(deal.shipping);
-  const hasShippingCharge = Number.isFinite(shippingNative) && shippingNative > 0;
-  const shippingUsd = hasShippingCharge && usdTotal > 0 && total > 0 ? shippingNative * (usdTotal / total) : null;
+  const shippingConfirmed = Number.isFinite(shippingNative) && shippingNative > 0;
+  const shippingUsd = shippingConfirmed && usdTotal > 0 && total > 0 ? shippingNative * (usdTotal / total) : null;
 
   // 17C.7: a listing whose discount has no evidenced reference for this
   // exact product and condition renders PLAIN - price, shipping and the
@@ -150,12 +160,14 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
     <article
       {...analyticsAttrs}
       data-offer-state={isAuction ? "auction" : showSavings ? "bin_compared" : "bin_plain"}
-      className="group flex h-full flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white transition-shadow duration-200 hover:shadow-card-hover focus-within:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950"
+      data-shipping={shippingConfirmed ? "confirmed" : "unconfirmed"}
+      className="group grid h-full grid-cols-[7.25rem_1fr] grid-rows-[auto_auto] overflow-hidden rounded-xl border border-zinc-200 bg-white transition-shadow duration-200 hover:shadow-card-hover focus-within:shadow-card-hover sm:flex sm:flex-col dark:border-zinc-800 dark:bg-zinc-950"
     >
       {/* ARTWORK - the seller's photo (or, labelled, the catalogue art);
-          opens the site's own detail page. Badges carry only real facts. */}
-      <div className="relative">
-        <div className="absolute bottom-2 right-2 z-10">
+          opens the site's own detail page. Badges carry only real facts.
+          4:5 box, object-contain: the artwork keeps its own proportions. */}
+      <div className="relative row-span-1 sm:row-auto">
+        <div className="absolute bottom-1.5 right-1.5 z-10 sm:bottom-2 sm:right-2">
           <SaveCardButton
             compact
             card={{
@@ -173,17 +185,18 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           href={dealHref}
           rel={dealRel}
           aria-label={`${cardName} - details`}
-          className="relative block aspect-square w-full bg-zinc-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-red-600 dark:bg-zinc-900"
+          className="relative block aspect-[4/5] w-full bg-zinc-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-red-600 dark:bg-zinc-900"
         >
           <DealImage
             {...dealImageProps(deal)}
             alt={normalizePublicText(deal.title)}
-            sizes="(max-width: 640px) 90vw, (max-width: 1024px) 46vw, 24vw"
+            sizes="(max-width: 640px) 116px, (max-width: 1024px) 46vw, 24vw"
             quality={85}
             priority={priority}
+            className="object-contain p-2 sm:p-3"
           />
 
-          <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
+          <div className="absolute left-1.5 top-1.5 flex flex-col items-start gap-1 sm:left-2 sm:top-2">
             {rank != null && (
               <span className="flex h-6 min-w-6 items-center justify-center rounded-md bg-zinc-900/85 px-1.5 text-xs font-bold text-white">
                 {rank}
@@ -206,15 +219,15 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           </div>
 
           {showSavings && (
-            <span className={`absolute right-2 top-2 rounded-md px-2 py-1 text-sm font-extrabold leading-none shadow-sm ${discountBadgeClass(discountPct)}`}>
+            <span className={`absolute right-1.5 top-1.5 rounded-md px-1.5 py-0.5 text-xs font-extrabold leading-none shadow-sm sm:right-2 sm:top-2 sm:px-2 sm:py-1 sm:text-sm ${discountBadgeClass(discountPct)}`}>
               −{discountPct}%
             </span>
           )}
         </a>
       </div>
 
-      <div className="flex flex-1 flex-col p-4">
-        {/* IDENTITY */}
+      {/* IDENTITY · OFFER · COMPARISON · STATUS */}
+      <div className="flex min-w-0 flex-col p-3 sm:flex-1 sm:p-3.5">
         <a
           href={dealHref}
           rel={dealRel}
@@ -222,7 +235,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
         >
           {cardName}
         </a>
-        <p className="mt-1 truncate text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
           {isJapanese && "🇯🇵 Japanese · "}
           {setHasPage ? (
             <Link href={`/sets/${setSlug}`} className="hover:text-red-600 hover:underline dark:hover:text-red-500">
@@ -237,7 +250,6 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           </span>
         </p>
 
-        {/* OFFER */}
         {isAuction ? (
           // P0 auction-price-integrity: the headline figure for an auction
           // is the CURRENT BID, with shipping and the estimated landed
@@ -249,23 +261,25 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             marketNative={showSavings ? marketNative : null}
             discountPct={showSavings ? discountPct : 0}
             variant="card"
-            className="mt-3"
+            className="mt-2"
           />
         ) : (
-          <div className="mt-3">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Listing total</p>
+          <div className="mt-2">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              {shippingConfirmed ? "Listing total" : "Listing price"}
+            </p>
             <Price
               usd={usdTotal}
               native={{ amount: total, currency: nativeCurrency }}
               className="tnum block text-2xl font-bold leading-tight text-zinc-900 dark:text-zinc-50"
             />
-            <p className="tnum mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-              {hasShippingCharge ? (
+            <p className={`tnum mt-0.5 text-xs ${shippingConfirmed ? "text-zinc-500 dark:text-zinc-400" : "text-amber-700 dark:text-amber-500"}`}>
+              {shippingConfirmed ? (
                 <>
                   incl. <Price usd={shippingUsd} native={{ amount: shippingNative, currency: nativeCurrency }} approxPrefix="" /> shipping
                 </>
               ) : (
-                "no shipping charge listed"
+                "Shipping not confirmed"
               )}
             </p>
           </div>
@@ -274,7 +288,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
         {/* COMPARISON - only a trusted reference earns the green line; a
             plain listing states why it carries no claim. */}
         {!showSavings ? (
-          <div className="mt-2 flex flex-col gap-1">
+          <div className="mt-1.5 flex flex-col gap-1">
             {presentation.notes.map((note) => (
               <p key={note} className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
                 {note}
@@ -282,7 +296,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             ))}
           </div>
         ) : isAuction ? null : (
-          <div className="mt-2">
+          <div className="mt-1.5">
             {showRef ? (
               <p className="tnum text-xs text-zinc-500 dark:text-zinc-400">
                 Market reference{" "}
@@ -294,17 +308,19 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             <p className="tnum text-xs font-semibold text-emerald-700 dark:text-emerald-500">
               {showRef ? (
                 <>
-                  Save <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> · {discountPct}% below market
+                  Save <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} />
+                  {shippingConfirmed ? "" : " before shipping"} · {discountPct}% below market
                 </>
               ) : (
-                <>{discountPct}% below market</>
+                <>
+                  {discountPct}% below market{shippingConfirmed ? "" : " (before shipping)"}
+                </>
               )}
             </p>
           </div>
         )}
 
-        {/* STATUS + secondary action */}
-        <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+        <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
           <p className="min-w-0 truncate">
             {isAuction ? (
               <>
@@ -329,32 +345,33 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             Details
           </a>
         </div>
+      </div>
 
-        {/* PRIMARY ACTION - the existing wrapper, tracking and surface
-            attribution; opens the exact listing on eBay in a new tab. */}
-        <div className="mt-auto pt-3">
-          <AffiliateLink
-            href={affiliateHref}
-            eventName="eBay Click"
-            eventData={{
-              card: cardName,
-              marketplace: deal.marketplace,
-              discountPct,
-              listingType: deal.listing_type,
-              isGraded: deal.is_graded,
-              usdTotal,
-              page: pageName,
-            }}
-            analyticsProps={
-              analyticsPayload
-                ? { ...analyticsPayload, origin_section: analyticsPayload.section }
-                : { origin_section: pageName, deal_id: deal.id, content_id: String(deal.id) }
-            }
-            className="flex min-h-11 w-full items-center justify-center rounded-lg bg-red-600 px-4 text-center text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
-          >
-            {isAuction ? "View auction on eBay" : "View deal on eBay"}
-          </AffiliateLink>
-        </div>
+      {/* PRIMARY ACTION - the existing wrapper, tracking and surface
+          attribution; opens the exact listing on eBay in a new tab. Spans
+          the whole card below `sm`; sits at the foot of the column above. */}
+      <div className="col-span-2 px-3 pb-3 sm:col-auto sm:mt-auto sm:px-3.5 sm:pb-3.5">
+        <AffiliateLink
+          href={affiliateHref}
+          eventName="eBay Click"
+          eventData={{
+            card: cardName,
+            marketplace: deal.marketplace,
+            discountPct,
+            listingType: deal.listing_type,
+            isGraded: deal.is_graded,
+            usdTotal,
+            page: pageName,
+          }}
+          analyticsProps={
+            analyticsPayload
+              ? { ...analyticsPayload, origin_section: analyticsPayload.section }
+              : { origin_section: pageName, deal_id: deal.id, content_id: String(deal.id) }
+          }
+          className="flex min-h-11 w-full items-center justify-center rounded-lg bg-red-600 px-4 text-center text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+        >
+          {isAuction ? "View auction on eBay" : "View deal on eBay"}
+        </AffiliateLink>
       </div>
     </article>
   );
