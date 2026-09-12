@@ -55,6 +55,11 @@ export default function AuctionPrice({
   }
 
   const { currency, bid, shipping, total } = parts;
+  // shipping.native is 0 both for free shipping and for "no shipping
+  // option stated" (lib/ebay.js), so a 0 is "not confirmed": the estimate
+  // is then labelled "before shipping" rather than presented as a landed
+  // total. Deal-first review fix; the maths above is unchanged.
+  const shippingConfirmed = shipping.native > 0;
 
   return (
     <div className={className}>
@@ -67,8 +72,8 @@ export default function AuctionPrice({
         native={{ amount: bid.native, currency }}
         className={`tnum ${big} text-zinc-900 dark:text-zinc-50`}
       />
-      <p className="tnum mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-        {shipping.native > 0 ? (
+      <p className={`tnum mt-0.5 text-xs ${shippingConfirmed ? "text-zinc-500 dark:text-zinc-400" : "text-amber-700 dark:text-amber-500"}`}>
+        {shippingConfirmed ? (
           <>
             {"+ "}
             <Price usd={shipping.usd} native={{ amount: shipping.native, currency }} approxPrefix="" /> shipping
@@ -78,7 +83,7 @@ export default function AuctionPrice({
         )}
       </p>
       <p className="tnum text-xs font-semibold text-amber-600 dark:text-amber-500">
-        Est. total{" "}
+        {shippingConfirmed ? "Est. total" : "Est. total before shipping"}{" "}
         <Price usd={total.usd} native={{ amount: total.native, currency }} approxPrefix="" />
         {showRef && (
           <>

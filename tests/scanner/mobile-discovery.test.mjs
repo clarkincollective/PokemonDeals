@@ -165,7 +165,7 @@ test("DealCard distinguishes auction from BIN and never strikes the auction ref"
   // the fixed-price branch headlines the landed total and labels the
   // reference beside it (deal-first R1: no struck-through anchor either).
   const binOnly = src.slice(src.indexOf(") : (\n          <div className=\"mt-2\">"));
-  assert.match(binOnly, /\{shippingConfirmed \? "Listing total" : "Listing price"\}/, "BIN headlines the listing total, or the listing price when shipping is not confirmed");
+  assert.match(binOnly, /\{ship\.headline\}/, "BIN headlines the listing total, or the listing price when shipping is not confirmed (lib/offerPresentation)");
   assert.match(binOnly, /Market reference/, "BIN labels its reference");
   assert.doesNotMatch(src, /line-through/, "no struck-through figure anywhere on the card");
 });

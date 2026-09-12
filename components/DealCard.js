@@ -14,6 +14,7 @@ import { dealImageProps } from "@/lib/listingImage";
 import SaveCardButton from "@/components/SaveCardButton";
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
+import { offerShipping } from "@/lib/offerPresentation";
 
 const JUST_FOUND_MS = 2 * 60 * 60 * 1000;
 
@@ -118,11 +119,13 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
   // from physical condition.
   const conditionText = conditionLabel(deal);
 
-  // The shipping recorded at scan (listing currency). `deals.shipping` is
-  // 0 both for a free-shipping listing AND when eBay stated no shipping
-  // option (lib/ebay.js `?? 0`), so a 0 is "not confirmed", never "free".
-  const shippingNative = Number(deal.shipping);
-  const shippingConfirmed = Number.isFinite(shippingNative) && shippingNative > 0;
+  // The shipping recorded at scan (listing currency), read through the
+  // shared contract (lib/offerPresentation): > 0 confirmed, 0 = free OR
+  // unstated -> "not confirmed", field absent -> "unknown". The headline
+  // label, the note and the saving qualifier all come from that one rule.
+  const ship = offerShipping(deal);
+  const shippingConfirmed = ship.state === "confirmed";
+  const shippingNative = shippingConfirmed ? ship.amount : null;
   const shippingUsd = shippingConfirmed && usdTotal > 0 && total > 0 ? shippingNative * (usdTotal / total) : null;
 
   // 17C.7: a listing whose discount has no evidenced reference for this
@@ -160,7 +163,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
     <article
       {...analyticsAttrs}
       data-offer-state={isAuction ? "auction" : showSavings ? "bin_compared" : "bin_plain"}
-      data-shipping={shippingConfirmed ? "confirmed" : "unconfirmed"}
+      data-shipping={ship.state}
       className="group grid h-full grid-cols-[7.25rem_1fr] grid-rows-[auto_auto] overflow-hidden rounded-xl border border-zinc-200 bg-white transition-shadow duration-200 hover:shadow-card-hover focus-within:shadow-card-hover sm:flex sm:flex-col dark:border-zinc-800 dark:bg-zinc-950"
     >
       {/* ARTWORK - the seller's photo (or, labelled, the catalogue art);
@@ -266,7 +269,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
         ) : (
           <div className="mt-2">
             <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              {shippingConfirmed ? "Listing total" : "Listing price"}
+              {ship.headline}
             </p>
             <Price
               usd={usdTotal}
@@ -279,7 +282,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                   incl. <Price usd={shippingUsd} native={{ amount: shippingNative, currency: nativeCurrency }} approxPrefix="" /> shipping
                 </>
               ) : (
-                "Shipping not confirmed"
+                ship.note
               )}
             </p>
           </div>
@@ -309,11 +312,11 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
               {showRef ? (
                 <>
                   Save <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} />
-                  {shippingConfirmed ? "" : " before shipping"} · {discountPct}% below market
+                  {ship.savingQualifier} · {discountPct}% below market
                 </>
               ) : (
                 <>
-                  {discountPct}% below market{shippingConfirmed ? "" : " (before shipping)"}
+                  {discountPct}% below market{ship.savingQualifier ? ` (${ship.savingQualifier.trim()})` : ""}
                 </>
               )}
             </p>

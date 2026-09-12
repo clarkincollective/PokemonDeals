@@ -70,7 +70,10 @@ test("IDB-2. the projection is a real reduction vs the raw row", () => {
   const slimB = Buffer.byteLength(JSON.stringify(slim), "utf8");
   assert.ok(slimB < rawB * 0.75, `slim row ${slimB}B should be < 75% of raw ${rawB}B`);
   // the heaviest raw-only fields are gone
-  for (const gone of ["image_urls", "visual_authenticity_reason", "listing_url", "listing_id", "price", "shipping", "seller_feedback_score", "item_location_country"]) {
+  // deal-first review fix (P1): `price` + `shipping` are part of the
+  // display contract (DealCard shipping wording, AuctionPrice current bid)
+  // and now survive the projection - two numbers, well inside the budget
+  for (const gone of ["image_urls", "visual_authenticity_reason", "listing_url", "listing_id", "seller_feedback_score", "item_location_country"]) {
     assert.ok(!(gone in slim), `slim row must not carry ${gone}`);
   }
 });
@@ -84,6 +87,7 @@ test("IDB-3. slimPoolRow is idempotent", () => {
 // ---- consumer parity: every field a pool consumer reads survives ---
 const DEALCARD_NEEDS = [
   "id", "title", "image_url", "display_image_url", "image_verdict", "affiliate_url",
+  "price", "shipping", // deal-first P1: AuctionPrice bid + the shipping display contract
   "total_price", "total_price_usd", "market_price", "discount_pct",
   "listing_type", "auction_end_at", "bid_count", "is_graded", "grade", "grader", "condition",
   "marketplace", "first_seen_at", "card_tcgplayer_id",
@@ -136,12 +140,14 @@ test("IDB-7. fetchDealsPool uses the slim select + ceiling + projection, keeps t
   assert.doesNotMatch(fn, /for\s*\(.*of.*\)\s*\{[\s\S]*await supabase/); // no loop-with-await query
 });
 
-test("IDB-8. the pool + homepage-lanes cache keys were bumped so a stale full-size entry is not reused", () => {
+test("IDB-8. the pool + homepage-lanes cache keys were bumped so a stale entry of an older shape is not reused", () => {
   const src = read("lib/deals.js");
-  assert.match(src, /\["deals-pool-v2"\]/);
-  assert.match(src, /\["homepage-lanes-v2"\]/);
-  assert.doesNotMatch(src, /\["deals-pool"\]/);
-  assert.doesNotMatch(src, /\["homepage-lanes-v1"\]/);
+  // v2 = slim rows (INFRA-DB-1); v3 = slim rows carrying price + shipping
+  // (deal-first P1) - a v2 entry lacks the fields the card now reads
+  assert.match(src, /\["deals-pool-v3"\]/);
+  assert.match(src, /\["homepage-lanes-v3"\]/);
+  assert.doesNotMatch(src, /\["deals-pool"\]|\["deals-pool-v2"\]/);
+  assert.doesNotMatch(src, /\["homepage-lanes-v1"\]|\["homepage-lanes-v2"\]/);
 });
 
 test("IDB-9. every homepage lane pool is slimmed before it enters the homepage-lanes cache entry", () => {

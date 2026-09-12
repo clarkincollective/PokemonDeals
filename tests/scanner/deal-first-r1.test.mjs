@@ -15,6 +15,7 @@ import { ALLOWED_EVENTS } from "../../lib/analytics/events.js";
 import { AFFILIATE_SURFACES, surfaceForPageName } from "../../lib/affiliateSurfaces.js";
 import { DEAL_STATE_FIXTURES, FIXTURE_ART } from "../../lib/dev/dealStateFixtures.js";
 import { listingPresentation, conditionLabel } from "../../lib/dealQuality.js";
+import { offerShipping } from "../../lib/offerPresentation.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
@@ -73,13 +74,20 @@ test("R1-3. DealCard: the CTA names the destination and the state; no purchase c
 
 test("R1-4. DealCard: one dominant price with a clear meaning; shipping=0 is 'not confirmed', never free, and the saving is stated before shipping", () => {
   const src = read("components/DealCard.js");
-  // headline label follows what the scan recorded
-  assert.match(src, /\{shippingConfirmed \? "Listing total" : "Listing price"\}/);
-  assert.match(src, /shippingConfirmed \? \([\s\S]*?incl\.[\s\S]*?shipping[\s\S]*?\) : \(\s*"Shipping not confirmed"/);
+  // headline label follows what the scan recorded, via the shared contract
+  // (lib/offerPresentation - review fix P1: one rule for every renderer)
+  assert.match(src, /const ship = offerShipping\(deal\);/);
+  assert.match(src, /const shippingConfirmed = ship\.state === "confirmed";/);
+  assert.match(src, /\{ship\.headline\}/);
+  assert.match(src, /shippingConfirmed \? \([\s\S]*?incl\.[\s\S]*?shipping[\s\S]*?\) : \(\s*ship\.note/);
   assert.doesNotMatch(src, /Free shipping|free delivery|delivered total|no shipping charge listed/i, "a 0 shipping figure is never called free on the card");
   // the derived saving never reads as a verified delivered saving
-  assert.match(src, /\{shippingConfirmed \? "" : " before shipping"\}/);
-  assert.match(src, /data-shipping=\{shippingConfirmed \? "confirmed" : "unconfirmed"\}/);
+  assert.match(src, /\{ship\.savingQualifier\} · \{discountPct\}% below market/);
+  assert.match(src, /data-shipping=\{ship\.state\}/);
+  assert.equal(offerShipping({ shipping: 0 }).headline, "Listing price");
+  assert.equal(offerShipping({ shipping: 0 }).note, "Shipping not confirmed");
+  assert.equal(offerShipping({ shipping: 0 }).savingQualifier, " before shipping");
+  assert.equal(offerShipping({ shipping: 3.5 }).headline, "Listing total");
   // auctions still go through the shared AuctionPrice, which says the same
   assert.match(src, /<AuctionPrice[\s\S]*marketUsd=\{showSavings \? marketUsd : null\}/);
   const ap = read("components/AuctionPrice.js");

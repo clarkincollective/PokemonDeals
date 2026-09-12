@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import { auctionDisplayParts, currencyForDeal } from "../../lib/money.js";
 import { repricedAuctionPatch } from "../../lib/auctionPricing.js";
 import { isDisplayableDeal, DEAL_DISCOUNT_THRESHOLD } from "../../lib/dealQuality.js";
+import { offerShipping } from "../../lib/offerPresentation.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RATES = { USD: 1, GBP: 0.74, AUD: 1.39, EUR: 0.86, CAD: 1.38 };
@@ -134,7 +135,10 @@ test("2c. fixed-price (BIN) rendering: the landed total is the ONE dominant pric
   // saving is only rendered from the trusted reference.
   const src = readFileSync(join(HERE, "..", "..", "components", "DealCard.js"), "utf8");
   const binBranch = src.slice(src.indexOf("isAuction ? ("), src.length);
-  assert.match(binBranch, /Listing total/);
+  // the headline label comes from the shared shipping contract (deal-first
+  // review fix P1): "Listing total" when a shipping charge was recorded
+  assert.match(binBranch, /\{ship\.headline\}/);
+  assert.equal(offerShipping({ shipping: 4.25 }).headline, "Listing total");
   assert.match(binBranch, /Market reference/);
   assert.match(src, /Save <Price usd=\{savedUsd\}/);
   assert.doesNotMatch(binBranch, /line-through/, "no struck-through 'was' anchor on a fixed-price listing");
