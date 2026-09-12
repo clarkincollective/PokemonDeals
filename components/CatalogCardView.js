@@ -157,7 +157,7 @@ export default function CatalogCardView({
       <RecordCardView card={cardDescriptor} />
       <SiteHeader />
 
-      <div className="mx-auto max-w-5xl px-6 py-10">
+      <div className="mx-auto max-w-5xl px-6 py-6">
         <Breadcrumbs
           items={[
             { name: "Deals", href: "/" },
@@ -167,14 +167,14 @@ export default function CatalogCardView({
           ]}
         />
 
-        <div className="mt-4 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
-          <div className="relative aspect-[63/88] w-44 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:w-64 sm:self-auto dark:bg-zinc-900">
+        <div className="mt-4 flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-4 sm:gap-6 sm:p-6 sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="relative aspect-[63/88] w-28 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:w-48 sm:self-auto dark:bg-zinc-900">
             {image ? (
               <Image
                 src={upgradeCatalogImage(image)}
                 alt={`${name} - ${set}`}
                 fill
-                sizes="(max-width: 640px) 176px, 256px"
+                sizes="(max-width: 640px) 112px, 192px"
                 quality={85}
                 priority
                 className="object-contain"
@@ -215,6 +215,16 @@ export default function CatalogCardView({
                 </Link>
               </div>
             )}
+
+            <div className="mt-4" data-r3-reference-summary>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">Market reference - raw</p>
+              {worthUsd != null ? (
+                <Price usd={worthUsd} native={{ amount: worthUsd, currency: "USD" }} className="tnum text-3xl font-bold text-zinc-900 dark:text-zinc-50" />
+              ) : <p className="text-base font-medium">Raw market reference unavailable</p>}
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                {(analysisHasPrice ? analysis?.raw?.referenceCondition : card.refCondition) ? `Condition: ${(analysisHasPrice ? analysis?.raw?.referenceCondition : card.refCondition)}` : "Reference condition not recorded"}. A reference, not an available offer.
+              </p>
+            </div>
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
               {tcgplayerLink && (

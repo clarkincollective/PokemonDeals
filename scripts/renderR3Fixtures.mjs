@@ -1,6 +1,8 @@
 // Generate labelled static R3 fixture HTML, never fetch application routes.
-import {readFileSync,readdirSync,mkdirSync,writeFileSync,statSync} from 'node:fs';
+import {readFileSync,readdirSync,mkdirSync,writeFileSync} from 'node:fs';
 import {resolve,basename} from 'node:path';
+import postcss from 'postcss';
+import tailwind from '@tailwindcss/postcss';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {loadRoute} from '../tests/helpers/r3RouteHarness.mjs';
 import {DEAL_STATE_FIXTURES} from '../lib/dev/dealStateFixtures.js';
@@ -11,7 +13,7 @@ mkdirSync(out,{recursive:true});
 const chunks=resolve(root,'.next/dev/static/chunks');
 const cssFile=readdirSync(chunks).find(n=>n.startsWith('app_globals_css_')&&n.endsWith('.css'));
 if (!cssFile) throw Error('Existing compiled CSS unavailable; do not build or fetch automatically');
-let css=readFileSync(resolve(chunks,cssFile),'utf8');
+let css=(await postcss([tailwind({base:root})]).process(readFileSync(resolve(root,'app/globals.css'),'utf8'),{from:resolve(root,'app/globals.css')})).css;
 for (const name of readdirSync(chunks).filter(n=>n.includes('font_google_geist')&&n.endsWith('.css'))) {
   css+='\n'+readFileSync(resolve(chunks,name),'utf8').replace(/url\(["']?([^)'" ]+)["']?\)/g,(match,url)=>{
     const file=resolve(root,'.next/dev/static/media',basename(url));
@@ -30,9 +32,9 @@ try {
       deal:{...source,is_active:true},card,renderComponents:'visual',
     });
     const markup=renderToStaticMarkup(await route.default({params:Promise.resolve({id:String(source.id),slug:'fixture-clefable'})}));
-    const html='<!doctype html><html><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'\nbody{font-family:Arial,sans-serif}</style></head><body><aside style="padding:8px;background:#fff3cd;color:#171514;font:12px Arial">SIMULATED R3 FIXTURE: '+id+' - static SSR; prices/links simulated; no hydration; font fallback.</aside>'+markup+'</body></html>';
+    const html='<!doctype html><html><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'\nbody{font-family:Geist,Arial,sans-serif}</style></head><body><aside style="padding:8px;background:#fff3cd;color:#171514;font:12px Arial">SIMULATED R3 FIXTURE: '+id+' - static SSR; prices/links simulated; no hydration; local Geist font.</aside>'+markup+'</body></html>';
     writeFileSync(resolve(out,id+'.html'),html);
-    records.push({id,substitutes:[...substitutes],cssFile,cssModified:statSync(resolve(chunks,cssFile)).mtime.toISOString()});
+    records.push({id,substitutes:[...substitutes],cssSource:'app/globals.css compiled offline with installed Tailwind',fontSource:chunks});
   }
   writeFileSync(resolve(out,'manifest.json'),JSON.stringify(records,null,2));
   console.log(JSON.stringify(records));

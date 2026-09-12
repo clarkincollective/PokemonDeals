@@ -39,3 +39,26 @@ for (const priced of [true,false]) {
     assert.doesNotMatch(html,/ebay\.com\/itm\//);
   });
 }
+
+test('live hub hero shows the actual raw reference and its condition',async()=>{
+  const {route}=loadRoute('app/cards/[slug]/page.js',{
+    hub:{id:'fixture-hub',name:'Clefable',set:'Jungle',tcgplayerId:'45120'},
+    analysis:{raw:{currentPrice:42,referenceCondition:'Lightly Played'},graded:[]},renderComponents:true,
+  });
+  const html=renderToStaticMarkup(await route.default({params:Promise.resolve({slug:'fixture-clefable'})}));
+  const hero=html.match(/data-r3-reference-summary[\s\S]*?<\/div>/)?.[0];
+  assert.ok(hero);
+  assert.match(hero,/42\.00/);
+  assert.match(hero,/Lightly Played/);
+});
+test('rejected analysis cannot resurrect catalogue reference in the hero',async()=>{
+  const {route}=loadRoute('app/cards/[slug]/page.js',{
+    card:{name:'Clefable',set:'Jungle',refPrice:30,tcgplayerId:'45120'},
+    analysis:{raw:{currentPrice:null},graded:[]},renderComponents:true,
+  });
+  const html=renderToStaticMarkup(await route.default({params:Promise.resolve({slug:'fixture-clefable'})}));
+  const hero=html.match(/data-r3-reference-summary[\s\S]*?<\/div>/)?.[0];
+  assert.ok(hero);
+  assert.match(hero,/Raw market reference unavailable/);
+  assert.doesNotMatch(hero,/30\.00/);
+});

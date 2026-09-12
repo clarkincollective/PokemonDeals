@@ -570,7 +570,7 @@ export default async function DealDetailPage({ params }) {
       />
       <DetailViewAnalytics kind="deal" contentId={deal.id} />
       <SiteHeader />
-      <div className="mx-auto max-w-5xl px-6 py-10">
+      <div className="mx-auto max-w-5xl px-6 py-6">
         <div className="mb-3">
           <DealBackLink fallbackHref={backFallback.href} fallbackLabel={backFallback.label} />
         </div>
@@ -584,12 +584,12 @@ export default async function DealDetailPage({ params }) {
 
         <SocialLandingBadge />
 
-        <div className="mt-4 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
-          <div className="relative h-56 w-56 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:self-auto dark:bg-zinc-900">
+        <div className="mt-4 flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-4 sm:gap-6 sm:p-6 sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="relative h-40 w-40 sm:h-64 sm:w-48 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:self-auto dark:bg-zinc-900">
             <DealImage
               {...dealImageProps(deal)}
               alt={normalizePublicText(deal.title)}
-              sizes="224px"
+              sizes="(max-width: 640px) 160px, 192px"
               priority
               className="object-contain p-3"
             />
@@ -686,7 +686,7 @@ export default async function DealDetailPage({ params }) {
                     <Price
                       usd={usdTotal}
                       native={{ amount: total, currency: nativeCurrency }}
-                      className="text-2xl font-bold text-black dark:text-zinc-50"
+                      className="tnum text-3xl font-bold text-black dark:text-zinc-50"
                     />
                     {showSavings && showRef && (
                       <span className="text-base text-zinc-400 line-through">
@@ -738,7 +738,7 @@ export default async function DealDetailPage({ params }) {
                 </p>
               )}
               <p className="mt-1 text-xs text-zinc-400">
-                We scan live eBay listings for Pokemon cards priced below recent sold prices.
+                Check the exact card, condition and shipping on eBay before buying.
               </p>
             </div>
             {deal.seller_feedback_pct != null && (
@@ -765,7 +765,7 @@ export default async function DealDetailPage({ params }) {
                   content_id: String(deal.id),
                   listing_type: deal.listing_type,
                 }}
-                className="flex w-full items-center justify-center rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 sm:w-auto dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                className="flex min-h-12 w-full items-center justify-center rounded-lg bg-red-600 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-red-700 sm:w-auto"
               >
                 {isAuction ? "Bid on eBay →" : "View on eBay →"}
               </AffiliateLink>
@@ -815,8 +815,7 @@ export default async function DealDetailPage({ params }) {
             {deal.is_graded ? `${deal.grader} ${deal.grade} price history` : "Market price history"}
           </h2>
           <p className="text-xs text-zinc-400">
-            {deal.is_graded ? "Real graded sold comps" : "Real market pricing"}, fetched fresh for this
-            page.
+            {deal.is_graded ? "Recorded graded sales and reference history." : "Recorded market reference history."} Updates are cached; dates below describe the available observations.
           </p>
           {primaryHistory.length >= 2 ? (
             <div className="mt-4">

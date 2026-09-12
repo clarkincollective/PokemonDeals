@@ -22,6 +22,7 @@ import { currencyForDeal, auctionDisplayParts } from "@/lib/money";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import RecentSales from "@/components/RecentSales";
+import Price from "@/components/Price";
 import CardPriceSummary from "@/components/CardPriceSummary";
 import CardPriceIntelligence from "@/components/CardPriceIntelligence";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
@@ -405,7 +406,7 @@ export default async function CardHubPage({ params }) {
       <DetailViewAnalytics kind="card" contentId={slug} />
       <SiteHeader />
 
-      <div className="mx-auto max-w-5xl px-6 py-10">
+      <div className="mx-auto max-w-5xl px-6 py-6">
         <Breadcrumbs
           items={[
             { name: "Deals", href: "/" },
@@ -415,14 +416,14 @@ export default async function CardHubPage({ params }) {
           ]}
         />
 
-        <div className="mt-4 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
-          <div className="relative aspect-[63/88] w-44 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:w-64 sm:self-auto dark:bg-zinc-900">
+        <div className="mt-4 flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-4 sm:gap-6 sm:p-6 sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="relative aspect-[63/88] w-28 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:w-48 sm:self-auto dark:bg-zinc-900">
             {heroImage ? (
               <Image
                 src={heroImage}
                 alt={`${cardName} - ${hub.set}`}
                 fill
-                sizes="(max-width: 640px) 176px, 256px"
+                sizes="(max-width: 640px) 112px, 192px"
                 quality={85}
                 priority
                 className="object-contain"
@@ -467,6 +468,16 @@ export default async function CardHubPage({ params }) {
                 </Link>
               </div>
             )}
+
+            <div className="mt-4" data-r3-reference-summary>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">Market reference - raw</p>
+              {(isUsableUsdPrice(hubRaw) ? Number(hubRaw) : null) != null ? (
+                <Price usd={(isUsableUsdPrice(hubRaw) ? Number(hubRaw) : null)} native={{ amount: (isUsableUsdPrice(hubRaw) ? Number(hubRaw) : null), currency: "USD" }} className="tnum text-3xl font-bold text-zinc-900 dark:text-zinc-50" />
+              ) : <p className="text-base font-medium">Raw market reference unavailable</p>}
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                {analysis?.raw?.referenceCondition ? `Condition: ${analysis?.raw?.referenceCondition}` : "Reference condition not recorded"}. A reference, not an available offer.
+              </p>
+            </div>
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <SaveCardButton card={cardDescriptor} />
