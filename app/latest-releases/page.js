@@ -178,6 +178,70 @@ export default async function LatestReleasesPage() {
           </section>
         )}
 
+        {/* Two sets share almost the same name, and their sealed products
+            are routinely confused in listing titles: a standard Elite
+            Trainer Box, a Pokemon Center Elite Trainer Box and an ETB CASE
+            exist in BOTH the 2026 "30th Celebration" set and the 2021
+            "Celebrations" set. This note is rendered ONLY while 30th
+            Celebration is the featured release, so it never dominates an
+            unrelated future one. Both links go through setHref, so a set
+            page is linked only when it really exists. */}
+        {featured?.set === "ME: 30th Celebration" && (
+          <section data-analytics-section="latest_identify" className="mt-10 rounded-2xl border border-zinc-200 bg-white p-5 shadow-card sm:p-6 dark:border-zinc-800 dark:bg-zinc-950">
+            <h2 className="text-base font-semibold text-zinc-900 sm:text-lg dark:text-zinc-50">
+              Two different &ldquo;Celebrations&rdquo; sets
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm text-zinc-600 dark:text-zinc-300">
+              Two Pokemon TCG sets share almost the same name, and their sealed products are easy to mix up
+              when you&apos;re searching. <strong className="font-semibold text-zinc-900 dark:text-zinc-100">30th Celebration</strong>{" "}
+              is the 2026 expansion. Release date: 16 September 2026.{" "}
+              <strong className="font-semibold text-zinc-900 dark:text-zinc-100">Celebrations</strong> is the 2021
+              25th-anniversary set. They are separate releases with separate cards and separate products.
+            </p>
+            <ul className="mt-4 space-y-3 text-sm text-zinc-600 dark:text-zinc-300">
+              <li>
+                <strong className="font-semibold text-zinc-900 dark:text-zinc-100">The anniversary.</strong>{" "}
+                30th Celebration listings usually say &ldquo;30th&rdquo; or &ldquo;30th Anniversary&rdquo;. The 2021 set is
+                often listed as &ldquo;25th&rdquo; or just &ldquo;Celebrations&rdquo;. If the edition is unclear, check the
+                listing description and packaging photos; don&apos;t identify it from price alone.
+              </li>
+              <li>
+                <strong className="font-semibold text-zinc-900 dark:text-zinc-100">Standard vs Pokemon Center.</strong>{" "}
+                Both sets have a standard Elite Trainer Box and a separate Pokemon Center Elite Trainer Box.
+                These are distinct products; compare the exact edition and box type.
+              </li>
+              <li>
+                <strong className="font-semibold text-zinc-900 dark:text-zinc-100">Single box, case, or a seller&apos;s lot.</strong>{" "}
+                Both sets also have an Elite Trainer Box case, which is one factory-sealed product containing
+                several boxes. A seller offering multiple boxes together is not automatically a factory-sealed
+                case - check what the listing actually describes.
+              </li>
+            </ul>
+            <div className="mt-5 flex flex-wrap gap-3">
+              {setHref("ME: 30th Celebration", validSetSlugs, slugifySet) && (
+                <Link
+                  href={setHref("ME: 30th Celebration", validSetSlugs, slugifySet)}
+                  data-analytics-click="latest_releases_set_clicked"
+                  data-analytics-props={JSON.stringify({ section: "latest_identify", set_slug: slugifySet("ME: 30th Celebration") })}
+                  className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:border-zinc-300 dark:border-zinc-800 dark:text-zinc-200"
+                >
+                  30th Celebration checklist →
+                </Link>
+              )}
+              {setHref("Celebrations", validSetSlugs, slugifySet) && (
+                <Link
+                  href={setHref("Celebrations", validSetSlugs, slugifySet)}
+                  data-analytics-click="latest_releases_set_clicked"
+                  data-analytics-props={JSON.stringify({ section: "latest_identify", set_slug: slugifySet("Celebrations") })}
+                  className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:border-zinc-300 dark:border-zinc-800 dark:text-zinc-200"
+                >
+                  Celebrations (2021) checklist →
+                </Link>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* The lineup itself: official name, date and status, each linking
             to its EXISTING set page - never a second set page of our own. */}
         <section data-analytics-section="latest_lineup" className="mt-10">
