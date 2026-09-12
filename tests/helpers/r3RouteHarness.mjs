@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url);
 const root = resolve(import.meta.dirname,'../..');
 const pure = new Set(['dealPage','listingAvailability','indexability','dealQuality','publicText',
   'cardName','pokemonSpecies','slugify','tcgplayer','ebayLinks','money','offerPresentation',
-  'analytics/events','analytics/props','referenceCondition','listingImage','dealCategories','cardWorth','cardNextSteps','cardSlug','cardImage','cardLinks']);
+  'navLinks','socialProfiles','trustContent','time','recentCards','ebaySearch','returnContext','analytics/events','analytics/props','referenceCondition','listingImage','dealCategories','cardWorth','cardNextSteps','cardSlug','cardImage','cardLinks']);
 export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis=null,renderComponents=false}={}) {
   const calls=[];
   const components=new Map();
@@ -27,6 +27,8 @@ export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis
   for (const name of ['from','select','eq']) query[name]=(...args)=>{calls.push({name:'fixture-db.'+name,args});return query;};
   query.single=record('fixture-db.single',{data:deal});
   const realComponents = new Set(['Price','AuctionPrice','AffiliateLink','CardPriceSummary','CatalogCardView']);
+  const substitutes = new Set();
+  if (renderComponents === 'visual') for (const name of ['SiteHeader','SiteFooter','Logo','NavMenu','NavDropdown','RegionControl','DealImage','CardImagePlaceholder','Breadcrumbs','CardPriceIntelligence','CardWorthAnswer','CardNextSteps','RelatedCards','VariantPriceGrid','ListingChecks','PriceHistoryChart','RecentSales','EbaySearchLink','MiniSparkline','ShareButton','SaveCardButton','DealBackLink','RelativeTime','StickyDealCta']) realComponents.add(name);
   function compile(filename) {
     const {code}=swc.transformSync(readFileSync(filename,'utf8'),{
       filename,jsc:{parser:{syntax:'ecmascript',jsx:true},target:'es2022',transform:{react:{runtime:'automatic'}}},
@@ -37,12 +39,24 @@ export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis
     return compiled.exports;
   }
   function dependency(name) {
+    if (name==='react-dom') return require(name);
+    if (name==='@/components/RenderClock') return compile(resolve(root,'components/RenderClock.js'));
+    if (name==='@/lib/useRegion') return compile(resolve(root,'lib/useRegion.js'));
+    if (renderComponents === 'visual' && name==='next/image') {
+      substitutes.add('next/image: native img; no Next image optimisation');
+      return function FixtureImage({src,alt,fill,priority,quality,unoptimized,sizes,style,...props}) {
+        return require('react').createElement('img',{...props,src,alt,sizes,style:fill?{position:'absolute',height:'100%',width:'100%',inset:0,...style}:style});
+      };
+    }
     if (name==='react') return {...require('react'),cache:fn=>fn};
     if (name==='@/components/CurrencyProvider' && renderComponents) return {useCurrency:()=>({viewer:null,rates:null})};
     if (name==='@/lib/analytics/client') return {capture:()=>{throw Error('HARNESS_CAPTURE_NOT_ALLOWED');}};
     if (name==='@vercel/analytics') return {track:()=>{throw Error('HARNESS_TRACK_NOT_ALLOWED');}};
     if (renderComponents && name.startsWith('@/components/') && realComponents.has(name.slice(13))) {
-      if (!components.has(name)) components.set(name,compile(resolve(root,name.slice(2)+'.js')).default);
+      if (!components.has(name)) {
+        const exports=compile(resolve(root,name.slice(2)+'.js'));
+        components.set(name,Object.assign(exports.default,exports));
+      }
       return components.get(name);
     }
     if (renderComponents && name==='next/link') return function FixtureLink({children,href,...props}) {
@@ -60,6 +74,7 @@ export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis
     if (name==='@/lib/email') return {emailEnabled:()=>false};
     if (name.startsWith('@/components/') || ['next/link','next/image'].includes(name)) {
       if (!components.has(name)) {
+        substitutes.add(name);
         function FixtureChild(){return null;}
         FixtureChild.displayName=name;
         components.set(name,FixtureChild);
@@ -69,7 +84,7 @@ export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis
     if (name.startsWith('@/lib/') && pure.has(name.slice(6))) return require(resolve(root,name.slice(2)+'.js'));
     throw Error('Unapproved R3 harness dependency: '+name);
   }
-  return {route:compile(resolve(root,file)),calls,components};
+  return {route:compile(resolve(root,file)),calls,components,substitutes};
 }
 export function elements(el) {
   if (!el || typeof el !== 'object') return [];
