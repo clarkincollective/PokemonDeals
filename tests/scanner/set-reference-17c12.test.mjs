@@ -126,7 +126,8 @@ test("R-9. provenance: row-derived facts are separated from externally sourced c
     "https://bulbapedia.bulbagarden.net/wiki/Boundaries_Crossed_(TCG)",
   ]) assert.ok(lib.includes(url), `source recorded: ${url}`);
   // the Bianca / Cheren observation is recorded as an observation, not a defect
-  assert.match(lib, /A\s+Full Art card does not establish that a regular counterpart belongs to(\s|\/\/)+the same set/);
+  // the sentence wraps across comment lines, so allow "//" between words
+  assert.match(lib, /A(\s|\/\/)+Full Art card does not establish that a regular counterpart belongs to(\s|\/\/)+the same set/);
   assert.match(lib, /NOT recorded as a catalogue defect/);
 });
 
