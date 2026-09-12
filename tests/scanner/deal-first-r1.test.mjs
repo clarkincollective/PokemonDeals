@@ -13,7 +13,7 @@ import { dirname, join } from "node:path";
 import { NAV_PRIMARY, NAV_GROUPS, NAV_LEARN, navGroupItems, navInlineItems } from "../../lib/navLinks.js";
 import { ALLOWED_EVENTS } from "../../lib/analytics/events.js";
 import { AFFILIATE_SURFACES, surfaceForPageName } from "../../lib/affiliateSurfaces.js";
-import { DEAL_STATE_FIXTURES } from "../../lib/dev/dealStateFixtures.js";
+import { DEAL_STATE_FIXTURES, FIXTURE_ART } from "../../lib/dev/dealStateFixtures.js";
 import { listingPresentation, conditionLabel } from "../../lib/dealQuality.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -71,13 +71,28 @@ test("R1-3. DealCard: the CTA names the destination and the state; no purchase c
   assert.match(src, /<AffiliateLink[\s\S]*className="flex min-h-11 w-full/);
 });
 
-test("R1-4. DealCard: one dominant price with a clear meaning, shipping stated from what the scan recorded", () => {
+test("R1-4. DealCard: one dominant price with a clear meaning; shipping=0 is 'not confirmed', never free, and the saving is stated before shipping", () => {
   const src = read("components/DealCard.js");
-  assert.match(src, /Listing total/);
-  assert.match(src, /hasShippingCharge \? \([\s\S]*?incl\.[\s\S]*?shipping[\s\S]*?\) : \(\s*"no shipping charge listed"/);
-  assert.doesNotMatch(src, /Free shipping|free delivery|delivered total/i, "a 0 shipping figure is never called free on the card");
-  // auctions still go through the shared AuctionPrice
+  // headline label follows what the scan recorded
+  assert.match(src, /\{shippingConfirmed \? "Listing total" : "Listing price"\}/);
+  assert.match(src, /shippingConfirmed \? \([\s\S]*?incl\.[\s\S]*?shipping[\s\S]*?\) : \(\s*"Shipping not confirmed"/);
+  assert.doesNotMatch(src, /Free shipping|free delivery|delivered total|no shipping charge listed/i, "a 0 shipping figure is never called free on the card");
+  // the derived saving never reads as a verified delivered saving
+  assert.match(src, /\{shippingConfirmed \? "" : " before shipping"\}/);
+  assert.match(src, /data-shipping=\{shippingConfirmed \? "confirmed" : "unconfirmed"\}/);
+  // auctions still go through the shared AuctionPrice, which says the same
   assert.match(src, /<AuctionPrice[\s\S]*marketUsd=\{showSavings \? marketUsd : null\}/);
+  const ap = read("components/AuctionPrice.js");
+  assert.match(ap, /"Shipping not confirmed"/);
+  assert.doesNotMatch(ap, /"Free shipping"/);
+});
+
+test("R1-4b. DealCard mobile shape: artwork beside identity/offer, the eBay button spanning the card; stacked from sm", () => {
+  const src = read("components/DealCard.js");
+  assert.match(src, /grid-cols-\[7\.25rem_1fr\][^"]*sm:flex sm:flex-col/, "two-column grid below sm, column from sm");
+  assert.match(src, /aspect-\[4\/5\] w-full/, "4:5 artwork box, object-contain (never cropped)");
+  assert.match(src, /className="object-contain p-2 sm:p-3"/);
+  assert.match(src, /<div className="col-span-2 px-3 pb-3 sm:col-auto sm:mt-auto/, "CTA row spans both columns on phones");
 });
 
 test("R1-5. DealCard: the comparison carries its condition context and only renders on a trusted claim", () => {
@@ -89,7 +104,7 @@ test("R1-5. DealCard: the comparison carries its condition context and only rend
   assert.match(plain, /presentation\.notes\.map/);
   assert.doesNotMatch(plain, /emerald|below market|Save /);
   // the discount badge is gated the same way
-  assert.match(src, /\{showSavings && \(\s*<span className=\{`absolute right-2 top-2/);
+  assert.match(src, /\{showSavings && \(\s*<span className=\{`absolute right-1\.5 top-1\.5/);
   assert.match(src, /data-offer-state=\{isAuction \? "auction" : showSavings \? "bin_compared" : "bin_plain"\}/);
 });
 
@@ -106,11 +121,23 @@ test("R1-6. the fixtures reach each state through the REAL rules (no bypass)", (
   assert.equal(conditionLabel(by.graded.deal), "PSA 9");
   assert.equal(conditionLabel(by.unverified_condition.deal), "Condition not verified");
   assert.equal(by.non_usd.deal.marketplace, "EBAY_GB");
+  assert.equal(listingPresentation(by.bin_shipping_unconfirmed.deal).savings, "trusted");
+  assert.equal(by.bin_shipping_unconfirmed.deal.shipping, 0);
   // nothing in a fixture claims availability or a real listing
   for (const f of DEAL_STATE_FIXTURES) {
     assert.match(f.deal.affiliate_url, /^https:\/\/www\.ebay\.com\/itm\/0000/);
     assert.equal(f.deal.image_url, null, "fixtures show labelled catalogue art, never a seller photo");
   }
+  // artwork is CORRECTLY MATCHED: every id is a real catalogue product id
+  // of the printing the identity line names (site checklists / guide
+  // registry); the unreleased fixture is the only one without art
+  const known = new Set(Object.values(FIXTURE_ART).concat(["45122"])); // 45122 = Snorlax 11/64 Jungle
+  for (const f of DEAL_STATE_FIXTURES) {
+    if (f.id === "bin_upcoming") assert.equal(f.deal.card_tcgplayer_id, null);
+    else assert.ok(known.has(f.deal.card_tcgplayer_id), `${f.id}: artwork id ${f.deal.card_tcgplayer_id} is not in the matched registry`);
+  }
+  const page = read("app/dev/deal-states/page.js");
+  assert.match(page, /Simulated offer · prices, dates and links are placeholders/);
 });
 
 test("R1-7. the reference-only state is a different object: dashed, labelled, search action, never a deal button or $0", () => {

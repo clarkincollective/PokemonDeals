@@ -27,8 +27,9 @@ export default function DealStatesSheet() {
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Deal card states</h1>
         <p className="mt-2 max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
           Every state renders through the real DealCard and the real trusted-claim rules from fixture
-          rows. Artwork is catalogue reference art (labelled); prices, ids and links are placeholders
-          and do not describe any live eBay offer.
+          rows. Artwork is the real catalogue art of the printing each card names (labelled
+          &quot;Reference image&quot;); prices, dates, ids and links are SIMULATED placeholders and do
+          not describe any live eBay offer.
         </p>
 
         <section className="mt-8" data-sheet="deal-states">
@@ -36,7 +37,11 @@ export default function DealStatesSheet() {
             {DEAL_STATE_FIXTURES.map((f) => (
               <div key={f.id} className="flex flex-col" data-sheet-state={f.id}>
                 <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{f.label}</p>
-                <p className="mb-3 mt-0.5 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">{f.note}</p>
+                <p className="mb-2 mt-0.5 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">{f.note}</p>
+                <p className="mb-2 inline-flex w-fit items-center rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                  Simulated offer · prices, dates and links are placeholders
+                  {f.deal.card_tcgplayer_id ? " · artwork: real catalogue art of this printing" : " · artwork: none (unreleased)"}
+                </p>
                 <div className="flex-1">
                   <DealCard deal={f.deal} hub={f.hub} rank={f.rank} pageName="home_all_deals" validSetSlugs={["jungle", "base-set", "neo-destiny"]} />
                 </div>
@@ -68,7 +73,7 @@ export default function DealStatesSheet() {
               <strong>Expired / unavailable listing</strong> - a row that fails the display gate never reaches DealCard; the truthful expiry behaviour lives on the listing detail page (R3 scope).
             </li>
             <li>
-              <strong>Shipping unknown vs free</strong> - the scan records <code>shipping = 0</code> for both, so the card says &quot;no shipping charge listed&quot; rather than &quot;free&quot;; a distinct unknown state needs a scanner field, which a layout change does not authorise.
+              <strong>Shipping unknown vs free</strong> - the scan records <code>shipping = 0</code> for both, so the card headlines the &quot;Listing price&quot;, says &quot;Shipping not confirmed&quot; and states any saving &quot;before shipping&quot;; a distinct unknown state needs a scanner field, which a layout change does not authorise.
             </li>
             <li>
               <strong>Destination eligibility</strong> - not a card-level fact; the country filter scopes the feed.
