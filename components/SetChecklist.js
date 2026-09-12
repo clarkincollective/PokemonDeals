@@ -1,5 +1,6 @@
 import Image from "next/image";
 import ChecklistTable from "@/components/ChecklistTable";
+import SetReferenceNotes from "@/components/SetReferenceNotes";
 import { buildChecklistRows, checklistSummary, checklistLegend } from "@/lib/setChecklist";
 import { setImage } from "@/lib/setImages";
 
@@ -63,6 +64,10 @@ export default function SetChecklist({ setName, cards, headingId = "full-set-ind
         They are individual card references, not a value for the complete set.
         {legend.unpriced ? ` ${legend.unpriced}` : ""}
       </p>
+
+      {/* 17C.12 - set-specific numbering / identification notes, built and
+          verified from the same `rows`; renders nothing for non-pilot sets */}
+      <SetReferenceNotes setName={setName} rows={rows} />
 
       <ChecklistTable
         setName={setName}
