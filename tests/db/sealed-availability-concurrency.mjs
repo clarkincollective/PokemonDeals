@@ -69,6 +69,10 @@ const STATEMENTS = {
   confirmActive: `UPDATE sealed_deals SET last_seen_at = $2, exact_verified_at = $2 WHERE id = $1`,
   recoverReactivate: `UPDATE sealed_deals SET is_active = true, disqualified_reason = NULL, last_seen_at = $2, exact_verified_at = $2
                       WHERE id = $1 AND is_active = false AND disqualified_reason = $3 RETURNING id`,
+  // recovery answered SOLD/ENDED again, or UNKNOWN: only the reason column
+  // is touched - no timestamp, no is_active change.
+  recoverRetain: `UPDATE sealed_deals SET disqualified_reason = $2
+                  WHERE id = $1 AND is_active = false AND disqualified_reason = $3 RETURNING id`,
 };
 
 const connect = async (name) => {
@@ -324,6 +328,48 @@ await scenario("SC8 a positive ACTIVE check stamps both timestamps as ONE instan
   const r = await row(id);
   assert.equal(la.isPositiveActiveConfirmation(r), true, "exact_verified_at === last_seen_at on a non-retired row");
   assert.equal(la.listingAvailabilityEvidence(r).kind, "confirmed");
+});
+
+await scenario("SC9 an UNKNOWN verdict makes NO availability write - no retirement, no timestamp", async () => {
+  // every inconclusive shape the provider can produce
+  for (const lookup of [
+    { httpStatus: 429 },
+    { httpStatus: 401 },
+    { httpStatus: 503 },
+    { fetchFailed: true },
+    { httpStatus: 200, parseFailed: true },
+    { httpStatus: 200, body: {} }, //                         no availability data
+    { httpStatus: 200, body: { estimatedAvailabilities: [{ estimatedAvailabilityStatus: "WEIRD" }] } },
+    { httpStatus: 200, body: { estimatedAvailabilities: [{ estimatedAvailabilityStatus: "IN_STOCK" }, { estimatedAvailabilityStatus: "OUT_OF_STOCK" }] } },
+  ]) {
+    const v = la.classifyItemLookup(lookup);
+    assert.equal(v.status, "UNKNOWN", JSON.stringify(lookup));
+    assert.equal(la.availabilityRetirementReason(v.status), null, "UNKNOWN is never a retirement");
+  }
+
+  // a live row: the verifier's UNKNOWN branch issues no statement at all
+  const live = await freshRow({ exact: "2026-09-10T10:00:00Z" });
+  const beforeLive = await row(live.id);
+  assert.equal(la.availabilityRetirementReason("UNKNOWN"), null);
+  const afterLive = await row(live.id);
+  assert.deepEqual(afterLive, beforeLive, "row untouched on an inconclusive call");
+
+  // a RETIRED row re-checked by recovery and answered UNKNOWN: the marker
+  // is consumed, but nothing is confirmed - no exact_verified_at stamp and
+  // the row stays retired. This one really does write, so it is asserted
+  // against the database rather than in the abstract.
+  const retired = await freshRow({ active: false, reason: la.SEEN_AGAIN.SOLD, exact: "2026-09-09T09:00:00Z" });
+  const beforeRetired = await row(retired.id);
+  const decision = la.recoveryDecision({ row: beforeRetired, snapshot: { status: "UNKNOWN" }, nowIso: T_CHECK });
+  assert.equal(decision.action, "retain");
+  assert.equal("exact_verified_at" in decision.patch, false, "UNKNOWN never stamps exact_verified_at");
+  assert.equal("is_active" in decision.patch, false, "UNKNOWN never changes is_active");
+  await A.query(STATEMENTS.recoverRetain, [retired.id, decision.patch.disqualified_reason, la.SEEN_AGAIN.SOLD]);
+  const afterRetired = await row(retired.id);
+  assert.equal(afterRetired.is_active, false, "still retired");
+  assert.equal(afterRetired.disqualified_reason, la.AVAILABILITY_RETIREMENT.SOLD, "marker consumed, family kept");
+  assert.equal(ms(afterRetired.exact_verified_at), ms(beforeRetired.exact_verified_at), "verification time NOT advanced");
+  assert.equal(ms(afterRetired.last_seen_at), ms(beforeRetired.last_seen_at), "last_seen_at NOT advanced");
 });
 
 for (const c of [A, B, OBS]) await c.end();
