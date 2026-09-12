@@ -116,6 +116,20 @@ test("R-7. copy never infers scarcity, value or completeness from a number", () 
   assert.doesNotMatch(all, /every card ever printed|complete checklist of the set/i);
 });
 
+test("R-9. provenance: row-derived facts are separated from externally sourced claims, each with its source URL", () => {
+  const lib = code("lib/setReference.js");
+  assert.match(lib, /A\. ROW-DERIVED/);
+  assert.match(lib, /B\. EXTERNALLY SOURCED[\s\S]*NOT validated by the render-time checks/);
+  for (const url of [
+    "https://bulbapedia.bulbagarden.net/wiki/Jungle_(TCG)",
+    "https://bulbapedia.bulbagarden.net/wiki/Neo_Destiny_(TCG)",
+    "https://bulbapedia.bulbagarden.net/wiki/Boundaries_Crossed_(TCG)",
+  ]) assert.ok(lib.includes(url), `source recorded: ${url}`);
+  // the Bianca / Cheren observation is recorded as an observation, not a defect
+  assert.match(lib, /A\s+Full Art card does not establish that a regular counterpart belongs to(\s|\/\/)+the same set/);
+  assert.match(lib, /NOT recorded as a catalogue defect/);
+});
+
 test("R-8. wiring: server-rendered inside SetChecklist above the table, hidden in print, pilot-gated in the component", () => {
   const set = code("components/SetChecklist.js");
   assert.match(set, /import SetReferenceNotes from "@\/components\/SetReferenceNotes"/);
