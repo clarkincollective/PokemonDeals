@@ -151,7 +151,8 @@ export async function generateMetadata({ params }) {
   // context (lib/dealPage.js dealPageTitle) - a long set name used to
   // silently drop "- N% below market" and leave this URL titled exactly
   // like the permanent card page.
-  const title = dealPageTitle({ cardName, cardSet, discountPct });
+  const metadataShipping = offerShipping(deal);
+  const title = dealPageTitle({ cardName, cardSet, discountPct: metadataShipping.deliveredKnown ? discountPct : null });
   // Real card/set context up front, not just bare price numbers - a
   // search result showing only "$74.99 vs a $214.20 market price" gives a
   // searcher no reason to click over a competing result unless they've
@@ -168,7 +169,9 @@ export async function generateMetadata({ params }) {
   const listingUsd = dealTotalUsd(deal);
   const marketUsd = Number(deal.market_price);
   const forClause = listingUsd ? ` for $${listingUsd.toFixed(2)}` : "";
-  const description = `${cardName}${cardSet ? ` (${cardSet})` : ""}${forClause} - ${discountPct}% below the $${marketUsd.toFixed(2)} real market price on eBay.`;
+  const description = metadataShipping.savingClaim === "none"
+    ? `${cardName}${cardSet ? ` (${cardSet})` : ""} listed on eBay. Shipping breakdown not recorded; no savings claimed.`
+    : `${cardName}${cardSet ? ` (${cardSet})` : ""}${forClause} - ${discountPct}% below the $${marketUsd.toFixed(2)} market reference${metadataShipping.savingQualifier}. ${metadataShipping.note ?? "Includes recorded shipping."}`;
 
   // P0 deal-image-integrity: never advertise a card-back seller photo as
   // the deal's identity image - trustedDealImageUrl yields the canonical
@@ -432,7 +435,8 @@ export default async function DealDetailPage({ params }) {
   // 17C.7: savings claims (badge, H1 suffix, strikethrough, "you save",
   // Product structured data, share text) need an evidenced reference.
   const presentation = listingPresentation(deal);
-  const showSavings = presentation.savings === "trusted";
+  const shipping = offerShipping(deal);
+  const showSavings = presentation.savings === "trusted" && shipping.savingClaim !== "none";
   const isAuction = deal.listing_type === "AUCTION";
   // What the freshness line may claim: an exact availability confirmation
   // (only when the latest eBay evidence was a successful active verdict -
@@ -595,7 +599,7 @@ export default async function DealDetailPage({ params }) {
             <div className="flex flex-wrap items-center gap-2">
               {showSavings && (
                 <span className="rounded-md bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">
-                  {discountPct}% below market
+                  {discountPct}% below market{shipping.savingQualifier}
                 </span>
               )}
               {deal.watchlist?.language === "japanese" && (
@@ -629,7 +633,7 @@ export default async function DealDetailPage({ params }) {
                 already target but the page's own primary heading didn't. */}
             <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">
               {cardName}
-              {showSavings && <span className="font-medium text-zinc-500"> - {discountPct}% Below Market</span>}
+              {showSavings && <span className="font-medium text-zinc-500"> - {discountPct}% Below Market{shipping.savingQualifier}</span>}
             </h1>
             {cardSet && (
               setSlug ? (
@@ -677,6 +681,7 @@ export default async function DealDetailPage({ params }) {
                 />
               ) : (
                 <>
+                  <p className="text-sm text-zinc-500">{shipping.headline}</p>
                   <div className="flex items-baseline gap-3">
                     <Price
                       usd={usdTotal}
@@ -693,15 +698,16 @@ export default async function DealDetailPage({ params }) {
                       </span>
                     )}
                   </div>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">{shipping.note ?? "Includes recorded shipping"}</p>
                   {!showSavings ? null : showRef ? (
                     <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
                       You save{" "}
                       <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}
-                      {discountPct}% below market
+                      {discountPct}% below market{shipping.savingQualifier}
                     </p>
                   ) : (
                     <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                      {discountPct}% below market
+                      {discountPct}% below market{shipping.savingQualifier}
                     </p>
                   )}
                 </>
@@ -748,7 +754,7 @@ export default async function DealDetailPage({ params }) {
                 eventData={{
                   card: cardName,
                   marketplace: deal.marketplace,
-                  discountPct,
+                  discountPct: showSavings ? discountPct : null,
                   listingType: deal.listing_type,
                   isGraded: deal.is_graded,
                   page: "detail",
@@ -773,10 +779,10 @@ export default async function DealDetailPage({ params }) {
               </AffiliateLink>
               <ShareButton
                 url={`${SITE_URL}/deals/${deal.id}`}
-                title={showSavings ? `${cardName} - ${discountPct}% below market` : cardName}
+                title={showSavings ? `${cardName} - ${discountPct}% below market${shipping.savingQualifier}` : cardName}
                 text={
                   showSavings
-                    ? `${cardName}${cardSet ? ` (${cardSet})` : ""}${dealTotalUsd(deal) ? ` - $${dealTotalUsd(deal).toFixed(2)},` : " -"} ${discountPct}% below market on Pokemon Deal Finder`
+                    ? `${cardName}${cardSet ? ` (${cardSet})` : ""}${dealTotalUsd(deal) ? ` - $${dealTotalUsd(deal).toFixed(2)},` : " -"} ${discountPct}% below market${shipping.savingQualifier} on Pokemon Deal Finder`
                     : `${cardName}${cardSet ? ` (${cardSet})` : ""} on Pokemon Deal Finder`
                 }
                 label="Share"
@@ -832,7 +838,7 @@ export default async function DealDetailPage({ params }) {
                   {" "}
                   — this listing is{" "}
                   <span className="font-semibold text-emerald-600 dark:text-emerald-500">
-                    {discountPct}% below
+                    {discountPct}% below{shipping.savingQualifier}
                   </span>{" "}
                   it
                 </>
@@ -955,7 +961,7 @@ export default async function DealDetailPage({ params }) {
         priceNative={ctaPriceNative}
         priceLabel={isAuction ? "current bid" : undefined}
         ctaLabel={isAuction ? "Bid on eBay →" : "View on eBay →"}
-        eventData={{ card: cardName, marketplace: deal.marketplace, discountPct }}
+        eventData={{ card: cardName, marketplace: deal.marketplace, discountPct: showSavings ? discountPct : null }}
       />
     </div>
   );

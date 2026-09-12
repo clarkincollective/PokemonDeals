@@ -8,8 +8,8 @@ const require = createRequire(import.meta.url);
 const root = resolve(import.meta.dirname,'../..');
 const pure = new Set(['dealPage','listingAvailability','indexability','dealQuality','publicText',
   'cardName','pokemonSpecies','slugify','tcgplayer','ebayLinks','money','offerPresentation',
-  'listingImage','dealCategories','cardWorth','cardNextSteps','cardSlug','cardImage','cardLinks']);
-export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis=null}={}) {
+  'analytics/events','analytics/props','referenceCondition','listingImage','dealCategories','cardWorth','cardNextSteps','cardSlug','cardImage','cardLinks']);
+export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis=null,renderComponents=false}={}) {
   const calls=[];
   const components=new Map();
   const record = (name,result) => (...args) => {calls.push({name,args});return Promise.resolve(result);};
@@ -26,8 +26,28 @@ export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis
   const query={};
   for (const name of ['from','select','eq']) query[name]=(...args)=>{calls.push({name:'fixture-db.'+name,args});return query;};
   query.single=record('fixture-db.single',{data:deal});
+  const realComponents = new Set(['Price','AuctionPrice','AffiliateLink','CardPriceSummary','CatalogCardView']);
+  function compile(filename) {
+    const {code}=swc.transformSync(readFileSync(filename,'utf8'),{
+      filename,jsc:{parser:{syntax:'ecmascript',jsx:true},target:'es2022',transform:{react:{runtime:'automatic'}}},
+      module:{type:'commonjs'},
+    });
+    const compiled={exports:{}};
+    new Function('require','module','exports',code)(dependency,compiled,compiled.exports);
+    return compiled.exports;
+  }
   function dependency(name) {
     if (name==='react') return {...require('react'),cache:fn=>fn};
+    if (name==='@/components/CurrencyProvider' && renderComponents) return {useCurrency:()=>({viewer:null,rates:null})};
+    if (name==='@/lib/analytics/client') return {capture:()=>{throw Error('HARNESS_CAPTURE_NOT_ALLOWED');}};
+    if (name==='@vercel/analytics') return {track:()=>{throw Error('HARNESS_TRACK_NOT_ALLOWED');}};
+    if (renderComponents && name.startsWith('@/components/') && realComponents.has(name.slice(13))) {
+      if (!components.has(name)) components.set(name,compile(resolve(root,name.slice(2)+'.js')).default);
+      return components.get(name);
+    }
+    if (renderComponents && name==='next/link') return function FixtureLink({children,href,...props}) {
+      return require('react').createElement('a',{href,...props},children);
+    };
     if (name==='react/jsx-runtime') return require(name);
     if (name==='next/cache') return {unstable_cache:fn=>fn};
     if (name==='next/navigation') return {
@@ -49,14 +69,7 @@ export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis
     if (name.startsWith('@/lib/') && pure.has(name.slice(6))) return require(resolve(root,name.slice(2)+'.js'));
     throw Error('Unapproved R3 harness dependency: '+name);
   }
-  const filename=resolve(root,file);
-  const {code}=swc.transformSync(readFileSync(filename,'utf8'),{
-    filename,jsc:{parser:{syntax:'ecmascript',jsx:true},target:'es2022',transform:{react:{runtime:'automatic'}}},
-    module:{type:'commonjs'},
-  });
-  const compiled={exports:{}};
-  new Function('require','module','exports',code)(dependency,compiled,compiled.exports);
-  return {route:compiled.exports,calls,components};
+  return {route:compile(resolve(root,file)),calls,components};
 }
 export function elements(el) {
   if (!el || typeof el !== 'object') return [];
