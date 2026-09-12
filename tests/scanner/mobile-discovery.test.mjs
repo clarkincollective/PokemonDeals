@@ -144,13 +144,19 @@ test("the /search input can shrink inside its flex row (no button overflow at 37
 
 // ===== DealCard identity legibility (§10/§11) ====================
 
-test("DealCard bounds a long name to two clamped lines and truncates the set line (no wrap overflow)", () => {
+test("DealCard bounds a long name to two clamped lines; the SET truncates but the CONDITION never does (no wrap overflow)", () => {
   // Deal-first R1: identity must not become microtext, so the name gets
-  // two clamped lines at 16px instead of one truncated 15px line; the
-  // set + condition line still truncates. Neither can push the card wide.
+  // two clamped lines at 16px instead of one truncated 15px line. Review
+  // round 2: the condition / grade is required reading, so only the set
+  // span truncates; the condition span never shrinks and the line wraps
+  // at the narrowest widths instead of clipping. Neither can push the
+  // card wide.
   const src = read("components/DealCard.js");
   assert.match(src, /line-clamp-2 text-base font-semibold/, "card name should clamp to two lines");
-  assert.match(src, /truncate text-xs text-zinc-500/, "set + condition line should truncate");
+  assert.match(src, /<p className="mt-0\.5 flex flex-wrap items-baseline gap-x-1 text-xs text-zinc-500/, "set + condition line wraps, never clips");
+  assert.match(src, /<span className="min-w-0 max-w-full truncate">/, "the set span is the one that truncates");
+  assert.match(src, /data-condition\s+className=\{`shrink-0 whitespace-nowrap/, "the condition span never shrinks or truncates");
+  assert.doesNotMatch(src, /<p className="mt-0\.5 truncate text-xs/, "no single truncating paragraph hides the condition");
 });
 
 test("DealCard distinguishes auction from BIN and never strikes the auction ref", () => {

@@ -40,7 +40,7 @@ export default function DealStatesSheet() {
                 <p className="mb-2 mt-0.5 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">{f.note}</p>
                 <p className="mb-2 inline-flex w-fit items-center rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
                   Simulated offer · prices, dates and links are placeholders
-                  {f.deal.card_tcgplayer_id ? " · artwork: real catalogue art of this printing" : " · artwork: none (unreleased)"}
+                  {f.deal.card_tcgplayer_id ? " · artwork: real catalogue art of this printing" : " · artwork: none (no catalogue id in this fixture)"}
                 </p>
                 <div className="flex-1">
                   <DealCard deal={f.deal} hub={f.hub} rank={f.rank} pageName="home_all_deals" validSetSlugs={["jungle", "base-set", "neo-destiny"]} />
@@ -73,7 +73,7 @@ export default function DealStatesSheet() {
               <strong>Expired / unavailable listing</strong> - a row that fails the display gate never reaches DealCard; the truthful expiry behaviour lives on the listing detail page (R3 scope).
             </li>
             <li>
-              <strong>Shipping unknown vs free</strong> - the scan records <code>shipping = 0</code> for both, so the card headlines the &quot;Listing price&quot;, says &quot;Shipping not confirmed&quot; and states any saving &quot;before shipping&quot;; a distinct unknown state needs a scanner field, which a layout change does not authorise.
+              <strong>Shipping free vs unstated</strong> - the scan records <code>shipping = 0</code> for both, so the card headlines the &quot;Listing price&quot;, says &quot;Shipping not confirmed&quot; and states any saving &quot;before shipping&quot;; telling the two apart needs a scanner field, which a layout change does not authorise. (A row with NO shipping field is a different, rendered state: &quot;Recorded price&quot; / &quot;Recorded total&quot; with no saving stated - see the two &quot;breakdown not recorded&quot; cards above.)
             </li>
             <li>
               <strong>Destination eligibility</strong> - not a card-level fact; the country filter scopes the feed.

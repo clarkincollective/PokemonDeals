@@ -134,6 +134,12 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
   // "% below market" anywhere.
   const presentation = listingPresentation(deal);
   const showSavings = presentation.savings === "trusted";
+  // Review round 2: a trusted reference is necessary but not sufficient -
+  // when the row carries NO shipping breakdown (ship.state "unknown") the
+  // stored total may or may not include a charge, so no saving (badge,
+  // "Save …", "% below market") is stated at all; the reference is still
+  // shown, with the reason.
+  const savingsSupported = showSavings && ship.savingClaim !== "none";
 
   // Phase 13A - structural, non-PII payload for the discovery-lane
   // impression + click events. Only emitted when a lane opts in by
@@ -148,7 +154,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
         listing_type: listingTypeProp(deal.listing_type),
         raw_vs_graded: rawVsGraded(deal.is_graded),
         price_band_usd: priceBandUsd(usdTotal),
-        discount_band: showSavings ? discountBand(discountPct) : "no_savings_claim",
+        discount_band: savingsSupported ? discountBand(discountPct) : "no_savings_claim",
         country: deal.marketplace ? String(deal.marketplace).replace("EBAY_", "") : "unknown",
       }
     : null;
@@ -221,7 +227,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             )}
           </div>
 
-          {showSavings && (
+          {savingsSupported && (
             <span className={`absolute right-1.5 top-1.5 rounded-md px-1.5 py-0.5 text-xs font-extrabold leading-none shadow-sm sm:right-2 sm:top-2 sm:px-2 sm:py-1 sm:text-sm ${discountBadgeClass(discountPct)}`}>
               −{discountPct}%
             </span>
@@ -238,17 +244,28 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
         >
           {cardName}
         </a>
-        <p className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
-          {isJapanese && "🇯🇵 Japanese · "}
-          {setHasPage ? (
-            <Link href={`/sets/${setSlug}`} className="hover:text-red-600 hover:underline dark:hover:text-red-500">
-              {cardSet}
-            </Link>
-          ) : (
-            cardSet
+        {/* Set · condition. The condition (or grader + grade) is REQUIRED
+            reading, never fine print: it sits in its own non-shrinking span
+            so a long set name truncates instead of hiding it, and at the
+            narrowest widths the line wraps rather than clipping. */}
+        <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1 text-xs text-zinc-500 dark:text-zinc-400">
+          {cardSet && (
+            <span className="min-w-0 max-w-full truncate">
+              {isJapanese && "🇯🇵 Japanese · "}
+              {setHasPage ? (
+                <Link href={`/sets/${setSlug}`} className="hover:text-red-600 hover:underline dark:hover:text-red-500">
+                  {cardSet}
+                </Link>
+              ) : (
+                cardSet
+              )}
+            </span>
           )}
-          {cardSet && " · "}
-          <span className={conditionText === "Condition not verified" ? "text-amber-700 dark:text-amber-500" : "font-medium text-zinc-700 dark:text-zinc-300"}>
+          <span
+            data-condition
+            className={`shrink-0 whitespace-nowrap ${conditionText === "Condition not verified" ? "text-amber-700 dark:text-amber-500" : "font-medium text-zinc-700 dark:text-zinc-300"}`}
+          >
+            {cardSet && "· "}
             {conditionText}
           </span>
         </p>
@@ -308,6 +325,12 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                 {conditionText}
               </p>
             ) : null}
+            {!savingsSupported ? (
+              // unknown breakdown: the reference stands, the saving does not
+              <p className="text-[11px] leading-snug text-amber-700 dark:text-amber-500">
+                No saving stated: shipping breakdown not recorded
+              </p>
+            ) : (
             <p className="tnum text-xs font-semibold text-emerald-700 dark:text-emerald-500">
               {showRef ? (
                 <>
@@ -320,6 +343,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                 </>
               )}
             </p>
+            )}
           </div>
         )}
 

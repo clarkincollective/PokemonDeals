@@ -112,7 +112,8 @@ test("R1-5. DealCard: the comparison carries its condition context and only rend
   assert.match(plain, /presentation\.notes\.map/);
   assert.doesNotMatch(plain, /emerald|below market|Save /);
   // the discount badge is gated the same way
-  assert.match(src, /\{showSavings && \(\s*<span className=\{`absolute right-1\.5 top-1\.5/);
+  // round 2: the badge needs a trusted reference AND a known shipping breakdown
+  assert.match(src, /\{savingsSupported && \(\s*<span className=\{`absolute right-1\.5 top-1\.5/);
   assert.match(src, /data-offer-state=\{isAuction \? "auction" : showSavings \? "bin_compared" : "bin_plain"\}/);
 });
 
@@ -138,10 +139,12 @@ test("R1-6. the fixtures reach each state through the REAL rules (no bypass)", (
   }
   // artwork is CORRECTLY MATCHED: every id is a real catalogue product id
   // of the printing the identity line names (site checklists / guide
-  // registry); the unreleased fixture is the only one without art
+  // registry); the unreleased fixture and the round-2 long-set plain
+  // fixture (no catalogue id known for its printing) are the only ones
+  // without art, and both render the neutral no-image state
   const known = new Set(Object.values(FIXTURE_ART).concat(["45122"])); // 45122 = Snorlax 11/64 Jungle
   for (const f of DEAL_STATE_FIXTURES) {
-    if (f.id === "bin_upcoming") assert.equal(f.deal.card_tcgplayer_id, null);
+    if (f.id === "bin_upcoming" || f.id === "bin_plain_long_set") assert.equal(f.deal.card_tcgplayer_id, null);
     else assert.ok(known.has(f.deal.card_tcgplayer_id), `${f.id}: artwork id ${f.deal.card_tcgplayer_id} is not in the matched registry`);
   }
   const page = read("app/dev/deal-states/page.js");

@@ -13,6 +13,7 @@ import { offerShipping, shippingState } from "../../lib/offerPresentation.js";
 import { auctionDisplayParts, currencyForDeal } from "../../lib/money.js";
 import { buildHomepageLanes, LANES } from "../../lib/homepageVariety.js";
 import { NAV_PRIMARY } from "../../lib/navLinks.js";
+import { DEAL_STATE_FIXTURES } from "../../lib/dev/dealStateFixtures.js";
 import { ALLOWED_EVENTS } from "../../lib/analytics/events.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -56,24 +57,108 @@ test("P1-3. shipping = 0 through the projection -> Listing price / Shipping not 
   assert.equal(shippingState({ shipping: "0" }), "unconfirmed", "numeric strings from the driver behave the same");
 });
 
-test("P1-4. a legacy cached row WITHOUT the field is 'unknown': still 'Listing total' (the stored total may include a charge), still not confirmed, saving still qualified", () => {
+test("P1-4. a legacy cached row WITHOUT the field is 'unknown': neutral 'Recorded price', breakdown note, NO saving claim (round 2)", () => {
   // simulate an entry written by the previous slim shape
   const legacy = slimPoolRow(rawRow());
   delete legacy.shipping;
   delete legacy.price;
   const s = offerShipping(legacy);
-  assert.deepEqual([s.state, s.headline, s.note, s.savingQualifier], ["unknown", "Listing total", "Shipping not confirmed", " before shipping"]);
+  assert.deepEqual(
+    [s.state, s.headline, s.note, s.savingQualifier, s.savingClaim, s.auctionTotalLabel],
+    ["unknown", "Recorded price", "Shipping breakdown not recorded", "", "none", "Recorded total"]
+  );
   assert.equal(offerShipping({ shipping: null }).state, "unknown");
   assert.equal(offerShipping({}).state, "unknown");
   assert.equal(offerShipping(null).state, "unknown");
-  // never "Listing price" for a figure that may include shipping
-  assert.notEqual(s.headline, "Listing price");
+  // never "Listing price" (may include a charge) and never "Listing total"
+  // (may not) for a figure whose breakdown is unknown; never "before shipping"
+  assert.ok(!["Listing price", "Listing total"].includes(s.headline));
+  assert.doesNotMatch(s.note + s.savingQualifier, /before shipping|free/i);
+  // the two supported claims keep their shape
+  assert.equal(offerShipping({ shipping: 4 }).savingClaim, "delivered");
+  assert.equal(offerShipping({ shipping: 0 }).savingClaim, "before_shipping");
+});
+
+// ---- round 2: unknown breakdown never asserts a delivered or before-shipping comparison ----
+
+test("R2-1. DealCard: unknown breakdown -> no badge, no 'Save', no '% below market'; reference + reason shown; analytics band = no_savings_claim", () => {
+  const src = read("components/DealCard.js");
+  assert.match(src, /const savingsSupported = showSavings && ship\.savingClaim !== "none";/);
+  assert.match(src, /\{savingsSupported && \(\s*<span className=\{`absolute right-1\.5 top-1\.5/, "the discount badge is gated on the supported claim");
+  assert.match(src, /discount_band: savingsSupported \? discountBand\(discountPct\) : "no_savings_claim"/);
+  assert.match(src, /\{!savingsSupported \? \([\s\S]{0,300}No saving stated: shipping breakdown not recorded/);
+  // the "Save …" line is inside the supported branch only
+  const saveIdx = src.indexOf("Save <Price usd={savedUsd}");
+  const gateIdx = src.indexOf("{!savingsSupported ? (");
+  assert.ok(gateIdx > 0 && saveIdx > gateIdx, "Save line follows the gate");
+});
+
+test("R2-2. AuctionPrice reads the shared contract, not the split maths: unknown -> 'Recorded total' + no comparison; 0 -> 'before shipping' on the comparison too; confirmed -> delivered", () => {
+  const ap = read("components/AuctionPrice.js");
+  assert.match(ap, /import \{ offerShipping \} from "@\/lib\/offerPresentation"/);
+  assert.match(ap, /const ship = offerShipping\(deal\);/);
+  assert.doesNotMatch(ap, /shipping\.native > 0/, "the state never comes from the collapsed-to-0 split figure");
+  assert.match(ap, /const showRef = claim !== "none" &&/);
+  assert.match(ap, /const showPct = claim !== "none" && discountPct > 0;/);
+  assert.match(ap, /const pctQualifier = claim === "before_shipping" \? " before shipping" : "";/);
+  // both branches label the total from the contract and qualify the percent
+  assert.equal((ap.match(/\{ship\.auctionTotalLabel\}/g) ?? []).length, 2, "fallback + normal branch use the contract's label");
+  assert.equal((ap.match(/\{pctQualifier\}/g) ?? []).length, 2, "fallback + normal branch qualify the percent");
+  assert.match(ap, /No comparison stated: shipping breakdown not recorded/);
+  assert.doesNotMatch(ap, /"Free shipping"/);
+  // the fallback never says "Current bid" and never asserts "Est. total" unconditionally
+  const fbStart = ap.indexOf("if (!parts) {");
+  const fallback = ap.slice(fbStart, ap.indexOf("\n  }\n", fbStart));
+  assert.doesNotMatch(fallback, /Current bid/);
+  assert.doesNotMatch(fallback, /\n\s*Est\. total\n/);
+  // contract values the component renders
+  assert.equal(offerShipping({ shipping: 8 }).auctionTotalLabel, "Est. total");
+  assert.equal(offerShipping({ shipping: 0 }).auctionTotalLabel, "Est. total before shipping");
+  assert.equal(offerShipping({}).auctionTotalLabel, "Recorded total");
+});
+
+test("R2-3. the dev sheet renders the new states from labelled fixtures (unknown BIN, unconfirmed / unknown / no-bid auctions)", () => {
+  const ids = DEAL_STATE_FIXTURES.map((f) => f.id);
+  for (const id of ["bin_shipping_unknown", "auction_shipping_unconfirmed", "auction_shipping_unknown", "auction_no_bid"]) assert.ok(ids.includes(id), id);
+  const by = (id) => DEAL_STATE_FIXTURES.find((f) => f.id === id).deal;
+  assert.equal(shippingState(by("bin_shipping_unknown")), "unknown");
+  assert.ok(!("shipping" in by("bin_shipping_unknown")));
+  assert.equal(shippingState(by("auction_shipping_unconfirmed")), "unconfirmed");
+  assert.equal(shippingState(by("auction_shipping_unknown")), "unknown");
+  assert.equal(auctionDisplayParts(by("auction_shipping_unknown"))?.bid.native, 38, "the bid still splits; only the label/comparison change");
+  assert.equal(auctionDisplayParts(by("auction_no_bid")), null, "no bid -> fallback path");
+  assert.equal(shippingState(by("auction_no_bid")), "confirmed");
+  const sheet = read("app/dev/deal-states/page.js");
+  assert.match(sheet, /breakdown not recorded/);
+});
+
+test("R2-5. condition is required reading: only the set span truncates; a long-set plain offer with 'Condition not verified' is on the sheet", () => {
+  const src = read("components/DealCard.js");
+  const line = src.slice(src.indexOf('<p className="mt-0.5 flex flex-wrap'), src.indexOf("</p>", src.indexOf('<p className="mt-0.5 flex flex-wrap')));
+  assert.match(line, /<span className="min-w-0 max-w-full truncate">/);
+  assert.match(line, /data-condition/);
+  assert.match(line, /shrink-0 whitespace-nowrap/);
+  assert.ok(line.indexOf("truncate") < line.indexOf("data-condition"), "the truncating span is the set, before the condition");
+  assert.match(line, /\{conditionText\}/);
+  const fx = DEAL_STATE_FIXTURES.find((f) => f.id === "bin_plain_long_set");
+  assert.ok(fx, "long-set plain fixture exists");
+  assert.equal(fx.deal.condition, null, "renders 'Condition not verified'");
+  assert.ok(fx.deal.card_set.length >= 20);
+});
+
+test("R2-4. measurement doc: section impression semantics stated, no 'reach ≈ homepage views' inference, owner-review limitation kept", () => {
+  const doc = read("docs/deal-first-measurement.md");
+  assert.doesNotMatch(doc, /reach ≈ homepage views/);
+  assert.match(doc, /at least\s+half of min\(section height, viewport height\)/);
+  assert.match(doc, /does NOT mean a visitor saw an offer's price or its eBay button/);
+  assert.match(doc, /R2\s+owner-review limitation/);
+  assert.match(doc, /no offer is in the\s+first screen at all/);
 });
 
 test("P1-4b. projection edge rows: DB null shipping -> unknown; non-USD row keeps native price/shipping; strings and NaN never confirm", () => {
   // shipping NULL in the database (not 0): unknown, never "Listing price"
   const dbNull = offerShipping(slimPoolRow(rawRow({ shipping: null })));
-  assert.deepEqual([dbNull.state, dbNull.headline, dbNull.note, dbNull.amount], ["unknown", "Listing total", "Shipping not confirmed", null]);
+  assert.deepEqual([dbNull.state, dbNull.headline, dbNull.note, dbNull.amount, dbNull.savingClaim], ["unknown", "Recorded price", "Shipping breakdown not recorded", null, "none"]);
   // a GB listing: shipping is in the listing currency, untouched by the projection
   const gb = slimPoolRow(rawRow({ marketplace: "EBAY_GB", item_location_country: "GB", is_local: false, price: 20, shipping: 3.5, total_price: 23.5, total_price_usd: 31.7 }));
   assert.equal(currencyForDeal(gb), "GBP");
@@ -112,13 +197,12 @@ test("AUC-1. AuctionPrice: current bid from `price` (now in the slim row); shipp
   assert.equal(parts.bid.native, 100);
   assert.equal(parts.shipping.native, 0);
   const ap = read("components/AuctionPrice.js");
-  assert.match(ap, /const shippingConfirmed = shipping\.native > 0;/);
-  assert.match(ap, /"Shipping not confirmed"/);
-  assert.match(ap, /\{shippingConfirmed \? "Est\. total" : "Est\. total before shipping"\}/);
+  assert.match(ap, /\{ship\.auctionTotalLabel\}/);
+  assert.equal(offerShipping(slim).note, "Shipping not confirmed");
+  assert.equal(offerShipping(slim).auctionTotalLabel, "Est. total before shipping");
   assert.doesNotMatch(ap, /"Free shipping"/);
-  // pre-existing fallback (no stored bid) is untouched: still an estimate, never "current bid"
+  // fallback (no stored bid): an estimate labelled by the contract, never "current bid"
   assert.equal(auctionDisplayParts({ ...slim, price: null }), null);
-  assert.match(ap, /Est\. total\n\s*<\/p>/);
 });
 
 test("AUC-2. AuctionPrice fallback + non-USD through the projection: no stored bid -> landed-total fallback (never 'Current bid'); GB auction splits in GBP", () => {
@@ -127,7 +211,7 @@ test("AUC-2. AuctionPrice fallback + non-USD through the projection: no stored b
   const ap = read("components/AuctionPrice.js");
   const fbStart = ap.indexOf("if (!parts) {");
   const fallback = ap.slice(fbStart, ap.indexOf("\n  }\n", fbStart));
-  assert.match(fallback, /Est\. total/);
+  assert.match(fallback, /\{ship\.auctionTotalLabel\}/);
   assert.doesNotMatch(fallback, /Current bid/, "the fallback never labels the landed total as the bid");
   const gb = slimPoolRow(rawRow({ marketplace: "EBAY_GB", item_location_country: "GB", is_local: false, listing_type: "AUCTION", bid_count: 1, price: 5.92, shipping: 12.42, total_price: 18.34, total_price_usd: 24.81 }));
   const parts = auctionDisplayParts(gb);
