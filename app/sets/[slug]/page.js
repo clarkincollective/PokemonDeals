@@ -30,6 +30,9 @@ import SetPokemonList from "@/components/SetPokemonList";
 import SetQuickAnswers from "@/components/SetQuickAnswers";
 import { buildCatalogueItems, RICH_BROWSER_CAP } from "@/components/SpeciesCardsBySet";
 import { sortCards, DEFAULT_SORT } from "@/lib/catalogueView";
+// 17C.4 - the checklist allowlist + identity guard are evaluated on this
+// page, outside fetchSetCatalog's cached payload (see below).
+import { isChecklistSet, checklistIdentityCheck } from "@/lib/setChecklist";
 import SiteFooter from "@/components/SiteFooter";
 
 const SITE_URL = "https://pokemondealfinder.com";
@@ -124,7 +127,6 @@ export default async function SetDetailPage({ params }) {
     {
       cards: catalogCards,
       indexCards: catalogIndexCards,
-      checklistCards,
       totalCards: catalogTotal,
       truncated: catalogTruncated,
       stats,
@@ -183,6 +185,27 @@ export default async function SetDetailPage({ params }) {
   // Phase 17C.2/17C.3 (lib/setChecklist CHECKLIST_SETS + identity guard):
   // a readable checklist table replaces the plain link index for the
   // allowlisted sets only; every other set keeps the index.
+  //
+  // 17C.4 - the ELIGIBILITY decision is made HERE, not inside
+  // fetchSetCatalog. That loader is wrapped in unstable_cache with key
+  // parts ["set-catalog-v3"] and revalidate CARD_HUB_REVALIDATE_SECONDS;
+  // the key is only the set name + language, so the allowlist is NOT part
+  // of it and editing CHECKLIST_SETS invalidates nothing. A newly
+  // allowlisted set therefore kept serving a cached `checklistCards: null`
+  // decided under the OLD list until its entry expired (up to 15 min of
+  // data cache behind a 1 h ISR page). Deriving it here from the cached
+  // `cards` array - which every payload already carries, old or new -
+  // takes effect on the next render without bumping the cache key or
+  // changing any duration, and without re-reading the catalogue.
+  // The guard is unchanged: same CHECKLIST_SETS, same
+  // checklistIdentityCheck, same fallback to the plain link index.
+  // `catalogTruncated` additionally refuses a browse-capped payload so a
+  // partial list can never be rendered as a complete checklist (sets that
+  // large are already rejected by SET_CHECKLIST_MAX_ROWS).
+  const checklistCards =
+    !catalogTruncated && isChecklistSet(resolved.set) && checklistIdentityCheck(catalogCards).ok
+      ? catalogCards
+      : null;
   const checklistPilot = Array.isArray(checklistCards) && checklistCards.length > 0;
 
   const showSealed = sealedProducts.length >= SET_SEALED_MIN_PRODUCTS;
