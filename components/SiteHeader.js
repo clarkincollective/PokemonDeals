@@ -14,7 +14,9 @@ import { NAV_PRIMARY, NAV_GROUPS, NAV_SEARCH, navGroupItems } from "@/lib/navLin
 export default function SiteHeader() {
   return (
     <div className="sticky top-0 z-30 border-b border-zinc-200 bg-paper/90 backdrop-blur-md dark:border-zinc-800 dark:bg-black/85">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3">
+      {/* px-4 below sm: the wordmark + region control + menu button must
+          fit a 320px viewport without the page scrolling sideways */}
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6">
         <Link href="/" className="shrink-0 rounded-md transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600">
           <Logo size="small" />
         </Link>

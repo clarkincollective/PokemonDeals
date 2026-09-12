@@ -11,6 +11,10 @@ import { useEffect, useId, useRef, useState } from "react";
 //    mouse-out and only closes on an outside click, Escape, or picking an
 //    item. This stops a click-opener from losing the menu the moment they
 //    move the pointer.
+//  - Deal-first R1: focus alone does NOT open it. Opening on focus put
+//    every submenu link into the Tab order, so a keyboard user had to tab
+//    through 13 links before reaching the page. Tab now moves over the
+//    trigger; Enter / Space opens it; focus leaving the menu closes it.
 //
 // Items are NAV_PRIMARY entries (lib/navLinks). An entry that declares
 // `analyticsClick` / `analyticsProps` is emitted here exactly as the
@@ -63,8 +67,10 @@ export default function NavDropdown({ label, items }) {
       className="relative"
       onMouseEnter={openHover}
       onMouseLeave={closeHover}
-      onFocusCapture={openHover}
-      onBlur={closeHover}
+      onBlur={(e) => {
+        // close only when focus moves OUTSIDE the trigger + panel
+        if (!rootRef.current?.contains(e.relatedTarget)) close();
+      }}
       onKeyDown={(e) => {
         if (e.key === "Escape") close();
       }}

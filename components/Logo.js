@@ -33,7 +33,10 @@ export default function Logo({ size = "large" }) {
           strokeLinecap="round"
         />
       </svg>
-      <span className={isLarge ? "text-3xl font-bold tracking-tight sm:text-4xl" : "text-lg font-bold tracking-tight"}>
+      {/* small: the wordmark steps down at phone widths and, below 360px,
+          becomes screen-reader-only so the header (mark + region control +
+          menu) fits a 320px viewport without sideways scrolling */}
+      <span className={isLarge ? "text-3xl font-bold tracking-tight sm:text-4xl" : "whitespace-nowrap text-base font-bold tracking-tight max-[359px]:sr-only sm:text-lg"}>
         <span className="text-red-600 dark:text-red-500">Pokemon</span>{" "}
         <span className="text-black dark:text-zinc-50">Deal Finder</span>
       </span>
