@@ -180,7 +180,13 @@ test("W-2. a row ALREADY bound to the wrong product is repaired in place, on the
   // item 3: the old product's comparison must not survive. On the real
   // schema the comparison IS market_price + discount_pct - both rewritten
   // from the new product's reference price.
-  assert.deepEqual(RECOMPUTED_ON_REASSIGNMENT, ["market_price", "discount_pct"]);
+  // 17C.10 - the comparison is market_price + discount_pct PLUS the
+  // reference columns that describe where that figure came from; all of
+  // them are recomputed or cleared when a row moves product.
+  assert.equal(RECOMPUTED_ON_REASSIGNMENT[0], "market_price");
+  assert.equal(RECOMPUTED_ON_REASSIGNMENT[1], "discount_pct");
+  assert.ok(RECOMPUTED_ON_REASSIGNMENT.includes("reference_product_id"));
+  assert.ok(RECOMPUTED_ON_REASSIGNMENT.includes("reference_amount"));
   assert.equal(r.market_price, 177.39, "the 2021 product's $361.84 reference is gone");
   assert.ok(Math.abs(r.discount_pct - (177.39 - 150) / 177.39) < 1e-9, "discount recomputed against the new product");
   assert.notEqual(r.discount_pct, 0.59, "the old 59% saving never follows the listing");

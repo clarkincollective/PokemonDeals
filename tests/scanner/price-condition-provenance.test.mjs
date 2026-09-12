@@ -196,7 +196,14 @@ test("7. matching-condition discounts still work: an LP listing prices against t
   const src = code("lib/pokemonPriceTracker.js");
   assert.match(src, /const fallbackReference = pickMarketReference\(prices, "Near Mint"\);[\s\S]*fallbackPrice: fallbackReference\.price,\s*fallbackReference,/);
   // the scanner route is untouched by this fix
-  assert.doesNotMatch(code("app/api/refresh-deals/route.js"), /fallbackReference|referenceCondition/);
+  // 17C.10 deliberately crossed this boundary: the scanner now records the
+  // provenance of the figure it priced against (reference columns on the
+  // deal row), so `fallbackReference` legitimately appears here. What must
+  // still hold is that the NUMERIC selection is untouched - the scanner
+  // picks its price through selectConditionPrice exactly as before.
+  const refreshDeals = code("app/api/refresh-deals/route.js");
+  assert.match(refreshDeals, /selectConditionPrice\(/, "the price is still chosen by the numeric selector");
+  assert.doesNotMatch(refreshDeals, /referenceCondition/, "no ad-hoc condition labelling in the scanner");
 });
 
 test("8. worth answer: Near Mint only when the reference is Near Mint; another tier by name; neutral wording when unknown", () => {

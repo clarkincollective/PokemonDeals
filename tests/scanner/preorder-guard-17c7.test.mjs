@@ -45,11 +45,18 @@ const at = (iso, fn) => {
 const seenAt = (r, iso) => ({ ...r, first_seen_at: r.first_seen_at, last_seen_at: iso, exact_verified_at: null });
 const confirmedAt = (r, iso) => ({ ...r, last_seen_at: iso, exact_verified_at: iso });
 // an evidenced reference: matches the stored comparison, captured on/after release day
+// 17C.10 tightened what counts: the reference must also name the PRODUCT it
+// is for and reproduce the market_price actually used, and its time must be
+// the PROVIDER's observation (reference_observed_at), not our sync time.
 const withEvidence = (r, over = {}) => ({
   ...r,
+  reference_source: "ppt_live",
+  reference_product_id: r.card_tcgplayer_id,
+  reference_amount: r.market_price,
+  reference_currency: "USD",
   reference_condition: "Near Mint",
   reference_printing: "Holofoil",
-  reference_captured_at: "2026-09-17T00:00:00Z",
+  reference_observed_at: "2026-09-17T00:00:00Z",
   ...over,
 });
 
@@ -93,7 +100,18 @@ test("PG-4. savings need evidence that matches the stored comparison, captured n
     const base = confirmedAt(PIKACHU, "2026-09-20T11:30:00Z");
     assert.equal(savingsClaimTrusted(base), false, "no provenance stored on the row today -> plain");
     assert.equal(savingsClaimTrusted(withEvidence(base)), true, "matching condition + printing, captured after release");
-    assert.equal(savingsClaimTrusted(withEvidence(base, { reference_captured_at: "2026-09-10T00:00:00Z" })), false, "captured before release day");
+    assert.equal(savingsClaimTrusted(withEvidence(base, { reference_observed_at: "2026-09-10T00:00:00Z" })), false, "observed before release day");
+    // 17C.10: a figure the PROVIDER never dated cannot be certified by our
+    // own sync time, however recent that sync is
+    assert.equal(
+      savingsClaimTrusted(withEvidence(base, { reference_observed_at: null, reference_synced_at: "2026-09-25T00:00:00Z" })),
+      false,
+      "unknown provider time stays unknown - a post-release sync does not certify it"
+    );
+    // and evidence for a DIFFERENT product, or an amount that is not the
+    // one the discount used, is not evidence at all
+    assert.equal(savingsClaimTrusted(withEvidence(base, { reference_product_id: "999999" })), false, "identity mismatch");
+    assert.equal(savingsClaimTrusted(withEvidence(base, { reference_amount: 1.23 })), false, "amount does not reproduce market_price");
     assert.equal(savingsClaimTrusted(withEvidence(base, { reference_condition: "Lightly Played" })), false, "condition mismatch");
     assert.equal(savingsClaimTrusted(withEvidence(base, { reference_printing: null })), false, "printing not recorded");
     const graded = { ...base, is_graded: true, grader: "PSA", grade: "10" };

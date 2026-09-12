@@ -1,6 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { MARKETPLACES, searchListings, getBrowseRateLimit } from "@/lib/ebay";
 import { getSealedPrice } from "@/lib/pokemonPriceTracker";
+// 17C.10 - provenance of the sealed reference this scan prices against.
+import { buildSealedReference } from "@/lib/referenceProvenance";
 import { getUsdRates, toUsd } from "@/lib/fx";
 import { SANITY_FLOOR_PCT, isTrustworthySealedListing, listingMatchesSealedProduct } from "@/lib/dealMatching";
 import { ingestSealedListings } from "@/lib/sealedIngest";
@@ -57,7 +59,7 @@ function dealRow({ productId, listing, totalPrice, totalPriceUsd, marketPrice, d
   };
 }
 
-async function scanProductInMarketplace(row, marketplaceId, marketPrice, db, discountThreshold, rates, supportsDisqualifiedReason) {
+async function scanProductInMarketplace(row, marketplaceId, marketPrice, db, discountThreshold, rates, supportsDisqualifiedReason, reference = null, supportsReferenceColumns = false) {
   const query = row.set ? `${row.name} ${row.set}` : row.name;
   // categoryId: null - see searchListings in lib/ebay.js for why (sealed
   // product's real eBay category id isn't verified; the query text itself
@@ -86,6 +88,8 @@ async function scanProductInMarketplace(row, marketplaceId, marketPrice, db, dis
     priceListing: (listing, mp) => pricedListing(listing, mp, rates),
     buildRow: dealRow,
     supportsDisqualifiedReason,
+    reference,
+    supportsReferenceColumns,
   });
   const dealsFound = stats.written;
   if (stats.repaired > 0) {
@@ -131,6 +135,10 @@ export async function GET(request) {
   // writing one would fail the whole upsert (42703). Probe once per run and
   // degrade, the same way verify-deals probes exact_verified_at.
   const supportsDisqualifiedReason = !(await db.from("sealed_deals").select("disqualified_reason").limit(1)).error;
+  // 17C.10 - same degrade-gracefully probe for the reference columns
+  // (supabase/reference_provenance_migration.sql). While they are absent
+  // the scan writes no provenance at all rather than a partial row.
+  const supportsReferenceColumns = !(await db.from("sealed_deals").select("reference_source").limit(1)).error;
 
   // Pre-flight Browse API quota check - same guard as app/api/refresh-deals
   // (see docs/ebay-rate-limits.md). This run scans ~194 products (48
@@ -170,15 +178,23 @@ export async function GET(request) {
   // Live `getSealedPrice` stays as the fallback for the handful of
   // products not in `sealed_catalog` (mostly older manual rows).
   const catalogPrice = new Map();
+  // 17C.10 - our own copy time for the catalogue figure. sealed_catalog has
+  // NO provider as-of column, so a catalogue-sourced sealed reference has an
+  // UNKNOWN observation time; this is recorded as reference_synced_at only
+  // and can never evidence that the figure was true after release day.
+  const catalogSyncedAt = new Map();
   {
     const ids = [...new Set((watchlistRows ?? []).map((r) => String(r.tcgplayer_id)))];
     for (let i = 0; i < ids.length; i += 500) {
       const { data } = await db
         .from("sealed_catalog")
-        .select("tcgplayer_id, market_price")
+        .select("tcgplayer_id, market_price, synced_at")
         .in("tcgplayer_id", ids.slice(i, i + 500));
       for (const r of data ?? []) {
-        if (r.market_price != null) catalogPrice.set(String(r.tcgplayer_id), Number(r.market_price));
+        if (r.market_price != null) {
+          catalogPrice.set(String(r.tcgplayer_id), Number(r.market_price));
+          catalogSyncedAt.set(String(r.tcgplayer_id), r.synced_at ?? null);
+        }
       }
     }
   }
@@ -193,8 +209,22 @@ export async function GET(request) {
   const errors = [];
 
   async function scanOneProduct(row) {
+    // The provenance of whichever figure this product is priced against.
+    // Built HERE, where the source is still known - by the time the row is
+    // written only the number would survive.
+    let reference = null;
     let marketPrice = catalogPrice.get(String(row.tcgplayer_id)) ?? null;
-    if (marketPrice == null) {
+    if (marketPrice != null) {
+      reference = buildSealedReference({
+        source: "sealed_catalog",
+        productId: row.tcgplayer_id,
+        amount: marketPrice,
+        currency: "USD",
+        // sealed_catalog records no provider as-of: unknown stays unknown
+        observedAt: null,
+        syncedAt: catalogSyncedAt.get(String(row.tcgplayer_id)) ?? null,
+      });
+    } else {
       // Not in sealed_catalog (or no price there) - fall back to a live
       // PPT lookup for this one product.
       try {
@@ -204,6 +234,15 @@ export async function GET(request) {
           return;
         }
         marketPrice = raw.price;
+        reference = buildSealedReference({
+          source: "ppt_live",
+          productId: row.tcgplayer_id,
+          amount: raw.price,
+          currency: "USD",
+          // the PROVIDER's own as-of for this figure
+          observedAt: raw.lastUpdated ?? null,
+          syncedAt: new Date().toISOString(),
+        });
       } catch (err) {
         errors.push(`Price lookup failed for "${row.name}": ${err.message}`);
         return;
@@ -214,7 +253,7 @@ export async function GET(request) {
       marketplaceIds.map(async (marketplaceId) => {
         scanned++;
         try {
-          dealsFound += await scanProductInMarketplace(row, marketplaceId, marketPrice, db, discountThreshold, rates, supportsDisqualifiedReason);
+          dealsFound += await scanProductInMarketplace(row, marketplaceId, marketPrice, db, discountThreshold, rates, supportsDisqualifiedReason, reference, supportsReferenceColumns);
         } catch (err) {
           errors.push(`${row.name} (${marketplaceId}): ${err.message}`);
         }

@@ -11,6 +11,10 @@ import { getConditionPrices, getGradedPrice } from "@/lib/pokemonPriceTracker";
 import { getUsdRates, toUsd } from "@/lib/fx";
 import { logDiscoveryEvent } from "@/lib/discoveryLog";
 import { writeDiscoverySighting } from "@/lib/listingAvailability";
+// 17C.10 - reference provenance for the comparison this scanner stores.
+import { selectConditionReference } from "@/lib/dealMatching";
+import { writeReferenceBestEffort } from "@/lib/referenceProvenanceDb";
+import { CARD_REFERENCE_COLUMNS, buildCardReference, clearedReference } from "@/lib/referenceProvenance";
 import {
   SANITY_FLOOR_PCT,
   coreTokens,
@@ -412,6 +416,49 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
   // A search result is a discovery sighting, not an availability check:
   // writeDiscoverySighting never reactivates (or refreshes) a row the
   // verifier retired as sold / not found (lib/listingAvailability).
+  // 17C.10 - the provenance of the figure `core.market_price` actually is.
+  // Built from the SAME selection the price came from (selectConditionReference
+  // mirrors selectConditionPrice), never inferred from an equal price:
+  //   * raw  - the tier and exact printing the figure was filed under
+  //   * graded - the grader/grade it was for; getGradedPrice reports no
+  //     provider as-of, so observedAt stays null and such rows stay plain
+  //   * observedAt is the PROVIDER's prices.lastUpdated, never our sync time
+  // A row we cannot evidence gets the CLEARED set, so a stale reference can
+  // never outlive the comparison it described.
+  const referenceState = {};
+  const referenceFor = (core) => {
+    const productId = row.justtcg_tcgplayer_id ?? null;
+    if (productId == null || core.market_price == null) return clearedReference(CARD_REFERENCE_COLUMNS);
+    if (core.is_graded) {
+      return buildCardReference({
+        source: "ppt_live",
+        productId,
+        amount: core.market_price,
+        currency: "USD",
+        observedAt: null, // graded buckets carry no provider as-of
+        syncedAt: new Date().toISOString(),
+        grader: core.grader ?? null,
+        grade: core.grade ?? null,
+      });
+    }
+    const tier = core.condition === "Unknown" || !core.condition ? "Near Mint" : core.condition;
+    const ref = selectConditionReference(marketData?.byConditionReference, tier, marketData?.fallbackReference);
+    // the reference must be the one that produced the stored figure
+    if (!ref || ref.price == null || Math.abs(Number(ref.price) - Number(core.market_price)) > 0.01) {
+      return clearedReference(CARD_REFERENCE_COLUMNS);
+    }
+    return buildCardReference({
+      source: "ppt_live",
+      productId,
+      amount: ref.price,
+      currency: "USD",
+      observedAt: marketData?.observedAt ?? null,
+      syncedAt: new Date().toISOString(),
+      condition: ref.condition ?? null,
+      printing: ref.printing ?? null,
+    });
+  };
+
   const tryUpsert = async (row_) => {
     const { image_urls, ...core } = row_;
     const { outcome, error } = await writeDiscoverySighting(db, core);
@@ -419,6 +466,13 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     else if (outcome === "blocked") blockedRetired++;
     else {
       dealsFound++;
+      await writeReferenceBestEffort(
+        db,
+        "deals",
+        { source: core.source, marketplace: core.marketplace, listing_id: core.listing_id },
+        referenceFor(core),
+        referenceState
+      );
       // Best-effort discovery-analytics event (Phase 2). Never awaited on
       // the critical path in a way that can fail the scan.
       logDiscoveryEvent(db, {
@@ -714,7 +768,17 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
           lastKnown > 0 &&
           Math.abs(raw.fallbackPrice - lastKnown) / lastKnown > 0.4;
         if (!untrusted) {
-          marketData = { byCondition: raw.byCondition, fallbackPrice: raw.fallbackPrice, priceChange24hr: null };
+          marketData = {
+            byCondition: raw.byCondition,
+            fallbackPrice: raw.fallbackPrice,
+            priceChange24hr: null,
+            // 17C.10 - the SAME figures with their provenance, carried
+            // alongside the numbers (which are unchanged). `lastUpdated`
+            // is the PROVIDER's own as-of - never our sync time.
+            byConditionReference: raw.byConditionReference,
+            fallbackReference: raw.fallbackReference,
+            observedAt: raw.lastUpdated ?? null,
+          };
         }
       }
     } catch {

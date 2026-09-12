@@ -239,6 +239,9 @@ export async function GET(request) {
   const out = { ACTIVE: 0, ENDED: 0, SOLD: 0, UNKNOWN: 0, RETIRED: 0, REPRICED: 0, IMAGE_RECOVERED: 0 };
   const recovery = { checked: 0, reactivate: 0, release: 0, retain: 0, writeSkipped: 0 };
   let calls = sealed.calls; // the sealed lane's calls count against the same ceiling
+  // 17C.10 - counted for the structured completion line only; a write
+  // failure is already surfaced per-row below and never changes a verdict.
+  let cardWriteErrors = 0;
   const detail = [];
   // Rows whose visibility this run changed (any retirement verdict, or a
   // recovery reactivation) - their card offers, card page and deal page
@@ -355,6 +358,7 @@ export async function GET(request) {
         .eq("is_active", false)
         .eq("disqualified_reason", r.disqualified_reason)
         .select("id");
+      if (recoveryError) cardWriteErrors++;
       if (recoveryError || !changed?.length) recovery.writeSkipped++;
       else {
         recovery[decision.action]++;
@@ -377,7 +381,8 @@ export async function GET(request) {
         : { is_active: false };
       if (reason) patch.disqualified_reason = reason;
       const { error: retireError } = await db.from("deals").update(patch).eq("id", r.id);
-      if (!retireError) retiredRows.push(r);
+      if (retireError) cardWriteErrors++;
+      else retiredRows.push(r);
     } else if (status === "ACTIVE") {
       const patch = exactColReady
         ? { ...auctionActiveExtra, last_seen_at: checkedAt, exact_verified_at: checkedAt }
@@ -396,6 +401,34 @@ export async function GET(request) {
 
   const after = await getBrowseRateLimit();
   setQuotaSnapshot({ remainingEnd: after?.remaining ?? null });
+
+  // 17C.10 - ONE structured completion line per run. Counts and outcomes
+  // only: no secrets, no listing ids, no titles, no URLs. `sealed_entered`
+  // is what separates a healthy run with zero eligible sealed candidates
+  // (entered true, candidates 0) from the lane never executing (entered
+  // false) - both spend zero provider calls. Wrapped so that a logging
+  // failure can never affect verification or the response.
+  try {
+    console.log(
+      JSON.stringify({
+        event: "verify_deals_complete",
+        sha: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+        sealed_entered: sealed.entered,
+        sealed_candidates: sealed.poolSize,
+        sealed_slots: sealedSlots,
+        sealed_used: sealed.used,
+        sealed_results: sealed.results,
+        sealed_recovery: sealed.recovery,
+        card_verified: batch.length,
+        card_results: out,
+        provider_calls: calls,
+        write_errors: (sealed.writeErrors ?? 0) + cardWriteErrors,
+        quota_remaining_end: after?.remaining ?? null,
+      })
+    );
+  } catch {
+    // deliberately ignored - observability must never break the run
+  }
   return Response.json({
     ok: true,
     poolSize: pool.length,

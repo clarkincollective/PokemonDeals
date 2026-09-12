@@ -10,6 +10,12 @@
 require("dotenv").config({ path: ".env.local" });
 const { getRawPrice } = require("../lib/pokemonPriceTracker");
 const { supabaseAdmin } = require("../lib/supabaseAdmin");
+// 17C.10 - this script REWRITES market_price, so any stored reference no
+// longer describes the comparison on the row. It cannot re-derive matching
+// evidence (getRawPrice gives no provider as-of here), so it clears.
+const { writeReferenceBestEffort } = require("../lib/referenceProvenanceDb");
+const { CARD_REFERENCE_COLUMNS, clearedReference } = require("../lib/referenceProvenance");
+const referenceState = {};
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -101,6 +107,8 @@ async function main() {
           .eq("id", deal.id);
         if (updateErr) console.log(`  ! failed to update deal ${deal.id}: ${updateErr.message}`);
         else {
+          // the old reference described the OLD market_price - clear it
+          await writeReferenceBestEffort(db, "deals", { id: deal.id }, clearedReference(CARD_REFERENCE_COLUMNS), referenceState);
           corrected++;
           console.log(
             `  corrected: ${wl.name} (${wl.set}) - deal ${deal.id}: $${oldPrice} -> $${correctPrice} market, ${(newDiscountPct * 100).toFixed(1)}% below market`
