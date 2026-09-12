@@ -150,10 +150,12 @@ test("UX-CVR-2-9. P0.4.1 diversity / rotation wiring is untouched", () => {
   }
   assert.match(HOME, /speciesCap: 3/); // the species soft cap on the filtered grid
   // the under-$25 route is reached from the feed's mode row (deal-first R2
-  // folded the separate lane into the single feed; the selector still
-  // builds it, the page just renders one grid)
+  // folded the separate lane into the single feed; review fix P3: the page
+  // asks the selector for only the two lanes it renders, so the folded
+  // lanes no longer reserve printings - the selector contract itself is
+  // unchanged for every other caller)
   assert.match(HOME, /\/deals\/under-25/);
-  assert.match(HOME, /buildHomepageLanes\(homeLanesResult\?\.pools \?\? \{\}, \{ bucket \}\)/);
+  assert.match(HOME, /buildHomepageLanes\(homeLanesResult\?\.pools \?\? \{\}, \{ bucket, lanes: \["flagship", "grid"\] \}\)/);
 });
 
 // ---- related discovery (§15) ----------------------------

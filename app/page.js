@@ -145,13 +145,17 @@ function isRecentlyRefreshed(dateString) {
 
 // Deal-first R2 - the feed's MODE row. Every mode is an existing
 // destination with its own route and meaning (the dedicated /deals/<cat>
-// landing pages, the sealed / Japanese hubs, the existing ?sort=newest
-// view), never a new URL tree. "Buy it now" is the default homepage
-// feed. Analytics markers are the ones these chips already carried
-// (start_here_clicked with the chip id; the graded chip keeps its
+// landing pages, the sealed / Japanese hubs, the existing ?listing= and
+// ?sort= filters), never a new URL tree. The default homepage feed is
+// "Featured": the flagship row is Buy It Now only, but the diverse grid
+// under it is MIXED (auctions included - each card says which), so the
+// default is not labelled "Buy it now"; that chip is the existing
+// FIXED_PRICE filter. Analytics markers are the ones these chips already
+// carried (start_here_clicked with the chip id; the graded chip keeps its
 // graded_entry flag). Filter-style URLs are nofollow'd.
 const FEED_MODES = [
-  { href: "/", label: "Buy it now", chip: "buy_it_now", home: true },
+  { href: "/", label: "Featured", chip: "featured", home: true },
+  { href: "/?listing=FIXED_PRICE", label: "Buy it now", chip: "buy_it_now" },
   { href: "/deals/auctions", label: "Auctions", chip: "auctions" },
   { href: "/deals/graded", label: "Graded", chip: "graded", graded: true },
   { href: "/deals/under-25", label: "Under $25", chip: "under_25" },
@@ -243,7 +247,11 @@ export default async function Home({ searchParams }) {
     // then the diverse grid. The auction / just-added / under-$25 lanes
     // the selector still computes are reached through the feed's mode
     // row (their existing routes) instead of three more grids.
-    const lanes = buildHomepageLanes(homeLanesResult?.pools ?? {}, { bucket });
+    // `lanes`: only the two lanes this page renders take part in the
+    // cross-lane dedupe, so the folded lanes no longer reserve printings a
+    // visitor never sees (review fix P3). Same pools, same gates, same
+    // selector, same rotation.
+    const lanes = buildHomepageLanes(homeLanesResult?.pools ?? {}, { bucket, lanes: ["flagship", "grid"] });
     flagshipDeals = lanes.flagship;
     deals = lanes.grid;
   } else {
@@ -386,8 +394,11 @@ export default async function Home({ searchParams }) {
           ids keep their established analytics meaning. */}
       <main id="deals" className="mx-auto w-full max-w-7xl flex-1 px-6 py-8 lg:py-10">
         <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+          {/* the default feed mixes Buy It Now (the flagship row is BIN only)
+              and auctions in the grid - every card names its own kind, so
+              the kicker says "featured", not "buy it now" */}
           <SectionHeader
-            kicker={anyFilter ? "Filtered" : "Buy it now · below market"}
+            kicker={anyFilter ? "Filtered" : "Featured · below market · buy it now and auctions"}
             title={anyFilter ? "Filtered deals" : page > 1 ? `All deals - page ${page}` : "Deals to explore"}
           />
           <a href="#how-it-works" className="text-sm font-medium text-zinc-600 underline-offset-2 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500">

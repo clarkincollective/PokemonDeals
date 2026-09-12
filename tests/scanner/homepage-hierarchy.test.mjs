@@ -100,9 +100,15 @@ test("R2 - section order: feed (flagship row -> grid) -> explore -> guides -> ho
     assert.ok(!page.includes(gone), `${gone} is folded into the feed's mode row`);
   }
   // ... their destinations are reached through the mode row instead
-  for (const href of ["/deals/auctions", "/deals/under-25", "/?sort=newest"]) {
+  for (const href of ["/deals/auctions", "/deals/under-25", "/?sort=newest", "/?listing=FIXED_PRICE"]) {
     assert.ok(page.includes(`href: "${href}"`), `mode row keeps ${href}`);
   }
+  // review fix P2: the default feed is MIXED (flagship BIN row + a grid
+  // that may contain auctions), so it is labelled "Featured"; "Buy it now"
+  // is the existing FIXED_PRICE filter, never the default's label
+  assert.match(page, /\{ href: "\/", label: "Featured", chip: "featured", home: true \}/);
+  assert.match(page, /\{ href: "\/\?listing=FIXED_PRICE", label: "Buy it now", chip: "buy_it_now" \}/);
+  assert.match(page, /kicker=\{anyFilter \? "Filtered" : "Featured · below market · buy it now and auctions"\}/);
 });
 
 test("R2 - the flagship row stays the first commercial content and keeps the shared lane contract", () => {
