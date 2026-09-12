@@ -13,8 +13,22 @@ import { logDiscoveryEvent } from "@/lib/discoveryLog";
 import { writeDiscoverySighting } from "@/lib/listingAvailability";
 // 17C.10 - reference provenance for the comparison this scanner stores.
 import { selectConditionReference } from "@/lib/dealMatching";
-import { writeReferenceBestEffort } from "@/lib/referenceProvenanceDb";
 import { CARD_REFERENCE_COLUMNS, buildCardReference, clearedReference } from "@/lib/referenceProvenance";
+
+// Provenance travels WITH the comparison, in the same statement - never as
+// a follow-up update. A separate write that fails or races would leave the
+// OLD evidence attached to the NEW market_price, and stale evidence can
+// pass every value check when the new reference happens to carry the same
+// amount (same price, different printing). Probed once per process; while
+// the columns are absent NO provenance is written and tracked-release rows
+// simply stay plain.
+let _referenceColumnsReady = null;
+async function referenceColumnsReady(db) {
+  if (_referenceColumnsReady === null) {
+    _referenceColumnsReady = !(await db.from("deals").select("reference_source").limit(1)).error;
+  }
+  return _referenceColumnsReady;
+}
 import {
   SANITY_FLOOR_PCT,
   coreTokens,
@@ -425,7 +439,6 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
   //   * observedAt is the PROVIDER's prices.lastUpdated, never our sync time
   // A row we cannot evidence gets the CLEARED set, so a stale reference can
   // never outlive the comparison it described.
-  const referenceState = {};
   const referenceFor = (core) => {
     const productId = row.justtcg_tcgplayer_id ?? null;
     if (productId == null || core.market_price == null) return clearedReference(CARD_REFERENCE_COLUMNS);
@@ -461,18 +474,16 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
 
   const tryUpsert = async (row_) => {
     const { image_urls, ...core } = row_;
+    // ATOMIC: the evidence for this comparison is merged into the SAME
+    // payload before it is written, so a failed or raced follow-up can
+    // never leave old evidence attached to a new market_price. Merged in
+    // place (not rebound) so the write below stays one object.
+    if (await referenceColumnsReady(db)) Object.assign(core, referenceFor(core));
     const { outcome, error } = await writeDiscoverySighting(db, core);
     if (error) console.error(`Failed to upsert deal ${core.listing_id}:`, error.message);
     else if (outcome === "blocked") blockedRetired++;
     else {
       dealsFound++;
-      await writeReferenceBestEffort(
-        db,
-        "deals",
-        { source: core.source, marketplace: core.marketplace, listing_id: core.listing_id },
-        referenceFor(core),
-        referenceState
-      );
       // Best-effort discovery-analytics event (Phase 2). Never awaited on
       // the critical path in a way that can fail the scan.
       logDiscoveryEvent(db, {
@@ -805,8 +816,18 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
   const errors = [];
 
   // Same guarded sighting write as the per-card scan (see tryUpsert there).
-  const tryUpsert = async (row_, cardId) => {
+  // 17C.10 - the sweep writes comparisons too, so it carries evidence in
+  // the SAME statement. `reference` defaults to the CLEARED set: a caller
+  // that cannot evidence its comparison leaves no evidence at all, rather
+  // than whatever a previous writer happened to leave behind.
+  const tryUpsert = async (row_, cardId, reference = null) => {
     const { image_urls, ...core } = row_;
+    // ATOMIC, same rule as the per-card writer above. `reference` defaults
+    // to the CLEARED set: a caller that cannot evidence its comparison
+    // leaves no evidence at all, never a previous writer's.
+    if (await referenceColumnsReady(db)) {
+      Object.assign(core, reference ?? clearedReference(CARD_REFERENCE_COLUMNS));
+    }
     const { outcome, error } = await writeDiscoverySighting(db, core);
     if (error) console.error(`Failed to upsert deal ${core.listing_id}:`, error.message);
     else if (outcome === "blocked") blockedRetired++;
@@ -880,7 +901,19 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
               discountPct,
               grading,
             }),
-            row.justtcg_tcgplayer_id
+            row.justtcg_tcgplayer_id,
+            // graded buckets carry no provider as-of, so observedAt stays
+            // null and such rows remain plain
+            buildCardReference({
+              source: "ppt_live",
+              productId: row.justtcg_tcgplayer_id,
+              amount: gradedPrice.price,
+              currency: "USD",
+              observedAt: null,
+              syncedAt: new Date().toISOString(),
+              grader: grading?.grader ?? null,
+              grade: grading?.grade ?? null,
+            })
           );
         } catch (err) {
           errors.push(`Graded lookup failed for ${row.name} (${marketplaceId}): ${err.message}`);
@@ -934,6 +967,29 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
         if (priced.totalUsd < marketPrice * SANITY_FLOOR_PCT) continue;
       }
 
+      // The provenance of THIS figure, from the same selection that chose
+      // it. If the reference does not reproduce the stored market_price it
+      // is not evidence for this comparison, so the cleared set goes in
+      // instead - never a reference that merely shares an amount.
+      const sweepRef = selectConditionReference(
+        marketData.byConditionReference,
+        condition === "Unknown" ? "Near Mint" : condition,
+        marketData.fallbackReference
+      );
+      const sweepReference =
+        sweepRef?.price != null && Math.abs(Number(sweepRef.price) - Number(marketPrice)) <= 0.01
+          ? buildCardReference({
+              source: "ppt_live",
+              productId: row.justtcg_tcgplayer_id,
+              amount: sweepRef.price,
+              currency: "USD",
+              observedAt: marketData.observedAt ?? null,
+              syncedAt: new Date().toISOString(),
+              condition: sweepRef.condition ?? null,
+              printing: sweepRef.printing ?? null,
+            })
+          : clearedReference(CARD_REFERENCE_COLUMNS);
+
       await tryUpsert(
         dealRow({
           watchlistId: row.id,
@@ -945,7 +1001,8 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
           priceChange24hr: marketData.priceChange24hr,
           condition,
         }),
-        row.justtcg_tcgplayer_id
+        row.justtcg_tcgplayer_id,
+        sweepReference
       );
     }
   }

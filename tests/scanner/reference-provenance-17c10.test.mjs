@@ -256,16 +256,47 @@ test("RP-12. the missing-column fallback is restricted to these columns only", (
   }
 });
 
-test("RP-13. a non-provenance write failure is returned, not swallowed", async () => {
-  const fail = (error) => ({ from: () => ({ update: () => ({ match: async () => ({ error }) }) }) });
-  const state = {};
-  const other = await RPDB.writeReferenceBestEffort(fail({ code: "42501", message: "permission denied" }), "deals", { id: 1 }, { reference_source: "x" }, state);
-  assert.equal(other.error.code, "42501", "surfaced");
-  assert.equal(state.provenance, undefined, "and not memoised as missing-column");
+test("RP-13. provenance is written ATOMICALLY with the comparison - no separate attachment exists", () => {
+  // A follow-up update is not equivalent to writing image URLs: if it fails
+  // or races, the NEW market_price keeps the OLD evidence, and that stale
+  // evidence passes every value check when the amounts happen to match
+  // (same price, different printing). So the helper is gone entirely.
+  assert.equal(typeof RPDB.writeReferenceBestEffort, "undefined", "the non-atomic helper must not exist");
+  for (const f of [
+    "app/api/refresh-deals/route.js",
+    "app/api/ingest-feed/route.js",
+    "scripts/fix1stEditionDeals.js",
+    "scripts/fixConditionPricing.js",
+  ]) {
+    assert.doesNotMatch(read(f), /writeReferenceBestEffort/, `${f} must not attach evidence separately`);
+  }
 
-  const missing = await RPDB.writeReferenceBestEffort(fail({ code: "42703", message: "column deals.reference_source does not exist" }), "deals", { id: 1 }, { reference_source: "x" }, {});
-  assert.equal(missing.error, null, "the narrow case is tolerated");
-  assert.equal(missing.provenance, false);
+  // each writer merges the reference INTO the same payload as the comparison
+  const cards = read("app/api/refresh-deals/route.js");
+  assert.match(cards, /Object\.assign\(core, referenceFor\(core\)\)/, "card scanner merges evidence into the payload it writes");
+  assert.match(
+    cards,
+    /Object\.assign\(core, reference \?\? clearedReference\(CARD_REFERENCE_COLUMNS\)\)/,
+    "the sweep writer merges too, clearing by default"
+  );
+  // the merge happens BEFORE the write, into the SAME object - never as a
+  // second statement against the database afterwards
+  const firstMerge = cards.indexOf("Object.assign(core, referenceFor(core))");
+  const firstWrite = cards.indexOf("writeDiscoverySighting(db, core)");
+  assert.ok(firstMerge > 0 && firstMerge < firstWrite, "evidence is merged before the sighting is written");
+  // both writers still hand exactly one object to the guarded sighting
+  assert.equal((cards.match(/await writeDiscoverySighting\(db, core\)/g) ?? []).length, 2);
+  assert.match(cards, /referenceColumnsReady\(db\)/, "gated by a column probe, not a post-write retry");
+
+  const feed = read("app/api/ingest-feed/route.js");
+  assert.match(feed, /market_price: marketPrice,[\s\S]{0,700}clearedReference\(CARD_REFERENCE_COLUMNS\)/, "feed clears in the same row it writes");
+
+  for (const f of ["scripts/fix1stEditionDeals.js", "scripts/fixConditionPricing.js"]) {
+    assert.match(read(f), /market_price: correctPrice[\s\S]{0,200}\.\.\.referenceReset/, `${f} clears in the SAME update as the price`);
+  }
+
+  // sealed writes the reference inside the row object it upserts
+  assert.match(read("lib/sealedIngest.js"), /\.\.\.\(supportsReferenceColumns \? reference \?\? clearedReference\(SEALED_REFERENCE_COLUMNS\) : \{\}\)/);
 });
 
 // ---------------------------------------------------------------- (7)

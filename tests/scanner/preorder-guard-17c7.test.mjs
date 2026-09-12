@@ -116,8 +116,22 @@ test("PG-4. savings need evidence that matches the stored comparison, captured n
     assert.equal(savingsClaimTrusted(withEvidence(base, { reference_printing: null })), false, "printing not recorded");
     const graded = { ...base, is_graded: true, grader: "PSA", grade: "10" };
     assert.equal(savingsClaimTrusted(withEvidence(graded)), false, "graded needs grader + grade, not a raw condition");
-    assert.equal(savingsClaimTrusted({ ...graded, reference_grader: "PSA", reference_grade: "10", reference_captured_at: "2026-09-17T00:00:00Z" }), true);
-    assert.equal(savingsClaimTrusted({ ...graded, reference_grader: "PSA", reference_grade: "9", reference_captured_at: "2026-09-17T00:00:00Z" }), false, "grade mismatch");
+    // 17C.10: a graded reference needs the same identity + amount + provider
+    // time as a raw one, on top of matching grader/grade.
+    const gradedEvidence = {
+      ...graded,
+      reference_source: "ppt_live",
+      reference_product_id: graded.card_tcgplayer_id,
+      reference_amount: graded.market_price,
+      reference_currency: "USD",
+      reference_grader: "PSA",
+      reference_grade: "10",
+      reference_observed_at: "2026-09-17T00:00:00Z",
+    };
+    assert.equal(savingsClaimTrusted(gradedEvidence), true);
+    assert.equal(savingsClaimTrusted({ ...gradedEvidence, reference_grade: "9" }), false, "grade mismatch");
+    assert.equal(savingsClaimTrusted({ ...gradedEvidence, reference_product_id: "999999" }), false, "identity mismatch");
+    assert.equal(savingsClaimTrusted({ ...gradedEvidence, reference_amount: 1.23 }), false, "amount mismatch");
     // sets outside the tracked recent releases are unchanged by this patch
     assert.equal(savingsClaimTrusted({ ...base, card_set: "Base Set", watchlist: { set: "Base Set" }, title: "Charizard 4/102" }), true);
   });

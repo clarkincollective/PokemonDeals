@@ -12,10 +12,9 @@ const { getRawPrice } = require("../lib/pokemonPriceTracker");
 const { supabaseAdmin } = require("../lib/supabaseAdmin");
 // 17C.10 - this script REWRITES market_price, so any stored reference no
 // longer describes the comparison on the row. It cannot re-derive matching
-// evidence (getRawPrice gives no provider as-of here), so it clears.
-const { writeReferenceBestEffort } = require("../lib/referenceProvenanceDb");
+// evidence (getRawPrice gives no provider as-of here), so it CLEARS - in
+// the SAME update as the price, so the two can never disagree.
 const { CARD_REFERENCE_COLUMNS, clearedReference } = require("../lib/referenceProvenance");
-const referenceState = {};
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -31,6 +30,10 @@ const WOTC_ERA_PATTERN =
 
 async function main() {
   const db = supabaseAdmin();
+  // Probe once: while the reference columns are absent this script writes
+  // no provenance at all (and the rows simply carry none).
+  const refColumnsReady = !(await db.from("deals").select("reference_source").limit(1)).error;
+  const referenceReset = refColumnsReady ? clearedReference(CARD_REFERENCE_COLUMNS) : {};
 
   let deals = [];
   for (let from = 0; ; from += 1000) {
@@ -103,12 +106,10 @@ async function main() {
       if (stillAValidDeal) {
         const { error: updateErr } = await db
           .from("deals")
-          .update({ market_price: correctPrice, discount_pct: newDiscountPct })
+          .update({ market_price: correctPrice, discount_pct: newDiscountPct, ...referenceReset })
           .eq("id", deal.id);
         if (updateErr) console.log(`  ! failed to update deal ${deal.id}: ${updateErr.message}`);
         else {
-          // the old reference described the OLD market_price - clear it
-          await writeReferenceBestEffort(db, "deals", { id: deal.id }, clearedReference(CARD_REFERENCE_COLUMNS), referenceState);
           corrected++;
           console.log(
             `  corrected: ${wl.name} (${wl.set}) - deal ${deal.id}: $${oldPrice} -> $${correctPrice} market, ${(newDiscountPct * 100).toFixed(1)}% below market`

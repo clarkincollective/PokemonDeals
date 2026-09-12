@@ -11,9 +11,7 @@ import { fetchFeed } from "@/lib/pokeFeed";
 import { getUsdRates, toUsd } from "@/lib/fx";
 import { logDiscoveryEvent, legacyIdFromListingId, discoveryListingKey } from "@/lib/discoveryLog";
 // 17C.10 - this writer changes a comparison but has no provider-dated
-// reference of its own, so it CLEARS provenance rather than leaving a
-// previous writer's evidence attached to a figure it just rewrote.
-import { writeReferenceBestEffort } from "@/lib/referenceProvenanceDb";
+// reference of its own, so it CLEARS provenance in the same write.
 import { CARD_REFERENCE_COLUMNS, clearedReference } from "@/lib/referenceProvenance";
 import { candidateKey, partitionCandidates, allocateVerifyBudget } from "@/lib/ingestFeedQueue";
 import {
@@ -81,11 +79,13 @@ const CATALOG_PAGE = 1000;
 const restId = (legacy) => `v1|${legacy}|0`;
 
 export async function GET(request) {
-  // Per-run memo for the reference-provenance writes below: once this run
-  // learns the columns are absent it stops re-attempting them, and warns
-  // once. Only the narrow missing-column error sets it (see
-  // lib/referenceProvenanceDb.isMissingProvenanceColumnError).
-  const referenceState = {};
+  // 17C.10 - reference provenance is written IN THE SAME statement as the
+  // comparison it certifies, never as a follow-up update: a separate write
+  // that fails or races would leave the OLD evidence attached to the NEW
+  // market_price, and stale evidence can pass every value check when the
+  // new reference happens to carry the same amount. So the columns are
+  // probed once per run and, when present, merged into the row itself.
+  const supportsReferenceColumns = !(await supabaseAdmin().from("deals").select("reference_source").limit(1)).error;
   const startedAt = Date.now();
   if (request.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -393,6 +393,13 @@ export async function GET(request) {
             listing.itemLocationCountry === listing.marketplace.replace("EBAY_", ""),
           market_price: marketPrice,
           discount_pct: discountPct,
+          // This writer rewrote the comparison from card_catalog.market_price,
+          // and card_catalog carries NO provider observation time - only our
+          // own synced_at, which can never evidence when the figure was true.
+          // It therefore supplies no evidence and CLEARS any a previous
+          // writer left, atomically with the comparison itself. Feed-sourced
+          // tracked-release rows stay plain listings.
+          ...(supportsReferenceColumns ? clearedReference(CARD_REFERENCE_COLUMNS) : {}),
           // The classified physical tier ("Near Mint" here - worse tiers
           // AND Unknown were rejected by conditionAllowsPromotion above),
           // never eBay's bare "Ungraded" grading-status string.
@@ -404,23 +411,6 @@ export async function GET(request) {
           last_seen_at: new Date().toISOString(),
         }
       );
-      // 17C.10 - this writer rewrote the comparison (market_price /
-      // discount_pct) from card_catalog.market_price, and card_catalog
-      // carries NO provider observation time - only our own synced_at,
-      // which can never evidence when the figure was true. So the feed can
-      // supply no matching evidence and must CLEAR any reference a
-      // previous writer left, rather than let it describe a comparison it
-      // no longer matches. Feed-sourced tracked-release rows therefore stay
-      // plain listings, which is the conservative outcome.
-      if (!error && outcome !== "blocked") {
-        await writeReferenceBestEffort(
-          db,
-          "deals",
-          { source: "ebay", marketplace: listing.marketplace, listing_id: listing.listingId },
-          clearedReference(CARD_REFERENCE_COLUMNS),
-          referenceState
-        );
-      }
       if (error) counts.upsertError = (counts.upsertError ?? 0) + 1;
       else if (outcome === "blocked") {
         counts.blockedRetired = (counts.blockedRetired ?? 0) + 1;

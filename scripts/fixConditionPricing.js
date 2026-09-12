@@ -13,17 +13,19 @@ const { getConditionPrices } = require("../lib/pokemonPriceTracker");
 const { detectListingCondition, selectConditionPrice, SANITY_FLOOR_PCT } = require("../lib/dealMatching");
 const { supabaseAdmin } = require("../lib/supabaseAdmin");
 // 17C.10 - this script REWRITES market_price (and the row's condition), so
-// any stored reference no longer describes the comparison. It clears rather
-// than leaving evidence that now names the wrong figure/tier.
-const { writeReferenceBestEffort } = require("../lib/referenceProvenanceDb");
+// any stored reference no longer describes the comparison. It CLEARS in the
+// SAME update as the price, so the two can never disagree.
 const { CARD_REFERENCE_COLUMNS, clearedReference } = require("../lib/referenceProvenance");
-const referenceState = {};
 
 const DISCOUNT_THRESHOLD = 0.1;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main() {
   const db = supabaseAdmin();
+  // Probe once: while the reference columns are absent this script writes
+  // no provenance at all (and the rows simply carry none).
+  const refColumnsReady = !(await db.from("deals").select("reference_source").limit(1)).error;
+  const referenceReset = refColumnsReady ? clearedReference(CARD_REFERENCE_COLUMNS) : {};
 
   let deals = [];
   for (let from = 0; ; from += 1000) {
@@ -109,12 +111,10 @@ async function main() {
       if (stillAValidDeal) {
         const { error } = await db
           .from("deals")
-          .update({ market_price: correctPrice, discount_pct: newDiscountPct, condition: deal.detectedCondition })
+          .update({ market_price: correctPrice, discount_pct: newDiscountPct, condition: deal.detectedCondition, ...referenceReset })
           .eq("id", deal.id);
         if (error) console.log(`  ! failed to update deal ${deal.id}: ${error.message}`);
         else {
-          // the old reference described the OLD market_price / tier - clear it
-          await writeReferenceBestEffort(db, "deals", { id: deal.id }, clearedReference(CARD_REFERENCE_COLUMNS), referenceState);
           corrected++;
           console.log(
             `  corrected (${deal.detectedCondition}): ${deal.watchlist.name} (${deal.watchlist.set}) - deal ${deal.id}: $${oldPrice} -> $${correctPrice} market, ${(newDiscountPct * 100).toFixed(1)}% below market`
