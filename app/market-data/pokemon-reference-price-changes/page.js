@@ -3,6 +3,7 @@ import Image from "next/image";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import JsonLd from "@/components/JsonLd";
+import ScrollableTable from "@/components/ScrollableTable";
 import { breadcrumbList, collectionPage } from "@/lib/jsonLd";
 import { catalogImageUrl } from "@/lib/cardImage";
 import { STUDY } from "@/lib/studies/referencePriceChange30d";
@@ -36,12 +37,28 @@ const signed = (n) => `${n > 0 ? "+" : ""}${n}%`;
 const human = (d) =>
   new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
+// DISPLAY ORDER ONLY. The study artifact keeps its own row order; sorting
+// here changes presentation and never a value. Printing groups stay
+// together in the order they first appear, and within each group the
+// conditions run best-to-worst.
+const CONDITION_ORDER = ["Near Mint", "Lightly Played", "Moderately Played", "Heavily Played", "Damaged"];
+const sortExampleRows = (rows) => {
+  const printings = [];
+  for (const r of rows) if (!printings.includes(r.printing)) printings.push(r.printing);
+  return [...rows].sort((a, b) => {
+    const byPrinting = printings.indexOf(a.printing) - printings.indexOf(b.printing);
+    if (byPrinting !== 0) return byPrinting;
+    return CONDITION_ORDER.indexOf(a.condition) - CONDITION_ORDER.indexOf(b.condition);
+  });
+};
+
 export default function ReferencePriceChangesPage() {
   const s = STUDY;
   const lateSplit = s.window.endpointDates.late;
   const lateMain = lateSplit.reduce((a, b) => (b.variants > a.variants ? b : a), lateSplit[0]);
   const lateOther = lateSplit.filter((x) => x.date !== lateMain.date);
   const citation = `Pokemon Deal Finder, "${TITLE}", ${human(s.window.earlyTarget)} to ${human(s.window.lateTarget)}. ${SITE_URL}${PATH}`;
+  const exampleRows = sortExampleRows(s.example.rows);
 
   // Product-level vs variant-level, for the chart and its data table.
   const compare = [
@@ -164,7 +181,7 @@ export default function ReferencePriceChangesPage() {
             </figcaption>
           </figure>
 
-          <div className="mt-5 overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+          <ScrollableTable className="mt-5 rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
             <table className="w-full border-collapse text-sm">
               <caption className="sr-only">
                 Product-level and variant-level 30-day outcomes compared. Median {signed(s.overall.median)} by
@@ -200,7 +217,7 @@ export default function ReferencePriceChangesPage() {
                 </tr>
               </tbody>
             </table>
-          </div>
+          </ScrollableTable>
 
           <p className="mt-4 text-sm text-zinc-700 dark:text-zinc-300">
             {s.overall.down}% of product medians fell, against <strong className="text-black dark:text-zinc-50">{s.pooled.down}%</strong>{" "}
@@ -228,11 +245,9 @@ export default function ReferencePriceChangesPage() {
                 />
               </div>
               <figcaption className="mt-2 text-[11px] leading-snug text-zinc-500">
-                Catalogue artwork for {s.example.name} ({s.example.set}). One image is shown because we hold one
-                verified image for this product. The 1st Edition printing carries an edition stamp on the card
-                face that the Unlimited printing does not; we do not have a separate verified image of each
-                printing, so we describe the difference rather than illustrate it. The artwork identifies the
-                card — it does not illustrate Near Mint, Played or Damaged condition.
+                {s.example.name} ({s.example.set}), catalogue illustration. The image shows a 1st Edition stamp;
+                the table compares both printings. Artwork does not represent the condition of an individual
+                copy.
               </figcaption>
             </figure>
 
@@ -245,7 +260,7 @@ export default function ReferencePriceChangesPage() {
                 </strong>
                 .
               </p>
-              <div className="mt-3 overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+              <ScrollableTable className="mt-3 rounded-lg border border-zinc-200 dark:border-zinc-800">
                 <table className="w-full border-collapse text-sm">
                   <caption className="sr-only">
                     {s.example.name} ({s.example.set}) variant prices in US dollars on{" "}
@@ -260,7 +275,7 @@ export default function ReferencePriceChangesPage() {
                     </tr>
                   </thead>
                   <tbody className="tabular-nums">
-                    {s.example.rows.map((r) => (
+                    {exampleRows.map((r) => (
                       <tr key={`${r.printing}-${r.condition}`} className="border-t border-zinc-100 dark:border-zinc-900">
                         <th scope="row" className="whitespace-nowrap px-3 py-2 text-left font-normal text-zinc-700 dark:text-zinc-300">
                           {r.printing} / {r.condition}
@@ -278,7 +293,7 @@ export default function ReferencePriceChangesPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </ScrollableTable>
               <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
                 The single figure &ldquo;{signed(s.example.median)} for {s.example.name}&rdquo; is a
                 product-level summary. It is not the movement of any one row above: a 1st Edition Near Mint
@@ -296,7 +311,7 @@ export default function ReferencePriceChangesPage() {
           <h2 id="era-heading" className="text-xl font-semibold text-black dark:text-zinc-50">
             By era group
           </h2>
-          <div className="mt-4 overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+          <ScrollableTable className="mt-4 rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
             <table className="w-full border-collapse text-sm">
               <caption className="sr-only">
                 Median 30-day change by era group, each group holding 50 sampled product records.
@@ -324,7 +339,7 @@ export default function ReferencePriceChangesPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollableTable>
           <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
             Each group holds exactly 50 product records because we allocated them equally on purpose. The
             groups are not sized to reflect how many cards exist in each era, so the overall figure describes
