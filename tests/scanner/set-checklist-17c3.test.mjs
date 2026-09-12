@@ -104,7 +104,8 @@ test("C3-6. missing prices stay explicit, and the card keeps its link when its e
   const rows = buildChecklistRows([card({ refPrice: null }), card({ refPrice: 0 }), card({ refPrice: 999.99 }), card({ refPrice: 12 })]);
   assert.deepEqual(rows.map((r) => r.reference?.usd ?? null), [null, null, null, 12]);
   assert.deepEqual(rows.map((r) => Boolean(r.href)), [true, true, true, true]);
-  assert.match(code("components/SetChecklist.js"), /<i>No reliable reference<\/i>/);
+  // 17C.11: the shared row cells live in components/ChecklistRow
+  assert.match(code("components/ChecklistRow.js"), /<i>No reliable reference<\/i>/);
 });
 
 test("C3-8. REGRESSION (17C.3 link preservation): unlinked only when the destination is missing or ambiguous - never because a price is missing", () => {
@@ -125,7 +126,8 @@ test("C3-8. REGRESSION (17C.3 link preservation): unlinked only when the destina
   ]);
   assert.deepEqual(rows.map((r) => [r.name, r.href]), [["Shared (A)", null], ["Shared (B)", "/cards/shared-jungle"]]);
   // the component still renders a plain name (no anchor) when href is null
-  assert.match(code("components/SetChecklist.js"), /\{r\.href \? <a href=\{r\.href\}>\{r\.name\}<\/a> : r\.name\}/);
+  // 17C.11: the shared row cells live in components/ChecklistRow
+  assert.match(code("components/ChecklistRow.js"), /\{r\.href \? <a href=\{r\.href\}>\{r\.name\}<\/a> : r\.name\}/);
 });
 
 test("C3-7. the page and data wiring are unchanged apart from the allowlist + guard: same component, same heading id, art grid, URLs and metadata", () => {
@@ -137,7 +139,12 @@ test("C3-7. the page and data wiring are unchanged apart from the allowlist + gu
   assert.match(page, /<CatalogueBrowser/);
   assert.match(page, /const canonical = `\/sets\/\$\{slug\}`;/);
   assert.match(page, /export const revalidate = 3600;/);
-  const comp = code("components/SetChecklist.js");
-  assert.match(comp, /<table className=\{TABLE_CLASS\}>/);
-  assert.match(comp, /<a href=\{r\.href\}>\{r\.name\}<\/a>/);
+  // 17C.11: SetChecklist (server) builds rows and delegates the table to
+  // ChecklistTable (client, still SSR'd); the shared cells + plain <a>
+  // live in ChecklistRow. Same component call on the page, same heading id.
+  const set = code("components/SetChecklist.js");
+  assert.match(set, /const rows = buildChecklistRows\(cards\)/);
+  assert.match(set, /<ChecklistTable[\s\S]*rows=\{rows\}/);
+  assert.match(code("components/ChecklistTable.js"), /<table className=\{CHECKLIST_TABLE_CLASS_OWNED\}>/);
+  assert.match(code("components/ChecklistRow.js"), /<a href=\{r\.href\}>\{r\.name\}<\/a>/);
 });

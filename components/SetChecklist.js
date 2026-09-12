@@ -1,70 +1,26 @@
-import Price from "@/components/Price";
+import ChecklistTable from "@/components/ChecklistTable";
 import { buildChecklistRows, checklistSummary, checklistLegend } from "@/lib/setChecklist";
 
-// Phase 17C.2 - SERVER component. The readable set checklist for a pilot
-// set. It REPLACES that set's plain <CatalogueLinkIndex> (same heading id,
-// same crawl role: every permanent /cards/[slug] link server-rendered as a
-// plain <a>, no next/link prefetch, nothing hidden) and adds what the
-// index lacked - collector number, recorded rarity and the market
-// reference with its real context - in collector-number order. The art
-// grid above stays the place to search / filter / sort; this is the
-// scannable list, not a second grid.
+// Phase 17C.2 - the readable set checklist. 17C.11 makes it a collector
+// utility: the same crawlable list, plus owned/missing marking, a
+// missing-only view, reset and a print layout.
 //
-// ALL styling sits on the <table> as column-level arbitrary-variant rules,
-// so the rows carry no class strings at all - each row is repeated in both
-// the SSR HTML and the RSC payload, and ~110 rows of repeated Tailwind
-// strings would otherwise add ~100 KB to the page.
-//   col 1  No.      mono, muted
-//   col 2  Card     name link; <small> = rarity, shown only below `sm`
-//   col 3  Rarity   hidden below `sm` (the <small> in col 2 carries it)
-//   col 4  Market reference  right-aligned; <b> = figure, <small> = context
-// Exported for the Pokemon-page checklist (components/SpeciesChecklist).
-export const CHECKLIST_TABLE_CLASS = [
-
-  "w-full border-collapse text-left text-sm tabular-nums",
-  "[&_th]:px-3 [&_th]:py-2 [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wide [&_th]:text-zinc-500 dark:[&_th]:text-zinc-400",
-  "[&_td]:px-3 [&_td]:py-2 [&_td]:align-top",
-  "[&_tbody_tr]:border-t [&_tbody_tr]:border-zinc-100 dark:[&_tbody_tr]:border-zinc-800",
-  "[&_td:nth-child(1)]:whitespace-nowrap [&_td:nth-child(1)]:font-mono [&_td:nth-child(1)]:text-xs [&_td:nth-child(1)]:text-zinc-500 dark:[&_td:nth-child(1)]:text-zinc-400",
-  "[&_th:nth-child(1)]:w-20",
-  "[&_a]:font-medium [&_a]:text-zinc-900 [&_a]:underline-offset-2 [&_a:hover]:text-red-600 [&_a:hover]:underline dark:[&_a]:text-zinc-100 dark:[&_a:hover]:text-red-500",
-  "[&_td:nth-child(2)_small]:mt-0.5 [&_td:nth-child(2)_small]:block [&_td:nth-child(2)_small]:text-xs [&_td:nth-child(2)_small]:text-zinc-500 sm:[&_td:nth-child(2)_small]:hidden dark:[&_td:nth-child(2)_small]:text-zinc-400",
-  "[&_td:nth-child(3)]:hidden [&_th:nth-child(3)]:hidden sm:[&_td:nth-child(3)]:table-cell sm:[&_th:nth-child(3)]:table-cell [&_td:nth-child(3)]:text-zinc-600 dark:[&_td:nth-child(3)]:text-zinc-400",
-  "[&_td:nth-child(4)]:whitespace-nowrap [&_td:nth-child(4)]:text-right [&_th:nth-child(4)]:text-right",
-  "[&_td:nth-child(4)_b]:font-semibold [&_td:nth-child(4)_b]:text-black dark:[&_td:nth-child(4)_b]:text-zinc-50",
-  "[&_td:nth-child(4)_small]:block [&_td:nth-child(4)_small]:text-xs [&_td:nth-child(4)_small]:text-zinc-500 dark:[&_td:nth-child(4)_small]:text-zinc-400",
-  "[&_i]:text-xs [&_i]:text-zinc-500 dark:[&_i]:text-zinc-400",
-].join(" ");
-const TABLE_CLASS = CHECKLIST_TABLE_CLASS;
-
-// One checklist row - shared with components/SpeciesChecklist so both
-// render references, links and missing prices identically.
-export function ChecklistRow({ r }) {
-  return (
-    <tr>
-      <td>{r.number ?? "—"}</td>
-      <td>
-        {r.href ? <a href={r.href}>{r.name}</a> : r.name}
-        <small>{r.rarity ?? "Rarity not recorded"}</small>
-      </td>
-      <td>{r.rarity ?? "Not recorded"}</td>
-      <td>
-        {r.reference ? (
-          <>
-            <b>
-              <Price usd={r.reference.usd} native={{ amount: r.reference.usd, currency: "USD" }} />
-            </b>
-            {(r.reference.conditionKnown || r.reference.printing) && (
-              <small>{[r.reference.conditionLabel, r.reference.printing].filter(Boolean).join(" · ")}</small>
-            )}
-          </>
-        ) : (
-          <i>No reliable reference</i>
-        )}
-      </td>
-    </tr>
-  );
-}
+// This stays a SERVER component. It builds the rows (and the summary and
+// legend sentences) here and hands them to <ChecklistTable>, a client
+// component - which the App Router still server-renders, so every row and
+// every permanent /cards/[slug] link remains in the SSR HTML exactly as in
+// 17C.2/17C.3. Hydration only attaches the checkboxes.
+//
+// The row renderer and table styling live in components/ChecklistRow so
+// components/SpeciesChecklist (server, no Own column) keeps the identical
+// 4-column layout it had in 17C.4.
+//
+// It REPLACES the set's plain <CatalogueLinkIndex> (same heading id, same
+// crawl role) and adds what the index lacked - collector number, recorded
+// rarity and the market reference with its real context - in
+// collector-number order. The art grid above stays the place to search /
+// filter / sort; this is the scannable list, not a second grid.
+export { CHECKLIST_TABLE_CLASS, ChecklistRow, ChecklistCells } from "@/components/ChecklistRow";
 
 export default function SetChecklist({ setName, cards, headingId = "full-set-index" }) {
   const rows = buildChecklistRows(cards);
@@ -73,14 +29,18 @@ export default function SetChecklist({ setName, cards, headingId = "full-set-ind
   const legend = checklistLegend(s, rows);
 
   return (
-    <section aria-labelledby={headingId} className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+    <section
+      aria-labelledby={headingId}
+      data-checklist-print-root
+      className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800"
+    >
       <h2 id={headingId} className="scroll-mt-24 text-lg font-bold text-black dark:text-zinc-50">
         {`${setName} checklist (${s.total} ${s.total === 1 ? "card" : "cards"})`}
       </h2>
-      <p className="mt-1 max-w-3xl text-sm text-zinc-600 dark:text-zinc-400">
-        {`Every ${setName} card in our catalogue, in collector-number order. Card names link to each card's page with full pricing, graded values and any live deal.`}
+      <p className="mt-1 max-w-3xl text-sm text-zinc-600 dark:text-zinc-400" data-print-hide>
+        {`Every ${setName} card in our catalogue, in collector-number order. Tick what you own to see what's missing, then print the list. Card names link to each card's page with full pricing, graded values and any live deal.`}
       </p>
-      <p className="mt-2 max-w-3xl text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+      <p className="mt-2 max-w-3xl text-xs leading-relaxed text-zinc-500 dark:text-zinc-400" data-print-hide>
         Market reference = a recent-sold price for one raw (ungraded) copy, stored in US dollars and
         shown in your currency (marked ≈) when you have chosen another.{" "}
         {legend.condition ? `${legend.condition} ` : ""}
@@ -88,24 +48,11 @@ export default function SetChecklist({ setName, cards, headingId = "full-set-ind
         {legend.unpriced ? ` ${legend.unpriced}` : ""}
       </p>
 
-      <div className="mt-4 overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-        <table className={TABLE_CLASS}>
-          <caption className="sr-only">{`${setName} card checklist: collector number, card, rarity and market reference`}</caption>
-          <thead className="bg-zinc-50 dark:bg-zinc-900">
-            <tr>
-              <th scope="col">No.</th>
-              <th scope="col">Card</th>
-              <th scope="col">Rarity</th>
-              <th scope="col">Market reference</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <ChecklistRow key={r.key} r={r} />
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ChecklistTable
+        setName={setName}
+        rows={rows}
+        caption={`${setName} card checklist: owned, collector number, card, rarity and market reference`}
+      />
     </section>
   );
 }

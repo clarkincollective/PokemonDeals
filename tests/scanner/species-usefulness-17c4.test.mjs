@@ -121,7 +121,10 @@ test("SP-5. condition note: same wording as the set checklists, from recorded pr
 
 test("SP-6. the era checklist reuses the set checklist's table, row, link rule and legend; plain crawlable links; no totals", () => {
   const src = code("components/SpeciesChecklist.js");
-  assert.match(src, /import \{ CHECKLIST_TABLE_CLASS, ChecklistRow \} from "@\/components\/SetChecklist"/);
+  // 17C.11: the shared table class + row moved to components/ChecklistRow;
+  // the species page imports them from there so its module graph never
+  // includes the set checklist's client component.
+  assert.match(src, /import \{ CHECKLIST_TABLE_CLASS, ChecklistRow \} from "@\/components\/ChecklistRow"/);
   assert.match(src, /buildChecklistRows\(s\.cards\)/);
   assert.match(src, /checklistLegend\(summary, allRows\)/);
   assert.match(src, /<ChecklistRow key=\{r\.key\} r=\{r\} \/>/);
@@ -129,10 +132,14 @@ test("SP-6. the era checklist reuses the set checklist's table, row, link rule a
   assert.match(src, /not a value for the Pokemon/);
   assert.doesNotMatch(src, /from "next\/link"|\.reduce\(\(n, s\) => n \+ s\.rows\.length, 0\)\s*\*/, "");
   assert.doesNotMatch(src, /refPrice|sort\(/, "no ranking or value comparison in the checklist");
-  const set = code("components/SetChecklist.js");
-  assert.match(set, /export function ChecklistRow\(\{ r \}\)/);
-  assert.match(set, /<ChecklistRow key=\{r\.key\} r=\{r\} \/>/, "the set checklist renders the same shared row");
-  assert.match(set, /<a href=\{r\.href\}>\{r\.name\}<\/a>/);
+  // 17C.11: the shared row is defined once in ChecklistRow and rendered by
+  // BOTH surfaces - the species page via <ChecklistRow>, the set checklist
+  // via the same <ChecklistCells> inside its owned-column row.
+  const row = code("components/ChecklistRow.js");
+  assert.match(row, /export function ChecklistRow\(\{ r \}\)/);
+  assert.match(row, /export function ChecklistCells\(\{ r \}\)/);
+  assert.match(row, /<a href=\{r\.href\}>\{r\.name\}<\/a>/);
+  assert.match(code("components/ChecklistTable.js"), /<ChecklistCells r=\{r\} \/>/, "the set checklist renders the same shared cells");
 });
 
 test("SP-7. the pilot is gated: every non-pilot species renders exactly as before", () => {

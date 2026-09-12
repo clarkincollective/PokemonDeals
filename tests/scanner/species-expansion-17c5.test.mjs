@@ -85,7 +85,8 @@ test("C5-5. missing-price cards stay linked when their exact page resolves; miss
   assert.equal(rows[0].number, "2/111");
   assert.equal(rows[1].number, null);
   assert.ok(rows.every((r) => r.href), "unpriced + unnumbered card still links to its resolving page");
-  assert.match(code("components/SetChecklist.js"), /<td>\{r\.number \?\? "—"\}<\/td>/);
+  // 17C.11: the shared row cells live in components/ChecklistRow
+  assert.match(code("components/ChecklistRow.js"), /<td>\{r\.number \?\? "—"\}<\/td>/);
 });
 
 test("C5-6. undated sets stay under 'Other sets'", () => {

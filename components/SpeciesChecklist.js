@@ -1,4 +1,8 @@
-import { CHECKLIST_TABLE_CLASS, ChecklistRow } from "@/components/SetChecklist";
+// 17C.11: imported directly from components/ChecklistRow (where these
+// moved) rather than via SetChecklist, so the species page's module graph
+// never pulls in the set checklist's client component. Output is
+// unchanged: same 4-column layout, same row markup as 17C.4.
+import { CHECKLIST_TABLE_CLASS, ChecklistRow } from "@/components/ChecklistRow";
 import { buildChecklistRows, checklistSummary, checklistLegend } from "@/lib/setChecklist";
 
 // Phase 17C.4 - SERVER component. The Pokemon-page pilot's exact-card

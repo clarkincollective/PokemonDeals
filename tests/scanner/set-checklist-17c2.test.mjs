@@ -109,33 +109,56 @@ test("C2-7. the summary counts cards and flags unstated / mixed conditions - it 
 });
 
 test("C2-8. the component: semantic table, plain crawlable <a> links, no set total, explicit unavailable state", () => {
-  const src = code("components/SetChecklist.js");
-  assert.match(src, /<table className=\{TABLE_CLASS\}>/);
-  assert.match(src, /<th scope="col"[^>]*>No\.<\/th>/);
-  assert.match(src, /<th scope="col">Card<\/th>/);
-  assert.match(src, /Rarity<\/th>/);
-  assert.match(src, /Market reference<\/th>/);
-  assert.match(src, /<a href=\{r\.href\}>\{r\.name\}<\/a>/, "plain <a>, no next/link prefetch");
-  assert.doesNotMatch(src, /from "next\/link"/);
-  assert.match(src, /No reliable reference/);
-  assert.match(src, /not a value for the complete set/);
+  // 17C.11 split the checklist into three files: SetChecklist (server:
+  // heading, legend, rows), ChecklistRow (shared cells + column styling)
+  // and ChecklistTable (client: the table with the owned column). The
+  // BEHAVIOUR asserted here is unchanged; only where each piece lives is.
+  const set = code("components/SetChecklist.js");
+  const row = code("components/ChecklistRow.js");
+  const table = code("components/ChecklistTable.js");
+  const all = set + row + table;
+
+  // semantic table with the original headers (an "Own" column is now first)
+  assert.match(table, /<table className=\{CHECKLIST_TABLE_CLASS_OWNED\}>/);
+  assert.match(table, /<th scope="col"[^>]*>No\.<\/th>/);
+  assert.match(table, /<th scope="col">Card<\/th>/);
+  assert.match(table, /Rarity<\/th>/);
+  assert.match(table, /Market reference<\/th>/);
+  // plain crawlable <a>, never next/link, in the shared cells
+  assert.match(row, /<a href=\{r\.href\}>\{r\.name\}<\/a>/, "plain <a>, no next/link prefetch");
+  assert.doesNotMatch(all, /from "next\/link"/);
+  assert.match(row, /No reliable reference/);
+  assert.match(set, /not a value for the complete set/);
   // the condition sentences come from lib/setChecklist.checklistLegend
   // (17C.3); NULL provenance = our catalogue has not captured the
   // condition - never the provider lacking it
-  assert.match(src, /checklistLegend\(s, rows\)/);
+  assert.match(set, /checklistLegend\(s, rows\)/);
   const lib = code("lib/setChecklist.js");
   assert.match(lib, /not like-for-like across cards/);
   assert.match(lib, /Condition not recorded: our catalogue has not captured which condition/);
   assert.match(lib, /where none is shown the condition is not recorded/);
-  assert.doesNotMatch(src + lib, /provider does not state|provider states|was not stated/);
-  assert.match(src, /currency: "USD"/);
-  assert.doesNotMatch(src, /\.reduce\(|\bsum\b|totalValue|setValue/i, "nothing adds references up");
-  assert.doesNotMatch(src, /display:\s*none|aria-hidden|sr-only[^"]*"[^>]*>\{r\./, "nothing crawlable is hidden");
-  // the ONLY breakpoint-hidden content is the duplicated rarity: column 3
-  // below `sm`, and its <small> copy in column 2 from `sm` up
-  const hiddenRules = src.match(/[^\s"]*:hidden(?![\w-])/g) ?? [];
-  assert.deepEqual(hiddenRules.sort(), ["[&_td:nth-child(3)]:hidden", "[&_th:nth-child(3)]:hidden", "sm:[&_td:nth-child(2)_small]:hidden"].sort());
-  assert.match(src, /<td>\s*\{r\.href \? <a href=\{r\.href\}>\{r\.name\}<\/a> : r\.name\}/, "card names (and links) are never inside a hidden element");
+  assert.doesNotMatch(all + lib, /provider does not state|provider states|was not stated/);
+  assert.match(row, /currency: "USD"/);
+  assert.doesNotMatch(all, /\.reduce\(|\bsum\b|totalValue|setValue/i, "nothing adds references up");
+  // nothing crawlable is hidden: the only hidden things are the print-only
+  // scope line (hidden on screen, shown in print) and the live-region
+  // status - never a row, a name or a link.
+  assert.doesNotMatch(row, /display:\s*none|aria-hidden|sr-only/, "row cells hide nothing");
+  assert.doesNotMatch(table, /sr-only[^"]*"[^>]*>\{r\./, "no row content inside an sr-only element");
+  // the ONLY breakpoint-hidden content is the duplicated rarity: rarity
+  // column below `sm`, and its <small> copy in the Card column from `sm`
+  // up - in BOTH the 4-column (species) and 5-column (set) class sets.
+  const hiddenRules = (row.match(/[^\s"]*:hidden(?![\w-])/g) ?? []).sort();
+  assert.deepEqual(hiddenRules, [
+    "[&_td:nth-child(3)]:hidden", "[&_th:nth-child(3)]:hidden", "sm:[&_td:nth-child(2)_small]:hidden",
+    "[&_td:nth-child(4)]:hidden", "[&_th:nth-child(4)]:hidden", "sm:[&_td:nth-child(3)_small]:hidden",
+  ].sort());
+  assert.match(row, /<td>\s*\{r\.href \? <a href=\{r\.href\}>\{r\.name\}<\/a> : r\.name\}/, "card names (and links) are never inside a hidden element");
+  // rows come from the server-built `rows` prop; the client never fetches
+  // or rebuilds the list, so the SSR HTML carries every link
+  assert.match(set, /const rows = buildChecklistRows\(cards\)/);
+  assert.match(table, /shown\.map\(/);
+  assert.doesNotMatch(table, /fetch\(/);
 });
 
 test("C2-9. the page: pilot set swaps the plain index for the checklist; every other set keeps the index; routes/canonical/robots untouched", () => {

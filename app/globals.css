@@ -75,3 +75,78 @@ body {
 .tnum {
   font-variant-numeric: tabular-nums;
 }
+
+/* Phase 17C.11 - printable set checklist.
+   The page already renders the whole checklist server-side; printing just
+   removes the site chrome around it so a collector gets a usable list to
+   take to a show. A row hidden by the viewer's missing-only view stays
+   hidden when printed, so "print what's missing" works without a second
+   layout. */
+@media print {
+  /* Print ONLY the checklist section. The first cut hid header/nav/footer
+     and printed everything else - the site header is a <div>, and the
+     deals grid, price summary and art grid all rendered, so a "checklist"
+     came out as 13 MB of card images with the list at the end. Walk the
+     page structure and drop every block that neither IS the checklist
+     section nor CONTAINS it (Chrome, which drives print here, supports
+     :has()). Descendants of the section are left alone. */
+  body > * > *:not(:has([data-checklist-print-root])),
+  main > *:not(:has([data-checklist-print-root])),
+  main section > *:not([data-checklist-print-root]):not(:has([data-checklist-print-root])):not([data-checklist-print-root] *) {
+    display: none !important;
+  }
+  [data-print-hide],
+  header,
+  nav,
+  footer {
+    display: none !important;
+  }
+  [data-checklist-print-root] {
+    margin-top: 0 !important;
+    border-top: 0 !important;
+    padding-top: 0 !important;
+  }
+  [data-checklist-print] {
+    display: block !important;
+  }
+  [data-checklist-print] table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+  }
+  [data-checklist-print] thead {
+    display: table-header-group; /* repeat the header on every printed page */
+  }
+  [data-checklist-print] tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  [data-checklist-print] td,
+  [data-checklist-print] th {
+    padding: 2pt 4pt;
+    border-bottom: 1px solid #ddd;
+  }
+  /* links print as plain text - a printed URL is noise on a checklist */
+  [data-checklist-print] a {
+    color: inherit;
+    text-decoration: none;
+  }
+  /* the owned box prints as an empty square to tick by hand */
+  [data-checklist-print] input[type="checkbox"] {
+    appearance: none;
+    width: 9pt;
+    height: 9pt;
+    border: 1px solid #444;
+    display: inline-block;
+  }
+  [data-checklist-print] input[type="checkbox"]:checked::after {
+    content: "x";
+    display: block;
+    font-size: 8pt;
+    line-height: 9pt;
+    text-align: center;
+  }
+  [data-checklist-print] tr[hidden] {
+    display: none !important;
+  }
+}
