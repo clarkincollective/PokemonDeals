@@ -75,7 +75,13 @@ export default function SiteFooter({ note }) {
           <div className={col}>
             <p className={colTitle}>Deals</p>
             {deals.map((l) => (
-              <a key={l.href} href={l.href} className={link}>
+              <a
+                key={l.href}
+                href={l.href}
+                data-analytics-click={l.analyticsClick ?? undefined}
+                data-analytics-props={l.analyticsClick ? JSON.stringify({ ...(l.analyticsProps ?? {}), source: "footer" }) : undefined}
+                className={link}
+              >
                 {l.label}
               </a>
             ))}

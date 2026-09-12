@@ -153,8 +153,11 @@ test("H-8. a visible navigation entry, shared by the desktop bar and the mobile 
     assert.match(src(f), new RegExp(`${v}\\.analyticsClick[\\s\\S]{0,40}JSON\\.stringify\\(${v}\\.analyticsProps \\?\\? \\{\\}\\)`), `${f}: emits its props`);
   }
   assert.match(src("components/NavMenu.js"), /NAV_PRIMARY\.filter\(\(link\) => link\.group === group\.id\)\.map\(linkFor\)/, "mobile menu is built from NAV_PRIMARY");
-  // the established graded entry is untouched
-  assert.match(src("components/SiteHeader.js"), /graded_clicked/);
+  // the established graded entry event now lives on the shared model (deal-
+  // first review fix P4), so every renderer emits it - not a header special-case
+  const graded = NAV_PRIMARY.find((l) => l.href === "/deals/graded");
+  assert.equal(graded?.analyticsClick, "graded_clicked");
+  assert.doesNotMatch(src("components/SiteHeader.js"), /graded_clicked/, "no renderer special-cases the graded route any more");
 });
 
 test("H-8b. the hub is classified as a browse hub and emits one page_view per visit", () => {

@@ -25,23 +25,17 @@ export default function SiteHeader() {
           {NAV_GROUPS.map((group) => (
             <NavDropdown key={group.id} label={group.label} items={navGroupItems(group.id)} />
           ))}
-          {/* inline top-level entries - today only Guides & Research. The
-              graded entry (inside Deals ▾) keeps its established event via
-              NavDropdown; listed here so both renderers emit the same
-              markers: graded_clicked for /deals/graded, else the entry's own. */}
+          {/* inline top-level entries - today only Guides & Research. Every
+              entry's event (incl. the graded entry event on /deals/graded,
+              which lives inside Deals ▾ and is emitted by NavDropdown) comes
+              from the shared model, so no renderer special-cases a route. */}
           {NAV_PRIMARY.filter((link) => link.group == null).map((link) => (
             <a
               key={link.href}
               href={link.href}
               rel={link.href.includes("?") ? "nofollow" : undefined}
-              data-analytics-click={link.analyticsClick ?? (link.href === "/deals/graded" ? "graded_clicked" : undefined)}
-              data-analytics-props={
-                link.analyticsClick
-                  ? JSON.stringify(link.analyticsProps ?? {})
-                  : link.href === "/deals/graded"
-                    ? JSON.stringify({ section: "nav", source: "nav", graded_entry: true })
-                    : undefined
-              }
+              data-analytics-click={link.analyticsClick ?? undefined}
+              data-analytics-props={link.analyticsClick ? JSON.stringify(link.analyticsProps ?? {}) : undefined}
               className="flex min-h-10 items-center rounded-lg px-3 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-red-500"
             >
               {link.label}
