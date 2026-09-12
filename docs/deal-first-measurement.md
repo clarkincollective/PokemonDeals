@@ -20,8 +20,9 @@ reaches the other inventories through a mode row of existing routes.
 | `homepage_section_impression` `{section: under_25}` | fired for the "Under $25" lane | **does not fire** | folded into the "Under $25" chip → `/deals/under-25` |
 | `deal_card_impression` for `ending_soon` / `just_added` cards | per-card viewport exposure in those two lanes (`CARD_IMPRESSION_SECTIONS`) | **does not fire** | cards not rendered; `best_deals` card impressions continue unchanged |
 | `ending_soon_clicked`, `just_added_clicked` | lane card clicks | **do not fire** | no lane; `best_deal_clicked` continues |
-| `affiliate_click` with `origin_section` `home_ending` / `home_fresh` / `home_under25` | outbound clicks from those lanes | **do not fire** | those `pageName`s are no longer rendered on `/`; `home_best` and `home_all_deals` continue |
-| EPN `customid` `home_auction`, `home_just_added` | sub-IDs on outbound links from the auction / just-added lanes | **no new clicks carry them** | surfaces stay in the closed enum, reserved and unused - not renamed |
+| `affiliate_click` with `origin_section` `ending_soon` / `just_added` / `under_25` | outbound clicks from the three lanes (a lane passes `analytics={{ section }}` to DealCard, and AffiliateLink copies that section into `origin_section`) | **do not fire** | the lanes are not rendered; `origin_section` `best_deals` (flagship row) and `home_all_deals` (the grid, which carries no lane section and therefore reports its `pageName`) continue |
+| Vercel Web Analytics "eBay Click" `page` = `home_ending` / `home_fresh` / `home_under25` | the DealCard `pageName` forwarded as `page` on the separate Vercel event | **do not fire** | `home_best` and `home_all_deals` continue. This is a different stream from PostHog - never summed with it |
+| EPN `customid` `home_auction`, `home_just_added` | sub-IDs on outbound links from the auction / just-added lanes (`lib/affiliateSurfaces.js` maps `home_ending` → `home_auction`, `home_fresh` → `home_just_added`) | **no new clicks carry them** | surfaces stay in the closed enum, reserved and unused - not renamed. The under-$25 lane's `home_under25` was never mapped, so its clicks carried `customid=other`; that `other` share shrinks accordingly |
 | `discover_deals_clicked` | hero "Browse today's deals ↓" (scrolled to the first lane) | **does not fire** | CTA removed: the first offers are already in the first screen. Event name stays declared so historical dashboards resolve |
 | `start_here_clicked` `{section: "hero", chip}` | six hero chips (under_25, under_50, over_100, sealed, graded, japanese) | fires with **`{section: "feed_modes", chip}`** for eight chips (buy_it_now, auctions, graded, under_25, under_50, sealed, japanese, newest) | same event, same `chip` prop family; the `section` value changed and two chips were added, one (`over_100`) dropped |
 
@@ -32,8 +33,17 @@ Everything else on the homepage is unchanged: `homepage_view`, `page_view`,
 `most_active_clicked`, `browse_*_clicked`, `guides_research_clicked`,
 `hero_search_focus` / `search_*`, `hero_example_clicked`,
 `price_checker_entry_clicked`, `browse_all_deals_clicked`, `filter_*`,
-`sort_changed`, `country_changed`, `affiliate_click` (`home_best`,
-`home_all_deals`), and the EPN sub-IDs `home_best` / `home_all`.
+`sort_changed`, `country_changed`, `affiliate_click` (`origin_section`
+`best_deals` and `home_all_deals`), and the EPN sub-IDs `home_best` /
+`home_all`.
+
+Three attribution fields, three vocabularies - do not mix them:
+
+| Field | Stream | Values on the R2 homepage | Values that stopped |
+| --- | --- | --- | --- |
+| `origin_section` | PostHog `affiliate_click` | `best_deals`, `home_all_deals` | `ending_soon`, `just_added`, `under_25` |
+| `page` | Vercel Web Analytics "eBay Click" | `home_best`, `home_all_deals` | `home_ending`, `home_fresh`, `home_under25` |
+| EPN `customid` | eBay Partner Network reports | `home_best`, `home_all` | `home_auction`, `home_just_added` (and part of `other`) |
 
 `HOMEPAGE_SECTIONS` in `lib/analytics/events.js` is intentionally NOT edited:
 section ids are never renamed, and the ones that stopped firing simply
@@ -51,6 +61,14 @@ Per the brief's metric definitions (§7), read with the existing scripts:
   impressions are only instrumented there, by design); grid-level for
   `all_deals` (section impression → `affiliate_click {origin_section:
   home_all_deals}`), since the grid has no per-card impressions.
+- **Historical → current mapping** (page level only): pre-R2 homepage
+  outbound = `affiliate_click` with `origin_section` in {`best_deals`,
+  `ending_soon`, `just_added`, `under_25`, `home_all_deals`}; post-R2 =
+  {`best_deals`, `home_all_deals`}. On the EPN side the pre-R2 homepage
+  surfaces are {`home_best`, `home_auction`, `home_just_added`, `home_all`}
+  (+ the under-$25 lane inside `other`); post-R2 {`home_best`, `home_all`}.
+  Sum each side per window and compare the SUMS, never a lane against a
+  lane.
 - **Outbound rate** - `affiliate_click` on `/` divided by `page_view
   {page_type: home}` (pageview-based, labelled as such: the daily-salted
   session model does not support reliable cross-day sessions).
