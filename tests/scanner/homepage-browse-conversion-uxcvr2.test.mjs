@@ -46,7 +46,10 @@ test("UX-CVR-2-1. the homepage has one dominant primary action per offer, and no
   // search box are plain text links, not buttons.
   const hero = HOME.slice(HOME.indexOf("<header"), HOME.indexOf("</header>"));
   assert.doesNotMatch(hero, /bg-zinc-900 px-4 py-2\.5|bg-red-600 px-4/, "no filled hero CTA button");
-  assert.match(HOME, /or try a search:/);
+  // fold revision: the example queries are a plain "Try …" text line
+  // beside the price-checker link (shown from `sm`; always in the DOM)
+  assert.match(HOME, /<span>Try<\/span>/);
+  assert.match(HOME, /className="hidden sm:contents">/);
   assert.doesNotMatch(HOME, /hero_example_clicked[\s\S]{0,120}(bg-zinc-900|bg-red-600|rounded-lg bg-)/);
   assert.match(DEALCARD, /View deal on eBay/);
 });
@@ -136,7 +139,7 @@ test("UX-CVR-2-7. the homepage + browse surfaces make no eBay call at render", (
 test("UX-CVR-2-8. the affiliate disclosure stays present on the homepage and in the footer", () => {
   assert.match(read("components/SiteFooter.js"), /eBay and TCGPlayer affiliate.*commission/is);
   // the slim homepage trust strip near the deals
-  assert.match(HOME, /we may earn a\s*\n?\s*commission on purchases, at no cost to you/);
+  assert.match(HOME, /We may earn a commission on eBay purchases/);
   // no invented superlatives
   assert.doesNotMatch(HOME, /best prices|guaranteed savings|lowest price guaranteed/i);
 });

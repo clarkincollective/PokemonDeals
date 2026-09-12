@@ -25,6 +25,7 @@ export default function NavDropdown({ label, items }) {
   const pinnedRef = useRef(false);
   const closeTimer = useRef(null);
   const rootRef = useRef(null);
+  const triggerRef = useRef(null);
   const id = useId();
 
   const close = () => {
@@ -72,15 +73,21 @@ export default function NavDropdown({ label, items }) {
         if (!rootRef.current?.contains(e.relatedTarget)) close();
       }}
       onKeyDown={(e) => {
-        if (e.key === "Escape") close();
+        if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          close();
+          triggerRef.current?.focus();
+        }
       }}
     >
       <button
+        ref={triggerRef}
         type="button"
         aria-expanded={open}
         aria-controls={id}
         onClick={toggle}
-        className="flex min-h-10 items-center gap-1 rounded-lg px-3 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-red-500"
+        className="flex min-h-11 items-center gap-1 rounded-lg px-3 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-red-500"
       >
         {label}
         <svg

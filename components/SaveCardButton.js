@@ -32,7 +32,7 @@ export default function SaveCardButton({ card, compact = false, className = "" }
         aria-pressed={saved}
         aria-label={saved ? "Remove from saved cards" : "Save this card"}
         title={saved ? "Saved" : "Save this card"}
-        className={`flex h-8 w-8 items-center justify-center rounded-full border text-base shadow-sm backdrop-blur transition-colors ${
+        className={`flex h-11 w-11 items-center justify-center rounded-full border text-base shadow-sm backdrop-blur transition-colors ${
           saved
             ? "border-red-300 bg-red-50/95 text-red-600 dark:border-red-800 dark:bg-red-950/70 dark:text-red-300"
             : "border-zinc-200 bg-white/90 text-zinc-400 hover:text-red-600 dark:border-zinc-700 dark:bg-zinc-950/90 dark:hover:text-red-400"

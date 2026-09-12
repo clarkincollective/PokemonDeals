@@ -264,8 +264,8 @@ test("P2-1. default feed labelled Featured; 'Buy it now' is the existing FIXED_P
   const page = read("app/page.js");
   assert.match(page, /label: "Featured", chip: "featured", home: true/);
   assert.match(page, /href: "\/\?listing=FIXED_PRICE", label: "Buy it now"/);
-  assert.match(page, /"Featured · below market · buy it now and auctions"/);
-  assert.doesNotMatch(page, /kicker=\{anyFilter \? "Filtered" : "Buy it now/);
+  assert.match(page, /"Buy it now and auctions"/);
+  assert.doesNotMatch(page, /kicker=\{anyFilter \? "Filtered" : "Buy it now"/);
 });
 
 // ---- P4: graded_clicked via the shared nav model, once per click -----

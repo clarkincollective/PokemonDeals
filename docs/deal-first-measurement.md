@@ -138,3 +138,35 @@ the session; EPN reports not opened). Before deploying R2, run
 `scripts/reportHomepageConversion.mjs` over the last complete pre-change
 window and file the numbers with the deploy SHA, so the post-change read has
 a like-for-like page-level baseline.
+
+## 5. Subsequent R2 first-screen refinement (local, not deployed)
+
+The shortened-hero revision changes exposure again. The following supersedes
+the unchanged-population assumptions above where they conflict:
+
+- The hero Most listed row is removed. Its hero_suggestion_clicked markers
+  stop firing. The same popular card destinations remain in the existing
+  six-card explore row, emitting most_active_clicked; these are different
+  placements/events, not a renamed equivalent series.
+- Search-example links remain server-rendered but are hidden below the sm
+  breakpoint. hero_example_clicked now has no phone-sized example-link
+  population. The hero search and price_checker_entry_clicked remain.
+- The nine mode destinations and start_here_clicked props are unchanged,
+  but the mobile row scrolls horizontally. Later modes require scrolling
+  or keyboard focus; do not assume equal exposure across chips.
+- More filters moves below the flagship row and above the diverse grid.
+  filter_bar_impression and filter_opened keep their handlers/props but
+  represent a deeper placement on the default homepage. Filtered pages
+  without a flagship row still show the filter controls before results.
+- Live count and freshness move from the hero to the feed. Disclosure and
+  methodology remain visible beside offers. No new impressions, events,
+  EPN values or user identifiers have been introduced.
+- A no-savings DealCard now passes discount_band=no_savings_claim to the
+  affiliate handler for both opted-in lanes and the ordinary grid; the
+  handler must not infer a claimed discount from a suppressed figure.
+  This changes that affected analytical classification, not EPN attribution.
+
+First-screen card geometry is a layout check, not a new measurement event.
+Saved captures and their viewport-specific limitations are recorded in the
+phase ledger. Production ingestion, buyer comprehension and revenue effects
+are still unverified; no release date or post-change evaluation window exists.

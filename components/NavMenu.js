@@ -16,17 +16,47 @@ import { NAV_PRIMARY, NAV_GROUPS, NAV_LEARN, NAV_SEARCH } from "@/lib/navLinks";
 export default function NavMenu() {
   const [open, setOpen] = useState(false);
   const closeRef = useRef(null);
+  const openerRef = useRef(null);
+  const dialogRef = useRef(null);
   const close = () => setOpen(false);
 
-  // focus lands on the close control when the panel opens; Escape closes
+  // Keep background content inert, contain focus and restore the opener.
   useEffect(() => {
-    if (!open) return;
+    if (!open || !dialogRef.current) return;
+    const dialog = dialogRef.current;
+    const opener = openerRef.current;
+    const background = [...document.body.children]
+      .filter((el) => el !== dialog)
+      .map((el) => ({ el, inert: el.inert }));
+    for (const { el } of background) el.inert = true;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     closeRef.current?.focus();
     const onKey = (e) => {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setOpen(false);
+      }
+      if (e.key !== "Tab") return;
+      const items = [...dialog.querySelectorAll('a[href], button:not([disabled])')]
+        .filter((el) => el.getClientRects().length > 0);
+      const first = items[0], last = items[items.length - 1];
+      if (!first) return;
+      if (e.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      for (const { el, inert } of background) el.inert = inert;
+      document.body.style.overflow = previousOverflow;
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+    };
   }, [open]);
 
   const itemClass =
@@ -52,6 +82,8 @@ export default function NavMenu() {
   return (
     <>
       <button
+        ref={openerRef}
+        type="button"
         onClick={() => setOpen(true)}
         aria-label="Open menu"
         aria-expanded={open}
@@ -66,7 +98,7 @@ export default function NavMenu() {
 
       {open &&
         createPortal(
-          <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Site menu">
+          <div ref={dialogRef} className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Site menu">
             <div className="absolute inset-0 bg-black/50" onClick={close} />
             <div className="absolute right-0 top-0 flex h-full w-80 max-w-[88vw] flex-col overflow-y-auto bg-white p-5 shadow-xl dark:bg-zinc-950">
               <div className="mb-2 flex items-center justify-between">

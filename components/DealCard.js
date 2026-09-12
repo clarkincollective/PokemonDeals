@@ -56,7 +56,9 @@ function discountBadgeClass(pct) {
 // LAYOUT: one DOM, two shapes. Below `sm` the card is a compact unit -
 // artwork (4:5, object-contain, never cropped) on the left, identity /
 // offer / comparison on the right, the 44px eBay button spanning the
-// width beneath. From `sm` up it stacks: 4:5 artwork, body, button.
+// width beneath. From `sm` up it stacks: a 6:5 artwork box (fold revision:
+// proportionally smaller art so a complete offer fits a 1280x900 first
+// screen - text sizes untouched), body, button.
 //
 // `rank` shows a number badge only on ranked lists (Top 10, "Best deals").
 // `hub` is `{ count, slug }` from fetchHubCounts when this card has 2+
@@ -174,7 +176,8 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
     >
       {/* ARTWORK - the seller's photo (or, labelled, the catalogue art);
           opens the site's own detail page. Badges carry only real facts.
-          4:5 box, object-contain: the artwork keeps its own proportions. */}
+          4:5 box on phones, 6:5 from `sm`; object-contain, so the
+          artwork keeps its own proportions and is never cropped. */}
       <div className="relative row-span-1 sm:row-auto">
         <div className="absolute bottom-1.5 right-1.5 z-10 sm:bottom-2 sm:right-2">
           <SaveCardButton
@@ -194,7 +197,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           href={dealHref}
           rel={dealRel}
           aria-label={`${cardName} - details`}
-          className="relative block aspect-[4/5] w-full bg-zinc-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-red-600 dark:bg-zinc-900"
+          className="relative block aspect-[4/5] w-full bg-zinc-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-red-600 sm:aspect-[6/5] dark:bg-zinc-900"
         >
           <DealImage
             {...dealImageProps(deal)}
@@ -393,7 +396,12 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           analyticsProps={
             analyticsPayload
               ? { ...analyticsPayload, origin_section: analyticsPayload.section }
-              : { origin_section: pageName, deal_id: deal.id, content_id: String(deal.id) }
+              : {
+                  origin_section: pageName,
+                  deal_id: deal.id,
+                  content_id: String(deal.id),
+                  discount_band: savingsSupported ? discountBand(discountPct) : "no_savings_claim",
+                }
           }
           className="flex min-h-11 w-full items-center justify-center rounded-lg bg-red-600 px-4 text-center text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
         >

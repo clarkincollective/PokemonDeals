@@ -266,8 +266,9 @@ export default async function Home({ searchParams }) {
     deals = selectDiverseLane(ordered, { limit: HOME_PREVIEW_SIZE, speciesCap: 3 });
   }
 
+  // the six most-listed card hubs render ONCE, in the explore section
+  // (fold revision: the hero's duplicate "Most listed" row is gone)
   const topHubs = cardHubsResult.hubs.slice(0, 6);
-  const popularSearches = cardHubsResult.hubs.slice(0, 5).map((h) => ({ name: h.name, slug: h.slug }));
   const liveCount = summary?.activeDeals ?? null;
   const feedEmpty = !error && flagshipDeals.length === 0 && (deals?.length ?? 0) === 0;
 
@@ -303,8 +304,10 @@ export default async function Home({ searchParams }) {
       }
     : null;
 
+  // 44px tap targets; `shrink-0` + nowrap so the phone's scrolling row
+  // never squeezes a chip
   const chip = (active) =>
-    `inline-flex min-h-10 items-center rounded-lg border px-3.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 ${
+    `inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-lg border px-3.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 ${
       active
         ? "border-red-600 bg-red-600 text-white"
         : "border-zinc-300 bg-white text-zinc-800 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
@@ -325,65 +328,62 @@ export default async function Home({ searchParams }) {
         hasFilters={anyFilter}
       />
 
-      {/* HERO - deal-first R2: compact. One offer-led heading, one line
-          of supporting copy, the exact-card search as a shortcut (with
-          its example queries), and the live-count line. No CTA that
-          only scrolls a few pixels - the first offers are already in
-          view below. */}
+      {/* HERO - deal-first R2 (fold revision): a slim band, so a COMPLETE
+          first offer (identity, artwork, price, shipping / comparison,
+          eBay action) sits inside the initial viewport at 390x844 and
+          1280x900. Desktop: heading + one supporting line on the left,
+          the exact-card search on the right. Phone: heading, search and the price-checker link. The supporting sentence is desktop-only;
+          the "Most listed" card row left the hero (its six destinations are
+          the "Cards with the most active listings" row below the feed) and
+          the live-count line moved beside the feed's trust line. No CTA
+          that only scrolls a few pixels - the first offers are in view. */}
       <header className="border-b border-zinc-200 bg-sunk dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-7 lg:py-9">
-          <h1 className="max-w-2xl text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl dark:text-zinc-50">
-            Find your next Pokemon card deal.
-          </h1>
-          <p className="mt-2 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
-            Below-market eBay listings, each compared against a real recent-sold market reference for
-            its exact printing and condition. Check the details, then buy on eBay.
-          </p>
-          <div className="mt-5">
-            <HeroSearch popular={popularSearches} />
+        <div className="mx-auto max-w-7xl px-6 py-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,40rem)] lg:items-center lg:gap-x-10">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50">
+              Find your next Pokemon card deal.
+            </h1>
+            <p className="mt-1.5 hidden max-w-xl text-sm text-zinc-600 lg:block dark:text-zinc-400">
+              Explore Pokemon card listings on eBay, with market references where a matching
+              comparison is available. Check the card, condition and shipping before you buy.
+            </p>
           </div>
-          <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-zinc-500 dark:text-zinc-400">
-            {/* Phase 17B - the value-intent entry path (-> the price
-                checker), kept measurable as a plain text link beside the
-                search examples rather than a second hero button. */}
-            <Link
-              href="/search"
-              data-analytics-click="price_checker_entry_clicked"
-              data-analytics-props={JSON.stringify({ section: "hero" })}
-              className="font-medium text-zinc-700 underline-offset-2 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500"
-            >
-              Check a card&apos;s price →
-            </Link>
-            <span className="hidden text-zinc-300 sm:inline dark:text-zinc-700">·</span>
-            <span>
-            or try a search:{" "}
-            {SEARCH_EXAMPLES.map((q, i) => (
-              <span key={q}>
-                <Link
-                  href={`/search?q=${encodeURIComponent(q)}`}
-                  data-analytics-click="hero_example_clicked"
-                  data-analytics-props={JSON.stringify({ section: "hero", rank: i + 1 })}
-                  className="font-medium text-zinc-700 underline-offset-2 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500"
-                >
-                  {q}
-                </Link>
-                {i < SEARCH_EXAMPLES.length - 1 && <span className="mx-1.5 text-zinc-300 dark:text-zinc-700">·</span>}
+          <div className="mt-3 lg:mt-0">
+            <HeroSearch />
+            <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+              {/* the example queries stay in the DOM (real /search deep
+                  links) but are displayed from `sm` up: on a phone they cost
+                  two to three lines above the first offer, and the sticky
+                  search bar covers the search job once the visitor scrolls */}
+              <span className="hidden sm:contents">
+                <span>Try</span>
+                {SEARCH_EXAMPLES.map((q, i) => (
+                  <span key={q} className="inline-flex items-center gap-x-1.5">
+                    <Link
+                      href={`/search?q=${encodeURIComponent(q)}`}
+                      data-analytics-click="hero_example_clicked"
+                      data-analytics-props={JSON.stringify({ section: "hero", rank: i + 1 })}
+                      className="font-medium text-zinc-700 underline-offset-2 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500"
+                    >
+                      {q}
+                    </Link>
+                    <span className="text-zinc-300 dark:text-zinc-700">·</span>
+                  </span>
+                ))}
               </span>
-            ))}
-            </span>
-          </p>
-          {lastRefreshed && (
-            <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600 dark:text-zinc-300">
-              <span className="inline-flex h-2 w-2 rounded-full bg-live" />
-              {liveCount != null && <span className="tnum font-semibold">{liveCount.toLocaleString()} live deals</span>}
-              {liveCount != null && <span className="text-zinc-300 dark:text-zinc-700">·</span>}
-              <span>{isRecentlyRefreshed(lastRefreshed) ? `checked ${timeAgo(lastRefreshed)}` : "refreshing automatically"}</span>
-              <span className="text-zinc-300 dark:text-zinc-700">·</span>
-              <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">
-                how we price this →
+              {/* Phase 17B - the value-intent entry path (-> the price
+                  checker), kept measurable as a plain text link beside the
+                  search examples rather than a second hero button. */}
+              <Link
+                href="/search"
+                data-analytics-click="price_checker_entry_clicked"
+                data-analytics-props={JSON.stringify({ section: "hero" })}
+                className="font-medium text-zinc-700 underline-offset-2 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500"
+              >
+                Check a card&apos;s price →
               </Link>
             </p>
-          )}
+          </div>
         </div>
       </header>
 
@@ -392,70 +392,78 @@ export default async function Home({ searchParams }) {
           mode row above it, "More filters" for the full filter set, and
           the paginated / filtered list on any non-default view. Section
           ids keep their established analytics meaning. */}
-      <main id="deals" className="mx-auto w-full max-w-7xl flex-1 px-6 py-8 lg:py-10">
-        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+      <main id="deals" className="mx-auto w-full max-w-7xl flex-1 px-6 py-5">
+        {/* Feed controls, kept to two short rows above the first offer:
+            (1) the section face + the nine mode links - one wrapping row
+            on desktop, a horizontally scrolling row on phones (every link
+            stays in the DOM and crawlable; the rightmost chips need a
+            swipe); (2) the live-count + trust line. The full FilterBar
+            ("More filters") sits between the flagship row and the grid it
+            filters, so it no longer pushes the first offer down. */}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           {/* the default feed mixes Buy It Now (the flagship row is BIN only)
               and auctions in the grid - every card names its own kind, so
               the kicker says "featured", not "buy it now" */}
           <SectionHeader
-            kicker={anyFilter ? "Filtered" : "Featured · below market · buy it now and auctions"}
+            kicker={anyFilter ? "Filtered" : "Buy it now and auctions"}
             title={anyFilter ? "Filtered deals" : page > 1 ? `All deals - page ${page}` : "Deals to explore"}
           />
-          <a href="#how-it-works" className="text-sm font-medium text-zinc-600 underline-offset-2 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500">
-            How comparisons work →
-          </a>
+          <nav
+            aria-label="Deal modes"
+            className="-mx-6 flex basis-full items-center gap-2 overflow-x-auto px-6 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:min-w-0 lg:flex-1 lg:basis-0 lg:flex-wrap lg:overflow-visible lg:px-0 lg:pb-0"
+          >
+            {FEED_MODES.map((m) => (
+              <Link
+                key={m.href}
+                href={m.href}
+                rel={m.href.includes("?") ? "nofollow" : undefined}
+                aria-current={m.home && showPromo ? "page" : undefined}
+                data-analytics-click="start_here_clicked"
+                data-analytics-props={JSON.stringify({ section: "feed_modes", chip: m.chip, ...(m.graded ? { graded_entry: true, source: "start_here" } : {}) })}
+                className={chip(m.home && showPromo)}
+              >
+                {m.label}
+              </Link>
+            ))}
+            {(useStableList || page > 1 || (anyFilter && !showPromo)) && (
+              <Link
+                href="/"
+                data-analytics-click="filter_cleared"
+                data-analytics-props={JSON.stringify({ facet: "all", context: "all_deals" })}
+                className="inline-flex min-h-11 shrink-0 items-center whitespace-nowrap px-2 text-sm font-medium text-zinc-600 underline-offset-2 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500"
+              >
+                Clear filters
+              </Link>
+            )}
+          </nav>
         </div>
 
-        <nav aria-label="Deal modes" className="mt-4 flex flex-wrap items-center gap-2">
-          {FEED_MODES.map((m) => (
-            <Link
-              key={m.href}
-              href={m.href}
-              rel={m.href.includes("?") ? "nofollow" : undefined}
-              aria-current={m.home && showPromo ? "page" : undefined}
-              data-analytics-click="start_here_clicked"
-              data-analytics-props={JSON.stringify({ section: "feed_modes", chip: m.chip, ...(m.graded ? { graded_entry: true, source: "start_here" } : {}) })}
-              className={chip(m.home && showPromo)}
-            >
-              {m.label}
-            </Link>
-          ))}
-          {(useStableList || page > 1 || (anyFilter && !showPromo)) && (
-            <Link
-              href="/"
-              data-analytics-click="filter_cleared"
-              data-analytics-props={JSON.stringify({ facet: "all", context: "all_deals" })}
-              className="text-sm font-medium text-zinc-600 underline-offset-2 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500"
-            >
-              Clear filters
-            </Link>
+        {/* Live count + slim trust line - the disclosure sits next to the
+            offers, not only in the footer; the methodology link is the
+            crawlable "how we price this" destination. */}
+        <p className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+          {lastRefreshed && (
+            <>
+              <span className="inline-flex h-2 w-2 rounded-full bg-live" />
+              {liveCount != null && <span className="tnum font-semibold text-zinc-700 dark:text-zinc-200">{liveCount.toLocaleString()} live deals</span>}
+              {liveCount != null && <span className="text-zinc-300 dark:text-zinc-700">·</span>}
+              <span>{isRecentlyRefreshed(lastRefreshed) ? `checked ${timeAgo(lastRefreshed)}` : "refreshing automatically"}</span>
+              <span className="text-zinc-300 dark:text-zinc-700">·</span>
+            </>
           )}
-        </nav>
-
-        <div className="mt-3" data-analytics-filter-bar="all_deals">
-          <FilterBar
-            params={params}
-            country={country}
-            cardType={cardType}
-            listingType={listingType}
-            maxPrice={maxPrice}
-            minPrice={minPrice}
-            sort={sort}
-            collapsible
-          />
-        </div>
-
-        {/* Slim trust line - the disclosure sits next to the offers, not
-            only in the footer. */}
-        <p className="mb-5 text-xs text-zinc-500 dark:text-zinc-400">
-          Independent comparisons · every price checked against real eBay sold listings · we may earn a
-          commission on purchases, at no cost to you
+          <span>
+            We may earn a commission on eBay purchases.
+          </span>
+          <span className="text-zinc-300 dark:text-zinc-700">·</span>
+          <Link href="/methodology" className="font-medium text-zinc-600 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500">
+            How we compare →
+          </Link>
         </p>
 
-        {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
+        {error && <p className="mt-4 rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
 
         {feedEmpty && (
-          <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
             <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
               {anyFilter
                 ? "No live deals match these filters right now."
@@ -486,8 +494,8 @@ export default async function Home({ searchParams }) {
             Now only, tile 1 = the single best deal), above-the-fold on
             desktop so their images load eagerly */}
         {showPromo && flagshipDeals.length > 0 && (
-          <section id="best-deals" data-analytics-section="best_deals" aria-label="Best deals right now" className="scroll-mt-24">
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <section id="best-deals" data-analytics-section="best_deals" aria-label="Best deals right now" className="mt-4 scroll-mt-24">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
               {flagshipDeals.map((deal, i) => (
                 <DealCard key={deal.id} deal={deal} rank={i + 1} hub={hubCounts[deal.watchlist_id]} pageName="home_best" validSetSlugs={validSetSlugs} priority={i < 2} analytics={{ section: "best_deals", rank: i + 1 }} />
               ))}
@@ -495,7 +503,23 @@ export default async function Home({ searchParams }) {
           </section>
         )}
 
-        <section data-analytics-section="all_deals" aria-label={anyFilter ? "Filtered deals" : "More deals"} className={showPromo && flagshipDeals.length > 0 ? "mt-5" : ""}>
+        {/* The full existing filter set, collapsed behind "More filters":
+            it filters the grid below it, so it sits between the flagship
+            row and that grid (below the first complete offer). */}
+        <div className="mt-4" data-analytics-filter-bar="all_deals">
+          <FilterBar
+            params={params}
+            country={country}
+            cardType={cardType}
+            listingType={listingType}
+            maxPrice={maxPrice}
+            minPrice={minPrice}
+            sort={sort}
+            collapsible
+          />
+        </div>
+
+        <section data-analytics-section="all_deals" aria-label={anyFilter ? "Filtered deals" : "More deals"} className="mt-4">
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {deals?.map((deal) => (
               // 13C.5 - `home_all_deals` so an affiliate_click from this grid

@@ -108,7 +108,7 @@ test("R2 - section order: feed (flagship row -> grid) -> explore -> guides -> ho
   // is the existing FIXED_PRICE filter, never the default's label
   assert.match(page, /\{ href: "\/", label: "Featured", chip: "featured", home: true \}/);
   assert.match(page, /\{ href: "\/\?listing=FIXED_PRICE", label: "Buy it now", chip: "buy_it_now" \}/);
-  assert.match(page, /kicker=\{anyFilter \? "Filtered" : "Featured · below market · buy it now and auctions"\}/);
+  assert.match(page, /kicker=\{anyFilter \? "Filtered" : "Buy it now and auctions"\}/);
 });
 
 test("R2 - the flagship row stays the first commercial content and keeps the shared lane contract", () => {
