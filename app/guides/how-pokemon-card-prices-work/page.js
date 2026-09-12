@@ -13,7 +13,12 @@ export default function Page() {
     <GuideLayout slug={SLUG}>
       <GP>
         A Pokemon card has no fixed price. What it&apos;s &ldquo;worth&rdquo; is just the range recent
-        buyers and sellers have agreed on, and that range moves. Understanding what feeds it makes it
+        buyers and sellers have agreed on, and that range moves &mdash; in a{" "}
+          <Link href="/market-data/pokemon-reference-price-changes" className={GUIDE_LINK_CLASS}>
+            30-day sample of 150 product records
+          </Link>{" "}
+          most reference prices barely shifted, while individual conditions and printings of the same
+          card moved in opposite directions. Understanding what feeds it makes it
         much easier to tell a real bargain from a listing that only looks cheap.
       </GP>
 

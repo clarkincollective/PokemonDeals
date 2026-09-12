@@ -115,8 +115,14 @@ export default function MethodologyPage() {
         <ul className={ul}>
           <li>
             A market reference is an estimate of recent sold value — it is not a guaranteed sale price,
-            and it moves over time. Every figure on the site is accurate only as of the listing&apos;s
-            last scan.
+            and it moves over time &mdash; we measured how much in a{" "}
+            <Link
+              href="/market-data/pokemon-reference-price-changes"
+              className="font-medium text-red-600 hover:underline dark:text-red-500"
+            >
+              30-day sample of 150 product records
+            </Link>
+            . Every figure on the site is accurate only as of the listing&apos;s last scan.
           </li>
           <li>
             Reference prices are sourced in US dollars. When a listing is priced in another currency,
