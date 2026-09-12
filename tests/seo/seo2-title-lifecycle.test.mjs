@@ -241,7 +241,13 @@ test("15. every indexable species page has a real og:image (catalogue art or a r
 
 test("16. weak index-page titles / H1s replaced with the SEO-2 wording", async () => {
   const expect = {
-    "/guides": { title: "Pokemon Card Buying Guides: Prices, Condition & Grading | Pokemon Deal Finder" },
+    // /guides now carries the market-data research alongside the guides, so
+    // the SEO-2 wording was widened to describe the whole page rather than
+    // only its guide half.
+    "/guides": {
+      title: "Pokemon Card Guides & Research: Prices, Condition & Market Data | Pokemon Deal Finder",
+      h1: "Guides & Research",
+    },
     "/best-finds": { title: "Best Pokemon Card Deals Today – Top 10 Below Market | Pokemon Deal Finder" },
     "/japanese-cards": { title: "Japanese Pokemon Card Deals – Below Market on eBay | Pokemon Deal Finder", h1: "Japanese Pokemon Card Deals" },
     "/sets": { title: "Browse Pokemon Cards by Set | Pokemon Deal Finder", h1: "Pokemon Card Sets: Checklists, Prices & Values" },

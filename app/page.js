@@ -31,8 +31,54 @@ import CardMemoryStrip from "@/components/CardMemoryStrip";
 import HomepageAnalytics from "@/components/analytics/HomepageAnalytics";
 import EmailCapture from "@/components/EmailCapture";
 import { emailEnabled } from "@/lib/email";
+import { catalogImageUrl } from "@/lib/cardImage";
 
 const SITE_URL = "https://pokemondealfinder.com";
+
+const guideBy = (slug) => GUIDES.find((g) => g.slug === slug);
+
+// Three editorial cards for the homepage "Guides & research" section.
+// The dated research leads - it is the content readers could not find,
+// being two levels down under Browse > Market Data.
+//
+// `image` is set ONLY where the card pictured is that piece's own worked
+// example: the study's example is Cubone (Jungle, tcgplayer 45153, from
+// lib/studies STUDY.example) and the pricing guide cites Base Set
+// Charizard (42382). The condition guide cites no single card, so it
+// falls through to the shared CardImagePlaceholder rather than borrowing
+// unrelated artwork. Nothing here is newly published - the study carries
+// its sample window so the row cannot read as fresh.
+const EDITORIAL_CARDS = [
+  {
+    href: "/market-data/pokemon-reference-price-changes",
+    contentId: "reference-price-changes-30d",
+    kicker: "Research",
+    title: "30-Day Reference-Price Changes",
+    description:
+      "A dated study of 150 sampled product records: how many moved, and why a product summary differs from its individual condition and printing variants.",
+    meta: "Sample window 12 Aug - 11 Sep 2026",
+    image: catalogImageUrl("45153"),
+    imageAlt: "Cubone (Jungle) - the worked example used in the study",
+  },
+  {
+    href: "/guides/how-pokemon-card-prices-work",
+    contentId: "how-pokemon-card-prices-work",
+    kicker: "Guide",
+    title: guideBy("how-pokemon-card-prices-work").title,
+    description: guideBy("how-pokemon-card-prices-work").blurb,
+    image: catalogImageUrl("42382"),
+    imageAlt: "Charizard (Base Set) - an example used in the guide",
+  },
+  {
+    href: "/guides/how-to-check-pokemon-card-condition",
+    contentId: "how-to-check-pokemon-card-condition",
+    kicker: "Guide",
+    title: guideBy("how-to-check-pokemon-card-condition").title,
+    description: guideBy("how-to-check-pokemon-card-condition").blurb,
+    image: null,
+    imageAlt: "",
+  },
+];
 
 export const revalidate = 180;
 
@@ -743,18 +789,60 @@ export default async function Home({ searchParams }) {
         </div>
       </section>
 
-      {/* GUIDES */}
+      {/* GUIDES & RESEARCH */}
+      {/* The same section as before (data-analytics-section="guides" is
+          pinned by homepage-hierarchy.test) - reworked from a 4-up row of
+          bare guide titles into three editorial cards that also surface the
+          market-data research, which was previously only reachable through
+          Browse > Market Data. Artwork is used only where the card is
+          genuinely the piece's own worked example; the condition guide cites
+          no single card, so it uses the shared placeholder. */}
       <section data-analytics-section="guides" className="border-t border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-14">
-          <SectionHeader kicker="Learn the market" title="Buying guides" actionLabel="All guides" actionHref="/guides" />
-          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {GUIDES.map((g) => (
+          <SectionHeader
+            kicker="Learn the market"
+            title="Guides & research"
+            actionLabel="All guides & research"
+            actionHref="/guides"
+          />
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {EDITORIAL_CARDS.map((c) => (
               <Link
-                key={g.slug}
-                href={`/guides/${g.slug}`}
-                className="rounded-xl border border-zinc-200 bg-white p-5 text-sm font-semibold text-zinc-900 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:text-red-600 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:text-red-500"
+                key={c.href}
+                href={c.href}
+                data-analytics-click="guides_research_clicked"
+                data-analytics-props={JSON.stringify({
+                  section: "guides",
+                  content_id: c.contentId,
+                  placement: "homepage",
+                })}
+                className="group flex items-start gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950"
               >
-                {g.title}
+                <div className="relative aspect-[5/7] w-16 shrink-0 overflow-hidden rounded-lg bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950">
+                  {c.image ? (
+                    <Image
+                      src={c.image}
+                      alt={c.imageAlt}
+                      fill
+                      sizes="64px"
+                      className="object-contain p-1 transition-transform duration-200 group-hover:scale-[1.03]"
+                    />
+                  ) : (
+                    <CardImagePlaceholder />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                    {c.kicker}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-zinc-900 transition-colors group-hover:text-red-600 dark:text-zinc-50 dark:group-hover:text-red-500">
+                    {c.title}
+                  </p>
+                  <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+                    {c.description}
+                  </p>
+                  {c.meta && <p className="mt-1.5 text-[11px] text-zinc-500">{c.meta}</p>}
+                </div>
               </Link>
             ))}
           </div>
