@@ -50,31 +50,61 @@ function fakeDb(seed = [], { extraColumns = [] } = {}) {
     rows,
     upserts,
     from() {
-      const q = { _filters: {} };
+      // A thenable query builder covering the two shapes the ingest path
+      // uses: the existence read (.select().eq()...maybeSingle()) and the
+      // guarded sighting (.update().match().or().select() /
+      // .upsert(..., { ignoreDuplicates }).select()). The `.or()` guard
+      // reproduces the real SQL predicate - a row carrying an
+      // `availability:` reason is NOT matched by the UPDATE.
+      const q = { _f: {}, _mode: null, _patch: null, _guard: false, _ignoreDup: false };
+      const matchesFilters = (r) =>
+        Object.entries(q._f).every(([c, v]) => (c === "source" ? (r.source ?? "ebay") === v : r[c] === v));
+      const retired = (r) => typeof r.disqualified_reason === "string" && r.disqualified_reason.startsWith("availability:");
+
       q.select = () => q;
-      q.eq = (col, val) => {
-        q._filters[col] = val;
+      q.eq = (col, val) => { q._f[col] = val; return q; };
+      q.match = (obj) => { Object.assign(q._f, obj); return q; };
+      q.or = () => { q._guard = true; return q; };
+      q.update = (patch) => { q._mode = "update"; q._patch = patch; return q; };
+      q.upsert = (row, opts = {}) => {
+        q._mode = "upsert";
+        q._patch = row;
+        q._ignoreDup = Boolean(opts.ignoreDuplicates);
+        upserts.push({ ...row });
         return q;
       };
       q.maybeSingle = async () => {
-        const hit = rows.find(
-          (r) => (r.source ?? "ebay") === (q._filters.source ?? "ebay") && r.marketplace === q._filters.marketplace && r.listing_id === q._filters.listing_id
-        );
+        const hit = rows.find(matchesFilters);
         return { data: hit ? { ...hit } : null, error: null };
       };
-      q.upsert = async (row) => {
-        upserts.push({ ...row });
+
+      const run = async () => {
         // PostgREST rejects the WHOLE statement if any column is unknown.
-        for (const col of Object.keys(row)) {
+        for (const col of Object.keys(q._patch ?? {})) {
           if (!SEALED_DEALS_COLUMNS.has(col)) {
-            return { error: { code: "42703", message: `column sealed_deals.${col} does not exist` } };
+            return { data: null, error: { code: "42703", message: `column sealed_deals.${col} does not exist` } };
           }
         }
-        const i = rows.findIndex((r) => keyOf(r) === keyOf(row));
-        if (i >= 0) rows[i] = { ...rows[i], ...row }; // conflict -> replace provided columns
-        else rows.push({ id: rows.length + 1, ...row });
-        return { error: null };
+        if (q._mode === "update") {
+          const i = rows.findIndex((r) => matchesFilters(r) && !(q._guard && retired(r)));
+          if (i < 0) return { data: [], error: null };
+          rows[i] = { ...rows[i], ...q._patch };
+          return { data: [{ id: rows[i].id }], error: null };
+        }
+        if (q._mode === "upsert") {
+          const i = rows.findIndex((r) => keyOf(r) === keyOf(q._patch));
+          if (i >= 0) {
+            if (q._ignoreDup) return { data: [], error: null }; // ON CONFLICT DO NOTHING
+            rows[i] = { ...rows[i], ...q._patch };
+            return { data: [{ id: rows[i].id }], error: null };
+          }
+          const inserted = { id: rows.length + 1, ...q._patch };
+          rows.push(inserted);
+          return { data: [{ id: inserted.id }], error: null };
+        }
+        return { data: [], error: null };
       };
+      q.then = (resolve, reject) => run().then(resolve, reject);
       return q;
     },
   };
@@ -156,24 +186,36 @@ test("W-2. a row ALREADY bound to the wrong product is repaired in place, on the
   assert.notEqual(r.discount_pct, 0.59, "the old 59% saving never follows the listing");
 });
 
-test("W-2b. disqualified_reason is cleared on reassignment ONLY once the migration is applied", async () => {
-  const seed = () => [
+test("W-2b. an IDENTITY disqualification clears on reassignment; an AVAILABILITY retirement is never touched", async () => {
+  const seed = (reason) => [
     {
       id: 1, sealed_watchlist_id: 76, source: "ebay", marketplace: "EBAY_US",
       listing_id: "v1|30thETB|0", title: listing().title, market_price: 361.84,
-      discount_pct: 0.59, total_price: 150, disqualified_reason: "availability:sold", is_active: true,
+      discount_pct: 0.59, total_price: 150, disqualified_reason: reason, is_active: true,
     },
   ];
   // pre-migration (today): the column does not exist, so it is never written
-  const before = fakeDb(seed());
+  const before = fakeDb(seed("identity:wrong_product"));
   await ingestSealedListings({ db: before, listings: [listing()], ...deps(ETB_30TH) });
   assert.equal(before.upserts.at(-1) && "disqualified_reason" in before.upserts.at(-1), false,
     "a column sealed_deals does not have yet is never sent (42703 would fail the whole upsert)");
 
-  // post-migration: the stale reason from the OLD assignment is cleared
-  const after = fakeDb(seed(), { extraColumns: ["disqualified_reason"] });
-  await ingestSealedListings({ db: after, listings: [listing()], ...deps(ETB_30TH), supportsDisqualifiedReason: true });
-  assert.equal(row(after).disqualified_reason, null, "the old assignment's disqualification is cleared");
+  // post-migration, IDENTITY reason: belonged to the old assignment -> cleared
+  const identity = fakeDb(seed("identity:wrong_product"), { extraColumns: ["disqualified_reason"] });
+  await ingestSealedListings({ db: identity, listings: [listing()], ...deps(ETB_30TH), supportsDisqualifiedReason: true });
+  assert.equal(row(identity).sealed_watchlist_id, 123, "row re-homed");
+  assert.equal(row(identity).disqualified_reason, null, "the old assignment's disqualification is cleared");
+
+  // post-migration, AVAILABILITY retirement: the guarded write refuses the
+  // row entirely. A re-attribution is NOT evidence the listing is back, so
+  // it must not resurrect a sold listing - only the marker is recorded.
+  const sold = fakeDb(seed("availability:sold"), { extraColumns: ["disqualified_reason"] });
+  const res = await ingestSealedListings({ db: sold, listings: [listing()], ...deps(ETB_30TH), supportsDisqualifiedReason: true });
+  assert.equal(res.written, 0, "a retired row is not written");
+  assert.equal(res.rejected.availability_retired, 1);
+  assert.equal(row(sold).sealed_watchlist_id, 76, "not re-homed while retired");
+  assert.equal(row(sold).market_price, 361.84, "and no comparison rewritten");
+  assert.equal(row(sold).disqualified_reason, "availability:sold:seen_again", "only the seen-again marker");
 });
 
 test("W-2c. every written column actually exists on sealed_deals", async () => {
