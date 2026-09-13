@@ -116,6 +116,18 @@ const loadDealFromDataCache = (id) =>
 // same warm entry in Next's Data Cache.
 const loadDeal = cache(loadDealFromDataCache);
 
+// Explicit previews prevent noindex/unsupported states inheriting the
+// root layout's promotional description in social link previews.
+function noindexListingMetadata(metadata, image = null) {
+  const { title, description } = metadata;
+  return {
+    ...metadata,
+    robots: { index: false, follow: true },
+    openGraph: { title, description, url: metadata.alternates?.canonical, images: image ? [image] : [] },
+    twitter: { card: image ? "summary_large_image" : "summary", title, description, images: image ? [image] : [] },
+  };
+}
+
 export async function generateMetadata({ params }) {
   const { id } = await params;
   if (DEAL_CATEGORIES[id]) return dealCategoryMetadata(id);
@@ -130,31 +142,31 @@ export async function generateMetadata({ params }) {
   // never actually verify) - as good as not found for anyone landing
   // here: don't repeat pricing/discount claims that aren't trustworthy.
   if (!shouldIndexDeal(deal) || !isDisplayableDeal(deal))
-    return { title: "Deal not found", robots: { index: false, follow: true } };
+    return noindexListingMetadata({ title: "Deal not found", description: "This listing is unavailable or cannot currently be shown. No current price or savings are claimed." });
 
   const baseName = cardDisplayName({ name: normalizePublicText(deal.watchlist?.name ?? deal.title) });
   const gradeLabel = deal.is_graded ? [deal.grader, deal.grade].filter((value) => value != null && value !== "").join(" ") : "";
   const cardName = gradeLabel ? `${baseName} ${normalizePublicText(gradeLabel)}` : baseName;
   const metadataIsAuction = deal.listing_type === "AUCTION";
   const cardSet = deal.watchlist?.set;
-  if (!hasPrice(deal.total_price)) return {
+  if (!hasPrice(deal.total_price)) return noindexListingMetadata({
     title: `${cardName} - eBay ${metadataIsAuction ? "auction" : "listing"}`,
     description: `${cardName} listed on eBay. Price currently unavailable; check the listing for current price and shipping.`,
     alternates: { canonical: `/deals/${id}` },
     robots: { index: false, follow: true },
-  };
+  }, trustedDealImageUrl(deal));
 
   // 17C.7: a plain listing (no evidenced reference for this exact product
   // and condition) carries no discount claim in its title, description or
   // link preview, and is not indexed.
   if (listingPresentation(deal).savings !== "trusted") {
     const plainName = `${cardName}${cardSet ? ` (${cardSet})` : ""}`;
-    return {
+    return noindexListingMetadata({
       title: `${plainName} - eBay ${metadataIsAuction ? "auction" : "listing"}`,
       description: `${plainName} ${metadataIsAuction ? "offered at auction on eBay. Final price may rise." : "listed on eBay."} Shown without a savings claim: we have no verified market reference for this exact product and condition yet.`,
       alternates: { canonical: `/deals/${id}` },
       robots: { index: false, follow: true },
-    };
+    }, trustedDealImageUrl(deal));
   }
   const discountPct = Math.round(deal.discount_pct * 100);
   // SEO-2: card identity + the deal hook survive ahead of the "(set)"
