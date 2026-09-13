@@ -155,11 +155,11 @@ export function FilteredEmptyState({ params, basePath, subjectLabel }) {
 export function EmptyStateEscapes({ className = "" }) {
   return (
     <div className={`flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium ${className}`}>
-      <a href="/" data-analytics-click="browse_all_deals_clicked" data-analytics-props='{"section":"empty_state"}' className="text-red-600 hover:underline dark:text-red-500">
+      <a href="/" data-analytics-click="browse_all_deals_clicked" data-analytics-props='{"section":"empty_state"}' className="text-red-600 hover:underline dark:text-red-400">
         Browse all live deals →
       </a>
-      <a href="/deals/under-25" className="text-red-600 hover:underline dark:text-red-500">Under $25 →</a>
-      <a href="/?sort=newest" rel="nofollow" className="text-red-600 hover:underline dark:text-red-500">Newest →</a>
+      <a href="/deals/under-25" className="text-red-600 hover:underline dark:text-red-400">Under $25 →</a>
+      <a href="/?sort=newest" rel="nofollow" className="text-red-600 hover:underline dark:text-red-400">Newest →</a>
     </div>
   );
 }
