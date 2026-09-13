@@ -210,7 +210,11 @@ test('count: card-search "Deals found (N)" results pass through the shared displ
   // 13B.6.2 - the search itself lives in lib/searchEngine.js (shared by
   // the API route and the server-rendered initial deep-link result).
   const src = readFileSync(join(HERE, "..", "..", "lib", "searchEngine.js"), "utf8");
-  assert.match(src, /import \{ isDisplayableDeal \} from "@\/lib\/dealQuality"/);
+  // Consistency phase 1: also imports savingsClaimTrusted, to gate the
+  // provider-catalogue tile's discountPct the same way lib/deals.js's
+  // catalogue projections already do (a plain/untrusted comparison must
+  // never carry a "% below market" claim into this reference grid).
+  assert.match(src, /import \{ isDisplayableDeal, savingsClaimTrusted \} from "@\/lib\/dealQuality"/);
   const route = readFileSync(join(HERE, "..", "..", "app", "api", "card-search", "route.js"), "utf8");
   // every deal result set (scoped deals, provider-catalogue deals,
   // card-detail deals) is filtered - none returned raw off is_active.

@@ -62,7 +62,10 @@ test("R1-2. header, mobile menu and footer all render from the one model; dropdo
 
 test("R1-3. DealCard: the CTA names the destination and the state; no purchase certainty, no strikethrough", () => {
   const src = read("components/DealCard.js");
-  assert.match(src, /\{isAuction \? "View auction on eBay" : "View deal on eBay"\}/);
+  // Consistency phase 1: a plain (no trusted comparison) listing gets the
+  // neutral "View listing on eBay" wording - "deal" is reserved for a
+  // trusted savings claim, auctions keep their own wording either way.
+  assert.match(src, /\{isAuction \? "View auction on eBay" : showSavings \? "View deal on eBay" : "View listing on eBay"\}/);
   assert.doesNotMatch(src, /Buy now|Buy it now →|Bid now|Purchase/i);
   assert.doesNotMatch(src, /line-through/);
   // the existing wrapper + surface attribution are untouched

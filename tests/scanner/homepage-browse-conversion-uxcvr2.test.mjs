@@ -60,8 +60,15 @@ test("UX-CVR-2-2. every deal CTA names eBay; BIN = 'View (deal) on eBay', auctio
   // Deal-first R1: DealCard reads "View deal on eBay" / "View auction on
   // eBay" (the deal-card contract wording); the older tiles keep "View on
   // eBay" / "Bid on eBay" until their own slice. Both name eBay and neither
-  // implies a settled purchase.
-  for (const [name, src] of [["DealCard", DEALCARD], ["SpeciesCard", SPECIESCARD], ["CatalogueBrowser", CATALOGUE]]) {
+  // implies a settled purchase. Consistency phase 1: DealCard's non-auction
+  // branch is now a further showSavings ? "deal" : "listing" split - a
+  // plain (untrusted-comparison) offer must never say "deal".
+  assert.match(
+    DEALCARD,
+    /isAuction \? "View auction on eBay" : showSavings \? "View deal on eBay" : "View listing on eBay"/,
+    "DealCard CTA is not the unified contract (auction / trusted deal / plain listing)"
+  );
+  for (const [name, src] of [["SpeciesCard", SPECIESCARD], ["CatalogueBrowser", CATALOGUE]]) {
     assert.match(src, /isAuction \? "(Bid on eBay|View auction on eBay)(?: →)?" : "View (deal )?on eBay(?: →)?"/, `${name} CTA is not the unified contract`);
     // the deferred P2 lexical variants are gone from the VISIBLE label
     // (an internal Vercel-Analytics `eventName` may keep its old string
