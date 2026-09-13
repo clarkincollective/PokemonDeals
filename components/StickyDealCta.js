@@ -22,6 +22,7 @@ export default function StickyDealCta({ href, priceUsd, priceNative, priceLabel,
   }, []);
 
   if (!href) return null;
+  const priceAvailable = hasPrice(priceNative?.amount);
 
   return (
     <div
@@ -32,17 +33,17 @@ export default function StickyDealCta({ href, priceUsd, priceNative, priceLabel,
     >
       <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-2.5">
         <span className="flex min-w-0 shrink flex-col leading-tight">
-          {priceLabel && (
+          {priceAvailable && priceLabel && (
             <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               {priceLabel}
             </span>
           )}
-          {hasPrice(priceNative?.amount) ? <Price
+          {priceAvailable ? <Price
             usd={priceUsd}
             native={priceNative}
             className="truncate text-lg font-bold text-black dark:text-zinc-50"
           /> : <span className="text-sm font-semibold">Price unavailable</span>}
-          {priceNote && <span className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{priceNote}</span>}
+          {priceAvailable && priceNote && <span className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{priceNote}</span>}
         </span>
         <AffiliateLink
           href={href}
