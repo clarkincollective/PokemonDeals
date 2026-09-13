@@ -35,6 +35,7 @@ export const fetchCardPriceHistory = async () => null;
 export const fetchSpeciesHubs = async () => ({species:[{name:'Dragonite',slug:'dragonite',count:3}]});
 export const fetchSets = async () => ({sets:[{set:'Jungle',slug:'jungle',count:3}]});
 export const fetchDealsPage = async (options={}) => ({deals:familyDeals(options),totalPages:1,error:null});
+export const fetchCardDealsPage = async (options={}) => ({deals:familyDeals(options),totalPages:1,error:null});
 export const fetchHubCounts = async () => ({});
 export const getFullPriceAnalysis = async id => String(id)==='45120'?{cardNumber:'1/64',raw:{currentPrice:38.26,referenceCondition:'Near Mint',history:[]},graded:[],conditionBreakdown:[],primaryRecentSales:[],rawRecentSales:[],priceUpdatedAt:'2026-09-01'}:null;
 export const emailEnabled = () => false;

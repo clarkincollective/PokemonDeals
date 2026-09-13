@@ -25,14 +25,19 @@ function harness() {
     order(col, opts) { order = { col, ...opts }; calls.push(['order', col]); return query; },
     async range(from, to) {
       const data = rows.filter(r => predicates.every(p => p(r)));
-      if (order) data.sort((a, b) => (a[order.col] - b[order.col]) * (order.ascending ? 1 : -1));
+      if (order) data.sort((a, b) => {
+        const nullsFirst = order.nullsFirst ?? !order.ascending;
+        if (a[order.col] == null) return b[order.col] == null ? 0 : nullsFirst ? -1 : 1;
+        if (b[order.col] == null) return nullsFirst ? 1 : -1;
+        return (a[order.col] - b[order.col]) * (order.ascending ? 1 : -1);
+      });
       return { data: data.slice(from, to + 1), count: data.length, error: null };
     },
   };
   const deps = {
     LIST_PAGE_SIZE: 24, MAX_LIST_PAGES: 25,
     SORTS: { newest: { col: 'first_seen_at', ascending: false }, price_asc: { col: 'total_price', ascending: true }, price_desc: { col: 'total_price', ascending: false } },
-    cardColsReady: async () => true, supabase: { from: () => query },
+    cardColsReady: async () => true, supabase: { from: () => { calls.push(['from']); return query; } },
     isDisplayableDeal: () => true, isDisplayableSealedDeal: () => true,
     savingsClaimTrusted: () => false, withCard: r => r,
   };
@@ -56,10 +61,19 @@ test('category descending prices are comparable across currencies', async () => 
   const h = harness();
   assert.deepEqual((await h.run({ minPrice: 10, sort: 'price_desc' })).deals.map(r => r.id), [2, 1]);
 });
+test('unknown USD totals sort after known prices in both directions', async () => {
+  assert.deepEqual((await harness().run({ sort: 'price_desc' })).deals.map(r => r.id), [2, 1, 3]);
+  assert.deepEqual((await harness().run({ sort: 'price_asc' })).deals.map(r => r.id), [1, 2, 3]);
+});
 test('ordinary category listing does not require a market comparison', async () => {
   const h = harness();
   assert.equal((await h.run({})).deals.length, 3);
   for (const category of Object.values(DEAL_CATEGORIES).filter(c => !c.redirect)) {
     assert.doesNotMatch(category.intro + category.description + category.title, /below.market|each deal is priced against/i);
   }
+});
+test('an empty category set scope returns no rows without a database query', async () => {
+  const h = harness();
+  assert.deepEqual(await h.run({ sets: [] }), { deals: [], totalPages: 1, error: null });
+  assert.deepEqual(h.calls, []);
 });
