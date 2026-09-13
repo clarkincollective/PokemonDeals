@@ -18,7 +18,7 @@ import { MARKETPLACES, wrapEbayAffiliateUrl, buildEbaySearchLink } from "@/lib/e
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import SiteHeader from "@/components/SiteHeader";
 import CardDealFilters from "@/components/CardDealFilters";
-import { currencyForDeal, auctionDisplayParts } from "@/lib/money";
+import { currencyForDeal, auctionDisplayParts, dealTotalUsd } from "@/lib/money";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import RecentSales from "@/components/RecentSales";
@@ -289,7 +289,7 @@ export default async function CardHubPage({ params }) {
   // Cheapest live listing, normalised to the USD value every offer
   // carries - shown in the price summary as an asking-price floor, not a
   // market value.
-  const rangeLowUsd = offers[0] ? Number(offers[0].total_price_usd ?? offers[0].total_price) : null;
+  const rangeLowUsd = offers[0] ? dealTotalUsd(offers[0]) : null;
 
   // Phase 11C: the chart + variant sparkline read the canonical merged
   // price_history spine (first-party 'catalog' forward + 'ppt_backfill'
@@ -615,7 +615,7 @@ export default async function CardHubPage({ params }) {
           return (
             <StickyDealCta
               href={wrapEbayAffiliateUrl(cheapest.affiliate_url, { surface: "card" })}
-              priceUsd={parts ? parts.bid.usd : cheapest.total_price_usd ?? cheapest.total_price}
+              priceUsd={parts ? parts.bid.usd : dealTotalUsd(cheapest)}
               priceNative={
                 parts
                   ? { amount: parts.bid.native, currency: parts.currency }

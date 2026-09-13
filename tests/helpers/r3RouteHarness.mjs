@@ -9,7 +9,7 @@ const root = resolve(import.meta.dirname,'../..');
 const pure = new Set(['dealPage','listingAvailability','indexability','dealQuality','publicText',
   'cardName','pokemonSpecies','slugify','tcgplayer','ebayLinks','money','offerPresentation',
   'affiliateSurfaces','dealFilters','navLinks','socialProfiles','trustContent','time','recentCards','ebaySearch','returnContext','analytics/events','analytics/props','referenceCondition','listingImage','dealCategories','cardWorth','cardNextSteps','cardSlug','cardImage','cardLinks']);
-export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis=null,renderComponents=false}={}) {
+export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis=null,renderComponents=false,currency={viewer:null,rates:null}}={}) {
   const calls=[];
   const components=new Map();
   const record = (name,result) => (...args) => {calls.push({name,args});return Promise.resolve(result);};
@@ -49,7 +49,7 @@ export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis
       };
     }
     if (name==='react') return {...require('react'),cache:fn=>fn};
-    if (name==='@/components/CurrencyProvider' && renderComponents) return {useCurrency:()=>({viewer:null,rates:null})};
+    if (name==='@/components/CurrencyProvider' && renderComponents) return {useCurrency:()=>currency};
     if (name==='@/lib/analytics/client') return {capture:()=>{throw Error('HARNESS_CAPTURE_NOT_ALLOWED');}};
     if (name==='@vercel/analytics') return {track:()=>{throw Error('HARNESS_TRACK_NOT_ALLOWED');}};
     if (renderComponents && name.startsWith('@/components/') && realComponents.has(name.slice(13))) {

@@ -37,7 +37,7 @@ handlers.push(d=>{if(d.method==='Fetch.requestPaused'&&d.sessionId===sessionId){
 const ev=async expression=>(await send('Runtime.evaluate',{expression,returnByValue:true})).result.value;
 const records=[],anchorChecks=[];
 try {
-  for(const name of ['bin_compared','bin_shipping_unknown','auction','reference_only','hub_with_offers']) {
+  for(const {id:name} of JSON.parse(fs.readFileSync(path.join(OUT,'r3-static','manifest.json'),'utf8'))) {
     const html=fs.readFileSync(path.join(OUT,'r3-static',name+'.html'),'utf8');
     for(const width of [1280,390,320]) {
       await send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false});

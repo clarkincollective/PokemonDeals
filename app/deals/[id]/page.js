@@ -460,9 +460,9 @@ export default async function DealDetailPage({ params }) {
   // hydration. market_price and the derived "saved" are USD references.
   const nativeCurrency = currencyForDeal(deal);
   const total = Number(deal.total_price);
-  const usdTotal = Number(deal.total_price_usd ?? deal.total_price);
+  const usdTotal = dealTotalUsd(deal);
   const marketUsd = Number(deal.market_price);
-  const savedUsd = marketUsd - usdTotal;
+  const savedUsd = usdTotal != null ? marketUsd - usdTotal : null;
   // USD reference / savings in the listing's own currency so every money
   // figure in the same comparison shares one currency before <Price>
   // localises them together after hydration (lib/money.refInListingCurrency).

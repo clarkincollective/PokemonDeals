@@ -24,7 +24,7 @@ const records=[];
 const originalFetch=globalThis.fetch;
 globalThis.fetch=()=>{throw Error('SERVER_NETWORK_FORBIDDEN');};
 try {
-  for (const id of ['bin_compared','bin_shipping_unknown','auction','reference_only','hub_with_offers']) {
+  for (const id of ['bin_compared','bin_shipping_unknown','auction','reference_only','hub_with_offers','graded','bin_plain','non_usd']) {
     const source=DEAL_STATE_FIXTURES.find(f=>f.id===(['reference_only','hub_with_offers'].includes(id)?'bin_compared':id)).deal;
     const reference=id==='reference_only';
     const liveHub=id==='hub_with_offers';
