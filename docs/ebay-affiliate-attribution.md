@@ -111,10 +111,15 @@ Kept strictly separate, by design:
 - **EPN `customid`**: affiliate revenue by coarse surface, visible only in
   eBay's own EPN reporting.
 
-No individual identifier crosses from one system to the other. Later
-comparison of aggregates (e.g. "`home_best` clicks in PostHog" vs.
-"`home_best` EPN clicks/revenue") is possible without ever joining on a
-user/session.
+No individual identifier crosses from one system to the other, and the two
+vocabularies are not the same strings even for the same surface: PostHog's
+`origin_section` for the homepage flagship row is `best_deals` (see
+`docs/deal-first-measurement.md` §1 for the full PostHog/Vercel/EPN
+mapping), while this module's EPN `customid` for that same surface is
+`home_best`. Similar-looking names, two different systems - comparison of
+aggregates (e.g. `best_deals` clicks in PostHog vs. `home_best` EPN
+clicks/revenue) is possible without ever joining on a user/session, but
+never assume the section name is identical across the two.
 
 ## Fallback behavior
 
