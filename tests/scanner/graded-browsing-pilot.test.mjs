@@ -153,10 +153,23 @@ test('cold-navigation guard: the pre-hydration script only hides results when th
   assert.match(grid, /if\(!hasFilter\)return;/);
 });
 
-test('cold-navigation guard: a fail-safe reveals real content if hydration never completes, never traps a visitor on a permanent loading message', () => {
+test('cold-navigation guard: a fail-safe explains a stalled load and offers a real retry - it must NOT silently reveal the unfiltered default as if it matched the selection', () => {
   const grid = src('components/DealGrid.js');
   assert.match(grid, /setTimeout\(function\(\)\{/);
-  assert.match(grid, /if\(wrap&&wrap\.hidden\)wrap\.hidden=false;/);
+  // Review closure (2026-09-14): the original fail-safe did exactly the
+  // thing this whole guard exists to prevent - it un-hid wrap (the
+  // unfiltered default) unconditionally after 8s with no indication it
+  // doesn't match the current filter. Confirmed live: a delayed-past-8s
+  // load showed the full unfiltered set, unlabelled, for 2+ seconds
+  // before hydration corrected it; a permanently blocked load showed it
+  // forever. Corrected to leave wrap hidden and instead replace the
+  // placeholder's own content with an accessible status message and a
+  // real reload link to the exact current (filtered) URL.
+  assert.doesNotMatch(grid, /if\(wrap&&wrap\.hidden\)wrap\.hidden=false;/, 'must not unconditionally reveal the unfiltered default on timeout');
+  assert.match(grid, /role="status"/);
+  assert.match(grid, /taking longer than expected/i);
+  assert.match(grid, /href="'\+location\.href\+'"/, 'the retry link must point at the real current URL, not a generic path');
+  assert.match(grid, /Reload the page/i);
 });
 
 test('cold-navigation guard: DealGrid itself hands off to its own rendering the instant it mounts, regardless of fetch outcome', () => {
