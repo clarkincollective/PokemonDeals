@@ -259,6 +259,27 @@ export default async function SetDetailPage({ params }) {
     : null;
 
   const h1 = setPageTitle(resolved.set);
+  // Placement uses the existing eligible initial inventory only. Never add
+  // offers, change ordering, or relax eligibility to populate this section.
+  const hasLiveOffers = !catalogueOnly && deals.length > 0;
+  const dealsSection = !catalogueOnly && (
+    <section aria-labelledby="deals" className={hasLiveOffers ? "mb-8" : "mt-12"}>
+      <h2 id="deals" className="mb-2 scroll-mt-24 text-lg font-bold text-zinc-900 dark:text-zinc-100">
+        {resolved.set} deals
+      </h2>
+      <DealGrid
+        kind="set"
+        slug={slug}
+        basePath={basePath}
+        initial={{ deals, totalPages }}
+        hubCounts={hubCounts}
+        subjectLabel={resolved.set}
+        emptyLabel={`No ${resolved.set} deals match these filters right now. Try clearing a filter, or check back after the next scheduled scan.`}
+        validSetSlugs={[slug]}
+        compactFilters
+      />
+    </section>
+  );
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
@@ -274,7 +295,7 @@ export default async function SetDetailPage({ params }) {
       <RegionRedirect />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-5 py-6 sm:px-6 sm:py-8">
+        <div className="mx-auto max-w-7xl px-5 py-4 sm:px-6 sm:py-5">
           <Breadcrumbs
             items={[
               { name: "Deals", href: "/" },
@@ -282,35 +303,32 @@ export default async function SetDetailPage({ params }) {
               { name: resolved.set },
             ]}
           />
-          <div className="mt-4 flex items-center gap-4">
+          <div className="mt-3 flex items-center gap-3">
           {logo && (
             <span className="relative block h-12 w-20 shrink-0 sm:w-28">
               <Image src={logo} alt="" fill sizes="160px" className="object-contain object-left" />
             </span>
           )}
-          <h1 className="max-w-3xl text-2xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
+          <h1 className="max-w-3xl text-2xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-3xl">
             {h1}
           </h1>
           </div>
-          <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
-            Browse the {resolved.set} card list and compare recent-sold references.{" "}
-            {catalogueOnly ? (
-              <>
-                There is no qualifying below-market {resolved.set} deal to feature right now — the
-                checklist and prices stay available.
-              </>
-            ) : (
-              <>Jump to the relevant eBay offers below.</>
-            )}
+          <p className="mt-2 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
+            {hasLiveOffers ? "Compare current offers or jump straight to the card list." : "Browse the card list and recent-sold market references."}
           </p>
-          <SetFactStrip setName={resolved.set} snapshot={snapshot} era={era} />
-          <nav aria-label="On this page" className="mt-4 flex flex-wrap gap-2">{showCatalog && (<a href="#inventory" className="inline-flex min-h-11 items-center rounded-full bg-zinc-900 px-4 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-950">Browse cards ↓</a>)}{!catalogueOnly && (<a href="#deals" className="inline-flex min-h-11 items-center rounded-full border border-zinc-300 px-4 text-sm font-semibold text-zinc-700 dark:border-zinc-700 dark:text-zinc-200">View deals ↓</a>)}</nav>
+          <nav aria-label="On this page" className="mt-3 flex flex-wrap gap-2">
+            {hasLiveOffers && <a href="#deals" className="inline-flex min-h-11 items-center rounded-full bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700">View deals ↓</a>}
+            {showCatalog && <a href="#inventory" className="inline-flex min-h-11 items-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">{checklistPilot ? "Open checklist" : "Browse card list"} ↓</a>}
+            <a href="#set-context" className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-zinc-600 underline underline-offset-4 dark:text-zinc-400">About this set</a>
+          </nav>
         </div>
       </header>
 
-      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 scroll-mt-24 px-5 py-6 sm:px-6 sm:py-8">
+      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 scroll-mt-24 px-5 py-4 sm:px-6">
+        {error && <p className="mb-4 rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
+        {hasLiveOffers && dealsSection}
         {showCatalog && (
-          <section id="inventory" className="scroll-mt-24">
+          <section id="inventory" tabIndex={-1} className="scroll-mt-24">
             <CatalogueViews listLabel={checklistPilot ? "Checklist" : "Card list"} gallery={<CatalogueBrowser
               variant="set"
               label={resolved.set}
@@ -331,28 +349,16 @@ export default async function SetDetailPage({ params }) {
         )}
 
 
-        {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
+        {!hasLiveOffers && dealsSection}
 
-        {!catalogueOnly && (
-          <>
-            <h2
-              id="deals"
-              className="mb-5 mt-12 scroll-mt-24 text-lg font-bold text-zinc-900 dark:text-zinc-100"
-            >
-              {resolved.set} deals
-            </h2>
-            <DealGrid
-              kind="set"
-              slug={slug}
-              basePath={basePath}
-              initial={{ deals, totalPages }}
-              hubCounts={hubCounts}
-              subjectLabel={resolved.set}
-              emptyLabel={`No ${resolved.set} deals match these filters right now. Try clearing a filter, or check back after the next scheduled scan.`}
-              validSetSlugs={[slug]}
-            />
-          </>
-        )}
+        <section id="set-context" className="mt-12 scroll-mt-24 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">About {resolved.set}</h2>
+          <p className="mt-2 max-w-3xl text-sm text-zinc-600 dark:text-zinc-400">
+            Browse the {resolved.set} card list and compare recent-sold references.{" "}
+            {catalogueOnly ? <>There is no qualifying below-market {resolved.set} deal to feature right now — the checklist and prices stay available.</> : <>Use the deals section for the relevant eBay offers.</>}
+          </p>
+          <SetFactStrip setName={resolved.set} snapshot={snapshot} era={era} />
+        </section>
 
         {snapshot && snapshot.cardCount > 0 && (
           <div className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">

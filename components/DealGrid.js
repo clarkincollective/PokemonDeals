@@ -84,7 +84,7 @@ function GridSkeleton() {
   );
 }
 
-export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}, emptyLabel, validSetSlugs = [], defaultSort = "newest", subjectLabel }) {
+export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}, emptyLabel, validSetSlugs = [], defaultSort = "newest", subjectLabel, compactFilters = false }) {
   const search = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const params = useMemo(() => parseSearch(search), [search]);
   const reqKey = params.raw;
@@ -166,8 +166,9 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
           / COUNTRY_CHANGED events, via the global delegation in
           AnalyticsBootstrap) - scoped to the Pokemon page added in 13B.3;
           set / category grids are left exactly as they were. */}
-      <div className="mb-8" {...(showGrading ? { "data-analytics-filter-bar": "" } : {})}>
+      <div className={compactFilters ? "mb-4" : "mb-8"} {...(showGrading ? { "data-analytics-filter-bar": "" } : {})}>
         <FilterBar
+          collapsible={compactFilters}
           params={params.obj}
           country={params.country}
           cardType={showGrading ? effType : params.cardType}
