@@ -140,3 +140,43 @@ test('the graded category preset itself is unchanged by this phase - filters nar
   const cats = src('lib/dealCategories.js');
   assert.match(cats, /graded:\s*\{\s*filter:\s*\{\s*cardType:\s*"graded"\s*\}/);
 });
+
+test('cold-navigation guard: scoped to the graded pilot only, same pattern as showGrading/searchable', () => {
+  const grid = src('components/DealGrid.js');
+  assert.match(grid, /const guardColdNav = kind === "category" && slug === "graded";/);
+});
+
+test('cold-navigation guard: the pre-hydration script only hides results when the URL actually carries a filter/sort/search/page param', () => {
+  const grid = src('components/DealGrid.js');
+  assert.match(grid, /var keys=\['country','type','grader','grade','listing','minPrice','maxPrice','q','sort'\];/);
+  assert.match(grid, /hasFilter=keys\.some/);
+  assert.match(grid, /if\(!hasFilter\)return;/);
+});
+
+test('cold-navigation guard: a fail-safe reveals real content if hydration never completes, never traps a visitor on a permanent loading message', () => {
+  const grid = src('components/DealGrid.js');
+  assert.match(grid, /setTimeout\(function\(\)\{/);
+  assert.match(grid, /if\(wrap&&wrap\.hidden\)wrap\.hidden=false;/);
+});
+
+test('cold-navigation guard: DealGrid itself hands off to its own rendering the instant it mounts, regardless of fetch outcome', () => {
+  const grid = src('components/DealGrid.js');
+  assert.match(grid, /useEffect\(\(\) => \{\s*if \(!guardColdNav\) return;\s*const wrap = document\.getElementById\("pdf-grid-wrap"\);/);
+  assert.match(grid, /if \(wrap\) wrap\.hidden = false;/);
+  assert.match(grid, /if \(placeholder\) placeholder\.hidden = true;/);
+});
+
+test('cold-navigation guard: a no-JS visitor sees the real default content, never a stuck loading message (the script that would hide it never runs)', () => {
+  const grid = src('components/DealGrid.js');
+  assert.match(grid, /<noscript>/);
+  assert.match(grid, /#pdf-grid-loading\{display:none!important\}/);
+});
+
+test('GridSkeleton is a shared, exported component - DealGrid and the pre-hydration placeholder render identical markup, not a hand-duplicated copy', () => {
+  const skeleton = src('components/GridSkeleton.js');
+  assert.doesNotMatch(skeleton, /"use client"/, 'must be plain presentational markup, importable from a server component too');
+  assert.match(skeleton, /export default function GridSkeleton/);
+  const grid = src('components/DealGrid.js');
+  assert.match(grid, /import GridSkeleton from "@\/components\/GridSkeleton";/);
+  assert.doesNotMatch(grid, /function GridSkeleton\(/, 'the old local definition must be gone, not shadowed');
+});
