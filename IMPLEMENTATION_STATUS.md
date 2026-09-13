@@ -3416,3 +3416,87 @@ Before marking the pilot ready for deployment review, James asked for the 8-seco
 **Enter was not reopened, and no other scope was touched** - this check was bounded to the fail-safe alone, per instruction.
 
 **Final review HEAD: `eb41011`.** Two new commits since the previous closure's `f2a298b`: `867857b` (fail-safe fix), `eb41011` (fail-safe test correction). `graded-browsing-r1` is 14 commits ahead of `origin/main` (still `0d25470`), nothing pushed, deployment held.
+
+*(Correction, recorded at deployment: the true reviewed HEAD was `a660e69`, the docs commit recording the line above — a ledger entry cannot name its own commit. It is the SHA James approved and the one deployed below.)*
+
+### Deployment (2026-09-14) — graded browsing pilot live at `a660e69`
+
+James approved deploying the reviewed pilot at `a660e69`.
+
+**Pre-push checks.** Full HEAD `a660e69c37cb2e9d3e1c99a3bd189e39104b7224`. `git ls-remote origin refs/heads/main` returned `0d2547077c984b848b1a0af6084a3abb6e23978b` (the reviewed base), checked again just before the push: no divergence. `origin/main` is an ancestor of HEAD, so this is a fast-forward. Range `0d25470..a660e69`, exactly the 15 intended commits: `646d52a` (reconciled consistency-r1 deployment ledger, docs), `4ea1223`, `3239a6b`, `05a2387`, `8b2b3a2` (docs), `eef98c1` (docs), `0baddb6`, `18cb5fb`, `38e0257` (docs), `4532452`, `55aaab0`, `f2a298b` (docs), `867857b`, `eb41011` (test), `a660e69` (docs). Scoped diff: 12 files, +1187/−113. Those are `IMPLEMENTATION_STATUS.md`, `app/api/deals-page/route.js`, `components/{DealCategoryPage,DealFilterChips,DealGrid,FilterBar,GridSkeleton}.js`, `docs/graded-inventory-growth-proposal.md`, `lib/deals.js`, `tests/browser/r3/runtime/data.js` and two `tests/scanner/*.test.mjs`. No homepage, scanner, allocator, cron, budget, newsletter or social file is in the range. **Last successfully built code commit: `867857b`.** The `rm -rf .next && npm run build` run (exit 0) used application code identical to `867857b`, re-confirmed at push time with `git diff --quiet HEAD -- app lib components` and no untracked application files. After it come `eb41011` (test-only) and `a660e69` (docs-only); neither changes `app`, `lib` or `components`. The other worktrees and held branches were not touched.
+
+**Push.** Using the established guarded procedure, a plain non-force push of the exact SHA: `git push origin a660e69c37cb…:refs/heads/main` → `0d25470..a660e69`. A plain push rejects anything that isn't a fast-forward. Remote `main` was confirmed at `a660e69c37cb…` afterwards.
+
+**Deployment.** `dpl_AHHai6nwQnyJJfjk42zTRYKQjA2Y`, target `production`, `githubCommitSha` `a660e69c37cb2e9d3e1c99a3bd189e39104b7224` (read from the deployment's own metadata), `readyState: READY`. The alias list includes `pokemondealfinder.com`, with `aliasError: null`. Superseded production deployment: `dpl_5X32kbHB3xhrVSTwWrEKDgnunXT2` (`0d25470`). Runtime logs for the new deployment over the following hour showed status codes 200/304/308/404 only, no 5xx and no error- or fatal-level entries.
+
+**Why the allowed routes cannot reach a paid provider server-side (from the code, not assumed).**
+- `app/deals/[id]/page.js` returns `dealCategoryMetadata(id)` at line 127 and `<DealCategoryPage slug={id}/>` at line 260 for any category slug. Both happen before `loadDeal`/`getFullPriceAnalysis`, the billed PokemonPriceTracker call, which only the individual deal-detail branch reaches.
+- `DealCategoryPage` and the `kind=category` branch of `/api/deals-page` call only `lib/deals.js` (Supabase). `lib/deals.js` imports no provider module.
+- `/api/rates` calls `lib/fx.js`, which uses the free, cached `api.frankfurter.app` FX feed.
+- The routes that do reach paid providers are `/deals/<id>`, `/cards/*`, `/search`, `/api/card-search` and the refresh/sync routes. The verification guard therefore blocked every one of them, including Next.js prefetches.
+
+**Network guard (installed before any navigation).** This was an ad hoc, uncommitted headless-Chrome CDP harness with a browser-level connection and flattened `Target.setAutoAttach` using `waitForDebuggerOnStart`. Every target — the main page, any popup or new tab, iframes, workers — was paused, given `Fetch` interception, and only then resumed, so a new tab opened from an affiliate link could not load anything before being blocked and closed.
+- **Allowed:** `https://pokemondealfinder.com/deals/graded` (any query), `/_next/static/*`, `/api/deals-page` only when `kind=category&slug=graded`, and `/api/rates`. Everything else was failed locally.
+- **Self-tested first against the local provider-disabled fixture** using genuine `userGesture:true` popup attempts. A plain attempt was silently stopped by Chrome's popup blocker and so proved nothing; that was caught and re-run properly. Both new tabs were attached while paused, the eBay navigation was blocked, `fetch('/deals/900001')` was blocked, and no eBay or `/deals/<id>` request was allowed.
+- **The whole production script was dry-run against the fixture** before any production request: 51/51. Three whole-set comparisons were skipped there only because the fixture's US set spans two pages; they run whenever the live baseline is a single page.
+- **Production totals.** Allowed: 26 × `/deals/graded`, 144 × `/_next/static/*`, 24 × `/api/rates`, and 23 × `/api/deals-page`, every one of those `kind=category&slug=graded`. Blocked:
+  - prefetches: `/sets/*` (64), `/deals/{under-25,under-50,under-100,auctions,vintage,modern}` (18), `/deals` (24), `/` (24), `/sets` (3), `/pokemon` (3)
+  - `/_next/image` (84) and `/icon.svg` (29)
+  - two first-party Vercel analytics scripts (48)
+  - cross-origin: `i.ebayimg.com` (102), PostHog `eu`/`eu-assets` (44), and the Impact affiliate-tracking script `utt.impactcdn.com` (24)
+  - scenario-driven: 12 JS chunks blocked on purpose, and one API response replaced locally with a 500
+- **No request to `/deals/<id>`, `/cards`, `/search`, `/_next/image`, `/_vercel` or any non-production origin was allowed, and no extra tab loaded any URL.** No production click landed near a card. Chip, clear, sort and search hrefs were read and then navigated to. The search form was submitted with `requestSubmit()`. The only pointer input was a touch on the Filters button, hit-tested with `elementFromPoint` first.
+
+**Production verification — 53/53 checks passed.** Expectations came from the live data, not assumptions. Each state's rendered card IDs, taken from each card's detail-link href (read, never followed), were compared in order with the exact `/api/deals-page` response that page received (via `Network.getResponseBody`).
+- **Inventory:** `?country=EBAY_US` has 6 active graded listings, `totalPages: 1`. **Pagination is not reachable with live inventory**, so it is covered by fixture evidence below, and no live inventory was manufactured. The filter values tested were chosen from that live set: grader PSA (4 of 6), grade 7 (2 of those 4).
+- **Grader and grade:**
+  - `grader=PSA` gave exactly the PSA subset of the US baseline; every row was PSA, US and graded; label "4 matches".
+  - `grader=PSA&grade=7` gave exactly that subset; label "2 matches".
+- **Clear and reset:** the page's own "Clear all" href dropped grader, grade and type, kept `country=EBAY_US`, and returned exactly the baseline with chips and label gone. The "Grade 7" chip href kept `grader=PSA` and returned exactly the grader-only result.
+- **Marketplace:**
+  - `country=EBAY_GB` gave 3 listings, all GB, with no overlap with the US set.
+  - `country=EBAY_GB&grader=PSA` gave 2, all GB and PSA.
+- **Search:** the term was taken from live data.
+  - `q=Ampharos` gave 1 US listing whose title contains the term, with a Search chip.
+  - `q=Ampharos&grader=PSA` gave exactly the PSA subset of that search.
+  - A nonsense term gave 0 cards, "0 matches" and the "Clear search" recovery.
+  - Submitting the search form from `?country=EBAY_GB` landed on `?country=EBAY_GB&q=Ampharos`, so the marketplace was preserved.
+- **Sorting:**
+  - `price_asc` rendered USD totals 30 → 225 and `price_desc` rendered 225 → 30. Both matched the API and contained the same listings.
+  - `grader=PSA&sort=price_asc` applied both the filter and the sort.
+- **Navigation:** `history.back()` from grader+grade restored exactly the grader-only IDs, and `history.forward()` restored exactly the grader+grade IDs.
+- **Mobile, 390×844, touch emulation:**
+  - Tab reached `BUTTON:Filters`, and Enter (the validated `keyDown` sequence) changed `aria-expanded` from false to true and showed the panel.
+  - The same with Space.
+  - Dark mode: a hit-tested `Input.dispatchTouchEvent` opened it, with no document navigation triggered.
+  - `scrollWidth` equalled `innerWidth` (390) in all three cases. Pill rows scroll inside their own containers, not the page.
+  - Screenshots inspected (light Enter, light Space, dark touch): readable, no clipping.
+- **Cold filtered loading and timeout recovery** on `?country=EBAY_US&grader=PSA`, each in a fresh browser context with an empty cache:
+  - **JS chunks held for 2.5s:** the default grid was hidden and the neutral skeleton placeholder was shown, with no cards. After release, the result was exactly the API's 4 PSA listings and the placeholder was gone.
+  - **JS held for 10.5s:** at about 6s, still the neutral skeleton. At about 8.9s, the placeholder showed "This is taking longer than expected to load your filtered results. Reload the page to try again." The reload link was `https://pokemondealfinder.com/deals/graded?country=EBAY_US&grader=PSA` (the exact filtered URL), and the unfiltered default was not revealed. At about 10.5s it was unchanged. After late release, it recovered to exactly the API result with the message gone, 11.3s after navigation.
+  - **JS blocked entirely:** at about 9.5s, the `role="status"` message and correct reload link, with no inventory visible. At about 13.5s, identical: it persisted and did not revert. Screenshot inspected.
+  - **API held for 4s with JS fast:** the hydrated skeleton showed inside the grid, with no placeholder and no cards. After release, exactly the API result.
+  - **API 500:** fulfilled locally, so it never reached the server. The page showed "Couldn't load deals: …" and no inventory.
+- **No-JS:** with script execution disabled on the filtered URL, the explicit "requires JavaScript" search limitation was shown, the search form was hidden, the grid showed real content (18 cards), and no placeholder was stuck. This is the documented, unchanged no-JS filtering limitation.
+- **Bare category page crawlability:** a plain fetch of `https://pokemondealfinder.com/deals/graded` returned HTTP 200 with `#pdf-grid-wrap` carrying no `hidden` attribute. The raw HTML contained 18 server-rendered cards with 18 distinct detail links, ItemList JSON-LD, canonical `https://pokemondealfinder.com/deals/graded`, and the no-JS search notice. Response headers showed `Cache-Control: private, no-store`, consistent with the route's existing owner-approved dynamic rendering.
+- **One harness event, explained:** a single `EVAL ERR` came from my own state reader calling `document.body.innerText` while `requestSubmit()` was replacing the document. CDP line numbers are 0-based, which maps it to that `errorText` line. It was not a page error; the next poll succeeded and the check passed.
+
+**Pagination — fixture evidence, re-run on the final code** because `DealGrid` was restructured after the earlier run. Provider-disabled fixture, 28 SGC rows:
+- page 1 showed 24 cards labelled "Showing 24 of 28 matches", and page 2 showed 4
+- 28 unique identities across both pages, with no duplicates or gaps
+- Next and Prev hrefs keep `grader` and `sort`
+- following a PSA chip from page 2 drops `page` and lands on the correct 2-card result
+- `history.back()` and `history.forward()` reproduce exactly the page 1 and page 2 identities
+
+`lib/deals.js`'s `totalCount` is the query count for the same filter used to compute `totalPages`, including empty and out-of-range pages (unit tests in `r6-category-currency.test.mjs`).
+
+**Limitations, stated plainly.**
+- Chromium only; Safari, WebKit and physical devices were not tested.
+- Pagination was not exercised in production, because live graded inventory is below one page; the evidence is from the fixture.
+- Card artwork showed placeholders in the production screenshots because the guard blocked `/_next/image` and eBay image hosts. That was a deliberate choice to avoid image-optimisation cost; images themselves were not verified.
+- With JS blocked or not yet loaded, the filter pills do not show the selected grader or marketplace. The bar is server-rendered from the empty snapshot. The results area is honest (skeleton, then the status message), but the pills don't reflect the URL until hydration. This is pre-existing, shared by species and set pages, and not changed here.
+- The cold-navigation guard applies to `/deals/graded` only.
+- No field Core Web Vitals, real-user or screen-reader session was measured.
+- Verification-generated production requests appear in logs as ordinary traffic. Analytics endpoints were blocked, so they were not counted as visits.
+
+No scanner, allocator, budget, watchlist, cron, newsletter or social change. Unrelated worktrees and held commits were untouched. This ledger entry is a local-only commit on `graded-browsing-r1`, **not pushed**; production stays at `a660e69` until a later authorized push includes it.
