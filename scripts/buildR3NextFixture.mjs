@@ -6,6 +6,8 @@ import {createHash} from 'node:crypto';
 const root=resolve(import.meta.dirname,'..');
 const out=resolve(root,'.next/r3-runtime');
 const fixtures=resolve(root,'tests/browser/r3/runtime');
+const dynamicListingProbe=process.argv.includes('--probe-dynamic-listings');
+if(process.argv.slice(2).some(arg=>arg!=='--probe-dynamic-listings'))throw Error('Unknown fixture option');
 const write=(name,text)=>{const path=resolve(out,name);mkdirSync(dirname(path),{recursive:true});writeFileSync(path,text);};
 const sources=[];
 const configSource=readFileSync(resolve(root,'next.config.mjs'),'utf8').replace('export default nextConfig;','');
@@ -19,6 +21,11 @@ let listing=source('app/deals/[id]/page.js');
 const old='return DEAL_CATEGORY_SLUGS.map((id) => ({ id }));';
 if(!listing.includes(old))throw Error('UNRECOGNISED_STATIC_PARAMS');
 listing=listing.replace(old,'return [900001,900004,900005,900002,900006,900020,900021].map(id => ({id:String(id)}));');
+if(dynamicListingProbe){
+ const declaration=/export async function generateStaticParams\(\) \{[\s\S]*?\n\}/;
+ if(!declaration.test(listing))throw Error('UNRECOGNISED_STATIC_PARAMS_DECLARATION');
+ listing=listing.replace(declaration,'// TEST-ONLY PROBE: no page prerendering; original data-cache wrappers retained.');
+}
 write('app/deals/[id]/page.js',listing);
 write('app/cards/[slug]/page.js',source('app/cards/[slug]/page.js'));
 write('app/opengraph-image.js',source('app/opengraph-image.js'));
@@ -46,5 +53,5 @@ export default {...base,devIndicators:false,images:{...base.images,unoptimized:t
  fs.writeFileSync(${JSON.stringify(resolve(out,'module-'))}+compiler.name+'.json',JSON.stringify(resources,null,2));
  });});}});return config;}};
 `);
-write('manifest.json',JSON.stringify({sources,boundaries:['Fixture provider/database modules; compile-time forbidden-module assertion','Node preload denies external networking before Next/worker startup','Root Google font transform replaced with existing offline Geist CSS','Next Script / analytics transports stubbed; email disabled','Next Image component retained but optimisation disabled to prevent server image fetches','Listing build params restricted to fixture IDs; card runtime params unchanged','Actual Next metadata-file loader, routes, React cache and CurrencyProvider retained'],project:out},null,2));
+write('manifest.json',JSON.stringify({sources,dynamicListingProbe,boundaries:['Fixture provider/database modules; compile-time forbidden-module assertion','Node preload denies external networking before Next/worker startup','Root Google font transform replaced with existing offline Geist CSS','Next Script / analytics transports stubbed; email disabled','Next Image component retained but optimisation disabled to prevent server image fetches',dynamicListingProbe?'TEST-ONLY PROBE: listing generateStaticParams removed; data caches retained; production source unchanged':'Listing build params restricted to fixture IDs; card runtime params unchanged','Actual Next metadata-file loader, routes, React cache and CurrencyProvider retained'],project:out},null,2));
 console.log(out);

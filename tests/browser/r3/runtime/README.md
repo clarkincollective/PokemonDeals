@@ -40,3 +40,17 @@ control. Cached responses have one. Node's redirect follower combines the cold
 values into an invalid card path and gets 404. The verifier deliberately fails
 this control; do not describe a warm-route/browser pass as full runtime acceptance.
 No production caching/dependency workaround is included.
+
+`node scripts/diagnoseR3Redirect.mjs` compares fresh raw HTTP, Node fetch and
+Chrome responses using the running ordinary fixture. It deliberately reports
+the header/Node failure even when Chrome reaches the right destination.
+
+An opt-in **test-only remedy probe** is available: with the server stopped,
+generate using `node scripts/buildR3NextFixture.mjs --probe-dynamic-listings`,
+then build/start with the same runner and run `node scripts/probeR3DynamicRedirect.mjs`.
+This omits `generateStaticParams` only in the generated listing-route copy.
+It demonstrates correct redirects but lost full-page caching on the live route;
+it is not an approved production workaround. Original data-cache source remains,
+but provider counts/billing and delegated category rendering are not measured.
+Stop the server, generate without the flag and rebuild to restore the ordinary
+fixture. Probe evidence is saved separately so earlier review records survive.
