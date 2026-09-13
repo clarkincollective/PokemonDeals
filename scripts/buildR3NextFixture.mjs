@@ -28,7 +28,7 @@ if(!css)throw Error('Generate offline static fixtures first');
 write('app/globals.css',css+'\nbody{font-family:Geist,Arial,sans-serif}');
 write('app/page.js',`import Link from 'next/link';export default function Index(){return <main><h1>SIMULATED R3 Next runtime</h1><p>Fixture prices and links. Providers disabled.</p><Link prefetch={false} href="/deals/900001">Open fixture listing</Link><br/><Link prefetch={false} href="/cards/fixture-hub">Open fixture card</Link></main>;}`);
 write('app/redirect-control/[id]/page.js',`import {permanentRedirect} from 'next/navigation';export const revalidate=600;export function generateStaticParams(){return [];}export default async function Page({params}){await params;permanentRedirect('/cards/fixture-hub');}`);
-write('app/api/rates/route.js',`export function GET(){return Response.json({viewer:'AUD',marketplace:'AU',geoCountry:'AU',rates:{USD:1,AUD:1.5,GBP:0.8}});}`);
+write('app/api/rates/route.js',`export function GET(){return Response.json({viewer:'AUD',marketplace:'EBAY_AU',geo_country:'AU',rates:{USD:1,AUD:1.5,GBP:0.8}});}`);
 write('app/api/deals-page/route.js',`import {listingRows} from ${JSON.stringify(resolve(fixtures,'data.js').replaceAll('\\','/'))};export function GET(request){const type=new URL(request.url).searchParams.get('type');return Response.json({deals:type==='graded'?[listingRows[2]]:[listingRows[0]],error:null});}`);
 write('package.json',JSON.stringify({name:'r3-next-runtime-fixture',private:true},null,2));
 const aliases=Object.fromEntries(['@/lib/deals','@/lib/supabaseAdmin','@/lib/pokemonPriceTracker','@/lib/email'].map(name=>[name+'$',resolve(fixtures,'data.js')]));

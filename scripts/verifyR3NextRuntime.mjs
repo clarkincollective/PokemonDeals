@@ -8,6 +8,8 @@ const out=path.resolve(import.meta.dirname,'../../shots/r3-next-runtime');
 fs.mkdirSync(out,{recursive:true});
 const checks=[],responses=[],errors=[],blocked=[],excluded=[],failedRequests=[],httpErrors=[];
 const check=(name,pass,detail)=>checks.push({name,pass:Boolean(pass),detail});
+const rates=await(await fetch(BASE+'/api/rates')).json();
+check('fixture rates production shape',rates.viewer==='AUD'&&rates.marketplace==='EBAY_AU'&&rates.geo_country==='AU',rates);
 // An uncached framework-only control must not be hidden by a warm-route pass.
 const cold=await fetch(BASE+'/redirect-control/check-'+Date.now(),{redirect:'manual'});
 check('cold Next redirect has one correct Location',cold.status===308&&cold.headers.get('location')==='/cards/fixture-hub',{status:cold.status,location:cold.headers.get('location'),cache:cold.headers.get('x-nextjs-cache')});
