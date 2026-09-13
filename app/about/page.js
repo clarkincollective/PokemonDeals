@@ -1,3 +1,4 @@
+import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
@@ -42,15 +43,16 @@ export default function AboutPage() {
     <div className="flex min-h-screen flex-col bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(aboutPageJsonLd) }} />
+      <SkipToContent />
       <SiteHeader />
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
+      <main id="main-content" tabIndex={-1} className="scroll-mt-6 mx-auto w-full max-w-3xl flex-1 px-6 py-8">
         <h1 className="text-3xl font-bold tracking-tight text-black dark:text-zinc-50">
           About Pokemon Deal Finder
         </h1>
         <p className="mt-2 text-xs text-zinc-400">Last updated {TRUST_CONTENT_UPDATED_DISPLAY}</p>
 
-        <p className="mt-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <p className="mt-4 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
           Pokemon Deal Finder is a free, independent tool that continuously scans eBay for Pokemon
           Trading Card Game listings priced below their recent sold-market value. Every card shown as a
           deal is a real, currently-active listing that has been matched to an exact card and checked
@@ -58,7 +60,7 @@ export default function AboutPage() {
         </p>
 
         <h2 className="mt-10 text-lg font-bold text-black dark:text-zinc-50">What the site does</h2>
-        <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
           <li>
             Scans live eBay listings across six marketplaces (US, UK, Australia, Canada, Germany,
             Italy) for single cards, graded cards, Japanese cards, and sealed products.
@@ -80,7 +82,7 @@ export default function AboutPage() {
             . Pokemon and card pages also work as a price reference when there is no live deal.
           </li>
         </ul>
-        <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
           The exact data sources, matching logic, authenticity screening and limitations are on the{" "}
           <Link href="/methodology" className="text-red-600 hover:underline dark:text-red-500">
             methodology
@@ -93,7 +95,7 @@ export default function AboutPage() {
         </p>
 
         <h2 className="mt-10 text-lg font-bold text-black dark:text-zinc-50">Why it exists</h2>
-        <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
           Pricing a Pokemon card well means knowing what the exact printing in the exact condition
           actually sells for, then finding the listings that sit below that. Doing it by hand across
           six eBay marketplaces is slow and error-prone. This site does the comparison continuously and
@@ -101,7 +103,7 @@ export default function AboutPage() {
         </p>
 
         <h2 className="mt-10 text-lg font-bold text-black dark:text-zinc-50">How it stays free</h2>
-        <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
           The site participates in the eBay Partner Network and the TCGPlayer affiliate program. If you
           click through to a listing and buy, we may earn a commission — it does not change the price
           you pay, and there is no paid placement. Whether a listing is shown, and where it ranks,
@@ -118,7 +120,7 @@ export default function AboutPage() {
         </p>
 
         <h2 className="mt-10 text-lg font-bold text-black dark:text-zinc-50">What the site is not</h2>
-        <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
           It is not a marketplace — every purchase happens on eBay, with the eBay seller. It does not
           hold inventory, take payment, or ship anything. It is not a card authentication or grading
           service. Card-to-listing matching and image screening are automated and not perfect, so
@@ -126,7 +128,7 @@ export default function AboutPage() {
           availability change constantly; figures shown were accurate as of the last scan.
         </p>
 
-        <p className="mt-10 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <p className="mt-10 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
           Questions or a wrong match to report?{" "}
           <Link href="/contact" className="text-red-600 hover:underline dark:text-red-500">
             Get in touch

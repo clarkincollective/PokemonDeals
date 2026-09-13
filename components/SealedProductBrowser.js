@@ -14,7 +14,7 @@ import SpeciesCard from "@/components/SpeciesCard";
 // `groups` = [{ set, slug, logo, products: [SpeciesCard cards], dealCount }],
 // products pre-sorted deals-first by fetchSealedCatalog; `logo` from
 // setImage() enriched in the page (null when pokemontcg.io has no logo).
-const GRID = "mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
+const GRID = "mt-3 grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
 
 export default function SealedProductBrowser({ groups, types }) {
   const [query, setQuery] = useState("");
@@ -71,20 +71,20 @@ export default function SealedProductBrowser({ groups, types }) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search products, e.g. Evolving Skies..."
             aria-label="Search sealed products"
-            className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            className="min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 pr-14 text-base outline-none focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
           {query && (
             <button
               type="button"
               onClick={() => setQuery("")}
               aria-label="Clear search"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-600 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-300"
             >
               ✕
             </button>
           )}
         </div>
-        <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+        <label className="flex min-h-11 items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
           <input
             type="checkbox"
             checked={dealsOnly}
@@ -101,7 +101,8 @@ export default function SealedProductBrowser({ groups, types }) {
             key={t}
             type="button"
             onClick={() => setType(t)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            aria-pressed={type === t}
+            className={`min-h-11 rounded-full px-3 py-1 text-sm font-medium transition-colors ${
               type === t
                 ? "bg-black text-white dark:bg-white dark:text-black"
                 : "border border-zinc-300 text-zinc-600 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-300"
@@ -112,7 +113,7 @@ export default function SealedProductBrowser({ groups, types }) {
         ))}
       </div>
 
-      <p className="mt-3 text-xs text-zinc-400">
+      <p role="status" className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
         {filtering
           ? `${shownCount} of ${totalProducts} products match`
           : `${totalProducts} sealed products across ${groups.length} sets · ${totalDeals} with an active deal right now`}
@@ -150,7 +151,7 @@ export default function SealedProductBrowser({ groups, types }) {
                     </span>
                     <span className="flex flex-wrap items-baseline gap-x-2 text-sm font-bold text-black dark:text-zinc-50">
                       {g.set}
-                      <span className="text-xs font-medium text-zinc-400">
+                      <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
                         {g.products.length} product{g.products.length === 1 ? "" : "s"}
                         {g.dealCount > 0 ? ` · ${g.dealCount} deal${g.dealCount === 1 ? "" : "s"}` : ""}
                       </span>

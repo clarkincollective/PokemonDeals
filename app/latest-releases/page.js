@@ -1,3 +1,4 @@
+import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import Image from "next/image";
 import { fetchDealsPage, fetchSealedDealsPool, fetchSetSlugs, fetchHubCounts } from "@/lib/deals";
@@ -112,10 +113,11 @@ export default async function LatestReleasesPage() {
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <JsonLd data={jsonLd} />
+      <SkipToContent />
       <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto w-full max-w-7xl px-6 py-10">
+        <div className="mx-auto w-full max-w-7xl px-6 py-6 sm:py-8">
           <Breadcrumbs items={[{ name: "Deals", href: "/" }, { name: "Latest releases" }]} />
           <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Browse</p>
           <h1 className="mt-1 max-w-3xl text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl dark:text-zinc-50">
@@ -127,7 +129,7 @@ export default async function LatestReleasesPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
+      <main id="main-content" tabIndex={-1} className="scroll-mt-6 mx-auto w-full max-w-7xl flex-1 px-6 py-6 sm:py-8">
         {/* Featured release - the soonest upcoming set (or the newest one
             out), with its confirmed official date. */}
         {featured && (

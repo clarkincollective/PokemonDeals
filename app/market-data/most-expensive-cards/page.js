@@ -1,3 +1,4 @@
+import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import {
   fetchTopCatalogCards,
@@ -84,10 +85,11 @@ export default async function MostValuableCardsPage() {
           ),
         ]}
       />
+      <SkipToContent />
       <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-4xl px-6 py-10">
+        <div className="mx-auto max-w-4xl px-6 py-6 sm:py-8">
           <Link href="/market-data" className="text-sm font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
             ← Market Data
           </Link>
@@ -127,7 +129,7 @@ export default async function MostValuableCardsPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-10">
+      <main id="main-content" tabIndex={-1} className="scroll-mt-6 mx-auto w-full max-w-4xl flex-1 px-6 py-6 sm:py-8">
         {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load data: {error}</p>}
 
         <ol className="divide-y divide-zinc-100 dark:divide-zinc-900">

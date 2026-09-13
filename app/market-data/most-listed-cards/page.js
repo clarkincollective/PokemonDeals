@@ -1,3 +1,4 @@
+import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import { fetchMostListedCards } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
@@ -43,10 +44,11 @@ export default async function MostListedCardsPage() {
           itemList(top.map((c) => ({ name: `${c.name} (${c.set})`, url: `/cards/${c.slug}` }))),
         ]}
       />
+      <SkipToContent />
       <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-4xl px-6 py-10">
+        <div className="mx-auto max-w-4xl px-6 py-6 sm:py-8">
           <Link href="/market-data" className="text-sm font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
             ← Market Data
           </Link>
@@ -77,7 +79,7 @@ export default async function MostListedCardsPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-10">
+      <main id="main-content" tabIndex={-1} className="scroll-mt-6 mx-auto w-full max-w-4xl flex-1 px-6 py-6 sm:py-8">
         <ol className="divide-y divide-zinc-100 dark:divide-zinc-900">
           {top.map((card, i) => (
             <li key={card.id}>
@@ -88,7 +90,7 @@ export default async function MostListedCardsPage() {
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="w-6 shrink-0 text-right text-sm font-semibold text-zinc-400">{i + 1}</span>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-black dark:text-zinc-50">{card.name}</p>
+                    <p className="truncate text-base leading-relaxed font-medium text-black dark:text-zinc-50">{card.name}</p>
                     <p className="truncate text-xs text-zinc-500">{card.set}</p>
                   </div>
                 </div>

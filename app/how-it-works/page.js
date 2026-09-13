@@ -1,3 +1,4 @@
+import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
@@ -39,21 +40,22 @@ const webPageJsonLd = {
 };
 
 const h2 = "mt-10 text-lg font-bold text-black dark:text-zinc-50";
-const p = "mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400";
+const p = "mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300";
 
 export default function HowItWorksPage() {
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
+      <SkipToContent />
       <SiteHeader />
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
+      <main id="main-content" tabIndex={-1} className="scroll-mt-6 [overflow-wrap:anywhere] mx-auto w-full max-w-3xl flex-1 px-6 py-8">
         <h1 className="text-3xl font-bold tracking-tight text-black dark:text-zinc-50">
           How Pokemon Deal Finder Works
         </h1>
         <p className="mt-2 text-xs text-zinc-400">Last updated {TRUST_CONTENT_UPDATED_DISPLAY}</p>
-        <p className="mt-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <p className="mt-4 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
           The site runs the same steps around the clock: find new eBay listings, work out which exact
           card each one is, compare the price against real sold-market data, filter out the bad and
           wrong ones, run an extra image check on the riskier ones, and drop anything that has gone
@@ -121,7 +123,7 @@ export default function HowItWorksPage() {
           buying.
         </p>
 
-        <p className="mt-10 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <p className="mt-10 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
           For the exact data sources and rules, see the{" "}
           <Link href="/methodology" className="text-red-600 hover:underline dark:text-red-500">
             methodology

@@ -1,3 +1,4 @@
+import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
@@ -44,22 +45,23 @@ const webPageJsonLd = {
 
 const h2 = "mt-10 text-lg font-bold text-black dark:text-zinc-50";
 const h3 = "mt-6 text-sm font-bold text-black dark:text-zinc-50";
-const p = "mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400";
-const ul = "mt-3 flex list-disc flex-col gap-2 pl-5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400";
+const p = "mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300";
+const ul = "mt-3 flex list-disc flex-col gap-2 pl-5 text-base leading-relaxed text-zinc-700 dark:text-zinc-300";
 
 export default function MethodologyPage() {
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
+      <SkipToContent />
       <SiteHeader />
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
+      <main id="main-content" tabIndex={-1} className="scroll-mt-6 mx-auto w-full max-w-3xl flex-1 px-6 py-8">
         <h1 className="text-3xl font-bold tracking-tight text-black dark:text-zinc-50">
           Pricing &amp; Deal-Detection Methodology
         </h1>
         <p className="mt-2 text-xs text-zinc-400">Last updated {TRUST_CONTENT_UPDATED_DISPLAY}</p>
-        <p className="mt-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <p className="mt-4 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
           Every listing presented as a deal on this site is a real, currently-active eBay listing that
           has cleared the checks below. No prices, sellers, sales, or statistics are invented, and a
           card in the catalogue is not the same thing as a deal.
@@ -334,7 +336,7 @@ export default function MethodologyPage() {
           </li>
         </ul>
 
-        <p className="mt-10 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <p className="mt-10 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
           Spotted a wrong match or a pricing problem?{" "}
           <Link href="/contact" className="text-red-600 hover:underline dark:text-red-500">
             Tell us

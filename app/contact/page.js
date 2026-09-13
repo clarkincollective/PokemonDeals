@@ -1,3 +1,4 @@
+import SkipToContent from "@/components/SkipToContent";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 
@@ -38,12 +39,13 @@ export default function ContactPage() {
     <div className="flex min-h-screen flex-col bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(contactPageJsonLd) }} />
+      <SkipToContent />
       <SiteHeader />
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
+      <main id="main-content" tabIndex={-1} className="scroll-mt-6 [overflow-wrap:anywhere] mx-auto w-full max-w-3xl flex-1 px-6 py-8">
         <h1 className="text-3xl font-bold tracking-tight text-black dark:text-zinc-50">Contact</h1>
 
-        <p className="mt-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <p className="mt-4 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
           Email{" "}
           <a
             href={`mailto:${CONTACT_EMAIL}`}
@@ -55,7 +57,7 @@ export default function ContactPage() {
         </p>
 
         <h2 className="mt-10 text-lg font-bold text-black dark:text-zinc-50">Good reasons to write</h2>
-        <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
           <li>A listing is matched to the wrong card, set, or grade.</li>
           <li>A market price or discount looks clearly wrong.</li>
           <li>A page is broken, or a card or set is missing that clearly shouldn&apos;t be.</li>
@@ -64,7 +66,7 @@ export default function ContactPage() {
         </ul>
 
         <h2 className="mt-10 text-lg font-bold text-black dark:text-zinc-50">What this isn&apos;t</h2>
-        <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
           It is not customer support for an eBay order. Payment, shipping, cancellations, returns, and
           disputes are between you and the eBay seller, through eBay — this site isn&apos;t involved in
           the transaction. If you&apos;re reporting a wrong match, a direct link to the listing and the

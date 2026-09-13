@@ -1,3 +1,4 @@
+import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import { fetchDealsPage, fetchHubCounts, fetchSetSlugs } from "@/lib/deals";
 import { DEAL_CATEGORIES, DEAL_CATEGORY_SLUGS } from "@/lib/dealCategories";
@@ -58,25 +59,26 @@ export default async function DealsIndexPage() {
     <div className="flex min-h-screen flex-col bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
+      <SkipToContent />
       <SiteHeader />
       <RegionRedirect />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-10">
+        <div className="mx-auto max-w-7xl px-6 py-6 sm:py-8">
           <Breadcrumbs items={[{ name: "Deals", href: "/" }, { name: "Deal categories" }]} />
           <h1 className="mt-4 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
             Browse Pokemon Card Deals by Price, Grade &amp; Era
           </h1>
           <p className="mt-3 max-w-2xl text-base text-zinc-600 dark:text-zinc-400">
-            Every deal below is a live eBay listing our scan found priced under its real market value.
-            Pick a price band, condition or era — or see the newest finds across everything below.
+            Choose a price band, condition or era to browse matching offers, or see the newest finds below.
+            Each listing explains its available price comparison and shipping context.
           </p>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
+      <main id="main-content" tabIndex={-1} className="scroll-mt-6 mx-auto w-full max-w-7xl flex-1 px-6 py-6 sm:py-8">
         <section>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Deal categories</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">Deal categories</h2>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {DEAL_CATEGORY_SLUGS.map((s) => (
               <Link
@@ -114,7 +116,7 @@ export default async function DealsIndexPage() {
         {deals.length > 0 && (
           <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Newest finds</h2>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">Newest finds</h2>
               <Link href="/" className="text-sm font-medium text-red-600 hover:underline dark:text-red-500">
                 All deals →
               </Link>

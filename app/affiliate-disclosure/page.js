@@ -1,3 +1,4 @@
+import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
@@ -26,20 +27,21 @@ const breadcrumbJsonLd = {
 };
 
 const h2 = "mt-10 text-lg font-bold text-black dark:text-zinc-50";
-const p = "mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400";
+const p = "mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300";
 
 export default function AffiliateDisclosurePage() {
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <SkipToContent />
       <SiteHeader />
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
+      <main id="main-content" tabIndex={-1} className="scroll-mt-6 mx-auto w-full max-w-3xl flex-1 px-6 py-8">
         <h1 className="text-3xl font-bold tracking-tight text-black dark:text-zinc-50">
           Affiliate Disclosure
         </h1>
 
-        <p className="mt-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <p className="mt-4 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
           Pokemon Deal Finder participates in the eBay Partner Network and the TCGPlayer affiliate
           program (administered through Impact.com). When you click a listing or price link on this
           site and go on to make a purchase, we may earn a commission from eBay or TCGPlayer.
@@ -71,7 +73,7 @@ export default function AffiliateDisclosurePage() {
           transaction.
         </p>
 
-        <p className="mt-10 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <p className="mt-10 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
           Questions about this disclosure?{" "}
           <Link href="/contact" className="text-red-600 hover:underline dark:text-red-500">
             Contact us

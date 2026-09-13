@@ -1,3 +1,4 @@
+import SkipToContent from "@/components/SkipToContent";
 import { fetchSealedDealsPool, fetchSealedCatalog, fetchLastScanTime } from "@/lib/deals";
 import { dealScore } from "@/lib/dealScore";
 import { timeAgo } from "@/lib/time";
@@ -15,7 +16,7 @@ export const revalidate = 600;
 export async function generateMetadata() {
   const title = "Sealed Pokemon Products — Deals & Prices";
   const description =
-    "Every sealed Pokemon product — booster boxes, elite trainer boxes, bundles, blisters, tins — browsable by set and type, with real below-market eBay deals surfaced and PokemonPriceTracker reference prices for the rest.";
+    "Tracked sealed Pokemon products — booster boxes, elite trainer boxes, bundles, blisters, tins — browsable by set and type, with real below-market eBay deals surfaced and PokemonPriceTracker reference prices for the rest.";
   return {
     title,
     description,
@@ -23,12 +24,6 @@ export async function generateMetadata() {
     openGraph: { title, description, url: "https://pokemondealfinder.com/sealed-deals" },
     twitter: { card: "summary", title, description },
   };
-}
-
-const SCAN_FRESH_THRESHOLD_MS = 30 * 60 * 1000;
-
-function isRecentlyRefreshed(dateString) {
-  return Date.now() - new Date(dateString).getTime() <= SCAN_FRESH_THRESHOLD_MS;
 }
 
 function shuffled(array) {
@@ -75,15 +70,16 @@ export default async function SealedDealsPage() {
           collectionPage({
             name: "Sealed Pokemon Products",
             description:
-              "Browse every sealed Pokemon product by set and type - booster boxes, ETBs, bundles, blisters, tins - with live below-market eBay deals surfaced.",
+              "Browse tracked sealed Pokemon products by set and type - booster boxes, ETBs, bundles, blisters, tins - with live below-market eBay deals surfaced.",
             url: "/sealed-deals",
           }),
         ]}
       />
+      <SkipToContent />
       <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-10">
+        <div className="mx-auto max-w-7xl px-6 py-6 sm:py-8">
           <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-900 px-3 py-1 text-xs font-bold text-white dark:bg-white dark:text-black">
             📦 Sealed Product
           </span>
@@ -99,15 +95,13 @@ export default async function SealedDealsPage() {
           {lastRefreshed && (
             <p className="mt-4 inline-flex items-center gap-2 text-sm text-zinc-500">
               <span className="h-2 w-2 rounded-full bg-red-500" />
-              {isRecentlyRefreshed(lastRefreshed)
-                ? `Deals last refreshed ${timeAgo(lastRefreshed)}`
-                : "Deals checked once daily - refresh automatically"}
+              {`Deals last refreshed ${timeAgo(lastRefreshed)}`}
             </p>
           )}
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
+      <main id="main-content" tabIndex={-1} className="scroll-mt-6 mx-auto w-full max-w-7xl flex-1 px-6 py-6 sm:py-8">
         {(poolError || catalog.error) && (
           <p className="mb-6 rounded-lg bg-red-50 p-4 text-red-700">
             Couldn&apos;t load some data: {poolError || catalog.error}
@@ -127,7 +121,7 @@ export default async function SealedDealsPage() {
           </section>
         )}
 
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
           Browse every sealed product
         </h2>
 

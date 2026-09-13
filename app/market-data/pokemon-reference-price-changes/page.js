@@ -1,3 +1,4 @@
+import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import Image from "next/image";
 import SiteHeader from "@/components/SiteHeader";
@@ -79,9 +80,11 @@ export default function ReferencePriceChangesPage() {
           collectionPage({ name: TITLE, description: DESCRIPTION, url: PATH, dateModified: `${s.window.lateTarget}T00:00:00.000Z` }),
         ]}
       />
+      <SkipToContent />
       <SiteHeader />
 
-      <article className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
+      <main id="main-content" tabIndex={-1} className="w-full flex-1 scroll-mt-6">
+      <article className="mx-auto w-full max-w-3xl px-6 py-6 sm:py-8">
         <nav className="text-sm text-zinc-500">
           <Link href="/market-data" className="hover:text-zinc-700 dark:hover:text-zinc-300">
             ← Market Data
@@ -99,7 +102,7 @@ export default function ReferencePriceChangesPage() {
             <strong className="text-black dark:text-zinc-50">{nf(s.coverage.products)}</strong> sampled product
             records moved <strong className="text-black dark:text-zinc-50">{signed(s.overall.median)}</strong>.
           </p>
-          <p className="mt-2 rounded-lg border border-zinc-200 bg-white p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+          <p className="mt-2 rounded-lg border border-zinc-200 bg-white p-3 text-base leading-relaxed text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
             <strong className="text-black dark:text-zinc-50">How to read that figure.</strong> It is a{" "}
             <em>median of medians</em>: for each product record we take the middle value of its condition and
             printing variants, then the middle value across all {nf(s.coverage.products)} products. It is{" "}
@@ -155,7 +158,7 @@ export default function ReferencePriceChangesPage() {
           <h2 id="compare-heading" className="text-xl font-semibold text-black dark:text-zinc-50">
             Product summaries conceal what individual variants did
           </h2>
-          <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
+          <p className="mt-2 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
             Every product is sold in several <strong>variants</strong> — each condition (Near Mint through
             Damaged) in each printing (Normal, Reverse Holofoil, 1st Edition and so on) carries its own price
             and its own history. Our {nf(s.coverage.products)} product records hold{" "}
@@ -219,7 +222,7 @@ export default function ReferencePriceChangesPage() {
             </table>
           </ScrollableTable>
 
-          <p className="mt-4 text-sm text-zinc-700 dark:text-zinc-300">
+          <p className="mt-4 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
             {s.overall.down}% of product medians fell, against <strong className="text-black dark:text-zinc-50">{s.pooled.down}%</strong>{" "}
             of individual variants. The variant-level view preserves differences that product summaries
             conceal. To assess a particular copy, check its exact condition-and-printing reference. Both
@@ -252,7 +255,7 @@ export default function ReferencePriceChangesPage() {
             </figure>
 
             <div className="min-w-0 flex-1">
-              <p className="text-sm text-zinc-700 dark:text-zinc-300">
+              <p className="text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
                 {s.example.name} finished the window with a product median of{" "}
                 <strong className="text-black dark:text-zinc-50">{signed(s.example.median)}</strong> — while{" "}
                 <strong className="text-black dark:text-zinc-50">
@@ -294,7 +297,7 @@ export default function ReferencePriceChangesPage() {
                   </tbody>
                 </table>
               </ScrollableTable>
-              <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+              <p className="mt-3 text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
                 The single figure &ldquo;{signed(s.example.median)} for {s.example.name}&rdquo; is a
                 product-level summary. It is not the movement of any one row above: a 1st Edition Near Mint
                 reference rose {signed(s.example.rows.find((r) => r.printing === "1st Edition" && r.condition === "Near Mint").changePct)}{" "}
@@ -340,7 +343,7 @@ export default function ReferencePriceChangesPage() {
               </tbody>
             </table>
           </ScrollableTable>
-          <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-3 text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
             Each group holds exactly 50 product records because we allocated them equally on purpose. The
             groups are not sized to reflect how many cards exist in each era, so the overall figure describes
             this sample, not the hobby.
@@ -354,7 +357,7 @@ export default function ReferencePriceChangesPage() {
           </h2>
 
           <h3 className="mt-4 text-sm font-semibold text-black dark:text-zinc-50">Source</h3>
-          <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
+          <p className="mt-1 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
             Market data provided by <span className="font-medium">{s.source.provider}</span>. These are{" "}
             <strong>reference-price observations</strong> — a provider estimate of a variant&apos;s market
             price — <strong>not</strong> records of individual completed sales. The provider documents its
@@ -364,7 +367,7 @@ export default function ReferencePriceChangesPage() {
           </p>
 
           <h3 className="mt-5 text-sm font-semibold text-black dark:text-zinc-50">Sampling</h3>
-          <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
+          <p className="mt-1 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
             {s.sampling.pilotRetained} deliberately selected pilot records were retained from earlier
             feasibility work, then {s.sampling.seededAdded} further records were selected by seeded
             deterministic shuffle — {s.sampling.addedPerGroup} per group — giving{" "}
@@ -375,7 +378,7 @@ export default function ReferencePriceChangesPage() {
           </p>
 
           <h3 className="mt-5 text-sm font-semibold text-black dark:text-zinc-50">What the sample contains</h3>
-          <ul className="mt-1 space-y-2 text-sm text-zinc-700 dark:text-zinc-300">
+          <ul className="mt-1 space-y-2 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
             {s.eraComposition.map((e) => (
               <li key={e.group}>
                 <strong className="text-black dark:text-zinc-50">{e.label}</strong> — {e.products} sampled
@@ -386,7 +389,7 @@ export default function ReferencePriceChangesPage() {
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-2 text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
             Promos and gallery subsets were <strong>not</strong> excluded. Eras outside these three patterns
             are absent entirely: e-Card (Expedition, Aquapolis, Skyridge), Diamond &amp; Pearl, Platinum,
             HeartGold SoulSilver, Black &amp; White, XY, Sun &amp; Moon, Legendary Collection, and
@@ -394,7 +397,7 @@ export default function ReferencePriceChangesPage() {
           </p>
 
           <h3 className="mt-5 text-sm font-semibold text-black dark:text-zinc-50">Dates</h3>
-          <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
+          <p className="mt-1 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
             <time dateTime={s.window.earlyTarget}>{human(s.window.earlyTarget)}</time> and{" "}
             <time dateTime={s.window.lateTarget}>{human(s.window.lateTarget)}</time> are{" "}
             <strong>target dates</strong>. For each variant we used its observation nearest each target,
@@ -412,7 +415,7 @@ export default function ReferencePriceChangesPage() {
           </p>
 
           <h3 className="mt-5 text-sm font-semibold text-black dark:text-zinc-50">Coverage</h3>
-          <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
+          <p className="mt-1 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
             {nf(s.coverage.totalVariantRecords)} variant records were returned across{" "}
             {nf(s.coverage.products)} product records; {nf(s.coverage.eligibleVariants)} were eligible and{" "}
             {nf(s.coverage.excludedVariants)} were excluded — {s.coverage.exclusions.empty_history} with no
@@ -422,7 +425,7 @@ export default function ReferencePriceChangesPage() {
           </p>
 
           <h3 className="mt-5 text-sm font-semibold text-black dark:text-zinc-50">Identity</h3>
-          <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
+          <p className="mt-1 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
             We ran one check: does the same provider set, collector number, printing and condition resolve to
             more than one record? It found <strong>{s.identity.conflicts}</strong> conflicts. That is a result
             about the check we implemented — it is <strong>not</strong> evidence that every physical printing
@@ -434,7 +437,7 @@ export default function ReferencePriceChangesPage() {
           </p>
 
           <h3 className="mt-5 text-sm font-semibold text-black dark:text-zinc-50">Robustness</h3>
-          <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
+          <p className="mt-1 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
             Excluding the {s.sensitivity.flaggedVariants} variants containing a single day-over-day move of
             50% or more leaves the median at {signed(s.sensitivity.excludingFlagged.median)}. Excluding the{" "}
             {s.sampling.pilotRetained} retained pilot records gives{" "}
@@ -449,7 +452,7 @@ export default function ReferencePriceChangesPage() {
           <h2 id="limits-heading" className="text-xl font-semibold text-black dark:text-zinc-50">
             What this does not tell you
           </h2>
-          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
             <li>
               <strong className="text-black dark:text-zinc-50">Reference estimates, not sales.</strong> No
               completed transaction is evidenced here.
@@ -489,7 +492,7 @@ export default function ReferencePriceChangesPage() {
           <h2 id="cite-heading" className="text-xl font-semibold text-black dark:text-zinc-50">
             Citing this study
           </h2>
-          <p className="mt-3 text-sm text-zinc-700 dark:text-zinc-300">
+          <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
             This is a fixed, dated snapshot — the figures describe the window above and are not refreshed.
             Please identify them as Pokemon Deal Finder&apos;s analysis of {nf(s.coverage.products)} sampled
             product records and include both dates.
@@ -509,7 +512,7 @@ export default function ReferencePriceChangesPage() {
         {/* ---------- related ---------- */}
         <section className="mt-10 border-t border-zinc-200 pt-6 dark:border-zinc-800">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Related</h2>
-          <ul className="mt-2 space-y-1 text-sm">
+          <ul className="mt-2 space-y-1 text-base leading-relaxed">
             <li>
               <Link href="/market-data/pokemon-card-value-distribution" className="text-red-600 hover:underline dark:text-red-500">
                 How Pokemon card values are distributed
@@ -533,6 +536,7 @@ export default function ReferencePriceChangesPage() {
           </ul>
         </section>
       </article>
+      </main>
 
       <SiteFooter />
     </div>

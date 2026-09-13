@@ -55,14 +55,14 @@ export default function PokemonFilterList({ groups }) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Filter Pokemon, e.g. Charizard..."
             aria-label="Filter Pokemon"
-            className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            className="w-full rounded-lg border border-zinc-300 bg-white min-h-11 px-4 py-2.5 pr-14 text-base outline-none focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
           {query && (
             <button
               type="button"
               onClick={() => setQuery("")}
               aria-label="Clear filter"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
             >
               ✕
             </button>
@@ -76,7 +76,7 @@ export default function PokemonFilterList({ groups }) {
                 prev.size === groups.length ? new Set() : new Set(groups.map((g) => g.generation))
               )
             }
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-600 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-300"
+            className="min-h-11 rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-600 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-300"
           >
             {openGens.size === groups.length ? "Collapse all" : "Expand all"}
           </button>
@@ -84,7 +84,7 @@ export default function PokemonFilterList({ groups }) {
       </div>
 
       {query && (
-        <p className="mb-3 text-xs text-zinc-400">
+        <p role="status" className="mb-3 text-sm text-zinc-600 dark:text-zinc-600 dark:text-zinc-400">
           {matchCount} of {totalSpecies} Pokemon match &quot;{query}&quot;
         </p>
       )}
@@ -107,9 +107,9 @@ export default function PokemonFilterList({ groups }) {
                   <span className="flex flex-wrap items-baseline gap-x-2 text-sm font-bold text-black dark:text-zinc-50">
                     Generation {g.generation}
                     {g.region && (
-                      <span className="font-medium text-zinc-500 dark:text-zinc-400">· {g.region}</span>
+                      <span className="font-medium text-zinc-500 dark:text-zinc-600 dark:text-zinc-400">· {g.region}</span>
                     )}
-                    <span className="text-xs font-medium text-zinc-400">
+                    <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
                       {g.species.length} Pokemon{withDeals > 0 ? ` · ${withDeals} with deals` : ""}
                     </span>
                   </span>
@@ -122,7 +122,7 @@ export default function PokemonFilterList({ groups }) {
                     the server HTML for crawlers); `hidden` only collapses
                     it visually. */}
                 <div
-                  className={`${open ? "grid" : "hidden"} grid-cols-2 gap-2 border-t border-zinc-100 px-4 py-3 sm:grid-cols-3 lg:grid-cols-4 dark:border-zinc-900`}
+                  className={`${open ? "grid" : "hidden"} grid-cols-1 min-[480px]:grid-cols-2 gap-2 border-t border-zinc-100 px-4 py-3 sm:grid-cols-3 lg:grid-cols-4 dark:border-zinc-900`}
                 >
                   {g.species.map((s) => (
                       <Link
@@ -130,8 +130,8 @@ export default function PokemonFilterList({ groups }) {
                         href={`/pokemon/${s.slug}`}
                         className={
                           s.hasDeal
-                            ? "flex items-center justify-between gap-2 rounded-lg border border-emerald-500/40 bg-emerald-50 px-3 py-2 text-sm transition-colors hover:border-emerald-500 dark:border-emerald-500/30 dark:bg-emerald-950/30"
-                            : "flex items-center justify-between gap-2 rounded-lg border border-transparent px-3 py-2 text-sm text-zinc-600 transition-colors hover:text-red-600 hover:underline dark:text-zinc-400 dark:hover:text-red-500"
+                            ? "flex min-h-11 items-center justify-between gap-2 rounded-lg border border-emerald-500/40 bg-emerald-50 px-3 py-2 text-sm transition-colors hover:border-emerald-500 dark:border-emerald-500/30 dark:bg-emerald-950/30"
+                            : "flex min-h-11 items-center justify-between gap-2 rounded-lg border border-transparent px-3 py-2 text-sm text-zinc-600 transition-colors hover:text-red-600 hover:underline dark:text-zinc-400 dark:hover:text-red-500"
                         }
                         title={s.hasDeal ? `${s.count} active deal${s.count === 1 ? "" : "s"}` : "Browse every card"}
                       >
@@ -153,17 +153,17 @@ export default function PokemonFilterList({ groups }) {
                               e.currentTarget.style.visibility = "hidden";
                             }}
                           />
-                          <span className="shrink-0 text-[10px] tabular-nums text-zinc-400">
+                          <span className="shrink-0 text-[10px] tabular-nums text-zinc-600 dark:text-zinc-400">
                             {String(s.dex).padStart(4, "0")}
                           </span>
                           <span
-                            className={`truncate ${s.hasDeal ? "font-semibold text-black dark:text-zinc-50" : ""}`}
+                            className={`break-words ${s.hasDeal ? "font-semibold text-black dark:text-zinc-50" : ""}`}
                           >
                             {s.name}
                           </span>
                         </span>
                         {s.hasDeal && (
-                        <span className="shrink-0 rounded-md bg-emerald-600 px-1.5 py-0.5 text-xs font-semibold text-white">
+                        <span className="shrink-0 rounded-md bg-emerald-700 px-1.5 py-0.5 text-xs font-semibold text-white">
                           {s.count}
                         </span>
                       )}

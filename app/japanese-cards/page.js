@@ -1,3 +1,4 @@
+import SkipToContent from "@/components/SkipToContent";
 import { fetchDealsPool, fetchDealsPage, fetchLastScanTime, fetchHubCounts } from "@/lib/deals";
 import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
@@ -34,15 +35,6 @@ export async function generateMetadata({ searchParams }) {
     openGraph: { title, description, url: `https://pokemondealfinder.com${canonical}` },
     twitter: { card: "summary", title, description },
   };
-}
-
-// Same reasoning as app/page.js's identical helpers - kept local rather
-// than shared, since a scan-freshness/shuffle-window pair this small
-// isn't worth a shared module, and each page tunes its own thresholds.
-const SCAN_FRESH_THRESHOLD_MS = 30 * 60 * 1000;
-
-function isRecentlyRefreshed(dateString) {
-  return Date.now() - new Date(dateString).getTime() <= SCAN_FRESH_THRESHOLD_MS;
 }
 
 function shuffled(array) {
@@ -119,11 +111,12 @@ export default async function JapaneseCardsPage({ searchParams }) {
           }),
         ]}
       />
+      <SkipToContent />
       <SiteHeader />
       <RegionRedirect />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-10">
+        <div className="mx-auto max-w-7xl px-6 py-6 sm:py-8">
           <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-900 px-3 py-1 text-xs font-bold text-white dark:bg-white dark:text-black">
             🇯🇵 Japanese Prints
           </span>
@@ -139,13 +132,11 @@ export default async function JapaneseCardsPage({ searchParams }) {
           {lastRefreshed && (
             <p className="mt-4 inline-flex items-center gap-2 text-sm text-zinc-500">
               <span className="h-2 w-2 rounded-full bg-red-500" />
-              {isRecentlyRefreshed(lastRefreshed)
-                ? `Last refreshed ${timeAgo(lastRefreshed)}`
-                : "Live - deals refresh automatically"}
+              {`Last refreshed ${timeAgo(lastRefreshed)}`}
             </p>
           )}
 
-          <div className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+          <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
             <FilterBar
               params={params}
               country={country}
@@ -160,8 +151,8 @@ export default async function JapaneseCardsPage({ searchParams }) {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
-        <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-zinc-400">
+      <main id="main-content" tabIndex={-1} className="scroll-mt-6 mx-auto w-full max-w-7xl flex-1 px-6 py-6 sm:py-8">
+        <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
           Japanese Card Deals{page > 1 ? ` - Page ${page}` : ""}
         </h2>
 

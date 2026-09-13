@@ -3,6 +3,7 @@ import {DEAL_STATE_FIXTURES} from '@/lib/dev/dealStateFixtures';
 import setRows from './set-rows.json';
 import savedCatalogue from './saved-catalogue.json';
 import {slugifySet} from '@/lib/slugify';
+export {slugifySet};
 import {catalogCardSlug} from '@/lib/cardSlug';
 import {setPriceSnapshot,setSpeciesList} from '@/lib/setSummary';
 import {sealedFixtures} from './sealedFixtures';
@@ -31,9 +32,9 @@ export const fetchRelatedActiveDeals = async () => [];
 export const fetchCardOffers = async id => {if(id!=='fixture-hub')throw Error('UNEXPECTED_FIXTURE_CARD');return {deals:[listingRows[0]],error:null};};
 export const fetchCardRelations = async () => ({sameSpecies:[],sameSet:[]});
 export const fetchCardPriceHistory = async () => null;
-export const fetchSpeciesHubs = async () => ({species:[]});
-export const fetchSets = async () => ({sets:[]});
-export const fetchDealsPage = async () => ({deals:[listingRows[0]],totalPages:1,error:null});
+export const fetchSpeciesHubs = async () => ({species:[{name:'Dragonite',slug:'dragonite',count:3}]});
+export const fetchSets = async () => ({sets:[{set:'Jungle',slug:'jungle',count:3}]});
+export const fetchDealsPage = async (options={}) => ({deals:familyDeals(options),totalPages:1,error:null});
 export const fetchHubCounts = async () => ({});
 export const getFullPriceAnalysis = async id => String(id)==='45120'?{cardNumber:'1/64',raw:{currentPrice:38.26,referenceCondition:'Near Mint',history:[]},graded:[],conditionBreakdown:[],primaryRecentSales:[],rawRecentSales:[],priceUpdatedAt:'2026-09-01'}:null;
 export const emailEnabled = () => false;
@@ -60,3 +61,29 @@ export const fetchSpeciesDealsPage=async()=>({deals:[],totalPages:1,error:null})
 export const fetchSpeciesDealStats=async()=>({dealCards:0});
 export const fetchSpeciesPrints=async()=>({prints:[]});
 export const fetchCardHubs=async()=>({cards:[]});
+
+// R5 family fixtures: historical card identities plus explicitly simulated
+// aggregates/offers. No current production-market accuracy is implied.
+export const fetchCatalogSets=async()=>({sets:Object.entries(setNames).map(([slug,set])=>({slug,set}))});
+export const fetchCardDirectorySummary=async()=>({totalCards:330,pricedCards:300,setCount:3,error:null});
+export const fetchTopCatalogCards=async({limit=24}={})=>({cards:savedCatalogue.Jungle.slice(0,limit).map(c=>({...c,slug:c.catalogSlug,displayName:c.name,species:c.name}))});
+export const fetchCatalogSpecies=async()=>({species:[{species:'Dragonite',slug:'dragonite',count:75},{species:'Cleffa',slug:'cleffa',count:4}]});
+export const fetchLastScanTime=async()=> '2026-09-10T12:00:00Z';
+const japaneseRow={...listingRows[0],id:920001,watchlist_id:'japanese-control',title:'Pikachu 025/165 Japanese Pokemon Card 151 Near Mint',card_name:'Pikachu',card_set:'Pokemon Card 151',card_language:'japanese',card_tcgplayer_id:null,image_verdict:'NO_TRUSTED_IMAGE',image_url:null,display_image_url:null,watchlist:{name:'Pikachu',set:'Pokemon Card 151',language:'japanese',justtcg_tcgplayer_id:null}};
+function familyDeals(options){
+ if(options.maxPrice!=null&&options.maxPrice<2)return [];
+ if(options.language==='japanese')return [japaneseRow];
+ if(options.sets)return []; // Existing release-lineup sparse-state contract.
+ return [options.cardType==='graded'?listingRows[2]:listingRows[0]];
+}
+export const fetchDealsPool=async(options={})=>({data:familyDeals(options),error:null});
+export const fetchSealedDealsPool=async()=>({data:[sealedFixtures[0].deal],error:null});
+export const fetchSealedCatalog=async()=>({groups:[{set:'Celebrations',slug:'celebrations',dealCount:0,products:[
+ {name:'Celebrations Elite Trainer Box',set:'Celebrations',tcgplayerId:'242811',image:sealedFixtures[0].deal.image_url,productType:'Elite Trainer Box',refPrice:100,refCondition:null,deal:null},
+ {name:'Celebrations Booster Pack',set:'Celebrations',productType:'Booster Pack',refPrice:null,deal:null,image:null},
+]}],productCount:2,dealCount:0,error:null});
+export const fetchMarketDataSummary=async()=>({activeDeals:8,activeSealed:1,cardsWithMultipleSellers:2,activeSets:3});
+export const fetchMostListedCards=async()=>({cards:savedCatalogue.Jungle.slice(0,4).map((c,i)=>({...c,id:c.tcgplayerId,slug:c.catalogSlug,count:8-i})),snapshotAt:'2026-09-10T12:00:00Z'});
+export const fetchCatalogComposition=async()=>({pricedCards:100,setCount:3,speciesCount:20,medianReference:3.50,snapshotAt:'2026-09-10T12:00:00Z',error:null,bands:[
+ {key:'under5',label:'Under $5',count:60,pct:60},{key:'5to25',label:'$5 to $25',count:20,pct:20},{key:'25to100',label:'$25 to $100',count:15,pct:15},{key:'over100',label:'$100 or more',count:5,pct:5},
+]});

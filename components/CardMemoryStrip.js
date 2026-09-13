@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import { upgradeCatalogImage } from "@/lib/cardImage";
-import { formatMoney, toViewerCurrency } from "@/lib/money";
+import { formatMoney, toViewerCurrency, hasPrice } from "@/lib/money";
 import { useCurrency } from "@/components/CurrencyProvider";
 import {
   readRecent,
@@ -27,11 +27,15 @@ import {
 // back to showing the native figure.
 function tilePrice(card, fx) {
   const native = card.currency || "USD";
-  if (card.price == null) return null;
+  if (!hasPrice(card.price)) return null;
   if (!fx?.viewer || !fx.rates || fx.viewer === native) {
     return { text: formatMoney(card.price, native), approx: false };
   }
-  const nativeRate = fx.rates[native] || 1;
+  const nativeRate = native === "USD" ? 1 : fx.rates[native];
+  const viewerRate = fx.viewer === "USD" ? 1 : fx.rates[fx.viewer];
+  if (!Number.isFinite(nativeRate) || nativeRate <= 0 || !Number.isFinite(viewerRate) || viewerRate <= 0) {
+    return { text: formatMoney(card.price, native), approx: false };
+  }
   const usd = Number(card.price) / nativeRate;
   return { text: formatMoney(toViewerCurrency(usd, fx.viewer, fx.rates), fx.viewer), approx: true };
 }
@@ -49,7 +53,7 @@ function Tile({ card, onRemove, fx }) {
         }}
         aria-label={`Remove ${card.name || "this card"}`}
         title="Remove"
-        className="absolute -right-1.5 -top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-300 bg-white text-sm font-bold leading-none text-zinc-500 shadow-sm hover:border-red-400 hover:text-red-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:text-red-400"
+        className="absolute -right-1.5 -top-1.5 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-zinc-300 bg-white text-lg font-bold leading-none text-zinc-600 shadow-sm hover:border-red-400 hover:text-red-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:text-red-400"
       >
         ×
       </button>
@@ -63,12 +67,12 @@ function Tile({ card, onRemove, fx }) {
             </div>
           )}
         </div>
-        <span className="line-clamp-1 text-xs font-medium text-zinc-700 group-hover:text-red-600 dark:text-zinc-300">
+        <span className="line-clamp-2 text-sm font-medium text-zinc-800 group-hover:text-red-600 dark:text-zinc-200">
           {card.name}
         </span>
         {price && (
-          <span className="text-xs text-zinc-500">
-            from {price.approx ? "≈ " : ""}
+          <span className="text-xs text-zinc-600 dark:text-zinc-400">
+            Last seen {price.approx ? "≈ " : ""}
             {price.text}
           </span>
         )}
@@ -82,11 +86,11 @@ function Row({ title, cards, onClear, onRemove, fx }) {
   return (
     <div>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">{title}</h2>
+        <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{title}</h2>
         <button
           type="button"
           onClick={onClear}
-          className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/40"
+          className="min-h-11 rounded-md border border-red-200 px-2.5 py-1 text-xs font-bold text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/40"
         >
           Clear all
         </button>
@@ -126,6 +130,7 @@ export default function CardMemoryStrip() {
       className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black"
     >
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">Saved on this device. Prices reflect your last view; check the listing for current price and availability.</p>
         <Row title="Your saved cards" cards={saved} onClear={clearSaved} onRemove={removeSaved} fx={fx} />
         <Row title="Recently viewed" cards={recentOnly} onClear={clearRecent} onRemove={removeRecent} fx={fx} />
       </div>

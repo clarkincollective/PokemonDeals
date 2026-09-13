@@ -1,3 +1,4 @@
+import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
@@ -42,6 +43,12 @@ const RESEARCH = [
   },
 ];
 
+const GUIDE_GROUPS = [
+  { title: "Identify your card", slugs: ["how-to-find-pokemon-card-set-and-number", "vintage-vs-modern-pokemon-cards"] },
+  { title: "Understand its price", slugs: ["how-pokemon-card-prices-work", "raw-vs-graded-pokemon-cards"] },
+  { title: "Check condition and grade", slugs: ["card-condition-grading", "how-to-check-pokemon-card-condition", "pokemon-card-grading-scale"] },
+];
+
 const breadcrumbJsonLd = {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
@@ -69,10 +76,11 @@ export default function GuidesIndexPage() {
     <div className="flex min-h-screen flex-col bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
+      <SkipToContent />
       <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-3xl px-6 py-10">
+        <div className="mx-auto max-w-3xl px-6 py-6 sm:py-8">
           <h1 className="text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
             Guides &amp; Research
           </h1>
@@ -87,33 +95,38 @@ export default function GuidesIndexPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
+      <main id="main-content" tabIndex={-1} className="scroll-mt-6 mx-auto w-full max-w-3xl flex-1 px-6 py-6 sm:py-8">
         <section aria-labelledby="guides-heading">
           <h2
             id="guides-heading"
-            className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400"
+            className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-600 dark:text-zinc-400"
           >
             Guides
           </h2>
-          <ul className="mt-4 flex flex-col gap-4">
-            {GUIDES.map((g) => (
+          {GUIDE_GROUPS.map(group => (
+            <section key={group.title} className="mt-6">
+              <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{group.title}</h3>
+              <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+            {group.slugs.map(slug => GUIDES.find(g => g.slug === slug)).map((g) => (
               <li key={g.slug}>
                 <Link
                   href={`/guides/${g.slug}`}
-                  className="block rounded-lg border border-zinc-200 bg-white p-5 transition-colors hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
+                  className="block h-full rounded-xl border border-zinc-200 bg-white p-5 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600"
                 >
                   <span className="block font-semibold text-black dark:text-zinc-50">{g.title}</span>
-                  <span className="mt-1 block text-sm text-zinc-600 dark:text-zinc-400">{g.blurb}</span>
+                  <span className="mt-2 block text-base leading-relaxed text-zinc-600 dark:text-zinc-400">{g.blurb}</span>
                 </Link>
               </li>
             ))}
-          </ul>
+              </ul>
+            </section>
+          ))}
         </section>
 
         <section aria-labelledby="research-heading" className="mt-12">
           <h2
             id="research-heading"
-            className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400"
+            className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-600 dark:text-zinc-400"
           >
             Research
           </h2>

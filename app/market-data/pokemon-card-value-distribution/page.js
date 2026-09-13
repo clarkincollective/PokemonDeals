@@ -1,3 +1,4 @@
+import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import { fetchCatalogComposition } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
@@ -50,8 +51,9 @@ export default async function ValueDistributionPage() {
             collectionPage({ name: TITLE, description: DESCRIPTION, url: PATH }),
           ]}
         />
-        <SiteHeader />
-        <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
+        <SkipToContent />
+      <SiteHeader />
+        <main id="main-content" tabIndex={-1} className="scroll-mt-6 mx-auto w-full max-w-3xl flex-1 px-6 py-16">
           <h1 className="text-3xl font-bold tracking-tight text-black dark:text-zinc-50">{TITLE}</h1>
           <p className="mt-4 text-zinc-600 dark:text-zinc-400">
             The catalogue snapshot is being refreshed. Please check back shortly, or see the{" "}
@@ -107,9 +109,11 @@ export default async function ValueDistributionPage() {
           }),
         ]}
       />
+      <SkipToContent />
       <SiteHeader />
 
-      <article className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
+      <main id="main-content" tabIndex={-1} className="w-full flex-1 scroll-mt-6">
+      <article className="mx-auto w-full max-w-3xl px-6 py-6 sm:py-8">
         <nav className="text-sm text-zinc-500">
           <Link href="/market-data" className="hover:text-zinc-700 dark:hover:text-zinc-300">
             ← Market Data
@@ -128,12 +132,12 @@ export default async function ValueDistributionPage() {
             <strong className="text-black dark:text-zinc-50">under $5</strong>.
           </p>
           {snapshotHuman && (
-            <p className="mt-2 text-sm text-zinc-500">
+            <p className="mt-2 text-base leading-relaxed text-zinc-500">
               Catalogue snapshot: <time dateTime={snapshotDay}>{snapshotHuman}</time>. Raw, ungraded
               market references only.
             </p>
           )}
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-base leading-relaxed text-zinc-500">
             Analysed population: individually-catalogued, priced, English, non-specialty Pokemon cards
             with a usable raw market reference.
           </p>
@@ -144,7 +148,7 @@ export default async function ValueDistributionPage() {
           <h2 id="chart-heading" className="text-xl font-semibold text-black dark:text-zinc-50">
             Pokemon card value distribution
           </h2>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1 text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
             Share of the {nf(comp.pricedCards)} analysed cards in each raw-market-reference band.
           </p>
 
@@ -212,12 +216,12 @@ export default async function ValueDistributionPage() {
           <h2 id="findings-heading" className="text-xl font-semibold text-black dark:text-zinc-50">
             Key findings
           </h2>
-          <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
+          <ul className="mt-3 list-disc space-y-1.5 pl-5 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
             {findings.map((f) => (
               <li key={f}>{f}</li>
             ))}
           </ul>
-          <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-4 text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
             The distribution shows how unusual high-value cards are within the priced catalogue we
             track: the large majority of individually-catalogued, priced cards carry a raw reference
             of only a few dollars, while cards at $100 or more are a small minority - even though
@@ -230,7 +234,7 @@ export default async function ValueDistributionPage() {
           <h2 id="defs-heading" className="text-xl font-semibold text-black dark:text-zinc-50">
             What these numbers are (and are not)
           </h2>
-          <ul className="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300">
+          <ul className="mt-3 space-y-2 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
             <li>
               <strong className="text-black dark:text-zinc-50">Raw market reference</strong> is an
               estimate of recent ungraded sold value. It is <strong>not</strong> a PSA 10 / BGS / CGC
@@ -255,7 +259,7 @@ export default async function ValueDistributionPage() {
           <h2 id="method-heading" className="text-xl font-semibold text-black dark:text-zinc-50">
             How this analysis was calculated
           </h2>
-          <p className="mt-3 text-sm text-zinc-700 dark:text-zinc-300">
+          <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
             We scan the English cards in our catalogue and keep each one that is an individually
             identifiable card with an image, a stable catalogue id, and a usable (non-placeholder)
             raw market reference. From that set we exclude specialty formats (oversized / Jumbo and
@@ -277,7 +281,7 @@ export default async function ValueDistributionPage() {
           <h2 id="cite-heading" className="text-xl font-semibold text-black dark:text-zinc-50">
             Citing this analysis
           </h2>
-          <p className="mt-3 text-sm text-zinc-700 dark:text-zinc-300">
+          <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
             If you reference these figures, please identify them as Pokemon Deal Finder&apos;s analysis
             of the priced English non-specialty cards in its tracked catalogue, and include the
             snapshot date. A link back to this page is appreciated but not required.
@@ -290,7 +294,7 @@ export default async function ValueDistributionPage() {
         {/* --- related --- */}
         <section className="mt-10 border-t border-zinc-200 pt-6 dark:border-zinc-800">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Related</h2>
-          <ul className="mt-2 space-y-1 text-sm">
+          <ul className="mt-2 space-y-1 text-base leading-relaxed">
             <li>
               <Link href="/market-data/most-expensive-cards" className="text-red-600 hover:underline dark:text-red-500">
                 Most valuable cards by raw market value
@@ -314,6 +318,7 @@ export default async function ValueDistributionPage() {
           </ul>
         </section>
       </article>
+      </main>
 
       <SiteFooter />
     </div>

@@ -1,3 +1,4 @@
+import SkipToContent from "@/components/SkipToContent";
 import { fetchSpeciesHubs } from "@/lib/deals";
 import { SPECIES_WITH_GENERATION } from "@/lib/pokemonSpecies";
 import SiteHeader from "@/components/SiteHeader";
@@ -42,9 +43,8 @@ export default async function PokemonIndexPage() {
   const { species: hubs, error } = await fetchSpeciesHubs({ language: "english" });
 
   // name -> { slug, count } for the species that actually have an active
-  // deal (SPECIES_MIN_LISTINGS+). These are the only ones that link to a
-  // real /pokemon/[slug] page - the rest are shown for orientation but
-  // aren't links (their slug page would 404 by design).
+  // deal (SPECIES_MIN_LISTINGS+). Other species still link to their
+  // catalogue fallback; only these carry a live listing-count badge.
   const dealBySpecies = new Map();
   for (const h of hubs) dealBySpecies.set(h.name, { slug: h.slug, count: h.count });
 
@@ -96,25 +96,24 @@ export default async function PokemonIndexPage() {
           linkedItems.length > 0 ? itemList(linkedItems) : null,
         ]}
       />
+      <SkipToContent />
       <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-10">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Browse</p>
+        <div className="mx-auto max-w-7xl px-6 py-6 sm:py-8">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-600 dark:text-zinc-400">Browse</p>
           <h1 className="mt-1 max-w-2xl text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl">
             {H1}
           </h1>
           <p className="mt-3 max-w-2xl text-base text-zinc-600 dark:text-zinc-400">
-            Every Pokemon, in National Pokedex order, grouped into collapsible generations.{" "}
-            {totalWithDeals > 0 ? `${totalWithDeals} currently have` : "None currently have"} an active
-            below-market deal — those are highlighted green with a listing count. Open any Pokemon to
-            see every card of it, with a reference price and a live eBay search whether or not there
-            is a deal right now. Use the filter to jump to any name.
+            Find a Pokemon by name or generation, then explore its card catalogue and available references.{" "}
+            {totalWithDeals > 0 ? `${totalWithDeals} currently have` : "None currently have"} active deals,
+            highlighted in green with listing counts.
           </p>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
+      <main id="main-content" tabIndex={-1} className="scroll-mt-6 mx-auto w-full max-w-7xl flex-1 px-6 py-6 sm:py-8">
         {error && (
           <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deal data: {error}</p>
         )}

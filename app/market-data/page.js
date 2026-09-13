@@ -1,3 +1,4 @@
+import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import { fetchMarketDataSummary, fetchLastScanTime, fetchCatalogComposition } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
@@ -76,10 +77,11 @@ export default async function MarketDataPage() {
           itemList(pages.map((p) => ({ name: p.title, url: p.href }))),
         ]}
       />
+      <SkipToContent />
       <SiteHeader />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-5xl px-6 py-10">
+        <div className="mx-auto max-w-5xl px-6 py-6 sm:py-8">
           <h1 className="max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
             Pokemon Card Market Data
           </h1>
@@ -104,13 +106,13 @@ export default async function MarketDataPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
+      <main id="main-content" tabIndex={-1} className="scroll-mt-6 mx-auto w-full max-w-5xl flex-1 px-6 py-6 sm:py-8">
         {comp && (
           <section className="mb-10 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-lg font-semibold text-black dark:text-zinc-50">
               What a tracked Pokemon card is actually worth
             </h2>
-            <p className="mt-2 max-w-3xl text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="mt-2 max-w-3xl text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
               Of the{" "}
               <strong className="text-black dark:text-zinc-50">
                 {comp.pricedCards.toLocaleString()}
@@ -134,7 +136,7 @@ export default async function MarketDataPage() {
               ))}
             </dl>
 
-            <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="mt-4 text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
               Median raw market reference:{" "}
               <strong className="text-black dark:text-zinc-50">
                 ${comp.medianReference.toLocaleString(undefined, { minimumFractionDigits: 2 })} USD
@@ -174,7 +176,7 @@ export default async function MarketDataPage() {
               className="rounded-xl border border-zinc-200 bg-white p-5 shadow-card transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950"
             >
               <h2 className="font-semibold text-black dark:text-zinc-50">{p.title} →</h2>
-              <p className="mt-1 text-sm text-zinc-500">{p.description}</p>
+              <p className="mt-1 text-base leading-relaxed text-zinc-500">{p.description}</p>
             </Link>
           ))}
         </div>
