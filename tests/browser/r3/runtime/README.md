@@ -28,29 +28,27 @@ visited. The actual click handler reaches stub transports, not SDKs/ingestion.
 
 Boundaries: Google font setup is replaced by previously compiled offline CSS;
 Next Script and analytics transports are replaced; Image optimisation is disabled;
-listing static params are fixture-only. Source hashes and declared transforms
+listing route is copied unchanged with its approved dynamic rendering. Source hashes and declared transforms
 are written to the manifest. Real Next HTML, hydration, metadata-file loader,
 client navigation, route announcer, cache wrappers and shared components remain.
 This does not prove production deployment, provider integration, crawler
 ingestion, Safari/iOS, real screen readers or unrelated routes.
 
-Known installed-Next finding: an uncached `permanentRedirect` emits two identical
+Known installed-Next finding: an uncached ISR `permanentRedirect` emits two identical
 Location headers. It reproduces in the real listing route and a framework-only
 control. Cached responses have one. Node's redirect follower combines the cold
-values into an invalid card path and gets 404. The verifier deliberately fails
-this control; do not describe a warm-route/browser pass as full runtime acceptance.
-No production caching/dependency workaround is included.
+values into an invalid card path and gets 404. The main verifier retains this
+framework-only control separately from actual route acceptance. The approved
+listing route omits static generation to avoid that path; data caches remain.
 
 `node scripts/diagnoseR3Redirect.mjs` compares fresh raw HTTP, Node fetch and
 Chrome responses using the running ordinary fixture. It deliberately reports
 the header/Node failure even when Chrome reaches the right destination.
 
-An opt-in **test-only remedy probe** is available: with the server stopped,
-generate using `node scripts/buildR3NextFixture.mjs --probe-dynamic-listings`,
-then build/start with the same runner and run `node scripts/probeR3DynamicRedirect.mjs`.
-This omits `generateStaticParams` only in the generated listing-route copy.
-It demonstrates correct redirects but lost full-page caching on the live route;
-it is not an approved production workaround. Original data-cache source remains,
-but provider counts/billing and delegated category rendering are not measured.
-Stop the server, generate without the flag and rebuild to restore the ordinary
-fixture. Probe evidence is saved separately so earlier review records survive.
+The owner approved the measured cache trade-off after the opt-in prototype.
+The generator now copies the actual dynamic listing route without transforming
+static params; the old probe flag is retired. Run
+`node scripts/probeR3DynamicRedirect.mjs` to check single redirects and no-store
+page responses in this default fixture. Original data-cache code remains, but
+equivalent provider counts/billing are not claimed. Main verification also
+exercises one real category and its sealed redirect through fixture providers.

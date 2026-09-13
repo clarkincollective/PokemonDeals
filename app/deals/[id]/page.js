@@ -42,7 +42,7 @@ import AffiliateLink from "@/components/AffiliateLink";
 import RelatedDeals from "@/components/RelatedDeals";
 import SocialLandingBadge from "@/components/SocialLandingBadge";
 import ShareButton from "@/components/ShareButton";
-import { DEAL_CATEGORIES, DEAL_CATEGORY_SLUGS } from "@/lib/dealCategories";
+import { DEAL_CATEGORIES } from "@/lib/dealCategories";
 import DealCategoryPage, { dealCategoryMetadata } from "@/components/DealCategoryPage";
 
 const SITE_URL = "https://pokemondealfinder.com";
@@ -60,20 +60,13 @@ const SITE_URL = "https://pokemondealfinder.com";
 // fetches directly, like this, is what actually works - verified live
 // (see the deal fetch's 60s window below and price analysis's 300s one).
 //
-// Since the currency/region work moved fully client-side, this route
-// reads no request-time APIs (no headers/cookies/searchParams), so an
-// empty generateStaticParams + a revalidate window is enough to flip it
-// from fully-dynamic (Cache-Control: no-store, X-Vercel-Cache: MISS on
-// every hit) to ISR: rendered on demand, then served from the edge cache
-// and revalidated in the background. 5,000 deal pages churn too fast to
-// prerender at build, so the list is empty and every page is on-demand.
+// Owner-approved R3 compatibility workaround: omit generateStaticParams.
+// Next 16.3.3 duplicates Location on cold ISR redirects; rendering this
+// shared listing/category route on request avoids that replay path.
+// Full-page caching and category prerendering are intentionally forfeited.
+// The 60s deal and 300s price data caches below remain in place; currency
+// and region still resolve on the client. Revisit after an upstream fix.
 export const revalidate = 600;
-export async function generateStaticParams() {
-  // /deals/<category>/ landing routes share this [id] segment (a real
-  // deal id is always numeric, a category slug never is). Prerender the
-  // category pages; leave the ~5,000 individual deal pages on-demand.
-  return DEAL_CATEGORY_SLUGS.map((id) => ({ id }));
-}
 
 const loadDealUncached = async (id) => {
   // Prefer the flat resolved card_* columns (a feed-discovered deal has no

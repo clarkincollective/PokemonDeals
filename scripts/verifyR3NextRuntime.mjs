@@ -10,10 +10,15 @@ const checks=[],responses=[],errors=[],blocked=[],excluded=[],failedRequests=[],
 const check=(name,pass,detail)=>checks.push({name,pass:Boolean(pass),detail});
 const rates=await(await fetch(BASE+'/api/rates')).json();
 check('fixture rates production shape',rates.viewer==='AUD'&&rates.marketplace==='EBAY_AU'&&rates.geo_country==='AU',rates);
-// An uncached framework-only control must not be hidden by a warm-route pass.
+// Preserve the upstream defect as a diagnostic control, separate from the
+// approved dynamic production-route acceptance checks below.
 const cold=await fetch(BASE+'/redirect-control/check-'+Date.now(),{redirect:'manual'});
-check('cold Next redirect has one correct Location',cold.status===308&&cold.headers.get('location')==='/cards/fixture-hub',{status:cold.status,location:cold.headers.get('location'),cache:cold.headers.get('x-nextjs-cache')});
+const frameworkControl={status:cold.status,location:cold.headers.get('location'),cache:cold.headers.get('x-nextjs-cache'),singleLocation:cold.headers.get('location')==='/cards/fixture-hub'};
 await cold.arrayBuffer();
+for(const route of ['/deals/vintage','/deals/sealed']){
+ const r=await fetch(BASE+route,{redirect:'manual'}),html=await r.text();
+ check(route+' category contract',route.endsWith('sealed')?r.status===308&&r.headers.get('location')==='/sealed-deals':r.status===200&&html.includes('/deals/900001')&&html.includes('rel="canonical"'),{status:r.status,location:r.headers.get('location'),cacheControl:r.headers.get('cache-control')});
+}
 const routes=['/deals/900001','/deals/900004','/deals/900005','/deals/900002','/deals/900006','/deals/900020','/deals/900021','/cards/fixture-hub','/cards/fixture-reference','/cards/fixture-no-reference'];
 for(const route of [...routes,'/deals/900022','/deals/999999','/cards/fixture-missing']){
  const r=await fetch(BASE+route,{redirect:'manual'}),html=await r.text();
@@ -98,5 +103,5 @@ try{
  check('classified HTTP errors',httpErrors.every(e=>e.status===404&&excluded.some(x=>x.url===e.url)),httpErrors);
  check('classified failed requests',failedRequests.every(e=>e.canceled&&e.url?.startsWith(BASE+'/')),failedRequests);
  await raw('Browser.close');
-}finally{ws?.close();chrome.kill();fs.writeFileSync(path.join(out,'record.json'),JSON.stringify({checks,responses,errors,blocked,excluded,failedRequests,httpErrors},null,2));}
+}finally{ws?.close();chrome.kill();fs.writeFileSync(path.join(out,'record.json'),JSON.stringify({checks,frameworkControl,responses,errors,blocked,excluded,failedRequests,httpErrors},null,2));}
 const failures=checks.filter(c=>!c.pass);console.log(JSON.stringify({checks:checks.length,failures,errors,blocked},null,2));if(failures.length)process.exitCode=1;

@@ -6,8 +6,7 @@ import {createHash} from 'node:crypto';
 const root=resolve(import.meta.dirname,'..');
 const out=resolve(root,'.next/r3-runtime');
 const fixtures=resolve(root,'tests/browser/r3/runtime');
-const dynamicListingProbe=process.argv.includes('--probe-dynamic-listings');
-if(process.argv.slice(2).some(arg=>arg!=='--probe-dynamic-listings'))throw Error('Unknown fixture option');
+if(process.argv.length>2)throw Error('No fixture options: approved dynamic listing source is now the default');
 const write=(name,text)=>{const path=resolve(out,name);mkdirSync(dirname(path),{recursive:true});writeFileSync(path,text);};
 const sources=[];
 const configSource=readFileSync(resolve(root,'next.config.mjs'),'utf8').replace('export default nextConfig;','');
@@ -17,15 +16,8 @@ layout=layout.replace('import { Geist, Geist_Mono } from "next/font/google";',''
 layout=layout.replace(/const geistSans = Geist\([\s\S]*?\);/,'const geistSans = { variable: "" };').replace(/const geistMono = Geist_Mono\([\s\S]*?\);/,'const geistMono = { variable: "" };');
 if(layout.includes('next/font')||layout.includes('Geist('))throw Error('UNRECOGNISED_FONT_BOUNDARY');
 write('app/layout.js',layout);
-let listing=source('app/deals/[id]/page.js');
-const old='return DEAL_CATEGORY_SLUGS.map((id) => ({ id }));';
-if(!listing.includes(old))throw Error('UNRECOGNISED_STATIC_PARAMS');
-listing=listing.replace(old,'return [900001,900004,900005,900002,900006,900020,900021].map(id => ({id:String(id)}));');
-if(dynamicListingProbe){
- const declaration=/export async function generateStaticParams\(\) \{[\s\S]*?\n\}/;
- if(!declaration.test(listing))throw Error('UNRECOGNISED_STATIC_PARAMS_DECLARATION');
- listing=listing.replace(declaration,'// TEST-ONLY PROBE: no page prerendering; original data-cache wrappers retained.');
-}
+const listing=source('app/deals/[id]/page.js');
+if(/export\s+(?:async\s+)?function\s+generateStaticParams/.test(listing))throw Error('Listing static generation would reintroduce the cold-redirect bug');
 write('app/deals/[id]/page.js',listing);
 write('app/cards/[slug]/page.js',source('app/cards/[slug]/page.js'));
 write('app/opengraph-image.js',source('app/opengraph-image.js'));
@@ -40,7 +32,6 @@ write('app/api/deals-page/route.js',`import {listingRows} from ${JSON.stringify(
 write('package.json',JSON.stringify({name:'r3-next-runtime-fixture',private:true},null,2));
 const aliases=Object.fromEntries(['@/lib/deals','@/lib/supabaseAdmin','@/lib/pokemonPriceTracker','@/lib/email'].map(name=>[name+'$',resolve(fixtures,'data.js')]));
 for(const name of ['@/lib/analytics/client','@vercel/analytics','@vercel/analytics/next','@vercel/speed-insights/next','next/script'])aliases[name+'$']=resolve(fixtures,'transports.js');
-aliases['@/components/DealCategoryPage$']=resolve(fixtures,'category.js');
 write('next.config.mjs',`${configSource}
 const base=nextConfig;
 import fs from 'node:fs';
@@ -53,5 +44,5 @@ export default {...base,devIndicators:false,images:{...base.images,unoptimized:t
  fs.writeFileSync(${JSON.stringify(resolve(out,'module-'))}+compiler.name+'.json',JSON.stringify(resources,null,2));
  });});}});return config;}};
 `);
-write('manifest.json',JSON.stringify({sources,dynamicListingProbe,boundaries:['Fixture provider/database modules; compile-time forbidden-module assertion','Node preload denies external networking before Next/worker startup','Root Google font transform replaced with existing offline Geist CSS','Next Script / analytics transports stubbed; email disabled','Next Image component retained but optimisation disabled to prevent server image fetches',dynamicListingProbe?'TEST-ONLY PROBE: listing generateStaticParams removed; data caches retained; production source unchanged':'Listing build params restricted to fixture IDs; card runtime params unchanged','Actual Next metadata-file loader, routes, React cache and CurrencyProvider retained'],project:out},null,2));
+write('manifest.json',JSON.stringify({sources,listingRendering:'dynamic',boundaries:['Fixture provider/database modules; compile-time forbidden-module assertion','Node preload denies external networking before Next/worker startup','Root Google font transform replaced with existing offline Geist CSS','Next Script / analytics transports stubbed; email disabled','Next Image component retained but optimisation disabled to prevent server image fetches','Actual approved dynamic listing route copied unchanged; card runtime params unchanged','Actual Next metadata-file loader, routes, React cache and CurrencyProvider retained'],project:out},null,2));
 console.log(out);

@@ -25,5 +25,7 @@ export const fetchCardRelations = async () => ({sameSpecies:[],sameSet:[]});
 export const fetchCardPriceHistory = async () => null;
 export const fetchSpeciesHubs = async () => ({species:[]});
 export const fetchSets = async () => ({sets:[]});
+export const fetchDealsPage = async () => ({deals:[listingRows[0]],totalPages:1,error:null});
+export const fetchHubCounts = async () => ({});
 export const getFullPriceAnalysis = async id => String(id)==='45120'?{cardNumber:'1/64',raw:{currentPrice:38.26,referenceCondition:'Near Mint',history:[]},graded:[],conditionBreakdown:[],primaryRecentSales:[],rawRecentSales:[],priceUpdatedAt:'2026-09-01'}:null;
 export const emailEnabled = () => false;
