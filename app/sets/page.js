@@ -56,8 +56,8 @@ export default async function SetsIndexPage() {
             Pokemon Card Sets: Checklists, Prices &amp; Values
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
-            Find your set, explore qualifying deals and keep track of the cards you need.
-            Every set opens its full card checklist and available price references.
+            Find a set for qualifying deals, card lists and price references.
+            Use collection checklists to track the cards you need where available.
           </p>
         </div>
       </header>

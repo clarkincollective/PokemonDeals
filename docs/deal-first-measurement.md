@@ -210,3 +210,13 @@ data without specific consent. Keep findings separate from automated checks.
 Prioritize any wrong-item, shipping or auction misunderstanding before aesthetic
 preferences. Record a keep/revise decision, its evidence and limits in R7 of the
 existing ledger. A passing browser test is not a participant's comprehension.
+
+## 7. Local browsing-hierarchy follow-up
+
+The post-release directory, set/species, sealed and Latest Releases corrections
+remain local. Existing affiliate surfaces and event names are retained; no new
+deals-mode event is introduced. Earlier visible offers, new directory shortcuts
+and the relocated `latest_*` sections change exposure if later deployed. Record
+that release separately before comparing placement-level counts; unchanged event
+names do not establish unchanged visitor populations. These local captures are
+not observations of production behavior.

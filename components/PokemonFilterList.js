@@ -48,7 +48,7 @@ export default function PokemonFilterList({ groups }) {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap gap-2" aria-label="Pokemon selection">
+      <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Pokemon selection">
         {[false, true].map((only) => (
           <button key={String(only)} type="button" aria-pressed={dealsOnly === only} onClick={() => setDealsOnly(only)} className={`min-h-11 rounded-lg border px-4 py-2 text-sm font-semibold ${dealsOnly === only ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900" : "border-zinc-300 bg-white text-zinc-700 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300"}`}>
             {only ? "With deals" : "All Pokemon"}
