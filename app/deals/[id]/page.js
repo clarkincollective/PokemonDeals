@@ -15,7 +15,7 @@ import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
-import { currencyForDeal, refInListingCurrency, dealTotalUsd, auctionDisplayParts, formatMoney } from "@/lib/money";
+import { currencyForDeal, refInListingCurrency, dealTotalUsd, auctionDisplayParts, formatMoney, hasPrice } from "@/lib/money";
 import { offerShipping } from "@/lib/offerPresentation";
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
@@ -137,6 +137,13 @@ export async function generateMetadata({ params }) {
   const cardName = gradeLabel ? `${baseName} ${normalizePublicText(gradeLabel)}` : baseName;
   const metadataIsAuction = deal.listing_type === "AUCTION";
   const cardSet = deal.watchlist?.set;
+  if (!hasPrice(deal.total_price)) return {
+    title: `${cardName} - eBay ${metadataIsAuction ? "auction" : "listing"}`,
+    description: `${cardName} listed on eBay. Price currently unavailable; check the listing for current price and shipping.`,
+    alternates: { canonical: `/deals/${id}` },
+    robots: { index: false, follow: true },
+  };
+
   // 17C.7: a plain listing (no evidenced reference for this exact product
   // and condition) carries no discount claim in its title, description or
   // link preview, and is not indexed.
@@ -445,7 +452,7 @@ export default async function DealDetailPage({ params }) {
   // Product structured data, share text) need an evidenced reference.
   const presentation = listingPresentation(deal);
   const shipping = offerShipping(deal);
-  const showSavings = presentation.savings === "trusted" && shipping.savingClaim !== "none";
+  const showSavings = hasPrice(deal.total_price) && presentation.savings === "trusted" && shipping.savingClaim !== "none";
   const isAuction = deal.listing_type === "AUCTION";
   // What the freshness line may claim: an exact availability confirmation
   // (only when the latest eBay evidence was a successful active verdict -
@@ -556,7 +563,7 @@ export default async function DealDetailPage({ params }) {
     <div className="min-h-screen bg-paper">
       {/* 17C.7: a plain listing makes no price/availability claim in
           structured data either - only the breadcrumb below. */}
-      {showSavings && (
+      {showSavings && (!isAuction || auctionParts) && (
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
@@ -674,7 +681,9 @@ export default async function DealDetailPage({ params }) {
             )}
 
             <div className="mt-4">
-              {isAuction ? (
+              {!hasPrice(total) ? (
+                <p className="text-lg font-semibold text-zinc-700 dark:text-zinc-300">Price unavailable - check the listing on eBay.</p>
+              ) : isAuction ? (
                 // P0 auction-price-integrity: headline = CURRENT BID, with
                 // shipping and the estimated landed total on their own
                 // lines. The "% below market" / market reference stay

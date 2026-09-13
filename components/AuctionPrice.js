@@ -1,5 +1,5 @@
 import Price from "@/components/Price";
-import { auctionDisplayParts, currencyForDeal, dealTotalUsd } from "@/lib/money";
+import { auctionDisplayParts, currencyForDeal, dealTotalUsd, hasPrice } from "@/lib/money";
 import { offerShipping } from "@/lib/offerPresentation";
 
 // P0 auction-price-integrity: an auction's headline "current listing
@@ -52,6 +52,12 @@ export default function AuctionPrice({
     // contract, never as "the bid"). Currency for the shipping line comes
     // from the row; the amounts are the stored native figures.
     const total = Number(deal.total_price);
+    if (!hasPrice(total)) return (
+      <div className={className}>
+        <p className="text-sm font-semibold">Price unavailable</p>
+        <p className="text-xs text-zinc-500">Check the current bid and shipping on eBay.</p>
+      </div>
+    );
     const usdTotal = dealTotalUsd(deal);
     const currency = currencyForDeal(deal);
     const shipUsd = ship.state === "confirmed" && usdTotal > 0 && total > 0 ? ship.amount * (usdTotal / total) : null;

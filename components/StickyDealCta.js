@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AffiliateLink from "@/components/AffiliateLink";
+import { hasPrice } from "@/lib/money";
 import Price from "@/components/Price";
 
 // A price + buy CTA pinned to the bottom of the viewport on long deal
@@ -36,11 +37,11 @@ export default function StickyDealCta({ href, priceUsd, priceNative, priceLabel,
               {priceLabel}
             </span>
           )}
-          <Price
+          {hasPrice(priceNative?.amount) ? <Price
             usd={priceUsd}
             native={priceNative}
             className="truncate text-lg font-bold text-black dark:text-zinc-50"
-          />
+          /> : <span className="text-sm font-semibold">Price unavailable</span>}
           {priceNote && <span className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{priceNote}</span>}
         </span>
         <AffiliateLink

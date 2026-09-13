@@ -72,7 +72,7 @@ try{
   await check('hidden sticky refuses focus',`(()=>{const a=document.querySelector('a[href*="customid=deal_page"]');a.focus();return a.closest('[inert]')!==null&&document.activeElement!==a;})()`);
   for(const width of [390,320]){
     await send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:false});
-    for(const [name,props] of Object.entries({unknown:{priceLabel:'Recorded auction price',priceNote:'Shipping breakdown not recorded'},unconfirmed:{priceLabel:'Listing price',priceNote:'Shipping not confirmed'},large:{priceLabel:'Listing total',priceNote:'Includes recorded shipping',priceNative:{amount:123456.78,currency:'AUD'}}})){
+    for(const [name,props] of Object.entries({unavailable:{priceLabel:'Recorded price',priceNote:'Check the listing on eBay',priceNative:{amount:null,currency:'USD'},priceUsd:null},unknown:{priceLabel:'Recorded auction price',priceNote:'Shipping breakdown not recorded'},unconfirmed:{priceLabel:'Listing price',priceNote:'Shipping not confirmed'},large:{priceLabel:'Listing total',priceNote:'Includes recorded shipping',priceNative:{amount:123456.78,currency:'AUD'}}})){
       await ev('window.__renderSticky('+JSON.stringify(props)+');window.scrollTo(0,700)');await sleep(400);
       await check('sticky readable '+name+' '+width,`(()=>{const a=document.querySelector('a[href*="customid=deal_page"]');const bar=a.closest('.fixed');const r=bar.getBoundingClientRect();const p=a.previousElementSibling;return !bar.inert&&r.top>=0&&r.bottom<=innerHeight+1&&a.getBoundingClientRect().height>=44&&p.scrollWidth<=p.clientWidth&&document.documentElement.scrollWidth<=innerWidth;})()`);
       await ev('window.scrollTo(0,document.documentElement.scrollHeight)');await sleep(200);

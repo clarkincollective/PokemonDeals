@@ -24,13 +24,13 @@ const records=[];
 const originalFetch=globalThis.fetch;
 globalThis.fetch=()=>{throw Error('SERVER_NETWORK_FORBIDDEN');};
 try {
-  for (const id of ['bin_compared','bin_shipping_unknown','auction','reference_only','hub_with_offers','graded','bin_plain','non_usd']) {
-    const source=DEAL_STATE_FIXTURES.find(f=>f.id===(['reference_only','hub_with_offers'].includes(id)?'bin_compared':id)).deal;
+  for (const id of ['bin_compared','bin_shipping_unknown','auction','reference_only','hub_with_offers','graded','bin_plain','non_usd','price_unavailable']) {
+    const source=DEAL_STATE_FIXTURES.find(f=>f.id===(['reference_only','hub_with_offers','price_unavailable'].includes(id)?'bin_compared':id)).deal;
     const reference=id==='reference_only';
     const liveHub=id==='hub_with_offers';
     const card={name:'Clefable',set:'Jungle',cardNumber:'1/64',tcgplayerId:'45120',refPrice:30,indexable:true,image:'https://tcgplayer-cdn.tcgplayer.com/product/45120_in_1000x1000.jpg'};
     const {route,substitutes}=loadRoute((reference||liveHub)?'app/cards/[slug]/page.js':'app/deals/[id]/page.js',{
-      deal:{...source,is_active:true},card,renderComponents:'visual',
+      deal:{...source,is_active:true,...(id==='price_unavailable'?{price:null,total_price:null,total_price_usd:null}:{})},card,renderComponents:'visual',
       hub:liveHub?{id:'fixture-hub',name:'Clefable',set:'Jungle',tcgplayerId:'45120'}:null,
       offers:liveHub?[source]:[],analysis:liveHub?{cardNumber:'1/64',raw:{currentPrice:38.26,referenceCondition:'Near Mint'},graded:[]}:null,
     });
