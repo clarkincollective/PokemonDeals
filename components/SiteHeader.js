@@ -36,7 +36,7 @@ export default function SiteHeader() {
               rel={link.href.includes("?") ? "nofollow" : undefined}
               data-analytics-click={link.analyticsClick ?? undefined}
               data-analytics-props={link.analyticsClick ? JSON.stringify(link.analyticsProps ?? {}) : undefined}
-              className="flex min-h-10 items-center rounded-lg px-3 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-red-500"
+              className="flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-red-500"
             >
               {link.label}
             </a>
@@ -48,7 +48,7 @@ export default function SiteHeader() {
           <a
             href={NAV_SEARCH.href}
             aria-label="Search cards and sets"
-            className="hidden h-10 w-10 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 lg:inline-flex dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-red-500"
+            className="hidden h-11 w-11 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 lg:inline-flex dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-red-500"
           >
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="h-5 w-5">
               <circle cx="8.5" cy="8.5" r="5.5" />

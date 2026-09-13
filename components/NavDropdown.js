@@ -120,7 +120,7 @@ export default function NavDropdown({ label, items }) {
             rel={it.href.includes("?") ? "nofollow" : undefined}
             data-analytics-click={it.analyticsClick ?? undefined}
             data-analytics-props={it.analyticsClick ? JSON.stringify(it.analyticsProps ?? {}) : undefined}
-            className="block rounded-lg px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-red-600 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-red-500"
+            className="flex min-h-11 items-center rounded-lg px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-red-600 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-red-500"
           >
             {it.label}
           </a>
