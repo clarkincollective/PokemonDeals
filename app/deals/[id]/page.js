@@ -950,9 +950,9 @@ export default async function DealDetailPage({ params }) {
       <SiteFooter note="Card-to-listing matching is automated and not perfect - always double-check a listing's photos and description before buying." />
 
       {/* 13B.7.2 - reserved strip BELOW the footer so the fixed mobile
-          CTA (~65px) never covers the footer nav / affiliate disclosure
+          CTA (including wrapped shipping notes) never covers the footer nav / affiliate disclosure
           when scrolled to the bottom. */}
-      <div className="h-20 lg:hidden" aria-hidden="true" />
+      <div className="h-32 lg:hidden" aria-hidden="true" />
 
       <StickyDealCta
         href={wrapEbayAffiliateUrl(deal.affiliate_url, { surface: "deal_page" })}

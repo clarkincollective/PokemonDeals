@@ -14,12 +14,16 @@ window.fetch=async(input)=>{
   const deals=url.searchParams.get('type')==='graded'?[graded]:[raw,graded];
   return {ok:true,json:async()=>({deals,error:null})};
 };
-createRoot(document.getElementById('root')).render(<>
+const root=createRoot(document.getElementById('root'));
+window.__renderSticky=(sticky={})=>root.render(<>
   <header style={{display:'flex',justifyContent:'space-between',padding:16}}><strong>R3 INTERACTIVE FIXTURE - simulated offers</strong><NavMenu/></header>
   <main style={{maxWidth:1000,margin:'auto',padding:16}}>
     <div id="save-fixture"><SaveCardButton card={{slug:'fixture-clefable',name:'Clefable',set:'Jungle',price:30,currency:'USD'}}/></div>
     <CardDealFilters slug="fixture-clefable" initial={[raw,graded]} totalActive={2}/>
     <div style={{height:1000}}>Fixture scroll space</div>
   </main>
-  <StickyDealCta href="https://www.ebay.com/itm/000000000001?customid=deal_page" priceUsd={30} priceNative={{amount:30,currency:'USD'}} priceLabel="Listing price - shipping not confirmed"/>
+  <footer id="fixture-footer">Fixture final footer link</footer>
+  <div className="h-32 lg:hidden" aria-hidden="true"/>
+  <StickyDealCta href="https://www.ebay.com/itm/000000000001?customid=deal_page" priceUsd={30} priceNative={{amount:30,currency:'USD'}} priceLabel="Listing price" priceNote="Shipping not confirmed" {...sticky}/>
 </>);
+window.__renderSticky();
