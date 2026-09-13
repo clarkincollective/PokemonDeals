@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
 import Pagination from "@/components/Pagination";
+import GridSkeleton from "@/components/GridSkeleton";
 import { AppliedFilters, FilterNotes, FilteredEmptyState, EmptyGridState } from "@/components/DealFilterChips";
 import { hasActiveDealFilters, normalizeDealFilters } from "@/lib/dealFilters";
 
@@ -72,19 +73,6 @@ function parseSearch(search) {
   return p;
 }
 
-function GridSkeleton() {
-  return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div
-          key={i}
-          className="h-72 animate-pulse rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950"
-        />
-      ))}
-    </div>
-  );
-}
-
 export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}, emptyLabel, validSetSlugs = [], defaultSort = "newest", subjectLabel, compactFilters = false, lockedCardType = null }) {
   const search = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const params = useMemo(() => parseSearch(search), [search]);
@@ -100,6 +88,23 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
   const showGrading = kind === "species" || kind === "set" || (kind === "category" && slug === "graded");
   // Same pilot scope for search-within-inventory.
   const searchable = kind === "category" && slug === "graded";
+  // Review closure (2026-09-14): a direct navigation to a FILTERED URL on
+  // this page renders the server's page-1 default (by design, for static
+  // cacheability - see the file header) until hydration corrects it. That
+  // correction is normally fast, but under a slow first JS-bundle load a
+  // visitor can be shown unfiltered default results, unlabelled as such,
+  // for as long as that download takes - a real, demonstrated defect
+  // (measured: the full default set persisted for the entire length of a
+  // 3.5-second throttled test), not just a theoretical edge case. Fixing
+  // it with server-side filtering would cost this whole route its static
+  // cacheability for every filter, not just this one path - disproportionate
+  // to the actual gap. Fixed instead with a tiny, dependency-free inline
+  // script (below) that runs the instant the HTML parses - well before the
+  // framework bundle needs to arrive - and swaps the default grid for a
+  // neutral loading placeholder whenever the URL it can already see
+  // carries a filter/sort/search/page param. Scoped to this pilot page
+  // only, the same way as showGrading/searchable above.
+  const guardColdNav = kind === "category" && slug === "graded";
 
   // The EFFECTIVE (normalised) filter state drives which pills read as
   // active - so a contradictory URL like ?type=raw&grader=PSA lights the
@@ -192,6 +197,21 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
     };
   }, [compactFilters, loading, reqKey]);
 
+  // Hands off from the inline guard script's static placeholder (below)
+  // to this component's own, already-correct rendering the instant this
+  // component actually mounts - by then the very first render above has
+  // already computed the real params from the true URL (useSyncExternalStore
+  // corrects off the empty server snapshot before this effect can fire),
+  // so whatever DealGrid is showing at this point - its own skeleton, or
+  // the real default - is already right. Runs once; nothing to clean up.
+  useEffect(() => {
+    if (!guardColdNav) return;
+    const wrap = document.getElementById("pdf-grid-wrap");
+    const placeholder = document.getElementById("pdf-grid-loading");
+    if (wrap) wrap.hidden = false;
+    if (placeholder) placeholder.hidden = true;
+  }, [guardColdNav]);
+
   // "This is a filtered query" - drives the empty state (relaxation
   // actions vs. the plain default label) and whether to show chips. A
   // search-within term counts too (pilot scope only) - a search with
@@ -207,6 +227,53 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
       minPrice: params.obj.minPrice,
       maxPrice: params.obj.maxPrice,
     }) || Boolean(searchable && params.q);
+
+  // The part of the page a cold, pre-hydration load can get wrong for a
+  // filtered URL (see guardColdNav above) - everything else (FilterBar,
+  // FilterNotes, AppliedFilters) already correctly stays absent/neutral
+  // pre-hydration, since it too derives from the same corrected params.
+  const resultsBlock = (
+    <>
+      {view.error && (
+        <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {view.error}</p>
+      )}
+
+      {loading ? (
+        <GridSkeleton />
+      ) : !view.error && view.deals.length === 0 ? (
+        filtered ? (
+          <FilteredEmptyState
+            params={params.obj}
+            basePath={basePath}
+            subjectLabel={subjectLabel ?? "matching"}
+            searchQuery={searchable ? params.q : null}
+          />
+        ) : (
+          <EmptyGridState label={emptyLabel} />
+        )
+      ) : (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {view.deals.map((deal) => (
+            <DealCard
+              key={deal.id}
+              deal={deal}
+              hub={hubCounts[deal.watchlist_id]}
+              pageName={`${kind}_detail`}
+              validSetSlugs={validSetSlugs}
+              from={basePath}
+              fromCountry={params.country}
+            />
+          ))}
+        </div>
+      )}
+
+      {view.totalPages > 1 && (
+        <div className="mt-10">
+          <Pagination page={params.page} totalPages={view.totalPages} params={params.obj} basePath={basePath} />
+        </div>
+      )}
+    </>
+  );
 
   return (
     <>
@@ -247,48 +314,48 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
         />
       )}
 
-      {view.error && (
-        <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {view.error}</p>
-      )}
-
-      {loading ? (
-        <GridSkeleton />
-      ) : !view.error && view.deals.length === 0 ? (
-        filtered ? (
-          <FilteredEmptyState
-            params={params.obj}
-            basePath={basePath}
-            subjectLabel={subjectLabel ?? "matching"}
-            searchQuery={searchable ? params.q : null}
-          />
-        ) : (
-          <EmptyGridState label={emptyLabel} />
-        )
+      {guardColdNav ? (
+        <div id="pdf-grid-wrap">{resultsBlock}</div>
       ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {view.deals.map((deal) => (
-            <DealCard
-              key={deal.id}
-              deal={deal}
-              hub={hubCounts[deal.watchlist_id]}
-              pageName={`${kind}_detail`}
-              validSetSlugs={validSetSlugs}
-              from={basePath}
-              fromCountry={params.country}
-            />
-          ))}
-        </div>
+        resultsBlock
       )}
 
-      {view.totalPages > 1 && (
-        <div className="mt-10">
-          <Pagination
-            page={params.page}
-            totalPages={view.totalPages}
-            params={params.obj}
-            basePath={basePath}
+      {guardColdNav && (
+        <>
+          {/* Static fallback for the pre-hydration window only - never
+              shown once React has mounted (the effect above hides it
+              immediately on mount, whether the subsequent fetch succeeds,
+              fails, or is still pending). */}
+          <div id="pdf-grid-loading" hidden>
+            <GridSkeleton />
+          </div>
+          {/* If JS is unavailable at all, this script never runs, so
+              pdf-grid-wrap simply stays at its server-rendered default
+              (visible) - correct, and consistent with the search-within
+              no-JS fallback in FilterBar.js. This noscript is belt-and-
+              braces insurance, not load-bearing. */}
+          <noscript>
+            <style>{"#pdf-grid-loading{display:none!important}"}</style>
+          </noscript>
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `(function(){try{
+                var sp=new URLSearchParams(location.search);
+                var keys=['country','type','grader','grade','listing','minPrice','maxPrice','q','sort'];
+                var hasFilter=keys.some(function(k){return sp.get(k);})||(sp.get('page')&&sp.get('page')!=='1');
+                if(!hasFilter)return;
+                var wrap=document.getElementById('pdf-grid-wrap');
+                var ph=document.getElementById('pdf-grid-loading');
+                if(wrap)wrap.hidden=true;
+                if(ph)ph.hidden=false;
+                setTimeout(function(){
+                  if(wrap&&wrap.hidden)wrap.hidden=false;
+                  if(ph&&!ph.hidden)ph.hidden=true;
+                },8000);
+              }catch(e){}})();`,
+            }}
           />
-        </div>
+        </>
       )}
     </>
   );
