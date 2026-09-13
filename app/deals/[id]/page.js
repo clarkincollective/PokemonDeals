@@ -15,7 +15,7 @@ import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
-import { currencyForDeal, refInListingCurrency, dealTotalUsd, auctionDisplayParts } from "@/lib/money";
+import { currencyForDeal, refInListingCurrency, dealTotalUsd, auctionDisplayParts, formatMoney } from "@/lib/money";
 import { offerShipping } from "@/lib/offerPresentation";
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
@@ -132,7 +132,10 @@ export async function generateMetadata({ params }) {
   if (!shouldIndexDeal(deal) || !isDisplayableDeal(deal))
     return { title: "Deal not found", robots: { index: false, follow: true } };
 
-  const cardName = cardDisplayName({ name: normalizePublicText(deal.watchlist?.name ?? deal.title) });
+  const baseName = cardDisplayName({ name: normalizePublicText(deal.watchlist?.name ?? deal.title) });
+  const gradeLabel = deal.is_graded ? [deal.grader, deal.grade].filter((value) => value != null && value !== "").join(" ") : "";
+  const cardName = gradeLabel ? `${baseName} ${normalizePublicText(gradeLabel)}` : baseName;
+  const metadataIsAuction = deal.listing_type === "AUCTION";
   const cardSet = deal.watchlist?.set;
   // 17C.7: a plain listing (no evidenced reference for this exact product
   // and condition) carries no discount claim in its title, description or
@@ -140,8 +143,8 @@ export async function generateMetadata({ params }) {
   if (listingPresentation(deal).savings !== "trusted") {
     const plainName = `${cardName}${cardSet ? ` (${cardSet})` : ""}`;
     return {
-      title: `${plainName} - eBay listing`,
-      description: `${plainName} listed on eBay. Shown without a savings claim: we have no verified market reference for this exact product and condition yet.`,
+      title: `${plainName} - eBay ${metadataIsAuction ? "auction" : "listing"}`,
+      description: `${plainName} ${metadataIsAuction ? "offered at auction on eBay. Final price may rise." : "listed on eBay."} Shown without a savings claim: we have no verified market reference for this exact product and condition yet.`,
       alternates: { canonical: `/deals/${id}` },
       robots: { index: false, follow: true },
     };
@@ -152,7 +155,7 @@ export async function generateMetadata({ params }) {
   // silently drop "- N% below market" and leave this URL titled exactly
   // like the permanent card page.
   const metadataShipping = offerShipping(deal);
-  const title = dealPageTitle({ cardName, cardSet, discountPct: metadataShipping.deliveredKnown ? discountPct : null });
+  const title = dealPageTitle({ cardName: metadataIsAuction ? `${cardName} auction` : cardName, cardSet, discountPct: !metadataIsAuction && metadataShipping.deliveredKnown ? discountPct : null });
   // Real card/set context up front, not just bare price numbers - a
   // search result showing only "$74.99 vs a $214.20 market price" gives a
   // searcher no reason to click over a competing result unless they've
@@ -169,7 +172,13 @@ export async function generateMetadata({ params }) {
   const listingUsd = dealTotalUsd(deal);
   const marketUsd = Number(deal.market_price);
   const forClause = listingUsd ? ` for $${listingUsd.toFixed(2)}` : "";
-  const description = metadataShipping.savingClaim === "none"
+  const bid = Number(deal.price);
+  const bidText = Number.isFinite(bid) && bid > 0
+    ? `Current bid: ${formatMoney(bid, currencyForDeal(deal))} ${currencyForDeal(deal)}.`
+    : "Current bid not recorded.";
+  const description = metadataIsAuction
+    ? `${cardName}${cardSet ? ` (${cardSet})` : ""} eBay auction. ${bidText} Final price may rise. ${metadataShipping.note ?? "Shipping is additional to the bid."}`
+    : metadataShipping.savingClaim === "none"
     ? `${cardName}${cardSet ? ` (${cardSet})` : ""} listed on eBay. Shipping breakdown not recorded; no savings claimed.`
     : `${cardName}${cardSet ? ` (${cardSet})` : ""}${forClause} - ${discountPct}% below the $${marketUsd.toFixed(2)} market reference${metadataShipping.savingQualifier}. ${metadataShipping.note ?? "Includes recorded shipping."}`;
 
