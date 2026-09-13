@@ -14,11 +14,11 @@ import { trustedDealImageUrl } from "@/lib/listingImage";
 import { cardSpeciesLink } from "@/lib/cardLinks";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
-import { MARKETPLACES, wrapEbayAffiliateUrl, buildEbaySearchLink } from "@/lib/ebayLinks";
+import { wrapEbayAffiliateUrl, buildEbaySearchLink } from "@/lib/ebayLinks";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import SiteHeader from "@/components/SiteHeader";
 import CardDealFilters from "@/components/CardDealFilters";
-import { currencyForDeal, auctionDisplayParts, dealTotalUsd } from "@/lib/money";
+import { currencyForDeal, auctionDisplayParts, dealTotalUsd, hasPrice } from "@/lib/money";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import RecentSales from "@/components/RecentSales";
@@ -349,33 +349,30 @@ export default async function CardHubPage({ params }) {
     currency: allOffers[0] ? currencyForDeal(allOffers[0]) : null,
   };
 
-  // One real Offer per real active listing - the documented Google/
-  // schema.org pattern for "multiple sellers, one product," and the
-  // direct structured-data expression of why this page exists: real
-  // current offers, not a fabricated aggregate.
-  // Real gap found live: Google's Product structured data guidelines
-  // treat `image` as required for the richer product-snippet result
-  // types, and this was missing here even though every sibling Product
-  // block on the site (deal detail, sealed detail) already sets it from
-  // real data - just an oversight when this page was first built, not a
-  // deliberate omission (unlike hasMerchantReturnPolicy elsewhere, which
-  // stays deliberately unset because there's no single real answer for
-  // it across multiple sellers).
+  // Match the price/currency shown by the offer controls. An auction without
+  // a usable bid or a row without a positive price cannot support a priced Offer.
+  const schemaOffers = allOffers.flatMap((deal) => {
+    if (!hasPrice(deal.total_price)) return [];
+    const isAuction = deal.listing_type === "AUCTION";
+    const parts = isAuction ? auctionDisplayParts(deal) : null;
+    if (isAuction && !parts) return [];
+    return [{
+      "@type": "Offer",
+      url: deal.listing_url,
+      priceCurrency: currencyForDeal(deal),
+      price: Number(parts ? parts.bid.native : deal.total_price).toFixed(2),
+      availability: "https://schema.org/InStock",
+      itemCondition: "https://schema.org/UsedCondition",
+    }];
+  });
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: `${cardName} - ${hub.set}`,
     image: heroImage ?? undefined,
-    description: `${cardName} (${hub.set}) - ${allOffers.length} active eBay ${allOffers.length === 1 ? "listing" : "listings"}, compared against real market pricing.`,
+    description: `${cardName} (${hub.set}) - ${allOffers.length} active eBay ${allOffers.length === 1 ? "listing" : "listings"}.`,
     brand: { "@type": "Brand", name: "Pokemon" },
-    offers: allOffers.map((deal) => ({
-      "@type": "Offer",
-      url: deal.listing_url,
-      priceCurrency: MARKETPLACES[deal.marketplace]?.currency ?? "USD",
-      price: Number(deal.total_price).toFixed(2),
-      availability: "https://schema.org/InStock",
-      itemCondition: "https://schema.org/UsedCondition",
-    })),
+    offers: schemaOffers,
   };
 
   // Mirrors the visible <Breadcrumbs> below (Deals -> Cards -> set ->
@@ -399,7 +396,7 @@ export default async function CardHubPage({ params }) {
 
   return (
     <div className="min-h-screen bg-paper">
-      {allOffers.length > 0 && (
+      {schemaOffers.length > 0 && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
       )}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
