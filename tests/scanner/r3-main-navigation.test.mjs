@@ -27,6 +27,12 @@ for (const state of ['listing','display_gated','catalogue','hub']) {
     const firstLink = html.match(/<a\b[^>]*>[\s\S]*?<\/a>/)?.[0];
     assert.match(firstLink, /href="#main-content"/);
     assert.match(firstLink, /Skip to content/);
+    if (state === 'display_gated') {
+      assert.match(main, /This listing is unavailable here/);
+      assert.match(main, /does not confirm whether it has sold or ended on eBay/);
+      assert.doesNotMatch(main, /This deal has ended|no longer active, sold/);
+      assert.doesNotMatch(main, /ebay\.com\/itm\//);
+    }
   });
 }
 

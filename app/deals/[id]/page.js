@@ -283,7 +283,7 @@ export default async function DealDetailPage({ params }) {
     // card (Japanese prints, unmatched names) or no row at all -> 404.
     // Never a homepage / index / species / set page just to avoid a dead
     // URL. A row that is still is_active but display-gated keeps the
-    // honest "ended" state below (200 + noindex) - it can become
+    // honest unavailable state below (200 + noindex) - it can become
     // displayable again, so it is never redirected away.
     const [hubForRedirect, catalogForRedirect] = await Promise.all([
       deal && !deal.is_active && deal.watchlist_id ? findCardHubByWatchlistId(deal.watchlist_id) : Promise.resolve(null),
@@ -344,14 +344,12 @@ export default async function DealDetailPage({ params }) {
         <main id="main-content" tabIndex={-1} className="scroll-mt-24">
         <div className="mx-auto max-w-2xl px-6 py-16 text-center">
           <h1 className="text-xl font-bold text-black dark:text-zinc-50">
-            {preRelease ? preRelease.notes[0] : deal ? "This deal has ended" : "Deal not found"}
+            {preRelease ? preRelease.notes[0] : "This listing is unavailable here"}
           </h1>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
             {preRelease
               ? `This listing${cardName ? ` for ${cardName}` : ""} predates its set's release, and eBay hasn't confirmed the listing is active. We only show such a listing once eBay confirms it - that confirms the listing, not that the seller holds the card or when it would arrive. Here is where to look next.`
-              : deal
-                ? `The listing${cardName ? ` for ${cardName}` : ""} is no longer active, sold, or no longer passes our listing checks - it is not a live purchase opportunity anymore. Here is where to look next.`
-                : "That deal doesn't exist, or has expired."}
+              : `The listing${cardName ? ` for ${cardName}` : ""} doesn't currently pass our listing checks, so we can't show it as an offer. This does not confirm whether it has sold or ended on eBay. Here is where to look next.`}
           </p>
           <div className="mt-6 flex flex-col items-center gap-3">
             {cardHub && (
