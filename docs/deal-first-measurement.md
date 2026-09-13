@@ -220,3 +220,9 @@ and the relocated `latest_*` sections change exposure if later deployed. Record
 that release separately before comparing placement-level counts; unchanged event
 names do not establish unchanged visitor populations. These local captures are
 not observations of production behavior.
+
+The subsequent local search-front-door correction also collapses optional
+filters on desktop. Its existing filter-open handler can therefore fire on
+desktop where the controls were previously always expanded. Keep that exposure
+change separate from evidence of increased filtering or improved buying outcomes;
+search/affiliate event names and URL-state semantics are unchanged.

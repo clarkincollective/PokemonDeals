@@ -9,6 +9,7 @@ import { EVENTS } from "@/lib/analytics/events";
 import { classifyQueryIntent } from "@/lib/analytics/intent";
 import { resultCountBand, latencyBand } from "@/lib/analytics/props";
 import SiteHeader from "@/components/SiteHeader";
+import SkipToContent from "@/components/SkipToContent";
 import SiteFooter from "@/components/SiteFooter";
 import DealCard from "@/components/DealCard";
 import AffiliateLink from "@/components/AffiliateLink";
@@ -457,20 +458,20 @@ export default function SearchClient({
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
+      <SkipToContent />
       <SiteHeader />
-
+      <main id="main-content" tabIndex={-1} className="flex-1 scroll-mt-6">
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-8">
+        <div className="mx-auto max-w-7xl px-6 py-6 sm:py-3">
           <h1 className="text-2xl font-bold text-black dark:text-zinc-50 sm:text-3xl">
             Pokemon Card Price Checker
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
-            Search by Pokemon, card name, set or collector number to find the exact printing, then
-            open its card page for the market-reference price, per-condition values, graded prices and
-            price history. Refine live deals with the filters below.
+          <p className="mt-2 max-w-2xl text-base text-zinc-600 dark:text-zinc-400">
+            Find the exact printing by name, set or collector number. Compare available offers,
+            or open a card for its price references and history.
           </p>
 
-          <form onSubmit={runSearch} className="mt-5 flex max-w-lg gap-2">
+          <form onSubmit={runSearch} className="mt-4 flex max-w-lg gap-2">
             <label htmlFor="pc-q" className="sr-only">
               Search Pokemon cards by name, set or collector number
             </label>
@@ -503,13 +504,13 @@ export default function SearchClient({
               {searching ? "Searching…" : "Check price"}
             </button>
           </form>
-          <p className="mt-2 text-xs text-zinc-400">
+          <p className="mt-1 text-xs text-zinc-400">
             Try: Charizard 4/102 · Umbreon VMAX 215/203 · Pikachu Promo · Gengar Fossil
           </p>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
+      <div className="mx-auto w-full max-w-7xl px-6 py-4">
         {searchError && (
           <p role="alert" className="rounded-lg bg-red-50 p-4 text-red-700">
             Couldn&apos;t run that search right now. Please try again in a moment.
@@ -594,7 +595,7 @@ export default function SearchClient({
               Live eBay listings priced under their market reference — checked for condition, language
               and printing.
             </p>
-            <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {deals.map((deal, i) => (
                 <div
                   key={deal.id}
@@ -647,7 +648,7 @@ export default function SearchClient({
               )
             ) : (
               <>
-                <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                <div className="mt-4 grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                   {catalog.results.map((c, i) => (
                     <ResultTile
                       key={c.tcgplayerId}
@@ -698,6 +699,7 @@ export default function SearchClient({
         )}
 
         {guide}
+      </div>
       </main>
 
       <SiteFooter />
@@ -761,7 +763,7 @@ function SearchFilters({
   const showGrading = effType === "graded";
 
   return (
-    <div className="mb-6 lg:rounded-xl lg:border lg:border-zinc-200 lg:bg-white lg:p-4 lg:shadow-card dark:lg:border-zinc-800 dark:lg:bg-zinc-950">
+    <div className="mb-2">
       {/* applied-filter chips - always visible, removable */}
       {(chips.length > 0 || country || (sort && sort !== "discount")) && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -802,7 +804,7 @@ function SearchFilters({
         </ul>
       )}
 
-      <FilterToggle defaultOpen={activeCount > 0} activeCount={activeCount}>
+      <FilterToggle defaultOpen={activeCount > 0} activeCount={activeCount} collapsible label="Refine deals">
         <div className="flex flex-col gap-4">
           {!scoped && (
             <p className="text-xs text-zinc-500">
@@ -934,7 +936,7 @@ function ResultTile({ c, rank, ccyApprox, inDisplayCcy }) {
 
   const inner = (
     <>
-      <div className="relative aspect-square w-full bg-zinc-50 dark:bg-zinc-900">
+      <div className="relative h-36 w-full bg-zinc-50 sm:aspect-square sm:h-auto dark:bg-zinc-900">
         {c.imageUrl ? (
           <Image
             src={upgradeCatalogImage(c.imageUrl)}
@@ -954,10 +956,10 @@ function ResultTile({ c, rank, ccyApprox, inDisplayCcy }) {
         )}
       </div>
       <div className="p-3">
-        <p className="line-clamp-2 text-sm font-semibold text-black dark:text-zinc-50">
+        <p className="text-sm font-semibold text-black dark:text-zinc-50">
           {c.displayName ?? c.name}
         </p>
-        {meta && <p className="line-clamp-1 text-xs text-zinc-500">{meta}</p>}
+        {meta && <p className="text-sm text-zinc-600 dark:text-zinc-400">{meta}</p>}
         {price}
       </div>
     </>

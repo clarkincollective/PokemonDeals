@@ -64,3 +64,23 @@ R4 output: `../shots/r4-catalogue/record.json`, three missing-only PDFs and labe
 ## R5 remaining-family extension
 
 The same generator includes directories, all seven guides, six trust pages, release/Japanese/sealed families and current/dated research. `node scripts/verifyR5Families.mjs` uses the same isolated server and installed Chrome; local alert POSTs are fulfilled by CDP and never reach an API/server/email provider. Routes retain actual JSX/metadata/schema. Directory identities reuse saved R4 catalogue data; market aggregates and Japanese offers are explicitly simulated. The Japanese control uses no artwork rather than relabelling an English image; latest-release groups exercise honest sparse states. All1025 species destinations are checked in initial HTML, alongside full fixture set and guide links. Current Tailwind source is compiled on every generation; only embedded local Geist font faces come from the earlier static fixture. This adds no production routes or dependencies. Fixtures and evidence do not establish current market facts, live link resolution, production hosting costs, Safari/iOS or real screen-reader behaviour.
+
+## Search journey extension
+
+The generator also copies the actual `/search` wrapper, SearchClient and
+`/api/card-search` handler. `@/lib/searchEngine` is replaced with deterministic
+fixture data and included in the compile-time forbidden real-module assertion.
+The API's legacy `tcgplayerId` pricing helpers throw in the fixture; the browser
+verifier separately blocks that query branch. Neither real search resolution nor
+pricing-provider fallback is executed. Existing credential stripping and the
+preloaded network guard still apply.
+
+Run `node scripts/verifySearchJourney.mjs before` or `after` against the same
+loopback server. It captures bare, simulated offer, reference-only and empty
+states at1280/390/320, checks initial query hydration without duplicate API
+requests, and exercises real client submission against the isolated API. After
+checks add filter/back behavior and keyboard access to the primary form. The
+fixture words `reference` and `missing` are synthetic control keys; Clefable
+Jungle1/64 uses its existing catalogue artwork and placeholder price/link data.
+No parser/ranking/eligibility, live provider accuracy, Safari/iOS or human
+comprehension proof is implied. Results are under `../shots/search-journey`.

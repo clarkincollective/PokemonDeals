@@ -73,6 +73,16 @@ export const fetchCardDirectorySummary=async()=>({totalCards:330,pricedCards:300
 export const fetchTopCatalogCards=async({limit=24}={})=>({cards:savedCatalogue.Jungle.slice(0,limit).map(c=>({...c,slug:c.catalogSlug,displayName:c.name,species:c.name}))});
 export const fetchCatalogSpecies=async()=>({species:[{species:'Dragonite',slug:'dragonite',count:75},{species:'Cleffa',slug:'cleffa',count:4}]});
 export const fetchLastScanTime=async()=> '2026-09-10T12:00:00Z';
+// Actual search wrapper/API/client, deterministic boundary only. No real search
+// resolution, eligibility, provider fallback or live prices are claimed here.
+export async function runCardSearch({q='',page=1,filters={}}={}){
+ const empty=q.toLowerCase()==='missing',reference=q.toLowerCase()==='reference';
+ const rows=empty?[]:[{tcgplayerId:'45120',name:'Clefable',displayName:'Clefable',set:'Jungle',cardNumber:'1/64',rarity:'Holo Rare',imageUrl:'https://tcgplayer-cdn.tcgplayer.com/product/45120_in_1000x1000.jpg',marketPrice:38.26,cardHref:'/cards/fixture-hub'}];
+ const dealRows=empty||reference||(filters.maxPrice!=null&&Number(filters.maxPrice)<30.75)?[]:[listingRows[0]];
+ return {ok:true,body:{deals:dealRows,catalog:{results:rows,total:rows.length,page,hasMore:false},interpreted:null,exact:null,resolution:{mode:'catalogue',effective_filters:filters,deals_scoped:true,filter_notes:[],recognized_not_applied:[]}}};
+}
+export const getRawPrice=()=>{throw Error('UNEXPECTED_FIXTURE_CARD_DETAIL_PROVIDER');};
+export const getRawPriceHistory=()=>{throw Error('UNEXPECTED_FIXTURE_CARD_DETAIL_PROVIDER');};
 const japaneseRow={...listingRows[0],id:920001,watchlist_id:'japanese-control',title:'Pikachu 025/165 Japanese Pokemon Card 151 Near Mint',card_name:'Pikachu',card_set:'Pokemon Card 151',card_language:'japanese',card_tcgplayer_id:null,image_verdict:'NO_TRUSTED_IMAGE',image_url:null,display_image_url:null,watchlist:{name:'Pikachu',set:'Pokemon Card 151',language:'japanese',justtcg_tcgplayer_id:null}};
 function familyDeals(options){
  if(options.sets&&!options.sets.includes('Jungle'))return []; // Sparse modern releases; retain the vintage category's Jungle control.
