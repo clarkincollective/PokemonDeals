@@ -14,8 +14,8 @@ const routes=cases.map(c=>c[0]),checks=[],errors=[],blocked=[],excluded=[];
 const check=(name,pass,detail)=>{checks.push({name,pass:Boolean(pass),detail});if(!pass)console.error('FAIL',name,JSON.stringify(detail));};
 for(const [route,name,count] of cases){
  const res=await fetch(BASE+route),html=await res.text();fs.writeFileSync(path.join(out,route.slice(1).replaceAll('/','-')+'.html'),html);
- const expected=saved[name]?.length?saved[name].map(c=>'/cards/'+(c.hubSlug||c.catalogSlug)):route.startsWith('/sets/')?sets[route.split('/').at(-1)].map(r=>'/cards/'+catalogCardSlug(`${r.name} ${r.number}`,name)):[];
- check(route+' full initial-HTML link population',res.status===200&&expected.every(h=>html.includes(`href="${h}"`)),{status:res.status,expected:expected.length,count});
+ const expected=saved[name]?.length?saved[name].map(c=>'/cards/'+(c.hubSlug||c.catalogSlug)):route.startsWith('/sets/')?sets[route.split('/').at(-1)].map(r=>'/cards/'+catalogCardSlug(`${r.name} ${r.number}`,name)):name==='Cleffa'?saved.Jungle.slice(0,4).map(c=>'/cards/'+(c.hubSlug||c.catalogSlug)):[];
+ check(route+' full initial-HTML link population',res.status===200&&expected.length>0&&expected.every(h=>html.includes(`href="${h}"`)),{status:res.status,expected:expected.length,count});
  const inventoryAt=html.indexOf('id="inventory"'),valueAt=html.indexOf('Most valuable');
  check(route+' initial inventory precedes value section',inventoryAt>0&&(valueAt<0||inventoryAt<valueAt),{inventory:inventoryAt,value:valueAt});
 }

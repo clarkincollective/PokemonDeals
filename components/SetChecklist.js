@@ -68,13 +68,13 @@ export default function SetChecklist({ setName, cards, headingId = "full-set-ind
       </p>
       </details>
 
-      {/* 17C.12 - set-specific numbering / identification notes, built and
-          verified from the same `rows`; renders nothing for non-pilot sets */}
       <ChecklistTable
         setName={setName}
         rows={rows}
         caption={`${setName} card checklist: owned, collector number, card, rarity and market reference`}
       />
+      {/* Set-specific numbering/identification notes use the same rows;
+          the component renders nothing for non-pilot sets. */}
       <SetReferenceNotes setName={setName} rows={rows} />
     </section>
   );
