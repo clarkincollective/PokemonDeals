@@ -119,7 +119,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
   const effGrader = norm ? norm.grader : params.grader;
   const effGrade = norm ? norm.grade : params.grade;
 
-  const [fetched, setFetched] = useState(null); // { key, deals, totalPages, error }
+  const [fetched, setFetched] = useState(null); // { key, deals, totalPages, totalCount, error }
 
   useEffect(() => {
     if (params.isDefault) return;
@@ -139,10 +139,16 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
       .then((r) => r.json())
       .then((d) => {
         if (!cancelled)
-          setFetched({ key: reqKey, deals: d.deals ?? [], totalPages: d.totalPages ?? 1, error: d.error ?? null });
+          setFetched({
+            key: reqKey,
+            deals: d.deals ?? [],
+            totalPages: d.totalPages ?? 1,
+            totalCount: d.totalCount ?? d.deals?.length ?? 0,
+            error: d.error ?? null,
+          });
       })
       .catch((e) => {
-        if (!cancelled) setFetched({ key: reqKey, deals: [], totalPages: 1, error: e.message });
+        if (!cancelled) setFetched({ key: reqKey, deals: [], totalPages: 1, totalCount: 0, error: e.message });
       });
     return () => {
       cancelled = true;
@@ -151,10 +157,10 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
 
   const loading = !params.isDefault && fetched?.key !== reqKey;
   const view = params.isDefault
-    ? { deals: initial.deals, totalPages: initial.totalPages, error: null }
+    ? { deals: initial.deals, totalPages: initial.totalPages, totalCount: initial.totalCount ?? initial.deals.length, error: null }
     : loading
-      ? { deals: [], totalPages: 1, error: null }
-      : { deals: fetched.deals, totalPages: fetched.totalPages, error: fetched.error };
+      ? { deals: [], totalPages: 1, totalCount: 0, error: null }
+      : { deals: fetched.deals, totalPages: fetched.totalPages, totalCount: fetched.totalCount, error: fetched.error };
 
   // On offer-first catalogue pages, a regional refresh can replace the
   // loading grid above an already-selected inventory anchor. Keep that
@@ -236,6 +242,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
           params={params.obj}
           basePath={basePath}
           resultCount={loading ? undefined : view.deals.length}
+          totalCount={loading ? undefined : view.totalCount}
           searchQuery={searchable ? params.q : null}
         />
       )}

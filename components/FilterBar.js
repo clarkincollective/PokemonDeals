@@ -210,36 +210,60 @@ export function GradingFilterRow({ params, cardType, grader, grade, basePath = "
 
 // Graded browsing pilot - search WITHIN this page's already-tracked
 // inventory only (an ILIKE on the stored listing title, no provider call
-// - see /api/deals-page's `q` handling). A plain GET form, matching every
-// other control here: no client JS, carries the other active filters as
-// hidden inputs so a search doesn't wipe them, and always returns to page
-// 1 (no `page` field) since a new query can shrink the result set.
+// - see /api/deals-page's `q` handling). A plain GET form: submitting it
+// needs no client JS (a real navigation to `basePath?q=...`), but the
+// *result* of that navigation is still 100% client-fetched, same as
+// every other filter on this page (DealGrid's own SSR-always-renders-
+// page-1 contract) - so without JS the visitor lands on a page that
+// looks identical to the unfiltered default, with no signal anything
+// happened. Review finding (2026-09-14): showing the form unconditionally
+// there was actively misleading, not just incomplete - it looks like a
+// working search that silently does nothing. `<noscript>` swaps it for
+// a plain statement instead, the same pattern used nowhere else in this
+// codebase but the smallest correct fix here: CSS inside <noscript> only
+// applies when JS is unavailable, so a scripted browser is completely
+// unaffected and renders exactly as before.
+//
+// The hidden inputs below correctly carry every other active param once
+// this component is hydrated (params comes from the real URL then) - the
+// gap this replaces was specific to a visitor who never hydrates at all,
+// for whom the JS-only wrapper below now hides the form entirely.
 export function SearchWithinRow({ params, q, basePath = "/" }) {
   const carried = Object.entries(params).filter(([k]) => k !== "q" && k !== "page");
   return (
     <div>
-      <label htmlFor="deal-search-within" className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
-        Search within these results
-      </label>
-      <form method="get" action={basePath} className="flex gap-2">
-        {carried.map(([k, v]) => (
-          <input key={k} type="hidden" name={k} value={v} />
-        ))}
-        <input
-          id="deal-search-within"
-          type="search"
-          name="q"
-          defaultValue={q ?? ""}
-          placeholder="Card or set name…"
-          className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-        />
-        <button
-          type="submit"
-          className="shrink-0 rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
-        >
-          Search
-        </button>
-      </form>
+      <noscript>
+        <style>{".pdf-search-within{display:none!important}"}</style>
+      </noscript>
+      <noscript>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          Searching within these results requires JavaScript. Use the filters above, or browse the full list below.
+        </p>
+      </noscript>
+      <div className="pdf-search-within">
+        <label htmlFor="deal-search-within" className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+          Search within these results
+        </label>
+        <form method="get" action={basePath} className="flex gap-2">
+          {carried.map(([k, v]) => (
+            <input key={k} type="hidden" name={k} value={v} />
+          ))}
+          <input
+            id="deal-search-within"
+            type="search"
+            name="q"
+            defaultValue={q ?? ""}
+            placeholder="Card or set name…"
+            className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+          />
+          <button
+            type="submit"
+            className="shrink-0 rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          >
+            Search
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

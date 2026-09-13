@@ -58,7 +58,7 @@ export function FilterNotes({ params }) {
 // (species/set pages, which have no search-within-inventory concept) are
 // unaffected; only the graded browsing pilot passes it, adding a removable
 // "Search: …" chip and including q in Clear all.
-export function AppliedFilters({ params, basePath, resultCount, searchQuery }) {
+export function AppliedFilters({ params, basePath, resultCount, totalCount, searchQuery }) {
   const chips = appliedFilterChips({
     type: params.type,
     grader: params.grader,
@@ -102,7 +102,17 @@ export function AppliedFilters({ params, basePath, resultCount, searchQuery }) {
       </a>
       {typeof resultCount === "number" && (
         <span className="text-xs text-zinc-400">
-          · {resultCount} match{resultCount === 1 ? "" : "es"}
+          {/* Review finding (2026-09-14): resultCount is this PAGE's
+              rendered length, not the total matching count - once a
+              second page exists, showing resultCount alone reads as "this
+              is everything" when it isn't. totalCount (lib/deals.js's own
+              query count, pre-existing and already computed for
+              pagination) makes the distinction explicit only when it
+              actually differs; a single-page result keeps the plain,
+              exact "N matches" wording it always had. */}
+          · {typeof totalCount === "number" && totalCount > resultCount
+            ? `Showing ${resultCount} of ${totalCount} match${totalCount === 1 ? "" : "es"}`
+            : `${resultCount} match${resultCount === 1 ? "" : "es"}`}
         </span>
       )}
     </div>
