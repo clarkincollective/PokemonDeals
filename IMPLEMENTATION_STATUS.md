@@ -3500,3 +3500,90 @@ James approved deploying the reviewed pilot at `a660e69`.
 - Verification-generated production requests appear in logs as ordinary traffic. Analytics endpoints were blocked, so they were not counted as visits.
 
 No scanner, allocator, budget, watchlist, cron, newsletter or social change. Unrelated worktrees and held commits were untouched. This ledger entry is a local-only commit on `graded-browsing-r1`, **not pushed**; production stays at `a660e69` until a later authorized push includes it.
+
+### Mobile UX refinement r1 (Claude, local, 2026-09-14) — menu, Charizard, EX Legend Maker, guide thumbnail
+
+**Base and branch.**
+- Remote `main` checked before starting and again before committing: `a660e69c37cb2e9d3e1c99a3bd189e39104b7224`, the production SHA.
+- Isolated worktree branch `mobile-ux-r1` created from local ledger commit `c4855f5`, which sits directly on `a660e69`, so the ledger is carried forward, not rewritten.
+- Unrelated worktrees, held commits and CRLF-only working-copy noise were left untouched. Only the intended files were staged.
+
+**Problem evidence.** The owner's screenshots were not available in the session (not on disk, not attached). A "before" baseline was captured on the provider-disabled R3 fixture at `c4855f5` with the same script used for "after". At 390px, light:
+- **Menu:** 18 links stacked. The panel was 1,072px tall inside an 844px viewport, so it had to be scrolled. Minimum tap height was 44px.
+- **Charizard:**
+  - The default view was the text list, with no card images.
+  - Headings repeated the same count: "Every Charizard card, by set (153)", "Full Charizard card index (153)", then per-set counts.
+  - Names doubled the number ("Charizard VMAX - 020/189 · #020/189").
+- **EX Legend Maker:**
+  - A single wall of 93 wrapped links under two headings ("Full EX Legend Maker card index (93)", "EX Legend Maker (93)").
+  - Gallery tiles truncated numbers ("#1/...") and wrapped buttons to three lines.
+- **Condition-guide thumbnail:** a placeholder. **Diagnosis: missing mapping.** `app/page.js` set `image: null` for that entry deliberately. There was no missing asset and no failed request.
+
+**Changes (`bc2296f`).**
+- **Menu (`NavMenu`, `navLinks`):**
+  - The initial view is search, a "Deals" label and six shortcut tiles (Browse Deals, Top 10 Right Now, Auctions, Graded Cards, Under $25, Latest Releases).
+  - Below them are three expandable groups, one open at a time: More deals, Cards & Sets, Guides & help.
+  - Every previous destination is still reachable (17 unique hrefs).
+  - Targets are at least 48px. The visible close control, focus trap, Escape, background inert, scroll lock and opener focus restore are unchanged.
+  - `menuShortcut` is ignored by the desktop nav and footer. No bottom bar was added.
+- **Catalogue index (`CatalogueLinkIndex`, still a server component):**
+  - The complete link inventory is grouped into descriptive `<details>` sections: era, then set, for multi-set species (era label · years · N cards · M sets); collector-number ranges for a single set.
+  - The "Full … card index (N)" heading remains, visually hidden, for screen readers and the SEO count check.
+  - Links stay plain `<a>` elements (no prefetch) in initial HTML.
+- **Default view (`CatalogueViews`):**
+  - Pages whose list is the plain index open on the existing gallery, with a compact "Card list" option.
+  - Checklist pilots (the `CHECKLIST_SETS` sets and the `SPECIES_PILOT` species) still open on the checklist, so ownership, reset and print are unchanged.
+  - This applies to every species or set page using the plain index, not just the two named pages.
+- **Headings and copy:**
+  - One "<name> cards we track" heading, followed by "N cards · M sets · market prices are recent-sold references, not guaranteed values".
+  - The "Search, filter or sort — or browse by set" instruction and the repeated "Open a card for full pricing…" lines are removed.
+  - "Every … card" completeness wording is removed from the inventory heading. Page metadata is unchanged.
+- **Numbers shown once (`cardNameWithoutNumber` in `lib/cardName.js`):**
+  - Strips an embedded number only when it normalises to the structured `cardNumber`. A different number, or no structured number, leaves the name intact.
+  - Parenthesised and bracketed qualifiers (edition, printing, promo, stamps, staff) stay verbatim.
+  - Audit over all 499 captured fixture names: 152 changed, 0 still doubled, 0 qualifiers lost.
+- **Gallery tiles (`CatalogueBrowser`, `FeaturedValueCards`):**
+  - The number appears once, and the set is omitted inside set groups and on set pages.
+  - The toolbar is a compact 2-column grid with full-width search and sort.
+  - The duplicate "View Card" button is hidden below `sm`; the art and name still open the card.
+  - Set groups start at 6 instead of 12.
+  - A capped gallery now says "Gallery shows the 120 highest-value of 153 cards." and links to "See all 153 in the list".
+  - Market reference, shipping qualifier, estimated total and "auction, bids can rise" wording are unchanged.
+- **Homepage thumbnail:**
+  - "How to Check a Pokemon Card's Condition" reuses `GUIDE_CARDS.umbreonVmaxAltArt`, the card the grading-scale guide in the same group already uses.
+  - The alt text describes it honestly.
+  - The asset `tcgplayer-cdn.tcgplayer.com/product/246723_in_1000x1000.jpg` returned 200, image/jpeg, 719×1000.
+
+**Tests and fixture (`c1c69aa`).**
+- New `tests/scanner/mobile-ux-r1.test.mjs` (MUX-1..10). H-8 in `latest-releases-17c8` follows the new menu expression.
+- **SEO contract change, deliberate:** `tests/seo/catalogue-payload.test.mjs` test 5 now asserts the index is **present in initial HTML** (inside `<details>`, with `/cards/` anchors), not visible on first paint. `species-threshold` expects the new heading.
+- The R3 fixture gained read-only captured Charizard (153 cards, 62 sets) and EX Legend Maker (93) catalogues: anon key, `card_catalog` SELECT only. Existing fixture entries are unchanged.
+
+**Verification.** All browser work used the provider-disabled fixture (`R3ProviderIsolation` build check plus the `networkGuard` preload). CDP guards were installed on every target before navigation: only the fixture origin and narrowly matched image URLs (`tcgplayer-cdn…/product/<id>_in_<w>x<h>.jpg`, `images.pokemontcg.io` set logos and symbols) were allowed. No affiliate clicks, and no provider or paid calls.
+
+| Check | Result |
+|---|---|
+| Menu at 390×844 | panel 844/844 (before 1,072/844), 7 items + 3 group buttons visible (before 18), min target 48px, 17 hrefs preserved |
+| Menu at 320 | fits without scrolling |
+| Charizard at 390 | gallery first; first card image at 1,299px; 27 card images in inventory (before 0); 153/153 card hrefs; doc height 14,935px (before 14,066) |
+| EX Legend Maker at 390 | first card image at 659px, with 20 words before it; 93/93 hrefs; one inventory heading (before 2); doc height 12,120px (before 7,868) |
+| Guide thumbnail | loads (719×1000) in every run; before, a placeholder |
+| Matrix | 320/390/430/1280 × light/dark: 0 horizontal overflow, 0 broken images, 0 non-allowed requests; final-code re-capture at 390 light/dark and 320 dark |
+| Interaction verifier, final build | 28/28 (menu keyboard open, focus trap, Enter/Space/Escape, focus return, 320 touch; gallery default; keyboard list switch; `<details>` Enter/Space and touch; capped "See all"; search; 1280 desktop nav and both tile buttons; Jungle checklist still primary with 64 ownership boxes) |
+| R4 checklist regression, final build | 93/93 (the historical baseline) |
+| SSR initial HTML | every card link present with 0 missing: charizard 153, ex-legend-maker 93, dragonite 75, jungle 64, neo-destiny 113; titles and canonicals unchanged |
+| Scanner suite | 3,313 tests: 3,267 pass / 24 fail / 22 skipped, identical to the base baseline |
+| Targeted tests | 22/22 |
+| `next build` | exit 0; `/pokemon/[slug]` and `/sets/[slug]` still SSG |
+| Imports | the only new app import is static `GUIDE_CARDS`; no new provider paths |
+
+**Limitations and tradeoffs.**
+- The index is present in HTML but collapsed and behind the view toggle on first paint. That is a crawler-weighting tradeoff, accepted in the SEO test change above.
+- Image tiles make pages longer than the old text list.
+- The network-dependent SEO tests were not run offline.
+- Chromium only; no Safari or physical devices.
+- The owner's screenshots were unavailable, so the before evidence is the fixture baseline.
+- The "Most valuable" order on the EX Legend Maker fixture reflects captured fixture prices.
+- The pre-existing `setShown` lint error in `CatalogueBrowser` is unchanged.
+
+**Not deployed.** Local commits only on `mobile-ux-r1` (`bc2296f`, `c1c69aa`, plus this ledger entry). Production stays at `a660e69`. Graded-inventory growth remains queued separately. No scanner, acquisition, social or publishing change.
