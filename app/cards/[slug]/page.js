@@ -29,6 +29,7 @@ import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import CatalogCardView from "@/components/CatalogCardView";
+import { offerShipping } from "@/lib/offerPresentation";
 import StickyDealCta from "@/components/StickyDealCta";
 import SaveCardButton from "@/components/SaveCardButton";
 import PriceAlertForm from "@/components/PriceAlertForm";
@@ -480,6 +481,11 @@ export default async function CardHubPage({ params }) {
             </div>
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
+              {allOffers.length > 0 && (
+                <a href="#card-offers" className="inline-flex min-h-[48px] items-center justify-center rounded-lg bg-red-600 px-5 py-3 text-sm font-semibold text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600">
+                  View {allOffers.length} {allOffers.length === 1 ? "offer" : "offers"}
+                </a>
+              )}
               <SaveCardButton card={cardDescriptor} />
               {tcgplayerLink && (
                 <AffiliateLink
@@ -524,13 +530,15 @@ export default async function CardHubPage({ params }) {
             (type / grader / grade / price / listing / country / sort) are
             client-driven off the URL; the card identity above is never
             affected. Provider-free (Supabase). */}
-        <CardDealFilters
-          slug={slug}
-          initial={allOffers}
-          validSetSlugs={validSetSlugs}
-          featuredCount={FEATURED_OFFER_COUNT}
-          totalActive={allOffers.length}
-        />
+        <div id="card-offers" className="scroll-mt-24">
+          <CardDealFilters
+            slug={slug}
+            initial={allOffers}
+            validSetSlugs={validSetSlugs}
+            featuredCount={FEATURED_OFFER_COUNT}
+            totalActive={allOffers.length}
+          />
+        </div>
 
         {chartPoints.length >= 2 && (
           <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
@@ -599,10 +607,11 @@ export default async function CardHubPage({ params }) {
       {cheapest &&
         (() => {
           // P0 auction-price-integrity: for an auction the sticky-bar
-          // figure is the CURRENT BID (with its own label), never the
-          // bid+shipping landed total.
+          // figure is the current bid when recorded; otherwise the
+          // stored total is explicitly labelled as a recorded auction price.
           const isAuc = cheapest.listing_type === "AUCTION";
           const parts = isAuc ? auctionDisplayParts(cheapest) : null;
+          const shipping = offerShipping(cheapest);
           return (
             <StickyDealCta
               href={wrapEbayAffiliateUrl(cheapest.affiliate_url, { surface: "card" })}
@@ -612,7 +621,8 @@ export default async function CardHubPage({ params }) {
                   ? { amount: parts.bid.native, currency: parts.currency }
                   : { amount: Number(cheapest.total_price), currency: currencyForDeal(cheapest) }
               }
-              priceLabel={isAuc ? "current bid" : undefined}
+              priceLabel={isAuc ? (parts ? "Current bid" : "Recorded auction price") : shipping.headline}
+              priceNote={shipping.note ?? (isAuc && parts ? "Plus shipping" : "Includes recorded shipping")}
               ctaLabel={isAuc ? "Bid on eBay →" : "View on eBay →"}
               eventData={{ card: hub.name, marketplace: cheapest.marketplace, page: "card_hub" }}
             />

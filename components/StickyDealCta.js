@@ -10,7 +10,7 @@ import Price from "@/components/Price";
 // and only on narrower viewports where the in-page button is off-screen.
 // Pass priceUsd + priceNative ({ amount, currency }) so the price
 // localises to the viewer's currency after hydration like everywhere else.
-export default function StickyDealCta({ href, priceUsd, priceNative, priceLabel, ctaLabel = "View on eBay →", eventData }) {
+export default function StickyDealCta({ href, priceUsd, priceNative, priceLabel, priceNote, ctaLabel = "View on eBay →", eventData }) {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -24,6 +24,7 @@ export default function StickyDealCta({ href, priceUsd, priceNative, priceLabel,
 
   return (
     <div
+      inert={!show}
       className={`fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white/95 shadow-[0_-1px_12px_rgba(0,0,0,0.06)] backdrop-blur transition-transform duration-200 lg:hidden dark:border-zinc-800 dark:bg-zinc-950/95 dark:shadow-[0_-1px_12px_rgba(0,0,0,0.4)] ${
         show ? "translate-y-0" : "translate-y-full"
       }`}
@@ -40,6 +41,7 @@ export default function StickyDealCta({ href, priceUsd, priceNative, priceLabel,
             native={priceNative}
             className="truncate text-lg font-bold text-black dark:text-zinc-50"
           />
+          {priceNote && <span className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{priceNote}</span>}
         </span>
         <AffiliateLink
           href={href}

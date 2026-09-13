@@ -958,7 +958,8 @@ export default async function DealDetailPage({ params }) {
         href={wrapEbayAffiliateUrl(deal.affiliate_url, { surface: "deal_page" })}
         priceUsd={ctaPriceUsd}
         priceNative={ctaPriceNative}
-        priceLabel={isAuction ? "current bid" : undefined}
+        priceLabel={isAuction ? (auctionParts ? "Current bid" : "Recorded auction price") : shipping.headline}
+        priceNote={shipping.note ?? (isAuction && auctionParts ? "Plus shipping" : "Includes recorded shipping")}
         ctaLabel={isAuction ? "Bid on eBay →" : "View on eBay →"}
         eventData={{ card: cardName, marketplace: deal.marketplace, discountPct: showSavings ? discountPct : null }}
       />

@@ -59,3 +59,23 @@ for (const hasOffers of [true,false]) {
     assert.ok(calls.some(c=>c.name==='fixture-price-analysis'));
   });
 }
+
+for (const routeFile of [listing,permanent]) {
+ for (const shipping of [0,null,5]) {
+  for (const price of [null,20]) {
+   test(`sticky auction truth: ${routeFile}, shipping=${shipping}, bid=${price}`,async()=>{
+    const deal={...DEAL_STATE_FIXTURES.find(f=>f.id==='auction').deal,is_active:true,price,shipping};
+    const {route,components}=loadRoute(routeFile,{deal,offers:[deal],hub:{id:'fixture-hub',name:'Clefable',set:'Jungle',tcgplayerId:'45120'}});
+    const tree=await route.default({params:Promise.resolve({id:String(deal.id),slug:'fixture-clefable'})});
+    const sticky=elements(tree).find(e=>e.type===components.get('@/components/StickyDealCta'));
+    assert.ok(sticky);
+    assert.equal(sticky.props.priceLabel,price===null?'Recorded auction price':'Current bid');
+    assert.equal(sticky.props.priceNote,shipping===null?'Shipping breakdown not recorded':shipping===0?'Shipping not confirmed':price===null?'Includes recorded shipping':'Plus shipping');
+    if(routeFile===permanent){
+     assert.ok(elements(tree).some(e=>e.props?.href==='#card-offers'));
+     assert.equal(elements(tree).filter(e=>e.props?.id==='card-offers').length,1);
+    }
+   });
+  }
+ }
+}

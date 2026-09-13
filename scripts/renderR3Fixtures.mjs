@@ -32,7 +32,7 @@ try {
     const {route,substitutes}=loadRoute((reference||liveHub)?'app/cards/[slug]/page.js':'app/deals/[id]/page.js',{
       deal:{...source,is_active:true},card,renderComponents:'visual',
       hub:liveHub?{id:'fixture-hub',name:'Clefable',set:'Jungle',tcgplayerId:'45120'}:null,
-      offers:liveHub?[source]:[],analysis:liveHub?{raw:{currentPrice:38.26,referenceCondition:'Near Mint'},graded:[]}:null,
+      offers:liveHub?[source]:[],analysis:liveHub?{cardNumber:'1/64',raw:{currentPrice:38.26,referenceCondition:'Near Mint'},graded:[]}:null,
     });
     const markup=renderToStaticMarkup(await route.default({params:Promise.resolve({id:String(source.id),slug:'fixture-clefable'})}));
     const html='<!doctype html><html><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'\nbody{font-family:Geist,Arial,sans-serif}</style></head><body><aside style="padding:8px;background:#fff3cd;color:#171514;font:12px Arial">SIMULATED R3 FIXTURE: '+id+' - static SSR; prices/links simulated; no hydration; local Geist font.</aside>'+markup+'</body></html>';
