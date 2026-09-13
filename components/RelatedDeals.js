@@ -21,7 +21,18 @@ export default function RelatedDeals({ deals, pokemonName, heading, className = 
     >
       <h2 className="text-sm font-semibold text-black dark:text-zinc-50">{title}</h2>
       <p className="text-xs text-zinc-400">Other listings we&apos;re tracking below market right now — real, active deals.</p>
-      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      {/* DealCard's own layout is full-width-per-slot below `sm` (a fixed
+          7.25rem image column + a flexible text column spanning the rest
+          of ITS container - see components/DealCard.js), matching every
+          other DealCard grid in the app (DealGrid.js, app/page.js,
+          app/deals/page.js, app/best-finds/page.js: all grid-cols-1 at the
+          base breakpoint). This grid alone started at grid-cols-2, halving
+          each card's width below `sm` and squeezing DealCard's compact
+          layout into roughly half the space it needs - identity, price,
+          shipping qualifier and saving text all clipped/wrapped, and the
+          card grew tall from the wrapping. Corrected to the same
+          progression as its siblings. */}
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {deals.map((d) => (
           <DealCard
             key={d.id}

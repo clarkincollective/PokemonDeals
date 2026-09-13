@@ -28,7 +28,15 @@ export const resolveCatalogCard = async slug => ['fixture-reference','fixture-no
 export const findCardHubByWatchlistId = async () => ({...card,id:'fixture-hub',slug:'fixture-hub'});
 export const resolveSpeciesByName = async () => null;
 export const fetchSetSlugs = async () => [...new Set(['jungle','neo-destiny','boundaries-crossed',...savedCatalogue.Dragonite.map(c=>slugifySet(c.set))])];
-export const fetchRelatedActiveDeals = async () => [];
+// Was an empty stub - RelatedDeals early-returns null on an empty array, so
+// its grid (and the layout defect it once had) was unreachable through this
+// fixture harness. Reuses the existing DEAL_STATE_FIXTURES variety: a long
+// wrapping identity, unconfirmed-shipping BIN, unconfirmed-shipping auction,
+// and a non-USD listing (GB) alongside the AUD-viewer default this fixture
+// already sets in app/api/rates/route.js.
+export const fetchRelatedActiveDeals = async () => [
+  from('long_name'), from('bin_shipping_unconfirmed'), from('auction_shipping_unconfirmed'), from('non_usd'),
+];
 export const fetchCardOffers = async id => {if(id!=='fixture-hub')throw Error('UNEXPECTED_FIXTURE_CARD');return {deals:[listingRows[0]],error:null};};
 export const fetchCardRelations = async () => ({sameSpecies:[],sameSet:[]});
 export const fetchCardPriceHistory = async () => null;

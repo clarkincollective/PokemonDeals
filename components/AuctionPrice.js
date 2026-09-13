@@ -69,7 +69,7 @@ export default function AuctionPrice({
         <Price
           usd={usdTotal}
           native={{ amount: total, currency }}
-          className={`tnum ${big} text-zinc-900 dark:text-zinc-50`}
+          className={`tnum break-words ${big} text-zinc-900 dark:text-zinc-50`}
         />
         <p className={`tnum mt-0.5 text-xs ${shippingLineClass}`}>
           {ship.state === "confirmed" ? (
@@ -102,7 +102,7 @@ export default function AuctionPrice({
       <Price
         usd={bid.usd}
         native={{ amount: bid.native, currency }}
-        className={`tnum ${big} text-zinc-900 dark:text-zinc-50`}
+        className={`tnum break-words ${big} text-zinc-900 dark:text-zinc-50`}
       />
       <p className={`tnum mt-0.5 text-xs ${shippingLineClass}`}>
         {ship.state === "confirmed" ? (

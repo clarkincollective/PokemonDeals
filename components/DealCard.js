@@ -297,7 +297,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             <Price
               usd={usdTotal}
               native={{ amount: total, currency: nativeCurrency }}
-              className="tnum block text-2xl font-bold leading-tight text-zinc-900 dark:text-zinc-50"
+              className="tnum block break-words text-2xl font-bold leading-tight text-zinc-900 dark:text-zinc-50"
             />
             <p className={`tnum mt-0.5 text-xs ${shippingConfirmed ? "text-zinc-500 dark:text-zinc-400" : "text-amber-700 dark:text-amber-500"}`}>
               {shippingConfirmed ? (
