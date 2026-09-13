@@ -17,6 +17,7 @@ import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { wrapEbayAffiliateUrl, buildEbaySearchLink } from "@/lib/ebayLinks";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import SiteHeader from "@/components/SiteHeader";
+import SkipToContent from "@/components/SkipToContent";
 import CardDealFilters from "@/components/CardDealFilters";
 import { currencyForDeal, auctionDisplayParts, dealTotalUsd, hasPrice } from "@/lib/money";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
@@ -411,9 +412,10 @@ export default async function CardHubPage({ params }) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <RecordCardView card={cardDescriptor} />
       <DetailViewAnalytics kind="card" contentId={slug} />
+      <SkipToContent />
       <SiteHeader />
 
-      <div className="mx-auto max-w-5xl px-6 py-6">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-5xl scroll-mt-24 px-6 py-6">
         <Breadcrumbs
           items={[
             { name: "Deals", href: "/" },
@@ -599,7 +601,7 @@ export default async function CardHubPage({ params }) {
             ← Back to All Deals
           </Link>
         </div>
-      </div>
+      </main>
 
       {cheapest &&
         (() => {

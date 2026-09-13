@@ -26,7 +26,7 @@ export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis
   const query={};
   for (const name of ['from','select','eq']) query[name]=(...args)=>{calls.push({name:'fixture-db.'+name,args});return query;};
   query.single=record('fixture-db.single',{data:deal});
-  const realComponents = new Set(['Price','AuctionPrice','AffiliateLink','CardPriceSummary','CatalogCardView','CardWorthAnswer']);
+  const realComponents = new Set(['Price','AuctionPrice','AffiliateLink','CardPriceSummary','CatalogCardView','CardWorthAnswer','SkipToContent']);
   const substitutes = new Set();
   if (renderComponents === 'visual') for (const name of ['SiteHeader','SiteFooter','Logo','NavMenu','NavDropdown','RegionControl','DealImage','CardImagePlaceholder','Breadcrumbs','CardPriceIntelligence','CardWorthAnswer','CardNextSteps','RelatedCards','VariantPriceGrid','ListingChecks','PriceHistoryChart','CardDealFilters','DealCard','FilterToggle','RecentSales','EbaySearchLink','MiniSparkline','ShareButton','SaveCardButton','DealBackLink','RelativeTime','StickyDealCta']) realComponents.add(name);
   function compile(filename) {

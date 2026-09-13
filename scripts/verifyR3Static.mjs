@@ -27,6 +27,7 @@ const send = (m, p) => raw(m, p, sessionId).then((d) => d.result);
 
 const blocked=[];
 await send('Page.enable');
+await send('Accessibility.enable');
 await send('Fetch.enable',{patterns:[{urlPattern:'*'}]});
 handlers.push(d=>{if(d.method==='Fetch.requestPaused'&&d.sessionId===sessionId){
   const u=d.params.request.url;
@@ -35,7 +36,11 @@ handlers.push(d=>{if(d.method==='Fetch.requestPaused'&&d.sessionId===sessionId){
   raw(ok?'Fetch.continueRequest':'Fetch.failRequest',ok?{requestId:d.params.requestId}:{requestId:d.params.requestId,errorReason:'BlockedByClient'},sessionId);
 }});
 const ev=async expression=>(await send('Runtime.evaluate',{expression,returnByValue:true})).result.value;
-const records=[],anchorChecks=[];
+const records=[],anchorChecks=[],accessibilityChecks=[];
+const key=async(name,code,text)=>{
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:name,code:name,windowsVirtualKeyCode:code,...(text?{text,unmodifiedText:text}:{})});
+  await send('Input.dispatchKeyEvent',{type:'keyUp',key:name,code:name,windowsVirtualKeyCode:code});
+};
 try {
   for(const {id:name} of JSON.parse(fs.readFileSync(path.join(OUT,'r3-static','manifest.json'),'utf8'))) {
     const html=fs.readFileSync(path.join(OUT,'r3-static',name+'.html'),'utf8');
@@ -52,6 +57,25 @@ try {
       const filename='R3-STATIC-'+name+'-'+width+(scheme==='dark'?'-dark':'')+'.png';
       fs.writeFileSync(path.join(OUT,filename),Buffer.from(shot.data,'base64'));
       records.push({name,scheme,filename,...geometry});
+      // Reset keyboard traversal at the document start, then use real key
+      // events: never focus the skip link or destination for the assertion.
+      await ev('document.body.tabIndex=-1;document.body.focus();document.body.removeAttribute("tabindex")');
+      await key('Tab',9);
+      const skip=await ev(`(()=>{const e=document.activeElement,r=e.getBoundingClientRect();return {href:e.getAttribute('href'),text:e.textContent.trim(),height:r.height,top:r.top,left:r.left,right:r.right,bottom:r.bottom};})()`);
+      if(['bin_compared','display_gated'].includes(name)&&[1280,320].includes(width)){
+        const focusedShot=await send('Page.captureScreenshot',{format:'png'});
+        fs.writeFileSync(path.join(OUT,'R3-SKIP-'+name+'-'+width+'-'+scheme+'.png'),Buffer.from(focusedShot.data,'base64'));
+      }
+      await key('Enter',13,'\r');
+      const destination=await ev(`({focused:document.activeElement.id,mainCount:document.querySelectorAll('main').length,top:document.getElementById('main-content')?.getBoundingClientRect().top})`);
+      await key('Tab',9);
+      const nextInsideMain=await ev(`document.querySelector('main').contains(document.activeElement)&&document.activeElement!==document.querySelector('main')`);
+      const {nodes}=await send('Accessibility.getFullAXTree');
+      const exposed=nodes.filter(n=>!n.ignored);
+      const mainLandmarks=exposed.filter(n=>n.role?.value==='main').length;
+      const levelOneHeadings=exposed.filter(n=>n.role?.value==='heading'&&n.properties?.some(p=>p.name==='level'&&p.value?.value===1)).map(n=>n.name?.value);
+      const pass=skip.href==='#main-content'&&skip.text==='Skip to content'&&skip.height>=44&&skip.top>=0&&skip.left>=0&&skip.right<=width&&skip.bottom<=900&&destination.focused==='main-content'&&destination.mainCount===1&&destination.top>=0&&nextInsideMain&&mainLandmarks===1&&levelOneHeadings.length===1&&Boolean(levelOneHeadings[0]);
+      accessibilityChecks.push({name,scheme,width,skip,destination,nextInsideMain,mainLandmarks,levelOneHeadings,pass});
       if(name==='hub_with_offers'){
         await ev(`document.querySelector('a[href="#card-offers"]').click()`);await sleep(350);
         anchorChecks.push({width,scheme,...await ev('({scrolled:scrollY>0,top:document.getElementById("card-offers").getBoundingClientRect().top})')});
@@ -60,6 +84,10 @@ try {
   }
   }
   fs.writeFileSync(path.join(OUT,'R3-STATIC-record.json'),JSON.stringify({records,blocked,anchorChecks},null,2));
+  fs.writeFileSync(path.join(OUT,'R3-MAIN-NAVIGATION-record.json'),JSON.stringify({checks:accessibilityChecks,blocked},null,2));
   console.log(JSON.stringify({captures:records.length,anchorChecks,overflow:records.filter(r=>r.scrollWidth>r.width),failedImages:records.filter(r=>r.images.some(i=>!i.loaded)),blocked}));
   if(records.some(r=>r.images.some(i=>!i.loaded)||r.scrollWidth>r.width)||anchorChecks.some(c=>!c.scrolled||c.top<0||c.top>200))process.exitCode=1;
+  const accessibilityFailures=accessibilityChecks.filter(c=>!c.pass);
+  console.log(JSON.stringify({accessibilityChecks:accessibilityChecks.length,accessibilityFailures}));
+  if(accessibilityChecks.length!==records.length||accessibilityFailures.length)process.exitCode=1;
 }finally{await raw('Browser.close');ws.close();chrome.kill();}

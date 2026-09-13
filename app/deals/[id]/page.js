@@ -23,6 +23,7 @@ import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import SiteHeader from "@/components/SiteHeader";
+import SkipToContent from "@/components/SkipToContent";
 import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import StickyDealCta from "@/components/StickyDealCta";
@@ -338,7 +339,9 @@ export default async function DealDetailPage({ params }) {
     const ebaySearchUrl = searchQuery ? buildEbaySearchLink(searchQuery, deal?.marketplace, "deal_page") : null;
     return (
       <div className="min-h-screen bg-paper">
+        <SkipToContent />
         <SiteHeader />
+        <main id="main-content" tabIndex={-1} className="scroll-mt-24">
         <div className="mx-auto max-w-2xl px-6 py-16 text-center">
           <h1 className="text-xl font-bold text-black dark:text-zinc-50">
             {preRelease ? preRelease.notes[0] : deal ? "This deal has ended" : "Deal not found"}
@@ -400,6 +403,7 @@ export default async function DealDetailPage({ params }) {
             <EmailCapture placement="expired_deal" pageType="expired_deal" />
           </div>
         )}
+        </main>
         <SiteFooter />
       </div>
     );
@@ -597,8 +601,9 @@ export default async function DealDetailPage({ params }) {
         }}
       />
       <DetailViewAnalytics kind="deal" contentId={deal.id} />
+      <SkipToContent />
       <SiteHeader />
-      <div className="mx-auto max-w-5xl px-6 py-6">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-5xl scroll-mt-24 px-6 py-6">
         <div className="mb-3">
           <DealBackLink fallbackHref={backFallback.href} fallbackLabel={backFallback.label} />
         </div>
@@ -976,7 +981,7 @@ export default async function DealDetailPage({ params }) {
         )}
 
         <ListingChecks className="mt-8" />
-      </div>
+      </main>
       <SiteFooter note="Card-to-listing matching is automated and not perfect - always double-check a listing's photos and description before buying." />
 
       {/* 13B.7.2 - reserved strip BELOW the footer so the fixed mobile

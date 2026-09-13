@@ -8,6 +8,7 @@ import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { cardDisplayName } from "@/lib/cardName";
 import { catalogCardHeading } from "@/lib/cardSlug";
 import SiteHeader from "@/components/SiteHeader";
+import SkipToContent from "@/components/SkipToContent";
 import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
@@ -154,9 +155,10 @@ export default function CatalogCardView({
     <div className="min-h-screen bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <RecordCardView card={cardDescriptor} />
+      <SkipToContent />
       <SiteHeader />
 
-      <div className="mx-auto max-w-5xl px-6 py-6">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-5xl scroll-mt-24 px-6 py-6">
         <Breadcrumbs
           items={[
             { name: "Deals", href: "/" },
@@ -332,7 +334,7 @@ export default function CatalogCardView({
             Browse the card database →
           </Link>
         </div>
-      </div>
+      </main>
 
       <SiteFooter note="Card-to-listing matching is automated and not perfect - always double-check a listing's photos and description before buying." />
     </div>
