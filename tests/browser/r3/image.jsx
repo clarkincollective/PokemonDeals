@@ -1,0 +1,1 @@
+export default function Image({src,alt,fill,priority,quality,unoptimized,sizes,style,...props}){return <img {...props} src={src} alt={alt} sizes={sizes} style={fill?{position:'absolute',inset:0,width:'100%',height:'100%',...style}:style}/>;}
