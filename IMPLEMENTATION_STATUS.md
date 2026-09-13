@@ -3624,3 +3624,31 @@ No scanner, allocator, budget, watchlist, cron, newsletter or social change. Unr
 - Chromium only.
 
 Not deployed; production stays at `a660e69`.
+
+#### Copy correction: index explanation accurate with and without JavaScript (2026-09-14, local, not deployed)
+
+The owner accepted the collapsed-index behaviour. The explanation inside the index still said "Choose Gallery to search, filter and sort…", but without JavaScript that toggle is hidden.
+
+**Change (copy only, `CatalogueLinkIndex`, commit `e5c0934`).**
+- Multi-section indexes (for example Charizard) now read "Every `<name>` card we track, linked to its price & deal page. Open a section below to see its cards."
+- Single-section indexes (for example XY Promos) read "Every `<name>` card we track, linked to its price & deal page."
+- Both are true with and without JS, because `<details>` expands natively. MUX-6b now also rejects directions to the Gallery control.
+
+**Verification.**
+- **Server HTML (fixture):** the new wording is present on Charizard and XY Promos, "Choose Gallery" appears 0 times, every link is still present (153, 229 and 93), nothing is open by default, and the checklists are unchanged.
+- **Collapsed-index verifier:** 23/23, including no-JS.
+- **Screenshot capture at 390 light:**
+  - The menu fits 844/844, with 7 visible items, a 48px minimum tap target and 17 destinations.
+  - Charizard's first card image is at 1,299px, with 27 images, 153 links, 0 broken and no overflow.
+  - One blocked request, `chrome-extension://…/thunk.js`: headless Chrome's own component, stopped by the guard and not requested by the page.
+- **Builds and tests:** `next build` exit 0 with species and set routes still SSG; `mobile-ux-r1` tests 11/11.
+
+**Final 390px screenshots for owner review:**
+- mobile menu
+- Charizard gallery
+- Charizard collapsed index
+- XY Promos collapsed index
+
+**Still open, separate data check (not part of this task):** the XY Promos page states 269 tracked and 232 priced cards, while its index lists 229 indexable links. This is pre-existing on production and unchanged here.
+
+Not deployed; production stays at `a660e69` pending visual approval.
