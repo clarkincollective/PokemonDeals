@@ -96,7 +96,17 @@ export async function generateMetadata({ params }) {
   if (!hub) {
     // No live-deal hub - fall back to the stable card_catalog record.
     const card = await resolveCatalogCard(slug);
-    if (!card) return { title: "Card not found", robots: { index: false, follow: true } };
+    if (!card) {
+      const title = "Card not found";
+      const description = "This card page is not available. Browse the card catalogue to find another card.";
+      return {
+        title,
+        description,
+        robots: { index: false, follow: true },
+        openGraph: { title, description, images: [] },
+        twitter: { card: "summary", title, description, images: [] },
+      };
+    }
     const dn = card.displayName ?? cardDisplayName(card);
     // Precedence: structured card_catalog.card_number, then a number
     // embedded in the name (near-zero here - card_catalog is ~99% numbered).
