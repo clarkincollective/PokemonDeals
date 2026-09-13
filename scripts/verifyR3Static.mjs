@@ -39,7 +39,9 @@ const records=[],anchorChecks=[];
 try {
   for(const {id:name} of JSON.parse(fs.readFileSync(path.join(OUT,'r3-static','manifest.json'),'utf8'))) {
     const html=fs.readFileSync(path.join(OUT,'r3-static',name+'.html'),'utf8');
-    for(const width of [1280,390,320]) {
+    for(const scheme of ["light","dark"]) {
+    await send("Emulation.setEmulatedMedia",{features:[{name:"prefers-color-scheme",value:scheme}]});
+    for(const width of [1280,1440,390,320]) {
       await send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false});
       const {frameTree}=await send('Page.getFrameTree');
       await send('Page.setDocumentContent',{frameId:frameTree.frame.id,html});
@@ -47,14 +49,15 @@ try {
       for(let i=0;i<30;i++){if(await ev('[...document.images].every(i=>i.complete)'))break;await sleep(200);}
       const geometry=await ev('({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,images:[...document.images].map(i=>({src:i.src,loaded:i.naturalWidth>0}))})');
       const shot=await send('Page.captureScreenshot',{format:'png'});
-      const filename='R3-STATIC-'+name+'-'+width+'.png';
+      const filename='R3-STATIC-'+name+'-'+width+(scheme==='dark'?'-dark':'')+'.png';
       fs.writeFileSync(path.join(OUT,filename),Buffer.from(shot.data,'base64'));
-      records.push({name,filename,...geometry});
+      records.push({name,scheme,filename,...geometry});
       if(name==='hub_with_offers'){
         await ev(`document.querySelector('a[href="#card-offers"]').click()`);await sleep(350);
-        anchorChecks.push({width,...await ev('({scrolled:scrollY>0,top:document.getElementById("card-offers").getBoundingClientRect().top})')});
+        anchorChecks.push({width,scheme,...await ev('({scrolled:scrollY>0,top:document.getElementById("card-offers").getBoundingClientRect().top})')});
       }
     }
+  }
   }
   fs.writeFileSync(path.join(OUT,'R3-STATIC-record.json'),JSON.stringify({records,blocked,anchorChecks},null,2));
   console.log(JSON.stringify({captures:records.length,anchorChecks,overflow:records.filter(r=>r.scrollWidth>r.width),failedImages:records.filter(r=>r.images.some(i=>!i.loaded)),blocked}));

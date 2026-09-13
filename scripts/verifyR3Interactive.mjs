@@ -106,6 +106,13 @@ try{
       const screenshot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(OUT,'R3-STICKY-'+name+'-'+width+'.png'),Buffer.from(screenshot.data,'base64'));
     }
   }
+
+  await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+  await check('reduced motion suppresses sticky transition',`(()=>{const bar=document.querySelector('a[href*="customid=deal_page"]').closest('.fixed');return matchMedia('(prefers-reduced-motion: reduce)').matches&&getComputedStyle(bar).transitionDuration.split(',').every(v=>parseFloat(v)<=0.00001);})()`);
+  await ev('window.scrollTo(0,0)');await sleep(120);
+  await check('reduced motion sticky still hides and becomes inert',"document.querySelector('a[href*=\"customid=deal_page\"]').closest('.fixed').inert");
+  await ev('window.scrollTo(0,700)');await sleep(120);
+  await check('reduced motion sticky still shows',"!document.querySelector('a[href*=\"customid=deal_page\"]').closest('.fixed').inert");
   const shot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(OUT,'R3-INTERACTIVE-390.png'),Buffer.from(shot.data,'base64'));
   fs.writeFileSync(path.join(OUT,'R3-INTERACTIVE-record.json'),JSON.stringify({checks,errors,blocked},null,2));
   console.log(JSON.stringify({passed:checks.filter(c=>c.ok).length,total:checks.length,errors,blocked}));

@@ -193,7 +193,7 @@ export default function CatalogCardView({
             <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">
               {catalogCardHeading(name, set, cardNumber)}
             </h1>
-            <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-zinc-500">
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-zinc-500 dark:text-zinc-400">
               {setHasPage ? (
                 <Link href={`/sets/${setSlug}`} className="hover:text-red-600 hover:underline dark:hover:text-red-500">
                   {set}
@@ -209,7 +209,7 @@ export default function CatalogCardView({
               <div className="mt-1">
                 <Link
                   href={`/pokemon/${speciesLink.slug}`}
-                  className="text-sm text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500"
+                  className="text-sm text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500 dark:text-zinc-400"
                 >
                   All {speciesLink.name} cards &amp; prices →
                 </Link>

@@ -46,7 +46,7 @@ export default function CardWorthAnswer({ answer, className = "" }) {
           <p>
             Prices vary with condition, grading and current buyer demand
             {answer.gradedAvailable ? " — graded prices for this printing are listed below" : ""}.{" "}
-            <Link href="/methodology" className="text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500">
+            <Link href="/methodology" className="text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500 dark:text-zinc-400">
               How we work out prices
             </Link>
           </p>

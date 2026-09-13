@@ -331,7 +331,7 @@ export default async function DealDetailPage({ params }) {
           <h1 className="text-xl font-bold text-black dark:text-zinc-50">
             {preRelease ? preRelease.notes[0] : deal ? "This deal has ended" : "Deal not found"}
           </h1>
-          <p className="mt-2 text-sm text-zinc-500">
+          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
             {preRelease
               ? `This listing${cardName ? ` for ${cardName}` : ""} predates its set's release, and eBay hasn't confirmed the listing is active. We only show such a listing once eBay confirms it - that confirms the listing, not that the seller holds the card or when it would arrive. Here is where to look next.`
               : deal
@@ -649,15 +649,15 @@ export default async function DealDetailPage({ params }) {
                 already target but the page's own primary heading didn't. */}
             <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">
               {cardName}
-              {showSavings && <span className="font-medium text-zinc-500"> - {discountPct}% Below Market{shipping.savingQualifier}</span>}
+              {showSavings && <span className="font-medium text-zinc-500 dark:text-zinc-400"> - {discountPct}% Below Market{shipping.savingQualifier}</span>}
             </h1>
             {cardSet && (
               setSlug ? (
-                <Link href={`/sets/${setSlug}`} className="text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500">
+                <Link href={`/sets/${setSlug}`} className="text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500 dark:text-zinc-400">
                   {cardSet}
                 </Link>
               ) : (
-                <p className="text-zinc-500">{cardSet}</p>
+                <p className="text-zinc-500 dark:text-zinc-400">{cardSet}</p>
               )
             )}
             <p className="mt-1 line-clamp-2 text-sm text-zinc-400">{normalizePublicText(deal.title)}</p>
@@ -674,7 +674,7 @@ export default async function DealDetailPage({ params }) {
             {speciesHub && (
               <Link
                 href={`/pokemon/${speciesHub.slug}`}
-                className="mt-1 flex items-center gap-1 text-sm text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500"
+                className="mt-1 flex items-center gap-1 text-sm text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500 dark:text-zinc-400"
               >
                 All {speciesHub.name} deals ({speciesHub.count}) →
               </Link>
@@ -699,7 +699,7 @@ export default async function DealDetailPage({ params }) {
                 />
               ) : (
                 <>
-                  <p className="text-sm text-zinc-500">{shipping.headline}</p>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">{shipping.headline}</p>
                   <div className="flex items-baseline gap-3">
                     <Price
                       usd={usdTotal}
