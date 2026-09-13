@@ -61,7 +61,25 @@ const gradedPool = [
   { ...gradedBase, id: 950003, card_tcgplayer_id: 'fixture-blastoise', grader: 'CGC', grade: '10', total_price_usd: 1600, marketplace: 'EBAY_GB', title: 'Blastoise Base Set 2/102 CGC 10', card_name: 'Blastoise', watchlist: { ...gradedBase.watchlist, name: 'Blastoise' } },
   { ...gradedBase, id: 950004, card_tcgplayer_id: 'fixture-venusaur', grader: 'CGC', grade: '9', total_price_usd: 700, marketplace: 'EBAY_AU', title: 'Venusaur Base Set 15/102 CGC 9', card_name: 'Venusaur', watchlist: { ...gradedBase.watchlist, name: 'Venusaur' } },
   { ...from('bin_compared'), id: 950005, is_graded: false, grader: null, grade: null, total_price_usd: 30.75 },
+  // Review closure (2026-09-14): pagination has never been exercised with
+  // graded data - real supply has never had a second page. 28 distinct
+  // SGC-graded printings (own card_tcgplayer_id each, so none dedup away)
+  // is one more than a single 24-row page. A dedicated grader (not
+  // PSA/CGC) so it never perturbs the existing single-grader assertions
+  // above; ascending price so page order/boundary is checkable.
+  ...Array.from({ length: 28 }, (_, i) => ({
+    ...gradedBase,
+    id: 950100 + i,
+    card_tcgplayer_id: `fixture-sgc-bulk-${i}`,
+    grader: 'SGC',
+    grade: '9',
+    total_price_usd: 200 + i,
+    title: `SGC Bulk Card ${i} 9`,
+    card_name: `SGC Bulk Card ${i}`,
+    watchlist: { ...gradedBase.watchlist, name: `SGC Bulk Card ${i}` },
+  })),
 ];
+const GRADED_PAGE_SIZE = 24; // matches app/api/deals-page/route.js's real pageSize:24
 function gradedBrowsingResult(options) {
   let rows = gradedPool.filter((r) => r.is_active !== false);
   if (options.cardType === 'graded') rows = rows.filter((r) => r.is_graded);
@@ -77,13 +95,23 @@ function gradedBrowsingResult(options) {
   }
   if (options.sort === 'price_asc') rows = [...rows].sort((a, b) => a.total_price_usd - b.total_price_usd);
   else if (options.sort === 'price_desc') rows = [...rows].sort((a, b) => b.total_price_usd - a.total_price_usd);
-  return rows;
+  // Real pagination, mirroring lib/deals.js: `count` is the full matching
+  // total BEFORE slicing to one page - the same distinction (a page's
+  // rendered length is not the total) this review's fix made explicit.
+  const totalCount = rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / GRADED_PAGE_SIZE));
+  const page = Math.max(1, Number(options.page) || 1);
+  const from = (page - 1) * GRADED_PAGE_SIZE;
+  const deals = rows.slice(from, from + GRADED_PAGE_SIZE);
+  return { deals, totalPages, totalCount };
 }
 export const fetchDealsPage = async (options={}) => {
   if (options.cardType === 'graded' || options.grader || options.grade != null) {
-    return { deals: gradedBrowsingResult(options), totalPages: 1, error: null };
+    const { deals, totalPages, totalCount } = gradedBrowsingResult(options);
+    return { deals, totalPages, totalCount, error: null };
   }
-  return { deals: familyDeals(options), totalPages: 1, error: null };
+  const deals = familyDeals(options);
+  return { deals, totalPages: 1, totalCount: deals.length, error: null };
 };
 export const fetchCardDealsPage = async (options={}) => ({deals:familyDeals(options),totalPages:1,error:null});
 export const fetchHubCounts = async () => ({});

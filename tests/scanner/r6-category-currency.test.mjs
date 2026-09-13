@@ -33,6 +33,22 @@ const dedupRows = [
   { id: 9, is_active: true, card_language: 'english', card_tcgplayer_id: 'dup-card', total_price: 600, total_price_usd: 600, is_graded: true, grader: 'PSA', grade: '9' },
   { id: 10, is_active: true, card_language: 'english', card_tcgplayer_id: 'dup-card', total_price: 1000, total_price_usd: 1000, is_graded: true, grader: 'PSA', grade: '10' },
 ];
+// Isolated fixture for pagination only (review closure, 2026-09-14): 30
+// distinct PSA-graded rows (each its own card_tcgplayer_id, so none
+// collapse in dedup), one more than a single 24-row page - real graded
+// inventory has never had enough rows to exercise this path before.
+// Ascending price so page order is deterministic and checkable.
+const paginationRows = Array.from({ length: 30 }, (_, i) => ({
+  id: 100 + i,
+  is_active: true,
+  card_language: 'english',
+  card_tcgplayer_id: `pg-card-${i}`,
+  total_price: 50 + i,
+  total_price_usd: 50 + i,
+  is_graded: true,
+  grader: 'PSA',
+  grade: '9',
+}));
 function harness(rowSet = rows) {
   const calls = [], predicates = [];
   let order;
@@ -143,8 +159,42 @@ test('dedup: different grades of the same card are distinct tiles, but a true du
   assert.equal(byGrade['9'], 9, 'the PSA 9 listing must survive dedup');
   assert.ok(byGrade['10'] === 8 || byGrade['10'] === 10, 'exactly one of the two identical PSA 10 listings (8, 10) must survive - whichever sorts first');
 });
+
+// Pagination (review closure, 2026-09-14): real graded inventory has never
+// had enough rows to reach a second page, so this had no behavioural
+// coverage at all before now - only the pre-existing, unrelated
+// totalPages arithmetic itself was exercised by other tests above.
+test('pagination: totalCount is the real matching total, independent of how many rows this page renders', async () => {
+  const h = harness(paginationRows);
+  const page1 = await h.run({ cardType: 'graded', grader: 'PSA', page: 1, sort: 'price_asc' });
+  assert.equal(page1.deals.length, 24, 'a full first page');
+  assert.equal(page1.totalCount, 30, 'totalCount reflects all 30 matching rows, not just what this page rendered');
+  assert.equal(page1.totalPages, 2);
+});
+test('pagination: page 2 returns the remainder, sort preserved, no overlap or missing identities across pages', async () => {
+  const h = harness(paginationRows);
+  const page1 = await h.run({ cardType: 'graded', grader: 'PSA', page: 1, sort: 'price_asc' });
+  const page2 = await h.run({ cardType: 'graded', grader: 'PSA', page: 2, sort: 'price_asc' });
+  assert.equal(page2.deals.length, 6, 'the remaining 6 rows');
+  assert.equal(page2.totalCount, 30);
+  const page1Ids = page1.deals.map((d) => d.id);
+  const page2Ids = page2.deals.map((d) => d.id);
+  assert.equal(new Set([...page1Ids, ...page2Ids]).size, 30, 'all 30 identities appear exactly once across both pages');
+  assert.deepEqual([...page1Ids].sort((a, b) => a - b).length + [...page2Ids].sort((a, b) => a - b).length, 30);
+  // price_asc must stay consistent across the page boundary: every id on
+  // page 1 has a lower fixture price than every id on page 2.
+  const priceOf = (id) => paginationRows.find((r) => r.id === id).total_price_usd;
+  assert.ok(Math.max(...page1Ids.map(priceOf)) < Math.min(...page2Ids.map(priceOf)), 'page 1 is entirely cheaper than page 2 under price_asc');
+});
+test('pagination: a page number past the real last page returns empty, not an error, and does not misreport totalCount', async () => {
+  const h = harness(paginationRows);
+  const page99 = await h.run({ cardType: 'graded', grader: 'PSA', page: 99, sort: 'price_asc' });
+  assert.deepEqual(page99.deals, []);
+  assert.equal(page99.error, null);
+  assert.equal(page99.totalCount, 30, 'an out-of-range page must not be misreported as "0 total" - the filter still matches 30 rows, this page is just past the end');
+});
 test('an empty category set scope returns no rows without a database query', async () => {
   const h = harness();
-  assert.deepEqual(await h.run({ sets: [] }), { deals: [], totalPages: 1, error: null });
+  assert.deepEqual(await h.run({ sets: [] }), { deals: [], totalPages: 1, totalCount: 0, error: null });
   assert.deepEqual(h.calls, []);
 });

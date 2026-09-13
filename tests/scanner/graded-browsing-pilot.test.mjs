@@ -100,11 +100,40 @@ test('DealGrid: q is part of the isDefault computation, so a search term correct
 
 test('DealFilterChips: AppliedFilters/FilteredEmptyState search-chip support is additive (opt-in), not a behaviour change for existing callers', () => {
   const chips = src('components/DealFilterChips.js');
-  assert.match(chips, /export function AppliedFilters\(\{ params, basePath, resultCount, searchQuery \}\)/);
+  assert.match(chips, /export function AppliedFilters\(\{ params, basePath, resultCount, totalCount, searchQuery \}\)/);
   assert.match(chips, /export function FilteredEmptyState\(\{ params, basePath, subjectLabel, searchQuery \}\)/);
   // "Clear all" must drop q too when a search is active, or it re-lands on
   // the same empty state.
   assert.match(chips, /clearAll\.drop = \[\.\.\.clearAll\.drop, "q"\];/);
+});
+
+test('DealFilterChips: the match-count label distinguishes a displayed page from the total matching count', () => {
+  const chips = src('components/DealFilterChips.js');
+  // A single-page result (totalCount not greater than what's shown) keeps
+  // the old plain wording - this must not change for every existing
+  // species/set caller, which never passes totalCount at all.
+  assert.match(chips, /\$\{resultCount\} match\$\{resultCount === 1 \? "" : "es"\}/);
+  // Only once totalCount is a number AND genuinely exceeds resultCount
+  // does the label switch to the disambiguating "Showing X of Y" form -
+  // review finding (2026-09-14): resultCount alone is a displayed count,
+  // not proof that's every matching row.
+  assert.match(chips, /totalCount > resultCount/);
+  assert.match(chips, /Showing \$\{resultCount\} of \$\{totalCount\} match/);
+});
+
+test('search-within honesty: the form is JS-only (a <noscript> fallback replaces it, never claims a working no-JS search)', () => {
+  const bar = src('components/FilterBar.js');
+  // Review finding (2026-09-14): submitting the plain GET form without JS
+  // is real (a genuine navigation), but the result is never actually
+  // filtered without JS (this whole grid is client-fetched) and the
+  // form's own hidden inputs - built from this component's always-empty
+  // SSR snapshot - drop every other active param on that submission. The
+  // fix is not to fake server-side filtering; it is to stop presenting an
+  // apparently-working control that cannot deliver.
+  assert.match(bar, /<noscript>/);
+  assert.match(bar, /requires JavaScript/i);
+  assert.match(bar, /pdf-search-within/);
+  assert.match(bar, /display:none!important/);
 });
 
 test('the graded category preset itself is unchanged by this phase - filters narrow within it, they do not loosen it', () => {
