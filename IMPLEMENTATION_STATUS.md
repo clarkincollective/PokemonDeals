@@ -3652,3 +3652,39 @@ The owner accepted the collapsed-index behaviour. The explanation inside the ind
 **Still open, separate data check (not part of this task):** the XY Promos page states 269 tracked and 232 priced cards, while its index lists 229 indexable links. This is pre-existing on production and unchanged here.
 
 Not deployed; production stays at `a660e69` pending visual approval.
+
+### Deployment (2026-09-14) — mobile UX refinement r1 live at `f5d0752`
+
+**Authorization and scope.** The owner approved the final 390px screenshots and said "Deploy".
+- **Pre-push state:** `origin/main` was still `a660e69c37cb2e9d3e1c99a3bd189e39104b7224`, and `f5d0752` descends from it, so the push was a fast-forward.
+- **Pushed:** `a660e69..f5d0752`, 8 commits (`c4855f5` graded ledger, `bc2296f`, `c1c69aa`, `456a64c`, `188f909`, `6ca7728`, `e5c0934`, `f5d0752`), 19 files, all from the reviewed graded-ledger and mobile UX work.
+- **Method:** only that SHA was pushed (`git push origin f5d0752…:refs/heads/main`). No hooks. Unrelated worktrees and held commits were untouched.
+- **Last code commit in the build:** `e5c0934` (`f5d0752` is docs only).
+
+**Vercel.** `dpl_hU6iqswfep54jfF1BHsD3XAzzXg3` (target production, commit `f5d0752`) reached READY about 66s after the build started. It is aliased to `pokemondealfinder.com`, with no alias error. The rollback candidate is the previous production deployment, `dpl_AHHai6nwQnyJJfjk42zTRYKQjA2Y` (`a660e69`).
+
+**Production verification, server HTML (plain GETs of static species/set pages; no browser, no provider route).** `/pokemon/charizard` returned 200 from the Vercel cache (`X-Vercel-Cache: HIT`).
+
+| Page | Result |
+|---|---|
+| `/pokemon/charizard` | one closed outer `<details>`, heading "Full Charizard card index (153)", 153 links, 10 closed era sections, explanation inside, no `open` attribute |
+| `/sets/xy-promos` | "Full XY Promos card index (229)", 229 links, no nested sections, explanation inside |
+| `/sets/ex-legend-maker` | "Full EX Legend Maker card index (90)", 90 links, 6 sections. Production lists 90 indexable links; the fixture used all 93 rows, and the indexable filter gives 90 for the captured data too. |
+| `/pokemon/dragonite`, `/sets/jungle`, `/sets/neo-destiny` | checklist pages; no link index substituted; 75, 64 and 113 links |
+| All six | no-JS `<noscript>` fallback present; canonicals unchanged |
+| Wording | Charizard: "…linked to its price & deal page. Open a section below to see its cards."; XY Promos: "…linked to its price & deal page."; "Choose Gallery" occurs 0 times |
+
+**Not yet verified in production.** A guarded 390px browser pass was prepared but not run, because the session's permission classifier denied running browser automation against production. The pass would cover:
+- menu touch and fit
+- Charizard and XY Promos collapsed and expanded states, including no-JS
+- EX Legend Maker gallery default
+- Jungle checklist ownership boxes
+- the homepage condition-guide thumbnail loading
+
+The guard is an allow-list covering only those five pages plus static assets, the deals-page API and a single `/_next/image` request for the guide asset. It blocks `/deals/<id>`, `/cards` prefetches, analytics, eBay and other image-optimiser requests; its self-test passed.
+
+Until that pass runs, browser behaviour rests on the fixture evidence recorded above, run against the same code. The production HTML matches the fixture HTML structure.
+
+**Still open, separate data check:** XY Promos states 269 tracked / 232 priced cards while its index lists 229 indexable links (pre-existing).
+
+No scanner, budget, newsletter or social change. This ledger entry is a local-only commit on `mobile-ux-r1`, **not pushed**, so it does not trigger another deployment.
