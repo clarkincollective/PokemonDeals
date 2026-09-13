@@ -27,7 +27,7 @@ export const resolveCardSlug = async slug => slug==='fixture-hub'?{...card,id:'f
 export const resolveCatalogCard = async slug => ['fixture-reference','fixture-no-reference','clefable-jungle'].includes(slug)?{...card,slug,...(slug==='fixture-no-reference'?{tcgplayerId:null,refPrice:null,indexable:false}:{})}:null;
 export const findCardHubByWatchlistId = async () => ({...card,id:'fixture-hub',slug:'fixture-hub'});
 export const resolveSpeciesByName = async () => null;
-export const fetchSetSlugs = async () => [...new Set(['jungle','neo-destiny','boundaries-crossed',...savedCatalogue.Dragonite.map(c=>slugifySet(c.set))])];
+export const fetchSetSlugs = async () => [...new Set(['jungle','neo-destiny','boundaries-crossed','ex-legend-maker',...savedCatalogue.Dragonite.map(c=>slugifySet(c.set)),...savedCatalogue.Charizard.map(c=>slugifySet(c.set))])];
 // Was an empty stub - RelatedDeals early-returns null on an empty array, so
 // its grid (and the layout defect it once had) was unreachable through this
 // fixture harness. Reuses the existing DEAL_STATE_FIXTURES variety: a long
@@ -121,7 +121,13 @@ export const emailEnabled = () => false;
 // R4: historical saved RSC cards for Jungle/Neo Destiny/Dragonite, without
 // live offers. Boundaries Crossed uses 17C.12 identities plus simulated
 // references and numbered URLs. These are offline fixtures, not live prices.
-const setNames={'jungle':'Jungle','neo-destiny':'Neo Destiny','boundaries-crossed':'Boundaries Crossed'};
+// Mobile UX refinement (2026-09-14): EX Legend Maker (93 cards) and the
+// Charizard species catalogue (153 eligible cards across 62 sets) were
+// captured read-only from card_catalog (anon key, SELECT only) and mapped
+// with the same helpers as fetchSetCatalog / fetchSpeciesCatalog. Hub slugs
+// and live deals are omitted; references are the captured catalogue values,
+// not live prices.
+const setNames={'jungle':'Jungle','neo-destiny':'Neo Destiny','boundaries-crossed':'Boundaries Crossed','ex-legend-maker':'EX Legend Maker'};
 const fixtureCards = set => savedCatalogue[set]?.length?savedCatalogue[set]:(setRows[Object.keys(setNames).find(k=>setNames[k]===set)]??[]).map((r,i)=>({
  tcgplayerId:r.key,name:r.name,set,cardNumber:r.number,rarity:r.rarity,
  catalogSlug:catalogCardSlug(`${r.name} ${r.number}`,set),image:`https://tcgplayer-cdn.tcgplayer.com/product/${r.key}_in_1000x1000.jpg`,
@@ -134,13 +140,16 @@ export const fetchSetDealsPage=async()=>({deals:[listingRows[0]],totalPages:1,er
 export const fetchSetSealedCatalog=async()=>({products:[],totalProducts:0,truncated:false});
 export const fetchSetCatalog=async set=>{const cards=fixtureCards(set);const priceSnapshot=setPriceSnapshot(cards);return {cards,indexCards:cards,totalCards:cards.length,truncated:false,stats:priceSnapshot,priceSnapshot,speciesList:setSpeciesList(cards),topValueCards:cards.filter(c=>c.refPrice).slice(0,12)};};
 const dragoniteCards=savedCatalogue.Dragonite;
-export const resolveSpeciesSlug=async slug=>slug==='dragonite'?{name:'Dragonite',image:null}:null;
-export const fetchSpeciesCatalog=async name=>({cards:name==='Dragonite'?dragoniteCards:fixtureCards('Jungle').slice(0,4).map(c=>({...c,name})),stats:{cardCount:name==='Dragonite'?dragoniteCards.length:4,setCount:2,minPrice:20,maxPrice:90},indexable:true});
+const charizardCards=savedCatalogue.Charizard;
+const speciesStats=cards=>{const prices=cards.map(c=>Number(c.refPrice)).filter(n=>n>0);return {cardCount:cards.length,setCount:new Set(cards.map(c=>c.set)).size,minPrice:prices.length?Math.min(...prices):null,maxPrice:prices.length?Math.max(...prices):null};};
+export const resolveSpeciesSlug=async slug=>slug==='dragonite'?{name:'Dragonite',image:null}:slug==='charizard'?{name:'Charizard',image:null}:null;
+export const fetchSpeciesCatalog=async name=>name==='Charizard'?{cards:charizardCards,stats:speciesStats(charizardCards),indexable:true}:({cards:name==='Dragonite'?dragoniteCards:fixtureCards('Jungle').slice(0,4).map(c=>({...c,name})),stats:{cardCount:name==='Dragonite'?dragoniteCards.length:4,setCount:2,minPrice:20,maxPrice:90},indexable:true});
 // Owner hierarchy feedback: reuse the existing, explicitly simulated Light
 // Dragonite offer to exercise a populated species page as well as Cleffa's
 // no-offer catalogue path. No live inventory or eligibility proof is implied.
-export const fetchSpeciesDealsPage=async({speciesName}={})=>({deals:speciesName==='Dragonite'?[listingRows[4]]:[],totalPages:1,error:null});
-export const fetchSpeciesDealStats=async name=>({dealCards:name==='Dragonite'?1:0});
+// Charizard reuses the existing explicitly simulated graded Charizard offer.
+export const fetchSpeciesDealsPage=async({speciesName}={})=>({deals:speciesName==='Dragonite'?[listingRows[4]]:speciesName==='Charizard'?[listingRows[2]]:[],totalPages:1,error:null});
+export const fetchSpeciesDealStats=async name=>({dealCards:name==='Dragonite'||name==='Charizard'?1:0});
 export const fetchSpeciesPrints=async()=>({prints:[]});
 export const fetchCardHubs=async()=>({cards:[],hubs:[]});
 

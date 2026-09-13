@@ -148,7 +148,9 @@ test("8. a newly indexable species gets the complete Phase 2A catalogue template
   assert.match(t, /Most valuable Spinda cards we track/i, "no most-valuable section");
   assert.match(t, /Spinda cards by set/i, "no by-set summary");
   assert.match(t, /Common questions about Spinda cards/i, "no quick answers");
-  assert.match(t, /Every Spinda card, by set/i, "no full catalogue");
+  // Mobile UX refinement (2026-09-14): honest "cards we track" heading
+  // (the catalogue is not complete coverage) replaced "Every Spinda card, by set".
+  assert.match(t, /Spinda cards we track/i, "no full catalogue");
 });
 
 // --- 9-10: metadata stable + no false deal claim ------------

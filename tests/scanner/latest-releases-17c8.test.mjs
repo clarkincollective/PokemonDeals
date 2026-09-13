@@ -152,7 +152,14 @@ test("H-8. a visible navigation entry, shared by the desktop bar and the mobile 
     assert.match(src(f), new RegExp(`data-analytics-click=\\{\\s*${v}\\.analyticsClick`), `${f}: emits the entry's event`);
     assert.match(src(f), new RegExp(`${v}\\.analyticsClick[\\s\\S]{0,40}JSON\\.stringify\\(${v}\\.analyticsProps \\?\\? \\{\\}\\)`), `${f}: emits its props`);
   }
-  assert.match(src("components/NavMenu.js"), /NAV_PRIMARY\.filter\(\(link\) => link\.group === group\.id\)\.map\(linkFor\)/, "mobile menu is built from NAV_PRIMARY");
+  // Mobile UX refinement (2026-09-14): the menu's first screen is the
+  // `menuShortcut` tiles and the rest sits in expandable groups - both still
+  // built from NAV_PRIMARY through the same linkFor, and this entry stays a
+  // first-screen shortcut rather than being tucked into a collapsed group.
+  assert.match(src("components/NavMenu.js"), /NAV_PRIMARY\.filter\(\(link\) => link\.menuShortcut\)\.map\(tileFor\)/, "mobile shortcut tiles are built from NAV_PRIMARY");
+  assert.match(src("components/NavMenu.js"), /NAV_PRIMARY\.filter\(\(link\) => link\.group === group\.id && !link\.menuShortcut\)/, "mobile menu groups are built from NAV_PRIMARY");
+  assert.match(src("components/NavMenu.js"), /const tileFor = \(link\) => linkFor\(link, tileClass\)/, "tiles reuse linkFor, so analytics markers are emitted");
+  assert.equal(entry.menuShortcut, true, "Latest Releases is a first-screen mobile shortcut");
   // the established graded entry event now lives on the shared model (deal-
   // first review fix P4), so every renderer emits it - not a header special-case
   const graded = NAV_PRIMARY.find((l) => l.href === "/deals/graded");

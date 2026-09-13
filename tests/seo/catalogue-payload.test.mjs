@@ -6,10 +6,16 @@
 // whole dataset in the RSC payload. Now:
 //   - the rich <CatalogueBrowser> paints a bounded first screen and is
 //     capped (RICH_BROWSER_CAP) on very large catalogues;
-//   - an always-SSR, always-visible <CatalogueLinkIndex> carries EVERY
-//     permanent /cards/[slug] link as a compact <a> (no images, no
-//     hydration, not display:none).
+//   - an always-SSR <CatalogueLinkIndex> carries EVERY permanent
+//     /cards/[slug] link as a compact <a> (no images, no hydration).
 // These checks lock the reduction AND the crawl-safety guarantees.
+//
+// Mobile UX refinement (2026-09-14) - deliberate contract change: on pages
+// whose list is this plain index, the visual gallery is now the default
+// view, the index sits behind the "Card list"/"List" toggle, and its links
+// are grouped into collapsed <details> sections. Every link is still in
+// the initial server HTML as a plain <a>; it is no longer visible on first
+// paint. Test 5 therefore asserts presence in the HTML, not visibility.
 
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
@@ -80,14 +86,15 @@ test("4. JSON-LD is valid and every ItemList is bounded (<= 30 elements)", () =>
 
 // --- 5-8: the compact index IS the crawl-safety net -------------------
 
-test("5. a visible, server-rendered full card index is present (not display:none, not a client component)", () => {
+test("5. a server-rendered full card index is present in the initial HTML (behind the list toggle, links in <details>, not a client component)", () => {
   for (const [name, res] of [["species", spRes], ["set", setRes]]) {
     assert.match(res.body, /aria-labelledby="full-(card|set)-index"/, `${name}: index section missing`);
-    // the index <section> must not be hidden
-    const m = res.body.match(/<section aria-labelledby="full-(?:card|set)-index"[^>]*class="([^"]*)"/);
+    const m = res.body.match(/<section aria-labelledby="full-(?:card|set)-index"[^>]*>/);
     assert.ok(m, `${name}: index section not found`);
-    assert.ok(!/\bhidden\b/.test(m[1]), `${name}: index section is CSS-hidden`);
-    assert.ok(!/display:\s*none/.test(res.body.slice(res.body.indexOf(m[0]), res.body.indexOf(m[0]) + 300)));
+    // the complete link set is inside the section in the server HTML
+    const idxHtml = res.body.slice(res.body.indexOf(m[0]));
+    assert.match(idxHtml, /<details/, `${name}: index sections missing`);
+    assert.match(idxHtml, /<a href="\/cards\/[a-z0-9-]+"/, `${name}: no card links in the server HTML`);
   }
 });
 
