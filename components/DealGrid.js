@@ -322,10 +322,13 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
 
       {guardColdNav && (
         <>
-          {/* Static fallback for the pre-hydration window only - never
-              shown once React has mounted (the effect above hides it
-              immediately on mount, whether the subsequent fetch succeeds,
-              fails, or is still pending). */}
+          {/* Static fallback for the pre-hydration window - never shown
+              once React has mounted (the effect above hides it immediately
+              on mount, whether the subsequent fetch succeeds, fails, or is
+              still pending). If hydration takes past the guard script's own
+              8s fail-safe below, its content is replaced in place with a
+              stalled-load message + a real reload link - never silently
+              swapped back to the unfiltered default underneath. */}
           <div id="pdf-grid-loading" hidden>
             <GridSkeleton />
           </div>
@@ -349,8 +352,22 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
                 if(wrap)wrap.hidden=true;
                 if(ph)ph.hidden=false;
                 setTimeout(function(){
-                  if(wrap&&wrap.hidden)wrap.hidden=false;
-                  if(ph&&!ph.hidden)ph.hidden=true;
+                  // Review closure (2026-09-14): the fail-safe previously
+                  // revealed wrap here - the unfiltered default - with no
+                  // indication it doesn't match the URL's filter. If
+                  // hydration hasn't corrected things by now, say so and
+                  // offer a real way to retry, instead of either silently
+                  // showing the wrong answer or leaving an unexplained,
+                  // permanent skeleton. DealGrid's own mount effect still
+                  // wins and restores the correct content the instant
+                  // hydration does complete, whenever that happens - this
+                  // only replaces what is shown while it has not.
+                  if(wrap&&wrap.hidden&&ph&&!ph.hidden){
+                    ph.innerHTML='<div role="status" class="rounded-lg border border-zinc-200 bg-white p-6 text-center text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">'
+                      +'<p>This is taking longer than expected to load your filtered results.</p>'
+                      +'<p class="mt-2"><a href="'+location.href+'" class="font-semibold text-red-600 underline underline-offset-2 dark:text-red-500">Reload the page</a> to try again.</p>'
+                      +'</div>';
+                  }
                 },8000);
               }catch(e){}})();`,
             }}
