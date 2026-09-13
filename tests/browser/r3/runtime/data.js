@@ -4,7 +4,7 @@ import setRows from './set-rows.json';
 import savedCatalogue from './saved-catalogue.json';
 import {slugifySet} from '@/lib/slugify';
 export {slugifySet};
-import {catalogCardSlug} from '@/lib/cardSlug';
+import {catalogCardSlug,catalogPriceOk} from '@/lib/cardSlug';
 import {setPriceSnapshot,setSpeciesList} from '@/lib/setSummary';
 import {sealedFixtures} from './sealedFixtures';
 const from = id => ({...DEAL_STATE_FIXTURES.find(f => f.id === id).deal,is_active:true});
@@ -27,7 +27,7 @@ export const resolveCardSlug = async slug => slug==='fixture-hub'?{...card,id:'f
 export const resolveCatalogCard = async slug => ['fixture-reference','fixture-no-reference','clefable-jungle'].includes(slug)?{...card,slug,...(slug==='fixture-no-reference'?{tcgplayerId:null,refPrice:null,indexable:false}:{})}:null;
 export const findCardHubByWatchlistId = async () => ({...card,id:'fixture-hub',slug:'fixture-hub'});
 export const resolveSpeciesByName = async () => null;
-export const fetchSetSlugs = async () => [...new Set(['jungle','neo-destiny','boundaries-crossed','ex-legend-maker',...savedCatalogue.Dragonite.map(c=>slugifySet(c.set)),...savedCatalogue.Charizard.map(c=>slugifySet(c.set))])];
+export const fetchSetSlugs = async () => [...new Set(['jungle','neo-destiny','boundaries-crossed','ex-legend-maker','xy-promos',...savedCatalogue.Dragonite.map(c=>slugifySet(c.set)),...savedCatalogue.Charizard.map(c=>slugifySet(c.set))])];
 // Was an empty stub - RelatedDeals early-returns null on an empty array, so
 // its grid (and the layout defect it once had) was unreachable through this
 // fixture harness. Reuses the existing DEAL_STATE_FIXTURES variety: a long
@@ -126,8 +126,10 @@ export const emailEnabled = () => false;
 // captured read-only from card_catalog (anon key, SELECT only) and mapped
 // with the same helpers as fetchSetCatalog / fetchSpeciesCatalog. Hub slugs
 // and live deals are omitted; references are the captured catalogue values,
-// not live prices.
-const setNames={'jungle':'Jungle','neo-destiny':'Neo Destiny','boundaries-crossed':'Boundaries Crossed','ex-legend-maker':'EX Legend Maker'};
+// not live prices. XY Promos (269 rows) was captured the same way; its index
+// applies lib/deals.js fetchSetCatalog's indexable filter, giving the same
+// 229 links production shows.
+const setNames={'jungle':'Jungle','neo-destiny':'Neo Destiny','boundaries-crossed':'Boundaries Crossed','ex-legend-maker':'EX Legend Maker','xy-promos':'XY Promos'};
 const fixtureCards = set => savedCatalogue[set]?.length?savedCatalogue[set]:(setRows[Object.keys(setNames).find(k=>setNames[k]===set)]??[]).map((r,i)=>({
  tcgplayerId:r.key,name:r.name,set,cardNumber:r.number,rarity:r.rarity,
  catalogSlug:catalogCardSlug(`${r.name} ${r.number}`,set),image:`https://tcgplayer-cdn.tcgplayer.com/product/${r.key}_in_1000x1000.jpg`,
@@ -138,7 +140,7 @@ export const SET_SEALED_MIN_PRODUCTS=3;
 export const resolveSetSlug=async slug=>setNames[slug]?{set:setNames[slug],catalogue:slug!=='jungle'}:null;
 export const fetchSetDealsPage=async()=>({deals:[listingRows[0]],totalPages:1,error:null});
 export const fetchSetSealedCatalog=async()=>({products:[],totalProducts:0,truncated:false});
-export const fetchSetCatalog=async set=>{const cards=fixtureCards(set);const priceSnapshot=setPriceSnapshot(cards);return {cards,indexCards:cards,totalCards:cards.length,truncated:false,stats:priceSnapshot,priceSnapshot,speciesList:setSpeciesList(cards),topValueCards:cards.filter(c=>c.refPrice).slice(0,12)};};
+export const fetchSetCatalog=async set=>{const cards=fixtureCards(set);const priceSnapshot=setPriceSnapshot(cards);const indexCards=set==='XY Promos'?cards.filter(c=>c.hubSlug!=null||(c.catalogSlug!=null&&catalogPriceOk(c.refPrice))):cards;return {cards,indexCards,totalCards:cards.length,truncated:false,stats:priceSnapshot,priceSnapshot,speciesList:setSpeciesList(cards),topValueCards:cards.filter(c=>c.refPrice).slice(0,12)};};
 const dragoniteCards=savedCatalogue.Dragonite;
 const charizardCards=savedCatalogue.Charizard;
 const speciesStats=cards=>{const prices=cards.map(c=>Number(c.refPrice)).filter(n=>n>0);return {cardCount:cards.length,setCount:new Set(cards.map(c=>c.set)).size,minPrice:prices.length?Math.min(...prices):null,maxPrice:prices.length?Math.max(...prices):null};};

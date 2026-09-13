@@ -20,7 +20,18 @@ export default function CatalogueViews({ children, gallery, listLabel = "Card li
   return (
     <CatalogueViewContext.Provider value={{ view, setView }}>
       <div className="mt-3">
-        <div role="group" aria-label="Inventory view" className="inline-flex rounded-full border border-zinc-300 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-900" data-print-hide>
+        {/* Without JavaScript the toggle cannot switch views, so it is hidden
+            and a server-hidden list pane is shown (its <details> index still
+            opens natively). Same <noscript> CSS pattern as FilterBar's
+            SearchWithinRow; scripted browsers are unaffected. The unhide rule
+            sits in @layer base because Tailwind's preflight
+            [hidden]{display:none!important} does, and a layered !important
+            beats an unlayered one; inside the layer the more specific
+            selector wins. */}
+        <noscript>
+          <style>{"[data-catalogue-toggle]{display:none!important}@layer base{[data-catalogue-primary][hidden]{display:block!important}}"}</style>
+        </noscript>
+        <div role="group" aria-label="Inventory view" data-catalogue-toggle className="inline-flex rounded-full border border-zinc-300 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-900" data-print-hide>
           {tabs.map(([key, label]) => (
             <button key={key} type="button" aria-pressed={view === key} aria-controls={`${id}-${key}`}
               onClick={() => setView(key)}

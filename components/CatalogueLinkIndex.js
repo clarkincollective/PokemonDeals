@@ -20,10 +20,12 @@ import { setChronologyRank } from "@/lib/pokemonSets";
 // the crawlable inventory is unchanged. Each link shows the collector number
 // exactly once (lib/cardName cardNameWithoutNumber).
 //
-// The heading is visually hidden: the inventory section above already
-// states the tracked count, so repeating "Full X card index (N)" on screen
-// was pure duplication. It stays for screen readers and as the section
-// label, with N = the number of links actually listed.
+// The whole index is ONE collapsed <details> by default: its summary is the
+// compact "Full X card index (N)" heading (N = the number of links listed),
+// and the explanatory line plus every section/link sit inside it. Choosing
+// "Card list" therefore reveals one control, not hundreds of links, and it
+// opens without JavaScript. Interactive ownership checklists are separate
+// components and unaffected.
 //
 // `cards` is the array buildCatalogueItems produces (or any shape with
 // name / cardNumber / set / rarity / hubSlug|catalogSlug).
@@ -105,40 +107,77 @@ export default function CatalogueLinkIndex({ label, cards, headingId = "full-car
   if (linkable.length === 0) return null;
   const setCount = new Set(linkable.map((c) => c.set)).size;
   const sections = setCount > 1 ? eraSections(linkable) : raritySections(linkable);
+  const meta = setCount > 1
+    ? `${plural(setCount, "set")} · grouped by release era`
+    : sections.length > 1 ? "Grouped by rarity, in collector-number order" : "In collector-number order";
 
   return (
     <section aria-labelledby={headingId} className="mt-4">
-      <h2 id={headingId} className="sr-only">
-        {`Full ${label} card index (${linkable.length})`}
-      </h2>
-      <div className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
-        {sections.map((s) => (
-          <details key={s.key} className="group">
-            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2.5 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-red-600 [&::-webkit-details-marker]:hidden">
-              <span className="min-w-0">
-                <span className="block text-[15px] font-semibold leading-snug text-zinc-900 dark:text-zinc-50">{s.title}</span>
-                <span className="block text-xs text-zinc-500 dark:text-zinc-400">{s.meta}</span>
-              </span>
-              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="h-4 w-4 shrink-0 text-zinc-500 transition-transform group-open:rotate-180">
-                <path d="M5 7.5 10 12.5 15 7.5" />
-              </svg>
-            </summary>
-            <div className="px-4 pb-4">
-              {s.note && <p className="text-xs text-zinc-500 dark:text-zinc-400">{s.note}</p>}
-              {s.sets.map(({ set, list }) => (
-                <div key={set || s.key} className={set ? "mt-3" : undefined}>
-                  {set && (
-                    <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                      {`${set} (${list.length})`}
-                    </h3>
-                  )}
-                  <ul className={LIST_CLASS}>{list.map(linkItem)}</ul>
-                </div>
+      <details className="group/index rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+        <summary className={SUMMARY_CLASS}>
+          <span className="min-w-0">
+            <h2 id={headingId} className="text-base font-bold leading-snug text-zinc-900 dark:text-zinc-50">
+              {`Full ${label} card index (${linkable.length})`}
+            </h2>
+            <span className="block text-xs text-zinc-500 dark:text-zinc-400">{meta}</span>
+          </span>
+          <Chevron className="group-open/index:rotate-180" />
+        </summary>
+        <div className="border-t border-zinc-200 px-4 pb-4 pt-3 dark:border-zinc-800">
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            {`Every ${label} card we track, linked to its price & deal page. Choose Gallery to search, filter and sort with card art.`}
+          </p>
+          {sections.length === 1 ? (
+            <SectionBody s={sections[0]} />
+          ) : (
+            <div className="mt-3 divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+              {sections.map((s) => (
+                <details key={s.key} className="group">
+                  <summary className={SUMMARY_CLASS}>
+                    <span className="min-w-0">
+                      <span className="block text-[15px] font-semibold leading-snug text-zinc-900 dark:text-zinc-50">{s.title}</span>
+                      <span className="block text-xs text-zinc-500 dark:text-zinc-400">{s.meta}</span>
+                    </span>
+                    <Chevron className="group-open:rotate-180" />
+                  </summary>
+                  <div className="px-4 pb-4">
+                    <SectionBody s={s} />
+                  </div>
+                </details>
               ))}
             </div>
-          </details>
-        ))}
-      </div>
+          )}
+        </div>
+      </details>
     </section>
+  );
+}
+
+const SUMMARY_CLASS =
+  "flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2.5 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-red-600 [&::-webkit-details-marker]:hidden";
+
+function Chevron({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={`h-4 w-4 shrink-0 text-zinc-500 transition-transform ${className}`}>
+      <path d="M5 7.5 10 12.5 15 7.5" />
+    </svg>
+  );
+}
+
+function SectionBody({ s }) {
+  return (
+    <>
+      {s.note && <p className="text-xs text-zinc-500 dark:text-zinc-400">{s.note}</p>}
+      {s.sets.map(({ set, list }) => (
+        <div key={set || s.key} className={set ? "mt-3" : undefined}>
+          {set && (
+            <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              {`${set} (${list.length})`}
+            </h3>
+          )}
+          <ul className={LIST_CLASS}>{list.map(linkItem)}</ul>
+        </div>
+      ))}
+    </>
   );
 }

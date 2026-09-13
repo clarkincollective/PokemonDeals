@@ -98,16 +98,31 @@ test("MUX-6. the link index keeps every permanent link as a plain <a>, in native
   assert.match(idx, /<a href=\{permanentHref\(c\)\}>/);
   assert.match(idx, /cardNameWithoutNumber\(c\)/);
   assert.match(idx, /setCount > 1 \? eraSections\(linkable\) : raritySections\(linkable\)/);
-  // heading text (and its N = links listed) is kept for screen readers and
-  // the SEO suite's count check, but no longer repeated on screen
-  assert.match(idx, /className="sr-only">\s*\{`Full \$\{label\} card index \(\$\{linkable\.length\}\)`\}/);
-  assert.doesNotMatch(idx, /Choose Search & gallery/, "the repeated instruction is gone");
+  assert.doesNotMatch(idx, /Choose Search & gallery/, "the old instruction is gone");
+});
+
+test("MUX-6b. the whole index is ONE collapsed <details>: compact heading + count in its summary, text and links inside", () => {
+  const idx = src("components/CatalogueLinkIndex.js");
+  const render = idx.slice(idx.indexOf("export default function CatalogueLinkIndex"));
+  const outer = render.indexOf('<details className="group/index');
+  const summaryH2 = render.indexOf("<h2 id={headingId}");
+  const summaryEnd = render.indexOf("</summary>");
+  const explanation = render.indexOf("card we track, linked to its price & deal page");
+  const firstList = render.indexOf("<SectionBody");
+  assert.ok(outer > 0 && outer < summaryH2 && summaryH2 < summaryEnd, "heading lives in the outer summary");
+  assert.match(render, /\{`Full \$\{label\} card index \(\$\{linkable\.length\}\)`\}/, "count = links listed, one text node for the SEO check");
+  assert.ok(summaryEnd < explanation && explanation < firstList, "explanatory text and lists sit inside the collapsed section");
+  assert.doesNotMatch(render, /<details[^>]*\bopen\b/, "nothing is expanded by default");
+  assert.doesNotMatch(render, /sr-only/, "the heading is the visible control, not hidden");
 });
 
 test("MUX-7. pages open on the gallery only where the list is the plain index; checklists stay first", () => {
   const views = src("components/CatalogueViews.js");
   assert.match(views, /defaultView = "list"/);
   assert.match(views, /hidden=\{view !== "list"\} data-catalogue-primary/);
+  // no-JS: the toggle can't work, so it hides and the server-hidden list pane shows
+  assert.match(views, /<noscript>\s*<style>\{"\[data-catalogue-toggle\]\{display:none!important\}@layer base\{\[data-catalogue-primary\]\[hidden\]\{display:block!important\}\}"\}<\/style>\s*<\/noscript>/);
+  assert.match(views, /role="group" aria-label="Inventory view" data-catalogue-toggle/);
   const species = src("components/SpeciesCardsBySet.js");
   assert.match(species, /defaultView=\{eraGroups \? "list" : "gallery"\}/);
   const set = src("app/sets/[slug]/page.js");
