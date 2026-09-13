@@ -84,7 +84,7 @@ export default function PokemonFilterList({ groups }) {
       </div>
 
       {query && (
-        <p role="status" className="mb-3 text-sm text-zinc-600 dark:text-zinc-600 dark:text-zinc-400">
+        <p role="status" className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
           {matchCount} of {totalSpecies} Pokemon match &quot;{query}&quot;
         </p>
       )}
@@ -107,7 +107,7 @@ export default function PokemonFilterList({ groups }) {
                   <span className="flex flex-wrap items-baseline gap-x-2 text-sm font-bold text-black dark:text-zinc-50">
                     Generation {g.generation}
                     {g.region && (
-                      <span className="font-medium text-zinc-500 dark:text-zinc-600 dark:text-zinc-400">· {g.region}</span>
+                      <span className="font-medium text-zinc-500 dark:text-zinc-400">· {g.region}</span>
                     )}
                     <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
                       {g.species.length} Pokemon{withDeals > 0 ? ` · ${withDeals} with deals` : ""}
