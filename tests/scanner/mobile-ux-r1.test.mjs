@@ -114,6 +114,9 @@ test("MUX-6b. the whole index is ONE collapsed <details>: compact heading + coun
   assert.ok(summaryEnd < explanation && explanation < firstList, "explanatory text and lists sit inside the collapsed section");
   assert.doesNotMatch(render, /<details[^>]*\bopen\b/, "nothing is expanded by default");
   assert.doesNotMatch(render, /sr-only/, "the heading is the visible control, not hidden");
+  // the text must hold without JS too, where the Gallery toggle is hidden
+  assert.doesNotMatch(idx, /Choose Gallery|Search & gallery/, "no direction to a control that may be unavailable");
+  assert.match(render, /Open a section below to see its cards\./);
 });
 
 test("MUX-7. pages open on the gallery only where the list is the plain index; checklists stay first", () => {

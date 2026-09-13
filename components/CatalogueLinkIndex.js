@@ -125,7 +125,9 @@ export default function CatalogueLinkIndex({ label, cards, headingId = "full-car
         </summary>
         <div className="border-t border-zinc-200 px-4 pb-4 pt-3 dark:border-zinc-800">
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {`Every ${label} card we track, linked to its price & deal page. Choose Gallery to search, filter and sort with card art.`}
+            {sections.length > 1
+              ? `Every ${label} card we track, linked to its price & deal page. Open a section below to see its cards.`
+              : `Every ${label} card we track, linked to its price & deal page.`}
           </p>
           {sections.length === 1 ? (
             <SectionBody s={sections[0]} />
