@@ -42,7 +42,49 @@ export const fetchCardRelations = async () => ({sameSpecies:[],sameSet:[]});
 export const fetchCardPriceHistory = async () => null;
 export const fetchSpeciesHubs = async () => ({species:[{name:'Dragonite',slug:'dragonite',count:3}]});
 export const fetchSets = async () => ({sets:[{set:'Jungle',slug:'jungle',count:3}]});
-export const fetchDealsPage = async (options={}) => ({deals:familyDeals(options),totalPages:1,error:null});
+// Graded browsing pilot fixture: a small, genuinely varied graded pool (two
+// graders x two grades x two marketplaces, one non-graded control) so the
+// CDP verification pass can exercise real, DIFFERENT result sets per
+// filter/search/sort combination - not just "the one graded row" the
+// pre-existing familyDeals() stub returns regardless of grader/grade.
+// Applies the SAME real planDealFilters contract the actual app uses (not
+// a fixture-only approximation) so a passing check here means the real
+// filter logic, not a stand-in for it.
+const gradedBase = from('graded'); // Charizard Base Set, card_tcgplayer_id FIXTURE_ART.charizardBaseSet
+const gradedPool = [
+  // Same card, two grades - two distinct offers a collector compares
+  // (also exercises the dedup-key fix: these must NOT collapse to one).
+  { ...gradedBase, id: 950001, grader: 'PSA', grade: '10', total_price_usd: 1450, title: 'Charizard Base Set 4/102 PSA 10' },
+  { ...gradedBase, id: 950002, grader: 'PSA', grade: '9', total_price_usd: 900, title: 'Charizard Base Set 4/102 PSA 9' },
+  // A genuinely different card per grader, own identity + watchlist so
+  // dedup and grader filtering are both exercised meaningfully.
+  { ...gradedBase, id: 950003, card_tcgplayer_id: 'fixture-blastoise', grader: 'CGC', grade: '10', total_price_usd: 1600, marketplace: 'EBAY_GB', title: 'Blastoise Base Set 2/102 CGC 10', card_name: 'Blastoise', watchlist: { ...gradedBase.watchlist, name: 'Blastoise' } },
+  { ...gradedBase, id: 950004, card_tcgplayer_id: 'fixture-venusaur', grader: 'CGC', grade: '9', total_price_usd: 700, marketplace: 'EBAY_AU', title: 'Venusaur Base Set 15/102 CGC 9', card_name: 'Venusaur', watchlist: { ...gradedBase.watchlist, name: 'Venusaur' } },
+  { ...from('bin_compared'), id: 950005, is_graded: false, grader: null, grade: null, total_price_usd: 30.75 },
+];
+function gradedBrowsingResult(options) {
+  let rows = gradedPool.filter((r) => r.is_active !== false);
+  if (options.cardType === 'graded') rows = rows.filter((r) => r.is_graded);
+  if (options.cardType === 'raw') rows = rows.filter((r) => !r.is_graded);
+  if (options.grader) { rows = rows.filter((r) => r.grader === options.grader); }
+  if (options.grade != null) rows = rows.filter((r) => String(r.grade) === String(options.grade));
+  if (options.country) rows = rows.filter((r) => r.marketplace === options.country);
+  if (options.maxPrice != null) rows = rows.filter((r) => r.total_price_usd <= options.maxPrice);
+  if (options.minPrice != null) rows = rows.filter((r) => r.total_price_usd >= options.minPrice);
+  if (typeof options.q === 'string' && options.q.trim().length >= 2) {
+    const needle = options.q.trim().toLowerCase();
+    rows = rows.filter((r) => r.title.toLowerCase().includes(needle));
+  }
+  if (options.sort === 'price_asc') rows = [...rows].sort((a, b) => a.total_price_usd - b.total_price_usd);
+  else if (options.sort === 'price_desc') rows = [...rows].sort((a, b) => b.total_price_usd - a.total_price_usd);
+  return rows;
+}
+export const fetchDealsPage = async (options={}) => {
+  if (options.cardType === 'graded' || options.grader || options.grade != null) {
+    return { deals: gradedBrowsingResult(options), totalPages: 1, error: null };
+  }
+  return { deals: familyDeals(options), totalPages: 1, error: null };
+};
 export const fetchCardDealsPage = async (options={}) => ({deals:familyDeals(options),totalPages:1,error:null});
 export const fetchHubCounts = async () => ({});
 export const getFullPriceAnalysis = async id => String(id)==='45120'?{cardNumber:'1/64',raw:{currentPrice:38.26,referenceCondition:'Near Mint',history:[]},graded:[],conditionBreakdown:[],primaryRecentSales:[],rawRecentSales:[],priceUpdatedAt:'2026-09-01'}:null;
