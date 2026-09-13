@@ -57,7 +57,12 @@ export default function SpeciesCardsBySet({ speciesName, cards, validSetSlugs = 
       ? sortCards(items, DEFAULT_SORT, { relevanceTier: true }).slice(0, RICH_BROWSER_CAP)
       : items;
   return (
-    <CatalogueViews gallery={<CatalogueBrowser speciesName={speciesName} items={richItems} totalCount={items.length} />}>
+    // The gallery leads when the list is the plain link index; the pilot
+    // era checklist view stays first where it exists.
+    <CatalogueViews
+      defaultView={eraGroups ? "list" : "gallery"}
+      gallery={<CatalogueBrowser speciesName={speciesName} items={richItems} totalCount={items.length} />}
+    >
       {eraGroups ? (
         <SpeciesChecklist speciesName={speciesName} groups={eraGroups} headingId="full-card-index" />
       ) : (

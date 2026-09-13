@@ -17,6 +17,7 @@ export default function FeaturedValueCards({ speciesName, items, placement = "sp
           card={c}
           speciesName={speciesName}
           placement={placement}
+          showSet={!placement.startsWith("set_")}
         />
       ))}
     </div>

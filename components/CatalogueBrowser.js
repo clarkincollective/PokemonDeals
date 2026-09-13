@@ -7,7 +7,8 @@ import { track } from "@vercel/analytics";
 import { hasPrice, MARKETPLACE_CURRENCY, refInListingCurrency } from "@/lib/money";
 import { offerShipping } from "@/lib/offerPresentation";
 import Price from "@/components/Price";
-import { cardDisplayName, cardIdentityLine } from "@/lib/cardName";
+import { cardNameWithoutNumber, cardIdentityLine } from "@/lib/cardName";
+import { useCatalogueView } from "@/components/CatalogueViews";
 import { upgradeCatalogImage } from "@/lib/cardImage";
 import { useRegion, localizeEbaySearchUrl } from "@/lib/useRegion";
 import {
@@ -34,8 +35,10 @@ import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 
 // Species like Charizard / Pikachu span 60-120 sets, most with only 1-3
 // cards. Show the richest N set sections first, the rest behind one
-// button - the full list stays in the DOM (SSR) the whole time.
-const INITIAL_SET_GROUPS = 12;
+// button - the full list stays in the DOM (SSR) the whole time. 6, not 12,
+// since the gallery became the default view (mobile UX refinement,
+// 2026-09-14): 12 image-heavy groups made a phone page ~21,000px tall.
+const INITIAL_SET_GROUPS = 6;
 
 // One USD-canonical figure, localised to the viewer's currency after
 // hydration (Phase 6A currency closeout - this grid used to print raw
@@ -51,11 +54,15 @@ function permanentHref(card) {
   return null;
 }
 
-export function Tile({ card, speciesName, placement }) {
+// `showSet` is false on a set page, where every tile is the same set and
+// repeating its name pushed the collector number off the end of the line.
+export function Tile({ card, speciesName, placement, showSet = true }) {
   const region = useRegion();
   const href = permanentHref(card);
-  const name = card.displayName ?? cardDisplayName(card);
-  const meta = cardIdentityLine(card, { withHash: true, withRarity: false });
+  // The identity line below prints "#<number>", so the name shows the
+  // number only once (lib/cardName cardNameWithoutNumber).
+  const name = cardNameWithoutNumber(card);
+  const meta = cardIdentityLine(showSet ? card : { ...card, set: null }, { withHash: true, withRarity: false });
   const isDeal = Boolean(card.deal);
   const isAuction = card.deal?.listingType === "AUCTION";
   const discountPct = card.deal?.discountPct != null ? Math.round(card.deal.discountPct * 100) : null;
@@ -114,7 +121,7 @@ export function Tile({ card, speciesName, placement }) {
         art
       )}
 
-      <div className="flex flex-1 flex-col gap-1 p-4">
+      <div className="flex flex-1 flex-col gap-1 p-3 sm:p-4">
         {href ? (
           <Link
             href={href}
@@ -128,7 +135,7 @@ export function Tile({ card, speciesName, placement }) {
             {name}
           </p>
         )}
-        <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{meta || " "}</p>
+        <p className="line-clamp-2 break-words text-xs text-zinc-500 dark:text-zinc-400">{meta || " "}</p>
         {card.rarity && (
           <p className="truncate text-xs font-medium text-zinc-400 dark:text-zinc-500">{card.rarity}</p>
         )}
@@ -182,12 +189,15 @@ export function Tile({ card, speciesName, placement }) {
           )}
         </div>
 
+        {/* Phone-width tiles: the art and name already open the card (same
+            view_card tracking), so the separate View Card button is hidden
+            below sm and the eBay action gets the full width on one line. */}
         <div className="mt-auto flex gap-2 pt-3">
           {href && (
             <Link
               href={href}
               onClick={viewCard}
-              className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-center text-xs font-semibold text-zinc-700 transition-colors hover:border-zinc-400 hover:text-black dark:border-zinc-700 dark:text-zinc-200 dark:hover:text-zinc-50"
+              className="hidden min-h-10 flex-1 items-center justify-center rounded-lg border border-zinc-300 px-3 py-2 text-center text-xs sm:inline-flex font-semibold text-zinc-700 transition-colors hover:border-zinc-400 hover:text-black dark:border-zinc-700 dark:text-zinc-200 dark:hover:text-zinc-50"
             >
               View Card
             </Link>
@@ -201,7 +211,7 @@ export function Tile({ card, speciesName, placement }) {
                 cta: isAuction ? "bid_on_ebay" : "view_deal",
                 marketplace: card.deal.marketplace ?? region ?? "unknown",
               }}
-              className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-center text-xs font-semibold text-white transition-colors hover:bg-emerald-700"
+              className="inline-flex min-h-10 flex-1 items-center justify-center rounded-lg bg-emerald-600 px-3 py-2 text-center text-xs font-semibold text-white transition-colors hover:bg-emerald-700"
             >
               {isAuction ? "Bid on eBay" : "View on eBay"}
             </AffiliateLink>
@@ -211,7 +221,7 @@ export function Tile({ card, speciesName, placement }) {
               target="_blank"
               rel="sponsored noopener noreferrer"
               onClick={() => track("eBay Click", { ...ev, cta: "find_on_ebay", card: card.name, marketplace: region || "unknown" })}
-              className="flex-1 rounded-lg bg-zinc-900 px-3 py-2 text-center text-xs font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className="inline-flex min-h-10 flex-1 items-center justify-center rounded-lg bg-zinc-900 px-3 py-2 text-center text-xs font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
             >
               Find on eBay
             </a>
@@ -261,6 +271,7 @@ function SetGroup({ set, list, speciesName, expandAll, groupHidden }) {
               <Tile
                 card={c}
                 speciesName={speciesName}
+                showSet={false}
                 placement={!small && i >= INITIAL_PER_LARGE_GROUP ? "species_set_expanded" : "species_catalog"}
               />
             </div>
@@ -276,7 +287,7 @@ function SetGroup({ set, list, speciesName, expandAll, groupHidden }) {
           }}
           className="mt-3 inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 transition-colors hover:border-zinc-400 hover:text-black dark:border-zinc-700 dark:text-zinc-200"
         >
-          {open ? "Show fewer" : `Show all ${list.length} ${set} cards →`}
+          {open ? "Show fewer" : `Show all ${list.length} cards in this set →`}
         </button>
       )}
     </section>
@@ -287,9 +298,10 @@ export default function CatalogueBrowser({ speciesName, label, items, variant = 
   const name = label ?? speciesName;
   const isSet = variant === "set";
   const prefix = isSet ? "set_" : "species_";
-  // When the page capped what it handed us (large catalogue), say so -
-  // the complete list is the CatalogueLinkIndex below this browser.
+  // When the page capped what it handed us (large catalogue), say so and
+  // offer the complete list (the CatalogueLinkIndex in the List view).
   const capped = Number.isFinite(totalCount) && totalCount > items.length;
+  const catalogueView = useCatalogueView();
 
   const [q, setQ] = useState("");
   const [setFilter, setSetFilter] = useState("");
@@ -335,21 +347,23 @@ export default function CatalogueBrowser({ speciesName, label, items, variant = 
     <div className="mt-4">
       {/* Toolbar */}
       <div className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        {/* Phone: search on its own row, filters/sort share a compact grid
+            below it instead of stacking three full-width rows. */}
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <input
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder={`Search ${name} cards — name, number, rarity…`}
-            aria-label={`Search ${name} cards`}
-            className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            placeholder="Search cards"
+            aria-label={`Search ${name} cards by name, number or rarity`}
+            className="col-span-2 min-h-11 min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
           />
           {!isSet && (
             <select
               value={setFilter}
               onChange={(e) => setSetFilter(e.target.value)}
               aria-label="Filter by set"
-              className="rounded-lg border border-zinc-300 px-3 py-2 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+              className="min-h-11 min-w-0 rounded-lg border border-zinc-300 px-2 py-2 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
             >
               <option value="">All sets</option>
               {setOptions.map((s) => (
@@ -363,7 +377,7 @@ export default function CatalogueBrowser({ speciesName, label, items, variant = 
             value={rarityFilter}
             onChange={(e) => setRarityFilter(e.target.value)}
             aria-label="Filter by rarity"
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            className={`min-h-11 min-w-0 rounded-lg border border-zinc-300 px-2 py-2 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 ${isSet ? "col-span-2" : ""}`}
           >
             <option value="">All rarities</option>
             {rarityOptions.map((r) => (
@@ -376,7 +390,7 @@ export default function CatalogueBrowser({ speciesName, label, items, variant = 
             value={sort}
             onChange={(e) => setSort(e.target.value)}
             aria-label="Sort cards"
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            className={`min-h-11 min-w-0 rounded-lg border border-zinc-300 px-2 py-2 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 col-span-2`}
           >
             {Object.entries(SORTS).map(([k, v]) => (
               <option key={k} value={k}>
@@ -385,28 +399,40 @@ export default function CatalogueBrowser({ speciesName, label, items, variant = 
             ))}
           </select>
         </div>
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            {capped
-              ? `Showing ${filtered.length} highest-value of ${totalCount} ${name} cards — the full index is below`
-              : isSet || isFiltering
-                ? `${filtered.length} of ${items.length} ${items.length === 1 ? "card" : "cards"}`
-                : `${filtered.length} ${filtered.length === 1 ? "card" : "cards"} across ${setOptions.length} sets`}
-          </p>
-          <div className="flex items-center gap-3">
-            {isFiltering && (
-              <button type="button" onClick={clear} className="text-xs font-semibold text-red-600 hover:underline dark:text-red-500">
-                Clear filters
-              </button>
-            )}
-            {!isSet && !isFiltering && (
-              <label className="flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-                <input type="checkbox" checked={expandAll} onChange={(e) => setExpandAll(e.target.checked)} />
-                Expand all sets
-              </label>
-            )}
+        {/* The page heading already states the tracked total, so a count
+            line only appears when it says something new: a filtered result,
+            or a capped gallery. */}
+        {(capped || isFiltering || !isSet) && (
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              {isFiltering ? (
+                `${filtered.length} of ${items.length} ${items.length === 1 ? "card" : "cards"}${capped ? " shown in the gallery" : ""}`
+              ) : capped ? (
+                <>
+                  {`Gallery shows the ${items.length} highest-value of ${totalCount} cards. `}
+                  {catalogueView ? (
+                    <button type="button" onClick={() => catalogueView.setView("list")} className="font-semibold text-red-600 underline underline-offset-2 dark:text-red-500">
+                      {`See all ${totalCount} in the list`}
+                    </button>
+                  ) : null}
+                </>
+              ) : null}
+            </p>
+            <div className="flex items-center gap-3">
+              {isFiltering && (
+                <button type="button" onClick={clear} className="min-h-10 text-xs font-semibold text-red-600 hover:underline dark:text-red-500">
+                  Clear filters
+                </button>
+              )}
+              {!isSet && !isFiltering && (
+                <label className="flex min-h-10 cursor-pointer items-center gap-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                  <input type="checkbox" checked={expandAll} onChange={(e) => setExpandAll(e.target.checked)} />
+                  Expand all sets
+                </label>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* --- SET variant: one flat sorted grid + flat progressive disclosure --- */}
@@ -431,6 +457,7 @@ export default function CatalogueBrowser({ speciesName, label, items, variant = 
                   <Tile
                     card={c}
                     speciesName={name}
+                    showSet={false}
                     placement={
                       isFiltering
                         ? `${prefix}catalog_filtered`

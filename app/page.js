@@ -32,6 +32,7 @@ import HomepageAnalytics from "@/components/analytics/HomepageAnalytics";
 import EmailCapture from "@/components/EmailCapture";
 import { emailEnabled } from "@/lib/email";
 import { catalogImageUrl } from "@/lib/cardImage";
+import { GUIDE_CARDS } from "@/lib/guideLinks";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -44,10 +45,13 @@ const guideBy = (slug) => GUIDES.find((g) => g.slug === slug);
 // `image` is set ONLY where the card pictured is that piece's own worked
 // example: the study's example is Cubone (Jungle, tcgplayer 45153, from
 // lib/studies STUDY.example) and the pricing guide cites Base Set
-// Charizard (42382). The condition guide cites no single card, so it
-// falls through to the shared CardImagePlaceholder rather than borrowing
-// unrelated artwork. Nothing here is newly published - the study carries
-// its sample window so the row cannot read as fresh.
+// Charizard (42382). The condition guide cites no single card of its own;
+// it previously fell through to CardImagePlaceholder (a missing mapping,
+// not a failed image). It now reuses Umbreon VMAX #215/203 (246723) - the
+// verified lib/guideLinks identity the grading-scale guide in the same
+// "Check condition and grade" group uses - described as such, never as
+// this guide's own example. Nothing here is newly published - the study
+// carries its sample window so the row cannot read as fresh.
 const EDITORIAL_CARDS = [
   {
     href: "/market-data/pokemon-reference-price-changes",
@@ -75,8 +79,8 @@ const EDITORIAL_CARDS = [
     kicker: "Guide",
     title: guideBy("how-to-check-pokemon-card-condition").title,
     description: guideBy("how-to-check-pokemon-card-condition").blurb,
-    image: null,
-    imageAlt: "",
+    image: catalogImageUrl(GUIDE_CARDS.umbreonVmaxAltArt.tcgplayerId),
+    imageAlt: "Umbreon VMAX #215/203 (Evolving Skies) - a card used in the grading guides",
   },
 ];
 

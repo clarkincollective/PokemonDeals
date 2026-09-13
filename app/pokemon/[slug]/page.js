@@ -365,7 +365,7 @@ export default async function PokemonSpeciesPage({ params }) {
             {speciesPageTitle(resolved.name)}
           </h1>
           <p className="mt-2 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
-            {hasLiveOffers ? "Compare current offers or browse the full card list." : "Browse the full card list and recent-sold market references."}
+            {hasLiveOffers ? "Compare current offers or browse the cards we track." : "Browse the cards we track and recent-sold market references."}
           </p>
           <nav aria-label="On this page" className="mt-3 flex flex-wrap gap-2">
             {hasLiveOffers && <a href="#deals" className="inline-flex min-h-11 items-center rounded-full bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700">View deals ↓</a>}
@@ -379,12 +379,16 @@ export default async function PokemonSpeciesPage({ params }) {
         {hasLiveOffers && dealsSection}
         {allCards.length > 0 && (
           <section id="inventory" tabIndex={-1} className="mb-12 scroll-mt-24">
+            {/* One heading carries the tracked count; the gallery toolbar and
+                the list's section summaries don't repeat it. "We track" -
+                not "every" - because the catalogue is not complete coverage. */}
             <h2 className="text-lg font-bold text-black dark:text-zinc-50">
-              Every {resolved.name} card, by set ({allCards.length})
+              {resolved.name} cards we track
             </h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Search, filter or sort — or browse by set. Market prices are recent-sold references, not
-              guaranteed values.
+              {allCards.length} {allCards.length === 1 ? "card" : "cards"} · {priceSnapshot.setCount}{" "}
+              {priceSnapshot.setCount === 1 ? "set" : "sets"} · market prices are recent-sold references, not
+              guaranteed values
             </p>
             <SpeciesCardsBySet
               speciesName={resolved.name}
@@ -452,8 +456,7 @@ export default async function PokemonSpeciesPage({ params }) {
             </h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
               The highest market references currently in our catalogue — not an all-time ranking
-              {likeForLike ? "" : " and not a like-for-like valuation"}. Open a card for full pricing,
-              graded values and any live deal.
+              {likeForLike ? "" : " and not a like-for-like valuation"}.
               {pilot && conditionNote ? ` ${conditionNote}` : ""}
             </p>
             <FeaturedValueCards speciesName={resolved.name} items={featuredItems} />

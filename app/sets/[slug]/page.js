@@ -318,7 +318,7 @@ export default async function SetDetailPage({ params }) {
           </p>
           <nav aria-label="On this page" className="mt-3 flex flex-wrap gap-2">
             {hasLiveOffers && <a href="#deals" className="inline-flex min-h-11 items-center rounded-full bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700">View deals ↓</a>}
-            {showCatalog && <a href="#inventory" className="inline-flex min-h-11 items-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">{checklistPilot ? "Open checklist" : "Browse card list"} ↓</a>}
+            {showCatalog && <a href="#inventory" className="inline-flex min-h-11 items-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">{checklistPilot ? "Open checklist" : "Browse cards"} ↓</a>}
             <a href="#set-context" className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-zinc-600 underline underline-offset-4 dark:text-zinc-400">About this set</a>
           </nav>
         </div>
@@ -329,7 +329,14 @@ export default async function SetDetailPage({ params }) {
         {hasLiveOffers && dealsSection}
         {showCatalog && (
           <section id="inventory" tabIndex={-1} className="scroll-mt-24">
-            <CatalogueViews listLabel={checklistPilot ? "Checklist" : "Card list"} gallery={<CatalogueBrowser
+            {/* One heading carries the tracked count (the list's sections and
+                the gallery toolbar no longer repeat it). The gallery leads
+                unless this set has the interactive checklist. */}
+            <h2 className="text-lg font-bold text-black dark:text-zinc-50">{resolved.set} cards we track</h2>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              {catalogTotal} {catalogTotal === 1 ? "card" : "cards"} · market prices are recent-sold references, not guaranteed values
+            </p>
+            <CatalogueViews defaultView={checklistPilot ? "list" : "gallery"} listLabel={checklistPilot ? "Checklist" : "Card list"} gallery={<CatalogueBrowser
               variant="set"
               label={resolved.set}
               items={
@@ -373,8 +380,7 @@ export default async function SetDetailPage({ params }) {
             </h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
               The highest market references currently in our catalogue — not an all-time ranking.
-              Standard cards rank ahead of Jumbo / World Championship printings. Open a card for full
-              pricing, graded values and any live deal.
+              Standard cards rank ahead of Jumbo / World Championship printings.
             </p>
             <FeaturedValueCards
               speciesName={resolved.set}

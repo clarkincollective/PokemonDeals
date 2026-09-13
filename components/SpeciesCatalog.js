@@ -181,7 +181,7 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
             {indexable ? (
               <section id="inventory" className="mt-6 scroll-mt-24">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-                  Every {speciesName} card, by set ({cards.length})
+                  {speciesName} cards we track ({cards.length})
                 </h2>
                 <SpeciesCardsBySet speciesName={speciesName} cards={cards} validSetSlugs={validSetSlugs} eraGroups={eraGroups} />
               </section>
