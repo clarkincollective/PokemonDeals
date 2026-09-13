@@ -36,7 +36,7 @@ handlers.push(d=>{
   if(d.method==='Runtime.consoleAPICalled'&&d.params.type==='error')errors.push(d.params.args.map(a=>a.value??a.description));
   if(d.method==='Fetch.requestPaused'){
     const u=d.params.request.url,requestId=d.params.requestId;
-    if(u===fixtureURL)raw('Fetch.fulfillRequest',{requestId,responseCode:200,responseHeaders:[{name:'Content-Type',value:'text/html'}],body:Buffer.from(html).toString('base64')},sessionId);
+    if(u.startsWith(fixtureURL)&&new URL(u).pathname==='/')raw('Fetch.fulfillRequest',{requestId,responseCode:200,responseHeaders:[{name:'Content-Type',value:'text/html'}],body:Buffer.from(html).toString('base64')},sessionId);
     else if(u.startsWith('data:')||u.startsWith('https://tcgplayer-cdn.tcgplayer.com/'))raw('Fetch.continueRequest',{requestId},sessionId);
     else {blocked.push(u);raw('Fetch.failRequest',{requestId,errorReason:'BlockedByClient'},sessionId);}
   }
@@ -47,6 +47,32 @@ try{
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});
   await send('Page.navigate',{url:fixtureURL});await sleep(700);
   await check('initial real cards render',"document.querySelectorAll('a[href*=\"/itm/\"]').length>=2");
+
+  const {root:domRoot}=await send('DOM.getDocument');
+  const {nodeId:regionButton}=await send('DOM.querySelector',{nodeId:domRoot.nodeId,selector:'#region-fixture > div > button'});
+  const {nodes:regionAX}=await send('Accessibility.getPartialAXTree',{nodeId:regionButton,fetchRelatives:false});
+  checks.push({name:'mobile region control has accessible name',ok:Boolean(regionAX[0]?.name?.value),value:regionAX[0]?.name?.value});
+  await check('region opener is 44px',"document.querySelector('#region-fixture button').getBoundingClientRect().height>=44");
+  await ev("document.querySelector('#region-fixture button').focus()");
+  const key=async(key,code)=>{await send('Input.dispatchKeyEvent',{type:'keyDown',key,code:key,windowsVirtualKeyCode:code});await send('Input.dispatchKeyEvent',{type:'keyUp',key,code:key,windowsVirtualKeyCode:code});};
+  await key('ArrowDown',40);
+  await check('keyboard opens region menu and focuses selected option',"document.activeElement.getAttribute('role')==='menuitemradio'&&document.activeElement.getAttribute('aria-checked')==='true'");
+  await key('End',35);
+  await check('region End reaches final country',"document.activeElement.textContent.includes('Italy')");
+  await key('Escape',27);
+  await check('region Escape closes and restores opener',"!document.querySelector('#region-fixture [role=menu]')&&document.activeElement===document.querySelector('#region-fixture button')");
+
+  await key('ArrowDown',40);await sleep(180);await key('Tab',9);
+  await check('Tab exits region menu to next control',"!document.querySelector('#region-fixture [role=menu]')&&document.activeElement===document.querySelector('#save-fixture button')");
+  await ev("history.replaceState({},'', '?type=graded&page=3');document.querySelector('#region-fixture button').click()");await sleep(200);
+  const regionShot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(OUT,'R3-REGION-MENU-390.png'),Buffer.from(regionShot.data,'base64'));
+  await check('country options are 44px',"[...document.querySelectorAll('#region-fixture [role=menuitemradio]')].every(b=>b.getBoundingClientRect().height>=44)");
+  await ev("[...document.querySelectorAll('#region-fixture [role=menuitemradio]')].find(b=>b.textContent.includes('United Kingdom')).click()");await sleep(650);
+  await check('country selection persists and preserves filters',"localStorage.getItem('pdf:region')==='EBAY_GB'&&location.search.includes('country=EBAY_GB')&&location.search.includes('type=graded')&&!new URLSearchParams(location.search).has('page')");
+  await ev("document.querySelector('#region-fixture button').click()");await sleep(200);
+  await ev("[...document.querySelectorAll('#region-fixture [role=menuitemradio]')].find(b=>b.textContent.includes('All countries')).click()");await sleep(650);
+  await check('all countries clears country filter explicitly',"localStorage.getItem('pdf:region')===''&&!new URLSearchParams(location.search).has('country')");
+  await ev("history.replaceState({},'', '/');window.dispatchEvent(new PopStateEvent('popstate'))");
   await ev("document.querySelector('#save-fixture button').click()");
   await check('save changes existing storage key',"JSON.parse(localStorage.getItem('pdf:savedCards')).some(c=>c.slug==='fixture-clefable')");
   await send('Page.reload');await sleep(700);

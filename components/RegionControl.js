@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 
 // The countries the site scans - display data only. Source of truth for
 // the codes/labels is MARKETPLACES in lib/ebay.js; kept in sync by hand
@@ -65,9 +65,12 @@ export default function RegionControl() {
   const region = useSyncExternalStore(subscribeRegion, readEffectiveRegion, () => null);
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
+  const buttonRef = useRef(null);
+  const menuId = useId();
 
   useEffect(() => {
     if (!open) return;
+    rootRef.current?.querySelector('[role="menuitemradio"][aria-checked="true"]')?.focus();
     const onDoc = (e) => {
       if (!rootRef.current?.contains(e.target)) setOpen(false);
     };
@@ -76,6 +79,33 @@ export default function RegionControl() {
   }, [open]);
 
   const current = REGIONS.find((r) => r.code === (region || "")) ?? REGIONS[0];
+
+  function onKeyDown(event) {
+    if (!open) {
+      if (["ArrowDown", "ArrowUp"].includes(event.key)) {
+        event.preventDefault();
+        setOpen(true);
+      }
+      return;
+    }
+    if (event.key === "Escape" || event.key === "Tab") {
+      if (event.key === "Escape") event.preventDefault();
+      setOpen(false);
+      buttonRef.current?.focus();
+      return;
+    }
+    const items = [...rootRef.current.querySelectorAll('[role="menuitemradio"]')];
+    const index = items.indexOf(document.activeElement);
+    let next;
+    if (event.key === "ArrowDown") next = (index + 1) % items.length;
+    if (event.key === "ArrowUp") next = (index - 1 + items.length) % items.length;
+    if (event.key === "Home") next = 0;
+    if (event.key === "End") next = items.length - 1;
+    if (next !== undefined) {
+      event.preventDefault();
+      items[next]?.focus();
+    }
+  }
 
   function pick(code) {
     setOpen(false);
@@ -94,13 +124,16 @@ export default function RegionControl() {
   }
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative" onKeyDown={onKeyDown} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
       <button
         type="button"
+        ref={buttonRef}
+        aria-label={`Listing country: ${current.label}`}
+        aria-controls={open ? menuId : undefined}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-[13px] font-medium text-zinc-600 transition-colors hover:border-red-300 hover:text-red-600 dark:border-zinc-800 dark:text-zinc-300 dark:hover:text-red-500"
+        className="flex min-h-[44px] min-w-[44px] items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-[13px] font-medium text-zinc-600 transition-colors hover:border-red-300 hover:text-red-600 dark:border-zinc-800 dark:text-zinc-300 dark:hover:text-red-500"
       >
         <span aria-hidden>{current.flag}</span>
         <span className="hidden sm:inline">
@@ -122,7 +155,9 @@ export default function RegionControl() {
 
       {open && (
         <div
+          id={menuId}
           role="menu"
+          aria-label="Listing country"
           className="absolute right-0 top-full z-40 mt-2 w-52 rounded-lg border border-zinc-200 bg-white p-1.5 shadow-lg dark:border-zinc-800 dark:bg-zinc-950"
         >
           <p className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
@@ -133,9 +168,10 @@ export default function RegionControl() {
               key={r.code || "all"}
               type="button"
               role="menuitemradio"
+              tabIndex={-1}
               aria-checked={(region || "") === r.code}
               onClick={() => pick(r.code)}
-              className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-900 ${
+              className={`flex min-h-[44px] w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-900 ${
                 (region || "") === r.code
                   ? "font-semibold text-red-600 dark:text-red-500"
                   : "text-zinc-600 dark:text-zinc-300"
