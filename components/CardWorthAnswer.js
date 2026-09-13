@@ -5,8 +5,8 @@ import Link from "next/link";
 // from this page's real data - no data access, no prose of its own that
 // states a fact. The amount is written in USD text on purpose: this is the
 // crawlable answer, and USD is the currency the reference is stored and
-// sourced in (the Price & value box below converts for the viewer).
-export default function CardWorthAnswer({ answer, className = "" }) {
+// sourced in. Additional condition/graded prices convert for the viewer.
+export default function CardWorthAnswer({ answer, embedded = false, children, className = "" }) {
   if (!answer) return null;
   const { printing, live } = answer;
   const details = [
@@ -21,7 +21,7 @@ export default function CardWorthAnswer({ answer, className = "" }) {
     <section
       id="card-worth"
       aria-labelledby="card-worth-q"
-      className={`mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950 ${className}`}
+      className={`${embedded ? "mt-4" : "mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950"} ${className}`}
     >
       <h2 id="card-worth-q" className="text-base font-semibold text-black dark:text-zinc-50">
         {answer.question}
@@ -44,7 +44,7 @@ export default function CardWorthAnswer({ answer, className = "" }) {
             <p>1st Edition copies of this card are priced separately and are not included in this figure.</p>
           )}
           <p>
-            Prices vary with condition, grading and current buyer demand
+            This is a reference, not an available offer. Prices vary with condition, grading and current buyer demand
             {answer.gradedAvailable ? " — graded prices for this printing are listed below" : ""}.{" "}
             <Link href="/methodology" className="text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500 dark:text-zinc-400">
               How we work out prices
@@ -60,6 +60,8 @@ export default function CardWorthAnswer({ answer, className = "" }) {
           </p>
         </div>
       )}
+
+      {children}
 
       {live ? (
         <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300" data-worth-live={live.count}>

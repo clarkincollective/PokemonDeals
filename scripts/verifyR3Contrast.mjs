@@ -64,12 +64,13 @@ function inspectText(){
  return {checked,failures,skipped};
 }
 const records=[];
+const fixtures=JSON.parse(fs.readFileSync(path.join(OUT,"r3-static","manifest.json"),"utf8"));
 try{
  const {frameTree:controlFrame}=await send('Page.getFrameTree');
  await send('Page.setDocumentContent',{frameId:controlFrame.frame.id,html:'<body style="background:white"><p style="color:black;font:16px Arial">control readable</p><p style="color:#aaa;font:16px Arial">control faint</p><p aria-hidden="true" style="color:#aaa">control decorative</p></body>'});
  const control=await ev('('+inspectText.toString()+')()');
  if(control.checked!==2||control.failures.length!==1||control.failures[0].text!=='control faint'||!control.skipped.some(s=>s.text==='control decorative'))throw Error('Contrast diagnostic controls failed');
- for(const {id:name} of JSON.parse(fs.readFileSync(path.join(OUT,'r3-static','manifest.json'),'utf8'))){
+ for(const {id:name} of fixtures){
   const html=fs.readFileSync(path.join(OUT,'r3-static',name+'.html'),'utf8');
   for(const scheme of ['light','dark'])for(const width of [1280,390,320]){
    await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:scheme}]});
@@ -80,7 +81,7 @@ try{
   }
  }
  fs.writeFileSync(path.join(OUT,'R3-CONTRAST-record.json'),JSON.stringify({records,blocked},null,2));
- if(records.length!==54||records.some(r=>r.checked===0))throw Error('Incomplete contrast matrix');
+ if(records.length!==fixtures.length*6||records.some(r=>r.checked===0))throw Error('Incomplete contrast matrix');
  const unique=[...new Map(records.flatMap(r=>r.failures.map(f=>[r.scheme+f.text+f.color,{name:r.name,scheme:r.scheme,...f}]))).values()];
  console.log(JSON.stringify({pages:records.length,checked:records.reduce((s,r)=>s+r.checked,0),uniqueFailures:unique},null,2));
  if(unique.length)process.exitCode=1;

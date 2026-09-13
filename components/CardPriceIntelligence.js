@@ -95,6 +95,7 @@ export default function CardPriceIntelligence({
   coverage = null,
   cheapestListingUsd = null,
   offersCount = 0,
+  detailsOnly = false,
 }) {
   const mv = hasPrice(marketValueUsd) ? Number(marketValueUsd) : null;
   const windows = trends
@@ -123,13 +124,14 @@ export default function CardPriceIntelligence({
     listing != null && mv != null && listing < mv ? Math.round((1 - listing / mv) * 100) : null;
   const showDealContext = belowPct != null && belowPct >= 1;
   const d90 = trends && trends.d90 && Number.isFinite(trends.d90.changePct) ? trends.d90 : null;
+  if (detailsOnly && !anyWindow && !signal && !coverage?.label && !showDealContext) return null;
 
   return (
     <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">Price intelligence</h2>
 
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
-        {mv != null && (
+        {!detailsOnly && mv != null && (
           <div>
             <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400" data-reference-condition={referenceConditionLabels(referenceCondition).condition ?? "unknown"}>
               Current market value · {referenceConditionLabels(referenceCondition).raw}

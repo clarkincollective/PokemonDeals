@@ -14,7 +14,7 @@ export default function MiniSparkline({ points, className = "" }) {
   const sorted = [...(points ?? [])].filter((p) => p.p != null).sort((a, b) => a.t - b.t);
 
   if (sorted.length < 2) {
-    return <div className={`flex h-8 items-center text-[10px] text-zinc-400 ${className}`}>Not enough data</div>;
+    return <div className={`flex h-8 items-center text-[10px] text-zinc-500 dark:text-zinc-400 ${className}`}>Not enough data</div>;
   }
 
   const minT = sorted[0].t;

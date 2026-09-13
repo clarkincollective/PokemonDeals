@@ -49,6 +49,7 @@ export default function CardPriceSummary({
   offersCount = 0,
   listingsLowUsd = null,
   listingsHref = "#listings",
+  detailsOnly = false,
 }) {
   const rawNmValue = analysis?.raw?.currentPrice ?? null;
   const rawNm = hasPrice(rawNmValue) ? Number(rawNmValue) : null;
@@ -71,14 +72,18 @@ export default function CardPriceSummary({
     .filter((g) => rawNm == null || g.currentPrice >= rawNm)
     .slice(0, 5);
 
+  // The hero owns the exact-card answer and offer jump. In evidence mode,
+  // render only additional condition/graded data, never an empty panel.
+  if (detailsOnly && ladder.length === 0 && graded.length === 0 && !analysis?.gradedSuppressedCount) return null;
   // Nothing worth showing (no reference data at all, no listings figure).
-  if (rawNm == null && graded.length === 0 && listingsLowUsd == null) return null;
+  if (!detailsOnly && rawNm == null && graded.length === 0 && listingsLowUsd == null) return null;
 
   return (
     <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">Price &amp; value</h2>
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">{detailsOnly ? "Condition & graded references" : "Price & value"}</h2>
+      {detailsOnly && <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">PokemonPriceTracker references from recent sold data. Compare the same condition and printing.</p>}
 
-      {rawNm != null && (
+      {!detailsOnly && rawNm != null && (
         <div className="mt-3">
           <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400" data-reference-condition={refLabel.condition ?? "unknown"}>
             Market value · {refLabel.raw}
@@ -129,7 +134,7 @@ export default function CardPriceSummary({
                 {g.confidence === "limited" && (
                   // Passed the integrity gate but on a small recent sample -
                   // real, just thin. Not the same as "outlier".
-                  <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-500">
+                  <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-500">
                     Limited recent sales — treat as a rough guide
                   </p>
                 )}
@@ -156,7 +161,7 @@ export default function CardPriceSummary({
         </div>
       )}
 
-      {listingsLowUsd != null && (
+      {!detailsOnly && listingsLowUsd != null && (
         <div className="mt-5 border-t border-zinc-100 pt-4 dark:border-zinc-900">
           <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Live eBay listings</p>
           <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">

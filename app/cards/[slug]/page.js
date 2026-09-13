@@ -22,7 +22,6 @@ import { currencyForDeal, auctionDisplayParts, dealTotalUsd, hasPrice } from "@/
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import RecentSales from "@/components/RecentSales";
-import Price from "@/components/Price";
 import CardPriceSummary from "@/components/CardPriceSummary";
 import CardPriceIntelligence from "@/components/CardPriceIntelligence";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
@@ -477,53 +476,44 @@ export default async function CardHubPage({ params }) {
               </div>
             )}
 
-            <div className="mt-4" data-r3-reference-summary>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">Market reference - raw</p>
-              {(isUsableUsdPrice(hubRaw) ? Number(hubRaw) : null) != null ? (
-                <Price usd={(isUsableUsdPrice(hubRaw) ? Number(hubRaw) : null)} native={{ amount: (isUsableUsdPrice(hubRaw) ? Number(hubRaw) : null), currency: "USD" }} className="tnum text-3xl font-bold text-zinc-900 dark:text-zinc-50" />
-              ) : <p className="text-base font-medium">Raw market reference unavailable</p>}
-              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                {analysis?.raw?.referenceCondition ? `Condition: ${analysis?.raw?.referenceCondition}` : "Reference condition not recorded"}. A reference, not an available offer.
-              </p>
-            </div>
+            <CardWorthAnswer answer={worth} embedded>
 
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              {allOffers.length > 0 && (
-                <a href="#card-offers" className="inline-flex min-h-[48px] items-center justify-center rounded-lg bg-red-600 px-5 py-3 text-sm font-semibold text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600">
-                  View {allOffers.length} {allOffers.length === 1 ? "offer" : "offers"}
-                </a>
-              )}
-              <SaveCardButton card={cardDescriptor} />
-              {tcgplayerLink && (
-                <AffiliateLink
-                  href={tcgplayerLink}
-                  eventName="TCGPlayer Click"
-                  eventData={{ card: hub.name, page: "card_hub" }}
-                  className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:text-zinc-300"
-                >
-                  Check on TCGPlayer
-                </AffiliateLink>
-              )}
-              {emailEnabled() && (
-                <PriceAlertForm
-                  cardSlug={slug}
-                  cardName={hub.name}
-                  suggestedPrice={cheapest ? (cheapest.total_price_usd ?? cheapest.total_price) : null}
-                />
-              )}
-            </div>
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                {allOffers.length > 0 && (
+                  <a href="#card-offers" className="inline-flex min-h-[48px] items-center justify-center rounded-lg bg-red-600 px-5 py-3 text-sm font-semibold text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600">
+                    View {allOffers.length} {allOffers.length === 1 ? "offer" : "offers"}
+                  </a>
+                )}
+                <SaveCardButton card={cardDescriptor} />
+                {tcgplayerLink && (
+                  <AffiliateLink
+                    href={tcgplayerLink}
+                    eventName="TCGPlayer Click"
+                    eventData={{ card: hub.name, page: "card_hub" }}
+                    className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:text-zinc-300"
+                  >
+                    Check on TCGPlayer
+                  </AffiliateLink>
+                )}
+                {emailEnabled() && (
+                  <PriceAlertForm
+                    cardSlug={slug}
+                    cardName={hub.name}
+                    suggestedPrice={cheapest ? (cheapest.total_price_usd ?? cheapest.total_price) : null}
+                  />
+                )}
+              </div>
+            </CardWorthAnswer>
           </div>
         </div>
 
-        <CardWorthAnswer answer={worth} />
-
         <CardPriceSummary
           analysis={analysis}
-          offersCount={offers.length}
-          listingsLowUsd={rangeLowUsd}
+          detailsOnly
         />
 
         <CardPriceIntelligence
+          detailsOnly
           marketValueUsd={analysis?.raw?.currentPrice ?? null}
           referenceCondition={analysis?.raw?.referenceCondition ?? null}
           trends={priceHistory?.trends ?? null}

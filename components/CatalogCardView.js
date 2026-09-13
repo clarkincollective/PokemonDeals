@@ -11,7 +11,6 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
-import Price from "@/components/Price";
 import CardPriceSummary from "@/components/CardPriceSummary";
 import CardPriceIntelligence from "@/components/CardPriceIntelligence";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
@@ -98,8 +97,8 @@ export default function CatalogCardView({
     currency: "USD",
   };
 
-  // Phase 17B - the worth answer states the SAME figure the Price & value
-  // box below shows, under the same precedence: the live analysis raw
+  // Phase 17B - the worth answer owns the raw reference, using the same
+  // established precedence: the live analysis raw
   // price; else, only when the analysis call itself failed, the catalogue
   // copy; else no figure at all (a rejected analysis price is never
   // papered over with the catalogue value).
@@ -216,32 +215,23 @@ export default function CatalogCardView({
               </div>
             )}
 
-            <div className="mt-4" data-r3-reference-summary>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">Market reference - raw</p>
-              {worthUsd != null ? (
-                <Price usd={worthUsd} native={{ amount: worthUsd, currency: "USD" }} className="tnum text-3xl font-bold text-zinc-900 dark:text-zinc-50" />
-              ) : <p className="text-base font-medium">Raw market reference unavailable</p>}
-              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                {(analysisHasPrice ? analysis?.raw?.referenceCondition : card.refCondition) ? `Condition: ${(analysisHasPrice ? analysis?.raw?.referenceCondition : card.refCondition)}` : "Reference condition not recorded"}. A reference, not an available offer.
-              </p>
-            </div>
+            <CardWorthAnswer answer={worth} embedded>
 
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              {tcgplayerLink && (
-                <AffiliateLink
-                  href={tcgplayerLink}
-                  eventName="TCGPlayer Click"
-                  eventData={{ card: name, page: "card_catalog" }}
-                  className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:text-zinc-300"
-                >
-                  Check on TCGPlayer
-                </AffiliateLink>
-              )}
-            </div>
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                {tcgplayerLink && (
+                  <AffiliateLink
+                    href={tcgplayerLink}
+                    eventName="TCGPlayer Click"
+                    eventData={{ card: name, page: "card_catalog" }}
+                    className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:text-zinc-300"
+                  >
+                    Check on TCGPlayer
+                  </AffiliateLink>
+                )}
+              </div>
+            </CardWorthAnswer>
           </div>
         </div>
-
-        <CardWorthAnswer answer={worth} />
 
         {/* Live PPT analysis first. If it has no showable number, fall back
             to the daily-synced card_catalog figure ONLY when the analysis
@@ -249,8 +239,9 @@ export default function CatalogCardView({
             price the analysis deliberately rejected. Otherwise say so. */}
         {analysisHasPrice ? (
           <>
-            <CardPriceSummary analysis={analysis} offersCount={0} listingsLowUsd={null} />
+            <CardPriceSummary analysis={analysis} detailsOnly />
             <CardPriceIntelligence
+          detailsOnly
               marketValueUsd={analysis?.raw?.currentPrice ?? null}
               referenceCondition={analysis?.raw?.referenceCondition ?? null}
               trends={priceHistory?.trends ?? null}
@@ -260,42 +251,7 @@ export default function CatalogCardView({
               offersCount={0}
             />
           </>
-        ) : analysis == null && refPrice != null ? (
-          <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">Price &amp; value</h2>
-            <div className="mt-3">
-              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400" data-reference-condition={card.refCondition ?? "unknown"}>
-                {/* the catalogue copy's stored condition when it has one (post-migration); otherwise neutral */}
-                {card.refCondition ? `Market value · raw, ${card.refCondition}` : "Market reference · raw"}
-              </p>
-              <p className="text-3xl font-bold text-black dark:text-zinc-50">
-                <Price usd={refPrice} native={{ amount: refPrice, currency: "USD" }} approxPrefix="" />
-              </p>
-              <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-                Reference price from PokemonPriceTracker, based on recent sold data —{" "}
-                <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">
-                  how we work this out
-                </Link>
-                .
-              </p>
-            </div>
-          </section>
-        ) : (
-          <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">Price &amp; value</h2>
-            <div className="mt-3">
-              <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Market price unavailable</p>
-              <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-                We don&apos;t have a reliable recent-sold reference for this exact printing right now. Rather
-                than show a figure we can&apos;t stand behind, we show none —{" "}
-                <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">
-                  how we work this out
-                </Link>
-                .
-              </p>
-            </div>
-          </section>
-        )}
+        ) : null}
 
         <CardNextSteps
           variant="no-deal"
