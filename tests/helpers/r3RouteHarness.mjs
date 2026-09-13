@@ -70,7 +70,8 @@ export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis
     };
     if (name==='@/lib/deals') return data;
     if (name==='@/lib/supabaseAdmin') return {supabaseAdmin:()=>query};
-    if (name==='@/lib/pokemonPriceTracker') return {getFullPriceAnalysis:record('fixture-price-analysis',analysis)};
+    if (name==='@/lib/supabaseClient') return {supabase:query};
+    if (name==='@/lib/pokemonPriceTracker') return {getFullPriceAnalysis:record('fixture-price-analysis',analysis),getSealedPriceHistory:record('fixture-sealed-history',[])};
     if (name==='@/lib/email') return {emailEnabled:()=>false};
     if (name.startsWith('@/components/') || ['next/link','next/image'].includes(name)) {
       if (!components.has(name)) {

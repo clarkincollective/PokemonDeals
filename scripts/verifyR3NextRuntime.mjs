@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 const BASE='http://127.0.0.1:9483';
-const out=path.resolve(import.meta.dirname,'../../shots/r3-next-runtime');
+const includeSealed=process.argv.includes('--sealed');
+const out=path.resolve(import.meta.dirname,includeSealed?'../../shots/r5-sealed-runtime':'../../shots/r3-next-runtime');
 fs.mkdirSync(out,{recursive:true});
 const checks=[],responses=[],errors=[],blocked=[],excluded=[],failedRequests=[],httpErrors=[];
 const check=(name,pass,detail)=>checks.push({name,pass:Boolean(pass),detail});
@@ -20,13 +21,14 @@ for(const route of ['/deals/vintage','/deals/sealed']){
  check(route+' category contract',route.endsWith('sealed')?r.status===308&&r.headers.get('location')==='/sealed-deals':r.status===200&&html.includes('/deals/900001')&&html.includes('rel="canonical"'),{status:r.status,location:r.headers.get('location'),cacheControl:r.headers.get('cache-control')});
 }
 const routes=['/deals/900001','/deals/900004','/deals/900005','/deals/900002','/deals/900006','/deals/900020','/deals/900021','/cards/fixture-hub','/cards/fixture-reference','/cards/fixture-no-reference'];
+if(includeSealed)routes.push(...Array.from({length:8},(_,i)=>`/sealed-deals/${910001+i}`));
 for(const route of [...routes,'/deals/900022','/deals/999999','/cards/fixture-missing']){
  const r=await fetch(BASE+route,{redirect:'manual'}),html=await r.text();
  fs.writeFileSync(path.join(out,route.slice(1).replaceAll('/','-')+'.html'),html);
  responses.push({route,status:r.status,location:r.headers.get('location'),cache:r.headers.get('x-nextjs-cache')});
  if(routes.includes(route)){
   check(route+' server HTML',r.status===200&&/<main\b/.test(html)&&/<h1\b/.test(html)&&/<title>/.test(html));
-  check(route+' canonical contract',route.endsWith('900021')?!html.includes('rel="canonical"'):html.includes('rel="canonical"'));
+  check(route+' canonical contract',route.endsWith('900021')||route.endsWith('910007')?!html.includes('rel="canonical"'):html.includes('rel="canonical"'));
  }else check(route+' lifecycle',route.endsWith('900022')?r.status===308&&r.headers.get('location')==='/cards/fixture-hub':r.status===404);
  if(route.endsWith('900021'))check('gated HTML truthful',html.includes('This listing is unavailable here')&&html.includes('This does not confirm whether it has sold or ended on eBay'));
  if(route.endsWith('900001'))check('native SSR price',html.includes('$30.75')&&!html.includes('A$46.13'));
@@ -48,7 +50,7 @@ try{
    const u=d.params.request.url,ok=u.startsWith(BASE+'/')||u.startsWith('https://tcgplayer-cdn.tcgplayer.com/')||u.startsWith('data:');
    if(u.startsWith(BASE+'/')){
     const p=new URL(u).pathname;
-    if(!routes.includes(p)&&!['/','/api/rates','/api/deals-page','/icon.svg','/opengraph-image'].includes(p)&&!p.startsWith('/_next/')){
+    if(!routes.includes(p)&&!['/','/api/rates','/api/deals-page','/icon.svg','/opengraph-image',...(includeSealed?['/fixture-sealed']:[])].includes(p)&&!p.startsWith('/_next/')){
      excluded.push({url:u,reason:'Unimplemented local route outside R3 fixture; 404 supplied before server access'});
      raw('Fetch.fulfillRequest',{requestId:d.params.requestId,responseCode:404,body:''},session).catch(e=>errors.push(String(e)));return;
     }
@@ -80,6 +82,16 @@ try{
    check(`${route} ${width} affiliate qualification`,state.offers.every(a=>a.rel.includes('sponsored')));
    if(route==='/deals/900001')check(`AUD hydration ${width}`,await until('document.body.innerText.includes("A$46.13")'));
    if(route==='/deals/900021')check(`gated artwork metadata ${width}`,state.og.length===0);
+   if(route.startsWith('/sealed-deals/')){
+    const body=await ev('document.body.innerText'),product=state.jsonLd.find(s=>s['@type']==='Product');
+    if(route.endsWith('910002'))check(`sealed native currency ${width}`,body.includes('C$75.00')&&!body.includes('A$112.50')&&!body.includes('You save'));
+    if(route.endsWith('910003'))check(`sealed shipping uncertainty ${width}`,body.includes('Shipping not confirmed')&&body.includes('before shipping')&&!product?.offers?.shippingDetails);
+    if(route.endsWith('910004'))check(`sealed unknown breakdown ${width}`,body.includes('Shipping breakdown not recorded')&&!product&&!body.includes('% below market'));
+    if(route.endsWith('910005'))check(`sealed auction bid schema ${width}`,product?.offers?.price==='45.00'&&/current bid/i.test(body));
+    if(route.endsWith('910006'))check(`sealed unknown price ${width}`,body.includes('Price unavailable')&&!body.includes('$0.00')&&!product);
+    if(route.endsWith('910007'))check(`sealed unavailable ${width}`,body.includes('This listing is unavailable here')&&state.offers.length===0);
+    if(route.endsWith('910008'))check(`sealed missing reference ${width}`,body.includes('No verified market reference')&&!body.includes('% below market')&&!product);
+   }
    await ev('document.body.tabIndex=-1;document.body.focus();document.body.removeAttribute("tabindex")');
    await key('Tab',9);check(`${route} ${width} first Tab`,await ev('document.activeElement.getAttribute("href")==="#main-content"'));
    await key('Enter',13,'\r');check(`${route} ${width} skip activation`,await ev('document.activeElement.id==="main-content"'));
@@ -87,6 +99,12 @@ try{
    await ev(`(()=>{const label=document.createElement('div');label.textContent='SIMULATED • local Next fixture • providers disabled';label.style='position:fixed;bottom:0;left:0;z-index:99999;background:#fff;color:#000;font:11px Arial;padding:3px';document.body.append(label)})()`);
    const shot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(out,route.slice(1).replaceAll('/','-')+'-'+width+'-'+scheme+'.png'),Buffer.from(shot.data,'base64'));
   }
+ }
+ if(includeSealed){
+  await navigate('/fixture-sealed');
+  const sealedTiles=await ev(`({native:document.querySelector('[data-state="native_no_usd"]').innerText,unknown:document.querySelector('[data-state="unpriced"]').innerText})`);
+  check('sealed tiles retain native currency and unknown price',sealedTiles.native.includes('C$75.00')&&!sealedTiles.native.includes('A$112.50')&&sealedTiles.unknown.includes('Price unavailable')&&!sealedTiles.unknown.includes('$0.00'),sealedTiles);
+  fs.writeFileSync(path.join(out,'sealed-tiles-320-dark.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
  }
  await navigate('/deals/900001');
  await ev(`document.querySelector('button[aria-label="Save this card"]').click()`);

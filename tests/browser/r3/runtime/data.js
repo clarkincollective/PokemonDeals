@@ -5,6 +5,7 @@ import savedCatalogue from './saved-catalogue.json';
 import {slugifySet} from '@/lib/slugify';
 import {catalogCardSlug} from '@/lib/cardSlug';
 import {setPriceSnapshot,setSpeciesList} from '@/lib/setSummary';
+import {sealedFixtures} from './sealedFixtures';
 const from = id => ({...DEAL_STATE_FIXTURES.find(f => f.id === id).deal,is_active:true});
 export const listingRows = [from('bin_compared'),from('auction'),from('graded'),from('bin_plain'),from('non_usd'),
   {...from('bin_compared'),id:900020,price:null,total_price:null,total_price_usd:null},
@@ -13,10 +14,12 @@ export const listingRows = [from('bin_compared'),from('auction'),from('graded'),
 const card = {name:'Clefable',set:'Jungle',cardNumber:'1/64',rarity:'Holo Rare',tcgplayerId:'45120',refPrice:38.26,refCondition:'Near Mint',indexable:true,image:'https://tcgplayer-cdn.tcgplayer.com/product/45120_in_1000x1000.jpg'};
 export const cardSlugs = ['fixture-hub','fixture-reference','fixture-no-reference'];
 export function supabaseAdmin() {
-  let id;
-  const query = {from(table){if(table!=='deals')throw Error('UNEXPECTED_FIXTURE_TABLE');return query;},select(){return query;},eq(key,value){if(key!=='id')throw Error('UNEXPECTED_FIXTURE_QUERY');id=value;return query;},async single(){return {data:listingRows.find(d=>String(d.id)===String(id))??null};}};
+  let id,selectedTable;
+  const query = {from(table){if(!['deals','sealed_deals'].includes(table))throw Error('UNEXPECTED_FIXTURE_TABLE');selectedTable=table;return query;},select(){return query;},eq(key,value){if(key!=='id')throw Error('UNEXPECTED_FIXTURE_QUERY');id=value;return query;},async single(){const rows=selectedTable==='sealed_deals'?sealedFixtures.map(f=>f.deal):listingRows;return {data:rows.find(d=>String(d.id)===String(id))??null};}};
   return query;
 }
+export const supabase={from:table=>supabaseAdmin().from(table)};
+export const getSealedPriceHistory=async()=>[];
 export const cardColsReady = async () => true;
 export const withCard = row => row;
 export const resolveCardSlug = async slug => slug==='fixture-hub'?{...card,id:'fixture-hub',slug}:null;

@@ -1,3 +1,5 @@
+import SkipToContent from "@/components/SkipToContent";
+import { offerShipping } from "@/lib/offerPresentation";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import Image from "next/image";
@@ -5,7 +7,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
-import { currencyForDeal, refInListingCurrency, dealTotalUsd } from "@/lib/money";
+import { currencyForDeal, refInListingCurrency, dealTotalUsd, hasPrice, auctionDisplayParts } from "@/lib/money";
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
 import { getSealedPriceHistory } from "@/lib/pokemonPriceTracker";
@@ -87,11 +89,12 @@ export async function generateMetadata({ params }) {
   const productSet = deal.sealed_watchlist?.set;
   // 17C.7: no evidenced reference for this exact product -> no discount
   // claim in the title, description or link preview, and no indexing.
-  if (listingPresentation(deal).savings !== "trusted") {
+  const shipping = offerShipping(deal);
+  if (!hasPrice(deal.total_price) || !hasPrice(deal.market_price) || listingPresentation(deal).savings !== "trusted" || shipping.savingClaim === "none") {
     const plainName = `${productName}${productSet ? ` (${productSet})` : ""}`;
     return {
       title: `${plainName} - eBay listing`,
-      description: `${plainName} listed on eBay. Shown without a savings claim: we have no verified market reference for this exact product yet.`,
+      description: `${plainName} listed on eBay. Shown without a savings claim; check the current listing price and shipping on eBay.`,
       alternates: { canonical: `/sealed-deals/${id}` },
       robots: { index: false, follow: true },
     };
@@ -101,7 +104,7 @@ export async function generateMetadata({ params }) {
   // (and set) name intact and drop the "- N% below market" suffix rather
   // than let the title run long once the site-name template is appended.
   const titleBase = `${productName}${productSet ? ` (${productSet})` : ""}`;
-  const titleSuffix = ` - ${discountPct}% below market`;
+  const titleSuffix = ` - ${discountPct}% below market${shipping.savingQualifier}`;
   const title = titleBase.length + titleSuffix.length <= 58 ? `${titleBase}${titleSuffix}` : titleBase;
   // Real product/set context up front, not just bare price numbers - see
   // app/deals/[id]/page.js's identical reasoning. Both figures are USD
@@ -110,7 +113,7 @@ export async function generateMetadata({ params }) {
   const listingUsd = dealTotalUsd(deal);
   const marketUsd = Number(deal.market_price);
   const forClause = listingUsd ? ` for $${listingUsd.toFixed(2)}` : "";
-  const description = `${productName}${productSet ? ` (${productSet})` : ""}${forClause} - ${discountPct}% below the $${marketUsd.toFixed(2)} real market price on eBay.`;
+  const description = `${productName}${productSet ? ` (${productSet})` : ""}${forClause} - ${discountPct}% below the $${marketUsd.toFixed(2)} market reference${shipping.savingQualifier} on eBay.`;
 
   return {
     title,
@@ -149,8 +152,9 @@ export default async function SealedDealDetailPage({ params }) {
     const preRelease = gatedPresentation?.early ? gatedPresentation : null;
     return (
       <div className="min-h-screen bg-paper">
+        <SkipToContent />
         <SiteHeader />
-        <div className="mx-auto max-w-2xl px-6 py-16 text-center">
+        <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl scroll-mt-24 px-6 py-16 text-center">
           {preRelease ? (
             <>
               <h1 className="text-xl font-bold text-black dark:text-zinc-50">{preRelease.notes[0]}</h1>
@@ -161,12 +165,12 @@ export default async function SealedDealDetailPage({ params }) {
               </p>
             </>
           ) : (
-            <p className="text-zinc-500">Couldn&apos;t find that deal - it may have expired.</p>
+            <><h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">This listing is unavailable here</h1><p className="mt-2 text-zinc-600 dark:text-zinc-400">It does not currently pass our listing checks. This does not confirm whether it has sold or ended on eBay.</p></>
           )}
           <Link href="/sealed-deals" className="mt-4 inline-block text-sm font-medium underline">
             Back to sealed product deals
           </Link>
-        </div>
+        </main>
       </div>
     );
   }
@@ -177,14 +181,15 @@ export default async function SealedDealDetailPage({ params }) {
   const discountPct = Math.round(deal.discount_pct * 100);
   // 17C.7: savings claims need an evidenced reference for this exact product.
   const presentation = listingPresentation(deal);
-  const showSavings = presentation.savings === "trusted";
+  const shipping = offerShipping(deal);
+  const showSavings = hasPrice(deal.total_price) && hasPrice(deal.market_price) && presentation.savings === "trusted" && shipping.savingClaim !== "none";
   // Native currency on the server (keeps this page cacheable); <Price>
   // localises after hydration. market_price / "saved" are USD.
   const nativeCurrency = currencyForDeal(deal);
   const total = Number(deal.total_price);
-  const usdTotal = Number(deal.total_price_usd ?? deal.total_price);
+  const usdTotal = dealTotalUsd(deal);
   const marketUsd = Number(deal.market_price);
-  const savedUsd = marketUsd - usdTotal;
+  const savedUsd = usdTotal != null ? marketUsd - usdTotal : null;
   // USD reference / savings in the listing's own currency so a comparison
   // block never mixes AUD/USD before <Price> localises both together
   // after hydration (lib/money.refInListingCurrency).
@@ -192,6 +197,7 @@ export default async function SealedDealDetailPage({ params }) {
   const savedNative = marketNative != null ? marketNative - total : null;
   const showRef = Number.isFinite(marketUsd) && savedUsd > 0 && marketNative != null;
   const isAuction = deal.listing_type === "AUCTION";
+  const auctionParts = isAuction ? auctionDisplayParts(deal) : null;
   const marketInfo = MARKETPLACES[deal.marketplace];
   const tcgplayerLink = buildTcgplayerLink(productName, watchlist?.tcgplayer_id);
 
@@ -214,22 +220,22 @@ export default async function SealedDealDetailPage({ params }) {
     offers: {
       "@type": "Offer",
       url: deal.listing_url,
-      priceCurrency: marketInfo?.currency ?? "USD",
-      price: Number(deal.total_price).toFixed(2),
+      priceCurrency: nativeCurrency,
+      price: Number(auctionParts ? auctionParts.bid.native : deal.total_price).toFixed(2),
       availability: deal.is_active ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/NewCondition",
-      shippingDetails: {
+      shippingDetails: shipping.state === "confirmed" ? {
         "@type": "OfferShippingDetails",
         shippingRate: {
           "@type": "MonetaryAmount",
-          value: Number(deal.shipping ?? 0).toFixed(2),
-          currency: marketInfo?.currency ?? "USD",
+          value: Number(deal.shipping).toFixed(2),
+          currency: nativeCurrency,
         },
         shippingDestination: {
           "@type": "DefinedRegion",
           addressCountry: deal.marketplace?.replace("EBAY_", "") ?? "US",
         },
-      },
+      } : undefined,
     },
   };
 
@@ -252,10 +258,11 @@ export default async function SealedDealDetailPage({ params }) {
     <div className="min-h-screen bg-paper">
       {/* 17C.7: a plain listing makes no price/availability claim in
           structured data either - only the breadcrumb below. */}
-      {showSavings && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />}
+      {showSavings && (!isAuction || auctionParts) && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <SkipToContent />
       <SiteHeader />
-      <div className="mx-auto max-w-5xl px-6 py-10">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-5xl scroll-mt-24 px-5 py-6 sm:px-6 sm:py-8">
         <Breadcrumbs
           items={[
             { name: "Deals", href: "/" },
@@ -264,8 +271,8 @@ export default async function SealedDealDetailPage({ params }) {
           ]}
         />
 
-        <div className="mt-4 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
-          <div className="relative h-56 w-56 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:self-auto dark:bg-zinc-900">
+        <div className="mt-4 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-4 shadow-card sm:flex-row sm:p-6 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="relative h-40 w-40 shrink-0 sm:h-56 sm:w-56 self-center overflow-hidden rounded-lg bg-zinc-50 sm:self-auto dark:bg-zinc-900">
             {deal.image_url ? (
               <Image src={deal.image_url} alt={normalizePublicText(deal.title)} fill sizes="224px" className="object-contain p-3" />
             ) : (
@@ -276,8 +283,8 @@ export default async function SealedDealDetailPage({ params }) {
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2">
               {showSavings && (
-                <span className="rounded-md bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">
-                  {discountPct}% below market
+                <span className="rounded-md bg-emerald-700 px-2.5 py-0.5 text-xs font-semibold text-white">
+                  {discountPct}% below market{shipping.savingQualifier}
                 </span>
               )}
               <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
@@ -293,13 +300,12 @@ export default async function SealedDealDetailPage({ params }) {
                 app/deals/[id]/page.js's identical reasoning. */}
             <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">
               {productName}
-              {showSavings && <span className="font-medium text-zinc-500"> - {discountPct}% Below Market</span>}
             </h1>
             {productSet && <p className="text-zinc-500">{productSet}</p>}
-            <p className="mt-1 line-clamp-2 text-sm text-zinc-400">{normalizePublicText(deal.title)}</p>
+            <p className="mt-1 line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">{normalizePublicText(deal.title)}</p>
 
             <div className="mt-4">
-              {isAuction ? (
+              {!hasPrice(deal.total_price) ? <p className="text-lg font-semibold text-zinc-700 dark:text-zinc-200">Price unavailable</p> : isAuction ? (
                 // P0 auction-price-integrity: headline = CURRENT BID, with
                 // shipping + estimated landed total on their own lines.
                 <AuctionPrice
@@ -311,6 +317,7 @@ export default async function SealedDealDetailPage({ params }) {
                 />
               ) : (
                 <>
+                  <p className="mb-1 text-sm text-zinc-600 dark:text-zinc-400">{shipping.headline}</p>
                   <div className="flex items-baseline gap-3">
                     <Price
                       usd={usdTotal}
@@ -327,15 +334,16 @@ export default async function SealedDealDetailPage({ params }) {
                       </span>
                     )}
                   </div>
+                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{shipping.note ?? "Includes recorded shipping"}</p>
                   {!showSavings ? null : showRef ? (
                     <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-500">
                       You save{" "}
-                      <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}
+                      <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} />{shipping.savingQualifier} ·{" "}
                       {discountPct}% below market
                     </p>
                   ) : (
                     <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                      {discountPct}% below market
+                      {discountPct}% below market{shipping.savingQualifier}
                     </p>
                   )}
                 </>
@@ -353,11 +361,11 @@ export default async function SealedDealDetailPage({ params }) {
               </p>
             )}
             {deal.seller_feedback_pct != null && (
-              <p className="mt-1 text-xs text-zinc-400">
+              <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
                 {Number(deal.seller_feedback_pct).toFixed(1)}% seller feedback
               </p>
             )}
-            <p className="mt-1 text-xs text-zinc-400">Found {timeAgo(deal.first_seen_at)}</p>
+            <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">Found {timeAgo(deal.first_seen_at)}</p>
 
             <div className="mt-5 flex flex-wrap gap-3">
               <AffiliateLink
@@ -366,28 +374,28 @@ export default async function SealedDealDetailPage({ params }) {
                 eventData={{
                   product: productName,
                   marketplace: deal.marketplace,
-                  discountPct,
+                  discountPct: showSavings ? discountPct : null,
                   listingType: deal.listing_type,
                   page: "sealed_detail",
                 }}
-                className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                className="inline-flex min-h-11 items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
               >
-                {isAuction ? "Bid on eBay →" : "View on eBay →"}
+                {isAuction ? "View auction on eBay →" : "View listing on eBay →"}
               </AffiliateLink>
               <AffiliateLink
                 href={tcgplayerLink}
                 eventName="TCGPlayer Click"
                 eventData={{ product: productName, page: "sealed_detail" }}
-                className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:text-zinc-300"
+                className="inline-flex min-h-11 items-center rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:text-zinc-300"
               >
                 Check on TCGPlayer
               </AffiliateLink>
               <ShareButton
                 url={`${SITE_URL}/sealed-deals/${deal.id}`}
-                title={showSavings ? `${productName} - ${discountPct}% below market` : productName}
+                title={showSavings ? `${productName} - ${discountPct}% below market${shipping.savingQualifier}` : productName}
                 text={
                   showSavings
-                    ? `${productName}${productSet ? ` (${productSet})` : ""}${dealTotalUsd(deal) ? ` - $${dealTotalUsd(deal).toFixed(2)},` : " -"} ${discountPct}% below market on Pokemon Deal Finder`
+                    ? `${productName}${productSet ? ` (${productSet})` : ""}${dealTotalUsd(deal) ? ` - $${dealTotalUsd(deal).toFixed(2)},` : " -"} ${discountPct}% below market${shipping.savingQualifier} on Pokemon Deal Finder`
                     : `${productName}${productSet ? ` (${productSet})` : ""} on Pokemon Deal Finder`
                 }
                 label="Share"
@@ -403,9 +411,9 @@ export default async function SealedDealDetailPage({ params }) {
             <div className="mt-4">
               <PriceHistoryChart points={history} />
             </div>
-          ) : (
+          ) : hasPrice(marketUsd) && presentation.savings === "trusted" ? (
             <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
-              Not enough dated sales to plot a trend yet. Current market value is{" "}
+              Not enough dated sales to plot a trend yet. The stored market reference is{" "}
               <span className="font-semibold text-black dark:text-zinc-50">
                 <Price
                   usd={marketUsd}
@@ -420,14 +428,14 @@ export default async function SealedDealDetailPage({ params }) {
                   <span className="font-semibold text-emerald-600 dark:text-emerald-500">
                     {discountPct}% below
                   </span>{" "}
-                  it
+                  it{shipping.savingQualifier}
                 </>
               )}
               .
             </p>
-          )}
+          ) : <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">No verified market reference is available for this exact product.</p>}
         </div>
-      </div>
+      </main>
 
       <SiteFooter note="Listing-to-product matching is automated and not perfect - always double-check a listing's photos and description (and that it's genuinely factory sealed) before buying." />
     </div>

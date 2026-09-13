@@ -2,7 +2,7 @@ import Image from "next/image";
 import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import { surfaceForPageName } from "@/lib/affiliateSurfaces";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
-import { currencyForDeal, refInListingCurrency, dealTotalUsd } from "@/lib/money";
+import { currencyForDeal, refInListingCurrency, dealTotalUsd, hasPrice } from "@/lib/money";
 import RelativeTime from "@/components/RelativeTime";
 import { normalizePublicText } from "@/lib/publicText";
 import AffiliateLink from "@/components/AffiliateLink";
@@ -26,9 +26,9 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
   // Native currency on the server; <Price> localises after hydration.
   const nativeCurrency = currencyForDeal(deal);
   const total = Number(deal.total_price);
-  const usdTotal = Number(deal.total_price_usd ?? deal.total_price);
+  const usdTotal = dealTotalUsd(deal);
   const marketUsd = Number(deal.market_price);
-  const savedUsd = marketUsd - usdTotal;
+  const savedUsd = usdTotal != null ? marketUsd - usdTotal : null;
   // USD reference / savings in the listing's own currency, so the SSR /
   // no-country / FX-down state shows one currency for both figures (see
   // lib/money.refInListingCurrency). <Price> still localises both from
@@ -45,7 +45,7 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
   // (no badge, score, strikethrough, saving or "% below market").
   const presentation = listingPresentation(deal);
   const shipping = offerShipping(deal);
-  const showSavings = presentation.savings === "trusted" && shipping.savingClaim !== "none";
+  const showSavings = hasPrice(deal.total_price) && hasPrice(deal.market_price) && presentation.savings === "trusted" && shipping.savingClaim !== "none";
 
   return (
     <div className="group flex h-full flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950">
@@ -102,7 +102,7 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
         {productSet && <p className="line-clamp-1 text-xs text-zinc-500">{productSet}</p>}
 
         <div className="mt-1">
-          {isAuction ? (
+          {!hasPrice(deal.total_price) ? <p className="font-semibold text-zinc-700 dark:text-zinc-200">Price unavailable</p> : isAuction ? (
             // P0 auction-price-integrity: headline is the CURRENT BID, with
             // shipping + estimated landed total as their own lines - the
             // landed total is never shown labelled as "the bid".
@@ -188,9 +188,9 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
               listingType: deal.listing_type,
               page: pageName,
             }}
-            className="block flex-1 rounded-md bg-black px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+            className="flex min-h-11 flex-1 items-center justify-center rounded-md bg-black px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
           >
-            {isAuction ? "Bid on eBay →" : "View on eBay →"}
+            {isAuction ? "View auction on eBay →" : "View listing on eBay →"}
           </AffiliateLink>
         </div>
         <AffiliateLink
