@@ -57,6 +57,9 @@ export default function CardWorthAnswer({ answer, embedded = false, children, cl
             We don&apos;t have a reliable recent-sold market price for a raw copy of {answer.subject} right now, so
             we don&apos;t show one.
             {answer.gradedAvailable ? " Graded prices for this printing are listed below." : ""}
+            {" "}<Link href="/methodology" className="text-zinc-500 hover:text-red-600 hover:underline dark:hover:text-red-500 dark:text-zinc-400">
+              How we work out prices
+            </Link>
           </p>
         </div>
       )}

@@ -47,6 +47,9 @@ test('catalogue-only fallback keeps USD answer and unknown-condition provenance 
 test('rejected raw reference keeps one unavailable answer without catalogue resurrection', async () => {
   const html = await render({analysis:{raw:{currentPrice:null},graded:[]}});
   assert.equal((html.match(/data-worth-answer="unavailable"/g) ?? []).length, 1);
+  const answer = html.match(/<p data-worth-answer="unavailable">[\s\S]*?<\/p>/)?.[0];
+  assert.match(answer, /href="\/methodology"/);
+  assert.match(answer, /How we work out prices/);
   assert.doesNotMatch(html, /\$30|Price &amp; value|Condition &amp; graded references/);
 });
 test('additional condition and graded evidence retains currency conversion and limitations', async () => {
