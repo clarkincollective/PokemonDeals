@@ -9,6 +9,7 @@ import {
 import { DEAL_CATEGORIES, DEAL_CATEGORY_SLUGS, isModernSet } from "@/lib/dealCategories";
 import { normalizePublicText } from "@/lib/publicText";
 import SiteHeader from "@/components/SiteHeader";
+import SkipToContent from "@/components/SkipToContent";
 import RegionRedirect from "@/components/RegionRedirect";
 import DealGrid from "@/components/DealGrid";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -112,11 +113,12 @@ export default async function DealCategoryPage({ slug }) {
       {itemListJsonLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
       )}
+      <SkipToContent />
       <SiteHeader />
       <RegionRedirect />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-10">
+        <div className="mx-auto max-w-7xl px-6 py-6 sm:py-8">
           <Breadcrumbs
             items={[
               { name: "Deals", href: "/" },
@@ -129,13 +131,13 @@ export default async function DealCategoryPage({ slug }) {
           </h1>
           <p className="mt-3 max-w-2xl text-base text-zinc-600 dark:text-zinc-400">{cat.intro}</p>
           <p className="mt-2 text-xs text-zinc-400">
-            Prices and availability on eBay change constantly — every listing is checked against real
-            market data, but always confirm the current price and condition before buying.
+            Market references appear where a matching comparison is available. Confirm the card,
+            condition, shipping and current price on eBay before buying.
           </p>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
+      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 scroll-mt-6 px-6 py-6 sm:py-8">
         {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
 
         <DealGrid

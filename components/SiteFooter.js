@@ -139,7 +139,7 @@ export default function SiteFooter({ note }) {
                     ·
                   </span>
                 )}
-                <Link href={l.href} className="hover:text-zinc-700 hover:underline dark:hover:text-zinc-300">
+                <Link href={l.href} className="inline-flex min-h-11 items-center hover:text-zinc-700 hover:underline dark:hover:text-zinc-300">
                   {l.label}
                 </Link>
               </Fragment>

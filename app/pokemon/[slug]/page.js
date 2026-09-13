@@ -52,7 +52,8 @@ export async function generateStaticParams() {
 // species-scoped view of the same real active deals, plus a real index
 // of that species' prints linking to their /cards/[slug] hubs.
 // SEO-2: the canonical species URL is the lowercase slug. A mixed-case
-// request permanently redirects (see the page component) - metadata here
+// request permanently redirects in proxy.js before ISR rendering (the
+// page retains a defensive fallback) - metadata here
 // is computed for the lowercase form so a redirected request can never
 // advertise a second, case-variant canonical.
 function canonicalSpeciesSlug(slug) {

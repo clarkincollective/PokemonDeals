@@ -60,7 +60,7 @@ export const fetchSpeciesCatalog=async name=>({cards:name==='Dragonite'?dragonit
 export const fetchSpeciesDealsPage=async()=>({deals:[],totalPages:1,error:null});
 export const fetchSpeciesDealStats=async()=>({dealCards:0});
 export const fetchSpeciesPrints=async()=>({prints:[]});
-export const fetchCardHubs=async()=>({cards:[]});
+export const fetchCardHubs=async()=>({cards:[],hubs:[]});
 
 // R5 family fixtures: historical card identities plus explicitly simulated
 // aggregates/offers. No current production-market accuracy is implied.
@@ -73,10 +73,12 @@ const japaneseRow={...listingRows[0],id:920001,watchlist_id:'japanese-control',t
 function familyDeals(options){
  if(options.maxPrice!=null&&options.maxPrice<2)return [];
  if(options.language==='japanese')return [japaneseRow];
- if(options.sets)return []; // Existing release-lineup sparse-state contract.
+ if(options.sets&&!options.sets.includes('Jungle'))return []; // Sparse modern releases; retain the vintage category's Jungle control.
  return [options.cardType==='graded'?listingRows[2]:listingRows[0]];
 }
 export const fetchDealsPool=async(options={})=>({data:familyDeals(options),error:null});
+export const fetchHomepageLanes=async()=>({pools:{flagship:[listingRows[0],listingRows[2],listingRows[4],from('long_name')],grid:[listingRows[1],listingRows[3]],auctions:[],justAdded:[],underPrice:[]},error:null});
+export const fetchBestFinds=async(options={})=>({deals:options.maxPrice===1?[]:[options.graded?listingRows[2]:listingRows[0]],error:null});
 export const fetchSealedDealsPool=async()=>({data:[sealedFixtures[0].deal],error:null});
 export const fetchSealedCatalog=async()=>({groups:[{set:'Celebrations',slug:'celebrations',dealCount:0,products:[
  {name:'Celebrations Elite Trainer Box',set:'Celebrations',tcgplayerId:'242811',image:sealedFixtures[0].deal.image_url,productType:'Elite Trainer Box',refPrice:100,refCondition:null,deal:null},

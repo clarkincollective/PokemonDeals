@@ -19,6 +19,7 @@ layout=layout.replace('import { Geist, Geist_Mono } from "next/font/google";',''
 layout=layout.replace(/const geistSans = Geist\([\s\S]*?\);/,'const geistSans = { variable: "" };').replace(/const geistMono = Geist_Mono\([\s\S]*?\);/,'const geistMono = { variable: "" };');
 if(layout.includes('next/font')||layout.includes('Geist('))throw Error('UNRECOGNISED_FONT_BOUNDARY');
 write('app/layout.js',layout);
+write('proxy.js',source('proxy.js'));
 const listing=source('app/deals/[id]/page.js');
 if(/export\s+(?:async\s+)?function\s+generateStaticParams/.test(listing))throw Error('Listing static generation would reintroduce the cold-redirect bug');
 write('app/deals/[id]/page.js',listing);
@@ -38,7 +39,10 @@ if(!fonts)throw Error('Generate offline static fixtures first for local Geist fo
 // prior fixture stylesheet. Only embedded offline font faces are reused.
 const css=(await postcss([tailwind({base:root})]).process(source('app/globals.css'),{from:resolve(root,'app/globals.css')})).css;
 write('app/globals.css',css+'\n'+fonts+'\nbody{font-family:Geist,Arial,sans-serif}');
-write('app/page.js',`import Link from 'next/link';export default function Index(){return <main><h1>SIMULATED R3 Next runtime</h1><p>Fixture prices and links. Providers disabled.</p><Link prefetch={false} href="/deals/900001">Open fixture listing</Link><br/><Link prefetch={false} href="/cards/fixture-hub">Open fixture card</Link></main>;}`);
+write('app/page.js',source('app/page.js'));
+write('app/best-finds/page.js',source('app/best-finds/page.js'));
+write('app/price-checker/page.js',source('app/price-checker/page.js'));
+write('app/fixture-index/page.js',`import Link from 'next/link';export default function Index(){return <main><h1>SIMULATED R3 Next runtime</h1><p>Fixture prices and links. Providers disabled.</p><Link prefetch={false} href="/deals/900001">Open fixture listing</Link><br/><Link prefetch={false} href="/cards/fixture-hub">Open fixture card</Link></main>;}`);
 write('app/redirect-control/[id]/page.js',`import {permanentRedirect} from 'next/navigation';export const revalidate=600;export function generateStaticParams(){return [];}export default async function Page({params}){await params;permanentRedirect('/cards/fixture-hub');}`);
 write('app/api/rates/route.js',`export function GET(){return Response.json({viewer:'AUD',marketplace:'EBAY_AU',geo_country:'AU',rates:{USD:1,AUD:1.5,GBP:0.8}});}`);
 write('app/api/deals-page/route.js',`import {listingRows} from ${JSON.stringify(resolve(fixtures,'data.js').replaceAll('\\','/'))};export function GET(request){const type=new URL(request.url).searchParams.get('type');return Response.json({deals:type==='graded'?[listingRows[2]]:[listingRows[0]],error:null});}`);

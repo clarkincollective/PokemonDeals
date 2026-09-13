@@ -37,7 +37,7 @@ export default function Logo({ size = "large" }) {
           becomes screen-reader-only so the header (mark + region control +
           menu) fits a 320px viewport without sideways scrolling */}
       <span className={isLarge ? "text-3xl font-bold tracking-tight sm:text-4xl" : "whitespace-nowrap text-base font-bold tracking-tight max-[359px]:sr-only sm:text-lg"}>
-        <span className="text-red-600 dark:text-red-500">Pokemon</span>{" "}
+        <span className="text-red-700 dark:text-red-500">Pokemon</span>{" "}
         <span className="text-black dark:text-zinc-50">Deal Finder</span>
       </span>
     </span>

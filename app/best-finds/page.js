@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { fetchBestFinds, fetchHubCounts, fetchSetSlugs } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
+import SkipToContent from "@/components/SkipToContent";
 import RegionRedirect from "@/components/RegionRedirect";
 import SiteFooter from "@/components/SiteFooter";
 import DealCard from "@/components/DealCard";
@@ -32,7 +33,7 @@ export const metadata = {
 // silently resetting it.
 function TypeToggle({ params, type }) {
   const tabClass = (active) =>
-    `rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+    `inline-flex min-h-11 items-center rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
       active
         ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900"
         : "text-zinc-600 hover:text-red-600 dark:text-zinc-300 dark:hover:text-red-500"
@@ -89,6 +90,7 @@ export default async function BestFindsPage({ searchParams }) {
             : []),
         ]}
       />
+      <SkipToContent />
       <SiteHeader />
       <RegionRedirect />
 
@@ -124,7 +126,7 @@ export default async function BestFindsPage({ searchParams }) {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
+      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 scroll-mt-6 px-6 py-6 sm:py-8">
         {error && (
           <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error.message}</p>
         )}

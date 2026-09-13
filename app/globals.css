@@ -31,8 +31,8 @@
 }
 
 @theme {
-  /* Warm the neutral ramp so surfaces read as "paper", not cold zinc.
-     Luminance is kept close to stock so existing contrast still holds. */
+  /* Warm neutral surfaces. Small secondary text has separate contrast
+     corrections below; surface colours alone are not text guarantees. */
   --color-zinc-50: #faf9f7;
   --color-zinc-100: #f3f1ed;
   --color-zinc-200: #e7e4dd;
@@ -74,6 +74,24 @@ body {
 /* Prices and other figures line up column-to-column */
 .tnum {
   font-variant-numeric: tabular-nums;
+}
+
+/* Secondary text must remain readable on both paper and tinted surfaces.
+   Only text utilities change: artwork, borders and surface tokens retain
+   their palette. Keep print's explicit black text rules independent. */
+@media screen and (prefers-color-scheme: light) {
+  .text-zinc-400,
+  .text-zinc-500 { color: var(--color-zinc-600); }
+}
+@media screen and (prefers-color-scheme: dark) {
+  .text-zinc-500:not([class*="dark:text-"]),
+  .dark\:text-zinc-500 { color: var(--color-zinc-400); }
+}
+
+/* Reading links remain distinguishable without colour or hover. */
+p a {
+  text-decoration-line: underline;
+  text-underline-offset: 3px;
 }
 
 /* Deal-first R1 - the shared foundation the premium components build on.

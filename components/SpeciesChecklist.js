@@ -15,7 +15,7 @@ import { buildChecklistRows, checklistSummary, checklistLegend } from "@/lib/set
 // price-condition context is identical to the set pages.
 // `groups` = lib/speciesCoverage.speciesEraGroups(cards, validSetSlugs).
 const GROUP_HEADER_CLASS =
-  "[&_tbody_th]:bg-zinc-50 [&_tbody_th]:text-left [&_tbody_th]:normal-case [&_tbody_th]:tracking-normal [&_tbody_th]:text-sm [&_tbody_th]:font-semibold [&_tbody_th]:text-zinc-800 dark:[&_tbody_th]:bg-zinc-900 dark:[&_tbody_th]:text-zinc-200 [&_tbody_th_span]:font-normal [&_tbody_th_span]:text-zinc-500 dark:[&_tbody_th_span]:text-zinc-400";
+  "[&_tbody_th]:bg-zinc-50 [&_tbody_th]:text-left [&_tbody_th]:normal-case [&_tbody_th]:tracking-normal [&_tbody_th]:text-sm [&_tbody_th]:font-semibold [&_tbody_th]:text-zinc-800 dark:[&_tbody_th]:bg-zinc-900 dark:[&_tbody_th]:text-zinc-200 [&_tbody_th_span]:font-normal [&_tbody_th_span]:text-zinc-600 dark:[&_tbody_th_span]:text-zinc-400";
 
 export default function SpeciesChecklist({ speciesName, groups, headingId = "full-card-index" }) {
   if (!groups || groups.length === 0) return null;

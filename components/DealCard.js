@@ -256,7 +256,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             <span className="min-w-0 max-w-full truncate">
               {isJapanese && "🇯🇵 Japanese · "}
               {setHasPage ? (
-                <Link href={`/sets/${setSlug}`} className="hover:text-red-600 hover:underline dark:hover:text-red-500">
+                <Link href={`/sets/${setSlug}`} className="inline-flex min-h-6 items-center hover:text-red-600 hover:underline dark:hover:text-red-500">
                   {cardSet}
                 </Link>
               ) : (

@@ -19,7 +19,7 @@ import Price from "@/components/Price";
 // 6-column layout (set page, 17C.11): Own | Art | No. | Card | Rarity | Ref
 const BASE = [
   "w-full border-collapse text-left text-sm tabular-nums",
-  "[&_th]:px-3 [&_th]:py-2 [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wide [&_th]:text-zinc-500 dark:[&_th]:text-zinc-400",
+  "[&_th]:px-3 [&_th]:py-2 [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wide [&_th]:text-zinc-600 dark:[&_th]:text-zinc-400",
   "[&_td]:px-3 [&_td]:py-2 [&_td]:align-top",
   "[&_tbody_tr]:border-t [&_tbody_tr]:border-zinc-100 dark:[&_tbody_tr]:border-zinc-800",
   "[&_a]:font-medium [&_a]:text-zinc-900 [&_a]:underline-offset-2 [&_a:hover]:text-red-600 [&_a:hover]:underline dark:[&_a]:text-zinc-100 dark:[&_a:hover]:text-red-500",

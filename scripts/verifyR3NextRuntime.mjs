@@ -50,7 +50,7 @@ try{
    const u=d.params.request.url,ok=u.startsWith(BASE+'/')||u.startsWith('https://tcgplayer-cdn.tcgplayer.com/')||u.startsWith('data:');
    if(u.startsWith(BASE+'/')){
     const p=new URL(u).pathname;
-    if(!routes.includes(p)&&!['/','/api/rates','/api/deals-page','/icon.svg','/opengraph-image',...(includeSealed?['/fixture-sealed']:[])].includes(p)&&!p.startsWith('/_next/')){
+    if(!routes.includes(p)&&!['/fixture-index','/api/rates','/api/deals-page','/icon.svg','/opengraph-image',...(includeSealed?['/fixture-sealed']:[])].includes(p)&&!p.startsWith('/_next/')){
      excluded.push({url:u,reason:'Unimplemented local route outside R3 fixture; 404 supplied before server access'});
      raw('Fetch.fulfillRequest',{requestId:d.params.requestId,responseCode:404,body:''},session).catch(e=>errors.push(String(e)));return;
     }
@@ -112,7 +112,7 @@ try{
  await navigate('/deals/900001');check('saved reload persistence',await until(`Boolean(document.querySelector('button[aria-label="Remove from saved cards"]'))`));
  await ev(`document.addEventListener('click',e=>{if(e.target.closest('a[href*="ebay."]'))e.preventDefault()},true);document.querySelector('a[href*="ebay."]').click()`);
  check('actual affiliate handler / stub transport',await ev(`window.__r3Captures?.some(e=>e.event==='affiliate_click')&&window.__r3Vercel?.length>0`));
- await navigate('/');await sleep(400);
+ await navigate('/fixture-index');await sleep(400);
  await ev(`window.__r3DocumentToken="retained";document.querySelector('a[href="/cards/fixture-hub"]').click()`);
  check('Next client navigation',await until('location.pathname==="/cards/fixture-hub"&&Boolean(document.querySelector("#main-content"))')&&await ev('window.__r3DocumentToken==="retained"'));
  check('Next route announcer',await until('Boolean(document.querySelector("next-route-announcer")?.shadowRoot?.textContent.trim())'));
