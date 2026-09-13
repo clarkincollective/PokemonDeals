@@ -3587,3 +3587,40 @@ No scanner, allocator, budget, watchlist, cron, newsletter or social change. Unr
 - The pre-existing `setShown` lint error in `CatalogueBrowser` is unchanged.
 
 **Not deployed.** Local commits only on `mobile-ux-r1` (`bc2296f`, `c1c69aa`, plus this ledger entry). Production stays at `a660e69`. Graded-inventory growth remains queued separately. No scanner, acquisition, social or publishing change.
+
+#### Requirement check: full text indexes collapsed by default (2026-09-14, local, not deployed)
+
+**Owner requirement.** The shared species/set text index is collapsed by default as one compact expandable heading with the tracked-entry count. The long list and its explanatory text stay inside. "Card list" reveals that control, not hundreds of links. Gallery and search stay accessible. All links stay in the initial server HTML, and the index expands without JavaScript. Ownership checklists are unchanged.
+
+**Evidence.** The owner's phone screenshots of Charizard and XY Promos are **production** (`a660e69`). They show the pre-branch index: a visible heading and explanatory text, with every link expanded (Charizard 153, XY Promos 229).
+
+**Check against `mobile-ux-r1` at `456a64c`: partly met, not duplicated.**
+- **Met:** links stayed in HTML inside native `<details>`, and checklists were separate components.
+- **Not met:**
+  - There was no single control. The heading was screen-reader-only, and "Card list" showed stacked section rows (10 on Charizard).
+  - The explanatory text had been removed rather than moved inside.
+  - With gallery-first, the list pane is server-rendered `hidden`, so without JS the index could not be reached at all.
+
+**Fix (`188f909`).**
+- `CatalogueLinkIndex` is one closed outer `<details>`. The summary holds `<h2>` "Full `<name>` card index (N)" plus a short descriptor ("62 sets · grouped by release era" / "In collector-number order"). The explanatory line and the still-closed era/rarity sections sit inside. A single-section index lists its links directly.
+- `CatalogueViews` adds a `<noscript>` style, reusing the `FilterBar` pattern. It hides the non-working toggle and shows the server-hidden list pane.
+  - The first attempt did not unhide the pane in the browser. Tailwind v4's preflight `[hidden]{display:none!important}` is in `@layer base`, and layered `!important` beats unlayered. The rule now sits in `@layer base`, where the more specific selector wins.
+- R3 fixture: XY Promos was captured read-only (anon key, `card_catalog` SELECT; 269 rows). Its index applies `fetchSetCatalog`'s indexable filter, giving 229 links, the same number production shows.
+
+**Verification (provider-disabled fixture, guarded CDP, 390×844).**
+
+| Check | Result |
+|---|---|
+| Collapsed-index verifier | 23/23. For Charizard and XY Promos, light and dark: opens on the gallery; tapping "Card list" shows one closed 58px control with the count and 0 visible links (153 and 229 in the DOM); Gallery toggle still visible; keyboard Enter opens and Space closes; touch expands with the explanation shown; Charizard era sections stay closed, and opening one shows only its 13 links; no horizontal overflow. No-JS: toggle hidden, collapsed index shown, native expansion works. 0 non-allowed requests. |
+| Server HTML | Charizard 153/153, XY Promos 229/229 and EX Legend Maker 93/93 links, each in one outer `<details>` with no `open` attribute and the explanation inside. Dragonite, Jungle and Neo Destiny checklists are unchanged. Titles and canonicals unchanged. |
+| Earlier verifiers on this build | interaction 28/28, checklist regression 93/93 |
+| Scanner suite | 3,314 tests, 3,268 pass / 24 fail / 22 skipped; failing set identical to the baseline (+1 new passing test) |
+| Builds | `next build` exit 0 (`/pokemon/[slug]` and `/sets/[slug]` still SSG); fixture build passes provider isolation |
+
+**Notes.**
+- Without JS, the explanation still says "Choose Gallery…" although the toggle is hidden.
+- XY Promos' page states 269 tracked and 232 priced cards, while its index lists 229 indexable links. Those counts were already on production and are unchanged here.
+- Screenshots from the keyboard step show the focus ring on the summary.
+- Chromium only.
+
+Not deployed; production stays at `a660e69`.
