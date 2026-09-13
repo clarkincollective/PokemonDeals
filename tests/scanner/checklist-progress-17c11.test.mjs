@@ -154,7 +154,7 @@ test("16. visual: the set logo comes only from the existing verified map, with a
   const set = readFileSync(new URL("../../components/SetChecklist.js", import.meta.url), "utf8");
   assert.match(set, /import \{ setImage \} from "@\/lib\/setImages"/);
   assert.match(set, /setImage\(setName\)\?\.logo \?\? null/);
-  assert.match(set, /\{logo && \(/, "renders only when the map has one");
+  assert.match(set, /\{logo && !compact && \(/, "renders only when the map has one");
   assert.doesNotMatch(set, /logo\.png|\/logos\/|placeholder-logo/i, "no invented logo path");
 });
 

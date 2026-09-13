@@ -109,6 +109,32 @@ body {
    take to a show. A row hidden by the viewer's missing-only view stays
    hidden when printed, so "print what's missing" works without a second
    layout. */
+/* Keep the entire owned-card row readable on narrow phones. Artwork is
+   available in the gallery; below 360px the list prioritises identity/price. */
+@media screen and (max-width: 420px) {
+  [data-checklist-print] table { table-layout: fixed; }
+  [data-checklist-print] th:nth-child(1) { width: 44px; }
+  [data-checklist-print] th:nth-child(2) { width: 52px; }
+  [data-checklist-print] th:nth-child(6) { width: 112px; }
+  [data-checklist-print] td:nth-child(4),
+  [data-checklist-print] td:nth-child(6),
+  [data-checklist-print] th:nth-child(4),
+  [data-checklist-print] th:nth-child(6) { padding-left: 6px; padding-right: 6px; overflow-wrap: anywhere; }
+  [data-checklist-print] td:nth-child(6) i { white-space: normal; }
+}
+@media screen and (max-width: 359px) {
+  [data-checklist-print] th:nth-child(2),
+  [data-checklist-print] td:nth-child(2) { display: none; }
+}
+/* Match Tailwind preflight's layer: its [hidden] rule is !important, and
+   important layered declarations outrank unlayered ones. */
+@layer base {
+ @media print {
+  [data-catalogue-primary]:has([data-checklist-print-root]) {
+    display: block !important;
+  }
+ }
+}
 @media print {
   /* Print ONLY the checklist section. The first cut hid header/nav/footer
      and printed everything else - the site header is a <div>, and the
@@ -171,6 +197,11 @@ body {
   [data-checklist-print] th {
     padding: 2pt 4pt;
     border-bottom: 1px solid #ddd;
+  }
+  /* Screen-sized touch labels must not force 44px paper rows. */
+  [data-checklist-print] label {
+    min-height: 0 !important;
+    min-width: 0 !important;
   }
   /* links print as plain text - a printed URL is noise on a checklist */
   [data-checklist-print] a {

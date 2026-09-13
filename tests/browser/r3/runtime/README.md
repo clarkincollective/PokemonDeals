@@ -52,3 +52,11 @@ static params; the old probe flag is retired. Run
 page responses in this default fixture. Original data-cache code remains, but
 equivalent provider counts/billing are not claimed. Main verification also
 exercises one real category and its sealed redirect through fixture providers.
+
+## R4 catalogue extension
+
+The same generator now includes the actual set and species routes. Run `node scripts/verifyR4Catalogue.mjs` against the same isolated server for the R4 matrix (1280/light, 390/light, 320/dark), saved HTML, list/gallery interactions, native keyboard skip, local storage failure/reset/reload and actual missing-only print PDFs. It never accepts a remote application URL.
+
+Fixture provenance: `saved-catalogue.json` contains publicly rendered historical RSC card data recovered locally from `../prod-jungle.html`, `../local-nd.html` and `../drag-after.html`; live offers stripped. Jungle64, Neo Destiny113 and Dragonite75 retain exact historical permanent links and recorded reference context. `dragonite-links.json` preserves the earlier saved 75-link baseline. `set-rows.json` preserves the 17C.12 rendered identities (keys/name/number/rarity) for the three set pilots. Boundaries Crossed153 uses those identities with explicitly simulated reference values/condition and numbered fixture URLs; it does not establish production link-resolution parity for that set. Cleffa is a small synthetic catalogue-path control. No fixture represents current live inventory or prices.
+
+R4 output: `../shots/r4-catalogue/record.json`, three missing-only PDFs and labelled screenshots. Reference artwork may load from the existing TCGPlayer/pokemontcg.io CDNs. All provider/database/analytics transport isolation from R3 still applies. Tests make no Safari/iOS, real screen-reader, crawler-ingestion, live provider, hosting cost or task-study claim. Full exact live link-resolution and runtime costs remain release/observation limits.

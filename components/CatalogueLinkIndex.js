@@ -34,13 +34,13 @@ export default function CatalogueLinkIndex({ label, cards, headingId = "full-car
   return (
     <section
       aria-labelledby={headingId}
-      className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800"
+      className="mt-5"
     >
       <h2 id={headingId} className="text-sm font-semibold text-black dark:text-zinc-50">
         {`Full ${label} card index (${linkable.length})`}
       </h2>
       <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-        {`Every ${label} card we track, linked to its price & deal page. Use the browser above to search, filter and sort with full card art.`}
+        {`Every ${label} card we track, linked to its price & deal page. Choose Search & gallery to filter and sort with full card art.`}
       </p>
       <div className="mt-4 space-y-5">
         {groups.map(({ set, list }) => (

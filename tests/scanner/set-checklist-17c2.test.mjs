@@ -172,7 +172,7 @@ test("C2-8. the component: semantic table, plain crawlable <a> links, no set tot
 test("C2-9. the page: pilot set swaps the plain index for the checklist; every other set keeps the index; routes/canonical/robots untouched", () => {
   const page = code("app/sets/[slug]/page.js");
   assert.match(page, /const checklistPilot = Array\.isArray\(checklistCards\) && checklistCards\.length > 0;/);
-  assert.match(page, /\{checklistPilot \? \(\s*<SetChecklist setName=\{resolved\.set\} cards=\{checklistCards\} headingId="full-set-index" \/>\s*\) : \(\s*<CatalogueLinkIndex label=\{resolved\.set\} cards=\{catalogueIndexItems\} headingId="full-set-index" \/>\s*\)\}/);
+  assert.match(page, /\{checklistPilot \? \(\s*<SetChecklist setName=\{resolved\.set\} cards=\{checklistCards\} headingId="full-set-index" compact \/>\s*\) : \(\s*<CatalogueLinkIndex label=\{resolved\.set\} cards=\{catalogueIndexItems\} headingId="full-set-index" \/>\s*\)\}/);
   assert.match(page, /<CatalogueBrowser/, "the art grid (search / filter / sort) is kept");
   assert.match(page, /<SetPriceSummary/);
   assert.match(page, /alternates: \{ canonical \}/);

@@ -28,7 +28,7 @@ export default function SpeciesChecklist({ speciesName, groups, headingId = "ful
   const legend = checklistLegend(summary, allRows);
 
   return (
-    <section aria-labelledby={headingId} className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+    <section aria-labelledby={headingId} className="mt-5">
       <h2 id={headingId} className="scroll-mt-24 text-lg font-bold text-black dark:text-zinc-50">
         {`${speciesName} checklist by era and set (${summary.total} ${summary.total === 1 ? "card" : "cards"})`}
       </h2>

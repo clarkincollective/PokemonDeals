@@ -4,6 +4,7 @@ import { sortCards, DEFAULT_SORT } from "@/lib/catalogueView";
 import CatalogueBrowser from "@/components/CatalogueBrowser";
 import CatalogueLinkIndex from "@/components/CatalogueLinkIndex";
 import SpeciesChecklist from "@/components/SpeciesChecklist";
+import CatalogueViews from "@/components/CatalogueViews";
 
 // The rich (client) browser only needs the cards a shopper actually
 // engages with - it filters/sorts in memory, so every card it holds is
@@ -56,13 +57,12 @@ export default function SpeciesCardsBySet({ speciesName, cards, validSetSlugs = 
       ? sortCards(items, DEFAULT_SORT, { relevanceTier: true }).slice(0, RICH_BROWSER_CAP)
       : items;
   return (
-    <>
-      <CatalogueBrowser speciesName={speciesName} items={richItems} totalCount={items.length} />
+    <CatalogueViews gallery={<CatalogueBrowser speciesName={speciesName} items={richItems} totalCount={items.length} />}>
       {eraGroups ? (
         <SpeciesChecklist speciesName={speciesName} groups={eraGroups} headingId="full-card-index" />
       ) : (
         <CatalogueLinkIndex label={speciesName} cards={items} headingId="full-card-index" />
       )}
-    </>
+    </CatalogueViews>
   );
 }

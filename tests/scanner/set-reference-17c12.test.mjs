@@ -131,12 +131,12 @@ test("R-9. provenance: row-derived facts are separated from externally sourced c
   assert.match(lib, /NOT recorded as a catalogue defect/);
 });
 
-test("R-8. wiring: server-rendered inside SetChecklist above the table, hidden in print, pilot-gated in the component", () => {
+test("R-8. wiring: server-rendered after the primary checklist, hidden in print, pilot-gated in the component", () => {
   const set = code("components/SetChecklist.js");
   assert.match(set, /import SetReferenceNotes from "@\/components\/SetReferenceNotes"/);
   const notesAt = set.indexOf("<SetReferenceNotes setName={setName} rows={rows} />");
-  const tableAt = set.indexOf("<ChecklistTable\n", notesAt); // the JSX element, not the header comment's "<ChecklistTable>"
-  assert.ok(notesAt > 0 && tableAt > notesAt, "notes sit between the legend and the table");
+  const tableAt = set.indexOf("<ChecklistTable\n"); // the JSX element, not a header comment
+  assert.ok(tableAt > 0 && notesAt > tableAt, "R4 keeps the complete notes after the primary inventory");
   const comp = code("components/SetReferenceNotes.js");
   assert.doesNotMatch(comp, /"use client"/, "server component");
   assert.match(comp, /if \(!ref\) return null;/);
@@ -149,6 +149,6 @@ test("R-8. wiring: server-rendered inside SetChecklist above the table, hidden i
   assert.match(comp, /href=\{item\.link\.href\}/);
   // the page contract from 17C.3 is untouched
   const page = code("app/sets/[slug]/page.js");
-  assert.match(page, /<SetChecklist setName=\{resolved\.set\} cards=\{checklistCards\} headingId="full-set-index" \/>/);
+  assert.match(page, /<SetChecklist setName=\{resolved\.set\} cards=\{checklistCards\} headingId="full-set-index" compact \/>/);
   assert.doesNotMatch(page, /SetReferenceNotes/);
 });

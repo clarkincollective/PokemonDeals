@@ -94,7 +94,7 @@ test("C4-5. the page decides eligibility itself and no longer trusts the cached 
   assert.match(page, /import \{ isChecklistSet, checklistIdentityCheck \} from "@\/lib\/setChecklist";/);
   // the existing wiring and guards are untouched
   assert.match(page, /const checklistPilot = Array\.isArray\(checklistCards\) && checklistCards\.length > 0;/);
-  assert.match(page, /<SetChecklist setName=\{resolved\.set\} cards=\{checklistCards\} headingId="full-set-index" \/>/);
+  assert.match(page, /<SetChecklist setName=\{resolved\.set\} cards=\{checklistCards\} headingId="full-set-index" compact \/>/);
   assert.match(page, /export const revalidate = 3600;/);
   const deals = code("lib/deals.js");
   assert.match(deals, /unstable_cache\(fetchSetCatalogUncached, \["set-catalog-v3"\]/, "cache key and duration are unchanged");

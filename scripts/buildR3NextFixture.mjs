@@ -20,6 +20,8 @@ const listing=source('app/deals/[id]/page.js');
 if(/export\s+(?:async\s+)?function\s+generateStaticParams/.test(listing))throw Error('Listing static generation would reintroduce the cold-redirect bug');
 write('app/deals/[id]/page.js',listing);
 write('app/cards/[slug]/page.js',source('app/cards/[slug]/page.js'));
+write('app/sets/[slug]/page.js',source('app/sets/[slug]/page.js'));
+write('app/pokemon/[slug]/page.js',source('app/pokemon/[slug]/page.js'));
 write('app/opengraph-image.js',source('app/opengraph-image.js'));
 copyFileSync(resolve(root,'app/icon.svg'),resolve(out,'app/icon.svg'));
 const css=readFileSync(resolve(root,'../shots/r3-static/bin_compared.html'),'utf8').match(/<style>([\s\S]*?)<\/style>/)?.[1];

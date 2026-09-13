@@ -1,3 +1,4 @@
+import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { speciesPageTitle } from "@/lib/speciesHub";
@@ -316,11 +317,12 @@ export default async function PokemonSpeciesPage({ params }) {
       {itemListJsonLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
       )}
+      <SkipToContent />
       <SiteHeader />
       <RegionRedirect />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-10">
+        <div className="mx-auto max-w-7xl px-5 py-6 sm:px-6 sm:py-8">
           <Breadcrumbs
             items={[
               { name: "Deals", href: "/" },
@@ -328,12 +330,6 @@ export default async function PokemonSpeciesPage({ params }) {
               { name: resolved.name },
             ]}
           />
-          <Link
-            href="/pokemon"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
-          >
-            ← Back to Pokemon
-          </Link>
           <h1 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
             {speciesPageTitle(resolved.name)}
           </h1>
@@ -353,6 +349,7 @@ export default async function PokemonSpeciesPage({ params }) {
             </p>
           )}
           <SpeciesFactStrip speciesName={resolved.name} />
+          <nav aria-label="On this page" className="mt-4 flex flex-wrap gap-2">{allCards.length > 0 && (<a href="#inventory" className="inline-flex min-h-11 items-center rounded-full bg-zinc-900 px-4 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-950">Browse cards ↓</a>)}<a href="#deals" className="inline-flex min-h-11 items-center rounded-full border border-zinc-300 px-4 text-sm font-semibold text-zinc-700 dark:border-zinc-700 dark:text-zinc-200">View deals ↓</a></nav>
           {/* Two distinct populations, labelled as such: the CATALOGUE
               (every card we track, and the sets it spans) and, separately,
               the count of cards that have a LIVE below-market deal right
@@ -376,7 +373,25 @@ export default async function PokemonSpeciesPage({ params }) {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
+      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 scroll-mt-24 px-5 py-6 sm:px-6 sm:py-8">
+        {allCards.length > 0 && (
+          <section id="inventory" className="mb-12 scroll-mt-24">
+            <h2 className="text-lg font-bold text-black dark:text-zinc-50">
+              Every {resolved.name} card, by set ({allCards.length})
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Search, filter or sort — or browse by set. Market prices are recent-sold references, not
+              guaranteed values.
+            </p>
+            <SpeciesCardsBySet
+              speciesName={resolved.name}
+              cards={allCards}
+              validSetSlugs={validSetSlugs}
+              eraGroups={eraGroups}
+            />
+          </section>
+        )}
+
         {/* SECTION 2 - best verified deals (biggest genuine savings first) */}
         <section>
           <h2 id="deals" className="mb-1 scroll-mt-24 text-lg font-bold text-black dark:text-zinc-50">
@@ -391,7 +406,7 @@ export default async function PokemonSpeciesPage({ params }) {
 
           {deals.length === 0 && !error ? (
             <p className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
-              No verified below-market {resolved.name} deal right now. Browse the full catalogue below,
+              No verified below-market {resolved.name} deal right now. Browse the full catalogue above,
               or use a card&apos;s <span className="font-semibold">Find on eBay</span> button.
             </p>
           ) : (
@@ -435,24 +450,7 @@ export default async function PokemonSpeciesPage({ params }) {
         {/* By-set coverage summary (compact, above the full grid). */}
         <SpeciesBySet speciesName={resolved.name} rows={bySetRows} eras={byEra} conditionNote={conditionNote} />
 
-        {/* SECTION 5 - the complete catalogue, by set, with search + progressive disclosure */}
-        {allCards.length > 0 && (
-          <section className="mt-14 border-t border-zinc-200 pt-8 dark:border-zinc-800">
-            <h2 className="text-lg font-bold text-black dark:text-zinc-50">
-              Every {resolved.name} card, by set ({allCards.length})
-            </h2>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Search, filter or sort — or browse by set. Market prices are recent-sold references, not
-              guaranteed values.
-            </p>
-            <SpeciesCardsBySet
-              speciesName={resolved.name}
-              cards={allCards}
-              validSetSlugs={validSetSlugs}
-              eraGroups={eraGroups}
-            />
-          </section>
-        )}
+
 
         <SpeciesQuickAnswers
           speciesName={resolved.name}

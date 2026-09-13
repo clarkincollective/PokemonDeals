@@ -25,7 +25,7 @@ import { setImage } from "@/lib/setImages";
 // filter / sort; this is the scannable list, not a second grid.
 export { CHECKLIST_TABLE_CLASS, ChecklistRow, ChecklistCells } from "@/components/ChecklistRow";
 
-export default function SetChecklist({ setName, cards, headingId = "full-set-index" }) {
+export default function SetChecklist({ setName, cards, headingId = "full-set-index", compact = false }) {
   const rows = buildChecklistRows(cards);
   if (rows.length === 0) return null;
   const s = checklistSummary(rows);
@@ -40,12 +40,12 @@ export default function SetChecklist({ setName, cards, headingId = "full-set-ind
     <section
       aria-labelledby={headingId}
       data-checklist-print-root
-      className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800"
+      className="mt-5"
     >
       {/* logo above the heading on phones (a 112px logo beside a wrapping
           heading read badly at 390px); side by side from `sm` up */}
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
-        {logo && (
+        {logo && !compact && (
           <span className="relative block h-10 w-28 shrink-0 sm:h-12 sm:w-36 print:hidden" data-checklist-logo>
             <Image src={logo} alt="" fill sizes="144px" className="object-contain object-left" />
           </span>
@@ -55,8 +55,10 @@ export default function SetChecklist({ setName, cards, headingId = "full-set-ind
         </h2>
       </div>
       <p className="mt-1 max-w-3xl text-sm text-zinc-600 dark:text-zinc-400" data-print-hide>
-        {`Every ${setName} card in our catalogue, in collector-number order. Tick what you own to see what's missing, then print the list. Card names link to each card's page with full pricing, graded values and any live deal.`}
+        {compact ? "Tick cards you own, print what's missing, or open a card for its price and live offers." : `Every ${setName} card in our catalogue, in collector-number order. Tick what you own to see what's missing, then print the list. Card names link to each card's page with full pricing, graded values and any live deal.`}
       </p>
+      <details className="mt-2 text-sm text-zinc-600 dark:text-zinc-400" data-print-hide>
+      <summary className="flex min-h-11 cursor-pointer items-center gap-2 font-medium underline underline-offset-4">About these market references</summary>
       <p className="mt-2 max-w-3xl text-xs leading-relaxed text-zinc-500 dark:text-zinc-400" data-print-hide>
         Market reference = a recent-sold price for one raw (ungraded) copy, stored in US dollars and
         shown in your currency (marked ≈) when you have chosen another.{" "}
@@ -64,16 +66,16 @@ export default function SetChecklist({ setName, cards, headingId = "full-set-ind
         They are individual card references, not a value for the complete set.
         {legend.unpriced ? ` ${legend.unpriced}` : ""}
       </p>
+      </details>
 
       {/* 17C.12 - set-specific numbering / identification notes, built and
           verified from the same `rows`; renders nothing for non-pilot sets */}
-      <SetReferenceNotes setName={setName} rows={rows} />
-
       <ChecklistTable
         setName={setName}
         rows={rows}
         caption={`${setName} card checklist: owned, collector number, card, rarity and market reference`}
       />
+      <SetReferenceNotes setName={setName} rows={rows} />
     </section>
   );
 }

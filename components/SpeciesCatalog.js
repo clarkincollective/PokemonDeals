@@ -1,3 +1,4 @@
+import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
@@ -136,9 +137,10 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
       {itemListJsonLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
       )}
+      <SkipToContent />
       <SiteHeader />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
+      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 scroll-mt-24 px-5 py-6 sm:px-6 sm:py-8">
         <Breadcrumbs
           items={[
             { name: "Deals", href: "/" },
@@ -174,6 +176,39 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
           </p>
         )}
 
+        {cards.length > 0 ? (
+          <>
+            {indexable ? (
+              <section id="inventory" className="mt-6 scroll-mt-24">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+                  Every {speciesName} card, by set ({cards.length})
+                </h2>
+                <SpeciesCardsBySet speciesName={speciesName} cards={cards} validSetSlugs={validSetSlugs} eraGroups={eraGroups} />
+              </section>
+            ) : (
+              <>
+                <h2 className="mt-10 text-sm font-semibold uppercase tracking-wide text-zinc-400">
+                  Every {speciesName} card ({cards.length})
+                </h2>
+                <SpeciesCardList label={speciesName} cards={cards} pageName="species_catalog" />
+              </>
+            )}
+            <p className="mt-6 text-xs text-zinc-400">
+              Reference prices from PokemonPriceTracker, based on recent sold data - not a guaranteed
+              value.{" "}
+              <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">
+                How we price this
+              </Link>
+              .
+            </p>
+          </>
+        ) : (
+          <p className="mt-8 text-sm text-zinc-500 dark:text-zinc-400">
+            We don&apos;t have any {speciesName} cards catalogued yet - use the eBay search above to
+            browse current listings directly.
+          </p>
+        )}
+
         {priceSnapshot && (
           <SpeciesPriceSummary speciesName={speciesName} snapshot={priceSnapshot} className="mt-5" conditionNote={conditionNote} />
         )}
@@ -206,38 +241,7 @@ export default function SpeciesCatalog({ speciesName, slug, cards, stats = null,
 
         <SpeciesBySet speciesName={speciesName} rows={bySetRows} eras={byEra} conditionNote={conditionNote} />
 
-        {cards.length > 0 ? (
-          <>
-            {indexable ? (
-              <section className="mt-10">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-                  Every {speciesName} card, by set ({cards.length})
-                </h2>
-                <SpeciesCardsBySet speciesName={speciesName} cards={cards} validSetSlugs={validSetSlugs} eraGroups={eraGroups} />
-              </section>
-            ) : (
-              <>
-                <h2 className="mt-10 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-                  Every {speciesName} card ({cards.length})
-                </h2>
-                <SpeciesCardList label={speciesName} cards={cards} pageName="species_catalog" />
-              </>
-            )}
-            <p className="mt-6 text-xs text-zinc-400">
-              Reference prices from PokemonPriceTracker, based on recent sold data - not a guaranteed
-              value.{" "}
-              <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">
-                How we price this
-              </Link>
-              .
-            </p>
-          </>
-        ) : (
-          <p className="mt-8 text-sm text-zinc-500 dark:text-zinc-400">
-            We don&apos;t have any {speciesName} cards catalogued yet - use the eBay search above to
-            browse current listings directly.
-          </p>
-        )}
+
 
         {priceSnapshot && (
           <SpeciesQuickAnswers

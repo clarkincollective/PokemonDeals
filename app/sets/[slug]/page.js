@@ -1,3 +1,5 @@
+import CatalogueViews from "@/components/CatalogueViews";
+import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
@@ -267,11 +269,12 @@ export default async function SetDetailPage({ params }) {
       {itemListJsonLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
       )}
+      <SkipToContent />
       <SiteHeader />
       <RegionRedirect />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-10">
+        <div className="mx-auto max-w-7xl px-5 py-6 sm:px-6 sm:py-8">
           <Breadcrumbs
             items={[
               { name: "Deals", href: "/" },
@@ -279,44 +282,62 @@ export default async function SetDetailPage({ params }) {
               { name: resolved.set },
             ]}
           />
-          <Link
-            href="/sets"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
-          >
-            ← Back to Sets
-          </Link>
+          <div className="mt-4 flex items-center gap-4">
           {logo && (
-            <span className="relative mt-5 block h-12 w-40">
+            <span className="relative block h-12 w-20 shrink-0 sm:w-28">
               <Image src={logo} alt="" fill sizes="160px" className="object-contain object-left" />
             </span>
           )}
-          <h1 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
+          <h1 className="max-w-3xl text-2xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
             {h1}
           </h1>
+          </div>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
-            The complete {resolved.set} card checklist with real recent-sold market references, the
-            most valuable cards in the set, and the Pokemon it contains.{" "}
+            Browse the {resolved.set} card list and compare recent-sold references.{" "}
             {catalogueOnly ? (
               <>
                 There is no qualifying below-market {resolved.set} deal to feature right now — the
                 checklist and prices stay available.
               </>
             ) : (
-              <>Below-market {resolved.set} listings on eBay we've identified are shown first.</>
+              <>Jump to the relevant eBay offers below.</>
             )}
           </p>
           <SetFactStrip setName={resolved.set} snapshot={snapshot} era={era} />
+          <nav aria-label="On this page" className="mt-4 flex flex-wrap gap-2">{showCatalog && (<a href="#inventory" className="inline-flex min-h-11 items-center rounded-full bg-zinc-900 px-4 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-950">Browse cards ↓</a>)}{!catalogueOnly && (<a href="#deals" className="inline-flex min-h-11 items-center rounded-full border border-zinc-300 px-4 text-sm font-semibold text-zinc-700 dark:border-zinc-700 dark:text-zinc-200">View deals ↓</a>)}</nav>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
+      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 scroll-mt-24 px-5 py-6 sm:px-6 sm:py-8">
+        {showCatalog && (
+          <section id="inventory" className="scroll-mt-24">
+            <CatalogueViews listLabel={checklistPilot ? "Checklist" : "Card list"} gallery={<CatalogueBrowser
+              variant="set"
+              label={resolved.set}
+              items={
+                catalogueItems.length > RICH_BROWSER_CAP
+                  ? sortCards(catalogueItems, DEFAULT_SORT, { relevanceTier: true }).slice(0, RICH_BROWSER_CAP)
+                  : catalogueItems
+              }
+              totalCount={catalogueItems.length}
+            />}>
+            {checklistPilot ? (
+              <SetChecklist setName={resolved.set} cards={checklistCards} headingId="full-set-index" compact />
+            ) : (
+              <CatalogueLinkIndex label={resolved.set} cards={catalogueIndexItems} headingId="full-set-index" />
+            )}
+            </CatalogueViews>
+          </section>
+        )}
+
+
         {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
 
         {!catalogueOnly && (
           <>
             <h2
               id="deals"
-              className="mb-5 scroll-mt-24 text-sm font-semibold uppercase tracking-wide text-zinc-400"
+              className="mb-5 mt-12 scroll-mt-24 text-lg font-bold text-zinc-900 dark:text-zinc-100"
             >
               {resolved.set} deals
             </h2>
@@ -334,7 +355,7 @@ export default async function SetDetailPage({ params }) {
         )}
 
         {snapshot && snapshot.cardCount > 0 && (
-          <div className={catalogueOnly ? "" : "mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800"}>
+          <div className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
             <SetPriceSummary setName={resolved.set} snapshot={snapshot} />
           </div>
         )}
@@ -357,45 +378,7 @@ export default async function SetDetailPage({ params }) {
           </section>
         )}
 
-        {showCatalog && (
-          <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
-            <h2 className="text-lg font-bold text-black dark:text-zinc-50">
-              {checklistPilot
-                ? `Browse ${resolved.set} cards (${catalogTotal})`
-                : catalogTruncated
-                  ? `${resolved.set} card checklist (${catalogCards.length} of ${catalogTotal})`
-                  : `${resolved.set} card checklist (${catalogTotal})`}
-            </h2>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Every {resolved.set} card we track. Search by name, number or rarity; filter by rarity;
-              sort by value or card number. Open a card for full pricing. Reference prices are
-              recent-sold data, not guaranteed values.
-              {checklistPilot && (
-                <>
-                  {" "}
-                  <a href="#full-set-index" className="font-medium text-zinc-700 underline underline-offset-2 hover:text-red-600 dark:text-zinc-300">
-                    Prefer a plain list? Jump to the numbered checklist.
-                  </a>
-                </>
-              )}
-            </p>
-            <CatalogueBrowser
-              variant="set"
-              label={resolved.set}
-              items={
-                catalogueItems.length > RICH_BROWSER_CAP
-                  ? sortCards(catalogueItems, DEFAULT_SORT, { relevanceTier: true }).slice(0, RICH_BROWSER_CAP)
-                  : catalogueItems
-              }
-              totalCount={catalogueItems.length}
-            />
-            {checklistPilot ? (
-              <SetChecklist setName={resolved.set} cards={checklistCards} headingId="full-set-index" />
-            ) : (
-              <CatalogueLinkIndex label={resolved.set} cards={catalogueIndexItems} headingId="full-set-index" />
-            )}
-          </section>
-        )}
+
 
         <SetPokemonList setName={resolved.set} species={speciesInSet} />
 
