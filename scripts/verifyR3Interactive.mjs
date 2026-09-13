@@ -54,7 +54,7 @@ try{
   checks.push({name:'mobile region control has accessible name',ok:Boolean(regionAX[0]?.name?.value),value:regionAX[0]?.name?.value});
   await check('region opener is 44px',"document.querySelector('#region-fixture button').getBoundingClientRect().height>=44");
   await ev("document.querySelector('#region-fixture button').focus()");
-  const key=async(key,code)=>{await send('Input.dispatchKeyEvent',{type:'keyDown',key,code:key,windowsVirtualKeyCode:code});await send('Input.dispatchKeyEvent',{type:'keyUp',key,code:key,windowsVirtualKeyCode:code});};
+  const key=async(key,code)=>{await send('Input.dispatchKeyEvent',{type:'keyDown',key,code:key,windowsVirtualKeyCode:code,...(key==='Enter'?{text:'\r',unmodifiedText:'\r'}:{})});await send('Input.dispatchKeyEvent',{type:'keyUp',key,code:key,windowsVirtualKeyCode:code});};
   await key('ArrowDown',40);
   await check('keyboard opens region menu and focuses selected option',"document.activeElement.getAttribute('role')==='menuitemradio'&&document.activeElement.getAttribute('aria-checked')==='true'");
   await key('End',35);
@@ -113,6 +113,21 @@ try{
   await check('reduced motion sticky still hides and becomes inert',"document.querySelector('a[href*=\"customid=deal_page\"]').closest('.fixed').inert");
   await ev('window.scrollTo(0,700)');await sleep(120);
   await check('reduced motion sticky still shows',"!document.querySelector('a[href*=\"customid=deal_page\"]').closest('.fixed').inert");
+
+  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
+  await ev('window.scrollTo(0,0)');
+  await ev("document.querySelector('#desktop-header-fixture nav button').focus()");
+  await check('desktop focus does not open dropdown',"document.activeElement===document.querySelector('#desktop-header-fixture nav button')&&document.activeElement.getAttribute('aria-expanded')==='false'");
+  await key('Enter',13);
+  await check('desktop Enter opens dropdown',"document.querySelector('#desktop-header-fixture nav button').getAttribute('aria-expanded')==='true'");
+  await key('Tab',9);
+  await check('desktop Tab reaches Browse Deals',"document.activeElement.getAttribute('href')==='/deals'&&document.activeElement.textContent==='Browse Deals'");
+  await check('desktop links retain destinations and graded marker',`(()=>{const nav=document.querySelector('#desktop-header-fixture nav');const expected=['/deals','/best-finds','/deals/auctions','/deals/graded','/deals/under-25','/sealed-deals','/japanese-cards','/latest-releases','/search','/cards','/sets','/pokemon','/market-data','/guides'];return expected.every(h=>[...nav.querySelectorAll('a')].some(a=>a.getAttribute('href')===h))&&nav.querySelector('a[href="/deals/graded"]').dataset.analyticsClick==='graded_clicked';})()`);
+  await check('desktop visible controls meet 44px target',"[...document.querySelectorAll('#desktop-header-fixture a,#desktop-header-fixture button')].filter(e=>e.getClientRects().length&&!(e.getAttribute('href')==='/')).every(e=>e.getBoundingClientRect().height>=44&&e.getBoundingClientRect().width>=44)");
+  const desktopShot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(OUT,'R3-DESKTOP-MENU-1440.png'),Buffer.from(desktopShot.data,'base64'));
+  await key('Escape',27);
+  await check('desktop Escape closes and restores opener',"document.activeElement===document.querySelector('#desktop-header-fixture nav button')&&document.activeElement.getAttribute('aria-expanded')==='false'");
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});
   const shot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(OUT,'R3-INTERACTIVE-390.png'),Buffer.from(shot.data,'base64'));
   fs.writeFileSync(path.join(OUT,'R3-INTERACTIVE-record.json'),JSON.stringify({checks,errors,blocked},null,2));
   console.log(JSON.stringify({passed:checks.filter(c=>c.ok).length,total:checks.length,errors,blocked}));

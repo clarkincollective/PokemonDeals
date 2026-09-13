@@ -3,6 +3,7 @@ import CardDealFilters from '@/components/CardDealFilters';
 import SaveCardButton from '@/components/SaveCardButton';
 import StickyDealCta from '@/components/StickyDealCta';
 import RegionControl from '@/components/RegionControl';
+import SiteHeader from '@/components/SiteHeader';
 import NavMenu from '@/components/NavMenu';
 import {DEAL_STATE_FIXTURES} from '@/lib/dev/dealStateFixtures';
 const raw=DEAL_STATE_FIXTURES.find(f=>f.id==='bin_compared').deal;
@@ -18,6 +19,7 @@ window.fetch=async(input)=>{
 const root=createRoot(document.getElementById('root'));
 window.__renderSticky=(sticky={})=>root.render(<>
   <header style={{display:'flex',justifyContent:'space-between',padding:16}}><strong>R3 INTERACTIVE FIXTURE - simulated offers</strong><NavMenu/></header>
+  <div id="desktop-header-fixture" className="hidden lg:block"><SiteHeader/></div>
   <main style={{maxWidth:1000,margin:'auto',padding:16}}>
     <div id="region-fixture" style={{display:"flex",justifyContent:"flex-end"}}><RegionControl/></div>
     <div id="save-fixture"><SaveCardButton card={{slug:'fixture-clefable',name:'Clefable',set:'Jungle',price:30,currency:'USD'}}/></div>
