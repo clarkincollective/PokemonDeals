@@ -71,10 +71,11 @@ export const fetchCatalogSpecies=async()=>({species:[{species:'Dragonite',slug:'
 export const fetchLastScanTime=async()=> '2026-09-10T12:00:00Z';
 const japaneseRow={...listingRows[0],id:920001,watchlist_id:'japanese-control',title:'Pikachu 025/165 Japanese Pokemon Card 151 Near Mint',card_name:'Pikachu',card_set:'Pokemon Card 151',card_language:'japanese',card_tcgplayer_id:null,image_verdict:'NO_TRUSTED_IMAGE',image_url:null,display_image_url:null,watchlist:{name:'Pikachu',set:'Pokemon Card 151',language:'japanese',justtcg_tcgplayer_id:null}};
 function familyDeals(options){
- if(options.maxPrice!=null&&options.maxPrice<2)return [];
  if(options.language==='japanese')return [japaneseRow];
  if(options.sets&&!options.sets.includes('Jungle'))return []; // Sparse modern releases; retain the vintage category's Jungle control.
- return [options.cardType==='graded'?listingRows[2]:listingRows[0]];
+ const row=options.cardType==='graded'?listingRows[2]:options.listingType==='AUCTION'?listingRows[1]:listingRows[0];
+ if(options.maxPrice!=null&&(!Number.isFinite(row.total_price_usd)||row.total_price_usd>options.maxPrice))return [];
+ return [row];
 }
 export const fetchDealsPool=async(options={})=>({data:familyDeals(options),error:null});
 export const fetchHomepageLanes=async()=>({pools:{flagship:[listingRows[0],listingRows[2],listingRows[4],from('long_name')],grid:[listingRows[1],listingRows[3]],auctions:[],justAdded:[],underPrice:[]},error:null});

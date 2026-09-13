@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 const BASE='http://127.0.0.1:9483',out=path.resolve(import.meta.dirname,'../../shots/r6-release');
 fs.mkdirSync(out,{recursive:true});
-const routes=['/','/best-finds','/deals/vintage','/pokemon','/pokemon/dragonite','/guides/how-to-find-pokemon-card-set-and-number','/market-data/pokemon-reference-price-changes'];
+const routes=['/','/best-finds','/deals/vintage','/deals/under-25','/pokemon','/pokemon/dragonite','/guides/how-to-find-pokemon-card-set-and-number','/market-data/pokemon-reference-price-changes'];
 const checks=[],errors=[],blocked=[],excluded=[],httpErrors=[],failedRequests=[],requests=new Map(),performance=[],accessibility=[];
 const axeSource=fs.readFileSync(path.resolve(import.meta.dirname,'../node_modules/axe-core/axe.min.js'),'utf8');
 const check=(name,pass,detail)=>{checks.push({name,pass:Boolean(pass),detail});if(!pass)console.error('FAIL',name,JSON.stringify(detail));};
@@ -46,6 +46,7 @@ try{
    check(prefix+' reduced motion',state.reduced&&await ev(`(()=>{const s=getComputedStyle(document.querySelector('main a'));return s.transitionDuration.split(',').every(v=>parseFloat(v)<=0.001)&&s.animationDuration.split(',').every(v=>parseFloat(v)<=0.001)&&s.scrollBehavior==='auto'})()`));
    await ev('document.body.tabIndex=-1;document.body.focus();document.body.removeAttribute("tabindex")');await key('Tab',9);await key('Enter',13);check(prefix+' keyboard skip',await ev(`document.activeElement===document.querySelector('main')`));await ev('scrollTo(0,0)');
    check(prefix+' paid links qualified',state.offerLinks.every(a=>a.rel.includes('sponsored')),state.offerLinks);
+   if(route==='/deals/under-25')check(prefix+' USD scope and honest empty category',await ev(`document.body.innerText.includes('Price limits use US dollars')&&!document.querySelector('main a[href*="/itm/"]')`));
    if(route==='/'||route==='/best-finds'){
     check(prefix+' direct exact offer actions',state.offerLinks.some(a=>/\/itm\/\d+/.test(a.href)&&a.height>=44&&/eBay/.test(a.text)),state.offerLinks);
     const first=await ev(`(()=>{const a=[...document.querySelectorAll('main a[href*="/itm/"]')].find(a=>a.getBoundingClientRect().height>=44);const r=a?.getBoundingClientRect();return r?{top:r.top,bottom:r.bottom}:null})()`);

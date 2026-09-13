@@ -134,6 +134,11 @@ export default async function DealCategoryPage({ slug }) {
             Market references appear where a matching comparison is available. Confirm the card,
             condition, shipping and current price on eBay before buying.
           </p>
+          {cat.filter?.maxPrice && (
+            <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+              Price limits use US dollars; displayed prices follow your selected currency.
+            </p>
+          )}
         </div>
       </header>
 
