@@ -6,7 +6,7 @@ import Link from "next/link";
 // current page and has no href.
 export default function Breadcrumbs({ items }) {
   return (
-    <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+    <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
       {items.map((item, i) => {
         const last = i === items.length - 1;
         return (

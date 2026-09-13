@@ -41,7 +41,7 @@ function ChangeChip({ label, trend }) {
   const arrow = dir === "up" ? "▲" : dir === "down" ? "▼" : "–";
   return (
     <div className="rounded-lg border border-zinc-200 px-3 py-2 dark:border-zinc-800">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">{label}</p>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-600 dark:text-zinc-400">{label}</p>
       <p className={`mt-0.5 text-sm font-semibold tnum ${cls}`}>
         <span aria-hidden="true">{arrow}</span> {fmtPct(pct)}
       </p>
@@ -126,7 +126,7 @@ export default function CardPriceIntelligence({
 
   return (
     <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Price intelligence</h2>
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">Price intelligence</h2>
 
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
         {mv != null && (
@@ -148,7 +148,7 @@ export default function CardPriceIntelligence({
             >
               {signal.label}
             </span>
-            <p className="mt-1 max-w-[16rem] text-xs text-zinc-400">{signalSubtext(signal)}</p>
+            <p className="mt-1 max-w-[16rem] text-xs text-zinc-600 dark:text-zinc-400">{signalSubtext(signal)}</p>
           </div>
         )}
       </div>
@@ -188,7 +188,7 @@ export default function CardPriceIntelligence({
         </div>
       )}
 
-      <p className="mt-4 flex flex-wrap items-center gap-x-2 text-xs text-zinc-400">
+      <p className="mt-4 flex flex-wrap items-center gap-x-2 text-xs text-zinc-600 dark:text-zinc-400">
         {coverage?.label && <span>{coverage.label}</span>}
         <span>
           Price history &amp; direction only — not a prediction or investment advice.{" "}

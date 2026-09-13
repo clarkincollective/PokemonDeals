@@ -33,7 +33,7 @@ export default function ListingChecks({ className = "" }) {
       <p className="mt-3 text-xs">
         <Link
           href="/methodology"
-          className="font-medium text-red-600 hover:underline dark:text-red-500"
+          className="font-medium text-red-600 hover:underline dark:text-red-400"
         >
           Learn how we verify listings →
         </Link>

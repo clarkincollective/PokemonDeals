@@ -201,8 +201,8 @@ export default function CatalogCardView({
               ) : (
                 <span>{set}</span>
               )}
-              {cardNumber && <span className="text-zinc-400">· {cardNumber}</span>}
-              {rarity && <span className="text-zinc-400">· {rarity}</span>}
+              {cardNumber && <span className="text-zinc-600 dark:text-zinc-400">· {cardNumber}</span>}
+              {rarity && <span className="text-zinc-600 dark:text-zinc-400">· {rarity}</span>}
             </p>
 
             {speciesLink && (
@@ -262,7 +262,7 @@ export default function CatalogCardView({
           </>
         ) : analysis == null && refPrice != null ? (
           <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Price &amp; value</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">Price &amp; value</h2>
             <div className="mt-3">
               <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400" data-reference-condition={card.refCondition ?? "unknown"}>
                 {/* the catalogue copy's stored condition when it has one (post-migration); otherwise neutral */}
@@ -271,7 +271,7 @@ export default function CatalogCardView({
               <p className="text-3xl font-bold text-black dark:text-zinc-50">
                 <Price usd={refPrice} native={{ amount: refPrice, currency: "USD" }} approxPrefix="" />
               </p>
-              <p className="mt-1 text-xs text-zinc-400">
+              <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
                 Reference price from PokemonPriceTracker, based on recent sold data —{" "}
                 <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">
                   how we work this out
@@ -282,10 +282,10 @@ export default function CatalogCardView({
           </section>
         ) : (
           <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Price &amp; value</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">Price &amp; value</h2>
             <div className="mt-3">
               <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Market price unavailable</p>
-              <p className="mt-1 text-xs text-zinc-400">
+              <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
                 We don&apos;t have a reliable recent-sold reference for this exact printing right now. Rather
                 than show a figure we can&apos;t stand behind, we show none —{" "}
                 <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">
@@ -307,7 +307,7 @@ export default function CatalogCardView({
         {chartPoints.length >= 2 && (
           <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Market price history</h2>
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">
               Our first-party daily snapshots joined to reference history. Historical data availability
               varies by card.
             </p>
@@ -320,7 +320,7 @@ export default function CatalogCardView({
         {hasAnalysis && (
           <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Every variant, side by side</h2>
-            <p className="text-xs text-zinc-400">Raw and every graded tier with real recorded sales.</p>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">Raw and every graded tier with real recorded sales.</p>
             <div className="mt-4">
               <VariantPriceGrid raw={canonRaw} graded={analysis.graded} cardName={name} surface="card" />
             </div>
@@ -336,7 +336,7 @@ export default function CatalogCardView({
           className="mt-6"
         />
 
-        <p className="mt-6 text-xs leading-relaxed text-zinc-400">
+        <p className="mt-6 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
           Market-reference prices are a guide based on recent sold data, not a guaranteed sale value —
           the real figure depends on the exact printing, condition and grade, and marketplace prices
           move. Pokemon Deal Finder doesn&apos;t buy cards or guarantee any sale value.

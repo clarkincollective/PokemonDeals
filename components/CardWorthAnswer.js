@@ -67,7 +67,7 @@ export default function CardWorthAnswer({ answer, className = "" }) {
           {live.lowUsd != null ? (
             <>
               , from <span className="tnum font-semibold text-black dark:text-zinc-50">${live.lowUsd.toFixed(2)} USD</span>{" "}
-              <span className="text-zinc-400">(asking prices, not sold)</span>
+              <span className="text-zinc-600 dark:text-zinc-400">(asking prices, not sold)</span>
             </>
           ) : null}
           .
@@ -78,7 +78,7 @@ export default function CardWorthAnswer({ answer, className = "" }) {
         <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-1 border-t border-zinc-100 pt-3 text-sm sm:grid-cols-2 dark:border-zinc-900">
           {details.map(([k, v]) => (
             <div key={k} className="flex gap-2">
-              <dt className="text-zinc-400">{k}</dt>
+              <dt className="text-zinc-600 dark:text-zinc-400">{k}</dt>
               <dd className="text-zinc-700 dark:text-zinc-300">{v}</dd>
             </div>
           ))}

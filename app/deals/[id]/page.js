@@ -672,7 +672,7 @@ export default async function DealDetailPage({ params }) {
                 <p className="text-zinc-500 dark:text-zinc-400">{cardSet}</p>
               )
             )}
-            <p className="mt-1 line-clamp-2 text-sm text-zinc-400">{normalizePublicText(deal.title)}</p>
+            <p className="mt-1 line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">{normalizePublicText(deal.title)}</p>
 
             {cardHub && (
               <Link
@@ -719,7 +719,7 @@ export default async function DealDetailPage({ params }) {
                       className="tnum text-3xl font-bold text-black dark:text-zinc-50"
                     />
                     {showSavings && showRef && (
-                      <span className="text-base text-zinc-400 line-through">
+                      <span className="text-base text-zinc-600 dark:text-zinc-400 line-through">
                         <Price
                           usd={marketUsd}
                           native={{ amount: marketNative, currency: nativeCurrency }}
@@ -748,7 +748,7 @@ export default async function DealDetailPage({ params }) {
                     {note}
                   </p>
                 ))}
-              <p className="mt-1 text-xs text-zinc-400">
+              <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
                 {showSavings ? "Compared against a recent market reference. " : "No savings claimed for this listing. "}
                 <Link
                   href="/methodology"
@@ -758,21 +758,21 @@ export default async function DealDetailPage({ params }) {
                 </Link>
               </p>
               {availabilityEvidence?.kind === "confirmed" && (
-                <p className="mt-1 text-xs text-zinc-400">
+                <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
                   Availability confirmed on eBay <RelativeTime date={availabilityEvidence.at} /> · price and availability can change.
                 </p>
               )}
               {availabilityEvidence?.kind === "seen" && (
-                <p className="mt-1 text-xs text-zinc-400">
+                <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
                   Last seen in eBay listings <RelativeTime date={availabilityEvidence.at} /> · not individually re-checked since · price and availability can change.
                 </p>
               )}
-              <p className="mt-1 text-xs text-zinc-400">
+              <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
                 Check the exact card, condition and shipping on eBay before buying.
               </p>
             </div>
             {deal.seller_feedback_pct != null && (
-              <p className="mt-1 text-xs text-zinc-400">
+              <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
                 {Number(deal.seller_feedback_pct).toFixed(1)}% seller feedback
               </p>
             )}
@@ -844,7 +844,7 @@ export default async function DealDetailPage({ params }) {
           <h2 className="text-sm font-semibold text-black dark:text-zinc-50">
             {deal.is_graded ? `${deal.grader} ${deal.grade} price history` : "Market price history"}
           </h2>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">
             {deal.is_graded ? "Recorded graded sales and reference history." : "Recorded market reference history."} Updates are cached; dates below describe the available observations.
           </p>
           {primaryHistory.length >= 2 ? (
@@ -883,7 +883,7 @@ export default async function DealDetailPage({ params }) {
             className="mt-6 scroll-mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950"
           >
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Every variant, side by side</h2>
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">
               Raw and every graded tier with real recorded sales - the highlighted tile is this listing.
             </p>
             <div className="mt-4">
@@ -897,7 +897,7 @@ export default async function DealDetailPage({ params }) {
             {analysis.conditionBreakdown.length > 0 && (
               <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
                 <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Condition breakdown</h2>
-                <p className="text-xs text-zinc-400">
+                <p className="text-xs text-zinc-600 dark:text-zinc-400">
                   Current raw market price by condition - click any to find that condition on eBay.
                 </p>
                 <ul className="mt-4 flex flex-col gap-2">
@@ -938,7 +938,7 @@ export default async function DealDetailPage({ params }) {
             {analysis.salesVelocity && (
               <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
                 <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Market activity</h2>
-                <p className="text-xs text-zinc-400">Real eBay sales across all conditions and grades.</p>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400">Real eBay sales across all conditions and grades.</p>
                 <ul className="mt-4 flex flex-col gap-2 text-sm">
                   <li className="flex items-center justify-between">
                     <span className="text-zinc-600 dark:text-zinc-300">Sales in the last 30 days</span>

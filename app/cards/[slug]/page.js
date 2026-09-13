@@ -462,8 +462,8 @@ export default async function CardHubPage({ params }) {
               ) : (
                 <span>{hub.set}</span>
               )}
-              {cardCollectorNumber && <span className="text-zinc-400">· {cardCollectorNumber}</span>}
-              {cardRarity && <span className="text-zinc-400">· {cardRarity}</span>}
+              {cardCollectorNumber && <span className="text-zinc-600 dark:text-zinc-400">· {cardCollectorNumber}</span>}
+              {cardRarity && <span className="text-zinc-600 dark:text-zinc-400">· {cardRarity}</span>}
             </p>
 
             {speciesLink && (
@@ -550,7 +550,7 @@ export default async function CardHubPage({ params }) {
         {chartPoints.length >= 2 && (
           <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Market price history</h2>
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">
               Our first-party daily snapshots joined to reference history. Historical data availability
               varies by card.
             </p>
@@ -563,7 +563,7 @@ export default async function CardHubPage({ params }) {
         {analysis && (analysis.graded.length > 0 || chartPoints.length >= 2) && (
           <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Every variant, side by side</h2>
-            <p className="text-xs text-zinc-400">Raw and every graded tier with real recorded sales.</p>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">Raw and every graded tier with real recorded sales.</p>
             <div className="mt-4">
               <VariantPriceGrid raw={canonRaw} graded={analysis.graded} cardName={hub.name} surface="card" />
             </div>
@@ -579,7 +579,7 @@ export default async function CardHubPage({ params }) {
           className="mt-6"
         />
 
-        <p className="mt-6 text-xs leading-relaxed text-zinc-400">
+        <p className="mt-6 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
           Market-reference prices are a guide based on recent sold data, not a guaranteed sale value —
           the real figure depends on the exact printing, condition and grade, and marketplace prices
           move. Pokemon Deal Finder doesn&apos;t buy cards or guarantee any sale value.

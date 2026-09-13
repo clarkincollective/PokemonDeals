@@ -24,7 +24,7 @@ export default function CardNextSteps({
     if (links.length === 0) return null;
     return (
       <nav aria-label="Explore related cards and deals" className={className}>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Explore</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">Explore</h2>
         <ul className="mt-3 flex flex-wrap gap-2">
           {links.map((l) => (
             <li key={l.key}>
@@ -88,11 +88,11 @@ export default function CardNextSteps({
           <EbaySearchLink
             href={ebaySearchHref}
             event={{ placement: "card_no_deal", cta: "search_ebay" }}
-            className="font-medium text-red-600 hover:underline dark:text-red-500"
+            className="font-medium text-red-600 hover:underline dark:text-red-400"
           >
             Search current eBay listings for this card
           </EbaySearchLink>{" "}
-          <span className="text-xs text-zinc-400">(all listings, not checked against market price)</span>
+          <span className="text-xs text-zinc-600 dark:text-zinc-400">(all listings, not checked against market price)</span>
         </p>
       )}
     </section>

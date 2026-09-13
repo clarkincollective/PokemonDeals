@@ -76,7 +76,7 @@ export default function CardPriceSummary({
 
   return (
     <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Price &amp; value</h2>
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">Price &amp; value</h2>
 
       {rawNm != null && (
         <div className="mt-3">
@@ -86,7 +86,7 @@ export default function CardPriceSummary({
           <p className="text-3xl font-bold text-black dark:text-zinc-50">
             <Price usd={rawNm} native={{ amount: rawNm, currency: "USD" }} approxPrefix="" />
           </p>
-          <p className="mt-1 text-xs text-zinc-400">
+          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
             Reference price from PokemonPriceTracker, based on recent sold data —{" "}
             <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">
               how we work this out
@@ -121,7 +121,7 @@ export default function CardPriceSummary({
                   <span className="font-medium text-zinc-700 dark:text-zinc-300">{g.label}</span>
                   <span className="flex items-baseline gap-2">
                     <span className="tnum font-semibold text-black dark:text-zinc-50"><Money usd={g.currentPrice} /></span>
-                    <span className="text-xs text-zinc-400">
+                    <span className="text-xs text-zinc-600 dark:text-zinc-400">
                       {`${g.saleCount} sale${g.saleCount === 1 ? "" : "s"}`}
                     </span>
                   </span>
@@ -137,11 +137,11 @@ export default function CardPriceSummary({
             ))}
           </ul>
           {analysis?.gradedSuppressedCount > 0 && (
-            <p className="mt-1.5 text-xs text-zinc-400">
+            <p className="mt-1.5 text-xs text-zinc-600 dark:text-zinc-400">
               Other graded tiers didn&apos;t have enough reliable recent sales for this exact printing to show a price.
             </p>
           )}
-          <p className="mt-1.5 text-xs text-zinc-400">
+          <p className="mt-1.5 text-xs text-zinc-600 dark:text-zinc-400">
             Every shown graded tier has its own price history further down.
           </p>
         </div>
@@ -164,7 +164,7 @@ export default function CardPriceSummary({
             <span className="font-semibold text-black dark:text-zinc-50">
               <Price usd={listingsLowUsd} native={{ amount: listingsLowUsd, currency: "USD" }} />
             </span>{" "}
-            <span className="text-zinc-400">(asking prices, not sold)</span>.
+            <span className="text-zinc-600 dark:text-zinc-400">(asking prices, not sold)</span>.
           </p>
           {offersCount > 0 && (
             // Primary action right here so a price-intent visitor can jump

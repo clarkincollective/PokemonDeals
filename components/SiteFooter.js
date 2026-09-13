@@ -43,7 +43,7 @@ const LINKS = [
 ];
 
 const col = "flex flex-col gap-1.5 text-sm";
-const colTitle = "mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400";
+const colTitle = "mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-600 dark:text-zinc-400";
 const link = "w-fit text-zinc-600 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500";
 
 // `note` is an optional page-specific caveat sentence appended after the
@@ -54,7 +54,7 @@ export default function SiteFooter({ note }) {
   const deals = NAV_PRIMARY.filter((l) => l.group === "deals");
   const catalogue = NAV_PRIMARY.filter((l) => l.group === "catalogue");
   return (
-    <footer className="border-t border-zinc-200 bg-sunk px-6 py-10 text-xs text-zinc-500 dark:border-zinc-800">
+    <footer className="border-t border-zinc-200 bg-sunk px-6 py-10 text-xs text-zinc-600 dark:text-zinc-400 dark:border-zinc-800">
       <div className="mx-auto max-w-7xl">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
@@ -116,7 +116,7 @@ export default function SiteFooter({ note }) {
                     className="inline-flex w-fit items-center gap-1 text-zinc-600 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500"
                   >
                     <span className="font-medium">{s.label}</span>
-                    <span className="text-zinc-400">@{s.handle}</span>
+                    <span className="text-zinc-600 dark:text-zinc-400">@{s.handle}</span>
                   </a>
                 ))}
               </nav>

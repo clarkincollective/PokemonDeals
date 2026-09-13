@@ -76,7 +76,7 @@ function Pill({ active, onClick, children }) {
 function Row({ label, children }) {
   return (
     <div>
-      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-400">{label}</span>
+      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">{label}</span>
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {children}
       </div>
@@ -212,7 +212,7 @@ export default function CardDealFilters({
   // Nothing to filter and nothing to show - keep the card page clean.
   if (initial.length === 0 && !shouldFetch) {
     return (
-      <p id="listings" className="mt-6 scroll-mt-24 text-zinc-500">
+      <p id="listings" className="mt-6 scroll-mt-24 text-zinc-600 dark:text-zinc-400">
         No active listings right now — check back after the next scheduled scan.
       </p>
     );
@@ -221,18 +221,18 @@ export default function CardDealFilters({
   return (
     <div id="listings" className="mt-6 scroll-mt-24">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
           {dealFiltersActive ? "Matching live listings" : "Active listings"}
           {!loading && ` (${view.length})`}
         </h2>
-        {loading && <span className="text-xs text-zinc-400" aria-live="polite">Updating…</span>}
+        {loading && <span className="text-xs text-zinc-600 dark:text-zinc-400" aria-live="polite">Updating…</span>}
       </div>
 
       {/* filter controls */}
       <div className="mb-5 lg:rounded-xl lg:border lg:border-zinc-200 lg:bg-white lg:p-4 lg:shadow-card dark:lg:border-zinc-800 dark:lg:bg-zinc-950">
         {(chips.length > 0 || country || sort !== "price_asc") && (
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Filtered by</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">Filtered by</span>
             {chips.map((c) => (
               <button
                 key={c.key}
@@ -242,14 +242,14 @@ export default function CardDealFilters({
                 aria-label={`Remove filter: ${c.label}`}
               >
                 {c.label}
-                <span aria-hidden="true" className="text-zinc-400">✕</span>
+                <span aria-hidden="true" className="text-zinc-600 dark:text-zinc-400">✕</span>
               </button>
             ))}
             {chips.length > 0 && (
               <button
                 type="button"
                 onClick={clearFacets}
-                className="text-xs font-medium text-zinc-500 underline underline-offset-2 hover:text-red-600 dark:hover:text-red-500"
+                className="text-xs font-medium text-zinc-600 dark:text-zinc-400 underline underline-offset-2 hover:text-red-600 dark:hover:text-red-500"
               >
                 Clear filters
               </button>
@@ -271,7 +271,7 @@ export default function CardDealFilters({
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-end gap-4">
               <div>
-                <label htmlFor="cd-country" className="block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                <label htmlFor="cd-country" className="block text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                   Deal location
                 </label>
                 <select
@@ -289,7 +289,7 @@ export default function CardDealFilters({
                 </select>
               </div>
               <div>
-                <label htmlFor="cd-sort" className="block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                <label htmlFor="cd-sort" className="block text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                   Sort
                 </label>
                 <select
@@ -418,7 +418,7 @@ export default function CardDealFilters({
               <h3 className="text-sm font-semibold text-black dark:text-zinc-50">
                 {dealFiltersActive ? `All ${view.length} matching listings` : `All ${view.length} active listings`}
               </h3>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-zinc-600 dark:text-zinc-400">
                 Every real, currently active eBay listing for this exact card — cheapest first.
               </p>
               <ul className="mt-4 divide-y divide-zinc-100 dark:divide-zinc-900">
@@ -430,7 +430,7 @@ export default function CardDealFilters({
                         <Link href={`/deals/${deal.id}`} className="line-clamp-1 block text-sm text-zinc-700 hover:underline dark:text-zinc-300">
                           {deal.title}
                         </Link>
-                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-400">
+                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-600 dark:text-zinc-400">
                           {marketInfo && <span title={marketInfo.label}>{marketInfo.flag}</span>}
                           {deal.is_graded ? (
                             <span>
@@ -473,7 +473,7 @@ export default function CardDealFilters({
 function ZeroState({ dealFiltersActive, effective, totalActive, onRelax }) {
   if (!dealFiltersActive) {
     return (
-      <p className="text-zinc-500">
+      <p className="text-zinc-600 dark:text-zinc-400">
         No active listings right now — check back after the next scheduled scan.
       </p>
     );
@@ -492,7 +492,7 @@ function ZeroState({ dealFiltersActive, effective, totalActive, onRelax }) {
       <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
         No live listings for this card match {chips || "these filters"} right now.
       </p>
-      <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
         {typeof totalActive === "number" && totalActive > 0
           ? `There ${totalActive === 1 ? "is" : "are"} ${totalActive} active ${totalActive === 1 ? "listing" : "listings"} for this exact card — none match every filter. `
           : ""}
