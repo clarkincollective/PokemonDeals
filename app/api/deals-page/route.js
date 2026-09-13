@@ -105,18 +105,36 @@ export async function GET(request) {
       for (const k of ["country", "cardType", "listingType", "maxPrice", "minPrice"]) {
         if (filters[k] != null) userOverlay[k] = filters[k];
       }
+      // Grader/grade previously never reached fetchDealsPage for category
+      // pages at all (only species/set/card kinds received gradedFilters),
+      // so /deals/graded had no way to narrow by grader or grade even
+      // though the UI contract (lib/dealFilters) already supported it
+      // everywhere else. A category whose own preset does not fix
+      // cardType=graded (e.g. /deals/vintage) is unaffected unless the
+      // visitor explicitly asks for a grader/grade, in which case
+      // planDealFilters correctly implies graded there too - the same
+      // "never silently drop a modifier" contract as species/set pages.
+      if (gradedFilters.grader != null) userOverlay.grader = gradedFilters.grader;
+      if (gradedFilters.grade != null) userOverlay.grade = gradedFilters.grade;
+      const q = u.searchParams.get("q");
+      if (q != null) userOverlay.q = q;
       // A tighter user maxPrice inside a price-band category wins; a
       // looser one is clamped to the category ceiling.
       if (userOverlay.maxPrice != null && preset.maxPrice != null) {
         userOverlay.maxPrice = Math.min(userOverlay.maxPrice, preset.maxPrice);
       }
+      // An explicit sort - "newest" included - is always honoured; only
+      // an ABSENT sort param falls back to the category's own default.
+      // (Previously an explicit `sort=newest` was silently overridden by
+      // the category default, e.g. forcing /deals/auctions back to
+      // "ending" even when the visitor asked for Newest.)
       const userSort = u.searchParams.get("sort");
       const r = await fetchDealsPage({
         table: "deals",
         language: "english",
         ...preset,
         ...userOverlay,
-        sort: userSort && userSort !== "newest" ? userSort : cat.defaultSort ?? "newest",
+        sort: userSort ?? cat.defaultSort ?? "newest",
         page: filters.page,
         pageSize: 24,
       });
