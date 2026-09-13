@@ -104,10 +104,25 @@ function ScrollRow({ children }) {
 // Standalone, so pages without a raw/graded distinction (e.g.
 // /sealed-deals - a booster box has no "condition" the way a card does)
 // can still offer country filtering without pulling in Card & listing.
+//
+// Labelled "Listing marketplace", not "Country": this filters by which
+// eBay site (?country=) a listing was scanned from - it is the `country`
+// param's real, only meaning (an exact eq on the stored `marketplace`
+// column). It is a DIFFERENT axis from the header's "Shipping to…"
+// control (delivery/currency region for the viewer) - reusing the same
+// flags for both risked a visitor reading this as "ships to Australia"
+// when it means "listed on ebay.com.au", a US-marketplace listing can
+// still ship to Australia and vice versa.
 export function CountryFilterRow({ params, country, basePath = "/" }) {
   return (
     <div>
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">Country</span>
+      <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+        Listing marketplace
+      </span>
+      <p className="mb-2 text-[11px] text-zinc-400">
+        Which eBay site the listing is on - not where it ships. Shipping destination is the
+        &quot;Shipping to&quot; control above.
+      </p>
       <ScrollRow>
         {Object.entries(MARKETPLACES).map(([id, info]) => (
           <FilterPill key={id} href={filterHref(params, "country", id, basePath)} active={country === id}>
@@ -193,6 +208,42 @@ export function GradingFilterRow({ params, cardType, grader, grade, basePath = "
   );
 }
 
+// Graded browsing pilot - search WITHIN this page's already-tracked
+// inventory only (an ILIKE on the stored listing title, no provider call
+// - see /api/deals-page's `q` handling). A plain GET form, matching every
+// other control here: no client JS, carries the other active filters as
+// hidden inputs so a search doesn't wipe them, and always returns to page
+// 1 (no `page` field) since a new query can shrink the result set.
+export function SearchWithinRow({ params, q, basePath = "/" }) {
+  const carried = Object.entries(params).filter(([k]) => k !== "q" && k !== "page");
+  return (
+    <div>
+      <label htmlFor="deal-search-within" className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+        Search within these results
+      </label>
+      <form method="get" action={basePath} className="flex gap-2">
+        {carried.map(([k, v]) => (
+          <input key={k} type="hidden" name={k} value={v} />
+        ))}
+        <input
+          id="deal-search-within"
+          type="search"
+          name="q"
+          defaultValue={q ?? ""}
+          placeholder="Card or set name…"
+          className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+        />
+        <button
+          type="submit"
+          className="shrink-0 rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+        >
+          Search
+        </button>
+      </form>
+    </div>
+  );
+}
+
 const SORT_OPTIONS = [
   { value: "discount", label: "Biggest discount" },
   { value: "price_asc", label: "Price: low to high" },
@@ -235,19 +286,33 @@ export default function FilterBar({
   minPrice,
   sort,
   basePath = "/",
+  // Graded browsing pilot: the page's own category preset already fixes
+  // cardType (e.g. "graded" on /deals/graded) - offering the Raw/Graded
+  // toggle here would be contradictory (clicking Raw would silently show
+  // raw cards under a page titled Graded). When set, that toggle is
+  // replaced with a plain, non-interactive label instead.
+  lockedCardType = null,
+  // Pilot scope only (currently just the graded category) - renders
+  // SearchWithinRow when true.
+  searchable = false,
+  q,
   // Deal-first R2 (homepage feed): the whole bar sits behind a "More
   // filters" button at every width; the rows stay in the DOM.
   collapsible = false,
 }) {
   const activeCount = [
     country,
-    cardType,
+    // A locked cardType is the page's own identity, not a visitor choice -
+    // it must not inflate the "N filters active" badge or force the panel
+    // open on a page where nothing has actually been picked yet.
+    lockedCardType ? null : cardType,
     showGrading ? grader : null,
     showGrading ? grade : null,
     listingType,
     maxPrice,
     minPrice,
     sort,
+    searchable ? q : null,
   ].filter((v) => v != null).length;
 
   // Older links / other grids emit ?listing=FIXED_PRICE; the Pokemon page
@@ -267,18 +332,32 @@ export default function FilterBar({
               Card &amp; listing
             </span>
             <ScrollRow>
-              <FilterPill
-                href={showGrading ? typeFilterHref(params, "raw", basePath) : filterHref(params, "type", "raw", basePath)}
-                active={cardType === "raw"}
-              >
-                Raw
-              </FilterPill>
-              <FilterPill
-                href={showGrading ? typeFilterHref(params, "graded", basePath) : filterHref(params, "type", "graded", basePath)}
-                active={cardType === "graded"}
-              >
-                Graded
-              </FilterPill>
+              {lockedCardType ? (
+                // Not a control - this page's identity, stated plainly
+                // instead of offering a Raw pill that would silently
+                // contradict it (the category preset always wins server-
+                // side; the visible toggle must not promise otherwise).
+                // Switching category is the "More deal categories" nav
+                // already on this page, not a pill here.
+                <span className="shrink-0 whitespace-nowrap rounded-full border border-zinc-300 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+                  {lockedCardType === "graded" ? "Graded cards only" : "Raw cards only"}
+                </span>
+              ) : (
+                <>
+                  <FilterPill
+                    href={showGrading ? typeFilterHref(params, "raw", basePath) : filterHref(params, "type", "raw", basePath)}
+                    active={cardType === "raw"}
+                  >
+                    Raw
+                  </FilterPill>
+                  <FilterPill
+                    href={showGrading ? typeFilterHref(params, "graded", basePath) : filterHref(params, "type", "graded", basePath)}
+                    active={cardType === "graded"}
+                  >
+                    Graded
+                  </FilterPill>
+                </>
+              )}
               <FilterPill
                 href={filterHref(params, "listing", showGrading ? "BIN" : "FIXED_PRICE", basePath)}
                 active={binActive}
@@ -305,6 +384,8 @@ export default function FilterBar({
           )}
 
           <PriceFilterRow params={params} maxPrice={maxPrice} minPrice={minPrice} basePath={basePath} />
+
+          {searchable && <SearchWithinRow params={params} q={q} basePath={basePath} />}
         </div>
       </FilterToggle>
     </div>

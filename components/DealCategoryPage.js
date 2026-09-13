@@ -153,6 +153,11 @@ export default async function DealCategoryPage({ slug }) {
           hubCounts={hubCounts}
           emptyLabel={`No ${cat.h1.toLowerCase()} match these filters right now. Try clearing a filter, or check back after the next scan.`}
           validSetSlugs={validSetSlugs}
+          // The category's own preset already fixes this dimension - offer
+          // it to FilterBar as a locked, non-interactive fact rather than
+          // a Raw/Graded pill a visitor could click into a silent
+          // contradiction (the preset always wins server-side regardless).
+          lockedCardType={cat.filter?.cardType ?? null}
         />
 
         <nav className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">

@@ -49,6 +49,7 @@ function parseSearch(search) {
     listingType: get("listing"),
     maxPrice: num("maxPrice"),
     minPrice: num("minPrice"),
+    q: get("q"),
     sort: get("sort"),
     page: Math.max(1, Number(sp.get("page")) || 1),
     raw: sp.toString(),
@@ -67,7 +68,7 @@ function parseSearch(search) {
     minPrice: sp.get("minPrice"),
     maxPrice: sp.get("maxPrice"),
   });
-  p.isDefault = p.page === 1 && !p.country && !p.sort && !dealFilterActive;
+  p.isDefault = p.page === 1 && !p.country && !p.sort && !p.q && !dealFilterActive;
   return p;
 }
 
@@ -84,16 +85,21 @@ function GridSkeleton() {
   );
 }
 
-export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}, emptyLabel, validSetSlugs = [], defaultSort = "newest", subjectLabel, compactFilters = false }) {
+export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}, emptyLabel, validSetSlugs = [], defaultSort = "newest", subjectLabel, compactFilters = false, lockedCardType = null }) {
   const search = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const params = useMemo(() => parseSearch(search), [search]);
   const reqKey = params.raw;
 
   // The shared structured deal-filter contract (grader / grade + the
   // dependent UI, chips, notes, relaxation empty state, filter analytics).
-  // Species (13B.3) + set (13B.4.3). Category grids stay on the plain
-  // FilterBar.
-  const showGrading = kind === "species" || kind === "set";
+  // Species (13B.3) + set (13B.4.3). Graded browsing pilot: the one
+  // category (slug "graded") whose own preset already fixes cardType, so
+  // narrowing further by grader/grade is meaningful the same way it is on
+  // a species/set page. Other categories stay on the plain FilterBar for
+  // now - this is a bounded pilot, not a category-wide rollout.
+  const showGrading = kind === "species" || kind === "set" || (kind === "category" && slug === "graded");
+  // Same pilot scope for search-within-inventory.
+  const searchable = kind === "category" && slug === "graded";
 
   // The EFFECTIVE (normalised) filter state drives which pills read as
   // active - so a contradictory URL like ?type=raw&grader=PSA lights the
@@ -128,6 +134,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
     if (params.listingType) q.set("listing", params.listingType);
     if (params.maxPrice) q.set("maxPrice", String(params.maxPrice));
     if (params.minPrice) q.set("minPrice", String(params.minPrice));
+    if (searchable && params.q) q.set("q", params.q);
     fetch(`/api/deals-page?${q.toString()}`)
       .then((r) => r.json())
       .then((d) => {
@@ -180,15 +187,20 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
   }, [compactFilters, loading, reqKey]);
 
   // "This is a filtered query" - drives the empty state (relaxation
-  // actions vs. the plain default label) and whether to show chips.
-  const filtered = hasActiveDealFilters({
-    type: params.cardType,
-    grader: params.grader,
-    grade: params.grade,
-    listing: params.listingType,
-    minPrice: params.obj.minPrice,
-    maxPrice: params.obj.maxPrice,
-  });
+  // actions vs. the plain default label) and whether to show chips. A
+  // search-within term counts too (pilot scope only) - a search with
+  // nothing back should offer the same "broaden your selection" empty
+  // state as an over-narrow filter, not the generic "nothing here yet"
+  // one meant for a genuinely empty category.
+  const filtered =
+    hasActiveDealFilters({
+      type: params.cardType,
+      grader: params.grader,
+      grade: params.grade,
+      listing: params.listingType,
+      minPrice: params.obj.minPrice,
+      maxPrice: params.obj.maxPrice,
+    }) || Boolean(searchable && params.q);
 
   return (
     <>
@@ -201,7 +213,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
           collapsible={compactFilters}
           params={params.obj}
           country={params.country}
-          cardType={showGrading ? effType : params.cardType}
+          cardType={lockedCardType ?? (showGrading ? effType : params.cardType)}
           grader={showGrading ? effGrader : undefined}
           grade={showGrading ? effGrade : undefined}
           showGrading={showGrading}
@@ -209,6 +221,9 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
           maxPrice={params.maxPrice}
           minPrice={params.minPrice}
           sort={params.sort}
+          lockedCardType={lockedCardType}
+          searchable={searchable}
+          q={params.q}
           basePath={basePath}
         />
       </div>
@@ -221,6 +236,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
           params={params.obj}
           basePath={basePath}
           resultCount={loading ? undefined : view.deals.length}
+          searchQuery={searchable ? params.q : null}
         />
       )}
 
@@ -236,6 +252,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
             params={params.obj}
             basePath={basePath}
             subjectLabel={subjectLabel ?? "matching"}
+            searchQuery={searchable ? params.q : null}
           />
         ) : (
           <EmptyGridState label={emptyLabel} />

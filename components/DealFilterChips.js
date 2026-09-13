@@ -53,7 +53,12 @@ export function FilterNotes({ params }) {
 // The row of active-filter chips. Each chip's ✕ removes exactly that
 // filter (the "Graded" chip also clears grader + grade, since those
 // depend on it).
-export function AppliedFilters({ params, basePath, resultCount }) {
+//
+// `searchQuery`, when passed, is opt-in and additive - existing callers
+// (species/set pages, which have no search-within-inventory concept) are
+// unaffected; only the graded browsing pilot passes it, adding a removable
+// "Search: …" chip and including q in Clear all.
+export function AppliedFilters({ params, basePath, resultCount, searchQuery }) {
   const chips = appliedFilterChips({
     type: params.type,
     grader: params.grader,
@@ -62,7 +67,12 @@ export function AppliedFilters({ params, basePath, resultCount }) {
     minPrice: params.minPrice,
     maxPrice: params.maxPrice,
   });
+  if (searchQuery) chips.push({ key: "q", label: `Search: "${searchQuery}"`, clears: ["q"] });
   if (!chips.length) return null;
+
+  const clearAllKeys = searchQuery
+    ? ["type", "grader", "grade", "listing", "minPrice", "maxPrice", "q"]
+    : ["type", "grader", "grade", "listing", "minPrice", "maxPrice"];
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -84,7 +94,7 @@ export function AppliedFilters({ params, basePath, resultCount }) {
         </a>
       ))}
       <a
-        href={hrefWithout(params, ["type", "grader", "grade", "listing", "minPrice", "maxPrice"], basePath)}
+        href={hrefWithout(params, clearAllKeys, basePath)}
         rel="nofollow"
         className="text-xs font-medium text-zinc-500 underline underline-offset-2 hover:text-red-600 dark:hover:text-red-500"
       >
@@ -103,7 +113,7 @@ export function AppliedFilters({ params, basePath, resultCount }) {
 // States plainly that nothing matches (never silently shows unrelated
 // listings) and offers relaxation actions that each explicitly change the
 // filter state.
-export function FilteredEmptyState({ params, basePath, subjectLabel }) {
+export function FilteredEmptyState({ params, basePath, subjectLabel, searchQuery }) {
   const steps = relaxationSteps({
     type: params.type,
     grader: params.grader,
@@ -112,6 +122,16 @@ export function FilteredEmptyState({ params, basePath, subjectLabel }) {
     minPrice: params.minPrice,
     maxPrice: params.maxPrice,
   });
+  // Explicit broadening only (13B.3 §9's own rule) - a search term is
+  // offered as its own removable step, same as any other narrowing, never
+  // dropped automatically. The existing always-last "Clear all filters"
+  // step must also drop q, or clicking it while a search term lingers
+  // just re-lands on the same empty state.
+  if (searchQuery) {
+    steps.unshift({ label: "Clear search", drop: ["q"] });
+    const clearAll = steps[steps.length - 1];
+    if (clearAll?.label === "Clear all filters") clearAll.drop = [...clearAll.drop, "q"];
+  }
   const chips = appliedFilterChips({
     type: params.type,
     grader: params.grader,
@@ -120,6 +140,7 @@ export function FilteredEmptyState({ params, basePath, subjectLabel }) {
     minPrice: params.minPrice,
     maxPrice: params.maxPrice,
   });
+  if (searchQuery) chips.push({ label: `Search: "${searchQuery}"` });
   const summary = chips.map((c) => c.label).join(" · ");
 
   return (
