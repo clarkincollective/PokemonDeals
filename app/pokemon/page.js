@@ -106,9 +106,8 @@ export default async function PokemonIndexPage() {
             {H1}
           </h1>
           <p className="mt-3 max-w-2xl text-base text-zinc-600 dark:text-zinc-400">
-            Find a Pokemon by name or generation, then explore its card catalogue and available references.{" "}
-            {totalWithDeals > 0 ? `${totalWithDeals} currently have` : "None currently have"} active deals,
-            highlighted in green with listing counts.
+            Choose a Pokemon to explore its cards, price references and qualifying deals.{" "}
+            {totalWithDeals > 0 ? `Pokemon with deals in the latest refresh: ${totalWithDeals}.` : "Browse the full catalogue while no qualifying deals are listed."}
           </p>
         </div>
       </header>

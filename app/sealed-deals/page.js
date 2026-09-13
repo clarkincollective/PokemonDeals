@@ -87,9 +87,8 @@ export default async function SealedDealsPage() {
             Sealed Pokemon Products
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
-            Every booster box, elite trainer box, bundle, blister and tin we track — search or filter
-            by set and type. Genuine below-market eBay deals are flagged in green; everything else
-            shows its PokemonPriceTracker sealed reference price and a live eBay search.
+            Compare qualifying sealed deals, or browse boxes, packs and tins by set and type.
+            Match the exact product and edition before buying.
           </p>
 
           {lastRefreshed && (
@@ -124,6 +123,11 @@ export default async function SealedDealsPage() {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
           Browse every sealed product
         </h2>
+        <p className="mb-4 max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
+          Every booster box, elite trainer box, bundle, blister and tin we track — search or filter
+          by set and type. Qualifying below-market eBay deals are flagged in green; other products
+          show their available PokemonPriceTracker sealed reference and an eBay search.
+        </p>
 
         {catalog.groups.length > 0 ? (
           <SealedProductBrowser groups={groupsWithLogos} types={types} />

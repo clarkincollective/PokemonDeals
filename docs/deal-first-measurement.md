@@ -1,6 +1,8 @@
 # Deal-first homepage: what the R2 restructure changes in measurement
 
-Written 2026-09-13 with the R2 homepage pilot (built locally, not deployed).
+Written 2026-09-13 with the R2 homepage pilot; original overhaul subsequently
+released at `c350139` on the same date. Later browsing-hierarchy corrections
+remain local. The current checkpoint in IMPLEMENTATION_STATUS.md is authoritative.
 Reconciles the existing analytics contracts (`lib/analytics/events.js`,
 `components/analytics/HomepageAnalytics.js`, `lib/affiliateSurfaces.js`,
 `scripts/reportHomepageConversion.mjs`) with the page as it is now. No event
@@ -131,15 +133,22 @@ set to the deploy date of the R2 slice before any post-change read.
 - Never sum PostHog and Vercel click streams, never join EPN transactions to
   organic visitors by inference, and never read a captured click as a sale.
 
-## 4. Baseline still owed
+## 4. Baseline and observation status
 
-No pre-change baseline was read in this slice (no PostHog personal key in
-the session; EPN reports not opened). Before deploying R2, run
-`scripts/reportHomepageConversion.mjs` over the last complete pre-change
-window and file the numbers with the deploy SHA, so the post-change read has
-a like-for-like page-level baseline.
+The later read-only baseline covers 6 September 00:00 to 13 September 00:00 UTC
+(exclusive end; complete days 6–12 September) and records 3,841
+grouped events, 313 `page_view`, 389 `homepage_view` and 222 `affiliate_click`
+events. The two view instruments are different populations and are not added;
+outbound events are not purchases. All existing decision questions were low
+sample or missing coverage. Evidence: `../r3-review-input/r7-pre-release-posthog.json`
+relative to the worktree, with its process record. It ends before release;
+13 September is the partial release day and is excluded from that baseline.
+The first full UTC day after release is 14 September. Compare equivalent complete
+windows only after enough data exists, retaining the released SHA, offer-supply
+differences and coverage limits. EPN earnings and customer comprehension remain
+unverified; the 19 September GSC note is an observation gate, not an automation.
 
-## 5. Subsequent R2 first-screen refinement (local, not deployed)
+## 5. Subsequent R2 first-screen refinement (included in original release)
 
 The shortened-hero revision changes exposure again. The following supersedes
 the unchanged-population assumptions above where they conflict:
@@ -169,4 +178,35 @@ the unchanged-population assumptions above where they conflict:
 First-screen card geometry is a layout check, not a new measurement event.
 Saved captures and their viewport-specific limitations are recorded in the
 phase ledger. Production ingestion, buyer comprehension and revenue effects
-are still unverified; no release date or post-change evaluation window exists.
+are still unverified. The release date is recorded above; no completed
+post-change evaluation or measured improvement is established yet.
+
+## 6. Prepared comprehension check (not yet conducted)
+
+Use the provider-isolated fixtures and the screenshot galleries recorded in
+IMPLEMENTATION_STATUS.md. Recruit willing collectors separately under an
+authorized recruitment scope; no outreach or real purchase is part of this
+local preparation. Begin with 5–8 novice and experienced participants, including
+phone users. This is a qualitative pilot, not a conversion-rate experiment.
+
+Give tasks without naming the intended buttons:
+
+1. Find an offer within a stated budget and explain which exact item it buys.
+2. Explain the displayed price, currency, shipping and reference comparison;
+   include a shipping-unknown example.
+3. Explain what could change before an auction finishes and what the current bid means.
+4. Find a particular printing from a set or Pokemon entry; explain how you distinguished it.
+5. Save an item, leave the page and recover it; explain whether its saved price proves availability.
+6. Mark three cards on a set checklist, reload, show only missing cards and preview a missing-only printout.
+
+Record participant code (no personal details), experience, device, fixture/build
+SHA, task result, wrong turns, moderator assistance and the participant's own
+explanation of identity/price. Use completed, completed with help, or incomplete;
+do not turn these few observations into population success percentages. Record
+misunderstandings before offering help. Repeat the saved/checklist tasks on a
+later return visit and note the interval. Do not record video, audio or personal
+data without specific consent. Keep findings separate from automated checks.
+
+Prioritize any wrong-item, shipping or auction misunderstanding before aesthetic
+preferences. Record a keep/revise decision, its evidence and limits in R7 of the
+existing ledger. A passing browser test is not a participant's comprehension.

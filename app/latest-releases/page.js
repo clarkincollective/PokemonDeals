@@ -104,6 +104,48 @@ export default async function LatestReleasesPage() {
     })
     .slice(0, 4);
 
+  const hasListings = singles.length + sealedRows.length + graded.length > 0;
+  const listingGroups = (<>
+        <ListingGroup section={HUB_SECTIONS[0]} count={singles.length}>
+          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {singles.map((deal, i) => (
+              <DealCard
+                key={deal.id}
+                deal={deal}
+                hub={hubCounts[deal.watchlist_id]}
+                pageName="latest_releases"
+                validSetSlugs={validSetSlugs}
+                analytics={{ section: "latest_singles", rank: i + 1 }}
+              />
+            ))}
+          </div>
+        </ListingGroup>
+
+        <ListingGroup section={HUB_SECTIONS[1]} count={sealedRows.length}>
+          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {sealedRows.map((row) => (
+              <SealedDealCard key={row.id} deal={row} pageName="latest_releases" />
+            ))}
+          </div>
+        </ListingGroup>
+
+        <ListingGroup section={HUB_SECTIONS[2]} count={graded.length}>
+          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {graded.map((deal, i) => (
+              <DealCard
+                key={deal.id}
+                deal={deal}
+                hub={hubCounts[deal.watchlist_id]}
+                pageName="latest_releases"
+                validSetSlugs={validSetSlugs}
+                analytics={{ section: "latest_graded", rank: i + 1 }}
+              />
+            ))}
+          </div>
+        </ListingGroup>
+
+  </>);
+
   const lineupEntries = [...lineup.upcoming, ...lineup.released];
   const jsonLd = [
     breadcrumbList([{ name: "Deals", href: "/" }, { name: "Latest releases" }]),
@@ -124,7 +166,7 @@ export default async function LatestReleasesPage() {
             Latest Pokemon TCG Releases
           </h1>
           <p className="mt-3 max-w-2xl text-base text-zinc-600 dark:text-zinc-400">
-            The newest expansions, with official English release dates. {COVERAGE_NOTE}
+            Explore the newest expansions, official English release dates and listings we can currently show.
           </p>
         </div>
       </header>
@@ -155,6 +197,9 @@ export default async function LatestReleasesPage() {
                   {featured.officialName}
                 </h2>
                 <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">{featuredReleaseLine(featured)}</p>
+                {featured.set === "ME: 30th Celebration" && (
+                  <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">Different from Celebrations (2021). <a href="#release-identity" className="underline">Check set and box identity</a>.</p>
+                )}
                 <div className="mt-4 flex flex-wrap gap-3">
                   {setHref(featured.set, validSetSlugs, slugifySet) && (
                     <Link
@@ -180,6 +225,45 @@ export default async function LatestReleasesPage() {
           </section>
         )}
 
+        {hasListings && listingGroups}
+
+        {/* The lineup itself: official name, date and status, each linking
+            to its EXISTING set page - never a second set page of our own. */}
+        <section data-analytics-section="latest_lineup" className="mt-10">
+          <SectionHeader kicker="Officially dated" title="Recent and upcoming expansions" actionLabel="All sets" actionHref="/sets" id="lineup-heading" />
+          <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {lineupEntries.map((e) => {
+              const href = setHref(e.set, validSetSlugs, slugifySet);
+              const body = (
+                <>
+                  <span className="block text-sm font-semibold text-zinc-900 dark:text-zinc-50">{e.officialName}</span>
+                  <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">
+                    {e.status === "upcoming" ? `Releases ${e.releaseDateText}` : `Released ${e.releaseDateText}`}
+                  </span>
+                </>
+              );
+              return (
+                <li key={e.set} className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+                  {href ? (
+                    <Link
+                      href={href}
+                      data-analytics-click="latest_releases_set_clicked"
+                      data-analytics-props={JSON.stringify({ section: "latest_lineup", set_slug: slugifySet(e.set) })}
+                      className="block hover:underline"
+                    >
+                      {body}
+                    </Link>
+                  ) : (
+                    body
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+
+        {!hasListings && listingGroups}
+
         {/* Two sets share almost the same name, and their sealed products
             are routinely confused in listing titles: a standard Elite
             Trainer Box, a Pokemon Center Elite Trainer Box and an ETB CASE
@@ -189,7 +273,7 @@ export default async function LatestReleasesPage() {
             unrelated future one. Both links go through setHref, so a set
             page is linked only when it really exists. */}
         {featured?.set === "ME: 30th Celebration" && (
-          <section data-analytics-section="latest_identify" className="mt-10 rounded-2xl border border-zinc-200 bg-white p-5 shadow-card sm:p-6 dark:border-zinc-800 dark:bg-zinc-950">
+          <section id="release-identity" tabIndex={-1} data-analytics-section="latest_identify" className="mt-10 scroll-mt-6 rounded-2xl border border-zinc-200 bg-white p-5 shadow-card sm:p-6 dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-base font-semibold text-zinc-900 sm:text-lg dark:text-zinc-50">
               Two different &ldquo;Celebrations&rdquo; sets
             </h2>
@@ -243,79 +327,6 @@ export default async function LatestReleasesPage() {
             </div>
           </section>
         )}
-
-        {/* The lineup itself: official name, date and status, each linking
-            to its EXISTING set page - never a second set page of our own. */}
-        <section data-analytics-section="latest_lineup" className="mt-10">
-          <SectionHeader kicker="Officially dated" title="Recent and upcoming expansions" actionLabel="All sets" actionHref="/sets" id="lineup-heading" />
-          <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {lineupEntries.map((e) => {
-              const href = setHref(e.set, validSetSlugs, slugifySet);
-              const body = (
-                <>
-                  <span className="block text-sm font-semibold text-zinc-900 dark:text-zinc-50">{e.officialName}</span>
-                  <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">
-                    {e.status === "upcoming" ? `Releases ${e.releaseDateText}` : `Released ${e.releaseDateText}`}
-                  </span>
-                </>
-              );
-              return (
-                <li key={e.set} className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-                  {href ? (
-                    <Link
-                      href={href}
-                      data-analytics-click="latest_releases_set_clicked"
-                      data-analytics-props={JSON.stringify({ section: "latest_lineup", set_slug: slugifySet(e.set) })}
-                      className="block hover:underline"
-                    >
-                      {body}
-                    </Link>
-                  ) : (
-                    body
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-
-        <ListingGroup section={HUB_SECTIONS[0]} count={singles.length}>
-          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {singles.map((deal, i) => (
-              <DealCard
-                key={deal.id}
-                deal={deal}
-                hub={hubCounts[deal.watchlist_id]}
-                pageName="latest_releases"
-                validSetSlugs={validSetSlugs}
-                analytics={{ section: "latest_singles", rank: i + 1 }}
-              />
-            ))}
-          </div>
-        </ListingGroup>
-
-        <ListingGroup section={HUB_SECTIONS[1]} count={sealedRows.length}>
-          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {sealedRows.map((row) => (
-              <SealedDealCard key={row.id} deal={row} pageName="latest_releases" />
-            ))}
-          </div>
-        </ListingGroup>
-
-        <ListingGroup section={HUB_SECTIONS[2]} count={graded.length}>
-          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {graded.map((deal, i) => (
-              <DealCard
-                key={deal.id}
-                deal={deal}
-                hub={hubCounts[deal.watchlist_id]}
-                pageName="latest_releases"
-                validSetSlugs={validSetSlugs}
-                analytics={{ section: "latest_graded", rank: i + 1 }}
-              />
-            ))}
-          </div>
-        </ListingGroup>
 
         <p className="mt-10 text-xs text-zinc-400">
           Release dates come from The Pokemon Company&apos;s own announcements. {COVERAGE_NOTE}

@@ -95,9 +95,8 @@ export default async function CardsDirectoryPage() {
             Pokemon Card Database &amp; Prices
           </h1>
           <p className="mt-3 max-w-2xl text-base text-zinc-600 dark:text-zinc-400">
-            Browse the Pokemon card catalogue we track, search for an exact printing, and compare
-            available market-reference prices. Open an exact card for its raw and graded references where available.
-            Browse by Pokemon or by set below, or open the full price checker for an exact lookup.
+            Find the exact card, check its price references and explore available offers.
+            Search by name or collector number, or start with a set or Pokemon.
           </p>
 
           {/* Strong search interaction - submits to the existing price
@@ -125,18 +124,16 @@ export default async function CardsDirectoryPage() {
             .
           </p>
 
-          {!summary.error && summary.totalCards > 0 && (
-            <p className="mt-6 text-sm text-zinc-600 dark:text-zinc-400">
-              Pokemon Deal Finder currently tracks{" "}
-              <span className="font-semibold text-zinc-900 dark:text-zinc-50">{fmt(summary.totalCards)}</span>{" "}
-              Pokemon cards across{" "}
-              <span className="font-semibold text-zinc-900 dark:text-zinc-50">{fmt(summary.setCount)}</span>{" "}
-              sets,{" "}
-              <span className="font-semibold text-zinc-900 dark:text-zinc-50">{fmt(summary.pricedCards)}</span>{" "}
-              of them with a market-reference price from real recent-sold data. This is the catalogue
-              we monitor for deals, not a claim to list every Pokemon card ever printed.
-            </p>
-          )}
+          <nav aria-label="Browse card catalogue" className="mt-5 grid max-w-xl gap-3 sm:grid-cols-2">
+            <Link href="/sets" className="rounded-xl border border-zinc-300 bg-white px-4 py-3 font-semibold text-zinc-900 hover:border-red-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50">
+              Sets &amp; checklists <span aria-hidden="true">&rarr;</span>
+              <span className="mt-1 block text-sm font-normal text-zinc-600 dark:text-zinc-400">Explore a set and the cards you need</span>
+            </Link>
+            <Link href="/pokemon" className="rounded-xl border border-zinc-300 bg-white px-4 py-3 font-semibold text-zinc-900 hover:border-red-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50">
+              Browse by Pokemon <span aria-hidden="true">&rarr;</span>
+              <span className="mt-1 block text-sm font-normal text-zinc-600 dark:text-zinc-400">Find your favourite across sets</span>
+            </Link>
+          </nav>
         </div>
       </header>
 
@@ -178,8 +175,8 @@ export default async function CardsDirectoryPage() {
             </Link>
           </div>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            The sets with the most cards in our catalogue. Open one for its checklist and
-            market-reference prices.
+            Sets with qualifying deals appear first, followed by catalogue sets. Open one for
+            its checklist, price references and available offers.
           </p>
           {topSets.length > 0 && (
             <ul className="mt-4 flex flex-wrap gap-2">
@@ -222,7 +219,16 @@ export default async function CardsDirectoryPage() {
           </section>
         )}
 
-        <p className="mt-12 border-t border-zinc-200 pt-8 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {!summary.error && summary.totalCards > 0 && (
+          <p className="mt-12 text-sm text-zinc-600 dark:text-zinc-400">
+            Pokemon Deal Finder currently tracks {fmt(summary.totalCards)} Pokemon cards across{" "}
+            {fmt(summary.setCount)} sets, {fmt(summary.pricedCards)} of them with a market-reference
+            price from real recent-sold data. This is the catalogue we monitor for deals, not a
+            claim to list every Pokemon card ever printed. Open an exact card for its raw and
+            graded references where available.
+          </p>
+        )}
+        <p className="mt-8 border-t border-zinc-200 pt-8 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
           Market-reference prices are a guide based on recent sold data, not a guaranteed sale value.
           Condition, printing and grade all move a card&apos;s price. Pokemon Deal Finder doesn&apos;t
           buy cards or guarantee any sale value.

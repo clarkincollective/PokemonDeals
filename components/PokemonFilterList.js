@@ -14,6 +14,7 @@ import Link from "next/link";
 // the rest point at the species' full card catalogue.
 export default function PokemonFilterList({ groups }) {
   const [query, setQuery] = useState("");
+  const [dealsOnly, setDealsOnly] = useState(false);
   const [openGens, setOpenGens] = useState(() => new Set([groups[0]?.generation]));
 
   const totalSpecies = useMemo(
@@ -23,18 +24,18 @@ export default function PokemonFilterList({ groups }) {
 
   const filteredGroups = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return groups;
+    if (!q && !dealsOnly) return groups;
     return groups
-      .map((g) => ({ ...g, species: g.species.filter((s) => s.name.toLowerCase().includes(q)) }))
+      .map((g) => ({ ...g, species: g.species.filter((s) => s.name.toLowerCase().includes(q) && (!dealsOnly || s.hasDeal)) }))
       .filter((g) => g.species.length > 0);
-  }, [groups, query]);
+  }, [groups, query, dealsOnly]);
 
   const matchCount = useMemo(
     () => filteredGroups.reduce((n, g) => n + g.species.length, 0),
     [filteredGroups]
   );
 
-  const filtering = query.trim() !== "";
+  const filtering = query.trim() !== "" || dealsOnly;
 
   function toggleGen(gen) {
     setOpenGens((prev) => {
@@ -47,6 +48,13 @@ export default function PokemonFilterList({ groups }) {
 
   return (
     <div>
+      <div className="mb-4 flex flex-wrap gap-2" aria-label="Pokemon selection">
+        {[false, true].map((only) => (
+          <button key={String(only)} type="button" aria-pressed={dealsOnly === only} onClick={() => setDealsOnly(only)} className={`min-h-11 rounded-lg border px-4 py-2 text-sm font-semibold ${dealsOnly === only ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900" : "border-zinc-300 bg-white text-zinc-700 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300"}`}>
+            {only ? "With deals" : "All Pokemon"}
+          </button>
+        ))}
+      </div>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="relative max-w-sm flex-1">
           <input
@@ -83,14 +91,14 @@ export default function PokemonFilterList({ groups }) {
         )}
       </div>
 
-      {query && (
+      {filtering && (
         <p role="status" className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
-          {matchCount} of {totalSpecies} Pokemon match &quot;{query}&quot;
+          {matchCount} of {totalSpecies} Pokemon{query.trim() ? <> match &quot;{query}&quot;</> : " shown"}{dealsOnly ? " with qualifying deals" : ""}
         </p>
       )}
 
       {filteredGroups.length === 0 ? (
-        <p className="text-zinc-500">No Pokemon match &quot;{query}&quot;.</p>
+        <p className="text-zinc-600 dark:text-zinc-400">No Pokemon match these filters. Clear the name or choose All Pokemon to browse the catalogue.</p>
       ) : (
         <div className="flex flex-col gap-3">
           {filteredGroups.map((g) => {

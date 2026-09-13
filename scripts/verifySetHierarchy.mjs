@@ -50,6 +50,12 @@ try{
     const jumpState=await ev(`({top:document.querySelector('#inventory').getBoundingClientRect().top,scroll:scrollY,hash:location.hash,search:location.search,focused:document.activeElement.id})`);
     check(label+(cancelAnchor&&hasOffer(route)?' visitor scroll is not forced back':' checklist jump reaches controls'),cancelAnchor&&hasOffer(route)?Math.abs(jumpState.top)>150:Math.abs(jumpState.top)<150,jumpState);
     if(delayRates)check(label+' region update preserves chosen fragment',jumpState.hash==='#inventory',jumpState);
+   } else if(delayRates) {
+    // Catalogue-only species have no jump to exercise. Release their held
+    // response before navigating, so it cannot contaminate the next case.
+    while(delayedRates.length)await send('Fetch.continueRequest',{requestId:delayedRates.shift()});
+    await sleep(1500);
+    check(label+' no-offer catalogue remains available after region response',await ev("!!document.querySelector('#inventory')&&!document.querySelector('[data-offer-state]')"));
    }
    if(hasOffer(route)){const button=`[...document.querySelectorAll('button')].find(b=>b.textContent.includes('More filters'))`;await ev(`(${button}).click()`);check(label+' filters expand',await ev(`(${button}).getAttribute('aria-expanded')==='true'`));await ev(`(${button}).click()`);check(label+' filters collapse',await ev(`(${button}).getAttribute('aria-expanded')==='false'`));}
    await ev("document.activeElement?.blur();scrollTo({top:0,behavior:'instant'})");
