@@ -61,27 +61,48 @@ churn, not a defect: 643 historical graded rows vs. 17 currently active
 mostly reflects normal turnover (items selling or listings ending) over
 time, not data loss.
 
-## 3. Current scan allocation and available budget (measured, not modeled)
+## 3. Current scan allocation and available budget — measured, projected, and the quota window kept distinct
 
-A **read-only** quota report (`npm run ebay:quota-report`, zero eBay
-calls itself — one Supabase read of `ebay_job_runs`) run for this
-review, 2026-09-13 UTC:
+These are three different numbers, deliberately not conflated (review
+closure, 2026-09-14 — the first draft of this document used "projected"
+and "the ceiling" almost interchangeably, which is imprecise enough to
+matter for a budget decision):
 
-- **5,000 calls/day** total Browse quota (the account's current tier).
-- **4,608** calls already logged by the time of this check; **11**
-  calls already skipped for hitting the cap that day, **83** skipped for
-  other rate-limit reasons; projected end-of-day total **~5,453** — i.e.
-  the pipeline was already at or over its daily ceiling on an ordinary
-  day, not a special one.
-- **733** of those calls were specifically `getGradingDetails`
-  follow-ups (the graded-confirmation step in §1) — a meaningful slice
-  of the existing budget already goes to graded confirmation, not zero.
+- **The quota window**: the account's Browse-API tier allows **5,000
+  calls in a rolling daily window** (resets ~07:00 UTC, per
+  `docs/ebay-rate-limits.md`). This is the one fixed, contractual number.
+- **Measured usage**: a **read-only** quota report (`npm run
+  ebay:quota-report`, zero eBay calls itself — one Supabase read of
+  `ebay_job_runs`), run 2026-09-13 UTC, mid-day: **4,608 calls already
+  logged** at the time of the check; **11** calls already skipped that
+  day for hitting the cap, **83** skipped for other rate-limit reasons.
+  This is an actual, observed count as of one point in the day — not the
+  full day's final total.
+- **Projected usage**: the report's own **linear end-of-day
+  extrapolation from the burn rate observed so far** put the day's likely
+  final total at **~5,453** — i.e. a projection built from a partial
+  day's measured rate, not itself a measurement. Projections built this
+  way can over- or under-shoot the true total (job mix shifts over the
+  day; reserve floors change the burn rate as quota tightens).
+- **What is solid regardless of the projection's exact accuracy**: 4,608
+  measured calls by mid-day against a 5,000/day window leaves very little
+  headroom for the rest of that day even before any extrapolation, and
+  11 calls were already being skipped for hitting the cap — so "the
+  pipeline runs with little to no slack on an ordinary day" is a
+  measured fact, not a projected one.
+- **733** of the measured calls that day were specifically
+  `getGradingDetails` follow-ups (the graded-confirmation step in §1) —
+  a meaningful slice of the existing budget already goes to graded
+  confirmation, not zero.
 - Allocator sizing (`lib/scanAllocator.js`): ~125 base search targets
   per run × a marketplace weight (US 1.6, GB 1.2, AU/CA 1.05, DE 0.95,
   IT 0.9), capped at 380/run, 40/run exploration floor, split 16%
   hot-reserve / 62% explore / remainder exploit. This governs which
   *cards* get scanned; grading discovery rides on top of it, uncounted
-  as its own dimension.
+  as its own dimension. Each run's actual size is separately clamped by
+  live quota headroom (`budgetForRun`'s `rateLimitRemaining` parameter),
+  so on a day the window is already tight, runs shrink automatically —
+  the allocator does not spend past what's left.
 
 ## 4. Relationship to the existing, separate quota-increase request
 
@@ -115,14 +136,30 @@ reallocation of existing spend. Two low-risk, bounded options that need
 Dedicate a small, fixed slice of the allocator's existing 62% EXPLORE
 ratio (e.g. 10–15% of it) to targets whose watchlist card has ever had a
 recognized graded listing, re-running their search more frequently
-within the **same total daily budget** — at the cost of marginally
+within the **same total daily call count** — at the cost of marginally
 slower long-tail rotation for cards that have never yielded a deal at
 all.
 
+**Important correction (review closure, 2026-09-14):** "reallocation"
+means redirecting *which* targets consume a fixed number of calls — it
+does not add calls, so it cannot by itself make the daily ceiling
+problem in §3 worse. But it is **not automatically "budget-safe"**
+either: §3 shows the schedule already runs with little to no slack most
+days, sometimes projected to finish at or past the 5,000/day window. On
+a day quota is already tight, `budgetForRun`'s own live-headroom clamp
+shrinks every run's actual size regardless of this option — so a
+graded-weighted slice of the explore lane competes for the *same*
+already-scarce remainder as everything else, and is not guaranteed to
+run to its full intended size on a tight day. This option changes
+*priority within* the existing constraint; it does not relax the
+constraint, and it should not be read as removing the tightness §3
+documents.
 - **Cost:** $0 additional API spend; a redistribution of the existing
-  5,000/day ceiling only.
+  ceiling only, not a claim of freed-up headroom.
 - **Risk:** slightly slower first-discovery of raw deals on
-  never-before-scanned cards.
+  never-before-scanned cards; on an already-tight day, the graded-weighted
+  slice itself may also be shrunk by the same live-quota clamp that
+  shrinks every other lane, so its benefit is not guaranteed daily.
 - **Success measure:** re-run the same read-only funnel diagnosis
   (`graded-funnel.mjs`, or a committed equivalent) weekly for 4 weeks;
   compare active graded row count, grouped-tile count, and
