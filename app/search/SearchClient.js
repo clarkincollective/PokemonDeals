@@ -18,6 +18,7 @@ import FilterToggle from "@/components/FilterToggle";
 import { MARKETPLACES, buildEbaySearchLink } from "@/lib/ebayLinks";
 import { upgradeCatalogImage } from "@/lib/cardImage";
 import { formatMoney, toViewerCurrency } from "@/lib/money";
+import { offerShipping } from "@/lib/offerPresentation";
 import { useCurrency } from "@/components/CurrencyProvider";
 import {
   appliedFilterChips,
@@ -923,6 +924,13 @@ function SearchFilters({
 // a plain eBay-search fallback so it isn't a dead end.
 function ResultTile({ c, rank, ccyApprox, inDisplayCcy }) {
   const meta = [c.set, c.cardNumber && `#${c.cardNumber}`, c.rarity].filter(Boolean).join(" · ");
+  // Same shipping-uncertainty contract as every other savings renderer
+  // (DealCard, SpeciesCard, CatalogueBrowser): discountPct already arrives
+  // null when lib/searchEngine's catalogue projection has no trusted
+  // comparison, and a trusted one still needs its "before shipping"
+  // qualifier when the shipping breakdown is unconfirmed.
+  const dealShipping = c.deal ? offerShipping(c.deal) : null;
+  const showSavings = c.deal?.discountPct != null && dealShipping?.savingClaim !== "none";
   const price =
     c.marketPrice != null ? (
       <p className="mt-1 text-sm font-bold text-black dark:text-zinc-50">
@@ -949,9 +957,9 @@ function ResultTile({ c, rank, ccyApprox, inDisplayCcy }) {
         ) : (
           <CardImagePlaceholder />
         )}
-        {c.deal && (
+        {showSavings && (
           <span className="absolute right-2 top-2 rounded-md bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white shadow-sm">
-            {Math.round(c.deal.discountPct * 100)}% below market
+            {Math.round(c.deal.discountPct * 100)}% below market{dealShipping.savingQualifier}
           </span>
         )}
       </div>

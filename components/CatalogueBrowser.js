@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { track } from "@vercel/analytics";
 import { hasPrice, MARKETPLACE_CURRENCY, refInListingCurrency } from "@/lib/money";
+import { offerShipping } from "@/lib/offerPresentation";
 import Price from "@/components/Price";
 import { cardDisplayName, cardIdentityLine } from "@/lib/cardName";
 import { upgradeCatalogImage } from "@/lib/cardImage";
@@ -58,6 +59,14 @@ export function Tile({ card, speciesName, placement }) {
   const isDeal = Boolean(card.deal);
   const isAuction = card.deal?.listingType === "AUCTION";
   const discountPct = card.deal?.discountPct != null ? Math.round(card.deal.discountPct * 100) : null;
+  // Same shipping-uncertainty contract as every other savings renderer
+  // (DealCard, SpeciesCard, SealedDealCard, lib/offerPresentation): an
+  // unconfirmed-shipping saving is always stated "before shipping", and a
+  // row with no shipping breakdown at all claims no saving here either -
+  // this compact tile must never show a bare "% below market" that the
+  // full deal page would qualify or withhold.
+  const shipping = isDeal ? offerShipping(card.deal) : null;
+  const showSavings = isDeal && discountPct != null && discountPct > 0 && shipping.savingClaim !== "none";
   // On a deal tile the listing price and the market reference must share
   // one currency in every state. Express the USD reference in the deal's
   // own currency (scan-time rate, no live FX); <Price> then localises
@@ -71,7 +80,7 @@ export function Tile({ card, speciesName, placement }) {
 
   const art = (
     <div className="relative aspect-[63/88] w-full overflow-hidden rounded-t-xl bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950">
-      {isDeal && discountPct != null && (
+      {showSavings && (
         <span className="absolute right-2 top-2 z-10 rounded-md bg-emerald-600 px-2 py-1 text-sm font-extrabold leading-none text-white shadow-sm">
           −{discountPct}%
         </span>
@@ -149,13 +158,13 @@ export function Tile({ card, speciesName, placement }) {
                   native={{ amount: card.deal.cheapestNative, currency: dealCcy }}
                 />
               </p>
-              {discountPct != null && discountPct > 0 && (
+              {showSavings && (
                 isAuction ? (
                   <p className="text-xs font-semibold text-amber-600 dark:text-amber-500">
-                    {discountPct}% under ref · auction, bids can rise
+                    {discountPct}% under ref{shipping.savingQualifier} · auction, bids can rise
                   </p>
                 ) : (
-                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-500">{discountPct}% below market</p>
+                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-500">{discountPct}% below market{shipping.savingQualifier}</p>
                 )
               )}
             </>

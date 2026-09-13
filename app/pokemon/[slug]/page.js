@@ -403,15 +403,15 @@ export default async function PokemonSpeciesPage({ params }) {
             <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
               Every {resolved.name} card in our English catalogue, starting with{" "}
               {coverageFacts.earliestSet}, the earliest dated set we track, and organised by era and set
-              with its collector number, rarity and recent-sold market reference — plus any live
-              below-market eBay deals.
+              with its collector number, rarity and a recent-sold market reference where one exists —
+              plus any live below-market eBay deals.
             </p>
           ) : (
             <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
               Every {resolved.name} card we track across {priceSnapshot.setCount}{" "}
-              {priceSnapshot.setCount === 1 ? "catalogue set" : "catalogue sets"}, with real recent-sold
-              market references. Compare prices and values, see the most valuable {resolved.name} cards,
-              and check the qualifying below-market eBay offers in the deals section.
+              {priceSnapshot.setCount === 1 ? "catalogue set" : "catalogue sets"}, with a real recent-sold
+              market reference where one exists. Compare prices and values, see the most valuable {resolved.name}{" "}
+              cards, and check the qualifying below-market eBay offers in the deals section.
             </p>
           )}
           <SpeciesFactStrip speciesName={resolved.name} />

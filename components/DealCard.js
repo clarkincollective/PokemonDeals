@@ -48,8 +48,11 @@ function discountBadgeClass(pct) {
 //               shipping" so it never reads as a verified delivered
 //               saving; otherwise the listing renders PLAIN with the reason.
 //   STATUS      real facts: found when, N active listings, auction end
-//   ACTIONS     primary "View deal on eBay" / "View auction on eBay" (the
-//               existing AffiliateLink wrapper + surface attribution);
+//   ACTIONS     primary "View deal on eBay" / "View auction on eBay" / the
+//               neutral "View listing on eBay" for a plain (no trusted
+//               comparison) listing - never "deal" wording without a
+//               trusted savings claim (the existing AffiliateLink wrapper +
+//               surface attribution);
 //               the artwork and name open the site's own detail page; the
 //               save control is the existing device-local toggle
 //
@@ -405,7 +408,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           }
           className="flex min-h-11 w-full items-center justify-center rounded-lg bg-red-600 px-4 text-center text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
         >
-          {isAuction ? "View auction on eBay" : "View deal on eBay"}
+          {isAuction ? "View auction on eBay" : showSavings ? "View deal on eBay" : "View listing on eBay"}
         </AffiliateLink>
       </div>
     </article>

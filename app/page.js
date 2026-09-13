@@ -590,7 +590,7 @@ export default async function Home({ searchParams }) {
               {[
                 { href: "/sets", event: "browse_sets_clicked", title: "Sets & checklists", copy: "Set checklists with market-reference prices - track a set and mark what you own." },
                 { href: "/pokemon", event: "browse_pokemon_clicked", title: "Pokemon cards", copy: "Card prices and values for a species across all its prints and sets - plus any current deal." },
-                { href: "/cards", event: "browse_catalogue_clicked", title: "Card database", copy: "Find an exact printing - a permanent page and a real market reference for every card we track." },
+                { href: "/cards", event: "browse_catalogue_clicked", title: "Card database", copy: "Find an exact printing - a permanent page for every card we track, with a real market reference where one exists." },
               ].map((t) => (
                 <Link
                   key={t.href}
@@ -709,9 +709,10 @@ export default async function Home({ searchParams }) {
           <p className="max-w-3xl text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
             Pokemon Deal Finder scans eBay listings for Pokemon TCG cards across the US, UK,
             Australia, Canada, Germany and Italy marketplaces and compares each one against its real
-            market price and recent sold listings, surfacing only the genuine deals — the listings
-            meaningfully below market. It&apos;s an independent price comparison, not a shop — you
-            buy from the eBay seller.{" "}
+            market price and recent sold listings. Most listings shown are meaningfully below that
+            market reference; a small number — mainly very recent releases without a verified
+            reference yet — are shown as plain listings, clearly labelled, with no savings claim.
+            It&apos;s an independent price comparison, not a shop — you buy from the eBay seller.{" "}
             <Link href="/methodology" className="underline hover:text-red-600 dark:hover:text-red-500">
               How we find deals
             </Link>
@@ -733,10 +734,11 @@ export default async function Home({ searchParams }) {
                   </p>
                 </li>
                 <li>
-                  <p className="font-semibold text-zinc-900 dark:text-zinc-50">3. We only show genuine deals</p>
+                  <p className="font-semibold text-zinc-900 dark:text-zinc-50">3. Savings claims are earned, not assumed</p>
                   <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                    A listing only makes the list if it&apos;s meaningfully below market and the seller passes our
-                    trust checks.
+                    A listing gets deal treatment only when it&apos;s meaningfully below a verified market reference
+                    and the seller passes our trust checks. Without that verified reference — mainly a very recent
+                    release — we show the listing plainly, with no savings claim, instead of hiding it.
                   </p>
                 </li>
               </ol>
