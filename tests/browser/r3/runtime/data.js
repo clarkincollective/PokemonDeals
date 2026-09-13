@@ -58,8 +58,11 @@ export const fetchSetCatalog=async set=>{const cards=fixtureCards(set);const pri
 const dragoniteCards=savedCatalogue.Dragonite;
 export const resolveSpeciesSlug=async slug=>slug==='dragonite'?{name:'Dragonite',image:null}:null;
 export const fetchSpeciesCatalog=async name=>({cards:name==='Dragonite'?dragoniteCards:fixtureCards('Jungle').slice(0,4).map(c=>({...c,name})),stats:{cardCount:name==='Dragonite'?dragoniteCards.length:4,setCount:2,minPrice:20,maxPrice:90},indexable:true});
-export const fetchSpeciesDealsPage=async()=>({deals:[],totalPages:1,error:null});
-export const fetchSpeciesDealStats=async()=>({dealCards:0});
+// Owner hierarchy feedback: reuse the existing, explicitly simulated Light
+// Dragonite offer to exercise a populated species page as well as Cleffa's
+// no-offer catalogue path. No live inventory or eligibility proof is implied.
+export const fetchSpeciesDealsPage=async({speciesName}={})=>({deals:speciesName==='Dragonite'?[listingRows[4]]:[],totalPages:1,error:null});
+export const fetchSpeciesDealStats=async name=>({dealCards:name==='Dragonite'?1:0});
 export const fetchSpeciesPrints=async()=>({prints:[]});
 export const fetchCardHubs=async()=>({cards:[],hubs:[]});
 

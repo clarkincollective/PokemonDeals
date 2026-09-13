@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
 import Pagination from "@/components/Pagination";
@@ -148,6 +148,36 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
     : loading
       ? { deals: [], totalPages: 1, error: null }
       : { deals: fetched.deals, totalPages: fetched.totalPages, error: fetched.error };
+
+  // On offer-first catalogue pages, a regional refresh can replace the
+  // loading grid above an already-selected inventory anchor. Keep that
+  // explicit destination aligned, unless the visitor has scrolled or moved
+  // focus since choosing it. Ordinary filter/browse scrolling is untouched.
+  const pendingInventoryAnchor = useRef(false);
+  useEffect(() => {
+    if (!compactFilters) return;
+    const isInventoryTarget = () => window.location.hash === "#inventory" && document.activeElement?.id === "inventory";
+    if (!loading) {
+      if (pendingInventoryAnchor.current && isInventoryTarget()) {
+        document.getElementById("inventory")?.scrollIntoView({ block: "start", behavior: "auto" });
+      }
+      pendingInventoryAnchor.current = false;
+      return;
+    }
+    const arm = () => { pendingInventoryAnchor.current = isInventoryTarget(); };
+    const cancel = () => { pendingInventoryAnchor.current = false; };
+    arm();
+    window.addEventListener("hashchange", arm);
+    window.addEventListener("wheel", cancel, { passive: true });
+    window.addEventListener("touchmove", cancel, { passive: true });
+    window.addEventListener("keydown", cancel);
+    return () => {
+      window.removeEventListener("hashchange", arm);
+      window.removeEventListener("wheel", cancel);
+      window.removeEventListener("touchmove", cancel);
+      window.removeEventListener("keydown", cancel);
+    };
+  }, [compactFilters, loading, reqKey]);
 
   // "This is a filtered query" - drives the empty state (relaxation
   // actions vs. the plain default label) and whether to show chips.

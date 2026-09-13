@@ -311,6 +311,42 @@ export default async function PokemonSpeciesPage({ params }) {
     url: basePath,
   });
 
+  // Placement only: preserve the existing verified-only query and ordering.
+  const hasLiveOffers = deals.length > 0;
+  const dealsSection = (
+    <section aria-labelledby="deals" className="mb-8">
+      <h2 id="deals" className="mb-1 scroll-mt-24 text-lg font-bold text-black dark:text-zinc-50">
+        Best {resolved.name} deals
+        <RegionSuffix />
+      </h2>
+
+      {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
+
+      {deals.length === 0 && !error ? (
+        <p className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+          No verified below-market {resolved.name} deal right now. Browse the full catalogue above,
+          or use a card&apos;s <span className="font-semibold">Find on eBay</span> button.
+        </p>
+      ) : (
+        <DealGrid
+          compactFilters
+          kind="species"
+          slug={slug}
+          basePath={basePath}
+          initial={{ deals, totalPages }}
+          hubCounts={hubCounts}
+          defaultSort="discount"
+          subjectLabel={resolved.name}
+          emptyLabel={`No ${resolved.name} deals match these filters right now. Try clearing a filter, or check back after the next scheduled scan.`}
+          validSetSlugs={validSetSlugs}
+        />
+      )}
+      <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+        Live eBay listings below their real market value — condition, language and variant checked.
+      </p>
+    </section>
+  );
+
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
@@ -323,60 +359,26 @@ export default async function PokemonSpeciesPage({ params }) {
       <RegionRedirect />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-5 py-6 sm:px-6 sm:py-8">
-          <Breadcrumbs
-            items={[
-              { name: "Deals", href: "/" },
-              { name: "Pokemon", href: "/pokemon" },
-              { name: resolved.name },
-            ]}
-          />
-          <h1 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
+        <div className="mx-auto max-w-7xl px-5 py-4 sm:px-6 sm:py-5">
+          <Breadcrumbs items={[{ name: "Deals", href: "/" }, { name: "Pokemon", href: "/pokemon" }, { name: resolved.name }]} />
+          <h1 className="mt-3 max-w-2xl text-2xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-3xl">
             {speciesPageTitle(resolved.name)}
           </h1>
-          {pilot && coverageFacts?.earliestSet ? (
-            <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
-              Every {resolved.name} card in our English catalogue, starting with{" "}
-              {coverageFacts.earliestSet}, the earliest dated set we track, and listed by era and set
-              below with its collector number, rarity and recent-sold market reference — plus any live
-              below-market eBay deals.
-            </p>
-          ) : (
-            <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
-              Every {resolved.name} card we track across {priceSnapshot.setCount}{" "}
-              {priceSnapshot.setCount === 1 ? "catalogue set" : "catalogue sets"}, with real recent-sold
-              market references. Compare prices and values, see the most valuable {resolved.name} cards,
-              and check the qualifying below-market eBay deals identified below.
-            </p>
-          )}
-          <SpeciesFactStrip speciesName={resolved.name} />
-          <nav aria-label="On this page" className="mt-4 flex flex-wrap gap-2">{allCards.length > 0 && (<a href="#inventory" className="inline-flex min-h-11 items-center rounded-full bg-zinc-900 px-4 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-950">Browse cards ↓</a>)}<a href="#deals" className="inline-flex min-h-11 items-center rounded-full border border-zinc-300 px-4 text-sm font-semibold text-zinc-700 dark:border-zinc-700 dark:text-zinc-200">View deals ↓</a></nav>
-          {/* Two distinct populations, labelled as such: the CATALOGUE
-              (every card we track, and the sets it spans) and, separately,
-              the count of cards that have a LIVE below-market deal right
-              now. The deal count is the exact deduped, display-gated tile
-              count from fetchSpeciesDealStats - the same canonical
-              membership + dedupe the grid below uses - so "N cards with a
-              live deal" always matches the grid (13B.3.2). The grid
-              collapses multiple listings of one card to one tile, so this
-              is a CARD count, not a listing count (Phase 12C:
-              listing != card). */}
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-            <p className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">
-              {allCards.length} cards · {priceSnapshot.setCount}{" "}
-              {priceSnapshot.setCount === 1 ? "catalogue set" : "catalogue sets"}
-              {dealStats.dealCards > 0
-                ? ` · ${dealStats.dealCards} card${dealStats.dealCards === 1 ? "" : "s"} with a live deal`
-                : ""}
-            </p>
-            <ShoppingContext />
-          </div>
+          <p className="mt-2 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
+            {hasLiveOffers ? "Compare current offers or browse the full card list." : "Browse the full card list and recent-sold market references."}
+          </p>
+          <nav aria-label="On this page" className="mt-3 flex flex-wrap gap-2">
+            {hasLiveOffers && <a href="#deals" className="inline-flex min-h-11 items-center rounded-full bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700">View deals ↓</a>}
+            {allCards.length > 0 && <a href="#inventory" className="inline-flex min-h-11 items-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">Browse cards ↓</a>}
+            <a href="#species-context" className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-zinc-600 underline underline-offset-4 dark:text-zinc-400">About {resolved.name}</a>
+          </nav>
         </div>
       </header>
 
-      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 scroll-mt-24 px-5 py-6 sm:px-6 sm:py-8">
+      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 scroll-mt-24 px-5 py-4 sm:px-6">
+        {hasLiveOffers && dealsSection}
         {allCards.length > 0 && (
-          <section id="inventory" className="mb-12 scroll-mt-24">
+          <section id="inventory" tabIndex={-1} className="mb-12 scroll-mt-24">
             <h2 className="text-lg font-bold text-black dark:text-zinc-50">
               Every {resolved.name} card, by set ({allCards.length})
             </h2>
@@ -393,36 +395,46 @@ export default async function PokemonSpeciesPage({ params }) {
           </section>
         )}
 
-        {/* SECTION 2 - best verified deals (biggest genuine savings first) */}
-        <section>
-          <h2 id="deals" className="mb-1 scroll-mt-24 text-lg font-bold text-black dark:text-zinc-50">
-            Best {resolved.name} deals
-            <RegionSuffix />
-          </h2>
-          <p className="mb-5 text-sm text-zinc-500 dark:text-zinc-400">
-            Live eBay listings below their real market value — condition, language and variant checked.
-          </p>
+        {!hasLiveOffers && dealsSection}
 
-          {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
-
-          {deals.length === 0 && !error ? (
-            <p className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
-              No verified below-market {resolved.name} deal right now. Browse the full catalogue above,
-              or use a card&apos;s <span className="font-semibold">Find on eBay</span> button.
+        <section id="species-context" className="mt-12 scroll-mt-24 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+          <h2 className="text-lg font-bold text-black dark:text-zinc-50">About {resolved.name} cards</h2>
+          {pilot && coverageFacts?.earliestSet ? (
+            <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
+              Every {resolved.name} card in our English catalogue, starting with{" "}
+              {coverageFacts.earliestSet}, the earliest dated set we track, and organised by era and set
+              with its collector number, rarity and recent-sold market reference — plus any live
+              below-market eBay deals.
             </p>
           ) : (
-            <DealGrid
-              kind="species"
-              slug={slug}
-              basePath={basePath}
-              initial={{ deals, totalPages }}
-              hubCounts={hubCounts}
-              defaultSort="discount"
-              subjectLabel={resolved.name}
-              emptyLabel={`No ${resolved.name} deals match these filters right now. Try clearing a filter, or check back after the next scheduled scan.`}
-              validSetSlugs={validSetSlugs}
-            />
+            <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
+              Every {resolved.name} card we track across {priceSnapshot.setCount}{" "}
+              {priceSnapshot.setCount === 1 ? "catalogue set" : "catalogue sets"}, with real recent-sold
+              market references. Compare prices and values, see the most valuable {resolved.name} cards,
+              and check the qualifying below-market eBay offers in the deals section.
+            </p>
           )}
+          <SpeciesFactStrip speciesName={resolved.name} />
+          {/* Two distinct populations, labelled as such: the CATALOGUE
+              (every card we track, and the sets it spans) and, separately,
+              the count of cards that have a LIVE below-market deal right
+              now. The deal count is the exact deduped, display-gated tile
+              count from fetchSpeciesDealStats - the same canonical
+              membership + dedupe the deal grid uses - so "N cards with a
+              live deal" always matches the grid (13B.3.2). The grid
+              collapses multiple listings of one card to one tile, so this
+              is a CARD count, not a listing count (Phase 12C:
+              listing != card). */}
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            <p className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+              {allCards.length} cards · {priceSnapshot.setCount}{" "}
+              {priceSnapshot.setCount === 1 ? "catalogue set" : "catalogue sets"}
+              {dealStats.dealCards > 0
+                ? ` · ${dealStats.dealCards} card${dealStats.dealCards === 1 ? "" : "s"} with a live deal`
+                : ""}
+            </p>
+            <ShoppingContext />
+          </div>
         </section>
 
         {/* Species-level price snapshot (real catalogue references, never

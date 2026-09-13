@@ -56,10 +56,17 @@ function RegionRedirectInner() {
     const next = new URLSearchParams(searchParams);
     next.set("country", target);
     next.delete("page");
-    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
-    // Let the header control re-read the now-applied region.
-    window.dispatchEvent(new Event("pdf:region"));
+    // A visitor may have chosen a checklist/card-list anchor while the
+    // geo response was arriving. Changing the default region must keep it.
+    router.replace(`${pathname}?${next.toString()}${window.location.hash}`, { scroll: false });
   }, [pathname, searchParams, router, detected]);
+
+  // router.replace commits asynchronously. Notify URL-based controls only
+  // after the country is in the committed URL, not while it still contains
+  // the previous unfiltered query (especially during a fragment jump).
+  useEffect(() => {
+    if (searchParams.has("country")) window.dispatchEvent(new Event("pdf:region"));
+  }, [searchParams]);
 
   return null;
 }
