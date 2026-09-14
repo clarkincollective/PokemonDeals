@@ -4542,3 +4542,54 @@ This entry, `tests/db/quarantine-durability-concurrency.mjs` and the applied hol
 - The GitHub repository secrets `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY` and `BUFFER_ACCESS_TOKEN` could not be verified from here.
 - **Content supply:** the evidence-backed families currently yield a few posts per platform per week, not two per day. Weekly market snapshot, plus live-deal families only when listings pass the identity gates.
 - **TikTok/YouTube recurrence:** the video assembly and publish are not yet in a scheduled job.
+
+## Social autopilot activation (SOCIAL-LIVE-3), 2026-09-14
+
+**All four feeds are on autopilot:** Instagram, X, TikTok and YouTube Shorts, with no owner PC or manual step.
+
+**Pipeline:**
+1. **Render worker:** GitHub Actions `social-autopilot.yml`, 03:15 and 15:15 Brisbane.
+   - Keeps the next 48 h of slots reserved with 2 distinct stories a day.
+   - Each story becomes a 4:5 image (IG + X) and a 9:16 short (TikTok + YouTube).
+   - Renders over a reusable library of 3 safety-scanned OpenAI backgrounds.
+   - Layer-5 review must PASS; assets are hosted by hash.
+   - Placements are written as `AUTOPILOT_READY`.
+2. **Queue:** Vercel cron `/api/social-autopilot-queue` hourly at :25.
+   - Checks the circuit and the backlog enable/mode flags.
+   - Verifies Buffer channel identity.
+   - Sets the `BUFFER_SUBMITTING` marker, creates the Buffer scheduled post, then marks it `BUFFER_QUEUED`.
+3. **Health:** Vercel cron `/api/social-health` every 2 h.
+   - Reconciles due posts against Buffer.
+   - Checks each post is public on the right account (YouTube/TikTok oEmbed, X syndication, Instagram og:url).
+   - Flags empty slots in the next 24 h, stuck submits and provider failures.
+   - Sends a debounced email.
+- **Why the split:** GitHub secret writes were not permitted. Buffer/Resend credentials therefore stay in the Vercel production env; GitHub only uses its existing Supabase/OpenAI secrets.
+
+**Production env** (set with the owner's Vercel CLI session, project `pokemon-deals`, Production):
+- `SOCIAL_BUFFER_BACKLOG_ENABLED=true`
+- `SOCIAL_BUFFER_BACKLOG_MODE=scheduled`
+- `SOCIAL_ALERT_EMAIL` = the owner's account email
+
+A startup check (`?check=1`) confirmed: 4/4 channels usable, Resend and recipient configured, kill flag off.
+
+**Alert delivery verified:** a test alert (Resend id `06ca0951-…`) arrived in the owner's Gmail inbox at 20:19 AEST.
+
+**Story bank:**
+- 5 guide tips with verified guide cards.
+- 16 checklist sets, 20 set spotlights and 20 species spotlights.
+- Market references are dated Near Mint, English, non-specialty and never labelled sales.
+- Edition-ambiguous WOTC prices are never shown.
+- A "three highest" claim never substitutes a card; the story waits instead.
+- Cooldowns: 90 days per statistic, 21 days per card.
+
+**Duplicate protection:** `slotsBooked` is shared by Stage B and the autopilot, so no feed slot is double-booked. Stage B also gained occupancy checks.
+
+**Bootstrap:** 16 posts queued in Buffer (4 stories × 4 feeds), 15 Sep 08:00 → 16 Sep 20:00 AEST, all read back as `scheduled`.
+
+**Caught before queueing:** the Gardevoir "three highest" story had a substituted card. Its 4 reservations were superseded and replaced (Base Set 2 checklist), and the rule was fixed.
+
+**Cost:**
+- One-time: ~$0.60 for the background library.
+- Recurring: ~1 vision review per new story, about $0.02/day. GitHub Actions minutes are free on the public repo; Vercel crons run within the existing plan.
+
+**Emergency pause:** `node scripts/socialBacklogCircuit.mjs suspend`. It stops queueing and flags health.
