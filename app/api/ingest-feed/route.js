@@ -35,6 +35,7 @@ import {
   AVAILABILITY_RETIREMENT,
   isAvailabilityRetired,
   writeDiscoverySighting,
+  retireForAvailability,
   retirementInvalidationPlan,
   expireTags,
 } from "@/lib/listingAvailability";
@@ -283,16 +284,14 @@ export async function GET(request) {
       // verification (no cross-market propagation).
       if (listing.soldOut === true) {
         counts.soldOnLookup = (counts.soldOnLookup ?? 0) + 1;
-        const { data: retired, error: retireError } = await db
-          .from("deals")
-          .update({
-            is_active: false,
-            disqualified_reason: AVAILABILITY_RETIREMENT.SOLD,
-            exact_verified_at: new Date().toISOString(),
-          })
-          .match({ source: "ebay", marketplace: listing.marketplace, listing_id: listing.listingId })
-          .eq("is_active", true)
-          .select("id, watchlist_id, card_tcgplayer_id");
+        // Integrity follow-up r2: never replaces an identity quarantine /
+        // review hold / quality reason (see lib/listingAvailability).
+        const { retired, error: retireError } = await retireForAvailability(db, {
+          key: { source: "ebay", marketplace: listing.marketplace, listing_id: listing.listingId },
+          reason: AVAILABILITY_RETIREMENT.SOLD,
+          patch: { exact_verified_at: new Date().toISOString() },
+          onlyActive: true,
+        });
         if (!retireError) retiredRows.push(...(retired ?? []));
         logFeed(false);
         continue;

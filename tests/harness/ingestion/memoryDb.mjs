@@ -54,7 +54,10 @@ export function createMemoryDb(seed = {}) {
       neq: (c, v) => add((r) => str(r[c]) !== str(v)),
       in: (c, arr) => add((r) => (arr ?? []).map(str).includes(str(r[c]))),
       is: (c, v) => add((r) => (v === null ? r[c] == null : r[c] === v)),
-      not: (c, op, v) => add((r) => (op === "is" && v === null ? r[c] != null : !(str(r[c]) === str(v)))),
+      not: (c, op, v) =>
+        add((r) =>
+          op === "is" && v === null ? r[c] != null : op === "like" ? !(r[c] != null && likeToRe(v).test(String(r[c]))) : !(str(r[c]) === str(v))
+        ),
       lt: (c, v) => add((r) => cmp(r[c], v) < 0),
       lte: (c, v) => add((r) => cmp(r[c], v) <= 0),
       gt: (c, v) => add((r) => cmp(r[c], v) > 0),

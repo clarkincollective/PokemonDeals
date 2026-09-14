@@ -18,6 +18,7 @@ import {
   RECOVERY_MIN_HOURS_SINCE_CHECK,
   RECOVERY_MAX_AGE_DAYS,
   availabilityRetirementReason,
+  retireForAvailability,
   recoveryDecision,
   retirementInvalidationPlan,
   expireTags,
@@ -379,8 +380,12 @@ export async function GET(request) {
       const patch = exactColReady
         ? { ...auctionRetireExtra, is_active: false, exact_verified_at: checkedAt }
         : { is_active: false };
-      if (reason) patch.disqualified_reason = reason;
-      const { error: retireError } = await db.from("deals").update(patch).eq("id", r.id);
+      // Integrity follow-up r2: SOLD / ENDED go through the guarded helper,
+      // so a reason set since this row was read (identity quarantine,
+      // review hold) is never replaced. RETIRED carries no reason.
+      const { error: retireError } = reason
+        ? await retireForAvailability(db, { key: { id: r.id }, reason, patch })
+        : await db.from("deals").update(patch).eq("id", r.id);
       if (retireError) cardWriteErrors++;
       else retiredRows.push(r);
     } else if (status === "ACTIVE") {

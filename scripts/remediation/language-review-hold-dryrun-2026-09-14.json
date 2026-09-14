@@ -1,0 +1,113 @@
+{
+ "at": "2026-09-14T04:44:29.243Z",
+ "plan": [
+  {
+   "dealId": 37466,
+   "ebayListingId": "v1|407208983236|0",
+   "marketplace": "EBAY_IT",
+   "title": "Carta Pokemon Card Misty's Tentacruel Tentoxa Gym Heroes Holo Wotc giapponese Exc+",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "cardLanguage": "english"
+   },
+   "decision": "hold",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "review:language_unverified"
+    },
+    "guard": {
+     "id": 37466,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|407208983236|0",
+     "marketplace": "EBAY_IT",
+     "card_tcgplayer_id": "87552",
+     "card_language": "english"
+    }
+   }
+  },
+  {
+   "dealId": 37973,
+   "ebayListingId": "v1|407214124375|0",
+   "marketplace": "EBAY_IT",
+   "title": "Carta Pokemon Card Skarmory Panzaeron Neo Genesis Gsnw Holo Wotc giapponese NM-",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "cardLanguage": "english"
+   },
+   "decision": "hold",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "review:language_unverified"
+    },
+    "guard": {
+     "id": 37973,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|407214124375|0",
+     "marketplace": "EBAY_IT",
+     "card_tcgplayer_id": "89232",
+     "card_language": "english"
+    }
+   }
+  },
+  {
+   "dealId": 37974,
+   "ebayListingId": "v1|407214124297|0",
+   "marketplace": "EBAY_IT",
+   "title": "Carta Pokemon Card Blubella Bellossom Neo Genesis 2000 Holo Wotc giapponese ecc",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "cardLanguage": "english"
+   },
+   "decision": "hold",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "review:language_unverified"
+    },
+    "guard": {
+     "id": 37974,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|407214124297|0",
+     "marketplace": "EBAY_IT",
+     "card_tcgplayer_id": "83795",
+     "card_language": "english"
+    }
+   }
+  },
+  {
+   "dealId": 37975,
+   "ebayListingId": "v1|407214124323|0",
+   "marketplace": "EBAY_IT",
+   "title": "Carta Pokemon Card Togetic Neo Genesis 2000 Gsnw Holo Wotc giapponese NM- Swirl",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "cardLanguage": "english"
+   },
+   "decision": "hold",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "review:language_unverified"
+    },
+    "guard": {
+     "id": 37975,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|407214124323|0",
+     "marketplace": "EBAY_IT",
+     "card_tcgplayer_id": "89939",
+     "card_language": "english"
+    }
+   }
+  }
+ ]
+}

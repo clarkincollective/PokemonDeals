@@ -1,0 +1,50 @@
+-- DATA CORRECTION - language REVIEW HOLD - PROPOSED, NOT APPROVED.
+-- Do not run without explicit owner approval. Equivalent to
+-- scripts/remediation/languageReviewHold.mjs --apply (the preferred path: it
+-- re-checks each row against the reviewed manifest and saves prior values
+-- before writing). Deploy integrity follow-up r2 FIRST, so an availability
+-- retirement cannot later replace the hold.
+--
+-- Rows: the 4 EBAY_IT listings held back from the language-mismatch
+-- quarantine as uncertain (seller lowil-2781, item location DE). Titles say
+-- "giapponese" but also carry German card names, the German set abbreviation
+-- "Gsnw" and "Wotc"; the print language is NOT established. They are shown
+-- today against an English identity and English market reference.
+--
+-- This is a hold, not a finding: it records no language and changes no
+-- identity. Mechanism: the existing exclusion column (any non-null
+-- disqualified_reason fails isDisplayableDeal). is_active, identity, prices
+-- and timestamps are NOT changed.
+--
+-- Prior value for every row below: disqualified_reason = NULL, is_active = true.
+--
+-- Pre-check (expect exactly 4 rows, all is_active = true, disqualified_reason NULL):
+--
+-- select id, listing_id, marketplace, card_language, card_tcgplayer_id, is_active, disqualified_reason, title
+--   from deals where id in (37466, 37973, 37974, 37975);
+--
+-- Statement (run only on explicit approval, inside a transaction; expected: 4 rows):
+--
+-- begin;
+-- update deals
+--    set disqualified_reason = 'review:language_unverified'
+--  where is_active = true
+--    and disqualified_reason is null
+--    and card_language = 'english'
+--    and (id, listing_id, marketplace, card_tcgplayer_id) in (
+--      (37466, 'v1|407208983236|0', 'EBAY_IT', '87552'),   -- "... Misty's Tentacruel Tentoxa Gym Heroes Holo Wotc giapponese Exc+"
+--      (37973, 'v1|407214124375|0', 'EBAY_IT', '89232'),   -- "... Skarmory Panzaeron Neo Genesis Gsnw Holo Wotc giapponese NM-"
+--      (37974, 'v1|407214124297|0', 'EBAY_IT', '83795'),   -- "... Blubella Bellossom Neo Genesis 2000 Holo Wotc giapponese ecc"
+--      (37975, 'v1|407214124323|0', 'EBAY_IT', '89939')    -- "... Togetic Neo Genesis 2000 Gsnw Holo Wotc giapponese NM- Swirl"
+--    )
+-- returning id, disqualified_reason, is_active;
+-- -- expect exactly 4 rows returned; otherwise: rollback;
+-- commit;
+--
+-- Release / rollback (restores the prior NULL only where the hold is still present; never touches is_active):
+--
+-- update deals
+--    set disqualified_reason = null
+--  where id in (37466, 37973, 37974, 37975)
+--    and disqualified_reason = 'review:language_unverified'
+-- returning id;

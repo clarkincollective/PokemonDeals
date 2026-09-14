@@ -461,9 +461,12 @@ test("SIF-18. ingest-feed: known-retired items skip the lookup; a sold-out looku
   const soldIdx = code.indexOf("listing.soldOut === true");
   assert.ok(soldIdx > 0 && soldIdx < code.indexOf("qualifiesAsTradingCard(listing)"), "sold-out check runs before any gate");
   const soldBlock = code.slice(soldIdx, code.indexOf("continue;", soldIdx));
-  assert.match(soldBlock, /disqualified_reason: AVAILABILITY_RETIREMENT\.SOLD/);
-  assert.match(soldBlock, /\.match\(\{ source: "ebay", marketplace: listing\.marketplace, listing_id: listing\.listingId \}\)/);
-  assert.match(soldBlock, /\.eq\("is_active", true\)/);
+  // Integrity follow-up r2: the same retirement through the guarded helper
+  // (never replaces an identity quarantine / review hold).
+  assert.match(soldBlock, /retireForAvailability\(db, \{/);
+  assert.match(soldBlock, /reason: AVAILABILITY_RETIREMENT\.SOLD/);
+  assert.match(soldBlock, /key: \{ source: "ebay", marketplace: listing\.marketplace, listing_id: listing\.listingId \}/);
+  assert.match(soldBlock, /onlyActive: true/);
   assert.doesNotMatch(code, /\.from\("deals"\)\.upsert\(/, "no unguarded deal upsert remains");
 });
 
@@ -480,7 +483,9 @@ test("SIF-20. verify-deals persists the reason on SOLD / ENDED only, per row, an
   const src = read("app/api/verify-deals/route.js");
   const code = stripComments(src);
   assert.match(code, /const reason = availabilityRetirementReason\(status\);/);
-  assert.match(code, /if \(reason\) patch\.disqualified_reason = reason;/);
+  // Integrity follow-up r2: SOLD / ENDED persist the reason through the
+  // guarded helper, per row id; the no-reason (RETIRED) write is unchanged.
+  assert.match(code, /await retireForAvailability\(db, \{ key: \{ id: r\.id \}, reason, patch \}\)/);
   assert.match(code, /await db\.from\("deals"\)\.update\(patch\)\.eq\("id", r\.id\)/);
   assert.doesNotMatch(code, /\.in\("listing_id"|\.eq\("listing_id"/, "no write keyed by listing id (would reach other marketplaces)");
   assert.match(code, /const BATCH = 20;/);

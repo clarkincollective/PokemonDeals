@@ -4323,3 +4323,76 @@ All four come from one German seller (lowil-2781) and carry German-print markers
 Graded optimisation `257e221`, retention and recovery remain inactive. No scanner, allocator, quota, newsletter or social change. **Not every integrity issue is resolved.**
 
 This entry is a local-only commit on `language-quarantine-r1`, **not pushed**.
+
+### Integrity follow-up r2 (2026-09-14): quarantine durability + language review hold (LOCAL, NOT DEPLOYED, NOT APPLIED)
+
+**Scope.** Bounded to two items. No scanner redesign, matcher change, paid call, optimisation, retention or recovery activation.
+
+**A. Availability updates must not replace, and later clear, identity quarantines.**
+
+*Demonstrated path (pre-r2):*
+1. `ingest-feed`'s sold-on-lookup write matched `(source, marketplace, listing_id)` + `is_active=true` and set `disqualified_reason = availability:sold` with no reason guard. On an identity-quarantined row that replaced the quarantine.
+2. A later discovery sighting marked it `availability:sold:seen_again`.
+3. `verify-deals` recovery then selected it as an ordinary candidate and, on a price-matching ACTIVE verdict, reactivated it with `disqualified_reason = NULL`, re-publishing the wrong identity. This is reproduced in IF2-1 on the applied collector-number row 37357.
+
+`verify-deals`' SOLD/ENDED write had the same flaw between reading a candidate and writing.
+
+*Production state (read-only, 04:4xZ):* all 23 collector-number rows and all 3 language rows still carry their identity reasons. The risk is latent, not yet realised.
+
+*Fix:* `lib/listingAvailability.retireForAvailability`, used by both card writers.
+- **Statement 1** sets `is_active=false` plus the availability reason only where the reason is NULL or already `availability:*`.
+- **Statement 2** sets `is_active=false` (same stamps) without touching the reason, where any other reason is present. This covers identity quarantines, `review:*` holds and quality exclusions.
+- Recovery still only selects exact seen-again markers, so a preserved quarantine can never enter it.
+- The PostgREST filter shapes (`or(disqualified_reason.is.null, disqualified_reason.like."availability:*")` and `.not(is null)` + `.not(like "availability:*")`) were validated read-only against production.
+- Ordinary availability retirement and recovery are unchanged.
+- The RETIRED (auction price) path is unchanged.
+- **Sealed lane:** not changed. `sealed_deals` currently holds only availability reasons (read-only check).
+- **Test harness:** `memoryDb.not(…, "like", …)` now supported.
+
+**B. Reversible review hold for the four uncertain listings.**
+
+Rows: 37466, 37973, 37974, 37975 (EBAY_IT, seller lowil-2781, DE).
+
+- **Mechanism:** `scripts/remediation/languageReviewHold.mjs` plus `language-review-hold-manifest.json` set `disqualified_reason = 'review:language_unverified'`. It asserts no language and changes no identity, `is_active`, price or timestamp.
+- **Guards:** the same as the applied quarantines (id, `is_active=true`, reason NULL, listing, marketplace, `card_tcgplayer_id`, `card_language='english'`, title unchanged). `--confirm` must equal the eligible count, and prior values are saved first.
+- **Release:** the rollback restores NULL only where the hold is still present.
+- **SQL equivalent:** `supabase/data_corrections/2026-09-14_language_review_hold.sql`.
+- **Read-only dry run** (`scripts/remediation/language-review-hold-dryrun-2026-09-14.json`): **4 hold, 0 skip**. Expected rows: 4. Prior values: NULL / active.
+
+**Ordering if approved:**
+1. Deploy r2.
+2. Confirm READY.
+3. Dry-run and apply the hold.
+
+The hold is durable only once r2 is live.
+
+**Tests.**
+
+`tests/scanner/integrity-followup-r2.test.mjs`: **13/13**.
+- **IF2-1:** the pre-r2 overwrite-then-clear defect, end to end.
+- **IF2-2:** all 26 applied quarantined rows survive a feed sold lookup, a sighting and a verifier ENDED/SOLD: retired, reason intact, never a recovery candidate, never displayable.
+- **IF2-3:** the read-then-quarantined verifier race.
+- **IF2-4:** ordinary rows and recovery unchanged.
+- **IF2-5:** quality reasons and review holds are preserved, and non-availability reasons are refused.
+- **IF2-6:** both writers are wired to the helper, and no unguarded availability-reason write remains in them.
+- **IRH-1 to IRH-7:** hold manifest, plan 4/0, apply and confirm, guards, release, hold durability under r2, and All deals dropping exactly the 4 rows.
+
+**Updated pins:**
+- `sold-item-freshness` SIF-18 and SIF-20: the same writes, now through the helper.
+- `ebay-14q-quota-optimization` 14Q-8: still passing after restructuring to a single write expression.
+
+**Checks:**
+
+| Check | Result |
+|---|---|
+| Scanner suite | 3,381 tests: 3,335 pass, **24 fail (identical baseline set)**, 22 skipped |
+| `next build` | exit 0 |
+| ESLint, changed files | clean |
+| `tests/db/*concurrency*` | not run (needs a live Postgres) |
+
+**Still open after r2:**
+- The localized-language matcher gap (separate follow-up).
+- The four uncertain listings, until the hold is approved and applied, and their print language after that.
+- Any identity issue not yet identified.
+
+This commit is local on `integrity-followup-r2`, **not pushed or deployed**.
