@@ -1,0 +1,124 @@
+{
+ "deployment": "dpl_CT3ASTzEiBqhaGSBa3FzYiuB5kbK",
+ "releaseSha": "ca181441edfe17d65c4cf6b6520b5ff8b7817a4f",
+ "command": "node scripts/remediation/integrityR1Quarantine.mjs --apply --confirm=23 --prior-out=<prior file>",
+ "expected": 23,
+ "written": 23,
+ "results": [
+  {
+   "dealId": 33696,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 34031,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 34467,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 35264,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37241,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37248,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37357,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37358,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37360,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37494,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37508,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37512,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37537,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37548,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37561,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37743,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37752,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37753,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37788,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37797,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37910,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37947,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37949,
+   "updated": 1,
+   "error": null
+  }
+ ]
+}

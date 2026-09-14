@@ -1,0 +1,737 @@
+{
+ "at": "2026-09-14T02:53:53.226Z",
+ "plan": [
+  {
+   "dealId": 33696,
+   "ebayListingId": "v1|278303338612|0",
+   "marketplace": "EBAY_US",
+   "confidence": "high",
+   "conflictKind": "subset",
+   "title": "Deoxys VSTAR GG46/GG70 SWSH: Crown Zenith: Galarian Gallery Holo",
+   "storedAs": "Deoxys VMAX | SWSH: Crown Zenith: Galarian Gallery | #GG45/GG70",
+   "evidence": "title GG46/GG70 (Deoxys VSTAR) vs stored GG45/GG70 (Deoxys VMAX)",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "GG45/GG70"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 33696,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|278303338612|0",
+     "marketplace": "EBAY_US",
+     "card_tcgplayer_id": "477354"
+    }
+   }
+  },
+  {
+   "dealId": 34031,
+   "ebayListingId": "v1|188891932883|0",
+   "marketplace": "EBAY_CA",
+   "confidence": "high",
+   "conflictKind": "subset",
+   "title": "Pikachu VMAX (Secret) Ultra Rare SWSH11: Lost Origin Trainer Gallery TG29/TG30",
+   "storedAs": "Pikachu VMAX | SWSH11: Lost Origin Trainer Gallery | #TG17/TG30",
+   "evidence": "title TG29/TG30 (Pikachu VMAX secret) vs stored TG17/TG30",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "TG17/TG30"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 34031,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|188891932883|0",
+     "marketplace": "EBAY_CA",
+     "card_tcgplayer_id": "284283"
+    }
+   }
+  },
+  {
+   "dealId": 34467,
+   "ebayListingId": "v1|366211592992|0",
+   "marketplace": "EBAY_GB",
+   "confidence": "high",
+   "conflictKind": "set-number-vs-promo",
+   "title": "Magikarp Promo XY Generations 20th Anniversary Card 22/83 NM Holo Sealed ",
+   "storedAs": "Magikarp | XY Promos | #XY143",
+   "evidence": "title Generations 22/83 vs stored XY Promos XY143",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "XY143"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 34467,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|366211592992|0",
+     "marketplace": "EBAY_GB",
+     "card_tcgplayer_id": "116779"
+    }
+   }
+  },
+  {
+   "dealId": 35264,
+   "ebayListingId": "v1|278303338612|0",
+   "marketplace": "EBAY_AU",
+   "confidence": "high",
+   "conflictKind": "subset",
+   "title": "Deoxys VSTAR GG46/GG70 SWSH: Crown Zenith: Galarian Gallery Holo",
+   "storedAs": "Deoxys VMAX | SWSH: Crown Zenith: Galarian Gallery | #GG45/GG70",
+   "evidence": "title GG46/GG70 (Deoxys VSTAR) vs stored GG45/GG70 (Deoxys VMAX)",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "GG45/GG70"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 35264,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|278303338612|0",
+     "marketplace": "EBAY_AU",
+     "card_tcgplayer_id": "477354"
+    }
+   }
+  },
+  {
+   "dealId": 37241,
+   "ebayListingId": "v1|407211076200|0",
+   "marketplace": "EBAY_US",
+   "confidence": "high",
+   "conflictKind": "subset",
+   "title": "Deoxys VSTAR GG46/GG70 SWSH: Crown Zenith: Galarian Gallery Holo",
+   "storedAs": "Deoxys VMAX | SWSH: Crown Zenith: Galarian Gallery | #GG45/GG70",
+   "evidence": "title GG46/GG70 (Deoxys VSTAR) vs stored GG45/GG70 (Deoxys VMAX)",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "GG45/GG70"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37241,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|407211076200|0",
+     "marketplace": "EBAY_US",
+     "card_tcgplayer_id": "477354"
+    }
+   }
+  },
+  {
+   "dealId": 37248,
+   "ebayListingId": "v1|178489674337|0",
+   "marketplace": "EBAY_US",
+   "confidence": "high",
+   "conflictKind": "promo-number-vs-set",
+   "title": "Detective Pikachu Holofoil SMP SM190 Framestore NM",
+   "storedAs": "Detective Pikachu | Detective Pikachu | #10/18",
+   "evidence": "title SM Black Star promo SM190 (\"SMP SM190\") vs stored Detective Pikachu set 10/18",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "10/18"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37248,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|178489674337|0",
+     "marketplace": "EBAY_US",
+     "card_tcgplayer_id": "186015"
+    }
+   }
+  },
+  {
+   "dealId": 37357,
+   "ebayListingId": "v1|147389881431|0",
+   "marketplace": "EBAY_CA",
+   "confidence": "high",
+   "conflictKind": "subset",
+   "title": "Pikachu TG05/TG30 Swsh11: Lost Origin Trainer Gallery Holo",
+   "storedAs": "Pikachu V | SWSH11: Lost Origin Trainer Gallery | #TG16/TG30",
+   "evidence": "title TG05/TG30 (Pikachu) vs stored TG16/TG30 (Pikachu V)",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "TG16/TG30"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37357,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|147389881431|0",
+     "marketplace": "EBAY_CA",
+     "card_tcgplayer_id": "284278"
+    }
+   }
+  },
+  {
+   "dealId": 37358,
+   "ebayListingId": "v1|287498863281|0",
+   "marketplace": "EBAY_CA",
+   "confidence": "high",
+   "conflictKind": "subset",
+   "title": "Pikachu Tg05/Tg30 Swsh11: Lost Origin Trainer Gallery Holo",
+   "storedAs": "Pikachu V | SWSH11: Lost Origin Trainer Gallery | #TG16/TG30",
+   "evidence": "title TG05/TG30 (Pikachu) vs stored TG16/TG30 (Pikachu V)",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "TG16/TG30"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37358,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|287498863281|0",
+     "marketplace": "EBAY_CA",
+     "card_tcgplayer_id": "284278"
+    }
+   }
+  },
+  {
+   "dealId": 37360,
+   "ebayListingId": "v1|407094601596|0",
+   "marketplace": "EBAY_CA",
+   "confidence": "high",
+   "conflictKind": "subset",
+   "title": "Pikachu VMAX TG17/TG30 Swsh11: Lost Origin Trainer Gallery Holo",
+   "storedAs": "Pikachu V | SWSH11: Lost Origin Trainer Gallery | #TG16/TG30",
+   "evidence": "title TG17/TG30 (Pikachu VMAX) vs stored TG16/TG30 (Pikachu V)",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "TG16/TG30"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37360,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|407094601596|0",
+     "marketplace": "EBAY_CA",
+     "card_tcgplayer_id": "284278"
+    }
+   }
+  },
+  {
+   "dealId": 37494,
+   "ebayListingId": "v1|206552503131|0",
+   "marketplace": "EBAY_US",
+   "confidence": "high",
+   "conflictKind": "subset",
+   "title": "Mimikyu VMAX TG17/TG30 Swsh09: Brilliant Stars Trainer Gallery Holomi",
+   "storedAs": "Mimikyu V | SWSH09: Brilliant Stars Trainer Gallery | #TG16/TG30",
+   "evidence": "title TG17/TG30 (Mimikyu VMAX) vs stored TG16/TG30 (Mimikyu V)",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "TG16/TG30"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37494,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|206552503131|0",
+     "marketplace": "EBAY_US",
+     "card_tcgplayer_id": "264221"
+    }
+   }
+  },
+  {
+   "dealId": 37508,
+   "ebayListingId": "v1|287582558535|0",
+   "marketplace": "EBAY_US",
+   "confidence": "high",
+   "conflictKind": "subset",
+   "title": "Deoxys Holo Ultra Rare SWSH: Crown Zenith: Galarian Gallery GG12/GG70 NM",
+   "storedAs": "Deoxys VMAX | SWSH: Crown Zenith: Galarian Gallery | #GG45/GG70",
+   "evidence": "title GG12/GG70 (Deoxys) vs stored GG45/GG70 (Deoxys VMAX)",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "GG45/GG70"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37508,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|287582558535|0",
+     "marketplace": "EBAY_US",
+     "card_tcgplayer_id": "477354"
+    }
+   }
+  },
+  {
+   "dealId": 37512,
+   "ebayListingId": "v1|287582558535|0",
+   "marketplace": "EBAY_AU",
+   "confidence": "high",
+   "conflictKind": "subset",
+   "title": "Deoxys Holo Ultra Rare SWSH: Crown Zenith: Galarian Gallery GG12/GG70 NM",
+   "storedAs": "Deoxys VMAX | SWSH: Crown Zenith: Galarian Gallery | #GG45/GG70",
+   "evidence": "title GG12/GG70 (Deoxys) vs stored GG45/GG70 (Deoxys VMAX)",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "GG45/GG70"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37512,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|287582558535|0",
+     "marketplace": "EBAY_AU",
+     "card_tcgplayer_id": "477354"
+    }
+   }
+  },
+  {
+   "dealId": 37537,
+   "ebayListingId": "v1|198637134387|0",
+   "marketplace": "EBAY_IT",
+   "confidence": "high",
+   "conflictKind": "set-number-vs-promo",
+   "title": "Genesect EX XY - Fates Collide #64/124",
+   "storedAs": "Genesect | XY Promos | #XY119",
+   "evidence": "title Fates Collide #64/124 vs stored XY Promos XY119",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "XY119"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37537,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|198637134387|0",
+     "marketplace": "EBAY_IT",
+     "card_tcgplayer_id": "125322"
+    }
+   }
+  },
+  {
+   "dealId": 37548,
+   "ebayListingId": "v1|800651838014|0",
+   "marketplace": "EBAY_US",
+   "confidence": "high",
+   "conflictKind": "subset",
+   "title": "Deoxys VSTAR GG46/GG70 SWSH: Crown Zenith: Galarian Gallery Holo",
+   "storedAs": "Deoxys VMAX | SWSH: Crown Zenith: Galarian Gallery | #GG45/GG70",
+   "evidence": "title GG46/GG70 (Deoxys VSTAR) vs stored GG45/GG70 (Deoxys VMAX)",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "GG45/GG70"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37548,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|800651838014|0",
+     "marketplace": "EBAY_US",
+     "card_tcgplayer_id": "477354"
+    }
+   }
+  },
+  {
+   "dealId": 37561,
+   "ebayListingId": "v1|178490933774|0",
+   "marketplace": "EBAY_US",
+   "confidence": "high",
+   "conflictKind": "subset",
+   "title": "Deoxys Holo Ultra Rare SWSH: Crown Zenith: Galarian Gallery GG12/GG70 NM",
+   "storedAs": "Deoxys VMAX | SWSH: Crown Zenith: Galarian Gallery | #GG45/GG70",
+   "evidence": "title GG12/GG70 (Deoxys) vs stored GG45/GG70 (Deoxys VMAX)",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "GG45/GG70"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37561,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|178490933774|0",
+     "marketplace": "EBAY_US",
+     "card_tcgplayer_id": "477354"
+    }
+   }
+  },
+  {
+   "dealId": 37743,
+   "ebayListingId": "v1|137732002135|0",
+   "marketplace": "EBAY_US",
+   "confidence": "high",
+   "conflictKind": "set-number-vs-promo",
+   "title": "Shaymin EX (106 Full Art) XY - Roaring Skies [106/108] UR Holofoil NM Pokemon",
+   "storedAs": "Shaymin EX | XY Promos | #XY148",
+   "evidence": "title Roaring Skies 106/108 vs stored XY Promos XY148",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "XY148"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37743,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|137732002135|0",
+     "marketplace": "EBAY_US",
+     "card_tcgplayer_id": "121947"
+    }
+   }
+  },
+  {
+   "dealId": 37752,
+   "ebayListingId": "v1|147389881431|0",
+   "marketplace": "EBAY_AU",
+   "confidence": "high",
+   "conflictKind": "subset",
+   "title": "Pikachu TG05/TG30 Swsh11: Lost Origin Trainer Gallery Holo",
+   "storedAs": "Pikachu V | SWSH11: Lost Origin Trainer Gallery | #TG16/TG30",
+   "evidence": "title TG05/TG30 (Pikachu) vs stored TG16/TG30 (Pikachu V)",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "TG16/TG30"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37752,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|147389881431|0",
+     "marketplace": "EBAY_AU",
+     "card_tcgplayer_id": "284278"
+    }
+   }
+  },
+  {
+   "dealId": 37753,
+   "ebayListingId": "v1|287498863281|0",
+   "marketplace": "EBAY_AU",
+   "confidence": "high",
+   "conflictKind": "subset",
+   "title": "Pikachu Tg05/Tg30 Swsh11: Lost Origin Trainer Gallery Holo",
+   "storedAs": "Pikachu V | SWSH11: Lost Origin Trainer Gallery | #TG16/TG30",
+   "evidence": "title TG05/TG30 (Pikachu) vs stored TG16/TG30 (Pikachu V)",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "TG16/TG30"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37753,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|287498863281|0",
+     "marketplace": "EBAY_AU",
+     "card_tcgplayer_id": "284278"
+    }
+   }
+  },
+  {
+   "dealId": 37788,
+   "ebayListingId": "v1|366666393554|0",
+   "marketplace": "EBAY_CA",
+   "confidence": "high",
+   "conflictKind": "subset",
+   "title": "Mimikyu VMAX TG17/TG30 SWSH09 Brilliant Stars Trainer Gallery Holo 2022",
+   "storedAs": "Mimikyu V | SWSH09: Brilliant Stars Trainer Gallery | #TG16/TG30",
+   "evidence": "title TG17/TG30 (Mimikyu VMAX) vs stored TG16/TG30 (Mimikyu V)",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "TG16/TG30"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37788,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|366666393554|0",
+     "marketplace": "EBAY_CA",
+     "card_tcgplayer_id": "264221"
+    }
+   }
+  },
+  {
+   "dealId": 37797,
+   "ebayListingId": "v1|366666393554|0",
+   "marketplace": "EBAY_DE",
+   "confidence": "high",
+   "conflictKind": "subset",
+   "title": "Mimikyu VMAX TG17/TG30 SWSH09 Brilliant Stars Trainer Gallery Holo 2022",
+   "storedAs": "Mimikyu V | SWSH09: Brilliant Stars Trainer Gallery | #TG16/TG30",
+   "evidence": "title TG17/TG30 (Mimikyu VMAX) vs stored TG16/TG30 (Mimikyu V)",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "TG16/TG30"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37797,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|366666393554|0",
+     "marketplace": "EBAY_DE",
+     "card_tcgplayer_id": "264221"
+    }
+   }
+  },
+  {
+   "dealId": 37907,
+   "ebayListingId": "v1|188925760161|0",
+   "marketplace": "EBAY_US",
+   "confidence": "uncertain",
+   "conflictKind": "promo-number-vs-set",
+   "title": "Feraligatr Prime HGSS07 Heartgold Soulsilver NM",
+   "storedAs": "Feraligatr (Prime) | HeartGold SoulSilver | #108/123",
+   "evidence": "title \"HGSS07\" vs stored HeartGold SoulSilver 108/123; title also says \"Prime\" and names the set - possible seller mislabel; excluded from mutation",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "108/123"
+   },
+   "decision": "review",
+   "why": "uncertain - never mutated by this script"
+  },
+  {
+   "dealId": 37910,
+   "ebayListingId": "v1|407213974189|0",
+   "marketplace": "EBAY_US",
+   "confidence": "high",
+   "conflictKind": "promo-number-vs-set",
+   "title": "Vintage Detective Pikachu SM190 Sm Holo",
+   "storedAs": "Detective Pikachu | Detective Pikachu | #10/18",
+   "evidence": "title SM Black Star promo SM190 vs stored Detective Pikachu set 10/18",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "10/18"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37910,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|407213974189|0",
+     "marketplace": "EBAY_US",
+     "card_tcgplayer_id": "186015"
+    }
+   }
+  },
+  {
+   "dealId": 37947,
+   "ebayListingId": "v1|397092730462|0",
+   "marketplace": "EBAY_IT",
+   "confidence": "high",
+   "conflictKind": "subset-truncated",
+   "title": "Rayquaza VMAX (Segreto) Segreto Raro SWSH12: Silver Tempest Trainer Gallery TG29/T",
+   "storedAs": "Rayquaza VMAX | SWSH12: Silver Tempest Trainer Gallery | #TG20/TG30",
+   "evidence": "title TG29 (title truncated at \"TG29/T\"; \"Segreto\" = secret) vs stored TG20/TG30",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "TG20/TG30"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37947,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|397092730462|0",
+     "marketplace": "EBAY_IT",
+     "card_tcgplayer_id": "452034"
+    }
+   }
+  },
+  {
+   "dealId": 37949,
+   "ebayListingId": "v1|397271492993|0",
+   "marketplace": "EBAY_IT",
+   "confidence": "high",
+   "conflictKind": "subset-truncated",
+   "title": "Rayquaza VMAX (Segreto) Segreto Raro SWSH12: Silver Tempest Trainer Gallery TG29/T",
+   "storedAs": "Rayquaza VMAX | SWSH12: Silver Tempest Trainer Gallery | #TG20/TG30",
+   "evidence": "title TG29 (title truncated at \"TG29/T\"; \"Segreto\" = secret) vs stored TG20/TG30",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "conflictNow": true,
+    "catalogueNumberNow": "TG20/TG30"
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:collector_number_conflict"
+    },
+    "guard": {
+     "id": 37949,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|397271492993|0",
+     "marketplace": "EBAY_IT",
+     "card_tcgplayer_id": "452034"
+    }
+   }
+  }
+ ]
+}

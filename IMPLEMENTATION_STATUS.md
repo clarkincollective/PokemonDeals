@@ -3904,3 +3904,53 @@ No scanner, budget, newsletter or social change. This ledger entry is a local-on
 - **Graded lookup optimisation (`257e221`):** inactive on `integrity-r1`.
 - **Grader-title conflict (34213) and the remaining ambiguous-number cases:** not in scope.
 - **"All deals" browsing:** still queued.
+
+### Deployment (2026-09-14) — integrity release r1 live at `ca18144`; 23-row quarantine applied
+
+**Authorization:** the owner approved deploying `integrity-release-r1` at `ca181441edfe17d65c4cf6b6520b5ff8b7817a4f` and quarantining only the 23 high-confidence manifest rows.
+
+**Pre-push checks:**
+- `origin/main` was `13f5609`; the release was a fast-forward.
+- The range `13f5609..ca18144` was exactly the 4 reviewed commits (`13be2e3`, `c7c824a`, `285662c`, `ca18144`).
+- `257e221` is not in the range. `integrity-r1` is untouched at `8446e5b`.
+- Only that SHA was pushed; the remote was confirmed at `ca18144` afterwards.
+
+**Vercel:** `dpl_CT3ASTzEiBqhaGSBa3FzYiuB5kbK` built `githubCommitSha` `ca18144…` for production and reached READY about 60s after the build started, with `pokemondealfinder.com` aliased and no alias error. Rollback candidate: `dpl_3WQ43rvL9oUsts5CCWgCh94Ns7pt` (`13f5609`).
+
+**Quarantine** (after READY; `scripts/remediation/integrityR1Quarantine.mjs`):
+
+| Step | Result |
+|---|---|
+| Pre-quarantine read-only snapshot (02:53Z) | The 23 rows were active, reason-free and displayable under the deployed rules. The 5 slab-titled raw rows (27488, 35441, 35970, 37927, 37955) were already not displayable under the deployed rules. 37907 was displayable. |
+| Post-deploy dry run (02:53Z) | 23 quarantine, 1 review (37907), **0 skipped** |
+| Apply (02:54:06Z), `--confirm=23` | **Written 23 of 23; skipped 0; errors 0.** The prior-values file was written before the first update. Only `disqualified_reason` changed, to `identity:collector_number_conflict`. `is_active`, identity, prices and timestamps are unchanged. 37907 was not touched. |
+
+**Applied ids:** 33696, 34031, 34467, 35264, 37241, 37248, 37357, 37358, 37360, 37494, 37508, 37512, 37537, 37548, 37561, 37743, 37752, 37753, 37788, 37797, 37910, 37947, 37949.
+
+**Verification** (guarded, read-only):
+- No browser, no eBay/PPT calls, no `/deals/<id>` or affiliate URLs.
+- Only plain GETs of DB-backed routes: `/api/deals-page`, `/sets/*`, `/pokemon/*`, `/`, `/best-finds`, `/deals`, `/deals/<category>`.
+- The display rules applied are the deployed `lib/dealQuality` at `ca18144`.
+
+| Layer | Observed |
+|---|---|
+| **Database exclusion** (02:54:29Z, again 02:59:02Z) | 23/23 carry the reason, 23/23 still `is_active=true`, **0/23 displayable** under the deployed `isDisplayableDeal`. Slab rows: 0/5 displayable (named reason `identity:graded_title_on_raw`; no DB change). 37907: untouched, still displayable. |
+| **Live data API** `/api/deals-page?kind=set` over the affected set × marketplace pairs | 02:54Z and 02:59:02Z: still returned 13 quarantined ids. This was the `unstable_cache` (180 s, stale-while-revalidate) serving the pre-quarantine entry. **02:59:26Z and 02:59:48Z: none of the 28 excluded ids present on any pair.** |
+| **Cached set pages** (11 affected `/sets/*`) | 02:54Z: CDN HIT pages still linked 34031, 37561, 37753, 37797, 37910, 37949. 02:59Z: `STALE` responses triggered regeneration. **03:00:09Z and 03:00:24Z: regenerated pages link none of the excluded ids.** |
+| **Other listing pages** (`/`, `/best-finds`, `/deals`, 5 deal categories, 9 species pages) | 03:01:04Z: `/deals/modern` (freshly rendered) still linked 37949 from its 180 s deals data cache. **03:01:29Z: no excluded id on any of the 17 pages.** |
+
+**Database exclusion vs cached visibility:** the database exclusion took effect at apply time. Cached copies expire on their documented lifetimes: data caches 180 s, deal pages 600 s, species/set/card pages 3,600 s ISR, each served stale once while regenerating. No tag invalidation was triggered, because the existing `revalidateTag` path runs only inside verify-deals and ingest-feed. Every checked surface was clear by 03:01:29Z. Pages not in the sample (for example `/cards/*`) follow the same gated fetchers and lifetimes, so the maximum exposure is one 3,600 s ISR window plus one stale serve.
+
+**Rollback location:**
+- **Prior values:** `scripts/remediation/applied/integrity-r1-quarantine-prior-2026-09-14T02-54-06Z.json` (23 rows, prior `disqualified_reason` NULL, prior `is_active` true).
+- **Apply result:** `…/integrity-r1-quarantine-apply-result-2026-09-14T02-54-06Z.json`.
+- **Post-deploy dry run:** `…/integrity-r1-quarantine-dryrun-post-deploy-2026-09-14.json`.
+- **Command:** `node scripts/remediation/integrityR1Quarantine.mjs --rollback=scripts/remediation/applied/integrity-r1-quarantine-prior-2026-09-14T02-54-06Z.json --confirm=23`. It restores NULL only where the quarantine reason is still present and never touches `is_active`.
+- **SQL equivalent:** `supabase/data_corrections/2026-09-14_integrity_r1_collector_number_quarantine.sql`.
+- **Release rollback:** redeploy `dpl_3WQ43rvL9oUsts5CCWgCh94Ns7pt`.
+
+**Unchanged and inactive:** graded lookup optimisation `257e221` (branch `integrity-r1`), graded retention Part A / recovery Part B, the 7 excluded recovery candidates, 37907, the grader-title conflict 34213 and the remaining ambiguous-number cases. No scanner, allocator, quota, newsletter or social change.
+
+**Next queued:** "All deals" browsing. The implementation brief is `docs/all-deals-browsing-brief.md` (prepared, not started).
+
+This entry is a local-only commit on `integrity-release-r1`, **not pushed**.

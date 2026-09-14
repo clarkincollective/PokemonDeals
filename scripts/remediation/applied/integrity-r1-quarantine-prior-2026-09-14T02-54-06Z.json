@@ -1,0 +1,144 @@
+{
+ "reason": "identity:collector_number_conflict",
+ "appliedAt": "2026-09-14T02:54:06.322Z",
+ "rows": [
+  {
+   "dealId": 33696,
+   "ebayListingId": "v1|278303338612|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 34031,
+   "ebayListingId": "v1|188891932883|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 34467,
+   "ebayListingId": "v1|366211592992|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 35264,
+   "ebayListingId": "v1|278303338612|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37241,
+   "ebayListingId": "v1|407211076200|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37248,
+   "ebayListingId": "v1|178489674337|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37357,
+   "ebayListingId": "v1|147389881431|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37358,
+   "ebayListingId": "v1|287498863281|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37360,
+   "ebayListingId": "v1|407094601596|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37494,
+   "ebayListingId": "v1|206552503131|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37508,
+   "ebayListingId": "v1|287582558535|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37512,
+   "ebayListingId": "v1|287582558535|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37537,
+   "ebayListingId": "v1|198637134387|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37548,
+   "ebayListingId": "v1|800651838014|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37561,
+   "ebayListingId": "v1|178490933774|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37743,
+   "ebayListingId": "v1|137732002135|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37752,
+   "ebayListingId": "v1|147389881431|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37753,
+   "ebayListingId": "v1|287498863281|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37788,
+   "ebayListingId": "v1|366666393554|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37797,
+   "ebayListingId": "v1|366666393554|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37910,
+   "ebayListingId": "v1|407213974189|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37947,
+   "ebayListingId": "v1|397092730462|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37949,
+   "ebayListingId": "v1|397271492993|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  }
+ ]
+}
