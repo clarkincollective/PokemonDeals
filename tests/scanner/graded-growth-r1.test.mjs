@@ -141,6 +141,11 @@ test("GG-6. route wiring: sweep skips a hopeless title before the cap and the ca
   assert.ok(skip > 0 && skip < reused && reused < cap && cap < call && call < memo, JSON.stringify({ skip, reused, cap, call, memo }));
   assert.match(branch, /grading\.grader && gradedReferenceAllowed\(listing, grading\)/, "the full graded rule still decides");
   assert.match(src, /const GRADED_LOOKUP_CAP = 6;/, "cap unchanged");
+  // graded-supply-r1: reference (PPT) requests backed by this run's lookups
+  // are bounded by the same cap, checked before getGradedPrice
+  const guard = branch.indexOf("if (gradedReferenceRequests >= GRADED_LOOKUP_CAP) continue;");
+  const price = branch.indexOf("await getGradedPrice(");
+  assert.ok(memo < guard && guard < price, JSON.stringify({ memo, guard, price }));
 });
 
 test("GG-7. route wiring: per-card scans use pickGradedLookupCandidate and still make at most one graded lookup; no new eBay call site", () => {

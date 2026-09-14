@@ -64,6 +64,15 @@ test("IR-E2E memo: graded lookups are reused per LISTING (graded-supply-r1); ref
   assert.ok(gradedPriceRequests.includes("syn-clefairy-bs|CGC|5.5") && gradedPriceRequests.includes("syn-clefairy-sl|CGC|5.5"), "both candidate printings priced separately");
 });
 
+test("IR-E2E refcap: listing-level reuse never raises graded reference (PPT) requests above GRADED_LOOKUP_CAP per sweep", () => {
+  const { calls, response } = run("refcap");
+  // One slab matching nine rows. b3a1170: 6 lookups + 6 references (the cap
+  // bound both). Reuse without the guard: 1 lookup + 9 references.
+  assert.equal(response.matched, 9, "identity matching runs for every candidate row");
+  assert.equal(calls.getGradingDetails, 1, "one lookup for the listing");
+  assert.equal(calls.getGradedPrice, 6, "reference requests keep the pre-change per-sweep ceiling");
+});
+
 test("IR-E2E stored rows: the display gate hides the live slab-titled raw rows with a named reason and keeps 'Contender'", () => {
   const { rows } = run("stored");
   const byId = new Map(rows.map((r) => [r.id, r]));

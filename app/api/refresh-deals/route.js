@@ -826,6 +826,10 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
   // real case while keeping the worst case (~768/day) well inside the
   // ~5,000/day budget alongside the pre-flight quota guard in GET().
   const GRADED_LOOKUP_CAP = 6;
+  // graded-supply-r1 - graded reference (PPT) requests backed by this run's
+  // own lookups; bounded by GRADED_LOOKUP_CAP below.
+  let gradedReferenceRequests = 0;
+  const lookedUpThisRun = new Set();
   const rawCondBudget = { left: RAW_CONDITION_LOOKUP_CAP_SWEEP };
   const rawCondCache = new Map();
   const errors = [];
@@ -904,13 +908,25 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
             // so the next matching row reuses it instead of paying (and
             // using a GRADED_LOOKUP_CAP slot) again.
             knownGrading.set(listing.listingId, grading);
+            lookedUpThisRun.add(listing.listingId);
           }
           // P0.3.1 - fail closed on inconsistent/absent graded evidence
           // (see the priority-loop branch above).
-          const gradedPrice =
-            grading.grader && gradedReferenceAllowed(listing, grading)
-              ? await getGradedPrice(row.justtcg_tcgplayer_id, grading.grader, grading.grade, row.language)
-              : null;
+          const referenceAllowed = grading.grader && gradedReferenceAllowed(listing, grading);
+          // graded-supply-r1 - PPT budget. getGradedPrice is uncached and has
+          // no credit guard of its own; its per-sweep bound used to come from
+          // GRADED_LOOKUP_CAP, because every priced pair spent a lookup slot.
+          // Listing-level reuse lets one lookup serve many rows (an Unown slab
+          // matches 28), so reference requests backed by THIS run's lookups
+          // keep that same ceiling explicitly. Rows reused from `deals`
+          // (EBAY-14Q) are unchanged.
+          if (referenceAllowed && lookedUpThisRun.has(listing.listingId)) {
+            if (gradedReferenceRequests >= GRADED_LOOKUP_CAP) continue;
+            gradedReferenceRequests++;
+          }
+          const gradedPrice = referenceAllowed
+            ? await getGradedPrice(row.justtcg_tcgplayer_id, grading.grader, grading.grade, row.language)
+            : null;
           if (!gradedPrice) continue;
 
           const { totalLocal, totalUsd, discountPct } = pricedListing(listing, gradedPrice.price, rates);

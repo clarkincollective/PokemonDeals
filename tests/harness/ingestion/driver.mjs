@@ -36,6 +36,17 @@ const SYN = {
   graded: { "syn-clefairy-bs|CGC|5.5": 90, "syn-clefairy-sl|CGC|5.5": 210 },
 };
 
+// "refcap" (graded-supply-r1): seven more synthetic rows the same Clefairy
+// slab matches (nine in all), each with its own graded reference - the
+// shape of the stored Unown slabs that match 28 rows. Proves graded
+// reference requests stay within GRADED_LOOKUP_CAP per sweep.
+if (scenario === "refcap") {
+  for (let i = 1; i <= 7; i++) {
+    SYN.watchlist.push({ id: `syn-wl-c${i}`, name: "Clefairy", set: "Base Set", justtcg_tcgplayer_id: `syn-clefairy-c${i}`, active: true, language: "english" });
+    SYN.card_catalog.push({ tcgplayer_id: `syn-clefairy-c${i}`, name: "Clefairy", set: "Base Set", card_number: "005/102", market_price: 60, language: "english" });
+    SYN.graded[`syn-clefairy-c${i}|CGC|5.5`] = 90;
+  }
+}
 const deals = [...ev.deals, ...SYN.deals];
 const watchlist = [...ev.watchlist, ...SYN.watchlist];
 const catalog = [...ev.card_catalog, ...SYN.card_catalog];
@@ -77,7 +88,7 @@ for (const d of ev.deals) if (d.grader) gradedRefs.set(`${d.card_tcgplayer_id}|$
 
 // "memo" narrows the sweep to two graded listings: the synthetic two-printing
 // Clefairy slab and the saved CGC 10 SM210 promo (deal 37520).
-const scenarioDeals = scenario === "memo" ? deals.filter((d) => d.id === "syn-1" || d.id === 37520) : deals;
+const scenarioDeals = scenario === "memo" ? deals.filter((d) => d.id === "syn-1" || d.id === 37520) : scenario === "refcap" ? deals.filter((d) => d.id === "syn-1") : deals;
 const listings = scenarioDeals.map(toListing);
 const harness = {
   calls: {},
@@ -155,7 +166,7 @@ async function run() {
     }));
   }
   let url, mod;
-  if (scenario === "sweep" || scenario === "memo") {
+  if (scenario === "sweep" || scenario === "memo" || scenario === "refcap") {
     harness.db = seedDb();
     mod = await import(pathToFileURL(join(REPO, "app", "api", "refresh-deals", "route.js")).href);
     url = "http://harness/api/refresh-deals?mode=sweep&country=EBAY_US&pages=1";

@@ -4794,3 +4794,14 @@ The extra ~383 verification calls replace:
 - ~230 ingest-feed verifications (0 graded in 3 days)
 
 **Next step:** within the existing verifier batch, check displayable graded rows before their freshness TTL expires. Calls-neutral; needs owner approval.
+
+### Pre-deploy budget reconciliation (PPT)
+- **Finding:** `getGradedPrice` is uncached and has no credit guard. On `b3a1170` its per-sweep bound came from `GRADED_LOOKUP_CAP`, because every priced sweep pair spent a lookup slot. Listing-level reuse (`cfb9aec`) removed that coupling: one lookup could price every matching row (stored Unown slabs match 28).
+- **Harness `refcap`** (one slab, nine matching rows):
+  - `b3a1170`: 6 lookups / 6 PPT
+  - `cfb9aec`: 1 lookup / 9 PPT
+  - guarded: 1 lookup / 6 PPT
+  - memo scenario unchanged: 2 lookups / 3 PPT
+- **Fix:** reference requests backed by the run's own lookups stop at `GRADED_LOOKUP_CAP` per sweep. Rows reused from `deals` (EBAY-14Q) and the per-card scan (at most one reference per card per scan) are unchanged.
+- **Checks:** focused set 275 / 3 fail (baseline); scanner suite 3,428 / 36 fail, failing set identical to `b3a1170`; `next build` exit 0.
+- **PPT allowance:** Business tier, 200,000 credits/day per the 2026-08 ledger; usage is not logged.
