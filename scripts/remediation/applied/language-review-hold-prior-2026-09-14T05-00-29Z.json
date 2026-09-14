@@ -1,0 +1,30 @@
+{
+ "reason": "review:language_unverified",
+ "appliedAt": "2026-09-14T05:00:40.901Z",
+ "rows": [
+  {
+   "dealId": 37466,
+   "ebayListingId": "v1|407208983236|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37973,
+   "ebayListingId": "v1|407214124375|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37974,
+   "ebayListingId": "v1|407214124297|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37975,
+   "ebayListingId": "v1|407214124323|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  }
+ ]
+}

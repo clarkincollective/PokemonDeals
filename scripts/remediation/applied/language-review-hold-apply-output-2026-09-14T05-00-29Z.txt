@@ -1,0 +1,33 @@
+hold  37466  v1|407208983236|0    EBAY_IT  displayable=true | Carta Pokemon Card Misty's Tentacruel Tentoxa Gym Heroes Holo Wotc giapponese E… 
+hold  37973  v1|407214124375|0    EBAY_IT  displayable=true | Carta Pokemon Card Skarmory Panzaeron Neo Genesis Gsnw Holo Wotc giapponese NM- 
+hold  37974  v1|407214124297|0    EBAY_IT  displayable=true | Carta Pokemon Card Blubella Bellossom Neo Genesis 2000 Holo Wotc giapponese ecc 
+hold  37975  v1|407214124323|0    EBAY_IT  displayable=true | Carta Pokemon Card Togetic Neo Genesis 2000 Gsnw Holo Wotc giapponese NM- Swirl 
+
+hold: 4   skip (changed): 0
+expected affected rows if applied: 4
+{
+ "expected": 4,
+ "written": 4,
+ "results": [
+  {
+   "dealId": 37466,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37973,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37974,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37975,
+   "updated": 1,
+   "error": null
+  }
+ ]
+}

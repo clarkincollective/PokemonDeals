@@ -4396,3 +4396,86 @@ The hold is durable only once r2 is live.
 - Any identity issue not yet identified.
 
 This commit is local on `integrity-followup-r2`, **not pushed or deployed**.
+
+### Deployment (2026-09-14): integrity follow-up r2 live at `fb5fc6b`; four review holds applied (4/4)
+
+**Authorization.** The owner approved the bounded r2 release and the four review holds, subject to a database concurrency check against disposable local Postgres.
+
+**Concurrency check.** Run before pushing, on disposable local Postgres, never production.
+
+**Setup:**
+- Embedded Postgres 17.10 on localhost in the existing scratch harness (`embedded-postgres` + `pg`), created and destroyed per run.
+- Repo schema files and both `deals` triggers loaded; READ COMMITTED.
+
+**Method:**
+- The conditional writes run as the exact SQL executed for the unmodified r2 code, on separate concurrent connections.
+- One transaction is held open, so the other statement genuinely waits on the row lock (asserted via `pg_stat_activity`) and Postgres re-checks its WHERE after commit. Both commit orders were run.
+- The translation from code to SQL was captured, not assumed: `retireForAvailability` (feed and verifier call shapes), `applyHold` and `releaseHold` were run against a recording PostgREST client, and all 6 requests' filters and bodies were asserted against the SQL predicates.
+
+**Results:**
+- `tests/db/quarantine-durability-concurrency.mjs`: **9/9**.
+  - **D1 / D2:** a quarantine committed, or in flight, between the verifier's read and its retirement survives.
+  - **D3:** a retirement in flight first makes the guarded quarantine write nothing.
+  - **D4:** a feed sold-on-lookup on collector-number, language and review-held rows keeps every reason; a sighting keeps it; the row is never a recovery candidate.
+  - **D5:** a hold in flight blocks the feed's replace.
+  - **D6:** the pre-r2 statement demonstrably loses the quarantine through seen-again recovery.
+  - **D7:** ordinary retirement, marking and recovery still work.
+  - **D8:** concurrent feed and verifier retirements serialize without replacing the reason.
+  - **D9:** hold apply and release guards hold.
+- Existing `tests/db/sold-freshness-concurrency.mjs`: **8/8**.
+
+**D8 correction:** D8 first failed on a wrong expectation. A replace statement cannot wait on a quarantined row, because its committed version already fails the WHERE and Postgres returns 0 rows without locking. The outcome was already correct; the scenario was corrected to test the statements that do contend.
+
+**Limitation:** no PostgREST server ran locally. The captured request filters were validated read-only against production PostgREST earlier the same day.
+
+**Pre-push checks:**
+- `fb5fc6b` = `fb5fc6b2fa7eeaa4bef49647da3ecdb4e5711908`.
+- `origin/main` was `f544df8`. The range `f544df8..fb5fc6b` was a fast-forward of exactly `844d068`, `d5efd74`, `fb5fc6b`.
+- Runtime changes: `lib/listingAvailability.js`, `app/api/ingest-feed/route.js`, `app/api/verify-deals/route.js`.
+- `257e221` not in range; `integrity-r1` untouched at `8446e5b`.
+- Only `fb5fc6b` pushed (04:56:20Z).
+
+**Vercel:** `dpl_Ek1arNCh8BBBaoY3QmDm8b7BFDEn` built `githubCommitSha` `fb5fc6b…` for production, READY at 04:57:33Z. `pokemondealfinder.com` aliased, no alias error. Rollback candidate: `dpl_29PrxK5LPnD6UjU52kWFu3dCxqmX` (`f544df8`).
+
+**Review holds.** Run after READY from the worktree at `fb5fc6b`; the script and manifest were identical to the commit.
+
+| Step | Result |
+|---|---|
+| Post-deploy dry run (05:00:29Z) | **4 hold (37466, 37973, 37974, 37975), 0 skip**, exactly the approved set. All active, reason NULL, `card_language` english. |
+| Apply (05:00:40Z), `--confirm=4` | **Written 4 of 4; skipped 0; errors 0.** The prior-values file was written before the first update. Only `disqualified_reason` changed, to `review:language_unverified`. No language recorded; identity (`card_language` english; tcgplayer 87552 / 89232 / 83795 / 89939), references, `is_active` and timestamps unchanged. |
+
+**Verification.** Guarded plain GETs of browse pages and `/api/deals-page` only. No provider calls; no retirement was triggered to test anything.
+
+| Layer | Observed |
+|---|---|
+| **Database** (read-only, 05:00:42Z and again 05:06:23Z) | The 4 holds carry `review:language_unverified`, stay `is_active=true` and **fail the deployed `isDisplayableDeal`**. **All 26 identity quarantines are intact** (23 `identity:collector_number_conflict` + 3 `identity:language_conflict`, all active, none displayable). Japanese Hoopa copies 37856 / 37861 unchanged and displayable. |
+| **Pre-hold baseline** (04:59:11Z) | All 4 in the All deals API (all, IT, `maxPrice=50`, IT `maxPrice=50`, `q=giapponese`). 37973 / 37974 / 37975 also in `kind=set` neo-genesis (± IT), `kind=category` vintage IT and under-50 IT, and linked from `/deals/vintage` and `/sets/neo-genesis`. The 3 earlier language quarantines absent everywhere. |
+| **All deals API** | **Clear at 05:00:51Z** in every scope and filter, including `q=giapponese` (0). |
+| **Other deal APIs** | Still returned 37973–37975 at 05:00:51Z and 05:04:20Z, from 180 s data caches served stale once. **Clear at 05:05:17Z.** |
+| **Sampled pages** (`/`, `/best-finds`, `/deals`, `/deals/vintage`, `/deals/under-50`, `/deals/under-25`, `/sets/gym-heroes`, `/sets/neo-genesis`, `/sets/xy-promos`, `/pokemon/tentacruel`, `/pokemon/skarmory`, `/pokemon/bellossom`, `/pokemon/togetic`, `/pokemon/rayquaza`) | 05:00:51Z: `/deals/vintage` and `/sets/neo-genesis` still linked 37973–37975. **05:04:20Z and 05:05:17Z: no held or quarantined id linked on any sampled page.** |
+| **Counts** | Stable crawls at 05:04:20Z and 05:05:17Z summed exactly (894 = tiles = distinct). The 05:00:51Z crawl drifted from live changes mid-crawl, the same as observed at 04:35Z. |
+
+**Database exclusion vs cached visibility:** the holds took effect at 05:00:40Z. Cached copies cleared on their documented lifetimes: data caches 180 s plus one stale serve, ISR pages on request. No tag invalidation was triggered. Unsampled ISR pages follow the same gated fetchers; maximum exposure is one 3,600 s ISR window plus one stale serve.
+
+**Rollback / release:**
+- **Holds:**
+  - Prior values: `scripts/remediation/applied/language-review-hold-prior-2026-09-14T05-00-29Z.json` (4 rows, prior reason NULL, prior `is_active` true).
+  - Apply output: `…/language-review-hold-apply-output-2026-09-14T05-00-29Z.txt`.
+  - Dry run: `…/language-review-hold-dryrun-post-deploy-2026-09-14T05-00-29Z.json`.
+  - Release command: `node scripts/remediation/languageReviewHold.mjs --rollback=scripts/remediation/applied/language-review-hold-prior-2026-09-14T05-00-29Z.json --confirm=4` restores NULL only where the hold is still present and never touches `is_active`.
+  - SQL equivalent: `supabase/data_corrections/2026-09-14_language_review_hold.sql`.
+- **Code:** redeploy `dpl_29PrxK5LPnD6UjU52kWFu3dCxqmX` (`f544df8`). This only reverts the r2 write guards; it does not touch the data.
+- **Earlier quarantines:** unchanged; see their own rollback entries.
+
+**Unresolved, documented separately (not part of this release):**
+1. **Print language of 37466, 37973, 37974, 37975.** Their titles say "giapponese" but carry German-print markers. The stored English identity and reference are neither confirmed nor rewritten. They are hidden under a review hold, not resolved. Resolving them needs the item's Language specific or images; then either a reviewed quarantine or a hold release.
+2. **Localized-language matcher gap.** `classifyListingLanguage` does not recognise localized language words (Italian giapponese, German japanisch, French japonais, Spanish japonés …), and graded rows skip the display gate's language rule. This needs a separate scanner and matcher change with its own approval. No matcher change was made.
+
+**Not changed:**
+- the matcher, scanner, allocator, quota or providers;
+- the sealed lane;
+- graded optimisation `257e221`, retention, the recovery experiment, newsletter and social.
+
+**Phase closed.** This bounded release is verified. Not every integrity issue is resolved: the two items above remain open.
+
+This entry, `tests/db/quarantine-durability-concurrency.mjs` and the applied hold files are a local-only commit on `integrity-followup-r2`, **not pushed**.
