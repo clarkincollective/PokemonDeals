@@ -677,7 +677,9 @@ test("SIF-30. verify-deals recovery is bounded: seen-again FIXED_PRICE rows only
   assert.match(q, /\.lte\("exact_verified_at", new Date\(now - RECOVERY_MIN_HOURS_SINCE_CHECK \* H\)/);
   assert.match(q, /\.gte\("exact_verified_at", new Date\(now - RECOVERY_MAX_AGE_DAYS \* 24 \* H\)/);
   assert.match(q, /\.limit\(RECOVERY_SLOTS_PER_RUN\)/);
-  assert.match(code, /batch: BATCH - recoveryRows\.length,/, "the recovery slot is taken OUT of BATCH");
+  // browse-budget-r1: runBatch = BATCH outside enforce mode; the grant inside it
+  assert.match(code, /batch: runBatch - recoveryRows\.length,/, "the recovery slot is taken OUT of the run batch");
+  assert.match(code, /: BATCH;/, "runBatch is BATCH outside enforce mode");
   assert.match(code, /batch\.unshift\(\.\.\.recoveryRows\)/);
   assert.equal((code.match(/await getListingSnapshot\(/g) ?? []).length, 2, "no new lookup call site");
   assert.match(code, /\.eq\("disqualified_reason", r\.disqualified_reason\)/, "conditional on the marker read");

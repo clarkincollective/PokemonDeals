@@ -55,6 +55,8 @@ import {
   isHighValueVintage,
 } from "@/lib/dealQuality";
 import { allocateScanTargets, nextTargetState, budgetForRun } from "@/lib/scanAllocator";
+import { attachBrowseLease, browseLeaseExhausted } from "@/lib/ebayTelemetry";
+import { acquireBrowseLease } from "@/lib/browseBudget";
 import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError, recordDedupeSavedGrading } from "@/lib/ebayTelemetry";
 
 // This route does real work (API calls + database writes) and must never
@@ -200,6 +202,18 @@ const SUSPICIOUS_RAW_DISCOUNT_PCT = 0.25;
 // guess.
 const RAW_CONDITION_LOOKUP_PER_CARD = 3;
 const RAW_CONDITION_LOOKUP_CAP_SWEEP = 12;
+
+// browse-budget-r1 - what a run asks the shared Browse ledger for, BEFORE it
+// calls eBay (lib/browseBudget.mjs). The lease is enforced per attempt, so
+// these only size the request; they cannot let a run overspend.
+// A sweep: its result pages + at most 6 graded lookups (runSweep's
+// GRADED_LOOKUP_CAP) + the raw-condition cap + 2 units for 5xx retries.
+const SWEEP_DETAIL_CALLS_MAX = 6 + RAW_CONDITION_LOOKUP_CAP_SWEEP;
+const BUDGET_RETRY_UNITS = 2;
+// An allocated run: targets x measured calls per target (ebay_job_runs vs
+// scan_allocation_runs, 11-13 Sep: search + raw-condition + graded detail).
+const ALLOCATED_CALLS_PER_TARGET = Object.freeze({ EBAY_US: 3.2, EBAY_GB: 2.9, EBAY_AU: 2.9, EBAY_CA: 3.4, EBAY_DE: 1.9, EBAY_IT: 3.5 });
+const ALLOCATED_MIN_GRANT = 20;
 
 // Decide the condition to actually price a raw listing at. `budget` is a
 // mutable { left } counter shared across one scan unit; `cache` (optional)
@@ -1114,6 +1128,7 @@ export async function GET(request) {
   const job = mode === "sweep" ? "refresh-deals:sweep" : tier === "allocated" ? "refresh-deals:allocated" : "refresh-deals:manual";
   const jobCountry = url.searchParams.get("country") || (mode === "sweep" ? "EBAY_US" : null);
   const ctx = beginJobRun({ job, mode: mode || tier || null, country: jobCountry });
+  let budgetLease = null;
   try {
   const rl = await getBrowseRateLimit();
   setQuotaSnapshot({ remainingStart: rl?.remaining ?? null, limit: rl?.limit ?? null, reserveFloor: RATE_LIMIT_FLOORS[floorKey] });
@@ -1139,6 +1154,21 @@ export async function GET(request) {
         ? url.searchParams.get("country")
         : "EBAY_US";
     const pages = Number(url.searchParams.get("pages")) || 5;
+
+    // browse-budget-r1 - reserve this sweep's calls before touching eBay.
+    const sweepBudget = await acquireBrowseLease(db, {
+      key: `sweep:${marketplaceId}`,
+      requested: pages + SWEEP_DETAIL_CALLS_MAX + BUDGET_RETRY_UNITS,
+      minGrant: pages + 1,
+      observation: rl,
+      ttlMs: (maxDuration + 60) * 1000,
+    });
+    if (sweepBudget.granted <= 0) {
+      markSkipped(`budget_${sweepBudget.decision?.denied ?? "denied"}`);
+      return Response.json({ mode: "sweep", marketplace: marketplaceId, skipped: "browse_budget", budget: { mode: sweepBudget.mode, ...sweepBudget.decision } });
+    }
+    budgetLease = sweepBudget.lease;
+    attachBrowseLease(budgetLease);
 
     const { data: allActiveRows, error: activeError } = await fetchAllRows(() =>
       db.from("watchlist").select("*").eq("active", true)
@@ -1194,6 +1224,21 @@ export async function GET(request) {
   // one env var away.
   // ===================================================================
   const allocatedMode = tier === "allocated";
+
+  // browse-budget-r1 - every non-sweep shape reserves its calls up front.
+  // tier=allocated draws on its country's allocated cap (below); the legacy
+  // priority / extended / manual shapes are unscheduled and unfunded (cap 0),
+  // so in enforce mode they make no Browse calls.
+  let allocatedGrant = null;
+  if (!allocatedMode) {
+    const manualBudget = await acquireBrowseLease(db, { key: "manual", requested: 1, observation: rl, ttlMs: (maxDuration + 60) * 1000 });
+    if (manualBudget.mode === "enforce") {
+      markSkipped("budget_unfunded");
+      return Response.json({ skipped: "browse_budget", budget: { mode: manualBudget.mode, ...manualBudget.decision } });
+    }
+    budgetLease = manualBudget.lease;
+    attachBrowseLease(budgetLease);
+  }
   const allocatorEnabled = allocatedMode && process.env.SCAN_ALLOCATOR !== "off";
   let allocation = null; // { selected, summary } when the allocator ran
   let allocatorFallback = null; // reason string when it fell back
@@ -1218,6 +1263,26 @@ export async function GET(request) {
     if (!allocatedCountry) {
       return Response.json({ error: "tier=allocated requires a valid &country=EBAY_XX" }, { status: 400 });
     }
+    // browse-budget-r1 - the country's own allocated cap (durable across
+    // runs), so an early market's pass can never spend a later market's share.
+    const legacyTargets = budgetForRun({ marketplace: allocatedCountry, rateLimitRemaining, floor: RATE_LIMIT_FLOORS.allocated });
+    const perTarget = ALLOCATED_CALLS_PER_TARGET[allocatedCountry] ?? 3.2;
+    const allocatedBudget = await acquireBrowseLease(db, {
+      key: `allocated:${allocatedCountry}`,
+      requested: Math.ceil(legacyTargets * perTarget) + BUDGET_RETRY_UNITS,
+      minGrant: ALLOCATED_MIN_GRANT,
+      observation: rl,
+      ttlMs: (maxDuration + 60) * 1000,
+    });
+    if (allocatedBudget.granted <= 0) {
+      markSkipped(`budget_${allocatedBudget.decision?.denied ?? "denied"}`);
+      return Response.json({ tier: "allocated", country: allocatedCountry, skipped: "browse_budget", budget: { mode: allocatedBudget.mode, ...allocatedBudget.decision } });
+    }
+    budgetLease = allocatedBudget.lease;
+    attachBrowseLease(budgetLease);
+    // targets sized to the grant BEFORE any call (enforce); unchanged otherwise
+    allocatedGrant =
+      allocatedBudget.mode === "enforce" ? Math.max(0, Math.floor((allocatedBudget.granted - BUDGET_RETRY_UNITS) / perTarget)) : null;
     const active = (watchlistRowsRaw ?? []).filter((r) => r.justtcg_tcgplayer_id);
 
     let stateByCard = null;
@@ -1251,7 +1316,7 @@ export async function GET(request) {
         floor: RATE_LIMIT_FLOORS.allocated,
         requested: url.searchParams.get("targets") ? Number(url.searchParams.get("targets")) : null,
       });
-      allocation = allocateScanTargets({ targets, marketplace: allocatedCountry, now: Date.now(), budget });
+      allocation = allocateScanTargets({ targets, marketplace: allocatedCountry, now: Date.now(), budget: allocatedGrant == null ? budget : Math.min(budget, allocatedGrant) });
       watchlistRows = allocation.selected.map((s) => s._row).filter(Boolean);
     } else {
       // FALLBACK: the old extended-chunk behaviour for this country-day.
@@ -1382,6 +1447,11 @@ export async function GET(request) {
   async function worker() {
     let row;
     while ((row = queue.shift())) {
+      // browse-budget-r1 - stop taking cards once the lease is spent, before
+      // a PPT price lookup is paid for a card that could not be searched.
+      // Unscanned cards keep their scan_target_state, so the next run
+      // resumes them (always false outside enforce mode).
+      if (browseLeaseExhausted()) break;
       await scanOneCard(row);
     }
   }

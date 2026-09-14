@@ -4949,3 +4949,174 @@ Leftover `verify_graded_retention_attempt:*` rows are inert, because no other re
   - deal 21176 "#W/28"
 
   The unchanged replay verdicts show only that the release did not alter matching; they do not show these matches are correct. Since `e4ac8b7` such a listing can make at most `GRADED_LOOKUP_CAP` reference requests per sweep, but the underlying matcher ambiguity is unresolved.
+
+## Browse budget pacing r1 (BROWSE-BUDGET-R1), 2026-09-15 (local review, not deployed)
+
+**Base.** Production `bb35780` (graded retention, `dpl_baBbEa2TP81nFsaDxTTizVJyxhM2`), which stays unchanged. Branch `browse-budget-r1`.
+
+**Status at preparation:**
+- **Retention lane natural execution:** pending. The one verifier run since deploy (23:30 UTC) skipped on `quota_reserve` at 280 remaining. No reservation rows yet.
+- **No change to:** limits, schedules, the PPT cap, EPN, social or outreach.
+
+### Mechanism (`lib/browseBudget.js`)
+**Ledger.** One row per eBay quota window in the existing `catalog_snapshot` table:
+- `kind = browse_budget:<reset>` (observe mode: `browse_budget_observe:<reset>`)
+- `data`: `used` per consumer, `open` leases, `reserveAbsorbed`, `lastObservation`, counters
+- **No migration.**
+
+**Atomicity.** Every change is a compare-and-set:
+
+```sql
+UPDATE catalog_snapshot SET data, updated_at = <strictly newer>
+WHERE kind = k AND updated_at = <version read>
+```
+
+- Window-row creation is an INSERT on the primary key (a race returns 23505).
+- A CAS miss re-reads and re-evaluates, with randomised backoff, up to 12 attempts. Running out fails closed in enforce mode.
+- eBay's remaining count is used only for reconciliation, never as the lock.
+
+**Lease.** Acquired before any Browse call (`acquireBrowseLease`). The grant is evaluated against the whole requested cost:
+
+```
+granted = min(requested,
+              cap_k - used_k - open_k,
+              pace_k(t) - used_k - open_k,
+              remaining - openAll - 420 - verifyCommitment[k != verify])
+granted < minGrant  =>  deny
+```
+
+**Pacing:**
+- `pace_k(t) = min(cap_k, ceil(cap_k x elapsed) + burst_k)`, with bursts verify 40, sweep 30, ingest 40. The burst is clamped to the same cap and adds no capacity.
+- Images: no time pacing.
+- Allocated: `ceil(cap x share)` in the first half of the window, then `cap`. Share is 0.6 for US/GB/CA/AU and 1.0 for DE/IT (their second passes at 20–22 h meet the retained 1,200 floor).
+
+**Verifier commitment.** `verifyCommitment = 720 − used_verify − open_verify`, subtracted for every non-verifier consumer. Verification spend is never counted in a discovery consumer's cap or pace.
+
+**Per-attempt guard.**
+- `lib/ebay.fetchWithRetry` calls `consumeBrowseAttempt()` synchronously before every attempt, including retries.
+- In enforce mode it refuses without a lease, beyond the grant, or inside the 2-minute reset guard band.
+- A refused first attempt throws `BrowseBudgetExhaustedError` with nothing sent. A refused retry returns the response or error already in hand.
+- The lease lives in the AsyncLocalStorage job context, so concurrent invocations in one instance never share it.
+
+**Settlement.** `finishJobRun`, already in every Browse route's `finally`, charges every attempt started (success, failure or uncertain) and releases only units never sent.
+
+**Crash and timeout.** An unsettled lease expires at `start + maxDuration + 60 s` (never after the reset guard) and is charged its full grant. A late settle is ignored; nothing is restored.
+
+**Reconciliation.** `drift = (limit − remaining) − (Σused + Σopen)`. Positive drift ratchets `reserveAbsorbed` (never decreases). The provider-balance term already reflects it, so grants shrink. Lower observed consumption is never given back.
+
+**Reset boundary:**
+- Window from eBay's reported `reset`, rounded to 5 minutes.
+- A lease never outlives `windowEnd − 2 min`; the next window is a separate, empty row.
+- Missing or invalid reset: enforce denies (`window_unknown`); observe proceeds and records it.
+
+**Overlap bound (demonstrated).** Every Browse attempt by participating code draws a unit of a granted lease, and the ledger never grants beyond `cap − used − open`. Total attempts in a window are therefore ≤ Σcaps = 4,580, however many workers overlap and whatever their chunk sizes. Chunk size does not bound overlap; worst-case attempts per invocation without a lease would be allocated up to 3,800, ingest 80, sweep ~52, verify 40.
+
+### Envelope (5,000; caps are hard per window)
+
+| Consumer | Cap | Per-country |
+|---|---|---|
+| verify | 720 | — |
+| allocated | 2,000 | US 530, GB 355, CA 370, AU 310, DE 180, IT 255 |
+| sweep | 1,700 | US 900; GB, CA, AU, DE, IT 160 each |
+| ingest (competitor board) | 150 | — |
+| images | 10 | — |
+| sealed | 0 (unfunded) | — |
+| manual / legacy tiers | 0 | — |
+| **Reserve** | **420** | — |
+
+- **Allocated country caps:** measured first-pass calls scaled by 2,000 / 2,425.
+- **Sweep country caps:** from measured sweep spend (US ~973/day, others 137–165/day).
+
+**Reserve semantics.** The 420 is genuinely unavailable to every consumer lease (no emergency or retry draw). It exists only to absorb consumption outside the ledger:
+- manual scripts
+- the two forensic scripts that call Browse directly
+- eBay-side counting differences
+
+Guaranteed margin = 5,000 − 4,580 = 420 − unaccounted consumption (visible as `reserveAbsorbed`).
+
+**Retained stricter protections:**
+- sweep 250, allocated 1,200, ingest 800, images 900, sealed 250 floors unchanged in every mode
+- verifier's absolute 800 floor unchanged in off and observe
+- in enforce, the 800 floor is replaced by the verifier's hard 720 cap, pacing, the provider-balance term (420 + all open leases) and the per-attempt lease
+- verifier's optional lanes (BIN reserve, sealed slots, graded retention) switch off when the verifier's own remaining cap after the grant is < 40
+
+**Callers:**
+
+| Caller | Budget |
+|---|---|
+| verify-deals | `verify` |
+| refresh-deals sweep | `sweep:<country>` |
+| refresh-deals allocated | `allocated:<country>` (targets sized to the grant; the worker stops taking cards before a PPT lookup once the lease is spent; unscanned cards keep `scan_target_state`) |
+| refresh-deals priority / extended / manual | `manual` (0 → enforce skips) |
+| ingest-feed | `ingest` (queue sized to the grant) |
+| screen-deal-images | `images` |
+| refresh-sealed-deals | `sealed` (0 → enforce skips) |
+| `scripts/*` using `lib/ebay` | refused in enforce without a lease; run locally with the mode unset |
+| admin discovery-health | Analytics pool only |
+
+### Verifier schedule (720 over the existing 48 half-hourly runs)
+- Each run requests 20.
+- At steady state the pace line gives ~15 per run, so a run checks ~14 rows (one unit held for a retry when the grant ≥ 10).
+- Runs below a 5-call grant are skipped and the capacity accrues.
+- The first runs after reset may use the 40 burst (two full batches).
+- Within the calls granted: critical auctions first, then the BIN reserve, graded retention ≤ 2 (lane unchanged), then general.
+
+### Checks
+- **`browse-budget` BB-1..10: 10/10.** Covers envelope sums, cap/pace/provider binding, reserve never granted, discovery cannot spend the verifier commitment, per-country allocated independence and pass share, expiry charged in full, drift ratchet, the reset guard, and settle/late-settle. Also includes 60 interleaved in-memory acquisitions ≤ cap.
+  - **Per-attempt guard with the real `fetchWithRetry`:** retries draw units; nothing is sent beyond the lease, without one, or in the guard band; 30 parallel attempts on a 7-unit lease send 7.
+  - **Real verify-deals route (BB-10):** grant 20 → 19 calls; at 700 used, lanes off with 5/5 critical auctions; at 715 used, grant 5 → the 5 critical auctions only; at 718 used, skipped with 0 calls; a crashed lease charged 20; observe never blocks.
+- **`browse-budget-postgres` PG-1..4: 4/4.** Real PostgreSQL 18.3 (PGlite, same DDL; test-only devDependency `@electric-sql/pglite`):
+  - primary-key conflicts and stale CAS misses both occur; Σgranted ≤ 720 and the ledger holds exactly the granted units
+  - mixed consumers: caps, reserve and verifier commitment hold
+  - crash and late settle: charged in full, nothing restored
+  - reset boundary
+  - **Limitation:** PGlite runs statements one at a time. It proves the CAS predicate and primary-key semantics under interleaving, not multi-connection row locking (Postgres READ COMMITTED re-checks a single UPDATE's WHERE).
+- **Focused existing set** (P0.4.3, 17C.9, sold-item and availability, integrity-followup-r2, 14Q, 14R, telemetry isolation, affiliate, client boundary, P0.3.2 ingest, P0.4.2 allocator, image integrity, integrity-r1 e2e, graded retention, graded growth, 17C.10, auction price integrity): 347 / 6 fail, the same 6 as `bb35780`.
+- **Updated pins** (each asserts the new equivalent and `BATCH` outside enforce): P043-12 `laneQuotaRemaining`; SIF-30, VL-9 and GR-7 `runBatch`.
+- **`next build`:** exit 0.
+
+### Retrospective replay (`scripts/browse-budget-replay.mjs`, read-only; 11–13 Sep, 265 logged invocations per window)
+
+| Case | Total charged | Min remaining | Verify runs per 3 h |
+|---|---|---|---|
+| Actual | 4,756 / 4,817 / 4,775 | — | 5/6/6/5/0/0/0/0 |
+| Expected | 4,350 / 4,279 / 4,299 | 650 / 721 / 701 | 6/6/6/6/6/6/6/5 (720 calls) |
+| Conservative (3× durations + 200 unaccounted) | 4,227 / 4,129 / 4,299 | 573 / 671 / 501 | 6/6/6/6/6/6/6/5 |
+| Charged in full (every lease crashes) + 200 drift | ~4,290 | 504 / 509 / 512 | 6/6/6/6/6/6/6/4 (716) |
+| No lease ever settles or expires | ~2,200 | ≥ 2,779 | stops ~13–14 h after reset |
+
+The no-settle case shows the accounting bound holds even then, at the cost of liveness.
+
+**Expected, per consumer:**
+- sweeps: US 94/96 runs, 900 calls; each other market 10/12 runs, 158–160 calls
+- ingest 147; images 2–10
+- sealed skipped (unfunded)
+- allocated 1,712–1,778: US/GB/AU second passes run; CA's second pass ran on 1 of 3 days; DE/IT second passes blocked by the retained 1,200 floor
+
+**Replay limitations:**
+- Demand is the old code's logged calls: the 12 Sep IT allocated run logged 0 calls after zero headroom, so it replays as 0; skipped runs use cross-window medians.
+- Durations for skipped runs are medians.
+- Retries are not tagged separately.
+- Verifier candidates are assumed available.
+- Unaccounted external spend is unknown (the 200-call cases are assumptions).
+- Expected execution is not guaranteed: provider outages, `window_unknown`, or no eligible candidates prevent it.
+- Inventory outcomes are not modelled.
+
+### Tradeoffs
+- **Verification:** 440–460 → 720 calls/day, spread across all 24 h (critical auctions re-priced overnight; retention lane usable overnight).
+- **Discovery:**
+  - allocated −330 to −530/day vs measured, mostly the retained floor blocking DE/IT/CA second passes
+  - sweeps unchanged in total but capped per market (US −70)
+  - ingest −220
+- **Idle capacity:** about 400–550 calls/day stay unused, deliberately, as the reserve plus retained-floor losses.
+- **Unfunded:** sealed discovery (was already skipped daily).
+
+### Deployment plan (not executed)
+1. Deploy with `BROWSE_BUDGET_MODE` unset (= `off`; behaviour identical to `bb35780`).
+2. Set `BROWSE_BUDGET_MODE=observe` in Vercel production and redeploy. For one window, check:
+   - `browse_budget_observe:*` rows: `used` vs caps, `reserveAbsorbed`, counters
+   - that `window_unknown` never appears (eBay's `reset` field parses)
+   - that observed per-consumer spend matches `ebay_job_runs`
+3. `BROWSE_BUDGET_MODE=enforce` only after that review.
+
+**Rollback:** set `BROWSE_BUDGET_MODE=off` (or remove it) and redeploy. Or `vercel rollback dpl_baBbEa2TP81nFsaDxTTizVJyxhM2 --scope clarkin-collective`. Ledger rows are inert; optional cleanup: `delete from catalog_snapshot where kind like 'browse_budget%';`

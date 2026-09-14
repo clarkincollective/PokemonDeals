@@ -194,7 +194,10 @@ test("P043-12 verify-deals uses the allocator and does NOT change deal qualifica
   const src = read("app/api/verify-deals/route.js");
   assert.match(src, /import \{ allocateVerifyBatch \} from "@\/lib\/verifyAllocator"/);
   assert.match(src, /const \{ batch, allocation \} = allocateVerifyBatch\(\{/);
-  assert.match(src, /quotaRemaining: rl\.remaining/);
+  // browse-budget-r1: the lanes' quota signal is rl.remaining outside
+  // enforce mode (unchanged) and the verifier's own remaining cap inside it
+  assert.match(src, /quotaRemaining: laneQuotaRemaining/);
+  assert.match(src, /: rl\.remaining;/);
   assert.match(src, /reserve: RESERVE/);
   // the RESERVE floor is unchanged
   assert.match(src, /const RESERVE = 800;/);

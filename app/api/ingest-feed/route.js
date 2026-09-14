@@ -31,6 +31,8 @@ import {
   languageCompatible,
 } from "@/lib/dealQuality";
 import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError } from "@/lib/ebayTelemetry";
+import { attachBrowseLease } from "@/lib/ebayTelemetry";
+import { acquireBrowseLease } from "@/lib/browseBudget";
 import {
   AVAILABILITY_RETIREMENT,
   isAvailabilityRetired,
@@ -101,6 +103,7 @@ export async function GET(request) {
   // catalog_snapshot history below - not a replacement for it.
   const db = supabaseAdmin();
   const ctx = beginJobRun({ job: "ingest-feed" });
+  let budgetLease = null;
   try {
   // Pre-flight quota guard. A high floor on purpose: this is spare-capacity
   // supplementation - it backs off FIRST so the primary scanner
@@ -211,10 +214,32 @@ export async function GET(request) {
     recentCutoffMs,
     now: Date.now(),
   });
+  // browse-budget-r1 - reserve this run's verification calls (competitor
+  // board hints; 150/day cap, never more than MAX_NEW_PER_CYCLE per run)
+  // before any Browse call, and size the queue to the grant.
+  let verifyBudget = MAX_NEW_PER_CYCLE;
+  const verifyDemand = Math.min(MAX_NEW_PER_CYCLE, part.neverSeen.length + part.dueRecheck.length);
+  if (verifyDemand > 0) {
+    const budget = await acquireBrowseLease(db, {
+      key: "ingest",
+      requested: verifyDemand + (verifyDemand >= 10 ? 2 : 0),
+      minGrant: Math.min(5, verifyDemand),
+      observation: rl,
+      ttlMs: (maxDuration + 60) * 1000,
+    });
+    if (budget.granted <= 0) {
+      markSkipped(`budget_${budget.decision?.denied ?? "denied"}`);
+      await recordIngestRun(db, { at: new Date().toISOString(), browseBudgetSkipped: budget.decision?.denied ?? true, browseVerifyAttempts: 0, tookMs: Date.now() - startedAt });
+      return Response.json({ skipped: "browse_budget", budget: { mode: budget.mode, ...budget.decision } });
+    }
+    budgetLease = budget.lease;
+    attachBrowseLease(budgetLease);
+    if (budget.mode === "enforce") verifyBudget = Math.min(MAX_NEW_PER_CYCLE, budget.granted - (budget.granted >= 10 ? 2 : 0));
+  }
   const toVerify = allocateVerifyBudget({
     neverSeen: part.neverSeen,
     dueRecheck: part.dueRecheck,
-    budget: MAX_NEW_PER_CYCLE,
+    budget: verifyBudget,
   });
   const newCount = part.neverSeen.length + part.dueRecheck.length;
   const queuedForVerify = [...toVerify.values()].reduce((s, a) => s + a.length, 0);

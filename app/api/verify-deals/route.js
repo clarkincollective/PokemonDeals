@@ -20,6 +20,9 @@ import { runSealedVerifyLane } from "@/lib/sealedVerifyLane";
 import { decideImageRecovery } from "@/lib/imageRecoveryPolicy";
 import { IMAGE_VERDICT } from "@/lib/listingImage";
 import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError, recordDedupeSavedImage } from "@/lib/ebayTelemetry";
+// browse-budget-r1 - the shared Browse budget ledger (off | observe | enforce)
+import { attachBrowseLease } from "@/lib/ebayTelemetry";
+import { acquireBrowseLease, browseBudgetMode } from "@/lib/browseBudget";
 import {
   SEEN_AGAIN,
   RECOVERY_SLOTS_PER_RUN,
@@ -113,6 +116,12 @@ export const maxDuration = 120;
 
 const BATCH = 20;
 const RESERVE = 800; // never let Browse quota fall to/below this
+// browse-budget-r1 (enforce mode only): below this grant a run is not worth
+// the pool read; the verifier's 720-call cap then accrues for a later run.
+const VERIFY_MIN_GRANT = 5;
+// Optional lanes (BIN reserve, sealed slots, graded retention) need at least
+// this much of the verifier's own cap left after this run's grant.
+const VERIFY_LANE_MIN_CAP_LEFT = 2 * BATCH;
 const SCAN_CAP = 6000; // rows examined to build the priority queue
 const PAGE = 1000;
 const H = 60 * 60 * 1000;
@@ -150,6 +159,7 @@ export async function GET(request) {
   // below on every exit path, including the two early skips.
   const db = supabaseAdmin();
   const ctx = beginJobRun({ job: "verify-deals" });
+  let budgetLease = null;
   try {
     const rl = await getBrowseRateLimit();
     setQuotaSnapshot({ remainingStart: rl?.remaining ?? null, limit: rl?.limit ?? null, reserveFloor: RESERVE });
@@ -157,11 +167,44 @@ export async function GET(request) {
       markSkipped("rate_limit_unknown");
       return Response.json({ ok: true, skipped: "rate_limit_unknown" });
     }
-    // Need headroom for the whole batch and still stay above the reserve.
-    if (rl.remaining - BATCH < RESERVE) {
-      markSkipped("quota_reserve");
-      return Response.json({ ok: true, skipped: "quota_reserve", remaining: rl.remaining, reserve: RESERVE });
+    // browse-budget-r1 - outside enforce mode the absolute reserve floor is
+    // the protection, exactly as before. In enforce mode it is replaced (not
+    // dropped) by the ledger: a hard 720-call verifier cap, paced across the
+    // window, a provider-balance check that keeps the 420 reserve and every
+    // open lease untouchable, and a per-attempt lease (lib/browseBudget.mjs).
+    const budgetMode = browseBudgetMode();
+    if (budgetMode !== "enforce") {
+      // Need headroom for the whole batch and still stay above the reserve.
+      if (rl.remaining - BATCH < RESERVE) {
+        markSkipped("quota_reserve");
+        return Response.json({ ok: true, skipped: "quota_reserve", remaining: rl.remaining, reserve: RESERVE });
+      }
     }
+    const budget = await acquireBrowseLease(db, {
+      key: "verify",
+      requested: BATCH,
+      minGrant: VERIFY_MIN_GRANT,
+      observation: rl,
+      ttlMs: (maxDuration + 60) * 1000,
+    });
+    if (budget.granted <= 0) {
+      markSkipped(`budget_${budget.decision?.denied ?? "denied"}`);
+      return Response.json({ ok: true, skipped: "browse_budget", budget: { mode: budget.mode, ...budget.decision } });
+    }
+    budgetLease = budget.lease;
+    attachBrowseLease(budgetLease);
+    // Rows this run may verify. Outside enforce: BATCH, as before. In
+    // enforce: the grant, keeping one unit back for a 5xx retry when the
+    // grant is large enough (unused units are released on settle).
+    const runBatch = budgetMode === "enforce" ? Math.min(BATCH, budget.granted - (budget.granted >= 10 ? 1 : 0)) : BATCH;
+    // The optional lanes' "tight day" signal: provider remaining outside
+    // enforce (as before); in enforce, the verifier's own remaining cap.
+    const laneQuotaRemaining =
+      budgetMode === "enforce"
+        ? (budget.decision?.capLeft ?? 0) - budget.granted >= VERIFY_LANE_MIN_CAP_LEFT
+          ? Infinity
+          : 0
+        : rl.remaining;
 
   const now = Date.now();
   const exactColReady = await exactVerifiedColReady(db);
@@ -218,9 +261,9 @@ export async function GET(request) {
   // the card loop below keeps exactly its two update sites and two
   // getListingSnapshot calls.
   const sealedSlots = sealedVerifySlots({
-    batch: BATCH - recoveryRows.length,
+    batch: runBatch - recoveryRows.length,
     sealedDue: SEALED_MAX_PER_RUN, // upper bound; the lane uses only what is actually due
-    quotaRemaining: rl.remaining,
+    quotaRemaining: laneQuotaRemaining,
     reserve: RESERVE,
   });
   const sealed = await runSealedVerifyLane({
@@ -256,9 +299,9 @@ export async function GET(request) {
     for (let round = 0; round < 3 && retentionReserved.size < GRADED_RETENTION_SLOTS; round++) {
       const trial = allocateVerifyBatch({
         pool,
-        batch: BATCH - recoveryRows.length - sealed.used,
+        batch: runBatch - recoveryRows.length - sealed.used,
         now,
-        quotaRemaining: rl.remaining,
+        quotaRemaining: laneQuotaRemaining,
         reserve: RESERVE,
         retentionBlocked,
       });
@@ -279,9 +322,9 @@ export async function GET(request) {
   }
   const { batch, allocation } = allocateVerifyBatch({
     pool,
-    batch: BATCH - recoveryRows.length - sealed.used,
+    batch: runBatch - recoveryRows.length - sealed.used,
     now,
-    quotaRemaining: rl.remaining,
+    quotaRemaining: laneQuotaRemaining,
     reserve: RESERVE,
     gradedSlots: retentionReserved.size > 0 ? GRADED_RETENTION_SLOTS : 0,
     retentionBlocked,
@@ -492,6 +535,7 @@ export async function GET(request) {
         sealed_recovery: sealed.recovery,
         card_verified: batch.length,
         card_results: out,
+        browse_budget: [budgetMode, budget.granted, runBatch, budgetLease?.attempts ?? null], // browse-budget-r1: mode, granted, rows, attempts
         // graded-retention-r1 - lane usage and what it displaced (counts only)
         critical_auctions: allocation.critical_auctions,
         graded_retention_used: allocation.graded_retention_used,
@@ -514,6 +558,7 @@ export async function GET(request) {
     ok: true,
     poolSize: pool.length,
     verified: batch.length,
+    budget: { mode: budgetMode, granted: budget.granted, runBatch, attempts: budgetLease?.attempts ?? null, decision: budget.decision },
     results: out,
     calls,
     remainingBefore: rl.remaining,

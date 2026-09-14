@@ -8,6 +8,17 @@ import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const real = require(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "lib", "ebay.js"));
 const H = () => globalThis.__ingestHarness;
+// browse-budget-r1: the REAL per-attempt lease guard (same CJS module instance
+// the routes attach their lease to), so a stubbed provider call is refused
+// exactly where lib/ebay.fetchWithRetry would refuse it.
+const telemetry = require(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "lib", "ebayTelemetry.js"));
+const guard = () => {
+  if (!telemetry.consumeBrowseAttempt()) {
+    const e = new Error("Browse budget lease exhausted");
+    e.name = "BrowseBudgetExhaustedError";
+    throw e;
+  }
+};
 const count = (k) => { H().calls[k] = (H().calls[k] ?? 0) + 1; };
 
 export const MARKETPLACES = real.MARKETPLACES;
@@ -15,7 +26,7 @@ export const cardConditionDescriptorContent = real.cardConditionDescriptorConten
 export const languageAspect = real.languageAspect;
 
 export async function getBrowseRateLimit() {
-  return { remaining: 4000, limit: 5000, reset: null };
+  return H().rateLimit ?? { remaining: 4000, limit: 5000, reset: null };
 }
 export async function searchListings(query, marketplaceId) {
   count("searchListings");
@@ -42,6 +53,7 @@ export async function getItemsByLegacyIds(legacyIds, marketplaceId) {
 // graded-retention-r1: verify-deals' single-item lookup. The scenario's
 // snapshotFor decides the verdict; default is an inconclusive read.
 export async function getListingSnapshot(legacyId, marketplaceId) {
+  guard();
   count("getListingSnapshot");
   return H().snapshotFor?.(String(legacyId), marketplaceId) ?? { status: "UNKNOWN", calls: 1, evidence: "harness_default" };
 }

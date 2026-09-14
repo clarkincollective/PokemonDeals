@@ -269,7 +269,8 @@ test("VL-9. the route wires the lane into the SAME 20-call ceiling", () => {
   assert.match(ROUTE, /maxSlots: sealedSlots/);
   assert.match(ROUTE, /sealedVerifySlots\(\{/);
   // slots come OUT of BATCH, and only what the lane USED is subtracted
-  assert.match(ROUTE, /batch: BATCH - recoveryRows\.length - sealed\.used/);
+  // browse-budget-r1: runBatch = BATCH outside enforce mode; the grant inside it
+  assert.match(ROUTE, /batch: runBatch - recoveryRows\.length - sealed\.used/);
   assert.match(ROUTE, /let calls = sealed\.calls/, "sealed calls count against the same ceiling");
   // the lane runs before the card allocator, so unused slots go back
   assert.ok(ROUTE.indexOf("runSealedVerifyLane({") < ROUTE.indexOf("allocateVerifyBatch({"), "lane runs first");

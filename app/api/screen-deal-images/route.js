@@ -4,6 +4,8 @@ import { classifyListingImage } from "@/lib/listingImageClassify";
 import { getListingSnapshot, getBrowseRateLimit } from "@/lib/ebay";
 import { hasStoredImage, decideImageRecovery } from "@/lib/imageRecoveryPolicy";
 import { beginJobRun, finishJobRun, setQuotaSnapshot, markError, recordCallSkipped } from "@/lib/ebayTelemetry";
+import { attachBrowseLease } from "@/lib/ebayTelemetry";
+import { acquireBrowseLease } from "@/lib/browseBudget";
 
 // OUT-OF-BAND deal-image screening worker. P0 deal-image-integrity.
 //
@@ -132,6 +134,7 @@ export async function GET(request) {
   }
   const db = supabaseAdmin();
   const ctx = beginJobRun({ job: "screen-deal-images" });
+  let budgetLease = null;
   try {
   const staleCutoff = new Date(Date.now() - RESCREEN_AFTER_DAYS * 864e5).toISOString();
 
@@ -160,10 +163,19 @@ export async function GET(request) {
   // row just keeps its canonical fallback this cycle (no state change).
   const rl = await getBrowseRateLimit();
   setQuotaSnapshot({ remainingStart: rl?.remaining ?? null, limit: rl?.limit ?? null, reserveFloor: RECOVER_RESERVE });
-  const recoverBudget =
+  let recoverBudget =
     rl && rl.remaining != null && rl.remaining - IMAGE_RECOVER_PER_RUN >= RECOVER_RESERVE
       ? IMAGE_RECOVER_PER_RUN
       : 0;
+  // browse-budget-r1 - image recovery draws on its 10-call/day cap; the
+  // legacy 900 reserve above is kept. Classification itself is not Browse.
+  const recoverDemand = Math.min(recoverBudget, candidates.filter((row) => !hasStoredImages(row)).length);
+  if (recoverDemand > 0) {
+    const budget = await acquireBrowseLease(db, { key: "images", requested: recoverDemand, minGrant: 1, observation: rl, ttlMs: (maxDuration + 60) * 1000 });
+    budgetLease = budget.lease;
+    attachBrowseLease(budgetLease);
+    if (budget.mode === "enforce") recoverBudget = Math.min(recoverBudget, budget.granted);
+  }
   let recoverUsed = 0;
   let browseCalls = 0;
 

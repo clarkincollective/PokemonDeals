@@ -8,6 +8,8 @@ import { getUsdRates, toUsd } from "@/lib/fx";
 import { SANITY_FLOOR_PCT, isTrustworthySealedListing, listingMatchesSealedProduct } from "@/lib/dealMatching";
 import { ingestSealedListings } from "@/lib/sealedIngest";
 import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError } from "@/lib/ebayTelemetry";
+import { attachBrowseLease } from "@/lib/ebayTelemetry";
+import { acquireBrowseLease } from "@/lib/browseBudget";
 
 // Real work (API calls + database writes) - never cached, and a small
 // (~30-50 product) watchlist scanned once/day on its own dedicated tier,
@@ -127,6 +129,7 @@ export async function GET(request) {
 
   const db = supabaseAdmin();
   const ctx = beginJobRun({ job: "refresh-sealed-deals" });
+  let budgetLease = null;
   try {
   const url = new URL(request.url);
   const rates = await getUsdRates();
@@ -158,6 +161,17 @@ export async function GET(request) {
       reset: rl.reset,
     });
   }
+
+  // browse-budget-r1 - sealed discovery is explicitly UNFUNDED (cap 0) in the
+  // fixed envelope: in enforce mode it makes no Browse calls. Observe / off
+  // keep today's behaviour (the lease only records what it spends).
+  const sealedBudget = await acquireBrowseLease(db, { key: "sealed", requested: 1, observation: rl, ttlMs: (maxDuration + 60) * 1000 });
+  if (sealedBudget.mode === "enforce") {
+    markSkipped("budget_unfunded");
+    return Response.json({ skipped: "browse_budget", budget: { mode: sealedBudget.mode, ...sealedBudget.decision } });
+  }
+  budgetLease = sealedBudget.lease;
+  attachBrowseLease(budgetLease);
 
   const minDiscountParam = url.searchParams.get("minDiscount");
   const discountThreshold = minDiscountParam != null ? Number(minDiscountParam) : DISCOUNT_THRESHOLD;
