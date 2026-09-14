@@ -34,7 +34,10 @@ function parseOrClause(clause) {
   return negate ? (r) => !test(r) : test;
 }
 
-export function createMemoryDb(seed = {}) {
+// `unique` (optional): { table: [primary-key columns] } - a plain INSERT that
+// would duplicate the key fails like Postgres (code 23505), so atomic
+// insert-to-reserve logic can be exercised offline.
+export function createMemoryDb(seed = {}, { unique = {} } = {}) {
   const tables = Object.fromEntries(Object.entries(seed).map(([k, rows]) => [k, rows.map((r) => ({ ...r }))]));
   const writes = [];
   let nextId = 1_000_000;
@@ -87,6 +90,10 @@ export function createMemoryDb(seed = {}) {
         const list = Array.isArray(st.values) ? st.values : [st.values];
         const conflictCols = st.op === "upsert" && st.opts.onConflict ? String(st.opts.onConflict).split(",").map((s) => s.trim()) : null;
         const inserted = [];
+        const pk = st.op === "insert" ? unique[name] : null;
+        if (pk && list.some((v) => rows.some((r) => pk.every((c) => str(r[c]) === str(v[c]))))) {
+          return { data: null, error: { code: "23505", message: `duplicate key value violates unique constraint (${name})` } };
+        }
         for (const v of list) {
           const existing = conflictCols ? rows.find((r) => conflictCols.every((c) => str(r[c]) === str(v[c]))) : null;
           if (existing) {

@@ -8,13 +8,14 @@ import { allocateVerifyBatch } from "@/lib/verifyAllocator";
 // 17C.9 - the sealed slice comes from the SAME allocator, imported
 // separately so the card allocator's import line stays exactly as it was.
 import { sealedVerifySlots, SEALED_MAX_PER_RUN } from "@/lib/verifyAllocator";
-// graded-retention-r1 - the durable retention attempt record (UNKNOWN cooldown)
+// graded-retention-r1 - durable, atomic retention reservations (UNKNOWN cooldown)
+import { GRADED_RETENTION_SLOTS, retentionAttemptKey } from "@/lib/verifyAllocator";
 import {
-  GRADED_RETENTION_SLOTS,
-  GRADED_RETENTION_ATTEMPTS_KIND,
-  normalizeRetentionAttempts,
-  withRetentionAttempts,
-} from "@/lib/verifyAllocator";
+  readRetentionCooldowns,
+  reserveRetentionAttempt,
+  recordRetentionResult,
+  pruneRetentionAttempts,
+} from "@/lib/gradedRetentionAttempts";
 import { runSealedVerifyLane } from "@/lib/sealedVerifyLane";
 import { decideImageRecovery } from "@/lib/imageRecoveryPolicy";
 import { IMAGE_VERDICT } from "@/lib/listingImage";
@@ -238,18 +239,43 @@ export async function GET(request) {
   // the freshness ceiling - a SOFT ordering signal only. NOTHING about
   // deal qualification, thresholds, the market reference, cooldown safety,
   // or the auction re-price path changes. See lib/verifyAllocator.mjs.
-  // graded-retention-r1 - read the retention attempt record (existing
-  // catalog_snapshot(kind) blob table, no provider call). Unreadable -> the
-  // graded lane takes 0 slots this run and every slot stays with the
-  // existing lanes.
-  let retentionAttempts = null;
-  if (GRADED_RETENTION_SLOTS > 0) {
-    const { data: attemptRow, error: attemptError } = await db
-      .from("catalog_snapshot")
-      .select("data")
-      .eq("kind", GRADED_RETENTION_ATTEMPTS_KIND)
-      .maybeSingle();
-    if (!attemptError) retentionAttempts = normalizeRetentionAttempts(attemptRow?.data);
+  // graded-retention-r1 - RESERVE BEFORE ANY PROVIDER CALL. verify-deals has
+  // no run lock, so overlapping invocations are possible; every lane pick is
+  // reserved atomically per exact eBay item (lib/gradedRetentionAttempts)
+  // and only reserved items may use the lane. Live cooldowns and failed
+  // reservations are blocked and the allocation is recomputed, so a slot
+  // that could not be reserved goes to another candidate or back to the
+  // existing lanes - never to a provider call without a reservation. An
+  // unreadable record gives the lane 0 slots. No provider call and no deals
+  // write happens here.
+  const retentionRun = globalThis.crypto?.randomUUID?.() ?? String(now);
+  const retentionReserved = new Map(); // item key -> reservation time
+  const retention = { reserveAttempts: 0, reserveCooldown: 0, reserveErrors: 0, resultErrors: 0 };
+  const retentionBlocked = GRADED_RETENTION_SLOTS > 0 ? await readRetentionCooldowns(db, { now }) : null;
+  if (retentionBlocked) {
+    for (let round = 0; round < 3 && retentionReserved.size < GRADED_RETENTION_SLOTS; round++) {
+      const trial = allocateVerifyBatch({
+        pool,
+        batch: BATCH - recoveryRows.length - sealed.used,
+        now,
+        quotaRemaining: rl.remaining,
+        reserve: RESERVE,
+        retentionBlocked,
+      });
+      const picks = trial.gradedRetention.map(retentionAttemptKey).filter((k) => k && !retentionReserved.has(k));
+      if (!picks.length) break;
+      for (const k of picks) {
+        if (retentionReserved.size >= GRADED_RETENTION_SLOTS) break;
+        retention.reserveAttempts++;
+        const res = await reserveRetentionAttempt(db, k, { now, run: retentionRun });
+        if (res.reserved) retentionReserved.set(k, res.at);
+        else {
+          retentionBlocked.add(k);
+          if (res.reason === "cooldown") retention.reserveCooldown++;
+          else retention.reserveErrors++;
+        }
+      }
+    }
   }
   const { batch, allocation } = allocateVerifyBatch({
     pool,
@@ -257,25 +283,10 @@ export async function GET(request) {
     now,
     quotaRemaining: rl.remaining,
     reserve: RESERVE,
-    gradedSlots: retentionAttempts ? GRADED_RETENTION_SLOTS : 0,
-    retentionAttempts,
+    gradedSlots: retentionReserved.size > 0 ? GRADED_RETENTION_SLOTS : 0,
+    retentionBlocked,
+    retentionAllowed: new Set(retentionReserved.keys()),
   });
-  const gradedRetentionIds = new Set(allocation.graded_retention_ids ?? []);
-  const gradedRetention = batch.filter((r) => gradedRetentionIds.has(r.id));
-  // Recorded BEFORE any provider call, so a timeout or crash mid-run still
-  // leaves the cooldown in place. Attempt bookkeeping only - never
-  // availability evidence (no deals row is written here).
-  let retentionRecordError = false;
-  const saveRetentionAttempts = async (state) => {
-    const { error } = await db
-      .from("catalog_snapshot")
-      .upsert({ kind: GRADED_RETENTION_ATTEMPTS_KIND, data: state, updated_at: new Date().toISOString() }, { onConflict: "kind" });
-    if (error) retentionRecordError = true;
-  };
-  if (retentionAttempts && gradedRetention.length) {
-    retentionAttempts = withRetentionAttempts(retentionAttempts, gradedRetention, { now });
-    await saveRetentionAttempts(retentionAttempts);
-  }
   // recovery rows ride in the same loop (same one-call lookup per row)
   batch.unshift(...recoveryRows);
   const out = { ACTIVE: 0, ENDED: 0, SOLD: 0, UNKNOWN: 0, RETIRED: 0, REPRICED: 0, IMAGE_RECOVERED: 0 };
@@ -439,12 +450,19 @@ export async function GET(request) {
     // an inconclusive call.
   }
 
-  // graded-retention-r1 - add each lane attempt's verdict to the record
-  // (observability; the cooldown already started before the calls).
-  if (retentionAttempts && gradedRetention.length) {
-    const statusById = new Map(detail.map((d) => [d.id, d.status]));
-    await saveRetentionAttempts(withRetentionAttempts(retentionAttempts, gradedRetention, { now, statusById }));
+  // graded-retention-r1 - each lane verdict onto THIS run's reservation row
+  // only (conditional on its reservation time), then bounded pruning.
+  if (retentionReserved.size) {
+    const laneIds = new Set(allocation.graded_retention_ids ?? []);
+    for (const d of detail) {
+      if (!laneIds.has(d.id)) continue;
+      const k = retentionAttemptKey(batch.find((r) => r.id === d.id));
+      if (!k || !retentionReserved.has(k)) continue;
+      const ok = await recordRetentionResult(db, k, { at: retentionReserved.get(k), run: retentionRun, status: d.status });
+      if (!ok) retention.resultErrors++;
+    }
   }
+  if (retentionBlocked) await pruneRetentionAttempts(db, { now });
 
   // Targeted invalidation: only the cards whose offers just changed. No
   // provider call happens here - each expired card page re-renders lazily
@@ -477,7 +495,10 @@ export async function GET(request) {
         // graded-retention-r1 - lane usage and what it displaced (counts only)
         critical_auctions: allocation.critical_auctions,
         graded_retention_used: allocation.graded_retention_used,
-        graded_retention_record_error: retentionRecordError,
+        graded_retention_reserved: retentionReserved.size,
+        graded_retention_reserve_cooldown: retention.reserveCooldown,
+        graded_retention_reserve_errors: retention.reserveErrors,
+        graded_retention_result_errors: retention.resultErrors,
         bin_reserve_used: allocation.bin_reserve_used,
         general_slots: allocation.general_slots,
         verify_mix_auction: allocation.verify_mix_auction,

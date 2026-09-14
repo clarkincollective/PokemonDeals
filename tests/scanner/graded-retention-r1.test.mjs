@@ -1,7 +1,8 @@
 // graded-retention-r1 - up to two of verify-deals' existing 20 slots for
 // active, display-eligible graded FIXED-PRICE rows approaching their real
 // freshness cutoff. Pure allocator tests + structural checks on the route.
-// No network, no DB. NOW is the real clock because isDisplayableDeal reads it.
+// No network; reservations run against the in-memory harness DB. NOW is the
+// real clock because isDisplayableDeal reads it.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -16,10 +17,18 @@ import {
   gradedRetentionCandidate,
   gradedRetentionSlots,
   retentionAttemptKey,
-  normalizeRetentionAttempts,
-  withRetentionAttempts,
   GRADED_RETENTION_SLOTS,
 } from "../../lib/verifyAllocator.mjs";
+import {
+  RETENTION_ATTEMPT_KIND_PREFIX,
+  RETENTION_ATTEMPT_KEEP_HOURS,
+  retentionAttemptKind,
+  readRetentionCooldowns,
+  reserveRetentionAttempt,
+  recordRetentionResult,
+  pruneRetentionAttempts,
+} from "../../lib/gradedRetentionAttempts.mjs";
+import { createMemoryDb } from "../harness/ingestion/memoryDb.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
@@ -144,59 +153,97 @@ test("GR-7 route: ceiling, reserve, schedule and guarded retirement unchanged; g
   assert.equal(cron.schedule, "*/30 * * * *");
 });
 
-// ---- attempt record (UNKNOWN cooldown) ----
+// ---- attempt reservations (UNKNOWN cooldown) ----
 
-test("GR-8 attempt record: keyed by exact eBay item; cooldown two hours; survives a stored round trip; marketplace copies cannot evade it", () => {
+test("GR-8 reservations: atomic per exact eBay item; expired takeover only; result writes never overwrite a newer reservation or another row; pruning keeps live cooldowns", async () => {
+  const db = createMemoryDb({ catalog_snapshot: [{ kind: "digest_state", data: { keep: 1 }, updated_at: iso(-100) }] }, { unique: { catalog_snapshot: ["kind"] } });
   const item = { listing_id: "v1|399999999001|0", listing_url: "https://www.ebay.com/itm/399999999001?x=1", affiliate_url: "https://www.ebay.com/itm/399999999001?x=1&campid=5" };
-  const us = slab({ id: 9001, ...item, marketplace: "EBAY_US", last_seen_at: iso(-23) });
-  const gb = slab({ id: 9002, ...item, marketplace: "EBAY_GB", last_seen_at: iso(-14) }); // still AGING two hours later
-  const other = slab({ id: 9003, last_seen_at: iso(-20) });
-  assert.equal(retentionAttemptKey(us), "399999999001");
-  assert.equal(retentionAttemptKey(gb), retentionAttemptKey(us));
-  // one run: two copies of one item never take both slots
-  const first = allocateVerifyBatch({ pool: [us, gb, other], batch: 20, now: NOW, ...healthy, retentionAttempts: { attempts: {} } });
-  assert.deepEqual(first.gradedRetention.map((r) => r.id), [us.id, other.id]);
-  // persisted as JSON (catalog_snapshot.data) and read back by a later run
-  const stored = JSON.parse(JSON.stringify(withRetentionAttempts({ attempts: {} }, [us], { now: NOW })));
-  const later = normalizeRetentionAttempts(stored);
-  assert.equal(gradedRetentionCandidate(us, NOW + 0.5 * 3.6e6, { attempts: later }), false, "same row in cooldown");
-  assert.equal(gradedRetentionCandidate(gb, NOW + 0.5 * 3.6e6, { attempts: later }), false, "other marketplace copy in cooldown");
-  assert.equal(gradedRetentionCandidate(other, NOW + 0.5 * 3.6e6, { attempts: later }), true, "other listings can use the slot");
-  assert.equal(gradedRetentionCandidate(gb, NOW + 2.05 * 3.6e6, { attempts: later }), true, "cooldown is bounded");
-  assert.deepEqual(normalizeRetentionAttempts({ attempts: { x: { at: "nope" } } }), { attempts: {} }, "garbage never blocks");
+  const us = slab({ ...item, last_seen_at: iso(-22) });
+  const gb = slab({ ...item, marketplace: "EBAY_GB", last_seen_at: iso(-21) });
+  const key = retentionAttemptKey(us);
+  assert.equal(retentionAttemptKey(gb), key, "marketplace copies share one item key");
+  // two overlapping runs reserve the same item: exactly one wins
+  const [a, b] = await Promise.all([
+    reserveRetentionAttempt(db, key, { now: NOW, run: "run-a" }),
+    reserveRetentionAttempt(db, key, { now: NOW, run: "run-b" }),
+  ]);
+  assert.equal([a, b].filter((r) => r.reserved).length, 1);
+  assert.equal([a, b].find((r) => !r.reserved).reason, "cooldown");
+  assert.deepEqual(await readRetentionCooldowns(db, { now: NOW + 0.5 * 3.6e6 }), new Set([key]));
+  // inside the cooldown nobody can take it over
+  assert.equal((await reserveRetentionAttempt(db, key, { now: NOW + 1.9 * 3.6e6, run: "run-c" })).reason, "cooldown");
+  // after it, one takeover
+  const later = await reserveRetentionAttempt(db, key, { now: NOW + 2.1 * 3.6e6, run: "run-d" });
+  assert.equal(later.reserved, true);
+  // the first run's late result must not overwrite the newer reservation
+  const first = a.reserved ? a : b;
+  assert.equal(await recordRetentionResult(db, key, { at: first.at, run: "old", status: "UNKNOWN" }), false);
+  const rowNow = db.tables.catalog_snapshot.find((r) => r.kind === retentionAttemptKind(key));
+  assert.equal(rowNow.data.run, "run-d");
+  assert.equal(rowNow.data.status, null);
+  assert.equal(await recordRetentionResult(db, key, { at: later.at, run: "run-d", status: "ACTIVE" }), true);
+  assert.deepEqual(db.tables.catalog_snapshot.find((r) => r.kind === "digest_state").data, { keep: 1 }, "unrelated row untouched");
+  // pruning: only rows older than the keep horizon go
+  await reserveRetentionAttempt(db, "old-item", { now: NOW - (RETENTION_ATTEMPT_KEEP_HOURS + 1) * 3.6e6 });
+  await pruneRetentionAttempts(db, { now: NOW + 2.2 * 3.6e6 });
+  const kinds = db.tables.catalog_snapshot.map((r) => r.kind).sort();
+  assert.deepEqual(kinds, ["digest_state", retentionAttemptKind(key)].sort());
+  // the allocator honours blocked / allowed item keys
+  const other = slab({ last_seen_at: iso(-20) });
+  const blocked = allocateVerifyBatch({ pool: [us, gb, other], batch: 20, now: NOW, ...healthy, retentionBlocked: new Set([key]) });
+  assert.deepEqual(blocked.gradedRetention.map((r) => r.id), [other.id], "both copies blocked; another listing uses the slot");
+  const allowed = allocateVerifyBatch({ pool: [us, gb, other], batch: 20, now: NOW, ...healthy, retentionBlocked: new Set(), retentionAllowed: new Set([key]) });
+  assert.deepEqual(allowed.gradedRetention.map((r) => r.id), [us.id], "only reserved items use the lane, one copy per item");
 });
 
-test("GR-9 real verify-deals route over separate invocations: UNKNOWN cooldown, fallback, unchanged ACTIVE freshness write, holds untouched, unreadable record -> lane off", () => {
+test("GR-9 real verify-deals route: UNKNOWN cooldown across invocations, expired takeover, fallback, unchanged ACTIVE write, persistence faults release the lane, overlapping runs never share an item", () => {
   const r = spawnSync(process.execPath, ["--no-warnings", "--import", "./tests/harness/ingestion/register.mjs", "tests/harness/ingestion/verifyRetention.mjs"], { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
   assert.equal(r.status, 0, r.stderr);
-  const { seed, runs } = JSON.parse(r.stdout);
+  const { seed, sequence, faults, concurrent } = JSON.parse(r.stdout);
   const lane = (run) => run.checked.filter(([id]) => id < 100);
-  for (const run of runs) {
+  const attemptKinds = (run) => Object.keys(run.record).filter((k) => k.startsWith(RETENTION_ATTEMPT_KIND_PREFIX));
+  for (const run of [...sequence, ...faults, ...concurrent.runs]) {
     assert.equal(run.verified, 20, `${run.label}: total batch stays 20`);
-    assert.equal(run.calls, 20, `${run.label}: one provider call per slot, no extra calls`);
+    assert.equal(run.calls, 20, `${run.label}: one provider call per slot`);
     assert.ok(run.allocation.graded_retention_used <= 2);
-    assert.deepEqual(run.rows[5], seed[5], `${run.label}: review-held row never selected or changed`);
   }
-  const [run1, run2, run3, run4, run5] = runs;
-  // run 1: item A (US copy, nearest cutoff) + B; A's GB copy is the same item and is skipped. Both UNKNOWN.
+  for (const run of sequence) {
+    assert.deepEqual(run.rows[5], seed[5], `${run.label}: review-held row never selected or changed`);
+    assert.deepEqual(run.record.digest_state.data, { unrelated: true }, `${run.label}: unrelated catalog_snapshot row untouched`);
+  }
+  const [run1, run2, run3, run4] = sequence;
+  // run 1: item A (US copy, nearest cutoff) and B reserved, then both UNKNOWN; A's GB copy is the same item
   assert.deepEqual(lane(run1), [[1, "UNKNOWN"], [3, "UNKNOWN"]]);
   for (const id of [1, 2, 3]) assert.deepEqual(run1.rows[id], seed[id], "UNKNOWN refreshes nothing");
-  assert.deepEqual(Object.keys(run1.record.attempts).sort(), ["300000000001", "300000000003"]);
-  // run 2 (+30 min, separate invocation): A and B in cooldown; C takes a slot; the other returns to general
+  assert.deepEqual(attemptKinds(run1).sort(), [`${RETENTION_ATTEMPT_KIND_PREFIX}300000000001`, `${RETENTION_ATTEMPT_KIND_PREFIX}300000000003`]);
+  assert.equal(run1.record[`${RETENTION_ATTEMPT_KIND_PREFIX}300000000003`].data.status, "UNKNOWN");
+  // run 2 (+30 min): A and B in cooldown; C takes a slot and the other slot returns to general
   assert.deepEqual(lane(run2), [[4, "ACTIVE"]]);
-  assert.equal(run2.allocation.graded_retention_used, 1);
   assert.equal(run2.rows[4].last_seen_at, run2.rows[4].exact_verified_at, "ACTIVE: the existing freshness write");
   assert.notEqual(run2.rows[4].last_seen_at, seed[4].last_seen_at);
   assert.equal(run2.rows[4].first_seen_at, seed[4].first_seen_at);
-  // run 3 (+1 h): nothing eligible -> every slot to the existing lanes
+  // run 3 (+1 h): nothing reservable -> no lane slots
   assert.deepEqual(lane(run3), []);
-  assert.equal(run3.allocation.graded_retention_used, 0);
-  // run 4 (+2 h 05): cooldown over - B again; A has passed its cutoff and is neither selected nor reactivated
+  assert.equal(run3.allocation.graded_retention_slots, 0);
+  // run 4 (+2 h 05): B's expired reservation is taken over; A has passed its cutoff and is not reactivated
   assert.deepEqual(lane(run4), [[3, "UNKNOWN"]]);
+  assert.notEqual(run4.record[`${RETENTION_ATTEMPT_KIND_PREFIX}300000000003`].updated_at, run1.record[`${RETENTION_ATTEMPT_KIND_PREFIX}300000000003`].updated_at);
   assert.deepEqual(run4.rows[1], seed[1]);
-  // run 5: record unreadable -> lane takes 0 slots
-  assert.equal(run5.allocation.graded_retention_slots, 0);
-  assert.deepEqual(lane(run5), []);
+  // persistence faults with eligible slabs: no reservation -> no lane lookup, no deals write, slots stay with the existing lanes
+  for (const f of faults) {
+    assert.deepEqual(lane(f), [], f.label);
+    assert.equal(f.allocation.graded_retention_slots, 0, f.label);
+    assert.equal(f.dealsWrites, 0, f.label);
+    assert.equal(attemptKinds(f).length, 0, f.label);
+  }
+  // overlapping invocations: disjoint lane items, one reservation row per item, each owned by the run that checked it
+  const [oa, ob] = concurrent.runs;
+  const itemsA = lane(oa).map(([id]) => id);
+  const itemsB = lane(ob).map(([id]) => id);
+  assert.equal(itemsA.length + itemsB.length, 4);
+  assert.equal(itemsA.filter((id) => itemsB.includes(id)).length, 0, "no item checked by both runs");
+  const runs = new Set(Object.entries(concurrent.record).filter(([k]) => k.startsWith(RETENTION_ATTEMPT_KIND_PREFIX)).map(([, v]) => v.data.run));
+  assert.equal(runs.size, 2);
 });
 
 // ---- protected lanes on a near-full batch ----

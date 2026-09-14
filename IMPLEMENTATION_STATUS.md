@@ -4841,19 +4841,35 @@ The extra ~383 verification calls replace:
 - not in `identityConflictKeys(pool)`. The verifier reads `grader, grade` (read-only) so slab identities compare.
 - `dealFreshness` = AGING: `last_seen_at` age ≥ half its TTL tier and below it
 - not exactly checked within 2 h
-- **not attempted by this lane within 2 h** (attempt record below)
+- **not reserved by this lane within 2 h** (attempt reservations below)
 
 Order is soonest real cutoff first. The lane scales to 0 near the quota floor (same headroom rule as the BIN reserve: remaining − batch ≥ 800 + 250).
 
-**Attempt record (UNKNOWN cooldown).**
-- **Storage:** existing `catalog_snapshot(kind text pk, data jsonb)` blob table, `kind = verify_graded_retention_attempts` (the same mechanism as `digest_state` / `ingest_feed_runs`). No new table or column.
-- **Shape:** `{ attempts: { "<eBay legacy item id>": { at, status } } }`. Keyed by the exact eBay item, so every marketplace copy of one listing shares one cooldown. Pruned to 24 h / 200 entries.
-- **Read:** once per run, before allocation. If unreadable, the lane takes 0 slots that run and every slot stays with the existing lanes.
-- **Written before any provider call** for the rows the lane picked, so a timeout still leaves the cooldown in place. After the loop the verdict is added (observability).
-- **Never availability evidence:** no `deals` column is written by it. UNKNOWN still writes nothing to `deals`, so `last_seen_at`, `exact_verified_at`, `first_seen_at` and the reason are unchanged.
-- **Cooldown:** an item attempted within `GRADED_RETENTION_RECHECK_HOURS` (2 h) is skipped by this lane only. The general ranking can still pick it on its own merits, which is pre-existing behaviour and unchanged.
-- **Visibility:** the table has public read RLS, so the record exposes eBay item ids that are already public on `deals`, attempt times and verdicts.
-- **Residual:** two overlapping verifier runs could race the read-modify-write and lose one entry (cron every 30 min, maxDuration 120 s).
+**Attempt reservations (UNKNOWN cooldown): `lib/gradedRetentionAttempts.mjs`.**
+- **No run lock exists.** verify-deals has no durable lock. The only lock-like code in the repo is the social refill lock (check-then-insert in `social_qa_runs`, not atomic, different job). Overlapping verifier invocations are therefore possible (duplicated cron delivery, manual call).
+- **Storage:** one row per exact eBay item in the existing `catalog_snapshot(kind text PRIMARY KEY, data jsonb, updated_at timestamptz)` table:
+  - `kind = verify_graded_retention_attempt:<legacy item id>`, so marketplace copies share it
+  - `updated_at` = reservation time (the cooldown clock)
+  - `data = { item, at, run, status }`
+- Every existing `catalog_snapshot` reader selects one exact kind. No trigger on the table in the repo schema. **No schema migration.**
+- **Reserve** (before any provider call):
+  - INSERT; the primary key makes it atomic, and a concurrent reservation gets 23505
+  - else `UPDATE … WHERE kind = k AND updated_at < now − 2 h` (takes over only an expired reservation; Postgres re-checks the WHERE under the row lock, so two runs cannot both win)
+  - any other error counts as not reserved
+- **Route:**
+  1. read live cooldowns
+  2. allocate
+  3. reserve the lane picks
+  4. block cooldown or failed items and re-allocate (≤3 rounds)
+  5. final allocation with `retentionAllowed` = reserved items only
+
+  A lane lookup therefore cannot start without a persisted reservation. A failed reservation's slot goes to another reservable candidate or back to the existing lanes, with no provider call made for it.
+- **Unreadable cooldown read:** lane 0 slots.
+- **Result:** `UPDATE data WHERE kind = k AND updated_at = <this reservation>`. It never overwrites a newer reservation or another row.
+- **Prune:** `DELETE WHERE kind LIKE prefix AND updated_at < now − 24 h`, far outside the 2 h cooldown.
+- **Never availability evidence:** no `deals` column is written by it. UNKNOWN still writes nothing to `deals`.
+- **Scope:** the cooldown applies to the retention lane only. The pre-existing general ranking can still pick a cooled-down item on its own merits (acknowledged, unchanged).
+- **Visibility:** `catalog_snapshot` has public read RLS, so these rows expose eBay item ids (already public on `deals`), attempt times, run ids and verdicts.
 
 **Freshness evidence.**
 - A fixed-price ACTIVE verdict still writes `last_seen_at = exact_verified_at = now` through the unchanged path. That field drives `dealFreshness` / `isStale` and `/api/sweep-stale-deals`, so a confirmed row leaves the AGING window.
@@ -4884,24 +4900,38 @@ Order is soonest real cutoff first. The lane scales to 0 near the quota floor (s
 - At most ~40 lane calls/day (≈20 eligible runs × 2).
 - Slot prioritisation does not fix quota starvation. Floors and the proposed reallocation are unchanged.
 
-**Telemetry.** `verify_deals_complete` logs `critical_auctions`, `graded_retention_used`, `graded_retention_record_error`, `bin_reserve_used`, `general_slots` and `verify_mix_auction` (counts only). The response `allocation` also carries `graded_retention_ids`. Deterioration would show as:
+**Telemetry.** `verify_deals_complete` logs `critical_auctions`, `graded_retention_used`, `graded_retention_reserved`, `graded_retention_reserve_cooldown`, `graded_retention_reserve_errors`, `graded_retention_result_errors`, `bin_reserve_used`, `general_slots` and `verify_mix_auction` (counts only). The response `allocation` also carries `graded_retention_ids`. Deterioration would show as:
 - falling `general_slots` or `verify_mix_auction`
 - more auctions retired or ended between checks, and more raw rows expiring on `sweep-stale-deals`
 - a lower share of active raw rows with `exact_verified_at` within 6 h (`deals`)
 - `ebay_job_runs` verify-deals calls unchanged by construction
 
 **Checks.**
-- **`graded-retention-r1` GR-1..11: 11/11.** GR-9 runs the real verify-deals GET handler five times against one in-memory DB, offline:
-  - A (two marketplace copies) and B UNKNOWN: both untouched
-  - +30 min: A and B in cooldown, C picked (ACTIVE refreshes `last_seen_at = exact_verified_at`, `first_seen_at` kept)
-  - +1 h: none eligible, all slots general
-  - +2 h 05: B re-picked, A past cutoff and not reactivated
-  - unreadable record: lane 0
-  - the review-held row is never touched; 20 calls per run
-- **GR-10:** near-full batches (0–25 critical auctions): critical and BIN reserve identical on/off; the lane displaces general slots only.
-- **Harness:** `tests/harness/ingestion/stubs/ebay.mjs` gains a `getListingSnapshot` stub.
-- **Focused set** (P0.4.3 allocator, 17C.9 sealed lanes, sold-item and deal freshness, availability, integrity-followup-r2 guard, quarantines, All deals, 14Q/14R, affiliate, 17C.10 log, auction price integrity, integrity-r1 e2e, retention): 305 / 6 fail, the same 6 as the deployed base (P043-4/5/10/11 fixed 2026-09-07 clock; 15b; IR stored-rows).
+- **`graded-retention-r1` GR-1..11: 11/11.**
+- **GR-8** (module, in-memory DB with the real `kind` primary key):
+  - two overlapping reservations of one item: exactly one wins, the other gets cooldown
+  - no takeover inside 2 h; one takeover after
+  - a late result from the older reservation is rejected and the newer row is untouched
+  - the unrelated `digest_state` row is untouched
+  - prune removes only >24 h rows
+  - the allocator honours blocked and allowed items across marketplace copies
+- **GR-9** runs the real verify-deals GET handler, offline:
+  - sequence: A (two copies) and B UNKNOWN, untouched → +30 min C ACTIVE (existing freshness write, `first_seen_at` kept) → +1 h no lane → +2 h 05 B taken over, A past cutoff, not reactivated
+  - reservation writes failing, and cooldown read failing, with eligible slabs present: lane 0, no lane lookup, no `deals` write, batch 20
+  - two overlapping invocations: 4 distinct items split between the runs, none checked twice, one reservation row per item
+  - review-held row never touched; 20 calls per run
+- **GR-10:** near-full batches (0–25 critical): critical and BIN reserve identical on/off; the lane displaces general slots only.
+- **Harness:** `memoryDb` gains an optional primary-key conflict (23505) for inserts; `stubs/ebay.mjs` gains `getListingSnapshot`.
+- **Offline oracle vs deployed `e4ac8b7` allocator:** 80 scenarios on the production pool (1,120), 0/80 differences with slots = 0; protected lanes identical with the lane on.
+- **Focused set** (P0.4.3, 17C.9 sealed lanes, sold-item and deal freshness, availability, integrity-followup-r2 guard, quarantines, All deals, 14Q/14R, affiliate, 17C.10 log, auction price integrity, integrity-r1 e2e, graded-growth-r1, retention): 312 / 6 fail, the same 6 as `e4ac8b7`.
 - `next build` exit 0. ESLint clean.
+
+**Rollback** (any one, least to most invasive):
+1. **Disable the lane:** set `GRADED_RETENTION_SLOTS = 0` in `lib/verifyAllocator.mjs` and deploy. The batch is identical to `e4ac8b7`'s (80/80 oracle). No reservation read or write happens (the route skips both when slots = 0).
+2. **Instant rollback** to the previous production deployment (graded supply release 1, `e4ac8b7`): `vercel rollback dpl_AtuPXZQG479RmwpE7PaPzAEzdRXR --scope clarkin-collective`. Or promote that deployment in the Vercel dashboard. Remember a later push to `main` redeploys.
+3. **Revert** the retention commits on `main` and push.
+
+Leftover `verify_graded_retention_attempt:*` rows are inert, because no other reader selects them. Optional cleanup: `delete from catalog_snapshot where kind like 'verify_graded_retention_attempt:%';`
 
 ## Sourcing and integrity follow-ups (recorded 2026-09-15; not started)
 - **ingest-feed source:**
