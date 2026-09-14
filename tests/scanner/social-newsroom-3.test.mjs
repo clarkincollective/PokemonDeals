@@ -125,7 +125,8 @@ test("N3-9. `social:backlog -- --refill` runs the SAME refillQueueReconcile as t
   const s = read("scripts/socialBacklog.mjs");
   assert.match(s, /MODE = has\("--refill"\)/);
   assert.match(s, /import\("\.\.\/lib\/newsroom\/backlogRefill\.mjs"\)/);
-  assert.match(s, /refillQueueReconcile\(\{ dryRun: !enabled, initial: true \}\)/);
+  // SOCIAL-LIVE-1: + an optional owner-authorised near-term launch slot
+  assert.match(s, /refillQueueReconcile\(\{ dryRun: !enabled, initial: true, launchAt \}\)/);
   assert.match(s, /acquireRefillLock/);
 });
 

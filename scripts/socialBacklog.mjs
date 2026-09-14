@@ -284,7 +284,11 @@ function scoreStory(story, context) {
     } else {
       try {
         const enabled = process.env.SOCIAL_BUFFER_BACKLOG_ENABLED === "true";
-        payload.refill = await refillQueueReconcile({ dryRun: !enabled, initial: true });
+        // SOCIAL-LIVE-1: owner-authorised launch - one near-term first slot
+        const launchArg = args.find((a) => a.startsWith("--launch-in-minutes="));
+        const launchMin = launchArg ? Number(launchArg.split("=")[1]) : null;
+        const launchAt = Number.isFinite(launchMin) && launchMin >= 65 /* bufferBacklog preflight: dueAt > now + 60 min */ ? new Date(NOW + launchMin * 60_000).toISOString() : null;
+        payload.refill = await refillQueueReconcile({ dryRun: !enabled, initial: true, launchAt });
         const { rows: qa } = ready ? await loadQaRuns({ limit: 5000 }) : { rows: [] };
         const placementState = Object.fromEntries(placed.map((p) => [p.placement_id, p.status]));
         payload.qa_retention = qaRetentionReport(qa, placementState, {

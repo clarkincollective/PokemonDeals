@@ -58,6 +58,9 @@ const DO_QUEUE = has("--queue-proof");
 const DO_AUDIT_LEGACY = has("--audit-legacy");
 const APPLY_AUDIT = has("--apply");
 const CANCEL_DRAFT = has("--cancel-draft") ? argVal("--cancel-draft") : null;
+const listArg = (f) => { const v = argVal(f); return v ? v.split(",").map((x) => x.trim()).filter(Boolean) : null; };
+const ONLY_PLATFORMS = listArg("--platforms");
+const ONLY_SERIES = listArg("--series")?.map((x) => x.toUpperCase()) ?? null;
 const DO_RENDER = has("--render") || (!DO_SEED && !DO_QUEUE && !CANCEL_DRAFT && !DO_AUDIT_LEGACY);
 const NOW = Date.now();
 const ROOT = process.cwd();
@@ -262,6 +265,9 @@ async function renderPass() {
     // draft whose exact artifact no longer PASSes (SS2 - never leave
     // invalid queued creative silently present).
     if (!["PLANNED", "RENDERED", "QA_WATCH", "BUFFER_READY", "BUFFER_QUEUED"].includes(p.status)) return false;
+    // SOCIAL-LIVE-1: optional scope (bounds OpenAI generation cost per run)
+    if (ONLY_PLATFORMS && !ONLY_PLATFORMS.includes(p.platform)) return false;
+    if (ONLY_SERIES && !ONLY_SERIES.includes(String(st.series).toUpperCase())) return false;
     const k = `${p.story_id}|${p.platform}`;
     if (seen.has(k)) return false;
     seen.add(k);
