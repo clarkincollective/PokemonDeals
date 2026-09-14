@@ -3738,3 +3738,40 @@ No scanner, budget, newsletter or social change. This ledger entry is a local-on
 - Chromium only.
 
 Graded-inventory growth remains queued. No deployment, provider call, inventory or scanner change.
+
+#### Checklist discovery — final scoped checks and review range (2026-09-14, local, not deployed)
+
+The owner asked for two scoped checks. No application code changed; the verifier is scratchpad-only.
+
+**1. Menu verifier updated for the intentional addition, affected checks rerun.**
+- **Method:** the old checks hard-coded 5 Cards & Sets links and 17 destinations. They now derive expectations from the nav model:
+  - **baseline:** `lib/navLinks.js` exactly as deployed at production `f5d0752` (`git show f5d0752:lib/navLinks.js`)
+  - **current:** the branch
+  - **expected:** production's Cards & Sets group with only `{ /sets#collection-checklists, "Collection checklists" }` inserted directly after "Sets & Checklists"; the destination set equals production's plus that one href.
+- **Model checks:** the branch group equals the expected order/href/label; destinations added = [`/sets#collection-checklists`], removed = [].
+- **Rendered mobile menu (390, keyboard):**
+  - Cards & Sets renders exactly Price Checker, Card Database, Sets & Checklists, Collection checklists, Browse by Pokemon, Market Data (href and label, in order).
+  - Expanding each group reaches exactly production's destinations plus the new one, with none missing and none unexpected; targets are at least 44px and one group is open at a time.
+- **Unchanged checks, rerun:** open / focus trap / Shift+Tab / Enter / Space / Escape and focus return; 320×568 touch open, Guides & help, Close.
+
+**2. Desktop Cards & Sets dropdown (1280).**
+- **Keyboard:** Tab reaches the trigger in 4 stops, closed with its links out of the Tab order. Enter opens it, and the panel's links equal the same expected list. Tab moves Price Checker → Card Database → Sets & Checklists → Collection checklists with the panel staying open. Escape closes it and returns focus to the trigger. Space reopens it.
+- **Navigation:** Enter on "Collection checklists" loads `/sets#collection-checklists` with the checklist view shown: All sets hidden, tab selected, "Collection checklists (3)", 3 "Open checklist" links.
+- **Mouse, already on `/sets`:** hover opens the dropdown. Clicking "Collection checklists" switches All sets to the checklist view and closes the dropdown.
+- **Focus leaving the dropdown** closes it.
+- **Harness note:** the first run's dropdown checks failed only because the selector assumed a `<header>` element; the site header is a `<div>`. The Tab stops already showed focus on the Cards & Sets button. The selector was corrected and nothing in the app changed.
+
+**Result:** 23/23 menu and dropdown checks pass on the provider-disabled fixture, built from `ce348bd` code. 0 blocked non-allowed requests; no extra page targets.
+- The catalogue-view and desktop-regression sections of that verifier were not rerun (`ONLY=menu`); their code is unchanged since they last passed.
+- Other suites were not repeated, since no application code changed.
+
+**Review range from production.**
+- **Base:** production `f5d0752` (= `origin/main`, re-checked); fast-forward.
+- **Range:** `f5d0752..<review HEAD>` covers:
+  - `9931dd0` docs — mobile UX r1 deployment ledger. **Carried forward:** a local-only ledger commit from the previous phase, not yet pushed.
+  - `ce348bd` feat(sets) — the only application-code commit (`app/globals.css`, `app/sets/page.js`, `components/SetsFilterList.js`, `lib/navLinks.js`, `lib/setChecklist.js`, `tests/scanner/checklist-discovery.test.mjs`)
+  - `b67e241` docs — checklist discovery ledger
+  - this entry's docs commit — the final review HEAD
+- **Last built code commit:** `ce348bd`.
+
+Held for deployment approval. Graded-inventory growth remains queued next.
