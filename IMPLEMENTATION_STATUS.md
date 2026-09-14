@@ -4479,3 +4479,66 @@ This commit is local on `integrity-followup-r2`, **not pushed or deployed**.
 **Phase closed.** This bounded release is verified. Not every integrity issue is resolved: the two items above remain open.
 
 This entry, `tests/db/quarantine-durability-concurrency.mjs` and the applied hold files are a local-only commit on `integrity-followup-r2`, **not pushed**.
+
+## Social live launch (SOCIAL-LIVE-1/2): first publications + recurring activation, 2026-09-14
+
+**Authorisation:** the owner authorised live organic publishing on the verified PokemonDealFinder accounts, within existing spending limits. That lifts the owner-requested Stage B pause for this scope only. The bypass of platform permissions, rights/quality blockers or spending limits is not authorised.
+
+**First publications.** Each was confirmed from Buffer sent-evidence and then publicly via the platform's own endpoint (oEmbed, the X syndication API or the Instagram og: tags):
+
+| Platform | Account | Public URL | Sent (UTC) | Media |
+|---|---|---|---|---|
+| Instagram | pokemondealfinder | https://www.instagram.com/p/DdQ1c9uFTDG/ | 09:40:10 | 1080×1350 image |
+| X | pkmdealfinder | https://x.com/2096756843423100928/status/2099432979273564394 | 09:40:02 | photo 1080×1350 |
+| TikTok | @pokemondealfinder | https://tiktok.com/@pokemondealfinder/video/7685316792306126087 | 09:15:29 | 9:16 video processed (576×1024 thumbnail) |
+| YouTube Shorts | PokemonDeal Finder | https://www.youtube.com/watch?v=W1JHSNyKyxk | 09:13:16 | public, processed thumbnail |
+
+**Story:** MARKET_SNAPSHOT. 85.7% of 24,674 priced catalogue singles have a market price under $25 (4.7% at $100 or more). The example is Charizard GX SM195 (SM Promos) at a $24.40 Near Mint market reference, a catalogue printing rather than a live listing.
+
+**Images:**
+- The OpenAI data-free background comes from `SOCIAL_HYBRID_CREATIVE`; the verified card art and every fact are composited deterministically.
+- STACK and Layer-5 review both PASS for the exact artifact hashes: IG `6a073fdd…`, X `75e7dc7d…`.
+
+**Video:**
+- Built as hook scene → real-card spotlight → 4C.7 professional loop (chart) → CTA end screen.
+- 14.75 s, H.264, 1080×1920, with an original audio bed synthesised locally in ffmpeg (no third-party music).
+- $0 API cost; hosted at `social-public/by-hash/74c26d35….mp4`.
+
+**Fabricated / misleading evidence removed:**
+- **Fabricated sold figures:**
+  - `resolveAskingVsSold` synthesised "recent sold" points (market ×0.96/1.00/1.04), and the template added a 1.35× "asking" price. Both are gone.
+  - WHY_SOLD_PRICES_MATTER is withheld (`SOLD_OBSERVATIONS_STORED=false`).
+  - Its 3 rendered placements are REJECTED with a FACT_REVIEW FAIL.
+- **"Sell" wording:** "sell under $25" is now "have a market price under $25" everywhere, including the video derivative. The unsupported "most active part of the hobby" line is removed.
+- **Deal gates:**
+  - `socialDealUsable` now applies the full display gate.
+  - It rejects World Championship deck, jumbo and proxy copies matched to a standard printing (e.g. a "2019 World Championships" Solgaleo priced against the $16 SM104 promo).
+  - Printing pairs must be like-for-like (same condition, no edition ambiguity).
+- **OpenAI image errors:** now sanitised and classified. A safety refusal is never retried or re-sent on another model.
+
+**Fixes shipped (production `6f90f95`, pushed from `social-live-r1`):**
+- Buffer video input: no thumbnailUrl, YouTube categoryId.
+- The three_up column overflow.
+- `/api/social-auto` hourly 500 (ENOENT mkdir on read-only `/var/task`): it now returns 200 and fails closed on serverless.
+- Also pushed: the earlier local ledger commit `09604f4`.
+
+**Stage B blockers resolved:**
+1. Fabricated evidence.
+2. Unlike-for-like comparisons.
+3. Launch slot inside the 60-minute safety buffer.
+4. Batch-wide curation dropping the second platform.
+5. Windows full-gen path.
+6. Buffer video input.
+7. The social-auto 500.
+
+**Recurring activation:**
+- Stage A render workflow is scheduled for 05:00 Brisbane Sun + Wed. It runs hybrid imagery (1 background image per render, per `budget.mjs`) and a weekly card-forward seed.
+- Stage B cron is `/api/social-backlog-refill` at 06:00 Brisbane Sun + Wed, with slots IG 10:00/18:00 and X 08:00/16:00 Australia/Brisbane.
+- Failure alerts come from `social-health.yml` at 08:30/20:30 Brisbane: the job fails (GitHub emails the owner) on a tripped circuit, a FAILED/missing post, a stuck submit or an overdue post.
+- The emergency pause is `node scripts/socialBacklogCircuit.mjs suspend`.
+
+**Open (owner action or next work):**
+- Production Stage B is inert until the Vercel env sets `SOCIAL_BUFFER_BACKLOG_ENABLED=true` and `SOCIAL_BUFFER_BACKLOG_MODE=scheduled` and the project is redeployed. Verified: a dry run reported "not set".
+- The GitHub repository secrets `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY` and `BUFFER_ACCESS_TOKEN` could not be verified from here.
+- **Content supply:** the evidence-backed families currently yield a few posts per platform per week, not two per day. Weekly market snapshot, plus live-deal families only when listings pass the identity gates.
+- **TikTok/YouTube recurrence:** the video assembly and publish are not yet in a scheduled job.

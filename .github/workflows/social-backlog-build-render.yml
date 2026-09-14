@@ -9,10 +9,10 @@
 # STAGE B (queue + reconcile) then runs on the Vercel cron
 # /api/social-backlog-refill one hour later.
 #
-# NOT SCHEDULED YET. `workflow_dispatch` only. To activate recurring
-# operation an owner must (1) add the repo secrets below, (2) uncomment
-# the `schedule:` block, (3) set REFILL_SCHEDULE.activated = true, and
-# (4) add the Vercel Stage-B cron. See docs/social-newsroom-3-runbook.md.
+# SCHEDULED (SOCIAL-LIVE-2, owner-authorised 2026-09-14): 05:00 Brisbane
+# Sun + Wed, one hour before the Vercel Stage-B cron. Stage B only queues
+# when SOCIAL_BUFFER_BACKLOG_ENABLED=true is set in the Vercel project env.
+# A missing secret fails this run visibly (GitHub emails the repo owner).
 #
 # Required repository secrets (Settings -> Secrets and variables -> Actions):
 #   NEXT_PUBLIC_SUPABASE_URL       (already set for the SEO workflow)
@@ -27,9 +27,9 @@ name: social backlog build+render (Stage A)
 
 on:
   workflow_dispatch:
-  # schedule:
-  #   # 05:00 Australia/Brisbane Sunday + Wednesday  (UTC+10, no DST)
-  #   - cron: "0 19 * * 6,2"
+  schedule:
+    # 05:00 Australia/Brisbane Sunday + Wednesday  (UTC+10, no DST)
+    - cron: "0 19 * * 6,2"
 
 concurrency:
   # SS17/SS34 - never let two render runs overlap
@@ -46,6 +46,9 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       # do NOT set SOCIAL_BUFFER_BACKLOG_ENABLED here - Stage A never queues
+      # SOCIAL-LIVE-2: OpenAI data-free background + deterministic facts
+      # (bounded by lib/newsroom/hybrid/budget.mjs: 1 image per render)
+      SOCIAL_HYBRID_CREATIVE: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -77,6 +80,9 @@ jobs:
 
       - name: Build story opportunities (persist PLANNED)
         run: npm run social:backlog -- --build
+
+      - name: Seed this week's card-forward stories (idempotent weekly buckets)
+        run: node scripts/socialBacklogRender.mjs --proof-seed
 
       - name: Render + QA + consensus + host  (Stage A)
         env:
