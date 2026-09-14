@@ -1,4 +1,5 @@
 import {
+  fetchAllDealsPage,
   fetchDealsPage,
   fetchSpeciesDealsPage,
   fetchSetDealsPage,
@@ -44,6 +45,23 @@ export async function GET(request) {
   };
 
   try {
+    // /deals "All deals": every eligible listing, exact counts (see
+    // lib/allDealsInventory). All marketplaces unless ?country is valid.
+    if (kind === "all") {
+      const r = await fetchAllDealsPage({
+        country: filters.country,
+        cardType: filters.cardType,
+        grader: gradedFilters.grader,
+        grade: gradedFilters.grade,
+        listingType: filters.listingType,
+        minPrice: filters.minPrice,
+        maxPrice: filters.maxPrice,
+        q: u.searchParams.get("q"),
+        sort: u.searchParams.get("sort") || "newest",
+        page: filters.page,
+      });
+      return Response.json(r);
+    }
     if (kind === "set") {
       const resolved = await resolveSetSlug(slug);
       if (!resolved) return Response.json({ deals: [], totalPages: 1, error: "not found" }, { status: 404 });

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
-import Pagination from "@/components/Pagination";
+import Pagination, { pageHref } from "@/components/Pagination";
 import GridSkeleton from "@/components/GridSkeleton";
 import { AppliedFilters, FilterNotes, FilteredEmptyState, EmptyGridState } from "@/components/DealFilterChips";
 import { hasActiveDealFilters, normalizeDealFilters } from "@/lib/dealFilters";
@@ -73,6 +73,36 @@ function parseSearch(search) {
   return p;
 }
 
+// "All deals" count line. The total is the exact number of eligible,
+// deduplicated listings for this URL's filters (lib/allDealsInventory) -
+// the same array the page was sliced from. When a marketplace hit a
+// resource limit the server says so (exact: false) and the number is shown
+// as a lower bound, never as exact.
+function ResultsSummary({ page, shown, totalCount, exact, pageSize }) {
+  const first = (page - 1) * pageSize + 1;
+  const last = first + shown - 1;
+  const noun = totalCount === 1 ? "listing" : "listings";
+  const total = `${exact ? "" : "at least "}${totalCount.toLocaleString("en-US")} ${noun}`;
+  return (
+    <div role="status" className="mb-4 text-sm text-zinc-600 dark:text-zinc-300">
+      <p className="tabular-nums">
+        {shown < totalCount ? (
+          <>
+            Showing {first.toLocaleString("en-US")}–{last.toLocaleString("en-US")} of <strong className="font-semibold text-zinc-900 dark:text-zinc-100">{total}</strong>
+          </>
+        ) : (
+          <strong className="font-semibold text-zinc-900 dark:text-zinc-100">{total.charAt(0).toUpperCase() + total.slice(1)}</strong>
+        )}
+      </p>
+      {!exact && (
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          Some marketplaces have more stored listings than this page can browse at once, so this count is a minimum.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}, emptyLabel, validSetSlugs = [], defaultSort = "newest", subjectLabel, compactFilters = false, lockedCardType = null }) {
   const search = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const params = useMemo(() => parseSearch(search), [search]);
@@ -85,9 +115,12 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
   // narrowing further by grader/grade is meaningful the same way it is on
   // a species/set page. Other categories stay on the plain FilterBar for
   // now - this is a bounded pilot, not a category-wide rollout.
-  const showGrading = kind === "species" || kind === "set" || (kind === "category" && slug === "graded");
+  // "All deals" (/deals, kind "all") takes the full contract too: grading,
+  // search and the cold-navigation guard below, plus an exact count.
+  const allDeals = kind === "all";
+  const showGrading = allDeals || kind === "species" || kind === "set" || (kind === "category" && slug === "graded");
   // Same pilot scope for search-within-inventory.
-  const searchable = kind === "category" && slug === "graded";
+  const searchable = allDeals || (kind === "category" && slug === "graded");
   // Review closure (2026-09-14): a direct navigation to a FILTERED URL on
   // this page renders the server's page-1 default (by design, for static
   // cacheability - see the file header) until hydration corrects it. That
@@ -104,7 +137,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
   // neutral loading placeholder whenever the URL it can already see
   // carries a filter/sort/search/page param. Scoped to this pilot page
   // only, the same way as showGrading/searchable above.
-  const guardColdNav = kind === "category" && slug === "graded";
+  const guardColdNav = allDeals || (kind === "category" && slug === "graded");
 
   // The EFFECTIVE (normalised) filter state drives which pills read as
   // active - so a contradictory URL like ?type=raw&grader=PSA lights the
@@ -129,7 +162,8 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
   useEffect(() => {
     if (params.isDefault) return;
     let cancelled = false;
-    const q = new URLSearchParams({ kind, slug });
+    const q = new URLSearchParams({ kind });
+    if (slug) q.set("slug", slug);
     q.set("page", String(params.page));
     q.set("sort", params.sort ?? defaultSort);
     if (params.country) q.set("country", params.country);
@@ -141,7 +175,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
     if (params.minPrice) q.set("minPrice", String(params.minPrice));
     if (searchable && params.q) q.set("q", params.q);
     fetch(`/api/deals-page?${q.toString()}`)
-      .then((r) => r.json())
+      .then((r) => r.json().then((d) => (r.ok || d?.error ? d : { ...d, error: `HTTP ${r.status}` })))
       .then((d) => {
         if (!cancelled)
           setFetched({
@@ -149,11 +183,14 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
             deals: d.deals ?? [],
             totalPages: d.totalPages ?? 1,
             totalCount: d.totalCount ?? d.deals?.length ?? 0,
+            exact: d.exact !== false,
+            pageSize: d.pageSize ?? 24,
+            outOfRange: Boolean(d.outOfRange),
             error: d.error ?? null,
           });
       })
       .catch((e) => {
-        if (!cancelled) setFetched({ key: reqKey, deals: [], totalPages: 1, totalCount: 0, error: e.message });
+        if (!cancelled) setFetched({ key: reqKey, deals: [], totalPages: 1, totalCount: 0, exact: false, outOfRange: false, error: e.message });
       });
     return () => {
       cancelled = true;
@@ -162,10 +199,27 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
 
   const loading = !params.isDefault && fetched?.key !== reqKey;
   const view = params.isDefault
-    ? { deals: initial.deals, totalPages: initial.totalPages, totalCount: initial.totalCount ?? initial.deals.length, error: null }
+    ? {
+        deals: initial.deals,
+        totalPages: initial.totalPages,
+        totalCount: initial.totalCount ?? initial.deals.length,
+        exact: initial.exact !== false,
+        pageSize: initial.pageSize ?? 24,
+        outOfRange: false,
+        // other kinds render their own server error above the grid
+        error: allDeals ? initial.error ?? null : null,
+      }
     : loading
-      ? { deals: [], totalPages: 1, totalCount: 0, error: null }
-      : { deals: fetched.deals, totalPages: fetched.totalPages, totalCount: fetched.totalCount, error: fetched.error };
+      ? { deals: [], totalPages: 1, totalCount: 0, exact: false, outOfRange: false, error: null }
+      : {
+          deals: fetched.deals,
+          totalPages: fetched.totalPages,
+          totalCount: fetched.totalCount,
+          exact: fetched.exact,
+          pageSize: fetched.pageSize,
+          outOfRange: fetched.outOfRange,
+          error: fetched.error,
+        };
 
   // On offer-first catalogue pages, a regional refresh can replace the
   // loading grid above an already-selected inventory anchor. Keep that
@@ -238,8 +292,27 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
         <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {view.error}</p>
       )}
 
+      {allDeals && !loading && !view.error && view.deals.length > 0 && (
+        <ResultsSummary page={params.page} shown={view.deals.length} totalCount={view.totalCount} exact={view.exact} pageSize={view.pageSize} />
+      )}
+
       {loading ? (
         <GridSkeleton />
+      ) : !view.error && view.outOfRange ? (
+        <div role="status" className="rounded-xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">
+          <p>
+            Page {params.page} is past the end of these results ({view.totalPages} page{view.totalPages === 1 ? "" : "s"}).
+          </p>
+          <p className="mt-2">
+            <a
+              href={pageHref(params.obj, view.totalPages, basePath)}
+              rel="nofollow"
+              className="font-semibold text-red-600 underline underline-offset-2 dark:text-red-500"
+            >
+              Go to the last page
+            </a>
+          </p>
+        </div>
       ) : !view.error && view.deals.length === 0 ? (
         filtered ? (
           <FilteredEmptyState
@@ -258,7 +331,8 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
               key={deal.id}
               deal={deal}
               hub={hubCounts[deal.watchlist_id]}
-              pageName={`${kind}_detail`}
+              // /deals keeps its existing attribution surface (deals_index -> "deals")
+              pageName={allDeals ? "deals_index" : `${kind}_detail`}
               validSetSlugs={validSetSlugs}
               from={basePath}
               fromCountry={params.country}
@@ -297,6 +371,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
           lockedCardType={lockedCardType}
           searchable={searchable}
           q={params.q}
+          allMarketplaces={allDeals}
           basePath={basePath}
         />
       </div>
@@ -308,8 +383,8 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
         <AppliedFilters
           params={params.obj}
           basePath={basePath}
-          resultCount={loading ? undefined : view.deals.length}
-          totalCount={loading ? undefined : view.totalCount}
+          resultCount={loading || allDeals ? undefined : view.deals.length}
+          totalCount={loading || allDeals ? undefined : view.totalCount}
           searchQuery={searchable ? params.q : null}
         />
       )}

@@ -18,6 +18,14 @@ export function filterHref(currentParams, key, value, basePath = "/") {
   return qs ? `${basePath}?${qs}` : basePath;
 }
 
+function withoutParams(currentParams, keys, basePath) {
+  const params = new URLSearchParams(currentParams);
+  for (const k of keys) params.delete(k);
+  params.delete("page");
+  const qs = params.toString();
+  return qs ? `${basePath}?${qs}` : basePath;
+}
+
 // Same toggle behavior as filterHref, but also clears the opposite price
 // bound - "Under $50" and "$100+" are mutually exclusive budget choices,
 // and leaving both set would silently produce a contradictory (always
@@ -113,7 +121,10 @@ function ScrollRow({ children }) {
 // flags for both risked a visitor reading this as "ships to Australia"
 // when it means "listed on ebay.com.au", a US-marketplace listing can
 // still ship to Australia and vice versa.
-export function CountryFilterRow({ params, country, basePath = "/" }) {
+// allOption: "All deals" (/deals) browses every marketplace by default, so
+// the default state is itself a choice - shown as an active "All
+// marketplaces" pill that clears ?country (and ?page, like every filter).
+export function CountryFilterRow({ params, country, basePath = "/", allOption = false }) {
   return (
     <div>
       <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
@@ -124,6 +135,11 @@ export function CountryFilterRow({ params, country, basePath = "/" }) {
         &quot;Shipping to&quot; control above.
       </p>
       <ScrollRow>
+        {allOption && (
+          <FilterPill href={withoutParams(params, ["country"], basePath)} active={!country}>
+            All marketplaces
+          </FilterPill>
+        )}
         {Object.entries(MARKETPLACES).map(([id, info]) => (
           <FilterPill key={id} href={filterHref(params, "country", id, basePath)} active={country === id}>
             {info.flag} {info.label}
@@ -323,6 +339,8 @@ export default function FilterBar({
   // Deal-first R2 (homepage feed): the whole bar sits behind a "More
   // filters" button at every width; the rows stay in the DOM.
   collapsible = false,
+  // "All deals": offer an explicit, default-active "All marketplaces" pill.
+  allMarketplaces = false,
 }) {
   const activeCount = [
     country,
@@ -349,7 +367,7 @@ export default function FilterBar({
         <div className="flex flex-col gap-4">
           <SortRow params={params} sort={sort} basePath={basePath} defaultValue="newest" />
 
-          <CountryFilterRow params={params} country={country} basePath={basePath} />
+          <CountryFilterRow params={params} country={country} basePath={basePath} allOption={allMarketplaces} />
 
           <div>
             <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">

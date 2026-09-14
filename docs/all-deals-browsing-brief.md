@@ -1,6 +1,6 @@
 # "All deals" browsing — bounded implementation brief
 
-Prepared 2026-09-14 after integrity release r1. **Not started.** This is the next queued phase. It is separate from graded inventory growth: the graded lookup optimisation and the retention/recovery experiment stay inactive.
+Prepared 2026-09-14 after integrity release r1. **Implemented locally on `all-deals-r1` (not deployed); see IMPLEMENTATION_STATUS.md "All deals r1".** Owner decisions superseded parts of this brief: the route is `/deals` itself (it had no distinct browse-all purpose), labelled "All deals" in the Deals menu under the existing indexability rules, and the limits are the measured per-marketplace caps in `lib/allDealsInventory.js` rather than a 5,000-row fallback. It is separate from graded inventory growth: the graded lookup optimisation and the retention/recovery experiment stay inactive.
 
 ## Goal
 

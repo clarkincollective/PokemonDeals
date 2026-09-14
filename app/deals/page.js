@@ -1,21 +1,32 @@
 import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
-import { fetchDealsPage, fetchHubCounts, fetchSetSlugs } from "@/lib/deals";
+import { fetchAllDealsPage, fetchHubCounts, fetchSetSlugs } from "@/lib/deals";
 import { DEAL_CATEGORIES, DEAL_CATEGORY_SLUGS } from "@/lib/dealCategories";
 import SiteHeader from "@/components/SiteHeader";
-import RegionRedirect from "@/components/RegionRedirect";
 import SiteFooter from "@/components/SiteFooter";
-import DealCard from "@/components/DealCard";
+import DealGrid from "@/components/DealGrid";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import { normalizePublicText } from "@/lib/publicText";
 
 const SITE_URL = "https://pokemondealfinder.com";
-// Framed as "browse by category" so the homepage stays the primary
-// candidate for the head term "Pokemon card deals" and this page owns
-// the long-tail ("pokemon cards under $50", "graded pokemon card deals",
-// "vintage pokemon card deals") without competing head-on.
-const TITLE = "Browse Pokemon Card Deals by Price, Grade & Era";
+// "All deals": every eligible stored listing across the six eBay
+// marketplaces, with exact counts (lib/allDealsInventory). Still framed as
+// browsing rather than the head term, so the curated homepage stays the
+// primary candidate for "Pokemon card deals" (docs/seo-headterm-strategy).
+// The deal categories stay linked from here and link back.
+//
+// Indexability is unchanged: the clean /deals is the one indexable,
+// self-canonical page. Filters, search and ?page= are read client-side
+// (DealGrid) from the same static HTML, which always canonicalises to
+// /deals; filter pills are nofollow.
+//
+// No <RegionRedirect />: that component writes the visitor's stored or
+// geo-detected region into ?country=, which would turn "all marketplaces"
+// into one marketplace. The listing marketplace is a filter here, never
+// inferred from where the visitor is.
+const TITLE = "Browse All Pokemon Card Deals by Price, Grade & Marketplace";
 const DESCRIPTION =
-  "Pokemon card deals grouped by price band, condition and era — cards under $25/$50/$100, graded (PSA/CGC/BGS), auctions, vintage WOTC and modern. All live eBay listings checked against real market data.";
+  "Every live Pokemon card listing we track across six eBay marketplaces, in one list. Filter raw or graded (PSA/CGC/BGS and more), Buy It Now or auction, price and marketplace, or browse by category.";
 
 export const revalidate = 600;
 
@@ -27,114 +38,100 @@ export const metadata = {
   twitter: { card: "summary", title: TITLE, description: DESCRIPTION },
 };
 
-export default async function DealsIndexPage() {
-  const [{ deals }, hubCounts, validSetSlugs] = await Promise.all([
-    fetchDealsPage({ table: "deals", language: "english", sort: "newest", page: 1, pageSize: 12 }),
+const CATEGORY_LINK =
+  "shrink-0 whitespace-nowrap rounded-full border border-zinc-300 px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:text-black dark:border-zinc-700 dark:text-zinc-200 dark:hover:text-zinc-50";
+
+export default async function AllDealsPage() {
+  const [initial, hubCounts, validSetSlugs] = await Promise.all([
+    fetchAllDealsPage({ sort: "newest", page: 1 }),
     fetchHubCounts({ language: "english" }),
     fetchSetSlugs("english"),
   ]);
+  const { deals } = initial;
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Deals", item: `${SITE_URL}/` },
-      { "@type": "ListItem", position: 2, name: "Deal categories", item: `${SITE_URL}/deals` },
+      { "@type": "ListItem", position: 2, name: "All deals", item: `${SITE_URL}/deals` },
     ],
   };
-  const itemListJsonLd = {
+  const collectionJsonLd = {
     "@context": "https://schema.org",
-    "@type": "ItemList",
-    name: "Pokemon card deal categories",
-    numberOfItems: DEAL_CATEGORY_SLUGS.length,
-    itemListElement: DEAL_CATEGORY_SLUGS.map((s, i) => ({
-      "@type": "ListItem",
-      position: i + 1,
-      url: `${SITE_URL}/deals/${s}`,
-      name: DEAL_CATEGORIES[s].h1,
-    })),
+    "@type": "CollectionPage",
+    name: "All deals",
+    description: DESCRIPTION,
+    url: `${SITE_URL}/deals`,
   };
+  const itemListJsonLd =
+    deals.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: "All deals",
+          numberOfItems: deals.length,
+          itemListElement: deals.map((d, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            url: `${SITE_URL}/deals/${d.id}`,
+            name: normalizePublicText(d.watchlist?.name ? `${d.watchlist.name} (${d.watchlist.set})` : d.title),
+          })),
+        }
+      : null;
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }} />
+      {itemListJsonLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
+      )}
       <SkipToContent />
       <SiteHeader />
-      <RegionRedirect />
 
       <header className="border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-6 sm:py-8">
-          <Breadcrumbs items={[{ name: "Deals", href: "/" }, { name: "Deal categories" }]} />
+          <Breadcrumbs items={[{ name: "Deals", href: "/" }, { name: "All deals" }]} />
           <h1 className="mt-4 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
-            Browse Pokemon Card Deals by Price, Grade &amp; Era
+            All deals
           </h1>
           <p className="mt-3 max-w-2xl text-base text-zinc-600 dark:text-zinc-400">
-            Choose a price band, condition or era to browse matching offers, or see the newest finds below.
-            Each listing explains its available price comparison and shipping context.
+            Every eligible Pokemon card listing we track across six eBay marketplaces, newest first.
           </p>
+          <p className="mt-2 max-w-2xl text-xs text-zinc-600 dark:text-zinc-400">
+            A marketplace is the eBay site a listing is on, not where it ships; each listing states its own shipping.
+            Savings appear only where a matching market comparison exists. Price filters use US dollars.
+          </p>
+          <nav aria-label="Deal categories" className="mt-5">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Or browse a category</p>
+            <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap [&::-webkit-scrollbar]:hidden">
+              {DEAL_CATEGORY_SLUGS.map((s) => (
+                <Link key={s} href={`/deals/${s}`} className={CATEGORY_LINK}>
+                  {DEAL_CATEGORIES[s].h1}
+                </Link>
+              ))}
+              <Link href="/japanese-cards" className={CATEGORY_LINK}>
+                Japanese Pokemon Card Deals
+              </Link>
+              <Link href="/sealed-deals" className={CATEGORY_LINK}>
+                Sealed Pokemon Product Deals
+              </Link>
+            </div>
+          </nav>
         </div>
       </header>
 
       <main id="main-content" tabIndex={-1} className="scroll-mt-6 mx-auto w-full max-w-7xl flex-1 px-6 py-6 sm:py-8">
-        <section>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">Deal categories</h2>
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {DEAL_CATEGORY_SLUGS.map((s) => (
-              <Link
-                key={s}
-                href={`/deals/${s}`}
-                className="rounded-xl border border-zinc-200 bg-white p-4 transition-colors hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
-              >
-                <p className="font-semibold text-black dark:text-zinc-50">{DEAL_CATEGORIES[s].h1}</p>
-                <p className="mt-1 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400">
-                  {DEAL_CATEGORIES[s].intro}
-                </p>
-              </Link>
-            ))}
-            <Link
-              href="/japanese-cards"
-              className="rounded-xl border border-zinc-200 bg-white p-4 transition-colors hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
-            >
-              <p className="font-semibold text-black dark:text-zinc-50">Japanese Pokemon Card Deals</p>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                Below-market deals from the Japanese catalogue.
-              </p>
-            </Link>
-            <Link
-              href="/sealed-deals"
-              className="rounded-xl border border-zinc-200 bg-white p-4 transition-colors hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
-            >
-              <p className="font-semibold text-black dark:text-zinc-50">Sealed Pokemon Product Deals</p>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                Booster boxes, ETBs and bundles below market.
-              </p>
-            </Link>
-          </div>
-        </section>
-
-        {deals.length > 0 && (
-          <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">Newest finds</h2>
-              <Link href="/" className="text-sm font-medium text-red-600 hover:underline dark:text-red-500">
-                All deals →
-              </Link>
-            </div>
-            <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {deals.map((deal) => (
-                <DealCard
-                  key={deal.id}
-                  deal={deal}
-                  hub={hubCounts[deal.watchlist_id]}
-                  pageName="deals_index"
-                  validSetSlugs={validSetSlugs}
-                  from="/deals"
-                />
-              ))}
-            </div>
-          </section>
-        )}
+        <DealGrid
+          kind="all"
+          basePath="/deals"
+          initial={initial}
+          hubCounts={hubCounts}
+          emptyLabel="No listings are available to browse right now. Check back after the next scan."
+          validSetSlugs={validSetSlugs}
+          subjectLabel="matching"
+        />
       </main>
 
       <SiteFooter />

@@ -87,10 +87,13 @@ test('DealCategoryPage: lockedCardType is derived from the category preset, not 
   assert.match(page, /lockedCardType=\{cat\.filter\?\.cardType \?\? null\}/);
 });
 
-test('DealGrid: showGrading and searchable are scoped to the graded category only (bounded pilot, not a category-wide rollout)', () => {
+// All deals r1 (2026-09-14): /deals (kind "all") joins the pilot's full
+// contract. Other categories stay on the plain FilterBar.
+test('DealGrid: showGrading and searchable are scoped to the graded category and All deals only (not a category-wide rollout)', () => {
   const grid = src('components/DealGrid.js');
-  assert.match(grid, /const showGrading = kind === "species" \|\| kind === "set" \|\| \(kind === "category" && slug === "graded"\);/);
-  assert.match(grid, /const searchable = kind === "category" && slug === "graded";/);
+  assert.match(grid, /const allDeals = kind === "all";/);
+  assert.match(grid, /const showGrading = allDeals \|\| kind === "species" \|\| kind === "set" \|\| \(kind === "category" && slug === "graded"\);/);
+  assert.match(grid, /const searchable = allDeals \|\| \(kind === "category" && slug === "graded"\);/);
 });
 
 test('DealGrid: q is part of the isDefault computation, so a search term correctly triggers the client-side fetch', () => {
@@ -141,9 +144,9 @@ test('the graded category preset itself is unchanged by this phase - filters nar
   assert.match(cats, /graded:\s*\{\s*filter:\s*\{\s*cardType:\s*"graded"\s*\}/);
 });
 
-test('cold-navigation guard: scoped to the graded pilot only, same pattern as showGrading/searchable', () => {
+test('cold-navigation guard: scoped to the graded pilot and All deals only, same pattern as showGrading/searchable', () => {
   const grid = src('components/DealGrid.js');
-  assert.match(grid, /const guardColdNav = kind === "category" && slug === "graded";/);
+  assert.match(grid, /const guardColdNav = allDeals \|\| \(kind === "category" && slug === "graded"\);/);
 });
 
 test('cold-navigation guard: the pre-hydration script only hides results when the URL actually carries a filter/sort/search/page param', () => {

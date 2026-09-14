@@ -77,7 +77,7 @@ export default async function DealCategoryPage({ slug }) {
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Deals", item: `${SITE_URL}/` },
-      { "@type": "ListItem", position: 2, name: "Deal categories", item: `${SITE_URL}/deals` },
+      { "@type": "ListItem", position: 2, name: "All deals", item: `${SITE_URL}/deals` },
       { "@type": "ListItem", position: 3, name: cat.h1, item: `${SITE_URL}${basePath}` },
     ],
   };
@@ -122,7 +122,7 @@ export default async function DealCategoryPage({ slug }) {
           <Breadcrumbs
             items={[
               { name: "Deals", href: "/" },
-              { name: "Deal categories", href: "/deals" },
+              { name: "All deals", href: "/deals" },
               { name: cat.h1 },
             ]}
           />
@@ -133,6 +133,11 @@ export default async function DealCategoryPage({ slug }) {
           <p className="mt-2 text-xs text-zinc-400">
             Market references appear where a matching comparison is available. Confirm the card,
             condition, shipping and current price on eBay before buying.
+          </p>
+          <p className="mt-3 text-sm">
+            <Link href="/deals" className="font-semibold text-red-600 underline-offset-2 hover:underline dark:text-red-500">
+              Browse all deals across every marketplace →
+            </Link>
           </p>
           {cat.filter?.maxPrice && (
             <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
@@ -163,6 +168,12 @@ export default async function DealCategoryPage({ slug }) {
         <nav className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">More deal categories</h2>
           <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              href="/deals"
+              className="rounded-full border border-zinc-900 bg-zinc-900 px-3.5 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 dark:border-zinc-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            >
+              All deals
+            </Link>
             {otherCategories.map((s) => (
               <Link
                 key={s}

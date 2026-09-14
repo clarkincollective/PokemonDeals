@@ -2,7 +2,7 @@
 // rendered twice on app/deals/[id]/page.js - the live and expired
 // branches; no other route imports it) used grid-cols-2 at the base
 // (mobile) breakpoint, unlike every other DealCard grid in the app
-// (DealGrid.js, app/page.js, app/deals/page.js, app/best-finds/page.js -
+// (DealGrid.js - which also renders /deals - app/page.js, app/best-finds/page.js -
 // all grid-cols-1 below `sm`). DealCard's own layout below `sm` is a
 // full-width horizontal compact card (a fixed 7.25rem image column + a
 // flexible text column); halving that width squeezed identity, price,
@@ -48,9 +48,10 @@ test("RelatedDeals grid starts at one column, matching every other DealCard grid
   // included) can't silently drift from it again.
   const siblings = [
     ["components/DealGrid.js", /grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4/g],
-    ["app/deals/page.js", /grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4/],
     ["app/best-finds/page.js", /grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4/],
   ];
+  // /deals ("All deals") renders its cards through DealGrid, pinned above.
+  assert.match(src("app/deals/page.js"), /<DealGrid\s+kind="all"/, "app/deals/page.js must render its listings through DealGrid");
   for (const [file, pattern] of siblings) {
     assert.match(src(file), pattern, `${file}: expected sibling DealCard grid convention (grid-cols-1 base) not found - reconcile before trusting the RelatedDeals fix's premise`);
   }

@@ -122,7 +122,7 @@ try{
   await key('Enter',13);
   await check('desktop Enter opens dropdown',"document.querySelector('#desktop-header-fixture nav button').getAttribute('aria-expanded')==='true'");
   await key('Tab',9);
-  await check('desktop Tab reaches Browse Deals',"document.activeElement.getAttribute('href')==='/deals'&&document.activeElement.textContent==='Browse Deals'");
+  await check('desktop Tab reaches All deals',"document.activeElement.getAttribute('href')==='/deals'&&document.activeElement.textContent==='All deals'");
   await check('desktop links retain destinations and graded marker',`(()=>{const nav=document.querySelector('#desktop-header-fixture nav');const expected=['/deals','/best-finds','/deals/auctions','/deals/graded','/deals/under-25','/sealed-deals','/japanese-cards','/latest-releases','/search','/cards','/sets','/pokemon','/market-data','/guides'];return expected.every(h=>[...nav.querySelectorAll('a')].some(a=>a.getAttribute('href')===h))&&nav.querySelector('a[href="/deals/graded"]').dataset.analyticsClick==='graded_clicked';})()`);
   await check('desktop visible controls meet 44px target',"[...document.querySelectorAll('#desktop-header-fixture a,#desktop-header-fixture button')].filter(e=>e.getClientRects().length&&!(e.getAttribute('href')==='/')).every(e=>e.getBoundingClientRect().height>=44&&e.getBoundingClientRect().width>=44)");
   const desktopShot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(OUT,'R3-DESKTOP-MENU-1440.png'),Buffer.from(desktopShot.data,'base64'));

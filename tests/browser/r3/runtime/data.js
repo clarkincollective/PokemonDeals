@@ -7,6 +7,8 @@ export {slugifySet};
 import {catalogCardSlug,catalogPriceOk} from '@/lib/cardSlug';
 import {setPriceSnapshot,setSpeciesList} from '@/lib/setSummary';
 import {sealedFixtures} from './sealedFixtures';
+import {allDealsRows} from './allDealsRows';
+import {ALL_DEALS_MARKETPLACES,encodeMarketplaceInventory,queryAllDeals} from '@/lib/allDealsInventory';
 const from = id => ({...DEAL_STATE_FIXTURES.find(f => f.id === id).deal,is_active:true});
 export const listingRows = [from('bin_compared'),from('auction'),from('graded'),from('bin_plain'),from('non_usd'),
   {...from('bin_compared'),id:900020,price:null,total_price:null,total_price_usd:null},
@@ -112,6 +114,15 @@ export const fetchDealsPage = async (options={}) => {
   }
   const deals = familyDeals(options);
   return { deals, totalPages: 1, totalCount: deals.length, error: null };
+};
+// "All deals" (/deals): the REAL lib/allDealsInventory build + query over the
+// shared fixture inventory (allDealsRows.js) - same gate, dedup, filters,
+// sort, count and slicing as production; only the database read is replaced.
+export const fetchAllDealsMarketplace = async (marketplace) => ({ ...encodeMarketplaceInventory(allDealsRows.filter((r) => r.marketplace === marketplace), { marketplace }), error: null });
+export const fetchAllDealsPage = async (params = {}) => {
+  const scope = params.country && ALL_DEALS_MARKETPLACES.includes(params.country) ? [params.country] : ALL_DEALS_MARKETPLACES;
+  const chunks = await Promise.all(scope.map(fetchAllDealsMarketplace));
+  return { ...queryAllDeals(chunks, params), error: null };
 };
 export const fetchCardDealsPage = async (options={}) => ({deals:familyDeals(options),totalPages:1,error:null});
 export const fetchHubCounts = async () => ({});

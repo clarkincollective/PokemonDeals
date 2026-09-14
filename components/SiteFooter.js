@@ -18,7 +18,7 @@ import { NAV_PRIMARY, NAV_LEARN } from "@/lib/navLinks";
 // can reach the whole catalogue tree. Ordinary navigation, not a link
 // farm.
 const BROWSE_LINKS = [
-  { href: "/deals", label: "All Deals" },
+  { href: "/deals", label: "All deals" },
   { href: "/cards", label: "Card Database" },
   { href: "/pokemon", label: "Browse by Pokemon" },
   { href: "/sets", label: "Browse by Set" },

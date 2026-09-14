@@ -353,6 +353,19 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           </div>
         )}
 
+        {/* "All deals" only (lib/allDealsInventory sets also_on): one tile
+            per eBay listing. Name the marketplace copy whose price, currency
+            and shipping statement are shown, and where else the same
+            listing was found - the listing marketplace, never a claim about
+            where it ships. */}
+        {Array.isArray(deal.also_on) && marketInfo && (
+          <p data-listing-marketplace className="mt-1.5 text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+            {deal.also_on.length > 0 ? "Price shown from" : "Listed on"} eBay {marketInfo.label}
+            {deal.also_on.length > 0 &&
+              ` · also on ${deal.also_on.map((m) => `eBay ${MARKETPLACES[m]?.label ?? m}`).join(", ")}`}
+          </p>
+        )}
+
         <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
           <p className="min-w-0 truncate">
             {isAuction ? (

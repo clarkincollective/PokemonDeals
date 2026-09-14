@@ -3954,3 +3954,131 @@ No scanner, budget, newsletter or social change. This ledger entry is a local-on
 **Next queued:** "All deals" browsing. The implementation brief is `docs/all-deals-browsing-brief.md` (prepared, not started).
 
 This entry is a local-only commit on `integrity-release-r1`, **not pushed**.
+
+### All deals r1 (2026-09-14) — /deals browses every eligible stored listing with exact counts (local review, not deployed)
+
+**Route and indexing.**
+- **Why `/deals`:** it was a category hub with a 12-card preview and had no separate browse-all role. It is now "All deals". `/deals/all` was not added, so there are no competing pages.
+- **Unchanged:** canonical `/deals`, `revalidate = 600` and default indexing.
+- **No extra indexable pages:** filters, search and `?page=` are read client-side from the same static HTML, and filter pills stay `rel="nofollow"`. No filter or search combination creates an indexable page.
+- **Title and description** were reworded to describe the page. They stay framed as browsing, not the homepage head term.
+- **Homepage:** unchanged.
+- **`RegionRedirect`** is removed from `/deals` only. It would have rewritten the all-marketplaces default into the visitor's region.
+
+**Why a separate inventory index.** `fetchDealsPage` cannot give exact counts:
+- its count is a Postgres estimate taken before the display gate;
+- it gates after slicing, so pages come up short;
+- it dedups by card;
+- it caps browsing at 25 pages.
+
+`lib/allDealsInventory.js` is pure and works in three steps:
+1. **Per marketplace (cached):** English rows → `isDisplayableDeal` → compact tuple encoding. Nothing ineligible is stored.
+2. **Per request:** re-check freshness and ended auctions → dedup by exact `listing_id` → filters (`planDealFilters`) and title search.
+3. **Then:** sort → count → slice. Counts and pages come from the same array.
+
+The reader is `fetchAllDealsMarketplace` in `lib/deals.js`. It reads active English rows with `disqualified_reason IS NULL`, keeps one `unstable_cache` entry per marketplace on the existing 180 s cadence, and makes DB reads only.
+
+**Dedup rule.** One tile per eBay listing, chosen as one whole stored copy, so price, currency, shipping statement and destination always travel together. The copy is chosen in this order:
+1. the listing's home marketplace (`EBAY_<item_location_country>`);
+2. otherwise US, GB, CA, AU, DE, IT;
+3. otherwise the lowest id.
+
+The tile reads "Price shown from eBay <marketplace> · also on eBay …". Distinct listings and distinct grades of one card stay separate. Category pages keep their existing per-card dedup and estimated counts.
+
+**Resource limits.** Measured read-only on production, 2026-09-14:
+
+| Measure | Value |
+|---|---|
+| Active English rows | 1,183 |
+| Display-eligible | 1,102 |
+| Distinct listings | 865 |
+| Listings in 2+ marketplaces | 149, all disagreeing on price, currency or shipping |
+| Full-row JSON | 2.5 MB, over the ~2 MB data-cache entry limit |
+| Tuple encoding per row | 752 / 804 / 897 B (median / p95 / max) |
+| Tuple encoding total | 0.79 MB |
+| Largest entry | EBAY_US: 476 rows, 355 KB |
+| Uncached read | ~1.9 s |
+| Decode + filter + sort | ~3 ms |
+| Presentation outputs | identical for compact vs full rows on all 1,098 eligible rows |
+
+What follows from those measurements:
+- `MAX_ELIGIBLE_ROWS_PER_MARKETPLACE` = 1,800. That is ≤ 1.6 MB per entry at the max row size, and 3.8× today's largest marketplace.
+- `MAX_ACTIVE_ROWS_READ_PER_MARKETPLACE` = 2,500, i.e. three 1,000-row reads.
+- Hitting either limit marks that marketplace incomplete. The count is then shown as "at least N" with a note, never as exact, and nothing is dropped silently.
+- There is no page cap.
+
+**UI changes, all through existing components.**
+- **`DealGrid kind="all"`:**
+  - the graded pilot's full filter contract, search and cold-navigation guard;
+  - a count line: "Showing a–b of N listings" or "N listings", with lower-bound wording when the count is inexact;
+  - an explicit out-of-range state that links to the last page;
+  - a non-OK API response is reported as an error.
+- **`FilterBar`:** an "All marketplaces" pill, active by default, that clears `country` and `page`.
+- **Navigation:**
+  - label is now "All deals": first item in the Deals menu, mobile shortcut, and footer label;
+  - `DealCategoryPage` breadcrumb reads "All deals", with a header link and "All deals" first in the category chips;
+  - `/cards/[slug]`: "← Back to All Deals" pointed at `/`. It is now "← Browse all deals" → `/deals`, so there are no longer two different "All deals" destinations.
+- **Unchanged:**
+  - `/deals` tiles keep the existing `deals_index` affiliate surface;
+  - savings, shipping and currency wording (same `DealCard`);
+  - plain listings stay neutral: "View listing on eBay", no badge.
+
+**Verification.**
+
+`tests/scanner/all-deals-r1.test.mjs`: **15/15**. It runs the real module over a shared fixture:
+- **Inventory:**
+  - 94 eligible listings over 4 pages;
+  - cross-marketplace copies that disagree;
+  - 3 grades of one card;
+  - 0-bid auctions;
+  - shipping 0 and shipping not recorded;
+  - 14 plain listings.
+- **Excluded rows:** quarantined, slab-titled raw, inactive, stale, Japanese and ended-auction.
+- **Checked:**
+  - identities, counts and per-page sizes;
+  - every sort;
+  - filters and marketplace scope;
+  - out-of-range pages and limit flags;
+  - request-time gates;
+  - wording parity with full rows.
+
+| Other check | Result |
+|---|---|
+| Updated pins | `graded-browsing-pilot` (scope now includes All deals); `related-deals-mobile-grid` (/deals renders through DealGrid); `scripts/verifyR3Interactive.mjs` label |
+| Scanner suite | 3,355 tests: 3,309 pass, **24 fail (identical failing set to the baseline)**, 22 skipped |
+| `next build` | exit 0 (`/deals` static, 3m) |
+| ESLint on changed files | 0 new problems. Pre-existing: 2 `react-hooks/purity` errors in `app/cards/[slug]/page.js` (present at HEAD) and 1 `exhaustive-deps` warning in DealGrid (present at HEAD) |
+| `tests/seo` | not run; it needs a running production-like server |
+
+**Browser checks.** Provider-isolated R3 fixture with the established CDP guard: **64/64 checks** passed, plus state screenshots.
+- **Pagination:**
+  - every page crawled by clicking Next: tiles 24/24/24/22;
+  - exact expected id sequence, no excluded row, no losing copy;
+  - back, forward and reload restore exact pages.
+- **Filters:**
+  - from page 2, filters reset the page: Graded 3, PSA 2, PSA 10 = 1, each restored by history;
+  - filters survive pagination: BIN (90, 4 pages), maxPrice + price_asc (37), raw + $100+ + discount (44);
+  - AUCTION, GB and search also checked;
+  - the All marketplaces pill and keyboard search submit both work.
+- **Loading and error states:**
+  - out-of-range page 9 shows the explicit state;
+  - slow API: skeleton, no default tiles, no count;
+  - cold filtered URL with JS held: the server default stays hidden behind the placeholder, then exactly the PSA listings appear;
+  - API 500: error shown, no tiles, no count.
+- **Layout:**
+  - 320/390/430 px, light and dark: no horizontal overflow;
+  - filter pills, the multi-marketplace tile, images and pagination all fit;
+  - desktop dark loads images.
+- **Keyboard:** Tab reaches a filter pill with a visible focus ring, and Enter applies it.
+- **Navigation:** the category page and mobile menu link to All deals.
+- **Guard:**
+  - 0 `/deals/<id>` requests;
+  - card artwork was the only cross-origin traffic allowed.
+
+**Not changed:**
+- homepage lanes and ranking;
+- category, species, set and card loaders and counts;
+- scanner, allocator, quota, providers and sitemap;
+- graded optimisation `257e221`, retention and recovery.
+
+No production writes. Not pushed, not deployed.

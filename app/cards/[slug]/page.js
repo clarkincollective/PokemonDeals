@@ -595,10 +595,10 @@ export default async function CardHubPage({ params }) {
 
         <div className="mt-8 flex justify-center">
           <Link
-            href="/"
+            href="/deals"
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
           >
-            ← Back to All Deals
+            ← Browse all deals
           </Link>
         </div>
       </main>
