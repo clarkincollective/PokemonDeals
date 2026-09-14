@@ -4805,3 +4805,70 @@ The extra ~383 verification calls replace:
 - **Fix:** reference requests backed by the run's own lookups stop at `GRADED_LOOKUP_CAP` per sweep. Rows reused from `deals` (EBAY-14Q) and the per-card scan (at most one reference per card per scan) are unchanged.
 - **Checks:** focused set 275 / 3 fail (baseline); scanner suite 3,428 / 36 fail, failing set identical to `b3a1170`; `next build` exit 0.
 - **PPT allowance:** Business tier, 200,000 credits/day per the 2026-08 ledger; usage is not logged.
+
+### Deployment (2026-09-15): graded supply release 1 live at `e4ac8b7`
+- **Release:** `29263b0` + `cfb9aec` (reviewed) + `e4ac8b7` (pre-deploy PPT guard, above), fast-forwarded from `b3a1170`. `origin/main` had not moved.
+- **Vercel:** `dpl_AtuPXZQG479RmwpE7PaPzAEzdRXR` READY, aliased to pokemondealfinder.com. `/` and `/deals` return 200. No error or fatal runtime logs in the first 15 minutes.
+- **Unchanged:** caps, reserves, schedules and EPN. No reallocation.
+- **First scheduled run on the new deployment:** refresh-deals:sweep EBAY_CA 22:35 UTC, success, 26 Browse, 6 graded detail, `dedupe_saved_grading` 0. Quota remaining was 380 (window resets ~07:00 UTC).
+- **Pending telemetry** (normal scheduled runs only; no extra calls):
+  - `dedupe_saved_grading` and graded detail calls per sweep in `ebay_job_runs`
+  - new graded rows per quota window (baseline 4 / 13 / 7)
+  - public graded count (baseline 14)
+
+## Graded retention r1 (GRADED-RETENTION-R1), 2026-09-15 (local review, not deployed)
+**Scope:** up to 2 of verify-deals' existing 20 slots for active, display-eligible graded FIXED-PRICE rows approaching their real freshness cutoff.
+- **Unchanged:** schedule (`*/30`), `BATCH` 20, `RESERVE` 800, retries, the quota guard, the sealed and recovery lanes, and write paths.
+- **Disable:** set `GRADED_RETENTION_SLOTS = 0` in `lib/verifyAllocator.mjs`.
+
+**Selection.** Placed after critical auctions, before the BIN reserve and general ranking; deduplicated through the allocator's shared `seen` set. A candidate must be:
+- `is_graded`, not an auction, `is_active`
+- no `disqualified_reason` (quarantine, review hold or availability)
+- passing `isDisplayableDeal`
+- not in `identityConflictKeys(pool)`. The verifier now reads `grader, grade` (read-only) so slab identities compare.
+- `dealFreshness` = AGING: `last_seen_at` age ≥ half its TTL tier and below it
+- not exactly checked in the last 2 h
+
+Order is soonest real cutoff first. The lane scales to 0 near the quota floor (same rule as the BIN reserve). Unused slots fall through to the BIN reserve and general ranking.
+
+**Freshness evidence.**
+- A fixed-price ACTIVE verdict writes `last_seen_at = exact_verified_at = now`. That field drives `dealFreshness` / `isStale` and `/api/sweep-stale-deals`, so a confirmed row leaves the AGING window.
+- UNKNOWN writes nothing, and the row keeps its original cutoff.
+- SOLD / ENDED retire through `retireForAvailability`, which preserves identity and review reasons.
+- `first_seen_at` is never written. Inactive rows are never selected. No recovery list.
+
+**Tradeoff (not free).**
+- Each run the lane uses a slot, it displaces the lowest-ranked general verification.
+- In a read-only replay of one allocation on the production pool (1,110 candidates; 9 graded BIN, 3 AGING), it took 2 slabs (1.9 h and 11.4 h before timeout) and displaced 2 non-critical auction re-price checks (both FRESH, 28.9 h left). Critical auctions (≤1.5 h) and the 7-slot BIN reserve were unchanged.
+- **Ceiling:** at most 2 × 48 = 96 of the 960 possible daily verifier calls; fewer in practice, because AGING graded BIN rows are few and about half of runs skip on the quota reserve.
+- **Residual:**
+  - a row returning UNKNOWN is re-picked every run until it times out (no attempt marker without a schema change)
+  - an ACTIVE write racing a new quarantine refreshes `last_seen_at` but leaves the reason, so the row stays hidden (existing behaviour)
+
+**Telemetry.** `verify_deals_complete` now also logs `critical_auctions`, `graded_retention_used`, `bin_reserve_used`, `general_slots` and `verify_mix_auction` (counts only). Deterioration would show as:
+- falling `general_slots` or `verify_mix_auction` in that line
+- more auctions retired or ended between checks, and more raw rows expiring on `sweep-stale-deals`
+- a lower share of active raw rows with `exact_verified_at` within 6 h (`deals`)
+- `ebay_job_runs` verify-deals calls unchanged by construction
+
+**Checks.**
+- `graded-retention-r1` GR-1..7: 7/7.
+- Focused set (P0.4.3 allocator, 17C.9 sealed lanes, sold-item freshness, availability, integrity-followup-r2 guard, quarantines, All deals, 14Q/14R, affiliate, 17C.10 log): 240 / 5 fail. The deployed base shows the same 5 (P043-4/5/10/11 use a fixed 2026-09-07 clock; 15b).
+- `next build` exit 0. ESLint clean.
+
+## Sourcing and integrity follow-ups (recorded 2026-09-15; not started)
+- **ingest-feed source:**
+  - reads the public PokeDealFinder board (`lib/pokeFeed.js`), a competitor's site, as a discovery hint
+  - verifies each new item with one Browse `get_item_by_legacy_id` call (≤40 per run, floor 800)
+  - 3 windows (11–13 Sep): ~1,143 calls, 16 new raw deals, 0 graded
+- **Permission evidence:** none in the repository. The 2026-08 ledger records PokeDealFinder permission as "taken as represented by the operator; not independently verifiable from the codebase".
+- **No change made:** no increase in competitor-feed use, no access workaround, no limit request.
+- **Batch `getItems`:** unavailable (recorded 403 "Access denied" on this keyset, despite `buy.browse.item.bulk` in rate-limit metadata).
+- **Official Feed API (`buy.feed`):** access unknown. The only recorded metadata query was scoped to Browse; no call or application was made.
+- **Source replacement** is a separate phase.
+- **Identity review item:** three stored Unown slabs each match 28 active watchlist rows:
+  - deal 24375 "#J/28"
+  - deal 18268 "#D/28"
+  - deal 21176 "#W/28"
+
+  The unchanged replay verdicts show only that the release did not alter matching; they do not show these matches are correct. Since `e4ac8b7` such a listing can make at most `GRADED_LOOKUP_CAP` reference requests per sweep, but the underlying matcher ambiguity is unresolved.

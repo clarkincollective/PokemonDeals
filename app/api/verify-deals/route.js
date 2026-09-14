@@ -112,7 +112,10 @@ const H = 60 * 60 * 1000;
 const COLS =
   "id, watchlist_id, listing_id, marketplace, market_price, discount_pct, first_seen_at, last_seen_at, is_active, is_graded, " +
   "condition, card_language, disqualified_reason, visual_authenticity_status, visual_authenticity_reason, " +
-  "auction_end_at, listing_type, listing_url, affiliate_url, card_name, card_set, title, card_tcgplayer_id, image_url";
+  "auction_end_at, listing_type, listing_url, affiliate_url, card_name, card_set, title, card_tcgplayer_id, image_url, " +
+  // graded-retention-r1: read-only, so the allocator's identity-conflict
+  // check compares slab identity (grader + grade) across stored copies
+  "grader, grade";
 
 const legacyOf = (listingId) => String(listingId ?? "").split("|")[1] || null;
 
@@ -426,6 +429,12 @@ export async function GET(request) {
         sealed_recovery: sealed.recovery,
         card_verified: batch.length,
         card_results: out,
+        // graded-retention-r1 - lane usage and what it displaced (counts only)
+        critical_auctions: allocation.critical_auctions,
+        graded_retention_used: allocation.graded_retention_used,
+        bin_reserve_used: allocation.bin_reserve_used,
+        general_slots: allocation.general_slots,
+        verify_mix_auction: allocation.verify_mix_auction,
         provider_calls: calls,
         write_errors: (sealed.writeErrors ?? 0) + cardWriteErrors,
         quota_remaining_end: after?.remaining ?? null,
