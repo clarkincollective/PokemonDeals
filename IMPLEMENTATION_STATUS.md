@@ -4638,3 +4638,32 @@ Then new contact:
 3. That key must be set as `INSTANTLY_API_KEY` in Vercel Production. GitHub/Vercel secret writes are not performed by the assistant.
 
 No new outreach sends until the worker can read and act on replies. The first sends (Card Gamer, PokéCottage, VoxBooster) go out in the first weekday window after these three steps.
+
+### OUTREACH-AUTO-2 activation, 2026-09-14 (later)
+
+**Mode: SEND_ONLY.** The owner chose to run with the existing leads-only key.
+- **Instantly entitlements:** the workspace still shows Free Trial (ends 2026-09-16), and no key with email scopes exists.
+- **Production env:** `INSTANTLY_API_KEY` (the existing key) and `OUTREACH_SEND_ONLY_MODE=true` were added, and production was redeployed.
+
+**Eligibility tightened:** a public address with no restrictions is not sufficient.
+- First contact needs documented consent, or an address published for a purpose the message matches. The exact quote is stored and re-verified live before sending.
+- Card Gamer: "To have your card game game reviewed by Card Gamer, contact …" (the doubled "game" is on their page).
+- VoxBooster: "Press / partnerships contact@…".
+- PokéCottage → SKIPPED (general contact only).
+- Free-mail recipients match and suppress by exact address, never by the whole domain.
+
+**Controlled end-to-end check** (owner's own inbox only):
+1. Test lead `01a09fbc-…` submitted to the real campaign.
+2. Instantly sent it at 2026-09-14 13:05:01 UTC; it arrived in the owner's Gmail inbox.
+3. A reply from Gmail reached Unibox but was **not counted on the lead**, because it came from a different address than the `+pdfoutreach` lead.
+   - Fix: a daily "check Unibox" owner email listing the last 14 days of conversations.
+   - Delivered to the owner's inbox at 23:22 AEST.
+4. First live worker pass: OK. The test was synced to SENT from provider evidence; no prospect was contacted (outside the send window).
+
+**Discovery:** daily, up to 3 topics per pass (Perplexity Sonar via AI Gateway). Each candidate is verified by a live crawl for a published purpose matching the message, then drafted with exact verified asset wording; failures are recorded as SKIPPED.
+- Read-only trials (about 50 candidates): 1 eligible (Pixel Binder, "For help, feedback or press, email …"). Most sites are form-only or publish only a general contact address.
+- The first live pass approved none.
+
+**Still true:**
+- Packz is suppressed (declined) and Pokemon Price Tracker is SENT with no follow-up.
+- Replies can't be read or answered automatically until a key with `emails:read`, `emails:create` and `block_list_entries:create` is set in Vercel. With that key the worker switches to FULL mode, using the same deployment.
