@@ -153,7 +153,10 @@ function proofFacts(series) {
       };
     case "MARKET_SNAPSHOT":
       return {
-        headline_fact: "The Pokemon single-card market, in four numbers",
+        // SOCIAL-LIVE-2: the caption hook matches the rendered card-forward
+        // headline (the numbers below are the legacy typographic proof only;
+        // the card-forward image resolves live catalogue counts)
+        headline_fact: "Most Pokemon cards cost less than people think",
         stats: [
           { label: "Priced cards tracked", value: "21,775" },
           { label: "Median card value", value: "$1.61" },

@@ -178,7 +178,9 @@ test("C3C-20. three_up: same species x3 fails card_variety; a >$30 cap fails bud
 test("C3C-21. three_up template renders 3 real prices, a saving badge per card, one CTA, no fake urgency", () => {
   const html = renderCardEditorialHtml("three_up", { cap: 25, items: TU_ITEMS, target: "ig_45", cardArt: {} });
   assert.equal((html.match(/&minus;\d+%/g) || []).length, 3);
-  assert.equal((html.match(/Live on eBay/g) || []).length, 1);
+  // SOCIAL-LIVE-2: one website-first CTA (an eBay-first CTA breaks the §11 rule)
+  assert.equal((html.match(/Find more deals at pokemondealfinder\.com/g) || []).length, 1);
+  assert.doesNotMatch(html, /Live on eBay/);
   assert.doesNotMatch(html, /ends in|hurry|last chance|selling fast/i);
 });
 

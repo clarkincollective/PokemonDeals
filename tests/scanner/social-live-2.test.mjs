@@ -58,3 +58,24 @@ test("SL2-5 a safety refusal is never re-sent on the previous model; an invalid 
   assert.equal(invalid.calls, 2);
   assert.equal(invalid.r.error.kind, "invalid_request");
 });
+
+test("SL2-6 a World Championship deck / jumbo copy is never a social deal against a standard printing", async () => {
+  const { specialtyCopyMismatch } = await import("../../lib/social/newsroom/marketData.mjs");
+  assert.equal(specialtyCopyMismatch({ title: "Solgaleo GX SM104 2019 World Championships Henry Brand Pokemon WC NM", card_set: "SM Promos" }), true);
+  assert.equal(specialtyCopyMismatch({ title: "Charizard Jumbo Oversized Promo", card_set: "Sword & Shield Promos" }), true);
+  assert.equal(specialtyCopyMismatch({ title: "Zeraora GX Full Art Holo Ultra Rare 201/214 Sm-Lost Thunder", card_set: "SM - Lost Thunder" }), false);
+  assert.equal(specialtyCopyMismatch({ title: "Pikachu 2004 World Championships deck", card_set: "World Championship Decks" }), false);
+});
+
+test("SL2-7 the market-shape example is a catalogue printing under $25 (not a live listing), rotating weekly", async () => {
+  const { pickUnder25Example } = await import("../../lib/social/newsroom/marketData.mjs");
+  const row = (id, name, price, extra = {}) => ({ tcgplayer_id: id, name, set: "S", image_url: "u", market_price: price, market_condition: "Near Mint", market_printing: "Holofoil", language: "english", ...extra });
+  const rows = [row("1", "Pikachu", 20), row("2", "Umbreon", 24), row("3", "Rattata", 24), row("4", "Eevee", 30), row("5", "Mew", 22, { market_condition: "Lightly Played" }), row("6", "Charizard", 23, { market_printing: "1st Edition Holofoil" })];
+  const picks = new Set([0, 1, 2, 3].map((w) => pickUnder25Example(rows, { now: w * 7 * 86_400_000 })?.tcgplayer_id));
+  assert.deepEqual([...picks].sort(), ["1", "2"]);
+  assert.equal(pickUnder25Example([row("3", "Rattata", 24)]), null);
+  const html = (await import("../../lib/social/newsroom/cardEditorialTemplates.mjs")).renderCardEditorialHtml("market_shape", { pricedCards: 24674, under25Pct: 85.7, over100Pct: 4.7, featured: { kind: "catalog_example", tcgplayerId: "2", card_name: "Umbreon", card_set: "S", market_ref_usd: 24, market_condition: "Near Mint", asking_usd: null } });
+  assert.match(html, /One example under \$25/);
+  assert.match(html, /market reference/);
+  assert.doesNotMatch(html, /Standout deal|line-through/);
+});
