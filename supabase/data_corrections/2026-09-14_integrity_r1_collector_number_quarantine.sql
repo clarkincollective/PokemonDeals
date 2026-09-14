@@ -1,0 +1,62 @@
+-- DATA CORRECTION - integrity-r1 collector-number QUARANTINE - PROPOSED, NOT APPROVED.
+-- Do not run without explicit owner approval. Equivalent to
+-- scripts/remediation/integrityR1Quarantine.mjs --apply (which is the
+-- preferred path: it re-checks each row against the shipped matcher first
+-- and saves prior values before writing).
+--
+-- Evidence: read-only recheck 2026-09-14T02:40:42.206Z of the 24 active rows the
+-- integrity-r1 report listed as displayable collector-number conflicts.
+-- Each title explicitly states a collector number that contradicts the
+-- stored card (full table: scripts/remediation/integrity-r1-quarantine-manifest.json).
+--
+-- Mechanism: the existing exclusion column. A non-null disqualified_reason
+-- fails isDisplayableDeal and isVerificationCandidate. is_active, card
+-- identity, prices and timestamps are NOT changed. Nothing is reactivated.
+--
+-- Excluded (uncertain, not touched): 37907 (title "HGSS07" vs stored HeartGold SoulSilver 108/123; title also says "Prime" and names the set - possible seller mislabel; excluded from mutation)
+--
+-- Prior value of disqualified_reason for every row below: NULL (is_active = true).
+--
+-- Statement (run only on explicit approval, inside a transaction; expected: 23 rows):
+--
+-- begin;
+-- update deals
+--    set disqualified_reason = 'identity:collector_number_conflict'
+--  where is_active = true
+--    and disqualified_reason is null
+--    and (id, listing_id, marketplace, card_tcgplayer_id) in (
+--      (33696, 'v1|278303338612|0', 'EBAY_US', '477354'),   -- title GG46/GG70 (Deoxys VSTAR) vs stored GG45/GG70 (Deoxys VMAX)
+--      (34031, 'v1|188891932883|0', 'EBAY_CA', '284283'),   -- title TG29/TG30 (Pikachu VMAX secret) vs stored TG17/TG30
+--      (34467, 'v1|366211592992|0', 'EBAY_GB', '116779'),   -- title Generations 22/83 vs stored XY Promos XY143
+--      (35264, 'v1|278303338612|0', 'EBAY_AU', '477354'),   -- title GG46/GG70 (Deoxys VSTAR) vs stored GG45/GG70 (Deoxys VMAX)
+--      (37241, 'v1|407211076200|0', 'EBAY_US', '477354'),   -- title GG46/GG70 (Deoxys VSTAR) vs stored GG45/GG70 (Deoxys VMAX)
+--      (37248, 'v1|178489674337|0', 'EBAY_US', '186015'),   -- title SM Black Star promo SM190 ("SMP SM190") vs stored Detective Pikachu set 10/18
+--      (37357, 'v1|147389881431|0', 'EBAY_CA', '284278'),   -- title TG05/TG30 (Pikachu) vs stored TG16/TG30 (Pikachu V)
+--      (37358, 'v1|287498863281|0', 'EBAY_CA', '284278'),   -- title TG05/TG30 (Pikachu) vs stored TG16/TG30 (Pikachu V)
+--      (37360, 'v1|407094601596|0', 'EBAY_CA', '284278'),   -- title TG17/TG30 (Pikachu VMAX) vs stored TG16/TG30 (Pikachu V)
+--      (37494, 'v1|206552503131|0', 'EBAY_US', '264221'),   -- title TG17/TG30 (Mimikyu VMAX) vs stored TG16/TG30 (Mimikyu V)
+--      (37508, 'v1|287582558535|0', 'EBAY_US', '477354'),   -- title GG12/GG70 (Deoxys) vs stored GG45/GG70 (Deoxys VMAX)
+--      (37512, 'v1|287582558535|0', 'EBAY_AU', '477354'),   -- title GG12/GG70 (Deoxys) vs stored GG45/GG70 (Deoxys VMAX)
+--      (37537, 'v1|198637134387|0', 'EBAY_IT', '125322'),   -- title Fates Collide #64/124 vs stored XY Promos XY119
+--      (37548, 'v1|800651838014|0', 'EBAY_US', '477354'),   -- title GG46/GG70 (Deoxys VSTAR) vs stored GG45/GG70 (Deoxys VMAX)
+--      (37561, 'v1|178490933774|0', 'EBAY_US', '477354'),   -- title GG12/GG70 (Deoxys) vs stored GG45/GG70 (Deoxys VMAX)
+--      (37743, 'v1|137732002135|0', 'EBAY_US', '121947'),   -- title Roaring Skies 106/108 vs stored XY Promos XY148
+--      (37752, 'v1|147389881431|0', 'EBAY_AU', '284278'),   -- title TG05/TG30 (Pikachu) vs stored TG16/TG30 (Pikachu V)
+--      (37753, 'v1|287498863281|0', 'EBAY_AU', '284278'),   -- title TG05/TG30 (Pikachu) vs stored TG16/TG30 (Pikachu V)
+--      (37788, 'v1|366666393554|0', 'EBAY_CA', '264221'),   -- title TG17/TG30 (Mimikyu VMAX) vs stored TG16/TG30 (Mimikyu V)
+--      (37797, 'v1|366666393554|0', 'EBAY_DE', '264221'),   -- title TG17/TG30 (Mimikyu VMAX) vs stored TG16/TG30 (Mimikyu V)
+--      (37910, 'v1|407213974189|0', 'EBAY_US', '186015'),   -- title SM Black Star promo SM190 vs stored Detective Pikachu set 10/18
+--      (37947, 'v1|397092730462|0', 'EBAY_IT', '452034'),   -- title TG29 (title truncated at "TG29/T"; "Segreto" = secret) vs stored TG20/TG30
+--      (37949, 'v1|397271492993|0', 'EBAY_IT', '452034')   -- title TG29 (title truncated at "TG29/T"; "Segreto" = secret) vs stored TG20/TG30
+--    );
+-- -- expected: 23 rows; if the count differs, ROLLBACK and re-run the dry run.
+-- commit;
+--
+-- ROLLBACK (restores the recorded prior value NULL; only rows still carrying
+-- this reason; is_active untouched, so nothing retired meanwhile is revived):
+--
+-- update deals
+--    set disqualified_reason = null
+--  where disqualified_reason = 'identity:collector_number_conflict'
+--    and id in (33696, 34031, 34467, 35264, 37241, 37248, 37357, 37358, 37360, 37494, 37508, 37512, 37537, 37548, 37561, 37743, 37752, 37753, 37788, 37797, 37910, 37947, 37949);
+-- -- expected: up to 23 rows
