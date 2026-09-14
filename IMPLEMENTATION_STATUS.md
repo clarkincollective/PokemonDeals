@@ -3688,3 +3688,53 @@ Until that pass runs, browser behaviour rests on the fixture evidence recorded a
 **Still open, separate data check:** XY Promos states 269 tracked / 232 priced cards while its index lists 229 indexable links (pre-existing).
 
 No scanner, budget, newsletter or social change. This ledger entry is a local-only commit on `mobile-ux-r1`, **not pushed**, so it does not trigger another deployment.
+
+### Checklist discovery (Claude, local, 2026-09-14) — /sets views and a menu link
+
+**Base.** `origin/main` = `f5d0752` (production). Branch `checklist-discovery-r1` was created from local ledger commit `9931dd0` in the existing `wt-mobile` worktree. Not deployed.
+
+**Owner request.** Make the existing ownership checklists easy to discover without rebuilding the checklist system or redesigning the menu:
+- "All sets" and "Collection checklists" views on `/sets`, populated by the real eligibility rules
+- an "Open checklist" action on eligible tiles
+- a menu link inside Cards & Sets
+- one short explanation
+- set URLs, card links, storage keys and checklist behaviour preserved
+
+**Change (`ce348bd`).**
+- **Views:** `app/sets/page.js` renders both views server-side.
+  - Tabs are hash links (`#all-sets`, `#collection-checklists`), and `app/globals.css` switches the panes with `:target` / `:has()`.
+  - A hash was chosen over `?view=` because the nav tests require clean hrefs, a query would make `/sets` request-time dynamic, and every nav renderer (mobile menu, desktop dropdown, footer) uses plain `<a>`, which updates `:target`.
+  - Result: works without JS, no pre-hydration flash, `/sets` still static with the same revalidate (15m, from its cached loaders).
+- **Eligibility:** new `checklistEligible({ setName, cards, truncated })` in `lib/setChecklist.js`, returning `!truncated && isChecklistSet(setName) && checklistIdentityCheck(cards).ok`. That is the same rule the set page applies.
+  - `/sets` runs it for each allowlisted set in the directory on the same cached `fetchSetCatalog(set, "english")` payload the set page uses (Supabase only, no provider).
+  - It also requires the page's `SET_CATALOG_MIN_CARDS` gate. This is marginally stricter than the page, which also shows catalogue-only sets under 4 cards; no allowlisted set is that small, and a set is never over-advertised.
+  - The set page's pinned expression is unchanged.
+- **Tiles:** `SetsFilterList` gains `checklistSlugs` and `filter`.
+  - Eligible tiles keep their `/sets/<slug>` link and add a sibling "Open checklist" link to `/sets/<slug>#inventory` (the section the page's existing "Open checklist ↓" chip targets).
+  - Grid items align to the top, so neighbouring tiles don't stretch.
+- **Nav:** `{ href: "/sets#collection-checklists", label: "Collection checklists", group: "catalogue" }` sits after "Sets & Checklists". It is not a shortcut tile, so the menu layout is unchanged.
+- **Explanation:** exactly one, in the checklist view: "Mark what you own, see what's missing and print your checklist. Progress is saved on this device."
+- **Untouched:** `SetChecklist`, `ChecklistTable`, `checklistStorage` (`pdf:checklist:<set name>` keys), set URLs and card links.
+
+**Verification (provider-disabled fixture, guarded CDP; directory has 5 sets).**
+- **Journey verifier, 17/17 (390 light and dark, touch unless noted):**
+  - **Server truth first:** each directory set page was fetched. Jungle, Neo Destiny and Boundaries Crossed render `data-checklist-print-root`; EX Legend Maker and XY Promos do not. The `/sets` HTML offers "Open checklist" for exactly those three.
+  - **Menu:** Cards & Sets shows "Collection checklists" (44px, `/sets#collection-checklists`). Tapping it shows only the checklist view with its tab selected: heading "Collection checklists (3)", one explanation, three tiles, each with a 44px "Open checklist", no overflow.
+  - **Open checklist (Jungle):** lands on `/sets/jungle#inventory` with the section at 96px, the "Checklist" view pressed and 64 visible ownership boxes. Ticking one saves under `pdf:checklist:jungle`.
+  - **Sets without ownership tracking:** EX Legend Maker and XY Promos have no checklist, no "Open checklist" chip, and "Card list" instead of "Checklist".
+  - **`/sets` with no hash:** "All sets" by default; only the three eligible tiles carry "Open checklist". Touch switches tabs, and keyboard Enter switches back.
+  - **Same-page:** the menu link used while already on `/sets` also switches the view.
+  - **No-JS:** `/sets#collection-checklists` shows the checklist view with its three links.
+  - **Desktop 1280:** the footer Cards & Sets column includes the link; no overflow. The desktop header dropdown uses the same model but was not opened in this run.
+  - 0 non-allowed requests.
+- **Checklist regression (R4):** 93/93.
+- **Earlier menu interaction verifier:** 26 of 28 checks pass. The 2 fail on hard-coded counts (Cards & Sets 5 → 6 links; 17 → 18 destinations): the new link is the only difference, and every earlier destination is still reachable.
+- **Tests:** `checklist-discovery` 7/7. Scanner suite before the new file: 3,314 tests / 24 fail, identical to the baseline. Related suites (mobile-ux, deal-first-r1, latest-releases-17c8, set-checklist-17c4) pass.
+- **Builds:** `next build` exit 0 (`/sets` static, `/sets/[slug]` SSG); the fixture build passes provider isolation.
+
+**Limitations.**
+- The fixture has no allowlisted set that fails the identity guard; that case is covered by unit test CD-1.
+- In production, `/sets` now reads up to 16 cached set-catalogue payloads when it regenerates. These are the same cache entries the set pages use.
+- Chromium only.
+
+Graded-inventory growth remains queued. No deployment, provider call, inventory or scanner change.
