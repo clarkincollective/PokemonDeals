@@ -221,3 +221,18 @@ test("OA2-4 purpose evidence: navigation text, bare headings and advertising-onl
   assert.match(findPurposeEvidence("Have a news tip or want to suggest a resource? Email tips@site.com and we will look.", "tips@site.com"), /news tip/);
   assert.match(findPurposeEvidence("Support / technical support@x.com 1 business day Press / partnerships contact@x.com 5 business days", "contact@x.com"), /Press \/ partnerships contact@x\.com$/);
 });
+
+test("OA2-5 send-only mode never lets a different-address reply go unseen: a daily Unibox digest lists recent conversations; test records never use the cap", async () => {
+  const src = readFileSync("lib/outreach/automation/worker.mjs", "utf8");
+  assert.match(src, /state\/unibox-digest\.json/);
+  assert.match(src, /submissionsInWindow\(records\.filter\(\(x\) => !x\.test\)/);
+  const calls = { replies: [], blocks: [], submits: [], leads: [] };
+  const alerts = [];
+  const client = { ...fakeClient([], calls), capabilities: async () => ({ emails_read: false, leads_read: true, block_list_read: false, detail: { emails: "401" } }) };
+  const store = fakeStore({ "state/records.json": [{ ...REC, status: "SENT", queuedAt: "2026-09-14T00:00:00Z", sentAt: "2026-09-14T13:00:00Z" }], "state/suppression.json": [], "state/discovery.json": { lastRunAt: "2026-09-15T11:00:00Z", topicIndex: 0 } });
+  const base = { env: { ...ENV, OUTREACH_SEND_ONLY_MODE: "true" }, client, provider: provider(calls), alert: async (a) => alerts.push(a), store };
+  await runOutreach({ ...base, now: Date.parse("2026-09-15T12:00:00Z") });
+  await runOutreach({ ...base, now: Date.parse("2026-09-15T13:00:00Z") });
+  assert.equal(alerts.length, 1, "one digest per day");
+  assert.match(alerts[0].subject, /check Unibox for 1 open conversation/);
+});
