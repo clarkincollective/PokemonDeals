@@ -64,6 +64,13 @@ test("SL3-4 catalogue stories are dated market references, never sales; ambiguou
   assert.ok(c.ok);
   assert.ok(c.story.cards.every((x) => x.market_usd == null));
   assert.equal(buildCatalogueStory("set", "Gym Challenge", amb, { asOf: NOW }).ok, false);
+  // a "three highest" story never substitutes a recently featured top card
+  const four = [row("1", "A", 900), row("2", "B", 800), row("3", "C", 700), row("4", "D", 600)];
+  const deferred = buildCatalogueStory("species", "Gardevoir", four, { asOf: NOW, excludeIds: new Set(["2"]) });
+  assert.equal(deferred.ok, false);
+  assert.match(deferred.reason, /featured recently/);
+  const cl = buildCatalogueStory("checklist", "Fossil", four, { asOf: NOW, excludeIds: new Set(["2"]) });
+  assert.ok(cl.ok && cl.story.cards.every((x) => x.market_usd == null), "a substituted checklist trio drops the ranking prices");
 });
 
 test("SL3-5 the rotation never repeats a story inside the cooldown and alternates kinds", () => {

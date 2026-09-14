@@ -95,7 +95,7 @@ async function main() {
       if (!free.length) { g.outcome = "all feed slots already booked"; continue; }
 
       // a partially scheduled group reuses ITS story + hosted assets
-      const existing = placements.filter((p) => p.story_id === storyId && p.caption_style?.autopilot);
+      const existing = placements.filter((p) => p.story_id === storyId && p.caption_style?.autopilot && ["AUTOPILOT_READY", "BUFFER_SUBMITTING", "BUFFER_QUEUED", "PUBLISHED"].includes(p.status));
       let pkg = existing.length ? existing[0].caption_style.autopilot : null;
       if (pkg) g.reused_story = pkg.key;
       while (!pkg) {
