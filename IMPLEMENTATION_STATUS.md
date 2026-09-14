@@ -3775,3 +3775,43 @@ The owner asked for two scoped checks. No application code changed; the verifier
 - **Last built code commit:** `ce348bd`.
 
 Held for deployment approval. Graded-inventory growth remains queued next.
+
+### Deployment (2026-09-14) — checklist discovery live at `13f5609`
+
+**Authorization and pre-push checks.** The owner approved deploying `13f5609cce10e6af4286def7ab840f2c6b51e2a9`.
+- **Remote:** `origin/main` was re-checked immediately before the push and was still `f5d0752…`, so there was no divergence.
+- **Scope:** `f5d0752..13f5609` is exactly the 4 reviewed commits (`9931dd0`, the carried-forward mobile UX deployment ledger; `ce348bd` code; `b67e241` docs; `13f5609` docs) across the 7 reviewed files.
+- **Push:** fast-forward of only that SHA (`git push origin 13f5609…:refs/heads/main`); the remote was confirmed at `13f5609` afterwards. Unrelated worktrees and held commits were untouched.
+- **Last built code commit:** `ce348bd`.
+
+**Vercel.** `dpl_3WQ43rvL9oUsts5CCWgCh94Ns7pt` built `githubCommitSha` `13f5609cce10e6af4286def7ab840f2c6b51e2a9` for production and reached READY about 76s after the build started. It is aliased to `pokemondealfinder.com`, with no alias error. The rollback candidate is `dpl_hU6iqswfep54jfF1BHsD3XAzzXg3` (`f5d0752`).
+
+**Routes used, confirmed free of paid-provider calls.**
+- `/sets` and `/sets/<slug>` read only cached Supabase loaders (`fetchSets`, `fetchCatalogSets`, `fetchSetCatalog`, `fetchSetDealsPage`, sealed catalogue, slugs).
+- `lib/deals` imports `priceHistory`, which requires only pure constants from `pokemonPriceTracker`. `getCanonicalPriceHistory` (a DB read) is used only by a card-level loader, not on these routes.
+- `/pokemon/charizard` was already used in the previous guarded verification.
+
+**Guard.** A browser-level CDP guard with auto-attach on every target was installed before any navigation.
+- **Allowed:** exactly `/sets`, `/sets/jungle`, `/sets/ex-legend-maker`, `/sets/xy-promos`, `/pokemon/charizard` (documents and their own RSC), `/_next/static/*`, the deals-page API, and card/set artwork CDNs.
+- **Blocked:** every other origin path (including `/cards`, `/deals/<id>` and other set prefetches, `/_next/image`, analytics scripts, `/api/rates`) and every other host (eBay images, the Impact affiliate script, PostHog).
+- **Totals:** 121 same-origin and 38 cross-origin requests blocked; 9 page and 38 static requests allowed. No affiliate link was clicked and no checkbox was ticked.
+
+**Production checks, 8/9 automated passes; the 9th is a harness false negative, explained below.**
+
+| Check | Observed |
+|---|---|
+| Eligible vs unsupported (server HTML) | `/sets` offers "Open checklist" for 16 sets: Base Set 2, Boundaries Crossed, Diamond and Pearl, EX Deoxys, EX Ruby and Sapphire, EX Sandstorm, Fossil, Great Encounters, Gym Heroes, Jungle, Mysterious Treasures, Neo Destiny, Neo Genesis, Neo Revelation, Secret Wonders, Team Rocket. Each set's own page renders `data-checklist-print-root`. EX Legend Maker and XY Promos render no checklist and are not offered. The directory lists 208 sets. |
+| Menu (390, touch) | Cards & Sets = Price Checker, Card Database, Sets & Checklists, **Collection checklists**, Browse by Pokemon, Market Data (each 44px) |
+| Menu → Collection checklists | lands on `/sets#collection-checklists`; only the checklist view is visible, its tab selected, "Collection checklists (16)", explanation shown once, no overflow; the 16 tiles each have a 44px "Open checklist" |
+| Supported set → checklist | Jungle's "Open checklist" → `/sets/jungle#inventory`, section at 96px, "Checklist" selected, 64 ownership boxes, "0 of 64 entries marked owned · 64 still missing", "Print checklist" present |
+| Existing set navigation | Menu "Sets & Checklists" → `/sets` with no hash, All sets view, filter present, all 208 set links, "Open checklist" only on the 16. Typing "Legend Maker" narrows the list to `/sets/ex-legend-maker` ("1 of 208 sets match"). Tapping that tile opens its page, which shows "Browse cards ↓", "Gallery / Card list" and no checklist. |
+| Harness false negative | "/sets carries both views, one explanation…" failed on an HTML text count of 2. Re-inspection: one occurrence is the rendered page (outside `<script>`), the other is the RSC flight payload inside `<script>`. Both view ids are present, and the in-browser visible count was 1. No page defect. |
+
+Screenshots (scratchpad `prod-cl/`): menu Cards & Sets, the collection checklists view, and the Jungle checklist, all at 390px.
+
+**Limitations.**
+- Chromium only.
+- One supported set's journey (Jungle) was exercised in the browser; the other 15 were confirmed through their server-rendered pages.
+- The desktop dropdown was not re-exercised in production; it was verified on the fixture from the same code.
+
+No scanner, budget, newsletter or social change. This ledger entry is a local-only commit on `checklist-discovery-r1`, **not pushed**. Graded-inventory growth remains the next phase.
