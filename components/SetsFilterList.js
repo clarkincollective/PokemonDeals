@@ -10,7 +10,12 @@ import Image from "next/image";
 // just a progressive-enhancement filter for a visitor scanning ~175
 // items by hand. Plain substring match is enough at this list size; no
 // need for real backend search.
-export default function SetsFilterList({ sets }) {
+//
+// `checklistSlugs`: sets whose page renders the interactive ownership
+// checklist (decided server-side in app/sets/page.js). Only those tiles get
+// the "Open checklist" action, which jumps to the set page's #inventory
+// section. `filter={false}` drops the filter box for the short checklist view.
+export default function SetsFilterList({ sets, checklistSlugs = [], filter = true }) {
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -21,7 +26,7 @@ export default function SetsFilterList({ sets }) {
 
   return (
     <div>
-      <div className="relative mb-6 max-w-sm">
+      {filter && <div className="relative mb-6 max-w-sm">
         <input
           type="text"
           value={query}
@@ -40,7 +45,7 @@ export default function SetsFilterList({ sets }) {
             ✕
           </button>
         )}
-      </div>
+      </div>}
 
       {query && (
         <p role="status" className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
@@ -51,8 +56,9 @@ export default function SetsFilterList({ sets }) {
       {filtered.length === 0 ? (
         <p className="text-zinc-500">No sets match &quot;{query}&quot;.</p>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((s) => (
+        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((s) => {
+            const tile = (
             <Link
               key={s.slug}
               href={`/sets/${s.slug}`}
@@ -82,7 +88,23 @@ export default function SetsFilterList({ sets }) {
                 </span>
               )}
             </Link>
-          ))}
+            );
+            if (!checklistSlugs.includes(s.slug)) return tile;
+            // The tile keeps its set-page link; the checklist action is a
+            // sibling link (never nested inside it).
+            return (
+              <div key={s.slug} className="flex flex-col gap-2">
+                {tile}
+                <Link
+                  href={`/sets/${s.slug}#inventory`}
+                  aria-label={`Open ${s.set} checklist`}
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
+                >
+                  Open checklist
+                </Link>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

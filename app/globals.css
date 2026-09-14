@@ -76,6 +76,26 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* /sets directory views (app/sets/page.js). The hash picks the view via
+   :target, so it works without JavaScript and needs no client state:
+   /sets shows All sets, /sets#collection-checklists the checklist view.
+   Unlayered, so these beat the tabs' Tailwind utility colours. */
+[data-sets-pane="checklists"] { display: none; }
+[data-sets-views]:has(#collection-checklists:target) [data-sets-pane="checklists"] { display: block; }
+[data-sets-views]:has(#collection-checklists:target) [data-sets-pane="all"] { display: none; }
+[data-sets-views]:not(:has(#collection-checklists:target)) [data-sets-tab="all"],
+[data-sets-views]:has(#collection-checklists:target) [data-sets-tab="checklists"] {
+  background: var(--color-zinc-900);
+  color: var(--color-white);
+}
+@media (prefers-color-scheme: dark) {
+  [data-sets-views]:not(:has(#collection-checklists:target)) [data-sets-tab="all"],
+  [data-sets-views]:has(#collection-checklists:target) [data-sets-tab="checklists"] {
+    background: var(--color-zinc-100);
+    color: var(--color-zinc-950);
+  }
+}
+
 /* Secondary text must remain readable on both paper and tinted surfaces.
    Only text utilities change: artwork, borders and surface tokens retain
    their palette. Keep print's explicit black text rules independent. */

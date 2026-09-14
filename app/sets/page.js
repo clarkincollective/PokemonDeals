@@ -1,5 +1,7 @@
 import SkipToContent from "@/components/SkipToContent";
-import { fetchSets, fetchCatalogSets } from "@/lib/deals";
+import { fetchSets, fetchCatalogSets, fetchSetCatalog } from "@/lib/deals";
+import { checklistEligible, isChecklistSet } from "@/lib/setChecklist";
+import { SET_CATALOG_MIN_CARDS } from "@/lib/setHub";
 import { setImage } from "@/lib/setImages";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
@@ -8,6 +10,9 @@ import JsonLd from "@/components/JsonLd";
 import { breadcrumbList, collectionPage } from "@/lib/jsonLd";
 
 export const revalidate = 3600;
+
+const TAB_CLASS =
+  "inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold text-zinc-700 hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-300 dark:hover:text-white";
 
 const TITLE = "Browse Pokemon Cards by Set";
 const DESCRIPTION =
@@ -38,6 +43,23 @@ export default async function SetsIndexPage() {
     .map((s) => ({ ...s, logo: setImage(s.set)?.logo ?? null }))
     .sort((a, b) => b.count - a.count || a.set.localeCompare(b.set));
 
+  // Collection checklists: only sets whose page renders the interactive
+  // ownership checklist. Candidates are the allowlisted sets listed here;
+  // each is confirmed with the page's own rule on the same cached catalogue
+  // payload (lib/setChecklist checklistEligible). The minimum-card check
+  // mirrors the page's showCatalog gate, so a set is never advertised as a
+  // checklist its page would not show.
+  const eligibility = await Promise.all(
+    sets
+      .filter((s) => isChecklistSet(s.set))
+      .map(async (s) => {
+        const { cards, truncated } = await fetchSetCatalog(s.set, "english");
+        return checklistEligible({ setName: s.set, cards, truncated }) && (cards?.length ?? 0) >= SET_CATALOG_MIN_CARDS ? s.slug : null;
+      })
+  );
+  const checklistSlugs = eligibility.filter(Boolean);
+  const checklistSets = sets.filter((s) => checklistSlugs.includes(s.slug));
+
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <JsonLd
@@ -67,7 +89,29 @@ export default async function SetsIndexPage() {
 
         {!error && sets.length === 0 && <p className="text-zinc-500">No set hubs available right now.</p>}
 
-        {!error && sets.length > 0 && <SetsFilterList sets={sets} />}
+        {!error && sets.length > 0 && (
+          // Two views switched by the URL hash with CSS :target (app/globals.css),
+          // so they work without JavaScript and /sets stays statically rendered.
+          // Menu, header and footer links are plain <a>, which updates :target.
+          <div data-sets-views>
+            <nav aria-label="Set directory views" className="mb-5 inline-flex rounded-full border border-zinc-300 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-900">
+              <a href="#all-sets" data-sets-tab="all" className={TAB_CLASS}>All sets</a>
+              <a href="#collection-checklists" data-sets-tab="checklists" className={TAB_CLASS}>Collection checklists</a>
+            </nav>
+            <section id="all-sets" data-sets-pane="all" aria-label="All sets" className="scroll-mt-36">
+              <SetsFilterList sets={sets} checklistSlugs={checklistSlugs} />
+            </section>
+            <section id="collection-checklists" data-sets-pane="checklists" aria-labelledby="collection-checklists-heading" className="scroll-mt-36">
+              <h2 id="collection-checklists-heading" className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
+                Collection checklists ({checklistSets.length})
+              </h2>
+              <p className="mt-1 mb-4 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
+                Mark what you own, see what’s missing and print your checklist. Progress is saved on this device.
+              </p>
+              <SetsFilterList sets={checklistSets} checklistSlugs={checklistSlugs} filter={false} />
+            </section>
+          </div>
+        )}
       </main>
 
       <SiteFooter />
