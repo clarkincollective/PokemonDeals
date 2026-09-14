@@ -4128,3 +4128,49 @@ Built on review SHA `4013a60`. Only demonstrated gaps were changed.
 | Fixture browser checks | 17/17, guard: 0 `/deals/<id>` requests |
 
 Not pushed, not deployed.
+
+#### All deals r1: Hoopa 155/XY-P cross-language identity conflict (2026-09-14, local, not deployed)
+
+**Evidence (read-only).** Listing `v1|147570453677|0` is stored three times. Seller `tokyopremiumexchangeltd`, item location JP.
+
+| Row | Marketplace | Title evidence | Stored identity | Reference | Displayable |
+|---|---|---|---|---|---|
+| 37856 | EBAY_US | "Japanese" | japanese, 602060 (watchlist 28031, "XY-P: XY Promos") | $186.44 | yes |
+| 37861 | EBAY_GB | "Japanese" | japanese, 602060 | $186.44 | yes |
+| 37863 | EBAY_IT | Italian title, "giapponese" ×2 | **english, 489917** (watchlist 18616, "XY Promos") | $210.57 | **yes** |
+
+The correct identity is the Japanese promo: every copy's own title says Japanese, and the seller and item location are Japanese. 37863 got the English identity because `classifyListingLanguage` does not recognise "giapponese" and returns `unknown`, which `languageCompatible` accepts. The current display rules therefore do **not** exclude the wrong copy.
+
+Before this change, `/deals?country=EBAY_IT` would show 37863 with a trusted "36% below market" comparison against the English reference.
+
+**Safeguard.** Scoped to All deals only; no scanner or matcher change.
+- `identityConflictKeys` in `lib/allDealsInventory.js` withholds any listing whose eligible stored copies disagree on catalogue identity (language, product id, graded/grader/grade). The listing is withheld in every scope and every count.
+- It never picks an identity by marketplace preference.
+- Detection runs across all six marketplace inventories, so `fetchAllDealsPage` now always loads all six cached entries and applies a selected marketplace afterwards.
+- Result field: `identityConflictsWithheld`.
+
+**Verification.**
+- **Production data** (read-only, real module): exactly one conflicting listing, Hoopa. It is withheld in All (905 listings), US (500), GB (161) and IT (81).
+- **Unit test AD-20:**
+  - fixture modelled on the production case: Japanese identity on US, English identity with an Italian "giapponese" title on IT, each copy passing the row gate;
+  - withheld in All, US, IT and GB, and not counted;
+  - agreeing multi-copy listings untouched;
+  - a grade disagreement also counts as a conflict;
+  - the reader does not scope its load to one marketplace.
+- **Old module check:** the previous module shows the conflict copy in both All and IT.
+- **Fixture runtime API:** withheld in all, IT, US, `q=giapponese` (0) and `q=clefable`.
+
+**Not covered by code; write proposed separately (not applied):** on other surfaces that list single rows (English set, card and species grids), 37863 remains eligible until quarantined. The proposed guarded one-row `disqualified_reason = 'identity:language_conflict'` update, with rollback, is in the owner handoff.
+
+The same unrecognised-"giapponese" cause appears on six single-copy EBAY_IT rows (34424, 37288, 37466, 37973, 37974, 37975). They were reported, not verified and not changed; the durable fix is a matcher change.
+
+**Checks:**
+
+| Check | Result |
+|---|---|
+| `all-deals-r1` | 20/20 |
+| Scanner suite | 3,360 tests: 3,314 pass, **24 fail (identical baseline set)**, 22 skipped |
+| `next build` | exit 0 |
+| ESLint | clean |
+
+Not pushed, not deployed.

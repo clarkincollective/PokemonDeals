@@ -376,3 +376,38 @@ test("AD-19. /deals variants are noindex,follow at the server; the clean page is
   const grid = read("components/DealGrid.js");
   for (const k of keys) assert.ok(grid.includes(`'${k}'`), `cold-navigation guard also treats ${k} as a variant`);
 });
+
+// ---- identity conflict safeguard (2026-09-14, Hoopa 155/XY-P) -------------
+
+test("AD-20. a listing whose stored copies disagree on catalogue identity is withheld in every scope, not resolved by marketplace preference", async () => {
+  const { ALL_DEALS_IDENTITY_CONFLICT_ROW_IDS } = await imp("tests/browser/r3/runtime/allDealsRows.js");
+  const [jpCopy, enCopy] = ALL_DEALS_IDENTITY_CONFLICT_ROW_IDS.map((id) => byId.get(id));
+  // modelled on production: same listing, Japanese identity on US, English identity on IT
+  assert.equal(jpCopy.listing_id, enCopy.listing_id);
+  assert.deepEqual([jpCopy.marketplace, jpCopy.card_language, enCopy.marketplace, enCopy.card_language], ["EBAY_US", "japanese", "EBAY_IT", "english"]);
+  // each copy passes the row-level display gate on its own - the gap being closed
+  assert.ok(dq.isDisplayableDeal(jpCopy) && dq.isDisplayableDeal(enCopy));
+  for (const country of [undefined, "EBAY_US", "EBAY_IT", "EBAY_GB"]) {
+    const { first, deals } = allPages({ country });
+    assert.ok(!deals.some((d) => d.listing_id === jpCopy.listing_id), `${country ?? "all"}: conflicting listing shown`);
+    assert.equal(first.identityConflictsWithheld, 1, `${country ?? "all"}: withheld count`);
+  }
+  assert.equal(allPages().first.totalCount, 96, "not counted");
+  assert.equal(inv.queryAllDeals(CHUNKS, { q: "giapponese" }).totalCount, 0);
+  // listings whose copies AGREE on identity (the disagreeing-price fixture) are untouched
+  const shown = allPages().deals.map((d) => d.listing_id);
+  for (const lid of ["v1|3200000001|0", "v1|3200000002|0", "v1|3200000003|0"]) assert.ok(shown.includes(lid), lid);
+  // a grade disagreement on one listing is a conflict too; different listings of different grades are not
+  const zard = byId.get(972002);
+  const graded = [
+    { ...zard, id: 1, listing_id: "L-grade", marketplace: "EBAY_US", grade: "9" },
+    { ...zard, id: 2, listing_id: "L-grade", marketplace: "EBAY_GB", grade: "10" },
+    { ...zard, id: 3, listing_id: "L-other", marketplace: "EBAY_US", grade: "10" },
+  ];
+  assert.deepEqual([...inv.identityConflictKeys(graded)], ["L-grade"]);
+  // the reader never scopes the load to one marketplace (conflicts must be seen across all)
+  const deals = read("lib/deals.js");
+  const page = deals.slice(deals.indexOf("export async function fetchAllDealsPage"), deals.indexOf("export async function fetchAllDealsPage") + 700);
+  assert.match(page, /ALL_DEALS_MARKETPLACES\.map\(\(m\) => fetchAllDealsMarketplace\(m\)\)/);
+  assert.doesNotMatch(page, /\[params\.country\]/);
+});

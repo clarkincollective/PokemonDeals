@@ -120,8 +120,7 @@ export const fetchDealsPage = async (options={}) => {
 // sort, count and slicing as production; only the database read is replaced.
 export const fetchAllDealsMarketplace = async (marketplace) => ({ ...encodeMarketplaceInventory(allDealsRows.filter((r) => r.marketplace === marketplace), { marketplace }), error: null });
 export const fetchAllDealsPage = async (params = {}) => {
-  const scope = params.country && ALL_DEALS_MARKETPLACES.includes(params.country) ? [params.country] : ALL_DEALS_MARKETPLACES;
-  const chunks = await Promise.all(scope.map(fetchAllDealsMarketplace));
+  const chunks = await Promise.all(ALL_DEALS_MARKETPLACES.map(fetchAllDealsMarketplace));
   return { ...queryAllDeals(chunks, params), error: null };
 };
 export const fetchCardDealsPage = async (options={}) => ({deals:familyDeals(options),totalPages:1,error:null});

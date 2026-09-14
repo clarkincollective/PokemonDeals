@@ -167,6 +167,18 @@ export const ALL_DEALS_ELIGIBLE_LISTING_IDS = [...bulk, ...dups, ...grades, ...a
   .map((r) => r.listing_id)
   .filter((v, i, a) => a.indexOf(v) === i);
 
+// One eBay listing stored with CONFLICTING catalogue identities, modelled on
+// production listing v1|147570453677|0 (Hoopa 155/XY-P): the US copy was
+// matched to the Japanese catalogue (title states Japanese), the IT copy to
+// the English catalogue (Italian title "giapponese", which the language
+// classifier does not recognise). Each copy passes the display gate on its
+// own; All deals must withhold the listing in every scope.
+export const ALL_DEALS_IDENTITY_CONFLICT_ROW_IDS = [976001, 976002];
+const identityConflict = [
+  copy(japaneseCard({ card_name: "Clefable", card_set: "Jungle", market_price: 60, title: "Clefable 1/64 Jungle Japanese Pokemon Card Holo Near Mint Japanese", watchlist: { name: "Clefable", set: "Jungle", language: "japanese", justtcg_tcgplayer_id: null } }), { id: 976001, listingId: "v1|3700000001|0", marketplace: "EBAY_US", itemUsd: 30, shipUsd: 0, firstSeenH: 0.7, itemCountry: "JP" }),
+  copy(clef, { id: 976002, listingId: "v1|3700000001|0", marketplace: "EBAY_IT", itemUsd: 31, shipUsd: 0, firstSeenH: 0.8, itemCountry: "JP", title: "Carta Pokemon giapponese Clefable Jungle 1/64 Holo quasi nuova giapponese" }),
+];
+
 // Must never appear or count.
 export const ALL_DEALS_EXCLUDED_ROW_IDS = [974001, 974002, 974003, 974004, 974005, 974006];
 const excluded = [
@@ -181,4 +193,4 @@ const excluded = [
   copy(tpl("auction"), { id: 974006, listingId: "v1|3500000006|0", marketplace: "EBAY_US", itemUsd: 10, shipUsd: 6, firstSeenH: 0.6, bid_count: 3, auction_end_at: ago(2) }),
 ];
 
-export const allDealsRows = [...bulk, ...dups, ...grades, ...auctions, ...japanese, ...excluded];
+export const allDealsRows = [...bulk, ...dups, ...grades, ...auctions, ...japanese, ...identityConflict, ...excluded];
