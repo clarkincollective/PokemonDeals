@@ -1,0 +1,170 @@
+{
+ "at": "2026-09-14T04:32:03.772Z",
+ "plan": [
+  {
+   "dealId": 37863,
+   "ebayListingId": "v1|147570453677|0",
+   "marketplace": "EBAY_IT",
+   "confidence": "high",
+   "title": "Carta Pokemon giapponese promo film Hoopa 155/XY-P Holo TCG quasi nuova giapponese",
+   "storedAs": "Hoopa - 155/XY-P | XY Promos | english | 489917",
+   "evidence": "title states Japanese (Italian 'giapponese' x2); the same listing's other copies state Japanese and are matched to the Japanese promo 602060; stored here as the English promo 489917 with an English reference",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "cardLanguage": "english",
+    "titleStatesJapanese": true
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:language_conflict"
+    },
+    "guard": {
+     "id": 37863,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|147570453677|0",
+     "marketplace": "EBAY_IT",
+     "card_tcgplayer_id": "489917",
+     "card_language": "english"
+    }
+   }
+  },
+  {
+   "dealId": 34424,
+   "ebayListingId": "v1|318842446719|0",
+   "marketplace": "EBAY_IT",
+   "confidence": "high",
+   "title": "M Rayquaza-EX RR Emerald Break giapponese PSA 7",
+   "storedAs": "Rayquaza | EX Emerald | english | 88626",
+   "evidence": "graded slab titled 'M Rayquaza-EX RR Emerald Break giapponese PSA 7' stored as English Rayquaza (EX Emerald) with a PSA 7 English reference; graded rows skip the display gate's language rule",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "cardLanguage": "english",
+    "titleStatesJapanese": true
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:language_conflict"
+    },
+    "guard": {
+     "id": 34424,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|318842446719|0",
+     "marketplace": "EBAY_IT",
+     "card_tcgplayer_id": "88626",
+     "card_language": "english"
+    }
+   }
+  },
+  {
+   "dealId": 37288,
+   "ebayListingId": "v1|227508043403|0",
+   "marketplace": "EBAY_IT",
+   "confidence": "high",
+   "title": "Misty's Tentacruel Pokemon TCG Gym Heroes 1998 n.073 Holo Raro Giapponese",
+   "storedAs": "Misty's Tentacruel | Gym Heroes | english | 87552",
+   "evidence": "title states Japanese and carries two Japanese-print-only markers (1998, n.073); stored as English Misty's Tentacruel (Gym Heroes 10/132)",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "cardLanguage": "english",
+    "titleStatesJapanese": true
+   },
+   "decision": "quarantine",
+   "mutation": {
+    "set": {
+     "disqualified_reason": "identity:language_conflict"
+    },
+    "guard": {
+     "id": 37288,
+     "is_active": true,
+     "disqualified_reason": null,
+     "listing_id": "v1|227508043403|0",
+     "marketplace": "EBAY_IT",
+     "card_tcgplayer_id": "87552",
+     "card_language": "english"
+    }
+   }
+  },
+  {
+   "dealId": 37466,
+   "ebayListingId": "v1|407208983236|0",
+   "marketplace": "EBAY_IT",
+   "confidence": "uncertain",
+   "title": "Carta Pokemon Card Misty's Tentacruel Tentoxa Gym Heroes Holo Wotc giapponese Exc+",
+   "storedAs": "Misty's Tentacruel | Gym Heroes | english | 87552",
+   "evidence": "title states 'giapponese' but also carries German-print markers; the true print language is not established from stored evidence. Held for review, never mutated by this proposal.",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "cardLanguage": "english",
+    "titleStatesJapanese": true
+   },
+   "decision": "review",
+   "why": "uncertain - never mutated by this script"
+  },
+  {
+   "dealId": 37973,
+   "ebayListingId": "v1|407214124375|0",
+   "marketplace": "EBAY_IT",
+   "confidence": "uncertain",
+   "title": "Carta Pokemon Card Skarmory Panzaeron Neo Genesis Gsnw Holo Wotc giapponese NM-",
+   "storedAs": "Skarmory | Neo Genesis | english | 89232",
+   "evidence": "title states 'giapponese' but also carries German-print markers; the true print language is not established from stored evidence. Held for review, never mutated by this proposal.",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "cardLanguage": "english",
+    "titleStatesJapanese": true
+   },
+   "decision": "review",
+   "why": "uncertain - never mutated by this script"
+  },
+  {
+   "dealId": 37974,
+   "ebayListingId": "v1|407214124297|0",
+   "marketplace": "EBAY_IT",
+   "confidence": "uncertain",
+   "title": "Carta Pokemon Card Blubella Bellossom Neo Genesis 2000 Holo Wotc giapponese ecc",
+   "storedAs": "Bellossom | Neo Genesis | english | 83795",
+   "evidence": "title states 'giapponese' but also carries German-print markers; the true print language is not established from stored evidence. Held for review, never mutated by this proposal.",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "cardLanguage": "english",
+    "titleStatesJapanese": true
+   },
+   "decision": "review",
+   "why": "uncertain - never mutated by this script"
+  },
+  {
+   "dealId": 37975,
+   "ebayListingId": "v1|407214124323|0",
+   "marketplace": "EBAY_IT",
+   "confidence": "uncertain",
+   "title": "Carta Pokemon Card Togetic Neo Genesis 2000 Gsnw Holo Wotc giapponese NM- Swirl",
+   "storedAs": "Togetic | Neo Genesis | english | 89939",
+   "evidence": "title states 'giapponese' but also carries German-print markers; the true print language is not established from stored evidence. Held for review, never mutated by this proposal.",
+   "current": {
+    "isActive": true,
+    "disqualifiedReason": null,
+    "displayable": true,
+    "cardLanguage": "english",
+    "titleStatesJapanese": true
+   },
+   "decision": "review",
+   "why": "uncertain - never mutated by this script"
+  }
+ ]
+}

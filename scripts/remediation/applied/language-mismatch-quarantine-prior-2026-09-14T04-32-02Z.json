@@ -1,0 +1,24 @@
+{
+ "reason": "identity:language_conflict",
+ "appliedAt": "2026-09-14T04:32:13.985Z",
+ "rows": [
+  {
+   "dealId": 37863,
+   "ebayListingId": "v1|147570453677|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 34424,
+   "ebayListingId": "v1|318842446719|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  },
+  {
+   "dealId": 37288,
+   "ebayListingId": "v1|227508043403|0",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  }
+ ]
+}

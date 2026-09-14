@@ -4249,3 +4249,77 @@ Cached copies clear within their documented lifetimes: data caches 180 s, deal p
 - decide whether a graded row should also be subject to the listing-language rule (graded rows currently skip it; see 34424).
 
 This is a scanner and matcher change, so it needs its own approval and verification. It is not part of the All deals deployment or this quarantine.
+
+### Deployment (2026-09-14): All deals live at `f544df8`; language-mismatch quarantine applied (3/3)
+
+**Authorization:** the owner approved deploying All deals at `f544df891fcb3b6e97e278d81db98259cc7259f1`, then quarantining only rows 37863, 34424 and 37288.
+
+**Pre-push checks:**
+- `origin/main` was `ca18144` (`git ls-remote`).
+- The range `ca18144..f544df8` was a fast-forward of exactly the 4 reviewed commits: `9f1af4c`, `4013a60`, `ac6d684`, `f544df8`.
+- `257e221` is not in the range. `integrity-r1` is untouched at `8446e5b` and was not pushed.
+- Only `f544df8` was pushed to `main` (04:28:08Z); the remote was confirmed at `f544df8`.
+- The remediation package `844d068` (branch `language-quarantine-r1`) was not pushed.
+
+**Vercel:** `dpl_29PrxK5LPnD6UjU52kWFu3dCxqmX` built `githubCommitSha` `f544df8…` for production and was READY at 04:29:25Z (build ~74 s). `pokemondealfinder.com` is aliased with no alias error. Rollback candidate: `dpl_CT3ASTzEiBqhaGSBa3FzYiuB5kbK` (`ca18144`).
+
+**Quarantine.** Run after READY, from the reviewed local package `844d068`; the script and manifest were confirmed identical to that commit.
+
+| Step | Result |
+|---|---|
+| Post-deploy dry run (04:32:02Z) | **3 quarantine (37863, 34424, 37288), 4 review, 0 skip**, exactly the approved set. All three active, reason NULL, displayable. |
+| Apply (04:32:13Z), `--confirm=3` | **Written 3 of 3; skipped 0; errors 0.** The prior-values file was written before the first update. Only `disqualified_reason` changed, to `identity:language_conflict`; `is_active`, identity, prices and timestamps unchanged. |
+
+**Rows.**
+
+| Row | Listing | Stored identity (not rewritten) |
+|---|---|---|
+| 37863 | `v1\|147570453677\|0` | English Hoopa 155/XY-P |
+| 34424 | `v1\|318842446719\|0` | English Rayquaza EX Emerald, PSA 7 |
+| 37288 | `v1\|227508043403\|0` | English Misty's Tentacruel, Gym Heroes |
+
+**Verification.** Guarded throughout: plain GETs of browse pages and `/api/deals-page`, plus the CDP network guard for the browser. Nothing blocked by the guard was fetched: `/deals/<id>`, `/cards/*`, `/search`, analytics, affiliate, eBay and image hosts.
+
+| Layer | Observed |
+|---|---|
+| **Database exclusion** (read-only, 04:32:32Z) | 37863 / 34424 / 37288: reason `identity:language_conflict`, still `is_active=true`, **not displayable**. Japanese Hoopa copies 37856 / 37861: unchanged and displayable. The 4 uncertain rows: unchanged (reason NULL, displayable). The real inventory module over live rows gives 902 listings with 0 identity conflicts. Hoopa appears once as 37856 (EBAY_US, Japanese 602060, $186.44, also on EBAY_GB); US scope 37856, GB scope 37861, IT scope none. |
+| **Clean page and indexing** | `/deals` 200, no X-Robots-Tag, no robots meta, canonical `https://pokemondealfinder.com/deals`, H1 "All deals", SSR "Showing 1–24 of N listings" with 24 tiles and ItemList 24. No region redirect; no load error. `?q=`, `?type=graded&grader=PSA`, `?page=2`, `?country=EBAY_AU` and `?sort=price_asc` return `X-Robots-Tag: noindex, follow` with canonical `/deals`. `?utm_source=` stays indexable with canonical `/deals`. |
+| **All deals API**, before vs after (probes 04:30:33Z / 04:32:43Z / 04:34:47Z / 04:35:45Z) | 04:30 and 04:32: Hoopa withheld (identity conflict), 34424 and 37288 listed. The 04:32 probe still served the pre-quarantine 180 s data cache. **04:34:47Z onward: 0 quarantined rows in any scope or filter; Hoopa once as 37856 in all and US, 37861 in GB, absent in IT; withheld 0.** All six marketplace scopes and five filters had summed pages equal to the count, with no duplicates. |
+| **Other deal APIs** (`kind=set` xy-promos ± IT, `species` rayquaza graded, `category` graded IT) | Still returned 37863 / 34424 at 04:32 and 04:34 (their own 180 s `fetchDealsPage` data caches). **04:35:45Z: none.** |
+| **Sampled cached pages** (`/`, `/best-finds`, `/deals`, `/deals/graded`, `/deals/vintage`, `/deals/under-50`, `/sets/xy-promos`, `/sets/gym-heroes`, `/sets/ex-emerald`, `/pokemon/hoopa`, `/pokemon/tentacruel`, `/pokemon/rayquaza`, `/japanese-cards`) | Before: `/sets/xy-promos` linked 37863; `/pokemon/rayquaza` and `/deals/graded` linked 34424. 04:32: the same (HIT/STALE caches). 04:34: `/sets/xy-promos` regenerated clean; `/pokemon/rayquaza` STALE and `/deals/graded` still linked 34424. **04:35:45Z: no quarantined id linked on any sampled page.** |
+| **Production browser**, CDP guard (04:34:19Z) | Clean `/deals`: 24 tiles, All marketplaces selected, uncapped pagination (… 38). Page 2 has no overlap with page 1. Graded filter from page 2 resets the page. Back, forward and reload restore page 2 and the filter. 390 px GB auctions: count shown, no overflow. `?q=hoopa`: one Hoopa tile (37856), "🇯🇵 Japanese · XY-P: XY Promos", Japanese reference, "Price shown from eBay United States · also on eBay United Kingdom"; US 37856; GB 37861; IT: empty state. Guard allowed 0 `/deals/<id>` or `/cards` requests; blocked i.ebayimg.com, impactcdn, PostHog. |
+
+**Two browser check failures, both count drift, not defects:**
+- The prerendered `/deals` page-1 HTML said "904 listings" (built at deploy).
+- The client-fetched page 2 said "903", because the inventory data cache had refreshed and live rows changed.
+
+A later full crawl of all 38 pages during the 04:35 probe summed to 900 against a first-page count of 902, with no duplicates, because live rows were deactivated mid-crawl. Two back-to-back stable crawls at 04:37:13Z and 04:37:26Z matched exactly: 900 = 900 tiles = 900 distinct, Hoopa once, 0 quarantined. Counts are exact per response; the page-1 HTML can lag the API by up to its revalidation window, and offset pagination reflects live changes between requests.
+
+**Database exclusion vs cached visibility:** the exclusion took effect at apply time (04:32:13Z). Every sampled API and page was clear by 04:35:45Z, through documented expiry: data caches 180 s with one stale serve, and ISR pages regenerated on request. No tag invalidation was triggered. Unsampled ISR pages (for example `/cards/*`, not fetched because the guard blocks them) follow the same gated fetchers; maximum exposure is one 3,600 s ISR window plus one stale serve.
+
+**Rollback location:**
+- **Prior values:** `scripts/remediation/applied/language-mismatch-quarantine-prior-2026-09-14T04-32-02Z.json` (3 rows, prior reason NULL, prior `is_active` true).
+- **Apply output:** `…/language-mismatch-quarantine-apply-output-2026-09-14T04-32-02Z.txt`.
+- **Post-deploy dry run:** `…/language-mismatch-quarantine-dryrun-post-deploy-2026-09-14T04-32-02Z.json`.
+- **Command:** `node scripts/remediation/languageMismatchQuarantine.mjs --rollback=scripts/remediation/applied/language-mismatch-quarantine-prior-2026-09-14T04-32-02Z.json --confirm=3`. It restores NULL only where the reason is still present.
+- **SQL equivalent:** `supabase/data_corrections/2026-09-14_language_mismatch_quarantine.sql`.
+- **Release rollback:** redeploy `dpl_CT3ASTzEiBqhaGSBa3FzYiuB5kbK`.
+
+**Unresolved, explicitly not changed:** four listings still show English comparisons for titles that state "giapponese":
+
+| Row | Card |
+|---|---|
+| 37466 | Misty's Tentacruel, Gym Heroes |
+| 37973 | Skarmory, Neo Genesis |
+| 37974 | Bellossom, Neo Genesis |
+| 37975 | Togetic, Neo Genesis |
+
+All four come from one German seller (lowil-2781) and carry German-print markers. They were visible in the All deals API (all, IT, `maxPrice=50`) and three were linked from `/deals/vintage` at 04:35:45Z. They are uncertain comparisons, not verified.
+
+**Other issues still open:**
+- **Localized-language matcher gap:** the follow-up above.
+- **Availability reasons can replace identity quarantines:** this affects the earlier 23-row quarantine and these 3 rows. It is the next bounded follow-up.
+
+Graded optimisation `257e221`, retention and recovery remain inactive. No scanner, allocator, quota, newsletter or social change. **Not every integrity issue is resolved.**
+
+This entry is a local-only commit on `language-quarantine-r1`, **not pushed**.

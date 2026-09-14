@@ -1,0 +1,31 @@
+quarantine 37863  v1|147570453677|0    EBAY_IT  high      displayable=true statesJapanese=true | Hoopa - 155/XY-P | XY Promos | english | 489917 | Carta Pokemon giapponese promo film Hoopa 155/XY-P Holo TCG quasi nuo… 
+quarantine 34424  v1|318842446719|0    EBAY_IT  high      displayable=true statesJapanese=true | Rayquaza | EX Emerald | english | 88626 | M Rayquaza-EX RR Emerald Break giapponese PSA 7 
+quarantine 37288  v1|227508043403|0    EBAY_IT  high      displayable=true statesJapanese=true | Misty's Tentacruel | Gym Heroes | english | 87552 | Misty's Tentacruel Pokemon TCG Gym Heroes 1998 n.073 Holo Raro Giappo… 
+review     37466  v1|407208983236|0    EBAY_IT  uncertain displayable=true statesJapanese=true | Misty's Tentacruel | Gym Heroes | english | 87552 | Carta Pokemon Card Misty's Tentacruel Tentoxa Gym Heroes Holo Wotc gi… | uncertain - never mutated by this script
+review     37973  v1|407214124375|0    EBAY_IT  uncertain displayable=true statesJapanese=true | Skarmory | Neo Genesis | english | 89232 | Carta Pokemon Card Skarmory Panzaeron Neo Genesis Gsnw Holo Wotc giap… | uncertain - never mutated by this script
+review     37974  v1|407214124297|0    EBAY_IT  uncertain displayable=true statesJapanese=true | Bellossom | Neo Genesis | english | 83795 | Carta Pokemon Card Blubella Bellossom Neo Genesis 2000 Holo Wotc giap… | uncertain - never mutated by this script
+review     37975  v1|407214124323|0    EBAY_IT  uncertain displayable=true statesJapanese=true | Togetic | Neo Genesis | english | 89939 | Carta Pokemon Card Togetic Neo Genesis 2000 Gsnw Holo Wotc giapponese… | uncertain - never mutated by this script
+
+quarantine: 3   review (uncertain, untouched): 4   skip (changed): 0
+expected affected rows if applied: 3
+{
+ "expected": 3,
+ "written": 3,
+ "results": [
+  {
+   "dealId": 37863,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 34424,
+   "updated": 1,
+   "error": null
+  },
+  {
+   "dealId": 37288,
+   "updated": 1,
+   "error": null
+  }
+ ]
+}
