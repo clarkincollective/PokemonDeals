@@ -121,3 +121,9 @@ test("SL3-8 TikTok public check normalises Buffer's bare tiktok.com URL (oEmbed 
   assert.equal(r.ok, true);
   assert.match(decodeURIComponent(asked), /url=https:\/\/www\.tiktok\.com\/@pokemondealfinder\/video\/1/);
 });
+
+test("SL3-9 health reads only due posts and does not page on a transient Buffer rate limit", () => {
+  const ops = readFileSync("lib/social/autopilot/ops.mjs", "utf8");
+  assert.match(ops, /if \(Number\.isFinite\(dueAt\) && dueAt > now\) continue;/);
+  assert.match(ops, /st\.reason === "buffer_rate_limited" && now - dueAt < 6 \* 3_600_000/);
+});
