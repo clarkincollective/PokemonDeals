@@ -4816,44 +4816,91 @@ The extra ~383 verification calls replace:
   - new graded rows per quota window (baseline 4 / 13 / 7)
   - public graded count (baseline 14)
 
+- **Exact scope of the `e4ac8b7` PPT cap** (it is not a global PPT spending limit). It applies only inside the refresh-deals newly-listed sweep (`runSweep`):
+  - it counts `getGradedPrice` requests for listings whose grader/grade came from a `getGradingDetails` call made in that same sweep invocation, and stops them at `GRADED_LOOKUP_CAP` (6) per invocation
+  - **not counted or capped:** sweep references for listings whose grading was reused from stored `deals` rows (EBAY-14Q, unchanged); the per-card allocated scan (still at most one graded lookup and one reference per card per scan, as before); raw condition prices; the sealed catalogue walk; card pages; any other PPT consumer
+  - PPT credit usage is still not logged anywhere
+
 ## Graded retention r1 (GRADED-RETENTION-R1), 2026-09-15 (local review, not deployed)
 **Scope:** up to 2 of verify-deals' existing 20 slots for active, display-eligible graded FIXED-PRICE rows approaching their real freshness cutoff.
-- **Unchanged:** schedule (`*/30`), `BATCH` 20, `RESERVE` 800, retries, the quota guard, the sealed and recovery lanes, and write paths.
+- **Unchanged:** schedule (`*/30`), `BATCH` 20, `RESERVE` 800, retries, the quota guard, the sealed and recovery lanes, and every `deals` write path.
 - **Disable:** set `GRADED_RETENTION_SLOTS = 0` in `lib/verifyAllocator.mjs`.
+- **No schema migration.**
 
-**Selection.** Placed after critical auctions, before the BIN reserve and general ranking; deduplicated through the allocator's shared `seen` set. A candidate must be:
+**Lane order.** Critical auctions → BIN freshness reserve (both filled exactly as before) → graded retention (≤2, from what is left) → general ranking.
+- Unused graded slots return to the general ranking.
+- The lane never takes an eBay item already in the batch, and never two copies of one item.
+- Offline oracle against the deployed allocator (`e4ac8b7`): production pool of 1,117 candidates, 0–30 critical auctions, quota 900–5,000, batch 20 and 17; 80 scenarios.
+  - slots = 0: batch identical in all 80
+  - lane on: critical and BIN reserve rows and batch size identical in all 80; lane ≤2
+
+**A candidate must be:**
 - `is_graded`, not an auction, `is_active`
 - no `disqualified_reason` (quarantine, review hold or availability)
 - passing `isDisplayableDeal`
-- not in `identityConflictKeys(pool)`. The verifier now reads `grader, grade` (read-only) so slab identities compare.
+- not in `identityConflictKeys(pool)`. The verifier reads `grader, grade` (read-only) so slab identities compare.
 - `dealFreshness` = AGING: `last_seen_at` age ≥ half its TTL tier and below it
-- not exactly checked in the last 2 h
+- not exactly checked within 2 h
+- **not attempted by this lane within 2 h** (attempt record below)
 
-Order is soonest real cutoff first. The lane scales to 0 near the quota floor (same rule as the BIN reserve). Unused slots fall through to the BIN reserve and general ranking.
+Order is soonest real cutoff first. The lane scales to 0 near the quota floor (same headroom rule as the BIN reserve: remaining − batch ≥ 800 + 250).
+
+**Attempt record (UNKNOWN cooldown).**
+- **Storage:** existing `catalog_snapshot(kind text pk, data jsonb)` blob table, `kind = verify_graded_retention_attempts` (the same mechanism as `digest_state` / `ingest_feed_runs`). No new table or column.
+- **Shape:** `{ attempts: { "<eBay legacy item id>": { at, status } } }`. Keyed by the exact eBay item, so every marketplace copy of one listing shares one cooldown. Pruned to 24 h / 200 entries.
+- **Read:** once per run, before allocation. If unreadable, the lane takes 0 slots that run and every slot stays with the existing lanes.
+- **Written before any provider call** for the rows the lane picked, so a timeout still leaves the cooldown in place. After the loop the verdict is added (observability).
+- **Never availability evidence:** no `deals` column is written by it. UNKNOWN still writes nothing to `deals`, so `last_seen_at`, `exact_verified_at`, `first_seen_at` and the reason are unchanged.
+- **Cooldown:** an item attempted within `GRADED_RETENTION_RECHECK_HOURS` (2 h) is skipped by this lane only. The general ranking can still pick it on its own merits, which is pre-existing behaviour and unchanged.
+- **Visibility:** the table has public read RLS, so the record exposes eBay item ids that are already public on `deals`, attempt times and verdicts.
+- **Residual:** two overlapping verifier runs could race the read-modify-write and lose one entry (cron every 30 min, maxDuration 120 s).
 
 **Freshness evidence.**
-- A fixed-price ACTIVE verdict writes `last_seen_at = exact_verified_at = now`. That field drives `dealFreshness` / `isStale` and `/api/sweep-stale-deals`, so a confirmed row leaves the AGING window.
-- UNKNOWN writes nothing, and the row keeps its original cutoff.
+- A fixed-price ACTIVE verdict still writes `last_seen_at = exact_verified_at = now` through the unchanged path. That field drives `dealFreshness` / `isStale` and `/api/sweep-stale-deals`, so a confirmed row leaves the AGING window.
 - SOLD / ENDED retire through `retireForAvailability`, which preserves identity and review reasons.
-- `first_seen_at` is never written. Inactive rows are never selected. No recovery list.
+- Inactive rows are never selected. No recovery list.
 
 **Tradeoff (not free).**
-- Each run the lane uses a slot, it displaces the lowest-ranked general verification.
-- In a read-only replay of one allocation on the production pool (1,110 candidates; 9 graded BIN, 3 AGING), it took 2 slabs (1.9 h and 11.4 h before timeout) and displaced 2 non-critical auction re-price checks (both FRESH, 28.9 h left). Critical auctions (≤1.5 h) and the 7-slot BIN reserve were unchanged.
-- **Ceiling:** at most 2 × 48 = 96 of the 960 possible daily verifier calls; fewer in practice, because AGING graded BIN rows are few and about half of runs skip on the quota reserve.
-- **Residual:**
-  - a row returning UNKNOWN is re-picked every run until it times out (no attempt marker without a schema change)
-  - an ACTIVE write racing a new quarantine refreshes `last_seen_at` but leaves the reason, so the row stays hidden (existing behaviour)
+- Each used slot displaces the lowest-ranked general verification, never a critical auction or a BIN reserve row.
+- One production-pool replay (before this correction) displaced 2 non-critical auction re-price checks with 28.9 h left.
+- **Ceiling:** 2 × lane-eligible runs.
+- **Residual:** an ACTIVE write racing a new quarantine refreshes `last_seen_at` but leaves the reason, so the row stays hidden (existing behaviour).
 
-**Telemetry.** `verify_deals_complete` now also logs `critical_auctions`, `graded_retention_used`, `bin_reserve_used`, `general_slots` and `verify_mix_auction` (counts only). Deterioration would show as:
-- falling `general_slots` or `verify_mix_auction` in that line
+**When the lane can actually run** (`ebay_job_runs`, windows 11–13 Sep, reset ~07:00 UTC):
+- verify-deals ran 67 of 144 scheduled runs; 77 skipped on `quota_reserve` (remaining − 20 < 800)
+- the lane's headroom rule (remaining ≥ 1,070) held on 60 of the 67
+- by hours after reset:
+
+| Hours after reset | Runs | Lane-eligible |
+|---|---|---|
+| 0–3 | 15 ran (the 07:00 run fires just before reset, at ~200–240 remaining) | 15 |
+| 3–9 | all 36 ran | 36 |
+| 9–12 | 16 ran | 9 |
+| 12–24 | 0 of 72 ran (remaining 200–780) | 0 |
+
+- **Last lane-eligible run:** 16:30 / 17:30 / 17:00 UTC.
+- The verifier and the lane effectively run **~07:30–17:30 UTC (17:30–03:30 Brisbane)** and are skipped for the other ~13 h.
+- Graded rows whose cutoff falls in the starved hours get no help. The 22:35 UTC sweep on 14 Sep started at 380 remaining, when no verification can run.
+- At most ~40 lane calls/day (≈20 eligible runs × 2).
+- Slot prioritisation does not fix quota starvation. Floors and the proposed reallocation are unchanged.
+
+**Telemetry.** `verify_deals_complete` logs `critical_auctions`, `graded_retention_used`, `graded_retention_record_error`, `bin_reserve_used`, `general_slots` and `verify_mix_auction` (counts only). The response `allocation` also carries `graded_retention_ids`. Deterioration would show as:
+- falling `general_slots` or `verify_mix_auction`
 - more auctions retired or ended between checks, and more raw rows expiring on `sweep-stale-deals`
 - a lower share of active raw rows with `exact_verified_at` within 6 h (`deals`)
 - `ebay_job_runs` verify-deals calls unchanged by construction
 
 **Checks.**
-- `graded-retention-r1` GR-1..7: 7/7.
-- Focused set (P0.4.3 allocator, 17C.9 sealed lanes, sold-item freshness, availability, integrity-followup-r2 guard, quarantines, All deals, 14Q/14R, affiliate, 17C.10 log): 240 / 5 fail. The deployed base shows the same 5 (P043-4/5/10/11 use a fixed 2026-09-07 clock; 15b).
+- **`graded-retention-r1` GR-1..11: 11/11.** GR-9 runs the real verify-deals GET handler five times against one in-memory DB, offline:
+  - A (two marketplace copies) and B UNKNOWN: both untouched
+  - +30 min: A and B in cooldown, C picked (ACTIVE refreshes `last_seen_at = exact_verified_at`, `first_seen_at` kept)
+  - +1 h: none eligible, all slots general
+  - +2 h 05: B re-picked, A past cutoff and not reactivated
+  - unreadable record: lane 0
+  - the review-held row is never touched; 20 calls per run
+- **GR-10:** near-full batches (0–25 critical auctions): critical and BIN reserve identical on/off; the lane displaces general slots only.
+- **Harness:** `tests/harness/ingestion/stubs/ebay.mjs` gains a `getListingSnapshot` stub.
+- **Focused set** (P0.4.3 allocator, 17C.9 sealed lanes, sold-item and deal freshness, availability, integrity-followup-r2 guard, quarantines, All deals, 14Q/14R, affiliate, 17C.10 log, auction price integrity, integrity-r1 e2e, retention): 305 / 6 fail, the same 6 as the deployed base (P043-4/5/10/11 fixed 2026-09-07 clock; 15b; IR stored-rows).
 - `next build` exit 0. ESLint clean.
 
 ## Sourcing and integrity follow-ups (recorded 2026-09-15; not started)

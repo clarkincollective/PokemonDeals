@@ -8,6 +8,13 @@ import { allocateVerifyBatch } from "@/lib/verifyAllocator";
 // 17C.9 - the sealed slice comes from the SAME allocator, imported
 // separately so the card allocator's import line stays exactly as it was.
 import { sealedVerifySlots, SEALED_MAX_PER_RUN } from "@/lib/verifyAllocator";
+// graded-retention-r1 - the durable retention attempt record (UNKNOWN cooldown)
+import {
+  GRADED_RETENTION_SLOTS,
+  GRADED_RETENTION_ATTEMPTS_KIND,
+  normalizeRetentionAttempts,
+  withRetentionAttempts,
+} from "@/lib/verifyAllocator";
 import { runSealedVerifyLane } from "@/lib/sealedVerifyLane";
 import { decideImageRecovery } from "@/lib/imageRecoveryPolicy";
 import { IMAGE_VERDICT } from "@/lib/listingImage";
@@ -231,13 +238,44 @@ export async function GET(request) {
   // the freshness ceiling - a SOFT ordering signal only. NOTHING about
   // deal qualification, thresholds, the market reference, cooldown safety,
   // or the auction re-price path changes. See lib/verifyAllocator.mjs.
+  // graded-retention-r1 - read the retention attempt record (existing
+  // catalog_snapshot(kind) blob table, no provider call). Unreadable -> the
+  // graded lane takes 0 slots this run and every slot stays with the
+  // existing lanes.
+  let retentionAttempts = null;
+  if (GRADED_RETENTION_SLOTS > 0) {
+    const { data: attemptRow, error: attemptError } = await db
+      .from("catalog_snapshot")
+      .select("data")
+      .eq("kind", GRADED_RETENTION_ATTEMPTS_KIND)
+      .maybeSingle();
+    if (!attemptError) retentionAttempts = normalizeRetentionAttempts(attemptRow?.data);
+  }
   const { batch, allocation } = allocateVerifyBatch({
     pool,
     batch: BATCH - recoveryRows.length - sealed.used,
     now,
     quotaRemaining: rl.remaining,
     reserve: RESERVE,
+    gradedSlots: retentionAttempts ? GRADED_RETENTION_SLOTS : 0,
+    retentionAttempts,
   });
+  const gradedRetentionIds = new Set(allocation.graded_retention_ids ?? []);
+  const gradedRetention = batch.filter((r) => gradedRetentionIds.has(r.id));
+  // Recorded BEFORE any provider call, so a timeout or crash mid-run still
+  // leaves the cooldown in place. Attempt bookkeeping only - never
+  // availability evidence (no deals row is written here).
+  let retentionRecordError = false;
+  const saveRetentionAttempts = async (state) => {
+    const { error } = await db
+      .from("catalog_snapshot")
+      .upsert({ kind: GRADED_RETENTION_ATTEMPTS_KIND, data: state, updated_at: new Date().toISOString() }, { onConflict: "kind" });
+    if (error) retentionRecordError = true;
+  };
+  if (retentionAttempts && gradedRetention.length) {
+    retentionAttempts = withRetentionAttempts(retentionAttempts, gradedRetention, { now });
+    await saveRetentionAttempts(retentionAttempts);
+  }
   // recovery rows ride in the same loop (same one-call lookup per row)
   batch.unshift(...recoveryRows);
   const out = { ACTIVE: 0, ENDED: 0, SOLD: 0, UNKNOWN: 0, RETIRED: 0, REPRICED: 0, IMAGE_RECOVERED: 0 };
@@ -401,6 +439,13 @@ export async function GET(request) {
     // an inconclusive call.
   }
 
+  // graded-retention-r1 - add each lane attempt's verdict to the record
+  // (observability; the cooldown already started before the calls).
+  if (retentionAttempts && gradedRetention.length) {
+    const statusById = new Map(detail.map((d) => [d.id, d.status]));
+    await saveRetentionAttempts(withRetentionAttempts(retentionAttempts, gradedRetention, { now, statusById }));
+  }
+
   // Targeted invalidation: only the cards whose offers just changed. No
   // provider call happens here - each expired card page re-renders lazily
   // on its next request (see lib/listingAvailability for the cost note).
@@ -432,6 +477,7 @@ export async function GET(request) {
         // graded-retention-r1 - lane usage and what it displaced (counts only)
         critical_auctions: allocation.critical_auctions,
         graded_retention_used: allocation.graded_retention_used,
+        graded_retention_record_error: retentionRecordError,
         bin_reserve_used: allocation.bin_reserve_used,
         general_slots: allocation.general_slots,
         verify_mix_auction: allocation.verify_mix_auction,

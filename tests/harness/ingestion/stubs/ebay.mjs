@@ -39,3 +39,9 @@ export async function getItemsByLegacyIds(legacyIds, marketplaceId) {
   const want = new Set(legacyIds.map(String));
   return { listings: all.filter((l) => want.has(String(l.listingId).split("|")[1])), calls: legacyIds.length };
 }
+// graded-retention-r1: verify-deals' single-item lookup. The scenario's
+// snapshotFor decides the verdict; default is an inconclusive read.
+export async function getListingSnapshot(legacyId, marketplaceId) {
+  count("getListingSnapshot");
+  return H().snapshotFor?.(String(legacyId), marketplaceId) ?? { status: "UNKNOWN", calls: 1, evidence: "harness_default" };
+}
