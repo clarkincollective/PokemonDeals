@@ -4593,3 +4593,48 @@ A startup check (`?check=1`) confirmed: 4/4 channels usable, Resend and recipien
 - Recurring: ~1 vision review per new story, about $0.02/day. GitHub Actions minutes are free on the public repo; Vercel crons run within the existing plan.
 
 **Emergency pause:** `node scripts/socialBacklogCircuit.mjs suspend`. It stops queueing and flags health.
+
+## Outreach automation (OUTREACH-AUTO-1), 2026-09-14
+
+**Authorisation:** the owner authorised qualified routine outreach and ordinary replies without per-message approval, within the existing exclusions, consent requirements, suppression records, the 5-per-day cap, the weekday window and no unsolicited follow-ups.
+
+**Instantly reconciliation** (lead reads plus the Unibox thread, read-only):
+
+| Record | Instantly evidence | Local before → after |
+|---|---|---|
+| packz | sent 2026-09-07 13:04 UTC; 3 replies; Packz declined on 2026-09-08 ("not taking on new partnerships"), James replied the same day, and Packz closed | QUEUED → **DO_NOT_CONTACT (declined)**; `packz.io` suppressed |
+| pokemonpricetracker | sent 2026-09-07 13:13 UTC; no reply | QUEUED → **SENT** (no follow-up) |
+| test lead (owner inbox) | sent 2026-09-02 | not a prospect record |
+
+- **Card Chill:** no Card Chill lead exists in the campaign or the records.
+- **Mailbox `james@getpokemondealfinder.com`:** warm-up active with 62 warm-up emails, health score 100%, 0 of 30 sent today. The domain passes MX, SPF, DKIM and DMARC. No new waiting period is needed.
+
+**Prospects** (live permission checks; a public address alone is not treated as consent):
+- **cardgamer.com — APPROVED, tier A.** Address published for review requests. Asset: collection checklists.
+- **pokecottage.com — APPROVED, tier B.** General contact published. Asset: card-identification guide.
+- **voxbooster.com — APPROVED, tier C.** `contact@` published for press and partnerships. Asset: dated reference-price study, with its limitations stated.
+- **kantopost.com — SKIPPED.** It publishes "not accepting any pitches".
+
+**Automation:** `/api/outreach-worker` (Vercel cron every 15 min), durable state in the private Supabase Storage bucket `outreach-private`, emergency pause via `npm run outreach -- pause`.
+
+Each run handles replies first:
+- Only known correspondents are considered; warm-up and other mail is ignored.
+- Each email gets a write-once claim.
+- Out-of-office and automated acknowledgements get no reply.
+- Opt-outs, declines and hard bounces stop contact and add a suppression and an Instantly block-list entry.
+- Payment, contract, reciprocal-link, sensitive-information and meeting requests escalate by email to the owner.
+- Routine questions and coverage reports get a Claude reply (Vercel AI Gateway, OIDC, fixed prompt; the email is treated as untrusted data). It must pass verified-link and verified-figure checks, is threaded with `reply_to_uuid`, and is capped at 2 automated replies per thread with at least 60 min between them.
+
+Then new contact:
+- Weekdays 07:00–15:00 Brisbane only.
+- 5 per trailing 24 h.
+- Permission and suppression are re-checked before each send.
+- One lead per record, with no follow-up.
+- A `SUBMITTING` record is reconciled against the campaign before any retry.
+
+**Status: deployed but BLOCKED on Instantly entitlements.**
+1. The workspace is on a **Free Trial ending 2026-09-16**. Instantly's email list and reply endpoints need an active paid plan (HTTP 402 otherwise).
+2. The only API key, "PokemonDealFinder outreach", has scopes `leads:create` and `leads:read`. The worker also needs `emails:read`, `emails:create` and `block_list_entries:create`.
+3. That key must be set as `INSTANTLY_API_KEY` in Vercel Production. GitHub/Vercel secret writes are not performed by the assistant.
+
+No new outreach sends until the worker can read and act on replies. The first sends (Card Gamer, PokéCottage, VoxBooster) go out in the first weekday window after these three steps.
