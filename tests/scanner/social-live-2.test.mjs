@@ -79,3 +79,19 @@ test("SL2-7 the market-shape example is a catalogue printing under $25 (not a li
   assert.match(html, /market reference/);
   assert.doesNotMatch(html, /Standout deal|line-through/);
 });
+
+test("SL2-8 reading autonomous run state never creates directories (Vercel /var/task is read-only); the serverless route fails closed", async () => {
+  const src = readFileSync("lib/autonomous/runState.mjs", "utf8");
+  assert.match(src, /function dirFor\(surface, \{ create = false \} = \{\}\)/);
+  assert.match(src, /if \(create\) mkdirSync/);
+  for (const m of src.matchAll(/readJson\(path\.join\(dirFor\(([^)]*)\)/g)) assert.doesNotMatch(m[1], /create/);
+  for (const m of src.matchAll(/writeJson\(path\.join\(dirFor\(([^)]*\))/g)) assert.match(m[1], /create: true/);
+  const route = readFileSync("app/api/social-auto/route.js", "utf8");
+  assert.match(route, /process\.env\.VERCEL[\s\S]*machine_local_state_unavailable_on_serverless[\s\S]*resolveLiveSocialGates/);
+});
+
+test("SL2-9 Buffer video posts never send thumbnailUrl and YouTube carries a category", () => {
+  const src = readFileSync("lib/social/providers/buffer.mjs", "utf8");
+  assert.match(src, /\? \{ video: \{ url: a\.url \} \}/);
+  assert.match(src, /categoryId: String\(msg\.youtubeCategoryId \?\? "24"\)/);
+});

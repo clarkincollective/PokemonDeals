@@ -47,6 +47,15 @@ export async function GET(request) {
     });
   }
 
+  // SOCIAL-LIVE-2: this path keeps its ledger / batches / circuit in
+  // machine-local JSON. A serverless filesystem is read-only, so a LIVE
+  // submit here could reach the provider and then fail to record the
+  // provider ref (duplicate risk on the next run). Fail closed; the durable
+  // Supabase backlog (/api/social-backlog-refill) is the serverless path.
+  if (process.env.VERCEL) {
+    return Response.json({ ok: true, skipped: "machine_local_state_unavailable_on_serverless", mode, stage: posture.stageId });
+  }
+
   const gate = resolveLiveSocialGates({ env: process.env, posture, circuit });
   if (!gate.ok) {
     return Response.json({ ok: true, skipped: "live_gates_blocked", blockers: gate.blockers, mode, stage: posture.stageId });
