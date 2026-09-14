@@ -112,3 +112,12 @@ test("SL3-7 queue + health + alerts run on Vercel (production env), rendering on
   assert.doesNotMatch(wf, /BUFFER_ACCESS_TOKEN|CRON_SECRET/);
   assert.match(readFileSync("scripts/socialAutopilot.mjs", "utf8"), /status: "AUTOPILOT_READY", planned_for: dueAt/);
 });
+
+test("SL3-8 TikTok public check normalises Buffer's bare tiktok.com URL (oEmbed needs www)", async () => {
+  const { verifyPublicPost } = await import("../../lib/social/autopilot/publicCheck.mjs");
+  let asked = "";
+  const fetchImpl = async (u) => { asked = u; return { ok: true, json: async () => ({ author_unique_id: "pokemondealfinder", thumbnail_url: "t", thumbnail_width: 576, thumbnail_height: 1024 }) }; };
+  const r = await verifyPublicPost("tiktok", "https://tiktok.com/@pokemondealfinder/video/1", { fetchImpl });
+  assert.equal(r.ok, true);
+  assert.match(decodeURIComponent(asked), /url=https:\/\/www\.tiktok\.com\/@pokemondealfinder\/video\/1/);
+});
