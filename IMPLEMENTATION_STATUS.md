@@ -4667,3 +4667,130 @@ No new outreach sends until the worker can read and act on replies. The first se
 **Still true:**
 - Packz is suppressed (declined) and Pokemon Price Tracker is SENT with no follow-up.
 - Replies can't be read or answered automatically until a key with `emails:read`, `emails:create` and `block_list_entries:create` is set in Vercel. With that key the worker switches to FULL mode, using the same deployment.
+
+## Graded supply release 1 (GRADED-SUPPLY-R1), 2026-09-15 (local review, not pushed or deployed)
+
+**Scope.** Improve graded supply within the fixed eBay allowance by removing wasted graded lookups.
+- No limit request, allowance, PPT or paid-service change.
+- No eligibility, identity, language, quarantine, review-hold or availability change.
+- No deploy, production write, experiment or reallocation.
+- Social automation unchanged; outreach stays paused.
+
+**Base.**
+- Production `b3a1170` (`dpl_9MnYXy9tJdzyN6Z47KhWHktfx4Qb`) = `origin/main`.
+- Branch `graded-supply-r1` in an isolated worktree.
+- `257e221` (integrity-r1) was **not** in production. Only its code and tests were ported (cherry-pick, one import conflict resolved). The held branch was not merged.
+
+### Evidence (read-only, snapshot 2026-09-14 21:14 UTC)
+
+**Public graded inventory** (the /deals pipeline run offline):
+- 14 listings worldwide, exact.
+  - By marketplace: US 9, GB 4, AU 1, CA 0, DE 0, IT 0.
+  - By grader: PSA 12, CGC 2. By type: 8 fixed-price, 6 auction.
+- Availability check: 12 never checked, 2 checked within 24 h.
+- All 886 deals: 886 listings.
+- 14 Sep audit (12: US 7 / UK 4 / AU 1) is historical.
+
+**Graded rows** (`deals.is_graded`, 654):
+
+| State | All time | First seen last 7 days (61) |
+|---|---|---|
+| Displayable | 14 | 14 |
+| Inactive, no reason (freshness TTL / grace, inferred) | 365 | 45 |
+| Inactive, auction end passed (no reason) | 256 | 1 |
+| `auction_ended` reason | 3 | 0 |
+| Identity quarantine | 16 | 1 |
+| `availability:sold` / `not_found` (confirmed) | 0 | 0 |
+| Active but hidden by the display gate | 0 | 0 |
+
+- 572 of 654 rows were never availability-checked.
+- New graded rows per quota window (11–13 Sep): 4 / 13 / 7.
+
+**eBay allowance** (`ebay_job_runs`; windows 11, 12, 13 Sep 07:00 UTC; limit 5,000):
+
+| | 11 Sep | 12 Sep | 13 Sep |
+|---|---|---|---|
+| Browse | 4,756 | 4,817 | 4,775 |
+| Graded detail | 794 | 820 | 783 |
+
+Analytics API calls: 287 per window (separate pool).
+
+| Consumer | Browse/day | Graded detail/day | Runs skipped (per day) |
+|---|---|---|---|
+| refresh-deals allocated | ~2,218 | ~292 | 6–7 of 12 (`ebay_rate_limited`) |
+| refresh-deals sweep | ~1,729 | ~507 | 50–61 of 156 |
+| verify-deals | ~447 | 0 | 25–26 of 48 (`quota_reserve`) |
+| ingest-feed | ~381 | 0 | 12–14 of 24 |
+| screen-deal-images | ~8 | 0 | 0 |
+| refresh-sealed-deals | 0 | 0 | 1 of 1 |
+
+- **Retries** go through `fetchWithRetry`: one retry on network error or 5xx, counted as a real Browse call. Not tagged separately, so the retry share is unknown.
+- **Other eBay callers:** no page or route calls the Browse API. `admin/discovery-health` uses Analytics only. `scripts/*` are manual.
+- **`dedupe_saved_grading` = 0** in every window.
+- **Yield in the 3 windows:**
+  - scan: 1,339 raw + 24 graded new rows
+  - ingest-feed: 16 raw, 0 graded, from ~1,143 calls
+  - graded: about 1 new graded listing per 100 graded detail calls
+
+**Bottleneck.**
+- **Inflow is budget-bound and partly wasted:** ~800 graded detail calls/day yield ~8 new graded listings/day, and a demonstrated 13–27% of those calls are duplicates or certain rejections.
+- **Retention is the largest measurable post-discovery loss:** 45 of 61 recent graded rows went inactive with no sold/ended evidence.
+- **Unknown:**
+  - missing trusted graded references (`getGradedPrice` nulls are not retained)
+  - discovery/matching false negatives (search responses and rejections are not retained)
+
+### Change
+- **`lib/dealMatching.js`:**
+  - `gradedLookupWorthwhile` is the title-only half of `gradedReferenceAllowed`, with identical verdicts (the production rule is the GG-1 oracle).
+  - `pickGradedLookupCandidate` is new.
+- **`app/api/refresh-deals/route.js`:**
+  - Sweep skips a hopeless title before the cap and the call.
+  - Each fresh lookup is memoised by exact `listing_id` in `knownGrading`; reuse is counted as `dedupe_saved_grading`.
+  - Per-card scan picks the cheapest graded listing that passes every pre-call gate; still at most one lookup.
+  - `GRADED_LOOKUP_CAP` stays 6.
+- **Tests:**
+  - `graded-growth-r1` GG-1..7 ported.
+  - `IR-E2E memo` pin updated to the new boundary: 3 → 2 lookups, with matches (3) and reference requests (3) asserted unchanged.
+
+### Verification
+- **Offline replay** (stored graded titles × active watchlist; SELECT only; stored grader/grade stand in for eBay):
+
+| Cohort | Lookups before → after | Pre-check skips | Duplicates removed |
+|---|---|---|---|
+| All 655 rows | 787 → 572 (−27.3%) | 48 | 167 |
+| Since 6 Sep (86 rows) | 99 → 86 (−13.1%) | 0 | 13 |
+
+  - Identity verdicts, graded verdicts and reference requests are identical.
+  - 3 Unown slabs each match 28 rows (identity ambiguity; not changed here).
+  - These are replay estimates, not production measurements. The per-card pick is not replayable (search results are not stored).
+- **Harness `memo`:** getGradingDetails 3 → 2; getGradedPrice 3 → 3; matched 3; written 2.
+- **Scanner suite:** 3,427 tests / 36 fail. Clean `b3a1170`: 3,420 / 36. The failing set is identical.
+- **Focused set** (graded, eBay 14Q/14R, P0.3.1, affiliate, quarantines, review hold, All deals, availability, sold freshness): 233 / 2 fail, both in the baseline set.
+- **`next build`:** exit 0.
+
+### Attribution
+- `lib/ebayLinks.js` `wrapEbayAffiliateUrl` (campid from `EBAY_CAMPAIGN_ID`, mkcid 1, mkrid 711-53200-19255-0, toolid 10049, customid surface) is unchanged.
+- `EBAY_CAMPAIGN_ID` is present in Vercel production (name only).
+- The health check expects campaign 5339197414. No affiliate click was made.
+
+### Alternative feed access
+- **ingest-feed:** reads the public PokeDealFinder board HTML (`lib/pokeFeed.js`) as a hint and verifies each new item with one Browse `get_item_by_legacy_id` call (≤40/run, floor 800).
+- **Batch `getItems`:** unavailable (recorded 403 "Access denied" on this keyset), although Analytics metadata lists `buy.browse.item.bulk` 5,000/day.
+- **Feed API (`buy.feed`):** unknown. The only recorded metadata query was scoped to Browse; no call was made.
+
+### Proposed fixed-budget allocation (not activated)
+Browse, 5,000/day:
+
+| Bucket | Now | Proposed |
+|---|---|---|
+| Discovery searches + raw-condition checks | ~3,148 | 3,148 |
+| Graded detail | ~799 | 650 |
+| Verification | ~447 | 830 |
+| ingest-feed | ~381 | 150 |
+| Reserve (retries, image screening) | ~225 | 222 |
+
+The extra ~383 verification calls replace:
+- ~150 duplicate or hopeless graded lookups (this release)
+- ~230 ingest-feed verifications (0 graded in 3 days)
+
+**Next step:** within the existing verifier batch, check displayable graded rows before their freshness TTL expires. Calls-neutral; needs owner approval.
