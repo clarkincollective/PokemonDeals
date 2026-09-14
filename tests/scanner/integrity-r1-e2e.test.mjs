@@ -52,12 +52,15 @@ test("IR-E2E feed: slab-titled raw items are counted as refused, not published",
   assert.equal(response.slabTitleOnRaw, 5);
 });
 
-test("IR-E2E memo: the integrity release does NOT carry the graded lookup-reuse optimisation; references stay per CARD", () => {
-  const { calls, gradedPriceRequests } = run("memo");
-  // Production behaviour (13f5609): one grading lookup per matching watchlist
-  // row - the synthetic Clefairy slab matches two rows, the SM210 slab one.
-  // The optimisation (257e221, branch integrity-r1) would make this 2.
-  assert.equal(calls.getGradingDetails, 3, "unoptimised per-row lookups: optimisation not in this release");
+test("IR-E2E memo: graded lookups are reused per LISTING (graded-supply-r1); references stay per CARD", () => {
+  const { calls, gradedPriceRequests, response } = run("memo");
+  // Before graded-supply-r1 (b3a1170): one grading lookup per matching
+  // watchlist row - the synthetic Clefairy slab matches two rows, the SM210
+  // slab one = 3. The listing-level reuse (ported from 257e221) makes it 2.
+  // Identity matches and reference requests are unchanged: 3 and 3.
+  assert.equal(calls.getGradingDetails, 2, "one grading lookup per graded listing");
+  assert.equal(response.matched, 3, "identity matching still runs for every candidate card");
+  assert.equal(calls.getGradedPrice, 3, "a reference is still requested per candidate card/grader/grade");
   assert.ok(gradedPriceRequests.includes("syn-clefairy-bs|CGC|5.5") && gradedPriceRequests.includes("syn-clefairy-sl|CGC|5.5"), "both candidate printings priced separately");
 });
 

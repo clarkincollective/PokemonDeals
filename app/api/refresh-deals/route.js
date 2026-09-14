@@ -44,6 +44,8 @@ import {
   selectConditionPrice,
   gradedReferenceAllowed,
   titleClaimsSlabGrade,
+  gradedLookupWorthwhile,
+  pickGradedLookupCandidate,
 } from "@/lib/dealMatching";
 import {
   classifyListingCondition,
@@ -395,7 +397,11 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
   });
 
   const rawListings = listings.filter((l) => !l.isGraded);
-  const cheapestGraded = listings.find((l) => l.isGraded) ?? null;
+  // graded-growth-r1: this scan's single graded lookup goes to the cheapest
+  // graded listing that could actually receive a graded reference (see
+  // pickGradedLookupCandidate). Still at most ONE getGradingDetails() per
+  // card per scan.
+  const cheapestGraded = pickGradedLookupCandidate(listings, row);
 
   let dealsFound = 0;
   let blockedRetired = 0; // sightings of verifier-retired rows, not re-published
@@ -868,6 +874,11 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
       matched++;
 
       if (listing.isGraded) {
+        // graded-growth-r1: a title that already guarantees
+        // gradedReferenceAllowed will refuse (lot / no slab evidence) can
+        // never become a graded deal - skip it before the paid lookup and
+        // without consuming GRADED_LOOKUP_CAP.
+        if (!gradedLookupWorthwhile(listing)) continue;
         // EBAY-14Q - reuse a grader/grade this EXACT listing_id already
         // resolved (this run's own dedup map, sourced from `deals`) before
         // spending a getGradingDetails() call on it again. Never inferred
@@ -887,6 +898,12 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
           } else {
             gradedLookups++;
             grading = await getGradingDetails(listing.listingId, marketplaceId);
+            // graded-growth-r1: grader/grade are properties of the LISTING,
+            // not of the watchlist row, and one listing can match several
+            // rows in this loop - remember this exact listing_id's answer
+            // so the next matching row reuses it instead of paying (and
+            // using a GRADED_LOOKUP_CAP slot) again.
+            knownGrading.set(listing.listingId, grading);
           }
           // P0.3.1 - fail closed on inconsistent/absent graded evidence
           // (see the priority-loop branch above).
