@@ -15,10 +15,11 @@ const SITE_URL = "https://pokemondealfinder.com";
 // primary candidate for "Pokemon card deals" (docs/seo-headterm-strategy).
 // The deal categories stay linked from here and link back.
 //
-// Indexability is unchanged: the clean /deals is the one indexable,
-// self-canonical page. Filters, search and ?page= are read client-side
-// (DealGrid) from the same static HTML, which always canonicalises to
-// /deals; filter pills are nofollow.
+// Indexability: the clean /deals is the one indexable, self-canonical page.
+// Filters, search and ?page= are read client-side (DealGrid) from the same
+// static HTML, which canonicalises to /deals; those variants are also sent
+// X-Robots-Tag noindex,follow by next.config.mjs, and filter pills are
+// nofollow.
 //
 // No <RegionRedirect />: that component writes the visitor's stored or
 // geo-detected region into ?country=, which would turn "all marketplaces"
@@ -26,7 +27,7 @@ const SITE_URL = "https://pokemondealfinder.com";
 // inferred from where the visitor is.
 const TITLE = "Browse All Pokemon Card Deals by Price, Grade & Marketplace";
 const DESCRIPTION =
-  "Every live Pokemon card listing we track across six eBay marketplaces, in one list. Filter raw or graded (PSA/CGC/BGS and more), Buy It Now or auction, price and marketplace, or browse by category.";
+  "Every eligible Pokemon card listing we track, English and Japanese, across six eBay marketplaces, in one list. Filter raw or graded (PSA/CGC/BGS and more), Buy It Now or auction, price and marketplace, or browse by category.";
 
 export const revalidate = 600;
 
@@ -97,7 +98,8 @@ export default async function AllDealsPage() {
             All deals
           </h1>
           <p className="mt-3 max-w-2xl text-base text-zinc-600 dark:text-zinc-400">
-            Every eligible Pokemon card listing we track across six eBay marketplaces, newest first.
+            Every eligible Pokemon card listing we track, English and Japanese, across six eBay marketplaces, newest
+            first. Sealed products have their own page.
           </p>
           <p className="mt-2 max-w-2xl text-xs text-zinc-600 dark:text-zinc-400">
             A marketplace is the eBay site a listing is on, not where it ships; each listing states its own shipping.

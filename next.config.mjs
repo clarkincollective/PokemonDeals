@@ -1,5 +1,21 @@
+// "All deals" (/deals) is one static page: every browse, filter, search
+// and pagination variant is served the clean page's HTML (canonical
+// /deals) and filtered in the browser. A rendered variant still differs
+// from the clean page, so - like /search?q= and homepage ?page=N - it is
+// kept out of the index at the server, not only by nofollow links:
+// X-Robots-Tag noindex,follow whenever one of these params is present.
+// Header rules keep the page static (no per-request render, no proxy).
+const ALL_DEALS_VARIANT_PARAMS = ["country", "type", "grader", "grade", "listing", "minPrice", "maxPrice", "q", "sort", "page"];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async headers() {
+    return ALL_DEALS_VARIANT_PARAMS.map((key) => ({
+      source: "/deals",
+      has: [{ type: "query", key }],
+      headers: [{ key: "X-Robots-Tag", value: "noindex, follow" }],
+    }));
+  },
   images: {
     // VERCEL-COST-1: WebP only. AVIF is ~20% smaller than WebP but each
     // AVIF encode is a separate billed Image-Optimization transformation

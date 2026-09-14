@@ -11,8 +11,9 @@
 //   - live auctions with 0 bids, and an ended auction
 //   - unknown shipping (0 recorded, and no breakdown recorded)
 //   - plain listings without a trusted comparison
+//   - Japanese-catalogue listings (eligible under the same gate)
 //   - rows that must NEVER appear or count: quarantined, slab-titled raw,
-//     inactive, stale, Japanese
+//     inactive, stale, language-mismatched
 // Prices, ids, dates and links are placeholders, not live offers.
 import { DEAL_STATE_FIXTURES } from "../../../../lib/dev/dealStateFixtures.js";
 
@@ -143,7 +144,26 @@ const auctions = [
   })
 );
 
-export const ALL_DEALS_ELIGIBLE_LISTING_IDS = [...bulk, ...dups, ...grades, ...auctions]
+// Japanese-catalogue listings: the same display gate applies (the listing's
+// stated language must match the card's catalogue language), and the
+// comparison is the Japanese-catalogue reference, never an English one.
+const japaneseCard = (over) => ({
+  ...tpl("bin_compared"),
+  card_name: "Pikachu",
+  card_set: "Pokemon Card 151",
+  card_language: "japanese",
+  card_tcgplayer_id: null,
+  image_verdict: "NO_TRUSTED_IMAGE",
+  title: "Pikachu 025/165 Japanese Pokemon Card 151 Near Mint",
+  watchlist: { name: "Pikachu", set: "Pokemon Card 151", language: "japanese", justtcg_tcgplayer_id: null },
+  ...over,
+});
+const japanese = [
+  copy(japaneseCard({ market_price: 30 }), { id: 975001, listingId: "v1|3600000001|0", marketplace: "EBAY_AU", itemUsd: 18, shipUsd: 4, firstSeenH: 5.5, itemCountry: "JP" }),
+  copy(japaneseCard({ market_price: 40 }), { id: 975002, listingId: "v1|3600000002|0", marketplace: "EBAY_US", itemUsd: 25, shipUsd: 0, firstSeenH: 5.6, itemCountry: "JP" }),
+];
+
+export const ALL_DEALS_ELIGIBLE_LISTING_IDS = [...bulk, ...dups, ...grades, ...auctions, ...japanese]
   .map((r) => r.listing_id)
   .filter((v, i, a) => a.indexOf(v) === i);
 
@@ -154,8 +174,11 @@ const excluded = [
   copy(clef, { id: 974002, listingId: "v1|3500000002|0", marketplace: "EBAY_GB", itemUsd: 6, shipUsd: 1, firstSeenH: 0.3, title: "Clefable Jungle 1/64 Holo Rare PSA 10 Gem Mint" }),
   copy(clef, { id: 974003, listingId: "v1|3500000003|0", marketplace: "EBAY_US", itemUsd: 7, shipUsd: 1, firstSeenH: 0.4, is_active: false }),
   copy(clef, { id: 974004, listingId: "v1|3500000004|0", marketplace: "EBAY_CA", itemUsd: 8, shipUsd: 1, firstSeenH: 900, last_seen_at: ago(24 * 60), exact_verified_at: ago(24 * 60) }),
-  copy(clef, { id: 974005, listingId: "v1|3500000005|0", marketplace: "EBAY_AU", itemUsd: 9, shipUsd: 1, firstSeenH: 0.5, card_language: "japanese", title: "Clefable Jungle 1/64 Japanese Holo" }),
+  // a Japanese-catalogue identity whose listing title states English: the
+  // real gate hides it (identity:card_mismatch; its language rule would
+  // also refuse it), so it is never priced against the wrong catalogue
+  copy(japaneseCard(), { id: 974005, listingId: "v1|3500000005|0", marketplace: "EBAY_AU", itemUsd: 9, shipUsd: 1, firstSeenH: 0.5, title: "Pikachu 025/165 Pokemon Card 151 English Near Mint" }),
   copy(tpl("auction"), { id: 974006, listingId: "v1|3500000006|0", marketplace: "EBAY_US", itemUsd: 10, shipUsd: 6, firstSeenH: 0.6, bid_count: 3, auction_end_at: ago(2) }),
 ];
 
-export const allDealsRows = [...bulk, ...dups, ...grades, ...auctions, ...excluded];
+export const allDealsRows = [...bulk, ...dups, ...grades, ...auctions, ...japanese, ...excluded];

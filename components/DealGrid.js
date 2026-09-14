@@ -76,8 +76,10 @@ function parseSearch(search) {
 // "All deals" count line. The total is the exact number of eligible,
 // deduplicated listings for this URL's filters (lib/allDealsInventory) -
 // the same array the page was sliced from. When a marketplace hit a
-// resource limit the server says so (exact: false) and the number is shown
-// as a lower bound, never as exact.
+// resource limit the server says so (exact: false): the number is shown as
+// a lower bound and the limitation notice appears on EVERY state built
+// from that inventory - including a small filtered result, an empty result
+// and an out-of-range page - never only when a large count is on screen.
 function ResultsSummary({ page, shown, totalCount, exact, pageSize }) {
   const first = (page - 1) * pageSize + 1;
   const last = first + shown - 1;
@@ -85,18 +87,21 @@ function ResultsSummary({ page, shown, totalCount, exact, pageSize }) {
   const total = `${exact ? "" : "at least "}${totalCount.toLocaleString("en-US")} ${noun}`;
   return (
     <div role="status" className="mb-4 text-sm text-zinc-600 dark:text-zinc-300">
-      <p className="tabular-nums">
-        {shown < totalCount ? (
-          <>
-            Showing {first.toLocaleString("en-US")}–{last.toLocaleString("en-US")} of <strong className="font-semibold text-zinc-900 dark:text-zinc-100">{total}</strong>
-          </>
-        ) : (
-          <strong className="font-semibold text-zinc-900 dark:text-zinc-100">{total.charAt(0).toUpperCase() + total.slice(1)}</strong>
-        )}
-      </p>
+      {shown > 0 && (
+        <p className="tabular-nums">
+          {shown < totalCount ? (
+            <>
+              Showing {first.toLocaleString("en-US")}–{last.toLocaleString("en-US")} of <strong className="font-semibold text-zinc-900 dark:text-zinc-100">{total}</strong>
+            </>
+          ) : (
+            <strong className="font-semibold text-zinc-900 dark:text-zinc-100">{total.charAt(0).toUpperCase() + total.slice(1)}</strong>
+          )}
+        </p>
+      )}
       {!exact && (
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Some marketplaces have more stored listings than this page can browse at once, so this count is a minimum.
+        <p data-inventory-incomplete className={`${shown > 0 ? "mt-1 " : ""}text-xs text-zinc-500 dark:text-zinc-400`}>
+          Some marketplaces have more stored listings than this page can browse at once, so these results are incomplete and
+          any count is a minimum.
         </p>
       )}
     </div>
@@ -292,7 +297,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
         <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {view.error}</p>
       )}
 
-      {allDeals && !loading && !view.error && view.deals.length > 0 && (
+      {allDeals && !loading && !view.error && (view.deals.length > 0 || !view.exact) && (
         <ResultsSummary page={params.page} shown={view.deals.length} totalCount={view.totalCount} exact={view.exact} pageSize={view.pageSize} />
       )}
 

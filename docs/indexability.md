@@ -18,7 +18,7 @@ this table is the reference.
 
 | Page type | Route | Identity check | Minimum data | Enforced in | On failure |
 | --- | --- | --- | --- | --- |
-| Homepage / listing indexes | `/`, `/best-finds`, `/sets`, `/pokemon`, `/japanese-cards`, `/sealed-deals`, `/market-data*`, `/search` | static route | always has content (or an honest empty state) | — | always indexable (`/search?q=` is `noindex,follow`) |
+| Homepage / listing indexes | `/`, `/best-finds`, `/deals`, `/sets`, `/pokemon`, `/japanese-cards`, `/sealed-deals`, `/market-data*`, `/search` | static route | always has content (or an honest empty state) | — | always indexable (`/search?q=` is `noindex,follow`; `/deals` with any browse/filter/search/page param is `X-Robots-Tag: noindex, follow` with canonical `/deals`, see `next.config.mjs`) |
 | Trust / editorial | `/about`, `/how-it-works`, `/methodology`, `/affiliate-disclosure`, `/contact`, `/guides`, `/guides/*` | static route | hand-written evergreen content | — | always indexable |
 | **Card hub** | `/cards/[slug]` | `resolveCardSlug` matches the computed hub list | **`CARD_HUB_MIN_LISTINGS` (2)** simultaneous active listings of the exact printing | `fetchCardHubsUncached` (`lib/deals.js`) drops sub-threshold entries → the slug won't resolve | `notFound()` → **404** |
 | **Set page** | `/sets/[slug]` | `resolveSetSlug` matches the computed set list | **`SET_MIN_LISTINGS` (3)** active deals in the set — a browsable grid needs inventory to browse; 1–2 is thin | `computeAggregates` (`lib/catalogAggregates.js`) drops sub-threshold sets → the slug won't resolve, and they're not in the sitemap | `notFound()` → **404** |

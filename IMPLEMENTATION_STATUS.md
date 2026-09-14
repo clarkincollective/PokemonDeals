@@ -4082,3 +4082,49 @@ What follows from those measurements:
 - graded optimisation `257e221`, retention and recovery.
 
 No production writes. Not pushed, not deployed.
+
+#### All deals r1: acceptance follow-up (2026-09-14, local, not deployed)
+
+Built on review SHA `4013a60`. Only demonstrated gaps were changed.
+
+1. **Japanese inventory.**
+   - **Cause:** the r1 reader filtered `card_language = 'english'`, and the pure module repeated that filter. This was my own scoping choice, carried over from the English-default category loaders, not a comparison-safety rule.
+   - **Why including them is safe:** Japanese-catalogue rows live in the same `deals` table and pass the same `isDisplayableDeal` gate, which requires the listing's stated language to match the catalogue language. The scanner additionally requires explicit "Japanese" evidence before matching, and each row carries its own Japanese-catalogue reference.
+   - **Production, read-only:** 67 active Japanese rows with no reason set; 48 eligible (43 listings: US 25, GB 10, CA 7, AU 3, DE 2, IT 1). The other 19 are hidden by the gate: 17 `identity:visual_mismatch`, 1 `authenticity:proxy_or_counterfeit`, 1 other.
+   - **Fix:** the language pre-filter is removed from both places. The cache key is now `all-deals-inventory-v2`. The page copy says "English and Japanese" and that sealed products have their own page.
+   - **Limits unchanged:** all languages give 906 distinct eligible listings; EBAY_US is the largest marketplace at 501 eligible rows / 365 KB; the largest encoded row is still 897 B.
+   - **Observed, not changed:** one listing (Hoopa 155/XY-P) is stored with Japanese-catalogue copies on US/GB and an English-catalogue copy on IT. The tile shows one whole copy, including its identity and reference.
+2. **Filtered URL indexing.**
+   - **Gap:** filtered, search and pagination variants of `/deals` returned the clean page's HTML with canonical `/deals` and no robots signal.
+   - **Fix:** `next.config.mjs` header rules send `X-Robots-Tag: noindex, follow` when `/deals` has any of these params: `country`, `type`, `grader`, `grade`, `listing`, `minPrice`, `maxPrice`, `q`, `sort`, `page`. This follows the existing `/search?q=` and homepage `?page=N` policy while keeping `/deals` static. `docs/indexability.md` is updated.
+   - **Fixture HTTP check:**
+     - Clean `/deals`: 200, no X-Robots-Tag, no robots meta, canonical `https://pokemondealfinder.com/deals`, H1 "All deals".
+     - Structured data: CollectionPage description equals the meta description. The breadcrumb is Deals → All deals. ItemList has 24 entries whose ids match the 24 SSR tiles in order, all bare `/deals/<id>` URLs.
+     - `?q=zekrom`, `?type=graded&grader=PSA`, `?page=2`, `?country=EBAY_AU`, `?sort=price_asc` and `?listing=AUCTION&maxPrice=50` all return `noindex, follow` with canonical `/deals`.
+     - `?utm_source=` and empty `?q=` render the default page and stay indexable with canonical `/deals`.
+3. **Marketplace selection after dedup.**
+   - **No code change.** A marketplace filter narrows to that marketplace's stored copies before dedup, so a listing stored there is always included and shown from that marketplace's own complete copy.
+   - **Demonstrated** with the disagreeing-copy fixture: All shows the GB home copy 971002. Australia shows AU copy 971003 at A$48.00 incl. A$9.00 shipping, labelled "Listed on eBay Australia" with the AU flag. US shows 971001 in USD. The JP-located listing that shows as CA under All is shown as its AU copy under Australia.
+   - **Browser count:** the AU count (17) and ids match the module exactly.
+4. **Inventory limits.**
+   - **Gap:** the "at least"/limitation notice rendered only when the result had tiles. An empty result or out-of-range page from an incomplete inventory showed no notice.
+   - **Fix:** the notice now renders on every result built from an incomplete inventory.
+   - **Browser checks:** with the API response produced by the real module over a read-limited GB chunk or an eligible-row-capped US chunk:
+     - PSA 10 shows "At least 1 listing" plus the notice.
+     - Auctions under the cap show "At least 4 listings" plus the notice.
+     - BIN shows "Showing 1–24 of at least 92 listings" plus the notice.
+     - An empty search shows the notice above the empty state.
+     - Page 99 shows the notice plus the out-of-range state.
+     - Controls against the complete fixture show exact wording and no notice.
+
+**Checks:**
+
+| Check | Result |
+|---|---|
+| `all-deals-r1` | 19/19 (new AD-16 to AD-19; counts updated for 2 Japanese fixture listings, now 96 over 4 pages) |
+| Scanner suite | 3,359 tests: 3,313 pass, **24 fail (identical baseline set)**, 22 skipped |
+| `next build` | exit 0 (`/deals` still static) |
+| ESLint | no new problems |
+| Fixture browser checks | 17/17, guard: 0 `/deals/<id>` requests |
+
+Not pushed, not deployed.
