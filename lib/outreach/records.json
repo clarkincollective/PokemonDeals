@@ -164,7 +164,13 @@
     "prospectType": "market_analysis",
     "tier": "C",
     "score": 48,
-    "checkedAt": "2026-09-14"
+    "checkedAt": "2026-09-14",
+    "eligibility": {
+      "basis": "role_relevant_published_purpose",
+      "evidenceUrl": "https://voxbooster.com/contact",
+      "evidenceQuote": "Press / partnerships contact@voxbooster.com",
+      "purposeMatch": "The message is a press/data note offering a dated dataset the published statistics article could cite."
+    }
   },
   {
     "id": "stephen-leonard",
@@ -477,7 +483,13 @@
     "subject": "Free Pokemon set checklists, in case it's useful for a future piece",
     "status": "APPROVED",
     "body": "Hi Jason,\n\nI run PokemonDealFinder (pokemondealfinder.com). I read your piece on Sleeve and tracking a collection's value, so this might be relevant for a future roundup.\n\nEvery set page on the site has a free collection checklist: tick the cards you own, print what's missing, and open any card for its current raw Near Mint market reference. There's no account; progress stays on the collector's own device. Base Set 2 is a good example: https://pokemondealfinder.com/sets/base-set-2\n\nIf it's a fit for readers building binders, feel free to take a look. No worries at all if not.",
-    "contactSourceNote": "Address publicly listed on cardgamer.com/about/ for card game review requests and on the Contact page (verified 2026-09-14)."
+    "contactSourceNote": "Address publicly listed on cardgamer.com/about/ for card game review requests and on the Contact page (verified 2026-09-14).",
+    "eligibility": {
+      "basis": "role_relevant_published_purpose",
+      "evidenceUrl": "https://cardgamer.com/about/",
+      "evidenceQuote": "To have your card game game reviewed by Card Gamer, contact midlifegamergeek@gmail.com",
+      "purposeMatch": "Card Gamer reviews card-game products and apps (it covered the free collection tracker Sleeve on 2026-09-09); the message offers a free collection-checklist tool for review/coverage."
+    }
   },
   {
     "contactType": "EMAIL",
@@ -509,9 +521,11 @@
       "PokeCottage"
     ],
     "subject": "A companion guide to your set symbol page",
-    "status": "APPROVED",
+    "status": "SKIPPED",
     "body": "Hi PokeCottage team,\n\nI run PokemonDealFinder (pokemondealfinder.com). Your set symbol page explains where the symbol sits next to the card number, and I wrote a guide that picks up from there: how to read the collector number itself.\n\nIt covers Pokedex numbers versus collector numbers (the Generations Charmander prints both), numbers above the printed total like 215/203, and zero-padding, and it's clear that the number identifies the card but not which printing you have: https://pokemondealfinder.com/guides/how-to-find-pokemon-card-set-and-number\n\nIf it would help your readers alongside the scanner, you're welcome to link it. Entirely up to you.",
-    "contactSourceNote": "Address publicly listed as the 'Get in touch' contact on pokecottage.com/contact (verified 2026-09-14)."
+    "contactSourceNote": "Address publicly listed as the 'Get in touch' contact on pokecottage.com/contact (verified 2026-09-14).",
+    "skipReason": "Only a general 'Get in touch' address is published - no documented consent and no published purpose (press, submissions, resource suggestions) that the message matches. A public address plus no restrictions is not sufficient.",
+    "eligibility": null
   },
   {
     "id": "kantopost",

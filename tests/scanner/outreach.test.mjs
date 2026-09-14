@@ -341,7 +341,7 @@ test("19. reconciled record set: Instantly-evidenced sends, one decline, three q
   assert.equal(ppt.status, "SENT");
   assert.equal(ppt.sentAt, "2026-09-07T13:13:10.954Z");
   assert.ok(ppt.providerRef && ppt.queuedAt);
-  const expected = { packz: "DO_NOT_CONTACT", pokemonpricetracker: "SENT", cardgamer: "APPROVED", pokecottage: "APPROVED", voxbooster: "APPROVED", kantopost: "SKIPPED", stephen: "DRAFT" };
+  const expected = { packz: "DO_NOT_CONTACT", pokemonpricetracker: "SENT", cardgamer: "APPROVED", pokecottage: "SKIPPED", voxbooster: "APPROVED", kantopost: "SKIPPED", stephen: "DRAFT" };
   for (const r of RECORDS) {
     if (expected[r.id]) assert.equal(r.status, expected[r.id], r.id);
     else if (r.contactType !== "EMAIL") assert.equal(r.status, "DRAFT", `${r.id} manual route untouched`);
