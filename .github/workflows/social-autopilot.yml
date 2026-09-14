@@ -1,0 +1,59 @@
+# SOCIAL-LIVE-3 - DAILY SOCIAL AUTOPILOT (Instagram, X, TikTok, YouTube Shorts)
+#
+# RENDER stage: keeps the next 48 h of posting slots reserved with two
+# distinct stories a day, each adapted to all four feeds (image for
+# Instagram + X, short video for TikTok + YouTube), rendered, reviewed and
+# hosted. Runs on GitHub's runners - no owner PC, no manual command.
+# The QUEUE stage (Buffer) and the health check + owner alert emails run on
+# Vercel crons (/api/social-autopilot-queue hourly, /api/social-health every
+# 2 h) with the production env - no Buffer token or cron secret in CI.
+# If this job stops producing posts, the Vercel health check emails the owner
+# about empty slots. Paused by the durable backlog circuit.
+
+name: social autopilot
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 03:15 and 15:15 Australia/Brisbane (UTC+10, no DST)
+    - cron: "15 17,5 * * *"
+
+concurrency:
+  group: social-autopilot
+  cancel-in-progress: false
+
+jobs:
+  autopilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+
+      - name: Locate headless Chrome
+        id: chrome
+        run: |
+          for c in google-chrome google-chrome-stable chromium chromium-browser; do
+            p="$(command -v "$c" || true)"; if [ -n "$p" ]; then echo "bin=$p" >> "$GITHUB_OUTPUT"; "$p" --version; exit 0; fi
+          done
+          echo "::error::no Chrome on runner"; exit 1
+
+      - name: Worker startup check (non-disclosing)
+        env:
+          CHROME_BIN: ${{ steps.chrome.outputs.bin }}
+        run: node scripts/socialWorkerCheck.mjs
+
+      - name: Fill the next 48 h of slots
+        env:
+          CHROME_BIN: ${{ steps.chrome.outputs.bin }}
+        run: node scripts/socialAutopilot.mjs
+

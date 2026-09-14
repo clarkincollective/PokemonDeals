@@ -115,6 +115,14 @@
     {
       "path": "/api/social-backlog-refill",
       "schedule": "0 20 * * 6,2"
+    },
+    {
+      "path": "/api/social-autopilot-queue",
+      "schedule": "25 * * * *"
+    },
+    {
+      "path": "/api/social-health",
+      "schedule": "40 */2 * * *"
     }
   ]
 }
