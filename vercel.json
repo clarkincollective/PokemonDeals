@@ -123,6 +123,10 @@
     {
       "path": "/api/social-health",
       "schedule": "40 */2 * * *"
+    },
+    {
+      "path": "/api/outreach-worker",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

@@ -14,12 +14,12 @@
     "subjectAlt": "One tool category missing from your Pokemon price-check post",
     "body": "I run PokemonDealFinder (pokemondealfinder.com), a free tool that compares live eBay Pokemon card listings against recent market references and surfaces the ones that appear to be priced below market.\n\nYour post on the best websites for checking Pokemon card prices covers the valuation and scanner side well - PriceCharting, TCGplayer, PokeScreener and the rest. One adjacent use case the piece doesn't cover is finding listings that are currently under market.\n\nIf you ever expand the piece to include tools for that, it might be useful to readers. No worries either way.",
     "snapshot": null,
-    "status": "QUEUED",
+    "status": "DO_NOT_CONTACT",
     "createdAt": "2026-09-02T00:00:00.000Z",
     "approvedAt": "2026-09-02T11:13:08.544Z",
-    "sentAt": null,
+    "sentAt": "2026-09-07T13:04:09.626Z",
     "followUpAt": null,
-    "repliedAt": null,
+    "repliedAt": "2026-09-08T00:24:00.000Z",
     "providerMessageId": "01a0791e-5c57-73b7-b244-8328d3f2435c",
     "lastError": null,
     "sendLog": [
@@ -91,12 +91,23 @@
           "leadStatusRaw": 1
         },
         "result": "QUEUED"
+      },
+      {
+        "at": "2026-09-14T11:10:00.000Z",
+        "kind": "reconcile",
+        "provider": "instantly",
+        "evidence": {
+          "timestamp_executed": "2026-09-07T13:04:09.626Z",
+          "email_reply_count": 3,
+          "timestamp_last_reply": "2026-09-08T09:22:46.462Z"
+        },
+        "result": "DO_NOT_CONTACT (declined)"
       }
     ],
     "providerRef": "01a0791e-5c57-73b7-b244-8328d3f2435c",
     "provider": "instantly",
     "queuedAt": "2026-09-06T23:47:08.521Z",
-    "syncedAt": "2026-09-07T09:21:30.566Z",
+    "syncedAt": "2026-09-14T11:10:00.000Z",
     "lastTest": {
       "at": "2026-09-02T11:13:34.209Z",
       "ok": true,
@@ -113,7 +124,9 @@
     "linkUrl": null,
     "linkTargetUrl": null,
     "linkFirstSeen": null,
-    "linkRel": null
+    "linkRel": null,
+    "stopReason": "declined",
+    "conversation": "Packz support replied 2026-09-08: not taking on new partnerships, will keep details on file. James replied the same day; Packz closed politely. Nothing outstanding."
   },
   {
     "id": "voxbooster",
@@ -121,18 +134,18 @@
     "organisation": "voxbooster.com",
     "targetPage": "https://voxbooster.com/blog/trading-card-statistics-2026/",
     "recipient": "contact@voxbooster.com",
-    "contactSourceUrl": "https://voxbooster.com/contact/",
+    "contactSourceUrl": "https://voxbooster.com/contact",
     "contactSourceNote": "Address listed on voxbooster.com/contact/ explicitly under 'Press & Partnerships'; re-verified live 2026-09-02.",
     "contactType": "EMAIL",
-    "angle": "data-citation-raw-value-distribution",
-    "destinationUrl": "https://pokemondealfinder.com/market-data/pokemon-card-value-distribution",
-    "subject": "A raw-value distribution stat for your trading-card statistics page",
+    "angle": "asset-reference-price-study",
+    "destinationUrl": "https://pokemondealfinder.com/market-data/pokemon-reference-price-changes",
+    "subject": "A dated Pokemon reference-price sample for your card statistics roundup",
     "subjectAlt": "One Pokemon data point for the 2026 statistics roundup",
-    "body": "I run PokemonDealFinder (pokemondealfinder.com). Your Trading Card Statistics (2026) roundup covers the grading boom and record auctions thoroughly, but there's no figure in it for how ungraded Pokemon card values are actually distributed.\n\nWe track a catalogue of priced English Pokemon cards and analysed it. As of the {{snapshotDate}} snapshot: of the {{population}} priced, English, non-specialty cards we hold a raw market reference for, {{under5Pct}}% are under $5 raw, {{under25Pct}}% are under $25, and only {{over100Pct}}% are $100 or more. Median raw reference: ${{median}} USD.\n\nMethodology and a dated chart: pokemondealfinder.com/market-data/pokemon-card-value-distribution - there to cite if you add a line on ungraded value spread.",
+    "body": "Hello,\n\nI run PokemonDealFinder (pokemondealfinder.com). Your Trading Card Statistics (2026) roundup is carefully sourced, so a small dated dataset might be useful for it.\n\nWe published a 30-day sample: between 12 August 2026 and 11 September 2026 the median of 150 sampled product records moved +1.7%, while 22.1% of the 1,147 individual variants fell more than 1% against 4.7% of product records.\n\nThe limitations matter and are on the page: these are reference-price observations, not completed sales, and the sample is not random (150 records, 50 per era group), so it describes the sample rather than the hobby. Methodology: https://pokemondealfinder.com/market-data/pokemon-reference-price-changes\n\nHappy for you to cite it if it fits. No reply needed otherwise.",
     "snapshot": null,
-    "status": "DRAFT",
+    "status": "APPROVED",
     "createdAt": "2026-09-02T00:00:00.000Z",
-    "approvedAt": null,
+    "approvedAt": "2026-09-14T11:10:00.000Z",
     "sentAt": null,
     "followUpAt": null,
     "repliedAt": null,
@@ -142,7 +155,16 @@
     "providerRef": null,
     "provider": null,
     "queuedAt": null,
-    "syncedAt": null
+    "syncedAt": null,
+    "approvedBy": "owner standing authorisation 2026-09-14 (qualified routine outreach)",
+    "rulesUrls": [
+      "https://voxbooster.com/blog/trading-card-statistics-2026/"
+    ],
+    "permissionBasis": "contact@voxbooster.com is published on the Contact page specifically for \"Press / partnerships\"; the target article is a sourced trading-card statistics roundup; no statement refusing unsolicited messages.",
+    "prospectType": "market_analysis",
+    "tier": "C",
+    "score": 48,
+    "checkedAt": "2026-09-14"
   },
   {
     "id": "stephen-leonard",
@@ -219,10 +241,10 @@
     "subjectAlt": "What each grade from 1 to 10 actually means",
     "body": "I run PokemonDealFinder (pokemondealfinder.com). We recently published a plain explainer of what each grade from 1 to 10 actually means, and what usually separates a 7, 8, 9 and 10 in practice: pokemondealfinder.com/guides/pokemon-card-grading-scale\n\nYour \"PSA vs CGC vs BGS\" slab guide compares the grading companies and helps readers choose between them; this covers the separate question of what the number itself means, in plain terms. It is free to read, no signup. If it is ever a useful pointer for readers of that guide, it is there - no worries either way.",
     "snapshot": null,
-    "status": "QUEUED",
+    "status": "SENT",
     "createdAt": "2026-09-07T00:00:00.000Z",
     "approvedAt": "2026-09-06T23:46:34.956Z",
-    "sentAt": null,
+    "sentAt": "2026-09-07T13:13:10.954Z",
     "followUpAt": null,
     "repliedAt": null,
     "providerMessageId": "01a0791e-a743-7f25-b3b4-9224b567d627",
@@ -276,13 +298,23 @@
           "leadStatusRaw": 1
         },
         "result": "QUEUED"
+      },
+      {
+        "at": "2026-09-14T11:10:00.000Z",
+        "kind": "reconcile",
+        "provider": "instantly",
+        "evidence": {
+          "timestamp_executed": "2026-09-07T13:13:10.954Z",
+          "email_reply_count": 0
+        },
+        "result": "SENT (no reply; no follow-up)"
       }
     ],
     "note": "SEO-GSC-5 Batch 1. Angle re-verified 2026-09-07: their blog compares grading companies by value retention but has no systematic 'what each grade means' explainer - our page is a genuine companion, not a competitor. SEO-GSC-5.1 human-review pass 2026-09-07: dropped an unverifiable 'no affiliate links' line from the body (our grading-scale guide carries a site-wide eBay/TCGplayer affiliate disclosure in its footer); replaced with 'free to read, no signup', which is verified true. Email DRAFT only - NOT approved, NOT queued, NOT sent.",
     "providerRef": "01a0791e-a743-7f25-b3b4-9224b567d627",
     "provider": "instantly",
     "queuedAt": "2026-09-06T23:47:27.692Z",
-    "syncedAt": "2026-09-07T09:21:31.475Z",
+    "syncedAt": "2026-09-14T11:10:00.000Z",
     "prospectType": "market_analysis",
     "tier": "B",
     "score": 75,
@@ -413,5 +445,87 @@
     "linkTargetUrl": null,
     "linkFirstSeen": null,
     "linkRel": null
+  },
+  {
+    "contactType": "EMAIL",
+    "snapshot": null,
+    "createdAt": "2026-09-14T11:10:00.000Z",
+    "approvedAt": "2026-09-14T11:10:00.000Z",
+    "approvedBy": "owner standing authorisation 2026-09-14 (qualified routine outreach)",
+    "sentAt": null,
+    "followUpAt": null,
+    "repliedAt": null,
+    "providerMessageId": null,
+    "lastError": null,
+    "sendLog": [],
+    "checkedAt": "2026-09-14",
+    "id": "cardgamer",
+    "prospectName": "Jason Brown",
+    "organisation": "cardgamer.com",
+    "targetPage": "https://cardgamer.com/games/sleeve-tcg-app/",
+    "recipient": "midlifegamergeek@gmail.com",
+    "contactSourceUrl": "https://cardgamer.com/about/",
+    "rulesUrls": [
+      "https://cardgamer.com/contact/"
+    ],
+    "permissionBasis": "Address conspicuously published on the About page for review/coverage requests (\"To have your card game reviewed by Card Gamer, contact ...\") and on the Contact page; no statement refusing unsolicited messages; site covers Pokemon TCG tools and collection trackers (Sleeve feature, 2026-09-09).",
+    "prospectType": "creator",
+    "tier": "A",
+    "score": 72,
+    "angle": "asset-collection-checklists",
+    "destinationUrl": "https://pokemondealfinder.com/sets/base-set-2",
+    "subject": "Free Pokemon set checklists, in case it's useful for a future piece",
+    "status": "APPROVED",
+    "body": "Hi Jason,\n\nI run PokemonDealFinder (pokemondealfinder.com). I read your piece on Sleeve and tracking a collection's value, so this might be relevant for a future roundup.\n\nEvery set page on the site has a free collection checklist: tick the cards you own, print what's missing, and open any card for its current raw Near Mint market reference. There's no account; progress stays on the collector's own device. Base Set 2 is a good example: https://pokemondealfinder.com/sets/base-set-2\n\nIf it's a fit for readers building binders, feel free to take a look. No worries at all if not.",
+    "contactSourceNote": "Address publicly listed on cardgamer.com/about/ for card game review requests and on the Contact page (verified 2026-09-14)."
+  },
+  {
+    "contactType": "EMAIL",
+    "snapshot": null,
+    "createdAt": "2026-09-14T11:10:00.000Z",
+    "approvedAt": "2026-09-14T11:10:00.000Z",
+    "approvedBy": "owner standing authorisation 2026-09-14 (qualified routine outreach)",
+    "sentAt": null,
+    "followUpAt": null,
+    "repliedAt": null,
+    "providerMessageId": null,
+    "lastError": null,
+    "sendLog": [],
+    "checkedAt": "2026-09-14",
+    "id": "pokecottage",
+    "prospectName": "PokeCottage team",
+    "organisation": "pokecottage.com",
+    "targetPage": "https://pokecottage.com/tools/pokemon-set-symbol-scanner",
+    "recipient": "hello@pokecottage.com",
+    "contactSourceUrl": "https://pokecottage.com/contact",
+    "rulesUrls": [],
+    "permissionBasis": "Address conspicuously published as the site's general \"Get in touch\" contact; no statement refusing unsolicited messages or pitches; collector-resource site (visual card lists, checklists, set symbol identifier) directly relevant to a card-identification guide.",
+    "prospectType": "resource_list",
+    "tier": "B",
+    "score": 64,
+    "angle": "asset-card-identification-guide",
+    "destinationUrl": "https://pokemondealfinder.com/guides/how-to-find-pokemon-card-set-and-number",
+    "doNotNormalize": [
+      "PokeCottage"
+    ],
+    "subject": "A companion guide to your set symbol page",
+    "status": "APPROVED",
+    "body": "Hi PokeCottage team,\n\nI run PokemonDealFinder (pokemondealfinder.com). Your set symbol page explains where the symbol sits next to the card number, and I wrote a guide that picks up from there: how to read the collector number itself.\n\nIt covers Pokedex numbers versus collector numbers (the Generations Charmander prints both), numbers above the printed total like 215/203, and zero-padding, and it's clear that the number identifies the card but not which printing you have: https://pokemondealfinder.com/guides/how-to-find-pokemon-card-set-and-number\n\nIf it would help your readers alongside the scanner, you're welcome to link it. Entirely up to you.",
+    "contactSourceNote": "Address publicly listed as the 'Get in touch' contact on pokecottage.com/contact (verified 2026-09-14)."
+  },
+  {
+    "id": "kantopost",
+    "prospectName": "Callum Self",
+    "organisation": "kantopost.com",
+    "targetPage": "https://www.kantopost.com/",
+    "recipient": "callum@kantopost.com",
+    "contactType": "EMAIL",
+    "status": "SKIPPED",
+    "contactSourceUrl": "https://www.kantopost.com/contact/",
+    "skipReason": "Contact page states \"Pitches: We aren't accepting any pitches at this time.\" The address is published for press releases, previews, PR and paid partnerships, none of which this is.",
+    "checkedAt": "2026-09-14",
+    "createdAt": "2026-09-14T11:10:00.000Z",
+    "sendLog": [],
+    "contactSourceNote": "Address publicly listed on kantopost.com/contact/ for press releases, PR and partnerships; pitches explicitly not accepted, so SKIPPED (verified 2026-09-14)."
   }
 ]

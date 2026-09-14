@@ -266,24 +266,19 @@ test("13. a non-email contact type can never reach the mail provider", () => {
 
 // === 14 : no follow-up automation ==================================
 
-test("14. no automatic follow-up: followUpAt is stored but nothing sends it", () => {
-  // no scheduler / timer / follow-up command in the CLI
-  assert.doesNotMatch(CLI, /setInterval|setTimeout|node-cron|\bcron\b/i);
+test("14. no automatic follow-up: followUpAt is stored but nothing sends it (OUTREACH-AUTO-1 contacts a record once)", () => {
+  assert.doesNotMatch(CLI, /setInterval|node-cron/i);
   assert.doesNotMatch(CLI, /case\s+["']follow[\s-]?up["']/i);
-  // the CLI never reads followUpAt to decide to send
   assert.doesNotMatch(CLI, /\.followUpAt\b/);
-  // no outreach cron in the Vercel schedule
-  assert.doesNotMatch(read("vercel.json"), /outreach/i);
-  // no deployed job route
+  // the only outreach schedule is the reply-first worker; it never reads followUpAt
+  const worker = read("lib/outreach/automation/worker.mjs");
+  assert.doesNotMatch(worker, /followUpAt/);
+  assert.match(worker, /No follow-up sequence exists: a record is contacted once/);
+  assert.match(read("vercel.json"), /"\/api\/outreach-worker"/);
   let jobExists = false;
-  try {
-    readFileSync(join(ROOT, "app/api/outreach-followup/route.js"));
-    jobExists = true;
-  } catch {}
+  try { readFileSync(join(ROOT, "app/api/outreach-followup/route.js")); jobExists = true; } catch {}
   assert.equal(jobExists, false);
 });
-
-// === 15 : owner-transparent wording ================================
 
 test("15. owner-transparent wording is required; third-party-user framing is rejected", () => {
   assert.equal(ownershipLanguageOk("I run PokemonDealFinder (pokemondealfinder.com). ..."), true);
@@ -314,73 +309,47 @@ test("16. outgoing copy is normalised to unaccented Pokemon; a preserved title i
 
 // === 17 / 18 / 19 : the first-batch records =========================
 
-test("17. the packz email record: real owner-authorized send (SEO-GSC-5.2B) landed on QUEUED, not SENT", () => {
+test("17. the packz email record: sent (Instantly evidence), declined by reply, now DO_NOT_CONTACT and suppressed", () => {
   const r = RECORDS.find((x) => x.id === "packz");
-  assert.ok(r);
   assert.equal(r.contactType, "EMAIL");
   assert.equal(r.recipient, "support@packz.io");
   assert.match(r.body, /I run PokemonDealFinder/);
-  // 2026-09-06: explicit per-record owner approval -> one real Instantly
-  // lead. A provider-accepted lead is QUEUED; SENT comes ONLY from a later
-  // sync on real send evidence.
-  assert.equal(r.status, "QUEUED", `unexpected status ${r.status}`);
+  assert.equal(r.status, "DO_NOT_CONTACT");
+  assert.equal(r.stopReason, "declined");
   assert.equal(r.provider, "instantly");
-  assert.ok(r.providerRef, "a real provider lead ref was stored");
-  assert.ok(r.queuedAt, "queuedAt stamped at submit");
-  assert.equal(r.sentAt, null, "sentAt must NOT be set from the local clock");
-  assert.equal(r.lastError, null);
+  assert.ok(r.providerRef && r.queuedAt);
+  assert.equal(r.sentAt, "2026-09-07T13:04:09.626Z", "sentAt is Instantly's step-executed timestamp, not the local clock");
+  assert.ok(r.sendLog.some((l) => l.kind === "reconcile" && l.evidence?.timestamp_executed === r.sentAt));
+  assert.ok(JSON.parse(read("lib/outreach/suppression.json")).some((s) => s.domain === "packz.io"));
 });
 
-test("18. a voxbooster email record exists in DRAFT and carries snapshot placeholders (frozen at approve)", () => {
+test("18. the voxbooster email record is qualified (published press/partnerships address) and built on the dated study with its limitations", () => {
   const r = RECORDS.find((x) => x.id === "voxbooster");
-  assert.ok(r);
   assert.equal(r.contactType, "EMAIL");
-  assert.equal(r.status, "DRAFT");
+  assert.equal(r.status, "APPROVED");
   assert.equal(r.recipient, "contact@voxbooster.com");
-  assert.equal(r.snapshot, null, "snapshot must not be pre-frozen in the committed record");
-  assert.match(r.body, /\{\{under5Pct\}\}/);
-  assert.match(r.body, /priced,? English,? non-specialty cards/i, "keeps the population qualifier");
+  assert.match(r.permissionBasis, /Press \/ partnerships/);
+  assert.equal(r.destinationUrl, "https://pokemondealfinder.com/market-data/pokemon-reference-price-changes");
+  assert.match(r.body, /not completed sales/);
+  assert.match(r.body, /not random/);
+  assert.ok(!r.queuedAt && !r.sentAt && !r.providerRef, "not contacted yet");
 });
 
-test("19. Batch 1 record set: packz + pokemonpricetracker QUEUED (SEO-GSC-5.2B authorized send); everyone else DRAFT; nothing SENT", () => {
-  assert.deepEqual(
-    RECORDS.map((r) => r.id).sort(),
-    [
-      "cardrake",
-      "delightfultcg",
-      "packz",
-      "pokemonpricetracker",
-      "pokemonwizard",
-      "raidertraders",
-      "stephen-leonard",
-      "voxbooster",
-    ],
-    "exactly the 10D records + the 4 new SEO-GSC-5 records"
-  );
-
-  // The ONLY two records the owner authorized for a real send.
-  const QUEUED_OK = new Set(["packz", "pokemonpricetracker"]);
+test("19. reconciled record set: Instantly-evidenced sends, one decline, three qualified prospects, one skipped, manual routes DRAFT", () => {
+  assert.deepEqual(RECORDS.map((r) => r.id).sort(), ["cardgamer", "cardrake", "delightfultcg", "kantopost", "packz", "pokecottage", "pokemonpricetracker", "pokemonwizard", "raidertraders", "stephen-leonard", "voxbooster"]);
   const ppt = RECORDS.find((r) => r.id === "pokemonpricetracker");
-  assert.equal(ppt.contactType, "EMAIL");
-  assert.equal(ppt.status, "QUEUED");
-  assert.equal(ppt.recipient, "pokepricetracker@proton.me");
-  assert.ok(ppt.approvedAt && ppt.queuedAt && ppt.providerRef, "approved + queued + has a lead ref");
-  assert.equal(ppt.sentAt, null, "no fabricated sentAt");
-
+  assert.equal(ppt.status, "SENT");
+  assert.equal(ppt.sentAt, "2026-09-07T13:13:10.954Z");
+  assert.ok(ppt.providerRef && ppt.queuedAt);
+  const expected = { packz: "DO_NOT_CONTACT", pokemonpricetracker: "SENT", cardgamer: "APPROVED", pokecottage: "APPROVED", voxbooster: "APPROVED", kantopost: "SKIPPED", stephen: "DRAFT" };
   for (const r of RECORDS) {
-    // no record is SENT - that transition needs real Instantly send evidence
-    assert.notEqual(r.status, "SENT", `${r.id} must not be SENT without provider evidence`);
-    assert.equal(r.sentAt ?? null, null, `${r.id} has a sentAt`);
-    if (QUEUED_OK.has(r.id)) {
-      assert.equal(r.status, "QUEUED", `${r.id} should be QUEUED`);
-      assert.equal(r.provider, "instantly");
-      assert.ok(r.providerRef && r.queuedAt, `${r.id} missing a real delivery ref`);
-    } else {
-      // every other prospect is untouched by the send
-      assert.equal(r.status, "DRAFT", `${r.id} unexpected status ${r.status}`);
-      assert.ok(!r.queuedAt && !r.providerRef, `${r.id} has a delivery field it should not`);
-    }
+    if (expected[r.id]) assert.equal(r.status, expected[r.id], r.id);
+    else if (r.contactType !== "EMAIL") assert.equal(r.status, "DRAFT", `${r.id} manual route untouched`);
+    // a SENT timestamp only ever comes from provider evidence
+    if (r.sentAt) assert.ok(r.sendLog.some((l) => l.kind === "reconcile" || l.kind === "sync"), `${r.id} sentAt without provider evidence`);
   }
+  // every approved prospect records its permission basis
+  for (const r of RECORDS.filter((x) => x.status === "APPROVED")) assert.ok(String(r.permissionBasis ?? "").length > 40, `${r.id} permissionBasis`);
 });
 
 test("19b. the SEO-GSC-5 contact-form + DM prospects are non-sendable and name their manual route", () => {
@@ -537,19 +506,10 @@ test("C17. every email record records why the public contact was appropriate", (
   }
 });
 
-test("C13/C14/C15/C20. voxbooster stays untouched; packz sent for real in SEO-GSC-5.2B (QUEUED, not SENT)", () => {
+test("C13/C14/C15/C20. packz keeps its reviewed copy and real delivery refs after reconciliation", () => {
   const packz = RECORDS.find((r) => r.id === "packz");
-  const vox = RECORDS.find((r) => r.id === "voxbooster");
-  // voxbooster was NOT in any authorized send - still a pristine DRAFT
-  assert.equal(vox.status, "DRAFT");
-  assert.ok(!vox.queuedAt && !vox.sentAt && !vox.providerRef, "voxbooster has a delivery field");
-  assert.match(vox.body, /^I run PokemonDealFinder \(pokemondealfinder\.com\)\. Your Trading Card Statistics/);
-  // packz: one authorized real submit -> QUEUED, real lead ref, NO sentAt
-  assert.equal(packz.status, "QUEUED");
   assert.equal(packz.provider, "instantly");
   assert.ok(packz.providerRef && packz.queuedAt);
-  assert.equal(packz.sentAt, null, "QUEUED != SENT; sentAt never comes from the local clock");
-  // body + recipient + target page are still the reviewed copy
   assert.match(packz.body, /^I run PokemonDealFinder \(pokemondealfinder\.com\), a free tool/);
   assert.equal(packz.recipient, "support@packz.io");
   assert.equal(packz.targetPage, "https://packz.io/blog/pokemon-card-price-checker");
@@ -572,26 +532,15 @@ test("C: the state machine gained QUEUED between APPROVED and SENT", () => {
   assert.match(CLI, /SENT = Instantly confirmed the email went out/);
 });
 
-test("C19. no new webhook: no deployed route + provider never POSTs a webhook", () => {
-  for (const p of [
-    "app/api/outreach/route.js",
-    "app/api/outreach-webhook/route.js",
-    "app/api/instantly/route.js",
-    "app/api/instantly-webhook/route.js",
-    "app/api/webhooks/route.js",
-  ]) {
+test("C19. no inbound webhook route: replies use bounded polling; the provider never POSTs a webhook", () => {
+  for (const p of ["app/api/outreach/route.js", "app/api/outreach-webhook/route.js", "app/api/instantly/route.js", "app/api/instantly-webhook/route.js", "app/api/webhooks/route.js"]) {
     let exists = false;
-    try {
-      readFileSync(join(ROOT, p));
-      exists = true;
-    } catch {}
+    try { readFileSync(join(ROOT, p)); exists = true; } catch {}
     assert.equal(exists, false, `${p} must not exist`);
   }
   assert.doesNotMatch(PROVIDER_SRC, /\/webhooks\b/);
-  assert.doesNotMatch(read("vercel.json"), /outreach|instantly|webhook/i);
+  assert.doesNotMatch(read("vercel.json"), /instantly|webhook/i);
 });
-
-// === TEST-MODE STATE CLEANUP (stale-error only) =====================
 
 test("TM1. a TEST submit success records lastTest and never a delivery field; only non-test sets QUEUED", () => {
   // success branch: unconditional lastError clear, then a branch on isTest
@@ -639,25 +588,15 @@ test("TM5. Resend stays unreachable from the test-mode path", () => {
   assert.doesNotMatch(strip(CLI), /\bsendEmail\s*\(|\bsendBatch\s*\(|from ["'][^"']*\/email(\.js)?["']/);
 });
 
-test("TM6. the records file reflects the SEO-GSC-5.2B authorized real send", () => {
+test("TM6. the records file keeps the historical test submit off the real delivery fields", () => {
   const packz = RECORDS.find((r) => r.id === "packz");
-  // one real Instantly submit: QUEUED, real lead ref, queuedAt stamped,
-  // NO fabricated sentAt, no error.
-  assert.equal(packz.status, "QUEUED");
   assert.equal(packz.lastError, null);
-  assert.ok(packz.queuedAt, "queuedAt stamped at submit");
-  assert.equal(packz.sentAt, null, "sentAt is set only by sync on real send evidence");
-  assert.equal(packz.provider, "instantly");
-  assert.ok(packz.providerRef, "a real provider lead ref is stored");
-  // the historical 10D test-recipient submit is still recorded, off the
-  // delivery fields, and is distinct from the real lead ref.
   assert.ok(packz.lastTest && packz.lastTest.ok === true, "the earlier test result is preserved");
   assert.equal(packz.lastTest.to, "clarkincollective@gmail.com");
   assert.notEqual(packz.lastTest.providerRef, packz.providerRef, "test ref != real send ref");
-  // Voxbooster (and the non-email records) untouched by the send
   const vox = RECORDS.find((r) => r.id === "voxbooster");
-  assert.equal(vox.status, "DRAFT");
   assert.equal(vox.lastError, null);
   assert.ok(!vox.lastTest);
   assert.ok(!vox.queuedAt && !vox.sentAt && !vox.providerRef);
 });
+

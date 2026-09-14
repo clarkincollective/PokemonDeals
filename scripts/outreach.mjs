@@ -9,6 +9,13 @@
 //   npm run outreach -- unsuppress <domain>
 //   npm run outreach -- replied <id>            (mark a reply received)
 //   npm run outreach -- dnc <id>               (mark DO_NOT_CONTACT + suppress)
+//   npm run outreach -- pause [reason...]      (EMERGENCY PAUSE the scheduled automation)
+//   npm run outreach -- resume                 (lift the pause)
+//   npm run outreach -- automation-status      (pause state + durable record statuses)
+//
+// OUTREACH-AUTO-1: the scheduled worker (/api/outreach-worker) keeps its
+// durable state in the private Supabase bucket; pause/resume write the
+// control flag it checks before any poll, reply or send.
 //
 // Runs LOCALLY, server-side, by the site owner. There is no deployed API,
 // no background job, no follow-up automation, and no bulk import. Cold
@@ -436,8 +443,26 @@ async function main() {
       return cmdMark(records, args[0], "REPLIED");
     case "dnc":
       return cmdMark(records, args[0], "DO_NOT_CONTACT");
+    case "pause":
+    case "resume":
+    case "automation-status": {
+      const { outreachStore } = await import("../lib/outreach/automation/store.mjs");
+      const store = outreachStore();
+      if (cmd === "pause") {
+        await store.putJson("state/control.json", { paused: true, pausedReason: args.join(" ") || "owner pause", pausedAt: now() });
+        return console.log("\n  ✓ outreach automation PAUSED (no polling, replies or sends until resume).\n");
+      }
+      if (cmd === "resume") {
+        await store.putJson("state/control.json", { paused: false, resumedAt: now() });
+        return console.log("\n  ✓ outreach automation resumed.\n");
+      }
+      const control = await store.getJson("state/control.json", { paused: false });
+      const durable = await store.getJson("state/records.json", null);
+      console.log(JSON.stringify({ control, durable_records: durable ? durable.map((r) => `${r.id}:${r.status}`) : "not yet seeded (first worker run seeds it)" }, null, 2));
+      return;
+    }
     default:
-      die(`unknown command "${cmd}". Commands: list, show, approve, send, sync, suppress, unsuppress, replied, dnc`);
+      die(`unknown command "${cmd}". Commands: list, show, approve, send, sync, suppress, unsuppress, replied, dnc, pause, resume, automation-status`);
   }
 }
 
