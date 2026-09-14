@@ -3815,3 +3815,92 @@ Screenshots (scratchpad `prod-cl/`): menu Cards & Sets, the collection checklist
 - The desktop dropdown was not re-exercised in production; it was verified on the fixture from the same code.
 
 No scanner, budget, newsletter or social change. This ledger entry is a local-only commit on `checklist-discovery-r1`, **not pushed**. Graded-inventory growth remains the next phase.
+
+### Integrity release r1 (Claude, local, 2026-09-14) — release scope, safety outcome and quarantine proposal (for owner approval)
+
+**Status:** not deployed; no database write; no scanner activation; no eBay/PPT call. The only production access was read-only SELECTs (recheck plus dry run).
+
+#### Deployment scope
+
+- **The optimisation is not gated.** Graded lookup optimisation `257e221` changes `app/api/refresh-deals` sweep and per-card code with no environment flag, and those paths run on existing crons: US sweep every 15 min, other markets every 2h, allocated scans twice daily per market. Deploying branch `integrity-r1` would therefore have **started it automatically**.
+- **Release branch without it.** `integrity-release-r1` was built from `13be2e3` (production `13f5609` + the checklist-deployment ledger). The integrity fix was cherry-picked as `c7c824a` (from `2915592`) without the optimisation:
+  - `refresh-deals` imports only `titleClaimsSlabGrade`
+  - the per-card scan keeps production's `listings.find((l) => l.isGraded)`
+  - the e2e memo test now asserts production's per-row graded lookups (3), which fails if the optimisation is present
+- **Original branch preserved, not rewritten.** `integrity-r1` (`8446e5b`) still carries `257e221`, the growth investigation `c88c858`, the unadapted fix `2915592` and the growth-record corrections, all inactive and pending review.
+- **Release range `13f5609..<release HEAD>`:**
+  - `13be2e3` docs — checklist discovery deployment ledger, carried forward
+  - `c7c824a` fix(integrity) — the only application-code commit: `lib/dealMatching.js`, `lib/dealQuality.js`, `app/api/refresh-deals/route.js`, `app/api/ingest-feed/route.js`, plus tests and the offline harness
+  - `285662c` chore(remediation) — manifest, dry-run/apply/rollback script, SQL equivalent and tests; none of it runs on deploy
+  - this ledger entry (docs)
+- **Side effect disclosed, not an experiment:** refusing wrong-card and slab-titled candidates also removes the provider calls those candidates used to trigger (e.g. raw condition lookups for rejected listings). No cap, schedule, allocation or threshold changes.
+
+#### Safety outcome (release branch, offline, provider-disabled)
+
+| Outcome | Evidence |
+|---|---|
+| New demonstrated wrong-card matches prevented | Harness, real handlers: sweep, per-card and feed write the "Pikachu TG05/TG30" listings only as Pikachu TG05/TG30. 0 writes of "#SV64 Lucario" as SV22, and 0 of "#69 / #69/68" as the SM210 promo. Tests IR-1, IR-3 and IR-E2E sweep/percard/feed. |
+| No raw savings claims on the demonstrated slab-titled listings | Harness: 0 raw writes for the 5 slab titles on all three paths (feed `slabTitleOnRaw` = 5); stored 27488, 35441, 35970 and 37955 hidden with `identity:graded_title_on_raw`. "PSA 10 Contender" is still a displayable raw deal. Tests IR-4, IR-5, IR-6, IR-E2E. |
+| Confirmed existing wrong-card rows stop displaying | **Needs the quarantine below**: the release gate alone still shows them (IRQ-2). After the proposed quarantine, all 23 high-confidence rows are hidden and 37907 is left for review (IRQ-4). A later scanner sighting does not re-publish them (IRQ-5), and rollback restores without reactivating (IRQ-7). |
+| No optimisation in the release | IR-E2E memo: 3 grading lookups (production behaviour). |
+| Unchanged baseline failures | Scanner suite 3,340 tests / 3,294 pass / **24 fail — identical failing set to the production baseline** (no new failures; the 24 pre-existing failures remain unfixed and are disclosed here). 22 skipped. `next build` exit 0; ESLint clean on changed files. |
+
+#### Quarantine proposal (dry run 2026-09-14T02:43Z, read-only against production)
+
+- **Mechanism:** the existing exclusion column `deals.disqualified_reason` = `identity:collector_number_conflict`. Any non-null reason fails `isDisplayableDeal` and `isVerificationCandidate`.
+- **Never changed:** `is_active`, card/watchlist identity, prices, discounts, timestamps. No identity rewrite, no re-pricing, no reactivation.
+- **Guard (per row):** id, `is_active = true`, `disqualified_reason IS NULL`, `listing_id`, `marketplace`, `card_tcgplayer_id`, unchanged title, **and** the title still conflicting with the current catalogue number under the shipped matcher.
+- **Social content:** does not read disqualified rows (count hard-coded 0).
+
+**Expected affected rows: 23.** Held for owner review: **37907** (possible seller mislabel). Skipped as changed since review: 0. Prior value for every row: `disqualified_reason = NULL`, `is_active = true`; the full prior values and row snapshots are in the manifest.
+
+| Deal | eBay listing | Mkt | Title (listing) | Stored identity | Evidence | Confidence | Displayable now | Proposed |
+|---|---|---|---|---|---|---|---|---|
+| 33696 | `v1|278303338612|0` | US | Deoxys VSTAR GG46/GG70 SWSH: Crown Zenith: Galarian Gallery Holo | Deoxys VMAX / SWSH: Crown Zenith: Galarian Gallery / #GG45/GG70 | title GG46/GG70 (Deoxys VSTAR) vs stored GG45/GG70 (Deoxys VMAX) | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 34031 | `v1|188891932883|0` | CA | Pikachu VMAX (Secret) Ultra Rare SWSH11: Lost Origin Trainer Gallery TG29/TG30 | Pikachu VMAX / SWSH11: Lost Origin Trainer Gallery / #TG17/TG30 | title TG29/TG30 (Pikachu VMAX secret) vs stored TG17/TG30 | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 34467 | `v1|366211592992|0` | GB | Magikarp Promo XY Generations 20th Anniversary Card 22/83 NM Holo Sealed  | Magikarp / XY Promos / #XY143 | title Generations 22/83 vs stored XY Promos XY143 | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 35264 | `v1|278303338612|0` | AU | Deoxys VSTAR GG46/GG70 SWSH: Crown Zenith: Galarian Gallery Holo | Deoxys VMAX / SWSH: Crown Zenith: Galarian Gallery / #GG45/GG70 | title GG46/GG70 (Deoxys VSTAR) vs stored GG45/GG70 (Deoxys VMAX) | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37241 | `v1|407211076200|0` | US | Deoxys VSTAR GG46/GG70 SWSH: Crown Zenith: Galarian Gallery Holo | Deoxys VMAX / SWSH: Crown Zenith: Galarian Gallery / #GG45/GG70 | title GG46/GG70 (Deoxys VSTAR) vs stored GG45/GG70 (Deoxys VMAX) | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37248 | `v1|178489674337|0` | US | Detective Pikachu Holofoil SMP SM190 Framestore NM | Detective Pikachu / Detective Pikachu / #10/18 | title SM Black Star promo SM190 ("SMP SM190") vs stored Detective Pikachu set 10/18 | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37357 | `v1|147389881431|0` | CA | Pikachu TG05/TG30 Swsh11: Lost Origin Trainer Gallery Holo | Pikachu V / SWSH11: Lost Origin Trainer Gallery / #TG16/TG30 | title TG05/TG30 (Pikachu) vs stored TG16/TG30 (Pikachu V) | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37358 | `v1|287498863281|0` | CA | Pikachu Tg05/Tg30 Swsh11: Lost Origin Trainer Gallery Holo | Pikachu V / SWSH11: Lost Origin Trainer Gallery / #TG16/TG30 | title TG05/TG30 (Pikachu) vs stored TG16/TG30 (Pikachu V) | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37360 | `v1|407094601596|0` | CA | Pikachu VMAX TG17/TG30 Swsh11: Lost Origin Trainer Gallery Holo | Pikachu V / SWSH11: Lost Origin Trainer Gallery / #TG16/TG30 | title TG17/TG30 (Pikachu VMAX) vs stored TG16/TG30 (Pikachu V) | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37494 | `v1|206552503131|0` | US | Mimikyu VMAX TG17/TG30 Swsh09: Brilliant Stars Trainer Gallery Holomi | Mimikyu V / SWSH09: Brilliant Stars Trainer Gallery / #TG16/TG30 | title TG17/TG30 (Mimikyu VMAX) vs stored TG16/TG30 (Mimikyu V) | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37508 | `v1|287582558535|0` | US | Deoxys Holo Ultra Rare SWSH: Crown Zenith: Galarian Gallery GG12/GG70 NM | Deoxys VMAX / SWSH: Crown Zenith: Galarian Gallery / #GG45/GG70 | title GG12/GG70 (Deoxys) vs stored GG45/GG70 (Deoxys VMAX) | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37512 | `v1|287582558535|0` | AU | Deoxys Holo Ultra Rare SWSH: Crown Zenith: Galarian Gallery GG12/GG70 NM | Deoxys VMAX / SWSH: Crown Zenith: Galarian Gallery / #GG45/GG70 | title GG12/GG70 (Deoxys) vs stored GG45/GG70 (Deoxys VMAX) | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37537 | `v1|198637134387|0` | IT | Genesect EX XY - Fates Collide #64/124 | Genesect / XY Promos / #XY119 | title Fates Collide #64/124 vs stored XY Promos XY119 | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37548 | `v1|800651838014|0` | US | Deoxys VSTAR GG46/GG70 SWSH: Crown Zenith: Galarian Gallery Holo | Deoxys VMAX / SWSH: Crown Zenith: Galarian Gallery / #GG45/GG70 | title GG46/GG70 (Deoxys VSTAR) vs stored GG45/GG70 (Deoxys VMAX) | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37561 | `v1|178490933774|0` | US | Deoxys Holo Ultra Rare SWSH: Crown Zenith: Galarian Gallery GG12/GG70 NM | Deoxys VMAX / SWSH: Crown Zenith: Galarian Gallery / #GG45/GG70 | title GG12/GG70 (Deoxys) vs stored GG45/GG70 (Deoxys VMAX) | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37743 | `v1|137732002135|0` | US | Shaymin EX (106 Full Art) XY - Roaring Skies [106/108] UR Holofoil NM Pokemon | Shaymin EX / XY Promos / #XY148 | title Roaring Skies 106/108 vs stored XY Promos XY148 | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37752 | `v1|147389881431|0` | AU | Pikachu TG05/TG30 Swsh11: Lost Origin Trainer Gallery Holo | Pikachu V / SWSH11: Lost Origin Trainer Gallery / #TG16/TG30 | title TG05/TG30 (Pikachu) vs stored TG16/TG30 (Pikachu V) | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37753 | `v1|287498863281|0` | AU | Pikachu Tg05/Tg30 Swsh11: Lost Origin Trainer Gallery Holo | Pikachu V / SWSH11: Lost Origin Trainer Gallery / #TG16/TG30 | title TG05/TG30 (Pikachu) vs stored TG16/TG30 (Pikachu V) | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37788 | `v1|366666393554|0` | CA | Mimikyu VMAX TG17/TG30 SWSH09 Brilliant Stars Trainer Gallery Holo 2022 | Mimikyu V / SWSH09: Brilliant Stars Trainer Gallery / #TG16/TG30 | title TG17/TG30 (Mimikyu VMAX) vs stored TG16/TG30 (Mimikyu V) | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37797 | `v1|366666393554|0` | DE | Mimikyu VMAX TG17/TG30 SWSH09 Brilliant Stars Trainer Gallery Holo 2022 | Mimikyu V / SWSH09: Brilliant Stars Trainer Gallery / #TG16/TG30 | title TG17/TG30 (Mimikyu VMAX) vs stored TG16/TG30 (Mimikyu V) | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37907 | `v1|188925760161|0` | US | Feraligatr Prime HGSS07 Heartgold Soulsilver NM | Feraligatr (Prime) / HeartGold SoulSilver / #108/123 | title "HGSS07" vs stored HeartGold SoulSilver 108/123; title also says "Prime" and names the set - possible seller mislabel; excluded from mutation | uncertain | yes | **none — owner review** |
+| 37910 | `v1|407213974189|0` | US | Vintage Detective Pikachu SM190 Sm Holo | Detective Pikachu / Detective Pikachu / #10/18 | title SM Black Star promo SM190 vs stored Detective Pikachu set 10/18 | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37947 | `v1|397092730462|0` | IT | Rayquaza VMAX (Segreto) Segreto Raro SWSH12: Silver Tempest Trainer Gallery TG29/T | Rayquaza VMAX / SWSH12: Silver Tempest Trainer Gallery / #TG20/TG30 | title TG29 (title truncated at "TG29/T"; "Segreto" = secret) vs stored TG20/TG30 | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+| 37949 | `v1|397271492993|0` | IT | Rayquaza VMAX (Segreto) Segreto Raro SWSH12: Silver Tempest Trainer Gallery TG29/T | Rayquaza VMAX / SWSH12: Silver Tempest Trainer Gallery / #TG20/TG30 | title TG29 (title truncated at "TG29/T"; "Segreto" = secret) vs stored TG20/TG30 | high | yes | set `disqualified_reason` = `identity:collector_number_conflict` |
+
+**Confidence basis:**
+- **High (16):** title and catalogue use the same subset prefix with a different number (GG46/GG12 vs GG45, TG05 vs TG16, TG17 vs TG16, TG29 vs TG17).
+- **High (2):** same, in titles truncated at "TG29/T…" and backed by "Segreto" (secret rare).
+- **High (3):** a full set number stored against a Black Star promo (22/83 vs XY143, #64/124 vs XY119, 106/108 vs XY148).
+- **High (2):** an explicit three-digit promo number "SM190" stored against the Detective Pikachu set card 10/18.
+- **Uncertain (1):** 37907 — "HGSS07" against HeartGold SoulSilver 108/123, where the title also says "Prime" and names the set.
+
+#### Approval procedure (when authorised; not done)
+
+1. **Deploy the release** (exact SHA below).
+2. **Re-run the dry run immediately before writing:** `node scripts/remediation/integrityR1Quarantine.mjs --out=quarantine-plan.json`. Rows retired or changed since review show as `skip`; use the new eligible count.
+3. **Apply:** `node scripts/remediation/integrityR1Quarantine.mjs --apply --confirm=<eligible count> --prior-out=integrity-r1-quarantine-prior-<timestamp>.json`. It refuses without a matching `--confirm`, writes the prior-values file before the first update, and exits non-zero if the written count differs. (`supabase/data_corrections/2026-09-14_integrity_r1_collector_number_quarantine.sql` is the reviewable SQL equivalent, expected 23.)
+4. **Verify:** read back the rows; `disqualified_reason` should be set on exactly the confirmed count, and the rows should not be displayable.
+
+**Rollback:**
+- **Quarantine:** `node scripts/remediation/integrityR1Quarantine.mjs --rollback=<prior file> --confirm=<rows in file>`. It restores each row's saved prior value (NULL) only where `disqualified_reason` still equals `identity:collector_number_conflict`, and never touches `is_active`, so rows the freshness TTL retired meanwhile stay retired. The SQL rollback statement is in the data-correction file.
+- **Release:** redeploy `dpl_3WQ43rvL9oUsts5CCWgCh94Ns7pt` (`13f5609`) in Vercel; no data migration is involved.
+
+**Queue (unchanged):**
+- **Graded retention/recovery:** Part A and Part B remain inactive.
+- **Graded lookup optimisation (`257e221`):** inactive on `integrity-r1`.
+- **Grader-title conflict (34213) and the remaining ambiguous-number cases:** not in scope.
+- **"All deals" browsing:** still queued.
