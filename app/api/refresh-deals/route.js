@@ -43,6 +43,7 @@ import {
   isHighRiskBelowMarket,
   selectConditionPrice,
   gradedReferenceAllowed,
+  titleClaimsSlabGrade,
 } from "@/lib/dealMatching";
 import {
   classifyListingCondition,
@@ -512,6 +513,10 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     // STAGE 0b: does the listing text admit the card is a proxy / replica
     // / custom / unofficial / "metal card" novelty of a paper printing?
     if (admitsProxyOrCounterfeit(listing, { name: row.name, set: row.set })) continue;
+    // integrity-r1: eBay says ungraded but the title credibly claims a
+    // slab grade - never a raw-price savings claim (and no graded value is
+    // invented for it either).
+    if (titleClaimsSlabGrade(listing.title)) continue;
     if (!isTrustworthyListing(listing)) continue;
     if (!listingMatchesCard(listing, row)) continue;
 
@@ -925,6 +930,8 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
         continue;
       }
 
+      // integrity-r1: same raw-branch refusal as the per-card scan.
+      if (titleClaimsSlabGrade(listing.title)) continue;
       if (!languageCompatible(classifyListingLanguage({ title: listing.title }), row.language)) continue;
 
       const marketData = await cachedConditionPrices(row);

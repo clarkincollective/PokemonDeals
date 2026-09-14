@@ -22,6 +22,7 @@ import {
   admitsProxyOrCounterfeit,
   listingMatchesCard,
   isTrustworthyListing,
+  titleClaimsSlabGrade,
 } from "@/lib/dealMatching";
 import {
   classifyListingCondition,
@@ -314,6 +315,13 @@ export async function GET(request) {
         logFeed(false);
         continue;
       }
+      // integrity-r1: an eBay-"ungraded" item whose title credibly claims a
+      // slab grade is not priced against a raw reference either.
+      if (titleClaimsSlabGrade(listing.title)) {
+        counts.slabTitleOnRaw = (counts.slabTitleOnRaw ?? 0) + 1;
+        logFeed(false);
+        continue;
+      }
 
       const match = matchCatalog(listing, catalogIndex);
       if (!match) {
@@ -445,6 +453,7 @@ export async function GET(request) {
   const rejectionBreakdown = {
     untrusted: counts.untrusted,
     graded: counts.graded,
+    slabTitleOnRaw: counts.slabTitleOnRaw ?? 0,
     noMatch: counts.noMatch,
     badCondition: counts.badCondition ?? 0,
     langMismatch: counts.langMismatch ?? 0,
