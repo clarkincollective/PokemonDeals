@@ -1,0 +1,52 @@
+-- DATA CORRECTION - language-mismatch QUARANTINE - PROPOSED, NOT APPROVED.
+-- Do not run without explicit owner approval. Equivalent to
+-- scripts/remediation/languageMismatchQuarantine.mjs --apply (which is the
+-- preferred path: it re-checks each row against the reviewed manifest first
+-- and saves prior values before writing).
+--
+-- Evidence: read-only recheck 2026-09-14 of 7 active EBAY_IT rows whose
+-- titles state Japanese in Italian ("giapponese") but were matched to an
+-- ENGLISH catalogue identity and English market reference. The language
+-- classifier does not recognise the Italian word, so the display gate lets
+-- them through (full table: scripts/remediation/language-mismatch-quarantine-manifest.json).
+--
+-- Mechanism: the existing exclusion column. A non-null disqualified_reason
+-- fails isDisplayableDeal and isVerificationCandidate. is_active, card
+-- identity, prices and timestamps are NOT changed. Nothing is reactivated.
+--
+-- Excluded (uncertain, not touched): 37466, 37973, 37974, 37975 - seller
+-- lowil-2781 (DE); titles say "giapponese" but also carry German card names,
+-- the German set abbreviation "Gsnw" and "Wotc", which fit a German print;
+-- the print language is not established from stored evidence.
+--
+-- Prior value for every row below: disqualified_reason = NULL, is_active = true.
+--
+-- Pre-check (expect exactly 3 rows, all is_active = true, disqualified_reason NULL):
+--
+-- select id, listing_id, marketplace, card_language, card_tcgplayer_id, is_active, disqualified_reason, title
+--   from deals where id in (37863, 34424, 37288);
+--
+-- Statement (run only on explicit approval, inside a transaction; expected: 3 rows):
+--
+-- begin;
+-- update deals
+--    set disqualified_reason = 'identity:language_conflict'
+--  where is_active = true
+--    and disqualified_reason is null
+--    and card_language = 'english'
+--    and (id, listing_id, marketplace, card_tcgplayer_id) in (
+--      (37863, 'v1|147570453677|0', 'EBAY_IT', '489917'),   -- Hoopa 155/XY-P: "giapponese" x2; same listing stored as the Japanese promo 602060 on EBAY_US/GB (37856, 37861); stored here as English XY Promos
+--      (34424, 'v1|318842446719|0', 'EBAY_IT', '88626'),    -- "M Rayquaza-EX RR Emerald Break giapponese PSA 7": Japanese-only set name + RR rarity; stored as English Rayquaza (EX Emerald), PSA 7 reference
+--      (37288, 'v1|227508043403|0', 'EBAY_IT', '87552')     -- "Misty's Tentacruel ... Gym Heroes 1998 n.073 Holo Raro Giapponese": 1998 + dex-number numbering are Japanese-print markers; stored as English Gym Heroes 10/132
+--    )
+-- returning id, disqualified_reason, is_active;
+-- -- expect exactly 3 rows returned; otherwise: rollback;
+-- commit;
+--
+-- Rollback (restores the prior NULL only where this reason is still present; never touches is_active):
+--
+-- update deals
+--    set disqualified_reason = null
+--  where id in (37863, 34424, 37288)
+--    and disqualified_reason = 'identity:language_conflict'
+-- returning id;

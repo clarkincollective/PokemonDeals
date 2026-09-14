@@ -4174,3 +4174,78 @@ The same unrecognised-"giapponese" cause appears on six single-copy EBAY_IT rows
 | ESLint | clean |
 
 Not pushed, not deployed.
+
+### Language-mismatch quarantine proposal (2026-09-14): PROPOSED, NOT APPLIED
+
+**Scope.** Only the seven EBAY_IT rows reported during All deals review: 37863, 34424, 37288, 37466, 37973, 37974, 37975. Their titles state Japanese in Italian ("giapponese"), but they are matched to an English catalogue identity with an English market reference.
+
+**Branch.** This package sits on local branch `language-quarantine-r1`, one commit on top of the All deals review SHA `f544df8`. It contains no runtime code: a remediation script, manifest, dry run, SQL equivalent and a test. The deployment SHA stays `f544df8`.
+
+**Read-only recheck.**
+- All 7 rows are active with no reason set, and all are displayable today.
+- The language classifier returns `unknown` for every title, so the display gate's language rule does not fire.
+- 34424 is a graded slab, and graded rows skip that rule entirely.
+
+**Confirmed mismatches (high confidence, 3):**
+
+| Row | Listing | Stored as | Evidence |
+|---|---|---|---|
+| 37863 | `v1\|147570453677\|0` | English Hoopa 155/XY-P, XY Promos (489917), $210.57 | "giapponese" ×2. The same listing's EBAY_US/GB copies (37856, 37861) say "Japanese" ×2 and are matched to the Japanese promo 602060. Seller tokyopremiumexchangeltd, item location JP. |
+| 34424 | `v1\|318842446719\|0` | English Rayquaza, EX Emerald (88626), PSA 7, $500 | "M Rayquaza-EX RR Emerald Break giapponese PSA 7". Emerald Break is a Japanese-only expansion and RR a Japanese rarity code. It is also a different card. Seller mercuriusjapan, item location JP. |
+| 37288 | `v1\|227508043403\|0` | English Misty's Tentacruel, Gym Heroes (87552), $27.78 | "Giapponese", plus "1998" (Japanese Gym year; English 2000) and "n.073" (Pokedex-number numbering on Japanese Gym prints; English is 10/132). |
+
+**Uncertain, not mutated (4):** 37466, 37973, 37974, 37975.
+- They come from one German seller (lowil-2781, item location DE), all using one templated title.
+- The titles say "giapponese" but also carry German card names (Tentoxa, Panzaeron, Blubella), the German set abbreviation "Gsnw" and "Wotc". Those markers fit a German WotC print.
+- The stored data has no Language item specific and no images to tell the two readings apart.
+- They remain displayable with an English comparison pending owner review.
+
+**Proposal.** `scripts/remediation/languageMismatchQuarantine.mjs` follows the same contract as the applied integrity-r1 quarantine.
+- **Change:** sets `disqualified_reason = 'identity:language_conflict'` on the 3 confirmed rows. Nothing else changes: no identity rewrite, and `is_active`, prices and timestamps are untouched.
+- **Guards:** the plan requires the title to be unchanged and still state Japanese. Each write is guarded on `id`, `is_active=true`, `disqualified_reason IS NULL`, `listing_id`, `marketplace`, `card_tcgplayer_id` and `card_language='english'`.
+- **Safety:** `--confirm` must equal the eligible count, and the prior-values file is written before the first update.
+- **Rollback:** `--rollback=<prior file> --confirm=3` restores NULL only where the reason is still present.
+- **SQL equivalent:** `supabase/data_corrections/2026-09-14_language_mismatch_quarantine.sql`.
+- **Production dry run** (read-only, `scripts/remediation/language-mismatch-quarantine-dryrun-2026-09-14.json`): **3 quarantine, 4 review, 0 skip.** Expected affected rows: 3. Prior values: NULL / active.
+
+**Tests.** `tests/scanner/language-mismatch-quarantine.test.mjs`: **8/8**, run offline on the reviewed snapshots.
+- **Gap and plan:** the gap is reproduced (all 7 displayable, classifier `unknown`), and the plan comes out 3/4/0.
+- **Apply:**
+  - a wrong `--confirm` writes nothing;
+  - exactly 3 rows change, and only the exclusion column;
+  - the uncertain rows and the Japanese Hoopa copies are untouched;
+  - a scanner sighting does not re-publish a quarantined row.
+- **Guards and rollback:** guards skip rows whose identity or title changed, a newer reason is never overwritten, and rollback is correct.
+- **All deals afterwards:**
+  - before the quarantine, the Hoopa listing is withheld in every scope (identity conflict);
+  - afterwards, the two Japanese copies form **one** listing: 37856 (EBAY_US), also on EBAY_GB, Japanese identity 602060, reference $186.44;
+  - GB scope shows 37861, and IT scope shows nothing for Hoopa;
+  - no tile in any scope carries the English 489917 reference or a quarantined row.
+
+**Checks:**
+
+| Check | Result |
+|---|---|
+| Scanner suite | 3,368 tests: 3,322 pass, **24 fail (identical baseline set)**, 22 skipped |
+| ESLint, new files | clean |
+
+**Applying.** Deploy `f544df8` first, then on explicit approval:
+
+```
+node scripts/remediation/languageMismatchQuarantine.mjs --apply --confirm=3 --prior-out=scripts/remediation/applied/language-mismatch-quarantine-prior-<timestamp>.json
+```
+
+Cached copies clear within their documented lifetimes: data caches 180 s, deal pages 600 s, species/set/card ISR 3,600 s, each plus one stale serve.
+
+**Durability caveat** (same as integrity-r1): discovery sightings do not clear the reason. If the verifier later retires a row as sold, the reason becomes an availability reason, and a seen-again recovery could later clear it.
+
+### Follow-up (separate, not started): localized language markers in the matcher
+
+`classifyListingLanguage` (lib/dealMatching.js, shared by the scanner and the display gate) only knows English-language words and a few native forms. It returns `unknown` for localized statements of a language, for example Italian "giapponese". `languageCompatible("unknown", card)` then accepts any catalogue language. That is how 7 EBAY_IT rows were matched and shown against English references.
+
+**Proposed fix:**
+- recognise localized language words for the scanned marketplaces (Italian giapponese, German japanisch, French japonais/japonaise, Spanish japonés/japonesa, and the equivalents for other languages);
+- replay-test the change against stored titles before it touches matching;
+- decide whether a graded row should also be subject to the listing-language rule (graded rows currently skip it; see 34424).
+
+This is a scanner and matcher change, so it needs its own approval and verification. It is not part of the All deals deployment or this quarantine.
