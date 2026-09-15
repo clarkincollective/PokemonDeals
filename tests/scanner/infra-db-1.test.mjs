@@ -116,12 +116,16 @@ test("IDB-6. DEAL_POOL_SELECT is a superset of the stored fields and the display
   const sel = new Set(DEAL_POOL_SELECT.split(",").map((s) => s.trim()));
   for (const f of POOL_ROW_FIELDS) assert.ok(sel.has(f), `select missing stored field ${f}`);
   // isDisplayableDeal / isExactEbayDealDestination / conditionLabel inputs
-  for (const f of ["is_active", "disqualified_reason", "listing_url", "listing_id", "affiliate_url", "condition", "title", "market_price", "discount_pct", "card_name", "card_set", "card_language", "is_graded", "grade", "grader", "returns_accepted", "image_count", "seller_feedback_score", "listing_type", "visual_authenticity_status"]) {
+  for (const f of ["is_active", "disqualified_reason", "listing_url", "listing_id", "affiliate_url", "condition", "title", "market_price", "discount_pct", "card_name", "card_set", "card_language", "is_graded", "grade", "grader", "returns_accepted", "image_count", "seller_feedback_score", "listing_type", "visual_authenticity_status", "visual_authenticity_reason"]) {
     assert.ok(sel.has(f), `select missing display-gate input ${f}`);
   }
-  // it must NOT re-introduce the heavy columns
-  for (const heavy of ["image_urls", "visual_authenticity_reason", "visual_authenticity_checked_at", "image_checked_at"]) {
+  // it must NOT re-introduce the heavy columns (visual_authenticity_reason is
+  // read for the gate - null on unscreened rows - but never stored / served)
+  for (const heavy of ["image_urls", "visual_authenticity_checked_at", "image_checked_at"]) {
     assert.ok(!sel.has(heavy), `select must not fetch heavy column ${heavy}`);
+  }
+  for (const gateOnly of ["visual_authenticity_reason", "visual_authenticity_status", "disqualified_reason"]) {
+    assert.ok(!POOL_ROW_FIELDS.includes(gateOnly), `${gateOnly} stays out of the cached / client shape`);
   }
 });
 

@@ -169,7 +169,8 @@ test("PG-6. a plain listing inherits no savings treatment anywhere", () => {
   assert.equal((deals.match(/sort === "discount" && !savingsClaimTrusted\(/g) || []).length, 4, "every discount-sorted view");
   assert.equal((deals.match(/savingsClaimTrusted\(d\) \? Number\(d\.discount_pct\) : null/g) || []).length, 3, "catalogue tiles");
   assert.match(src("components/SealedDealCard.js"), /<DealScoreBadge score=\{showSavings \? scoreBadge : null\}/);
-  assert.match(src("lib/catalogAggregates.js"), /rows = \(rows \?\? \[\]\)\.filter\(\(row\) => savingsClaimTrusted\(row\)\)/);
+  // reader-consistency added the offer-eligibility rule alongside; the savings rule itself is unchanged
+  assert.match(src("lib/catalogAggregates.js"), /rows = \(rows \?\? \[\]\)\.filter\(\(row\) => isOfferCountable\(row\) && savingsClaimTrusted\(row\)\)/);
   assert.match(src("lib/sitemap.js"), /isDisplayableDeal\(r\) && savingsClaimTrusted\(r\)/);
   for (const page of ["app/deals/[id]/page.js", "app/sealed-deals/[id]/page.js"]) {
     assert.match(src(page), /\{showSavings && \(?\s*<script/, `${page}: Product JSON-LD only with evidenced savings`);

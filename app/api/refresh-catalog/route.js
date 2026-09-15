@@ -12,9 +12,9 @@ export const maxDuration = 120;
 
 const PAGE_SIZE = 1000;
 const SELECT =
-  "total_price, total_price_usd, image_url, watchlist:watchlist_id!inner (id, name, set, language, justtcg_tcgplayer_id)";
+  "total_price, total_price_usd, image_url, disqualified_reason, visual_authenticity_status, visual_authenticity_reason, market_price, discount_pct, watchlist:watchlist_id!inner (id, name, set, language, justtcg_tcgplayer_id)";
 const SELECT_LEGACY =
-  "total_price, image_url, watchlist:watchlist_id!inner (id, name, set, language, justtcg_tcgplayer_id)";
+  "total_price, image_url, disqualified_reason, visual_authenticity_status, visual_authenticity_reason, market_price, discount_pct, watchlist:watchlist_id!inner (id, name, set, language, justtcg_tcgplayer_id)";
 
 export async function GET() {
   const started = Date.now();
@@ -30,6 +30,8 @@ export async function GET() {
       .from("deals")
       .select(select)
       .eq("is_active", true)
+      // reader-consistency: a held row (re-sighted or not) is never counted
+      .is("disqualified_reason", null)
       .eq("watchlist.language", "english")
       .range(from, from + PAGE_SIZE - 1);
     if (error) {
