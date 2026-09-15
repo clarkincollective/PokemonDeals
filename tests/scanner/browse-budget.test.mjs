@@ -16,6 +16,7 @@ import {
   CONSUMER_CAPS,
   CONSUMER_GROUP_CAPS,
   ALLOCATED_COUNTRY_CAPS,
+  ALLOCATED_FIRST_PASS_SHARE,
   SWEEP_COUNTRY_CAPS,
   WINDOW_GUARD_MS,
   emptyLedger,
@@ -63,12 +64,12 @@ test("BB-1 envelope: consumer caps + 420 reserve = 5,000; per-country caps sum t
   assert.equal(BROWSE_DAILY_LIMIT, 5000);
   assert.equal(BROWSE_RESERVE, 420);
   assert.deepEqual(
-    { verify: 720, allocated: 2000, sweep: 1700, ingest: 150, images: 10, sealed: 0, manual: 0 },
+    { verify: 450, allocated: 2350, sweep: 1730, ingest: 40, images: 10, sealed: 0, manual: 0 },
     { ...CONSUMER_GROUP_CAPS }
   );
   assert.equal(sum(CONSUMER_CAPS), 4580);
-  assert.equal(sum(ALLOCATED_COUNTRY_CAPS), 2000);
-  assert.equal(sum(SWEEP_COUNTRY_CAPS), 1700);
+  assert.equal(sum(ALLOCATED_COUNTRY_CAPS), 2350);
+  assert.equal(sum(SWEEP_COUNTRY_CAPS), 1730);
   for (const c of ["EBAY_US", "EBAY_GB", "EBAY_CA", "EBAY_AU", "EBAY_DE", "EBAY_IT"]) {
     assert.ok(ALLOCATED_COUNTRY_CAPS[c] > 0 && SWEEP_COUNTRY_CAPS[c] > 0, `${c} has guaranteed allocated and sweep capacity`);
   }
@@ -78,44 +79,47 @@ test("BB-1 envelope: consumer caps + 420 reserve = 5,000; per-country caps sum t
 });
 
 test("BB-2 grants: cost is evaluated before granting; hard cap, pace (burst borrowed from the same cap) and provider balance all bind", () => {
-  // pace: at reset only the 40-call burst; mid-window 360 + 40; never above the cap
+  // pace: at reset only the 40-call burst; mid-window 225 + 40; never above the cap
   assert.equal(evaluateGrant(ledgerWith(), { key: "verify", requested: 100, observation: obs(5000), now: at(0) }).granted, 40);
-  assert.equal(evaluateGrant(ledgerWith({ verify: 390 }), { key: "verify", requested: 20, observation: obs(5000), now: at(12) }).granted, 10);
-  assert.equal(evaluateGrant(ledgerWith({ verify: 710 }), { key: "verify", requested: 20, observation: obs(5000), now: at(23.9) }).granted, 10, "cap binds");
-  assert.equal(evaluateGrant(ledgerWith({ verify: 720 }), { key: "verify", requested: 20, observation: obs(5000), now: at(23.9) }).denied, "cap");
+  assert.equal(evaluateGrant(ledgerWith({ verify: 255 }), { key: "verify", requested: 20, observation: obs(5000), now: at(12) }).granted, 10);
+  assert.equal(evaluateGrant(ledgerWith({ verify: 440 }), { key: "verify", requested: 20, observation: obs(5000), now: at(23.9) }).granted, 10, "cap binds");
+  assert.equal(evaluateGrant(ledgerWith({ verify: 450 }), { key: "verify", requested: 20, observation: obs(5000), now: at(23.9) }).denied, "cap");
   // the request is evaluated whole: minGrant refuses a grant too small to be useful
-  assert.equal(evaluateGrant(ledgerWith({ verify: 717 }), { key: "verify", requested: 20, minGrant: 5, observation: obs(5000), now: at(23.9) }).denied, "cap");
+  assert.equal(evaluateGrant(ledgerWith({ verify: 447 }), { key: "verify", requested: 20, minGrant: 5, observation: obs(5000), now: at(23.9) }).denied, "cap");
   // open (in-flight) leases count as fully spent
   const open = { a: { key: "verify", granted: 20, expiresAt: new Date(at(13)).toISOString() } };
-  assert.equal(evaluateGrant(ledgerWith({ verify: 700 }, open), { key: "verify", requested: 20, observation: obs(5000), now: at(23.9) }).denied, "cap");
+  assert.equal(evaluateGrant(ledgerWith({ verify: 430 }, open), { key: "verify", requested: 20, observation: obs(5000), now: at(23.9) }).denied, "cap");
 });
 
 test("BB-3 reserve and verification protection: the 420 reserve is never granted; discovery cannot spend the verifier's unspent cap; verification and discovery are counted separately", () => {
-  // provider balance 1,140 at hour 23, verifier has spent nothing: discovery sees 1,140 - 420 - 720 = 0
+  // provider balance 870 at hour 23, verifier has spent nothing: discovery sees 870 - 420 - 450 = 0
   const late = at(23);
-  const d = evaluateGrant(ledgerWith({ "sweep:EBAY_US": 500 }), { key: "sweep:EBAY_US", requested: 25, observation: obs(1140), now: late });
+  const d = evaluateGrant(ledgerWith({ "sweep:EBAY_US": 500 }), { key: "sweep:EBAY_US", requested: 25, observation: obs(870), now: late });
   assert.equal(d.denied, "provider");
-  const v = evaluateGrant(ledgerWith({ "sweep:EBAY_US": 500 }), { key: "verify", requested: 20, observation: obs(1140), now: late });
+  const v = evaluateGrant(ledgerWith({ "sweep:EBAY_US": 500 }), { key: "verify", requested: 20, observation: obs(870), now: late });
   assert.equal(v.granted, 20, "the verifier can still draw its own protected calls");
   // at exactly the reserve nobody gets anything
-  assert.equal(evaluateGrant(ledgerWith({ verify: 720 }), { key: "verify", requested: 1, observation: obs(420), now: late }).denied, "cap");
-  assert.equal(evaluateGrant(ledgerWith({ verify: 700 }), { key: "verify", requested: 1, observation: obs(420), now: late }).denied, "provider");
-  assert.equal(evaluateGrant(ledgerWith({ verify: 720 }), { key: "ingest", requested: 1, observation: obs(420), now: late }).denied, "provider");
+  assert.equal(evaluateGrant(ledgerWith({ verify: 450 }), { key: "verify", requested: 1, observation: obs(420), now: late }).denied, "cap");
+  assert.equal(evaluateGrant(ledgerWith({ verify: 430 }), { key: "verify", requested: 1, observation: obs(420), now: late }).denied, "provider");
+  assert.equal(evaluateGrant(ledgerWith({ verify: 450 }), { key: "ingest", requested: 1, observation: obs(420), now: late }).denied, "provider");
   // verifier spend never appears in a discovery consumer's pace or cap
-  const heavyVerify = ledgerWith({ verify: 700 });
+  const heavyVerify = ledgerWith({ verify: 430 });
   assert.equal(evaluateGrant(heavyVerify, { key: "sweep:EBAY_GB", requested: 26, observation: obs(4000), now: at(12) }).granted, 26);
 });
 
 test("BB-4 allocated country progress: each market has its own durable cap; a first pass takes at most its share; an early market cannot consume a later one", () => {
   const firstHalf = at(1);
-  // US first pass: ceil(530 x 0.6) = 318
-  assert.equal(evaluateGrant(ledgerWith(), { key: "allocated:EBAY_US", requested: 700, observation: obs(5000), now: firstHalf }).granted, 318);
-  // US has spent its first-pass share; IT (first pass at hour 10) still has its whole cap
-  const afterUs = ledgerWith({ "allocated:EBAY_US": 318 });
-  assert.equal(evaluateGrant(afterUs, { key: "allocated:EBAY_US", requested: 100, observation: obs(4600), now: at(2) }).denied, "pace");
-  assert.equal(evaluateGrant(afterUs, { key: "allocated:EBAY_IT", requested: 400, observation: obs(4600), now: at(10) }).granted, 255);
-  // second half: US gets the remainder of its cap and no more
-  assert.equal(evaluateGrant(afterUs, { key: "allocated:EBAY_US", requested: 700, observation: obs(3000), now: at(13) }).granted, 212);
+  // alloc-rev2: every first-pass share is 1 - the US first pass may take its whole 650 cap, never more
+  assert.deepEqual({ ...ALLOCATED_FIRST_PASS_SHARE }, { EBAY_US: 1, EBAY_GB: 1, EBAY_CA: 1, EBAY_AU: 1, EBAY_DE: 1, EBAY_IT: 1 });
+  assert.equal(evaluateGrant(ledgerWith(), { key: "allocated:EBAY_US", requested: 773, observation: obs(5000), now: firstHalf }).granted, 650);
+  // US has spent its cap; IT (first pass at hour 10) still has its whole cap
+  const afterUs = ledgerWith({ "allocated:EBAY_US": 650 });
+  assert.equal(evaluateGrant(afterUs, { key: "allocated:EBAY_US", requested: 100, observation: obs(4300), now: at(2) }).denied, "cap");
+  assert.equal(evaluateGrant(afterUs, { key: "allocated:EBAY_IT", requested: 400, observation: obs(4300), now: at(10) }).granted, 300);
+  // second half: nothing beyond the cap for the US second pass
+  assert.equal(evaluateGrant(afterUs, { key: "allocated:EBAY_US", requested: 700, observation: obs(3000), now: at(13) }).denied, "cap");
+  // a first pass smaller than its cap leaves only the remainder for the second pass
+  assert.equal(evaluateGrant(ledgerWith({ "allocated:EBAY_US": 609 }), { key: "allocated:EBAY_US", requested: 642, observation: obs(3000), now: at(13) }).granted, 41);
 });
 
 test("BB-5 conservative reconciliation: an expired lease is charged in full; more observed consumption ratchets the reserve absorption; less is never given back", () => {
@@ -166,14 +170,14 @@ test("BB-7 settle charges started attempts and releases only unsent units; a lat
   assert.equal(late.reason, "expired_charged_in_full");
   const row = db.tables.catalog_snapshot.find((r) => r.kind === a.lease.kind);
   assert.equal(row.data.used.verify, 27, "7 settled + 20 charged in full for the expired lease");
-  // 60 interleaved acquisitions for one 900-call sweep cap
+  // 60 interleaved acquisitions for one 990-call sweep cap
   const results = await Promise.all(
     Array.from({ length: 60 }, (_, i) => acquireBrowseLease(db, { key: "sweep:EBAY_US", requested: 25, minGrant: 6, observation: obs(4000), now: at(23.5) + 5000 + i, ttlMs: 600_000, mode: "enforce" }))
   );
   const granted = results.reduce((t, r) => t + r.granted, 0);
   const ledger = db.tables.catalog_snapshot.find((r) => r.kind === a.lease.kind).data;
   const openSweep = Object.values(ledger.open).filter((l) => l.key === "sweep:EBAY_US").reduce((t, l) => t + l.granted, 0);
-  assert.ok(granted <= 900, `granted ${granted} <= cap`);
+  assert.ok(granted <= 990, `granted ${granted} <= cap`);
   assert.equal(openSweep, granted, "every granted unit is recorded exactly once");
 });
 
@@ -292,7 +296,7 @@ test("BB-10 real verify-deals route under enforce: calls never exceed the grant;
   assert.equal(used715.budget.granted, 5);
   assert.equal(used715.calls, 5);
   assert.equal(critical(used715), 5, "the 5 granted calls go to critical auctions");
-  assert.equal(used715.ledger.used.verify, 720);
+  assert.equal(used715.ledger.used.verify, 450);
   assert.equal(used718.skipped, "browse_budget");
   assert.equal(used718.calls, 0);
   assert.equal(crashGranted, 20);
@@ -423,7 +427,7 @@ test("BB-13 reconciliation with open leases: calls eBay has already counted are 
   assert.equal(unspentOpen(l, o), 120);
   // the old formula subtracted all 300 again: 180 calls of useful work would have been refused
   const g = evaluateGrant(l, { key: "sweep:EBAY_GB", requested: 26, observation: o, now: readAt });
-  assert.equal(g.providerLeft, 4620 - 120 - 420 - 720);
+  assert.equal(g.providerLeft, 4620 - 120 - 420 - 450);
   // a lease opened after the reading is counted in full
   const l2 = ledgerWith({ "sweep:EBAY_US": 200 }, { ...openBefore, b: { key: "verify", granted: 20, at: iso(readAt + 1000), expiresAt: iso(readAt + 180_000) } });
   assert.equal(unspentOpen(l2, o), 120 + 20);

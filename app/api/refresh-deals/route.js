@@ -208,9 +208,12 @@ const RAW_CONDITION_LOOKUP_CAP_SWEEP = 12;
 // browse-budget-r1 - what a run asks the shared Browse ledger for, BEFORE it
 // calls eBay (lib/browseBudget.mjs). The lease is enforced per attempt, so
 // these only size the request; they cannot let a run overspend.
-// A sweep: its result pages + at most 6 graded lookups (runSweep's
+// A sweep: its result pages + at most 3 graded lookups (runSweep's
 // GRADED_LOOKUP_CAP) + the raw-condition cap + 2 units for 5xx retries.
-const SWEEP_DETAIL_CALLS_MAX = 6 + RAW_CONDITION_LOOKUP_CAP_SWEEP;
+// The caps count LOGICAL lookups started; each can take 2 attempts (one 5xx
+// retry), so a sweep needing more than 2 retries is bounded by its grant in
+// enforce mode and never in observe.
+const SWEEP_DETAIL_CALLS_MAX = 3 + RAW_CONDITION_LOOKUP_CAP_SWEEP;
 const BUDGET_RETRY_UNITS = 2;
 // An allocated run: targets x measured calls per target (ebay_job_runs vs
 // scan_allocation_runs, 11-13 Sep: search + raw-condition + graded detail).
@@ -919,7 +922,13 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
   // the exposure. A normal sweep finds 0-2 graded deals, so 6 covers the
   // real case while keeping the worst case (~768/day) well inside the
   // ~5,000/day budget alongside the pre-flight quota guard in GET().
-  const GRADED_LOOKUP_CAP = 6;
+  // alloc-rev2 (observe trial, accepted graded trade-off): 6 -> 3. Measured
+  // 11-14 Sep: sweeps reached 6 in 61% (US) / 72% (other) of runs, ~520
+  // lookups/day for ~6.5 first-time graded pairs/day. Counts logical
+  // getGradingDetails calls started (a failed or retried one still counts
+  // once); it also bounds graded reference (PPT) requests below. The
+  // per-card (allocated) graded lookup is unchanged.
+  const GRADED_LOOKUP_CAP = 3;
   // graded-supply-r1 - graded reference (PPT) requests backed by this run's
   // own lookups; bounded by GRADED_LOOKUP_CAP below.
   let gradedReferenceRequests = 0;

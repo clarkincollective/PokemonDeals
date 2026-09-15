@@ -53,7 +53,11 @@ const median = (a) => (a.length ? [...a].sort((x, y) => x - y)[Math.floor(a.leng
 
 function requestFor(key, demand) {
   const [group, country] = key.split(":");
-  if (group === "sweep") return { requested: SWEEP_PAGES(country) + 18 + 2, minGrant: SWEEP_PAGES(country) + 1 };
+  // alloc-rev2: pages + (3 graded lookups + 12 raw checks) + 2 retry units, as
+  // the route requests. Recorded demand still reflects the old 6-lookup cap
+  // (subtracting logical lookups above 3 would only lower-bound the saving:
+  // a lookup may take two attempts, and failed lookups are not recorded).
+  if (group === "sweep") return { requested: SWEEP_PAGES(country) + 15 + 2, minGrant: SWEEP_PAGES(country) + 1 };
   if (group === "allocated") return { requested: Math.ceil(LEGACY_TARGETS[country] * PER_TARGET[country]) + 2, minGrant: 20 };
   if (group === "verify") return { requested: 20, minGrant: 5 };
   if (group === "ingest") { const d = Math.min(40, Math.max(0, demand)); return { requested: d + (d >= 10 ? 2 : 0), minGrant: Math.min(5, d) }; }

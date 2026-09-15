@@ -139,9 +139,9 @@ test("14Q-17. GRADED_LOOKUP_CAP only gates NEW eBay calls - a reused (already-kn
   assert.match(src, /if \(!reused && gradedLookups >= GRADED_LOOKUP_CAP\) continue;/);
 });
 
-test("14Q-18. GRADED_LOOKUP_CAP itself is unchanged", () => {
+test("14Q-18. GRADED_LOOKUP_CAP is the reviewed value (6 -> 3 in the alloc-rev2 observe trial)", () => {
   const src = read("app/api/refresh-deals/route.js");
-  assert.match(src, /const GRADED_LOOKUP_CAP = 6;/);
+  assert.match(src, /const GRADED_LOOKUP_CAP = 3;/);
 });
 
 test("14Q-19. a missing/stale grading lookup still makes a real eBay call - the dedup never fabricates a value for an unresolved listing", () => {

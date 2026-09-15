@@ -11,7 +11,7 @@ process.env.CRON_SECRET = "harness";
 console.log = () => {}; // keep stdout for the JSON result
 const T0 = Date.now();
 const iso = (h) => new Date(T0 + h * 3.6e6).toISOString();
-const RESET = new Date(T0 + 0.5 * 3.6e6).toISOString(); // late window: pace allows the whole 720 cap, so the hard cap binds
+const RESET = new Date(T0 + 0.5 * 3.6e6).toISOString(); // late window: pace allows the whole 450 cap, so the hard cap binds
 
 const row = (over) => {
   const id = over.id;
@@ -75,12 +75,12 @@ async function run(label, mode = "enforce") {
 
 const out = { runs: [] };
 out.runs.push(await run("fresh window"));
-setUsed(700);
-out.runs.push(await run("700 of 720 used"));
-setUsed(715);
-out.runs.push(await run("715 of 720 used"));
-setUsed(718);
-out.runs.push(await run("718 of 720 used"));
+setUsed(430);
+out.runs.push(await run("430 of 450 used"));
+setUsed(445);
+out.runs.push(await run("445 of 450 used"));
+setUsed(448);
+out.runs.push(await run("448 of 450 used"));
 // crash: a lease taken and never settled, then a later run after its expiry
 setUsed(100);
 const crash = await budgetLib.acquireBrowseLease(db, { key: "verify", requested: 20, observation: harness.rateLimit, now: T0 - 10 * 60_000, ttlMs: 60_000, mode: "enforce" });

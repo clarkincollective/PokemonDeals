@@ -170,6 +170,43 @@ async function run() {
     harness.db = seedDb();
     mod = await import(pathToFileURL(join(REPO, "app", "api", "refresh-deals", "route.js")).href);
     url = "http://harness/api/refresh-deals?mode=sweep&country=EBAY_US&pages=1";
+  } else if (scenario === "sweepgrant") {
+    // alloc-rev2: the real US sweep (5 pages) under an ACTIVE enforce window
+    // whose sweep:EBAY_US cap has exactly <grant> attempts left (late window,
+    // so pace = cap), or in observe mode ("observe"). argv[4] "retry": the
+    // first graded lookup takes two attempts (a 5xx retry).
+    const grantArg = process.argv[3] ?? "11";
+    // SYNTHETIC: two extra copies (new listing ids) of every raw evidence
+    // listing, so the sweep's full demand (5 pages + 3 graded + ~6 raw
+    // condition checks = 14) exceeds a 10-11 attempt grant, like the measured
+    // typical US sweep (~13.3 attempts after the 3-lookup graded cap)
+    for (const d of ev.deals.filter((x) => !x.grader)) {
+      for (const k of [1, 2]) listings.push(toListing({ ...d, listing_id: `v1|9${k}${legacy(d.listing_id).slice(2)}|0` }));
+    }
+    const T0 = Date.now();
+    harness.rateLimit = { remaining: 3000, limit: 5000, reset: new Date(T0 + 0.5 * 3.6e6).toISOString(), timeWindow: 86400, readAt: new Date(T0).toISOString() };
+    const base = seedDb();
+    harness.db = createMemoryDb({ ...base.tables, catalog_snapshot: [] }, { unique: { catalog_snapshot: ["kind"] } });
+    if (process.argv[4] === "retry") {
+      let first = true;
+      harness.retryGradingFor = () => {
+        const r = first;
+        first = false;
+        return r;
+      };
+    }
+    const budgetLib = require(join(REPO, "lib", "browseBudget.js"));
+    if (grantArg === "observe") {
+      process.env.BROWSE_BUDGET_MODE = "observe";
+    } else {
+      process.env.BROWSE_BUDGET_MODE = "enforce";
+      const win = budgetLib.windowFromObservation(harness.rateLimit, T0);
+      const ledger = { ...budgetLib.emptyLedger(win), state: "active", stateReason: "harness_seed", enforceSeenAt: new Date(win.windowStart).toISOString() };
+      ledger.used["sweep:EBAY_US"] = budgetLib.CONSUMER_CAPS["sweep:EBAY_US"] - Number(grantArg);
+      harness.db.tables.catalog_snapshot.push({ kind: `${budgetLib.LEDGER_KIND_PREFIX.enforce}${win.id}`, data: ledger, updated_at: new Date(win.windowStart).toISOString() });
+    }
+    mod = await import(pathToFileURL(join(REPO, "app", "api", "refresh-deals", "route.js")).href);
+    url = "http://harness/api/refresh-deals?mode=sweep&country=EBAY_US&pages=5";
   } else if (scenario === "percard") {
     harness.db = seedDb({ priority: true });
     mod = await import(pathToFileURL(join(REPO, "app", "api", "refresh-deals", "route.js")).href);
@@ -190,6 +227,15 @@ async function run() {
     calls: harness.calls,
     gradedPriceRequests: harness.gradedPriceRequests,
     written: describeWrittenRows(harness.db),
+    ...(scenario === "sweepgrant"
+      ? {
+          ledger: (() => {
+            const row = harness.db.tables.catalog_snapshot.find((r) => r.kind.startsWith("browse_budget"));
+            return row ? { kind: row.kind.split(":")[0], used: row.data.used, open: Object.keys(row.data.open ?? {}).length, counters: row.data.counters } : null;
+          })(),
+          jobRuns: harness.db.tables.ebay_job_runs,
+        }
+      : {}),
   };
 }
 

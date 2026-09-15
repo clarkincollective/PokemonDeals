@@ -14,6 +14,7 @@ const H = () => globalThis.__ingestHarness;
 const telemetry = require(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "lib", "ebayTelemetry.js"));
 const guard = () => {
   if (!telemetry.consumeBrowseAttempt()) {
+    H().calls.attemptRefused = (H().calls.attemptRefused ?? 0) + 1;
     const e = new Error("Browse budget lease exhausted");
     e.name = "BrowseBudgetExhaustedError";
     throw e;
@@ -32,11 +33,17 @@ export async function searchListings(query, marketplaceId) {
   count("searchListings");
   return { listings: H().listingsFor({ query, marketplaceId }), total: 1 };
 }
-export async function searchNewlyListed(marketplaceId) {
+export async function searchNewlyListed(marketplaceId, { pages = 5 } = {}) {
+  // alloc-rev2: one attempt per result page through the real per-attempt
+  // guard, as lib/ebay.searchNewlyListed does (off/observe: always allowed)
+  for (let p = 0; p < pages; p++) guard();
   count("searchNewlyListed");
   return H().listingsFor({ query: null, marketplaceId });
 }
 export async function getGradingDetails(listingId) {
+  // one attempt, plus a second when the scenario models a 5xx retry
+  guard();
+  if (H().retryGradingFor?.(listingId)) guard();
   count("getGradingDetails");
   return H().gradingFor(listingId);
 }

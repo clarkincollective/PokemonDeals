@@ -140,7 +140,7 @@ test("GG-6. route wiring: sweep skips a hopeless title before the cap and the ca
   const memo = branch.indexOf("knownGrading.set(listing.listingId, grading);");
   assert.ok(skip > 0 && skip < reused && reused < cap && cap < call && call < memo, JSON.stringify({ skip, reused, cap, call, memo }));
   assert.match(branch, /grading\.grader && gradedReferenceAllowed\(listing, grading\)/, "the full graded rule still decides");
-  assert.match(src, /const GRADED_LOOKUP_CAP = 6;/, "cap unchanged");
+  assert.match(src, /const GRADED_LOOKUP_CAP = 3;/, "cap is the reviewed alloc-rev2 value");
   // graded-supply-r1: reference (PPT) requests backed by this run's lookups
   // are bounded by the same cap, checked before getGradedPrice
   const guard = branch.indexOf("if (gradedReferenceRequests >= GRADED_LOOKUP_CAP) continue;");

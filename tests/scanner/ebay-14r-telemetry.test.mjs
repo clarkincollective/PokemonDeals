@@ -394,7 +394,8 @@ test("14R-12b. reserve/batch/cap constants are STILL unchanged", () => {
   assert.match(read("app/api/verify-deals/route.js"), /const RESERVE = 800;/);
   assert.match(read("app/api/screen-deal-images/route.js"), /const IMAGE_RECOVER_PER_RUN = 12;/);
   assert.match(read("app/api/screen-deal-images/route.js"), /const RECOVER_RESERVE = 900;/);
-  assert.match(read("app/api/refresh-deals/route.js"), /const GRADED_LOOKUP_CAP = 6;/);
+  // alloc-rev2 observe trial: the sweep graded lookup cap was reviewed 6 -> 3
+  assert.match(read("app/api/refresh-deals/route.js"), /const GRADED_LOOKUP_CAP = 3;/);
 });
 
 // ---- Part 10 - documentation -------------------------------------------

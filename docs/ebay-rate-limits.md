@@ -24,7 +24,7 @@ spending the whole allocation, usually by mid-day, after which every
 | --- | --- | --- |
 | US sweep (`searchNewlyListed`, 5 pages) | every 15 min (96×) | ~480 |
 | GB/AU/CA/DE/IT sweeps (8 pages each) | every 2 h (12× each) | ~480 |
-| Sweep graded lookups (`getGradingDetails`) | per sweep, capped at `GRADED_LOOKUP_CAP = 6` | ~0–500 (usually low) |
+| Sweep graded lookups (`getGradingDetails`) | per sweep, capped at `GRADED_LOOKUP_CAP = 3` (6 until the alloc-rev2 observe trial, 16 Sep 2026; measured ~520/day at 6) | ~0–300 |
 | Priority tier (~21 cards × 6 marketplaces) | every 6 h (4×) | ~500 |
 | Extended tier (one country-chunk, ~980 cards) | 1×/day | ~980 |
 | Sealed products (~194 × 6 marketplaces) | 1×/day at 06:00 UTC | ~1,160 |
