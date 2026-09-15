@@ -86,6 +86,13 @@ very slowly; the referring URLs it does record are homepage filter/page permutat
    items (a card page only emits Product+Offer while it has a live listing - the sampled indexed card
    had none, so this is expected, not a regression); Core Web Vitals has no field data yet.
 
+6. **Bing Webmaster Tools** (owner signed in; property already existed, imported from GSC on 2026-08-26 -
+   3 clicks / 194 impressions on Bing so far). Bing had last read the sitemap index on 08-26, i.e. before
+   the card shards existed. Re-submitted the index and submitted all nine child sitemaps individually;
+   `cards-high.xml` was crawled within minutes (1.2K URLs, Success), the rest were Processing. Bing's
+   IndexNow page shows 32.6K URLs received in the last 23 h (source: Self). BWT "Top recommendations":
+   "not enough inbound links from high quality domains" - the same backlink gap as Google.
+
 ## What to check next Monday (2026-09-22)
 
 - Sitemaps report: "discovered" per child should stop reading as the raw URL count and start showing
