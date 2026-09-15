@@ -57,6 +57,7 @@ import {
 import { allocateScanTargets, nextTargetState, budgetForRun } from "@/lib/scanAllocator";
 import { attachBrowseLease, browseLeaseExhausted } from "@/lib/ebayTelemetry";
 import { acquireBrowseLease } from "@/lib/browseBudget";
+import { createCrossMatchObserver, recordCrossMatchObservation } from "@/lib/crossMatchObservation";
 import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError, recordDedupeSavedGrading } from "@/lib/ebayTelemetry";
 
 // This route does real work (API calls + database writes) and must never
@@ -387,7 +388,7 @@ async function enrichDealTrustSignals(db, listing, { imageCount = null, returnsA
 // graded listing gets the extra getGradingDetails() + graded-price lookup,
 // to keep both eBay's per-item budget and PokemonPriceTracker's metered
 // credits bounded per scan cycle.
-async function scanCardInMarketplace(row, marketplaceId, marketData, db, discountThreshold, rates, searchType = "priority") {
+async function scanCardInMarketplace(row, marketplaceId, marketData, db, discountThreshold, rates, searchType = "priority", crossMatch = null) {
   const baseQuery = row.set ? `${row.name} ${row.set}` : row.name;
   // Biases eBay's own relevance ranking toward genuine Japanese-print
   // listings (sellers overwhelmingly include "Japanese" in the title) -
@@ -720,6 +721,13 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
   // signals to update scan_target_state; other callers just read
   // `.dealsFound`. `uniqueListings` = distinct listings this search
   // returned (turnover signal).
+  // crossmatch-shadow-r1 - count-only: AFTER this card's normal processing,
+  // over the results already in hand. Synchronous, bounded, never throws out.
+  if (crossMatch) {
+    try {
+      crossMatch.observe(listings, row);
+    } catch {}
+  }
   return { dealsFound, uniqueListings: listings.length, blockedRetired };
 }
 
@@ -1358,6 +1366,33 @@ export async function GET(request) {
 
   await attachCatalogNumbers(watchlistRows, db);
 
+  // crossmatch-shadow-r1 - count-only observation of this run's search
+  // results (lib/crossMatchObservation). The sweep's watched-card index is
+  // built once, from shallow copies of every active row, IN PARALLEL with the
+  // scan so it never delays it; results seen before it is ready are held
+  // (bounded). Nothing here reaches the scan's calls, writes or outcome.
+  // CROSSMATCH_OBSERVE=off disables it entirely.
+  let crossMatch = null;
+  let crossMatchIndex = null;
+  let crossMatchSetupError = null;
+  if (allocatedMode && process.env.CROSSMATCH_OBSERVE !== "off") {
+    try {
+      crossMatch = createCrossMatchObserver({ marketplace: allocatedCountry, jobStartedAt: Date.parse(ctx.startedAt) || Date.now() });
+      const observer = crossMatch;
+      const obsRows = (watchlistRowsRaw ?? []).filter((r) => r.justtcg_tcgplayer_id).map((r) => ({ ...r }));
+      // selected rows already carry their catalogue number; read only the rest
+      crossMatchIndex = attachCatalogNumbers(obsRows.filter((r) => r.card_number == null), db)
+        .then(() => {
+          const index = buildWatchlistIndex(obsRows);
+          observer.setIndex((listing) => candidateRowsForListing(listing, index));
+        })
+        .catch((e) => observer.fail(e));
+    } catch (e) {
+      crossMatch = null;
+      crossMatchSetupError = String(e?.message ?? e).slice(0, 200);
+    }
+  }
+
   // P0.4.2 - per-(card,market) scan signals, collected for the
   // scan_target_state upsert + the scan_allocation_runs summary. Only
   // populated for tier=allocated when the allocator ran.
@@ -1428,7 +1463,8 @@ export async function GET(request) {
             db,
             discountThreshold,
             rates,
-            tier || "manual"
+            tier || "manual",
+            crossMatch
           );
           dealsFound += r.dealsFound;
           blockedRetired += r.blockedRetired || 0;
@@ -1517,6 +1553,27 @@ export async function GET(request) {
     }
   }
 
+  // crossmatch-shadow-r1 - finish the count-only observation after all normal
+  // work, within its own time bounds; its outcome never touches `errors` or
+  // the job's status.
+  let crossMatchObservation = crossMatchSetupError ? { v: 1, partial: true, error: crossMatchSetupError } : null;
+  if (crossMatch) {
+    const withinMs = (p, ms) => Promise.race([p, new Promise((resolve) => setTimeout(resolve, ms).unref?.())]);
+    try {
+      const elapsedMs = Date.now() - (Date.parse(ctx.startedAt) || Date.now());
+      if (elapsedMs > (maxDuration - 120) * 1000) {
+        crossMatchObservation = { v: 1, marketplace: allocatedCountry, partial: true, truncatedBy: ["job_deadline_before_finalize"] };
+      } else {
+        await withinMs(crossMatchIndex, 5000);
+        crossMatchObservation =
+          (await withinMs(crossMatch.finalize(db), 25000)) ?? { v: 1, marketplace: allocatedCountry, partial: true, truncatedBy: ["finalize_time"] };
+      }
+      crossMatchObservation.recorded = (await withinMs(recordCrossMatchObservation(db, crossMatchObservation), 5000))?.ok === true;
+    } catch (e) {
+      crossMatchObservation = { v: 1, marketplace: allocatedCountry, partial: true, error: String(e?.message ?? e).slice(0, 200) };
+    }
+  }
+
   return Response.json({
     scanned,
     dealsFound,
@@ -1525,7 +1582,7 @@ export async function GET(request) {
     rateLimitRemaining,
     scannedAt: new Date().toISOString(),
     ...(allocatedMode
-      ? { tier: "allocated", country: allocatedCountry, allocatorFallback, allocation: allocationSummary }
+      ? { tier: "allocated", country: allocatedCountry, allocatorFallback, allocation: allocationSummary, crossMatchObservation }
       : {}),
   });
   } catch (err) {
