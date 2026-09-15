@@ -5199,8 +5199,8 @@ providerLeft = remaining − unspentOpen − 420 − verifierCommitment
 - **Configuration:** `BROWSE_BUDGET_MODE=observe` set for Production before the push (stored Sensitive). `origin/main` was still `bb35780`; fast-forward `bb35780` → `9bf3ba1` → `8b21599`.
 - **Vercel:** `dpl_BwGtJXzUxCQ7DpLBsp878HPbtoU1` READY 00:15 UTC, aliased to pokemondealfinder.com. `/` and `/deals` return 200. No error or fatal runtime logs.
 - **First production evidence** (scheduled runs only):
-  - 00:30 verify-deals created `browse_budget_observe:2026-09-15T07:00:00.000Z`, `windowSource: provider_timeWindow`, window `2026-09-14T07:00Z–2026-09-15T07:00Z`, parsed from eBay`s live reset.
-  - Hypothetical decision: verify denied on provider balance (remaining 230 < 420 reserve). `reserveAbsorbed` 4,770 = the window`s usage before observe began (observe row only).
+  - 00:30 verify-deals created `browse_budget_observe:2026-09-15T07:00:00.000Z`, `windowSource: provider_timeWindow`, window `2026-09-14T07:00Z–2026-09-15T07:00Z`, parsed from eBay's live reset.
+  - Hypothetical decision: verify denied on provider balance (remaining 230 < 420 reserve). `reserveAbsorbed` 4,770 = the window's usage before observe began (observe row only).
   - Sweeps (US, AU, CA) skipped on their legacy 250 floor before acquiring; image recovery had no demand; verify skipped on its 800 floor. Behaviour unchanged.
 - **Defect found in observe:** verify-deals attached its lease after the 800-floor check, so a floor-skipped run left the lease open. It then expired and was charged 20 in the observe ledger: a phantom charge per skipped verify run, in accounting only (no request or selection change).
   - **Fixed locally** (lease attached immediately after acquire; BB-15 asserts a floor skip leaves no open lease and charges 0).
