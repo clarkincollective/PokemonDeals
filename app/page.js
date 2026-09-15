@@ -10,6 +10,7 @@ import {
 } from "@/lib/deals";
 import { buildHomepageLanes, rotationBucket } from "@/lib/homepageVariety";
 import { GUIDES } from "@/lib/guides";
+import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
 import SkipToContent from "@/components/SkipToContent";
 import SiteFooter from "@/components/SiteFooter";
@@ -122,6 +123,12 @@ const FAQ_ITEMS = [
   },
 ];
 
+const SCAN_FRESH_THRESHOLD_MS = 30 * 60 * 1000;
+
+function isRecentlyRefreshed(dateString) {
+  return Date.now() - new Date(dateString).getTime() <= SCAN_FRESH_THRESHOLD_MS;
+}
+
 // Deal-first R2 - the feed's MODE row. Every mode is an existing
 // destination with its own route and meaning (the dedicated /deals/<cat>
 // landing pages, the sealed / Japanese hubs, the existing ?listing= and
@@ -204,6 +211,32 @@ export default async function Home() {
   // (fold revision: the hero's duplicate "Most listed" row is gone)
   const topHubs = cardHubsResult.hubs.slice(0, 6);
   const liveCount = summary?.activeDeals ?? null;
+
+  // Live count + slim trust line - the disclosure sits next to the offers,
+  // not only in the footer; the methodology link is the crawlable "how we
+  // price this" destination. Built HERE, in the server component, and
+  // handed to HomeFeed as a finished element: it is the one place the
+  // homepage prints a relative time, and a client module must never call
+  // timeAgo() directly (relative-time-hydration test 7 - the server HTML
+  // and the client's own clock would disagree at hydration).
+  const trustLine = (
+    <p className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+      {lastRefreshed && (
+        <>
+          <span className="inline-flex h-2 w-2 rounded-full bg-live" />
+          {liveCount != null && <span className="tnum font-semibold text-zinc-700 dark:text-zinc-200">{liveCount.toLocaleString()} live deals</span>}
+          {liveCount != null && <span className="text-zinc-300 dark:text-zinc-700">·</span>}
+          <span>{isRecentlyRefreshed(lastRefreshed) ? `checked ${timeAgo(lastRefreshed)}` : "refreshing automatically"}</span>
+          <span className="text-zinc-300 dark:text-zinc-700">·</span>
+        </>
+      )}
+      <span>We may earn a commission on eBay purchases.</span>
+      <span className="text-zinc-300 dark:text-zinc-700">·</span>
+      <Link href="/methodology" className="font-medium text-zinc-600 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500">
+        How we compare →
+      </Link>
+    </p>
+  );
 
   const faqJsonLd = {
     "@context": "https://schema.org",
@@ -316,7 +349,7 @@ export default async function Home() {
         previewSize={HOME_PREVIEW_SIZE}
         emailCaptureEnabled={emailEnabled()}
         liveCount={liveCount}
-        lastRefreshed={lastRefreshed}
+        trustLine={trustLine}
         topHubs={topHubs}
       />
 

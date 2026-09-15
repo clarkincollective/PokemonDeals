@@ -15,12 +15,6 @@ import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import HomeBrowseLinks from "@/components/HomeBrowseLinks";
 import Price from "@/components/Price";
 import HomepageAnalytics from "@/components/analytics/HomepageAnalytics";
-import { timeAgo } from "@/lib/time";
-
-const SCAN_FRESH_THRESHOLD_MS = 30 * 60 * 1000;
-function isRecentlyRefreshed(dateString) {
-  return Date.now() - new Date(dateString).getTime() <= SCAN_FRESH_THRESHOLD_MS;
-}
 
 // Homepage-caching r1: the country/sort/filter/page-driven part of the
 // homepage feed, split out of app/page.js so that file can go back to
@@ -95,7 +89,9 @@ export default function HomeFeed({
   previewSize = 9,
   emailCaptureEnabled = false,
   liveCount = null,
-  lastRefreshed = null,
+  // the server-rendered "N live deals · checked X ago · disclosure" line
+  // (app/page.js) - a finished element, so no relative time is computed here
+  trustLine = null,
   topHubs = [],
 }) {
   const search = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
@@ -220,25 +216,7 @@ export default function HomeFeed({
         </nav>
       </div>
 
-      {/* Live count + slim trust line - the disclosure sits next to the
-          offers, not only in the footer; the methodology link is the
-          crawlable "how we price this" destination. */}
-      <p className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-        {lastRefreshed && (
-          <>
-            <span className="inline-flex h-2 w-2 rounded-full bg-live" />
-            {liveCount != null && <span className="tnum font-semibold text-zinc-700 dark:text-zinc-200">{liveCount.toLocaleString()} live deals</span>}
-            {liveCount != null && <span className="text-zinc-300 dark:text-zinc-700">·</span>}
-            <span>{isRecentlyRefreshed(lastRefreshed) ? `checked ${timeAgo(lastRefreshed)}` : "refreshing automatically"}</span>
-            <span className="text-zinc-300 dark:text-zinc-700">·</span>
-          </>
-        )}
-        <span>We may earn a commission on eBay purchases.</span>
-        <span className="text-zinc-300 dark:text-zinc-700">·</span>
-        <a href="/methodology" className="font-medium text-zinc-600 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500">
-          How we compare →
-        </a>
-      </p>
+      {trustLine}
 
       {view.error && <p className="mt-4 rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {view.error}</p>}
 
