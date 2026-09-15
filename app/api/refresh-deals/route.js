@@ -10,7 +10,7 @@ import {
 import { getConditionPrices, getGradedPrice } from "@/lib/pokemonPriceTracker";
 import { getUsdRates, toUsd } from "@/lib/fx";
 import { logDiscoveryEvent } from "@/lib/discoveryLog";
-import { writeDiscoverySighting, insertNewSighting, checkPilotInsertCopies } from "@/lib/listingAvailability";
+import { writeDiscoverySighting, insertNewSighting, finalisePilotInsert, abandonedPilotPendingRows, PILOT_PENDING_REASON } from "@/lib/listingAvailability";
 // 17C.10 - reference provenance for the comparison this scanner stores.
 import { selectConditionReference } from "@/lib/dealMatching";
 import { CARD_REFERENCE_COLUMNS, buildCardReference, clearedReference } from "@/lib/referenceProvenance";
@@ -432,7 +432,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
 
   let dealsFound = 0;
   let blockedRetired = 0; // sightings of verifier-retired rows, not re-published
-  const candidateOutcomes = { inserted: 0, existing: 0, writeErrors: 0, quarantinedAfterInsert: 0, copyOnOtherMarketplace: 0 }; // candidate mode only
+  const candidateOutcomes = { inserted: 0, existing: 0, writeErrors: 0, quarantinedAfterInsert: 0, copyOnOtherMarketplace: 0, pendingAbandoned: [], sanityBoundaryExcluded: 0 }; // candidate mode only
   let lastWriteOutcome = null;
 
   // STAGE 5 (reference-price sanity). If this card has a healthy supply of
@@ -465,6 +465,24 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
       `reference:price_unverified - ${row.name} / ${row.set} (${marketplaceId}): ` +
         `${refCandidates.length} matched listings all <= ${REF_SANITY_MAX_RATIO * 100}% of $${marketData.fallbackPrice.toFixed(2)} - skipping deal publication this cycle`
     );
+  }
+
+  // crossmatch-price-pilot-r1 - a candidate pass holds too few of the card's
+  // listings to establish the market-wide check above (it needs
+  // REF_SANITY_MIN_LISTINGS matched listings). For the pilot, offers AT OR
+  // BELOW that check's own boundary - REF_SANITY_MAX_RATIO of the fallback
+  // reference, on the same delivered-USD basis - are excluded instead, and with
+  // no positive fallback reference no offer can be bounded, so none is priced.
+  // This deliberately drops some genuine bargains. Normal scans are unchanged.
+  if (candidateMode) {
+    for (let i = rawListings.length - 1; i >= 0; i--) {
+      const l = rawListings[i];
+      const usd = toUsd((l.price ?? 0) + (l.shipping ?? 0), l.currency, rates);
+      if (!(marketData.fallbackPrice > 0 && usd > marketData.fallbackPrice * REF_SANITY_MAX_RATIO)) {
+        rawListings.splice(i, 1);
+        candidateOutcomes.sanityBoundaryExcluded++;
+      }
+    }
   }
 
   // A search result is a discovery sighting, not an availability check:
@@ -519,19 +537,25 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     // never leave old evidence attached to a new market_price. Merged in
     // place (not rebound) so the write below stays one object.
     if (await referenceColumnsReady(db)) Object.assign(core, referenceFor(core));
-    const written = candidateMode ? await insertNewSighting(db, core) : await writeDiscoverySighting(db, core);
+    // candidate mode: inserted HIDDEN (the pilot's pending review reason) and
+    // made visible only by a successful guarded finalisation after the
+    // cross-marketplace copy check (lib/listingAvailability.finalisePilotInsert)
+    const written = candidateMode
+      ? await insertNewSighting(db, { ...core, disqualified_reason: PILOT_PENDING_REASON })
+      : await writeDiscoverySighting(db, core);
     let { outcome } = written;
     const { error } = written;
-    // candidate mode: a copy another writer created on a DIFFERENT marketplace
-    // during the insert is invisible to the unique index - check right after
-    // (lib/listingAvailability.checkPilotInsertCopies)
     let copyElsewhere = false;
     if (candidateMode && outcome === "inserted") {
-      const copies = await checkPilotInsertCopies(db, { id: written.id, listingId: core.listing_id, cardId: row.justtcg_tcgplayer_id, language: row.language });
-      if (copies.quarantined || copies.otherCopies == null) {
+      const fin = await finalisePilotInsert(db, { id: written.id, listingId: core.listing_id, watchlistId: row.id, cardId: row.justtcg_tcgplayer_id, language: row.language });
+      if (fin.state === "quarantined") {
         outcome = "quarantined";
         candidateOutcomes.quarantinedAfterInsert++;
-      } else if (copies.otherCopies > 0) {
+      } else if (!fin.published) {
+        // hidden, recorded, never released automatically
+        outcome = "pending";
+        candidateOutcomes.pendingAbandoned.push({ id: written.id, listingId: core.listing_id, state: fin.state });
+      } else if (fin.otherCopies > 0) {
         copyElsewhere = true;
         candidateOutcomes.copyOnOtherMarketplace++;
       }
@@ -541,9 +565,10 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     if (candidateMode && outcome === "exists") candidateOutcomes.existing++;
     if (error) console.error(`Failed to upsert deal ${core.listing_id}:`, error.message);
     else if (outcome === "blocked") blockedRetired++;
-    else if (outcome === "exists" || outcome === "quarantined") {
-      // candidate mode: another writer owns this listing, or its copies
-      // disagree - nothing more is written for it
+    else if (outcome === "exists" || outcome === "quarantined" || outcome === "pending") {
+      // candidate mode: another writer owns this listing, its copies
+      // disagree, or finalisation did not complete - it stays hidden and
+      // nothing more (event, images, trust signals, counts) is written for it
     } else if (copyElsewhere) {
       // candidate mode: a same-identity copy appeared on another marketplace
       // during the insert - the row stays, but it is not new supply and the
@@ -1618,6 +1643,13 @@ export async function GET(request) {
       blocked: 0,
       quarantinedAfterInsert: 0,
       copyOnOtherMarketplace: 0,
+      // inserted hidden but not finalised this run (read/update failed, reason
+      // replaced by another process) - stay hidden, never auto-released
+      pendingAbandoned: [],
+      // pilot rows still pending from earlier invocations (e.g. a crash)
+      abandonedPendingBeforeRun: null,
+      // candidate offers at or below the market-wide sanity boundary, not priced
+      sanityBoundaryExcluded: 0,
       stoppedBy: null,
       error: null,
     };
@@ -1633,6 +1665,8 @@ export async function GET(request) {
         summary.stoppedBy = "lease_exhausted";
         return { summary, displaced };
       }
+      const earlier = await abandonedPilotPendingRows(db);
+      summary.abandonedPendingBeforeRun = earlier.rows ? { count: earlier.rows.length, rows: earlier.rows.slice(0, 10) } : { error: earlier.error };
       await Promise.race([crossMatchIndex, new Promise((resolve) => setTimeout(resolve, 5000).unref?.())]);
       const { cards, skipped } = crossMatch.rawCandidateCards({ excludeIdentities: new Set(watchlistRows.map(identity)) });
       const unstored = await withoutStoredListings(db, cards);
@@ -1692,6 +1726,10 @@ export async function GET(request) {
           summary.blocked += r.blockedRetired;
           summary.quarantinedAfterInsert += r.quarantinedAfterInsert;
           summary.copyOnOtherMarketplace += r.copyOnOtherMarketplace;
+          sub.pendingAbandoned = r.pendingAbandoned.length;
+          sub.sanityBoundaryExcluded = r.sanityBoundaryExcluded;
+          summary.pendingAbandoned.push(...r.pendingAbandoned);
+          summary.sanityBoundaryExcluded += r.sanityBoundaryExcluded;
         } catch (e) {
           // the attempt consumed this target's slot; stop, and let the
           // untouched tail be scanned normally

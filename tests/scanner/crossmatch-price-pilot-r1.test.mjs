@@ -209,7 +209,7 @@ test("CP-7 wiring and off switch", () => {
   assert.match(src, /const pilotConfigured = pilotRequested && pilotDisabledReason == null;/);
   assert.match(src, /const canReconcile = !candidateMode && \(listings\.length > 0 \|\| total !== null\);/);
   assert.match(src, /if \(crossMatch && !candidateMode\) \{/);
-  assert.match(src, /candidateMode \? await insertNewSighting\(db, core\) : await writeDiscoverySighting\(db, core\)/);
+  assert.match(src, /candidateMode\s*\n\s*\? await insertNewSighting\(db, \{ \.\.\.core, disqualified_reason: PILOT_PENDING_REASON \}\)\s*\n\s*: await writeDiscoverySighting\(db, core\)/);
   // normal targets keep exactly the existing call shape
   assert.match(src, /const r = await scanCardInMarketplace\(\s*row,\s*marketplaceId,\s*marketData,\s*db,\s*discountThreshold,\s*rates,\s*tier \|\| "manual",\s*crossMatch\s*\);/);
   assert.equal(pilot.PILOT_MAX_CARDS, 10);
@@ -270,39 +270,107 @@ test("CP-8 request bounds without pacing enforcement: a hard per-substitution at
   }
 });
 
-test("CP-9 concurrency guarantee: same-marketplace duplicates are atomic; cross-marketplace copies are checked right after insert", async () => {
+test("CP-9 concurrency guarantee: same-marketplace duplicates are atomic; cross-marketplace copies are checked before the row can be published", async () => {
   const schema = readFileSync(join(ROOT, "supabase/deals_v2_migration.sql"), "utf8");
   assert.match(schema, /create unique index if not exists deals_unique_listing\s+on deals \(source, marketplace, listing_id\);/);
-  const { checkPilotInsertCopies, PILOT_COPY_CONFLICT_REASON } = require(join(ROOT, "lib/listingAvailability.js"));
-  const seed = (other) => createMemoryDb({ deals: [{ id: 1, source: "ebay", marketplace: "EBAY_US", listing_id: "v1|7|0", is_active: true, disqualified_reason: null }, ...(other ? [{ id: 2, source: "ebay", marketplace: "EBAY_GB", listing_id: "v1|7|0", ...other }] : [])] });
-  const check = (db) => checkPilotInsertCopies(db, { id: 1, listingId: "v1|7|0", cardId: "c1", language: "english" });
+  const { finalisePilotInsert, PILOT_PENDING_REASON, PILOT_COPY_CONFLICT_REASON } = require(join(ROOT, "lib/listingAvailability.js"));
+  const pilotRow = { id: 1, source: "ebay", marketplace: "EBAY_US", listing_id: "v1|7|0", watchlist_id: "w1", is_active: true, disqualified_reason: PILOT_PENDING_REASON };
+  const seed = (other) => createMemoryDb({ deals: [{ ...pilotRow }, ...(other ? [{ id: 2, source: "ebay", marketplace: "EBAY_GB", listing_id: "v1|7|0", ...other }] : [])] });
+  const fin = (db) => finalisePilotInsert(db, { id: 1, listingId: "v1|7|0", watchlistId: "w1", cardId: "c1", language: "english" });
   const row = (db, id) => db.tables.deals.find((d) => d.id === id);
-  // no copy: untouched
+  // no copy: published (the exact pending reason cleared)
   let db = seed(null);
-  assert.deepEqual(await check(db), { otherCopies: 0, quarantined: false });
-  // same identity copy: untouched, reported as a copy
+  assert.deepEqual(await fin(db), { published: true, state: "published", otherCopies: 0 });
+  assert.equal(row(db, 1).disqualified_reason, null);
+  // same identity copy: published, reported as a copy
   db = seed({ card_tcgplayer_id: "c1", card_language: "english", is_active: true, disqualified_reason: null });
-  assert.deepEqual(await check(db), { otherCopies: 1, quarantined: false });
-  // held copy (identity quarantine) with the same identity: the pilot row is quarantined, the hold stays exactly as it was
+  assert.deepEqual(await fin(db), { published: true, state: "published", otherCopies: 1 });
+  // held copy with the same identity: pilot row quarantined, the hold untouched
   db = seed({ card_tcgplayer_id: "c1", card_language: "english", is_active: false, disqualified_reason: "review:held" });
-  assert.equal((await check(db)).quarantined, true);
+  assert.equal((await fin(db)).state, "quarantined");
   assert.equal(row(db, 1).disqualified_reason, PILOT_COPY_CONFLICT_REASON);
   assert.equal(row(db, 2).disqualified_reason, "review:held");
-  // availability-retired copy with the same identity is not a conflict
+  // availability-retired same-identity copy is not a conflict
   db = seed({ card_tcgplayer_id: "c1", card_language: "english", is_active: false, disqualified_reason: "availability:sold" });
-  assert.equal((await check(db)).quarantined, false);
-  // different printing, different language, unreadable identity: quarantined; the other row untouched
+  assert.equal((await fin(db)).published, true);
+  // different printing / language / unreadable identity: quarantined; the other row untouched
   for (const other of [{ card_tcgplayer_id: "c2", card_language: "english" }, { card_tcgplayer_id: "c1", card_language: "japanese" }, { card_tcgplayer_id: null, card_language: null }]) {
     db = seed({ ...other, is_active: true, disqualified_reason: null });
-    assert.equal((await check(db)).quarantined, true, JSON.stringify(other));
-    assert.equal(row(db, 2).disqualified_reason, null);
-    assert.equal(row(db, 2).is_active, true);
+    assert.equal((await fin(db)).state, "quarantined", JSON.stringify(other));
+    assert.deepEqual([row(db, 2).disqualified_reason, row(db, 2).is_active], [null, true]);
   }
-  // a failed read fails closed
-  const failing = { from: () => ({ select: () => ({ eq: async () => ({ data: null, error: { message: "down" } }) }), update: () => ({ eq: () => ({ is: () => ({ select: async () => ({ data: [{ id: 1 }], error: null }) }) }) }) }) };
-  assert.equal((await checkPilotInsertCopies(failing, { id: 1, listingId: "v1|7|0", cardId: "c1", language: "english" })).quarantined, true);
-  // a quarantined row is hidden by the display gate and never recoverable as an availability retirement
   const dq = require(join(ROOT, "lib/dealQuality.js"));
-  assert.equal(dq.isDisplayableDeal({ is_active: true, disqualified_reason: PILOT_COPY_CONFLICT_REASON }), false);
-  assert.ok(!PILOT_COPY_CONFLICT_REASON.startsWith("availability:"));
+  for (const reason of [PILOT_PENDING_REASON, PILOT_COPY_CONFLICT_REASON]) {
+    assert.equal(dq.isDisplayableDeal({ is_active: true, disqualified_reason: reason }), false);
+    assert.ok(!reason.startsWith("availability:"), "never recovered as an availability retirement");
+  }
+  // the residual is documented, not claimed away
+  assert.match(read("lib/listingAvailability.js"), /RESIDUAL \(not solved here\): a conflicting copy created on another\n\/\/ marketplace AFTER finalisation is not detected by the pilot/);
+});
+
+test("CP-10 publication waits for finalisation: hidden while pending; failed read, failed finalisation or a replaced reason keep it hidden, unpublished and recorded", async () => {
+  const on = run("on");
+  // a page read taken while each finalisation was pending: hidden by the reason alone, and not in the All deals inventory
+  assert.ok(on.pendingPageReads.length >= 3);
+  for (const r of on.pendingPageReads) {
+    assert.equal(r.displayableWhilePending, false, r.listing_id);
+    assert.equal(r.displayableSameRowWithoutReason, true, `${r.listing_id}: the pending reason is what hides it`);
+    assert.equal(r.inAllDealsInventoryWhilePending, 0);
+  }
+  const pilotListings = ["v1|820000000060|0", "v1|820000000160|0", "v1|820000000061|0"];
+  const expectedState = { "copy-read-fail": "pending_copy_read_failed", "finalise-fail": "pending_finalise_failed", replaced: "pending_reason_replaced" };
+  for (const mode of ["copy-read-fail", "finalise-fail", "replaced"]) {
+    const r = run(mode);
+    const p = r.response.crossMatchPilot;
+    assert.equal(p.inserted, 0, mode);
+    assert.equal(p.copyOnOtherMarketplace, 0, mode);
+    const abandoned = p.pendingAbandoned.filter((x) => pilotListings.includes(x.listingId));
+    assert.deepEqual(abandoned.map((x) => x.listingId).sort(), [...pilotListings].sort(), mode);
+    assert.ok(abandoned.every((x) => x.state === expectedState[mode]), mode);
+    // no publication side effects: no discovery event, no image or trust-signal update for those rows
+    assert.ok(!r.discoveryEvents.some((e) => e.search_type === "crossmatch"), mode);
+    assert.ok(!r.dealWrites.some((w) => pilotListings.includes(w.listing_id) && w.op === "update" && w.values && ("image_urls" in w.values || "seller_feedback_score" in w.values)), mode);
+    const rows = r.dealsAfter.filter((d) => pilotListings.includes(d.listing_id) && d.marketplace === "EBAY_US");
+    assert.equal(rows.length, 3);
+    for (const row of rows) assert.equal(row.reason, mode === "replaced" ? "review:manual_hold" : "review:crossmatch_pending", `${mode}: stays hidden; another process's reason is never cleared`);
+    assert.equal(r.jobRuns, 1, `${mode}: the invocation still settles`);
+  }
+  // an earlier invocation's pending row is reported and left exactly as it was
+  const earlier = on.response.crossMatchPilot.abandonedPendingBeforeRun;
+  assert.equal(earlier.count, 1);
+  assert.equal(earlier.rows[0].listingId, "v1|820000009970|0");
+  assert.equal(on.dealsAfter.find((d) => d.id === 9170).reason, "review:crossmatch_pending");
+  // same-marketplace conflict protection unchanged: the concurrent writer's row, untouched
+  const c = on.dealsAfter.find((d) => d.listing_id === "v1|820000000063|0");
+  assert.deepEqual([c.watchlist_id, c.market_price, c.reason ?? null], ["sweep-writer", 777, null]);
+  // unit: another process's reason, and a row whose card a normal sighting changed while pending
+  const { finalisePilotInsert, PILOT_PENDING_REASON } = require(join(ROOT, "lib/listingAvailability.js"));
+  let db = createMemoryDb({ deals: [{ id: 1, source: "ebay", marketplace: "EBAY_US", listing_id: "v1|8|0", watchlist_id: "w1", disqualified_reason: "review:language_unverified" }] });
+  assert.deepEqual(await finalisePilotInsert(db, { id: 1, listingId: "v1|8|0", watchlistId: "w1", cardId: "c1", language: "english" }), { published: false, state: "pending_reason_replaced", otherCopies: 0 });
+  assert.equal(db.tables.deals[0].disqualified_reason, "review:language_unverified");
+  db = createMemoryDb({ deals: [{ id: 1, source: "ebay", marketplace: "EBAY_US", listing_id: "v1|8|0", watchlist_id: "w-sweep", disqualified_reason: PILOT_PENDING_REASON }] });
+  assert.equal((await finalisePilotInsert(db, { id: 1, listingId: "v1|8|0", watchlistId: "w1", cardId: "c1", language: "english" })).published, false, "never publishes a row another writer changed");
+  assert.equal(db.tables.deals[0].disqualified_reason, PILOT_PENDING_REASON);
+  // route order of operations
+  const src = read("app/api/refresh-deals/route.js");
+  assert.match(src, /insertNewSighting\(db, \{ \.\.\.core, disqualified_reason: PILOT_PENDING_REASON \}\)/);
+  assert.match(src, /else if \(outcome === "exists" \|\| outcome === "quarantined" \|\| outcome === "pending"\) \{/);
+  assert.match(src, /if \(!candidateMode \|\| lastWriteOutcome === "inserted"\)\s*\n\s*await enrichDealTrustSignals\(/);
+});
+
+test("CP-11 conservative sanity boundary for candidates only: at or below 55% of the fallback reference is not priced; just above is; normal scans unchanged", () => {
+  const on = run("on");
+  const p = on.response.crossMatchPilot;
+  const s60 = p.substitutions.find((s) => s.pilotCard === "x-60");
+  assert.equal(s60.sanityBoundaryExcluded, 1);
+  assert.equal(p.sanityBoundaryExcluded, 1);
+  assert.ok(!on.dealsAfter.some((d) => d.listing_id === "v1|820000000260|0"), "$220 = exactly 55% of $400: excluded");
+  assert.equal(on.dealsAfter.find((d) => d.listing_id === "v1|820000000160|0").reason ?? null, null, "$224 = 56%: priced and published");
+  assert.equal(s60.browseAttempts, 2, "no condition check is spent on the excluded offer");
+  // normal targets at 37.5% of the reference are still written by the normal path (its own five-listing rule applies)
+  assert.ok(on.dealsAfter.some((d) => d.listing_id === "v1|820000000000|0"));
+  assert.deepEqual(run("off").calls, { getConditionPrices: 60, searchListings: 60, getRawListingDetail: 4 });
+  const src = read("app/api/refresh-deals/route.js");
+  assert.match(src, /const REF_SANITY_MIN_LISTINGS = 5;\n  const REF_SANITY_MAX_RATIO = 0\.55;/, "normal constants unchanged");
+  assert.match(src, /const usd = toUsd\(\(l\.price \?\? 0\) \+ \(l\.shipping \?\? 0\), l\.currency, rates\);\n      if \(!\(marketData\.fallbackPrice > 0 && usd > marketData\.fallbackPrice \* REF_SANITY_MAX_RATIO\)\) \{/, "same delivered-USD basis as the normal check");
 });

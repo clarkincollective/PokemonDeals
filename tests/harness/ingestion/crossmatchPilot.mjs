@@ -1,6 +1,6 @@
 // crossmatch-price-pilot-r1 - the REAL tier=allocated route offline over one
 // synthetic fixture (not production evidence), pilot off vs on.
-//   node --import ./tests/harness/ingestion/register.mjs tests/harness/ingestion/crossmatchPilot.mjs <off|on|insufficient|fail|fail-mid|guard|observe|quota-unknown>
+//   node --import ./tests/harness/ingestion/register.mjs tests/harness/ingestion/crossmatchPilot.mjs <off|on|insufficient|fail|fail-mid|guard|observe|quota-unknown|copy-read-fail|finalise-fail|replaced>
 //
 // Fixture: 71 English Base Set cards. ?targets=60: the allocator puts the 50
 // most overdue cards (0-49) in the least-recently-searched lane and the next
@@ -8,7 +8,10 @@
 // searched yesterday and are not targeted. Every search returns the same page:
 //   card 0 new listing, card 1 stored active (re-sighting), card 50 (exploit tail) new listing
 //   card 55 listing (a target's identity: never a pilot candidate)
-//   card 60 two unstored listings + an old active stored listing of card 60 (must never be expired by the pilot)
+//   card 60 three unstored listings - $300, $224 (56% of the $400 reference) and $220 (exactly 55%: at the
+//           conservative boundary, never priced) - + an old active stored listing (must never be expired by the pilot)
+//   (pilot candidate listings are priced $300 unless stated; target listings $150)
+//   a pilot row left pending by an earlier invocation (reported, never released)
 //   card 61 unstored; a concurrent writer creates a SAME-identity copy on EBAY_GB during the pilot's insert
 //   card 62 unstored; a concurrent writer creates a DIFFERENT-identity copy on EBAY_GB during the pilot's insert
 //   card 63 unstored, but a concurrent writer inserts it on EBAY_US just before the pilot's insert
@@ -92,19 +95,20 @@ const full = [
   L("820000000001", t(1)),
   L("820000000050", t(50)),
   L("820000000055", t(55)),
-  L("820000000060", t(60)),
-  L("820000000160", `${watchlist[60].name} 61/102 Base Set Holo Pokemon Card Near Mint`),
-  L("820000000061", t(61)),
-  L("820000000062", t(62)),
-  L("820000000063", t(63)),
+  L("820000000060", t(60), { price: 300 }),
+  L("820000000160", `${watchlist[60].name} 61/102 Base Set Holo Pokemon Card Near Mint`, { price: 224 }),
+  L("820000000260", `${watchlist[60].name} 61/102 Base Set Holo Card NM`, { price: 220 }),
+  L("820000000061", t(61), { price: 300 }),
+  L("820000000062", t(62), { price: 300 }),
+  L("820000000063", t(63), { price: 300 }),
   L("820000000064", t(64)),
   L("820000000065", t(65)),
   L("820000000066", `${watchlist[66].name} 67/102 Base Set Holo PSA 9`, { grader: "PSA", grade: "9" }),
   L("820000000067", t(67), { price: 390 }),
   L("820000000068", "Vulpix 69/102 Base Set Shadowless Holo Rare Pokemon Card"),
-  L("820000000069", t(69)),
+  L("820000000069", t(69), { price: 300 }),
 ];
-const insufficient = full.filter((l) => !/82000000006[0-3]|820000000160|820000000069/.test(l.listingId));
+const insufficient = full.filter((l) => !/82000000006[0-3]|820000000[12]60|820000000069/.test(l.listingId));
 const page = mode === "insufficient" ? insufficient : full;
 const CONCURRENT = "v1|820000000063|0";
 
@@ -114,14 +118,50 @@ const deals = [
   stored(9160, "820000009960", "EBAY_US", { is_active: true, watchlist_id: "w60", card_tcgplayer_id: cardId(60), last_seen_at: new Date(NOW - 5 * DAY).toISOString(), title: "old card 60 listing" }),
   stored(9164, "820000000064", "EBAY_GB", { is_active: true, watchlist_id: "w64", card_tcgplayer_id: cardId(64) }),
   stored(9165, "820000000065", "EBAY_US", { disqualified_reason: "identity:collector_number_conflict", watchlist_id: "w-other", card_tcgplayer_id: "x-other" }),
+  // left pending by an earlier invocation that crashed between insert and finalisation
+  stored(9170, "820000009970", "EBAY_US", { is_active: true, disqualified_reason: "review:crossmatch_pending", watchlist_id: "w70", card_tcgplayer_id: cardId(70), first_seen_at: new Date(NOW - 2 * 3600_000).toISOString(), title: "earlier pending pilot row" }),
 ];
 
 const db = createMemoryDb({ watchlist, card_catalog: catalog, deals, discovery_events: [], ebay_job_runs: [], scan_target_state: state, scan_allocation_runs: [], catalog_snapshot: [], deal_images: [] }, { unique: { catalog_snapshot: ["kind"] } });
 const realFrom = db.from.bind(db);
 const concurrent = { inserted: false };
+const PENDING = "review:crossmatch_pending";
+const dq = require(join(REPO, "lib", "dealQuality.js"));
+const inventory = await import(pathToFileURL(join(REPO, "lib", "allDealsInventory.js")).href);
+const pendingPageReads = [];
+const failWith = (chain, message) => { chain.then = (resolve, reject) => Promise.resolve({ data: null, error: { message } }).then(resolve, reject); };
 db.from = (table) => {
   const chain = realFrom(table);
   if (table !== "deals") return chain;
+  const select = chain.select;
+  chain.select = (cols, opts) => {
+    const r = select(cols, opts);
+    if (mode === "copy-read-fail" && String(cols).includes("card_language")) failWith(chain, "injected copy read failure");
+    return r;
+  };
+  const update = chain.update;
+  chain.update = (values) => {
+    if (values && Object.prototype.hasOwnProperty.call(values, "disqualified_reason") && values.disqualified_reason === null) {
+      // a page read while this finalisation is still pending
+      for (const row of db.tables.deals.filter((d) => d.disqualified_reason === PENDING && d.id !== 9170)) {
+        const w = watchlist.find((x) => x.id === row.watchlist_id);
+        const full = { ...row, card_name: w?.name, card_set: w?.set, card_language: "english", card_tcgplayer_id: w?.justtcg_tcgplayer_id, first_seen_at: new Date().toISOString(), exact_verified_at: new Date().toISOString(), image_verdict: "CANONICAL_FALLBACK" };
+        pendingPageReads.push({
+          listing_id: row.listing_id,
+          displayableWhilePending: dq.isDisplayableDeal(full),
+          displayableSameRowWithoutReason: dq.isDisplayableDeal({ ...full, disqualified_reason: null }),
+          inAllDealsInventoryWhilePending: inventory.encodeMarketplaceInventory([full], { marketplace: full.marketplace }).rows.length,
+        });
+      }
+      if (mode === "replaced") {
+        for (const row of db.tables.deals.filter((d) => d.disqualified_reason === PENDING && d.id !== 9170)) row.disqualified_reason = "review:manual_hold";
+      }
+      const r = update(values);
+      if (mode === "finalise-fail") failWith(chain, "injected finalisation failure");
+      return r;
+    }
+    return update(values);
+  };
   const upsert = chain.upsert;
   chain.upsert = (values, opts) => {
     // a concurrent sweep creates the same listing between the pilot's recheck and its insert
@@ -172,6 +212,7 @@ process.stdout.write(JSON.stringify({
   dealWrites: db.writes.filter((w) => w.table === "deals").map((w) => ({ op: w.op, listing_id: w.row.listing_id, watchlist_id: w.row.watchlist_id, values: w.values ?? null })),
   discoveryEvents: db.tables.discovery_events.map((e) => ({ listing: e.listing_key ?? e.listing_id, search_type: e.search_type, card: e.card_tcgplayer_id })),
   stateChanged: Object.keys(after).filter((k) => JSON.stringify(after[k]) !== JSON.stringify(before[k])).sort(),
+  pendingPageReads,
   jobRuns: db.tables.ebay_job_runs.length,
   allocationRuns: db.tables.scan_allocation_runs.length,
   observationRecords: db.tables.catalog_snapshot.filter((r) => String(r.kind).startsWith("crossmatch_observation:")).map((r) => ({ pilot: r.data.pilot ?? null })),
