@@ -135,6 +135,14 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
   const shippingNative = shippingConfirmed ? ship.amount : null;
   const shippingUsd = shippingConfirmed && usdTotal > 0 && total > 0 ? shippingNative * (usdTotal / total) : null;
 
+  // Price-drop lane: the item price this listing dropped from (listing
+  // currency, deals.previous_price via the deals_track_price_drop trigger).
+  // Shown only while the row still carries the drop; the trigger clears it
+  // the moment the price rises again.
+  const prevNative = Number(deal.previous_price);
+  const priceDropped = deal.price_dropped_at != null && Number.isFinite(prevNative) && prevNative > Number(deal.price);
+  const prevUsd = priceDropped && usdTotal > 0 && total > 0 ? prevNative * (usdTotal / total) : null;
+
   // 17C.7: a listing whose discount has no evidenced reference for this
   // exact product and condition renders PLAIN - price, shipping and the
   // release/seller-claim notes, with no badge, strikethrough, saving or
@@ -310,6 +318,14 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                 ship.note
               )}
             </p>
+            {/* deal-first R1: a real recorded earlier price, stated plainly -
+                never a struck-through anchor */}
+            {priceDropped && (
+              <p className="tnum mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                Seller reduced the item price from{" "}
+                <Price usd={prevUsd} native={{ amount: prevNative, currency: nativeCurrency }} approxPrefix="" className="font-medium text-zinc-700 dark:text-zinc-300" />
+              </p>
+            )}
           </div>
         )}
 

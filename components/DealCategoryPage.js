@@ -168,6 +168,9 @@ export default async function DealCategoryPage({ slug }) {
           hubCounts={hubCounts}
           emptyLabel={`No ${cat.h1.toLowerCase()} match these filters right now. Try clearing a filter, or check back after the next scan.`}
           validSetSlugs={validSetSlugs}
+          // the category's own default order (ending soon, newest drop) must
+          // survive a client-side filter/page fetch, not fall back to newest
+          defaultSort={cat.defaultSort ?? "newest"}
           // The category's own preset already fixes this dimension - offer
           // it to FilterBar as a locked, non-interactive fact rather than
           // a Raw/Graded pill a visitor could click into a silent
