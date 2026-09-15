@@ -32,6 +32,7 @@ import {
   retireForAvailability,
   recoveryDecision,
   retirementInvalidationPlan,
+  surfaceInvalidationPlan,
   expireTags,
 } from "@/lib/listingAvailability";
 
@@ -517,7 +518,9 @@ export async function GET(request) {
   // provider call happens here - each expired card page re-renders lazily
   // on its next request (see lib/listingAvailability for the cost note).
   const plan = retirementInvalidationPlan(retiredRows);
-  const invalidation = { cards: plan.cards, deals: plan.deals, ...expireTags(revalidateTag, plan.tags) };
+  // cache-retire-r1 - plus the list / set / species surfaces those rows appear on
+  const surfaces = surfaceInvalidationPlan(retiredRows);
+  const invalidation = { cards: plan.cards, deals: plan.deals, sets: surfaces.sets, species: surfaces.species, ...expireTags(revalidateTag, [...plan.tags, ...surfaces.tags]) };
 
   const after = await getBrowseRateLimit();
   setQuotaSnapshot({ remainingEnd: after?.remaining ?? null });

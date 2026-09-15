@@ -123,6 +123,21 @@ export async function rollbackQuarantine(db, prior, { confirm }) {
   return { expected: prior.rows.length, restored, results };
 }
 
+// cache-retire-r1 - after a successful write, queue the affected surfaces
+// (lists, All deals chunk, set, species, the deal's own page) for the
+// sweep-stale-deals cron to expire; scripts cannot expire Next caches
+// themselves. Only rows actually written are queued.
+export async function queueSurfaceInvalidation(db, manifest, dealIds, source) {
+  const L = require(join(REPO, "lib", "listingAvailability.js"));
+  const byId = new Map(manifest.candidates.map((c) => [Number(c.dealId), c]));
+  const rows = [...new Set(dealIds.map(Number))]
+    .map((id) => byId.get(id))
+    .filter(Boolean)
+    .map((c) => ({ id: c.dealId, marketplace: c.marketplace, card_name: c.storedIdentity.cardName, card_set: c.storedIdentity.cardSet }));
+  const plan = L.surfaceInvalidationPlan(rows, { dealPages: true });
+  return L.queueCacheInvalidation(db, plan.tags, { source });
+}
+
 async function main() {
   const arg = (name) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split("=").slice(1).join("=");
   const has = (name) => process.argv.includes(`--${name}`);
@@ -137,6 +152,8 @@ async function main() {
   if (arg("rollback")) {
     const prior = JSON.parse(readFileSync(arg("rollback"), "utf8"));
     const out = await rollbackQuarantine(db, prior, { confirm: arg("confirm") });
+    const restoredIds = out.results.filter((r) => r.restored > 0).map((r) => r.dealId);
+    if (restoredIds.length) out.cacheInvalidation = await queueSurfaceInvalidation(db, manifest, restoredIds, "unown-identity-quarantine:rollback");
     console.log(JSON.stringify(out, null, 1));
     process.exit(out.restored === out.expected ? 0 : 2);
   }
@@ -152,7 +169,9 @@ async function main() {
   if (!priorOut) throw new Error("--apply requires --prior-out=<file> for rollback");
   if (existsSync(priorOut)) throw new Error(`${priorOut} exists; refusing to overwrite a prior-values file`);
   const out = await applyQuarantine(db, plan, { confirm: arg("confirm"), priorOut });
-  console.log(JSON.stringify({ expected: out.expected, written: out.written, results: out.results }, null, 1));
+  const writtenIds = out.results.filter((r) => r.updated > 0).map((r) => r.dealId);
+  const cacheInvalidation = writtenIds.length ? await queueSurfaceInvalidation(db, manifest, writtenIds, "unown-identity-quarantine:apply") : null;
+  console.log(JSON.stringify({ expected: out.expected, written: out.written, results: out.results, cacheInvalidation }, null, 1));
   process.exit(out.written === out.expected ? 0 : 2);
 }
 

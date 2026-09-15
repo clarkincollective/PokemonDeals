@@ -263,7 +263,7 @@ test("AD-13. /deals is the All deals page: canonical unchanged, no region redire
 test("AD-14. loader, API and grid wiring", () => {
   const deals = read("lib/deals.js");
   assert.match(deals, /unstable_cache\(fetchAllDealsMarketplaceUncached, \["all-deals-inventory-v2"\], \{\s*revalidate: POOL_REVALIDATE_SECONDS/);
-  const reader = deals.slice(deals.indexOf("async function fetchAllDealsMarketplaceUncached"), deals.indexOf("export const fetchAllDealsMarketplace"));
+  const reader = deals.slice(deals.indexOf("async function fetchAllDealsMarketplaceUncached"), deals.indexOf("export function fetchAllDealsMarketplace"));
   assert.match(reader, /\.eq\("is_active", true\)\s*\.eq\("marketplace", marketplace\)/);
   assert.doesNotMatch(reader.replace(/\/\/[^\n]*/g, ""), /language/, "no language pre-filter: every card language reaches the real display gate");
   const route = read("app/api/deals-page/route.js");

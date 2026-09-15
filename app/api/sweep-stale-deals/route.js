@@ -1,4 +1,6 @@
+import { revalidateTag } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { surfaceInvalidationPlan, expireTags, drainCacheInvalidationQueue } from "@/lib/listingAvailability";
 import { FRESHNESS_TTL_HOURS } from "@/lib/dealQuality";
 import { EXPIRED_BOOST_DAYS } from "@/lib/scanAllocator";
 
@@ -49,11 +51,17 @@ export async function GET(request) {
   const EXPIRE_BOOST_CAP = 150;
   const boostPairs = new Map(); // `${cardId}|${mkt}` -> true
 
-  async function deactivate(label, applyFilters) {
+  // cache-retire-r1 - rows this sweep retired on CONFIRMED evidence (a stored
+  // auction end time in the past). Freshness-TTL expiries are not a sale
+  // confirmation and keep the normal cache windows.
+  const confirmedRetired = [];
+
+  async function deactivate(label, applyFilters, { confirmed = false } = {}) {
     let q = db.from("deals").update({ is_active: false }).eq("is_active", true);
     q = applyFilters(q);
-    const { data, error } = await q.select("id, card_tcgplayer_id, marketplace, discount_pct, market_price");
+    const { data, error } = await q.select("id, watchlist_id, card_tcgplayer_id, marketplace, discount_pct, market_price, card_name, card_set");
     if (error) return { label, error: error.message };
+    if (confirmed) confirmedRetired.push(...(data ?? []));
     for (const d of data ?? []) {
       if (boostPairs.size >= EXPIRE_BOOST_CAP) break;
       if (
@@ -69,8 +77,10 @@ export async function GET(request) {
   }
 
   // 1. ended auctions - zero ambiguity, retire immediately.
-  results.endedAuctions = await deactivate("endedAuctions", (q) =>
-    q.eq("listing_type", "AUCTION").not("auction_end_at", "is", null).lt("auction_end_at", nowIso)
+  results.endedAuctions = await deactivate(
+    "endedAuctions",
+    (q) => q.eq("listing_type", "AUCTION").not("auction_end_at", "is", null).lt("auction_end_at", nowIso),
+    { confirmed: true }
   );
 
   // 2a. high tier: market_price>=300 OR discount_pct>=0.70, last_seen_at > 72h
@@ -114,6 +124,14 @@ export async function GET(request) {
     }
   }
 
+  // cache-retire-r1 - expire the surfaces (lists, All deals chunk, set, species)
+  // and each retired deal's own page (renders its unavailable state: no
+  // pricing request) for confirmed retirements, then any tags queued by
+  // remediation scripts. No provider call.
+  const surfaces = surfaceInvalidationPlan(confirmedRetired, { dealPages: true });
+  const invalidation = { ...expireTags(revalidateTag, surfaces.tags), sets: surfaces.sets, species: surfaces.species, deals: surfaces.deals };
+  const queued = await drainCacheInvalidationQueue(db, revalidateTag);
+
   const total = Object.values(results).reduce((s, r) => s + (r.count ?? 0), 0);
-  return Response.json({ ok: true, sweptAt: nowIso, total, results, expiredDealBoost: boosted });
+  return Response.json({ ok: true, sweptAt: nowIso, total, results, expiredDealBoost: boosted, invalidation, queuedInvalidation: queued });
 }

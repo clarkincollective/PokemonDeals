@@ -39,6 +39,7 @@ import {
   writeDiscoverySighting,
   retireForAvailability,
   retirementInvalidationPlan,
+  surfaceInvalidationPlan,
   expireTags,
 } from "@/lib/listingAvailability";
 
@@ -458,7 +459,9 @@ export async function GET(request) {
   // 5b. Expire the caches of any card whose live row was just retired
   //     above (deduplicated by card; no provider call here).
   const retirePlan = retirementInvalidationPlan(retiredRows);
-  const invalidation = { cards: retirePlan.cards, deals: retirePlan.deals, ...expireTags(revalidateTag, retirePlan.tags) };
+  // cache-retire-r1 - plus the list / set / species surfaces those rows appear on
+  const surfaces = surfaceInvalidationPlan(retiredRows);
+  const invalidation = { cards: retirePlan.cards, deals: retirePlan.deals, sets: surfaces.sets, species: surfaces.species, ...expireTags(revalidateTag, [...retirePlan.tags, ...surfaces.tags]) };
 
   // 6. Expire feed-ONLY deals that have been off the board past the grace
   //    window. Deals also seen by the scanner (discovery_source

@@ -5299,3 +5299,53 @@ A missing API key still throws before any request and is not counted. Results, t
 - Attempts are not credits: no cost or billing headroom can be inferred from request counts alone.
 
 **Checks:** `ppt-telemetry-r1` 10 / 10: success; 429 / failure / network classification; paced retries counted per attempt with identical fetch count and result; telemetry failure and hung write; job-run aggregation; consumer buckets; wiring; after-response scheduling through the request-context `waitUntil` (the caller gets its result while the write is still blocked; a failing scheduled write is swallowed); concurrent tag isolation; prune scope. eBay telemetry suites (isolation, 14R) pass. Before the after-response correction: 27 related suites 440 tests, 8 fail (7 pre-existing baseline, 1 search-page pin fixed by tagging `/search` at the page entry; search suites 31 / 31). `next build` exit 0.
+
+## Cache propagation of confirmed retirements (CACHE-RETIRE-R1), 2026-09-15 (local review, not deployed)
+**Gap (traced).** Detection delay is unchanged: a sale is only known after a normal availability check. The cache delay after a confirmed database change came from two independent stale-while-revalidate layers:
+- Data caches (`unstable_cache`): pools and All deals 180 s, set / species catalogues 900 s. In this Next version a regenerating ISR page waits for fresh data only when the data entry is already stale; an entry still inside its window is reused.
+- Page ISR: homepage dynamic, `/deals` 600 s, category pages via `fetchDealsPage`, `/sets/[slug]` and `/pokemon/[slug]` 3600 s, `/cards/[slug]` 3600 s, `/deals/[id]` 600 s.
+- Deal 38057 (02:49:34): `/sets/ex-unseen-forces` regenerated at ~02:55 from set-catalogue data built before the quarantine (still inside 900 s) and then cached that HTML for another hour; worst case about data window + page window (~75 min).
+
+**Existing invalidation (kept):** verify-deals and ingest-feed already expire `card-offers:*` (card offers data + `/cards/[slug]` HTML) and `deal-detail:<id>` (deal data + `/deals/[id]` HTML) for rows they retire. Nothing expired the list, All deals, set or species surfaces, and sweep-stale-deals, per-card expiry and remediation scripts expired nothing.
+
+**Correction.** Surface tags on the cached loaders (Next copies them onto every page ISR entry that read them, so data and page expire together), expired with `{ expire: 0 }` after successful visibility-changing writes, deduplicated per invocation:
+- `deal-lists`: `fetchHomepageFlagshipDeals`, `fetchBestFinds`, `fetchAuctionsEndingSoon`, `fetchDealsPool`, `fetchFreshFinds`, `fetchHomepageLanes`, and `fetchDealsPage` (homepage grid, category and latest-release presets).
+- `all-deals:<marketplace>`: `fetchAllDealsMarketplace` (`/deals`, `/api/deals-page` kind all).
+- `set-deals:<set>`: `fetchSetCatalog`, `fetchSetDealsPage`, and the single-set `fetchDealsPage` sample in `/sets/[slug]` metadata.
+- `species-deals:<species>`: `fetchSpeciesCatalog`, `fetchSpeciesDealsPage`, `fetchSpeciesDealStats`.
+- Not tagged: `fetchRelatedActiveDeals` (on active deal pages, whose re-render requests pricing), hubs / aggregates (counts), sealed surfaces, market-data pages.
+
+**Which confirmed changes now propagate where:**
+
+| Confirmed change (write path) | Lists / homepage / categories | All deals | Set + species pages | Deal page | Card page |
+|---|---|---|---|---|---|
+| verify-deals SOLD / NOT_FOUND / auction re-priced below floor, recovery reactivation | new | new | new | existing | existing |
+| ingest-feed sold on lookup | new | new | new | existing | existing |
+| sweep-stale-deals ended auction (stored end time passed) | new | new | new | new (`deal-detail`) | not included |
+| remediation script quarantine / rollback (`unownIdentityQuarantine.mjs`), queued, drained by sweep-stale-deals | new | new | new | new (`deal-detail`) | not included |
+
+Not propagated (normal cache windows): freshness-TTL expiries and per-card grace expiries (not sale confirmations), ingest-feed feed-only grace expiry, image / visual-authenticity screening verdicts, the older remediation scripts (integrity-r1, language mismatch, review hold), sealed deals.
+
+**Safeguards.** Tags come only from rows whose write succeeded (verify-deals pushes a row only without a write error; `retireForAvailability` returns only rows it updated). UNKNOWN verdicts, failed provider requests and failed writes add nothing. Quarantine reasons and guarded writes are unchanged. `RETIRE_RETURN_COLS` now also returns `marketplace, card_name, card_set, card_language` so ingest-feed can name the surfaces. Cache invalidation makes no eBay or PPT request.
+
+**Remediation scripts.** Scripts run outside Next and cannot expire tags. `queueCacheInvalidation` inserts one `catalog_snapshot` row `cache_invalidation:<time>:<random>` with the affected tags after a successful write (only rows actually written); the authenticated `sweep-stale-deals` cron (every 30 min) expires each queued tag once and deletes only the rows it read. No public purge endpoint.
+
+**Expected visibility delay after a confirmed write:**
+- verify-deals / ingest-feed / sweep-stale-deals ended auctions: expired at the end of that invocation; the next request to an affected page regenerates it from fresh data. Remaining stale serve: a request already rendering, or an edge copy, at the moment of expiry.
+- Script quarantine: up to the next sweep-stale-deals run (≤ 30 min), then as above.
+- Card pages for ended auctions and script quarantines: unchanged (card offers data 180 s, page ISR 3600 s, so up to ~1 h).
+
+**Rendering and pricing-request implications:**
+- Lists, All deals, set and species pages: regeneration reads only the database; no pricing request. `deal-lists` expiry re-renders the homepage grid, category and latest-release pages and best finds (at most once per verify-deals / ingest-feed / sweep invocation that retired something).
+- Deal pages (`deal-detail`): a retired deal renders its unavailable or redirect state, which requests no pricing (`loadPriceAnalysis` is only reached for an active deal).
+- Card pages: every regeneration calls `loadPriceAnalysis` (300 s cache), so an earlier regeneration can add one PokemonPriceTracker request per card page. This is already the behaviour of the existing verify-deals / ingest-feed card tags; this release does NOT add card-page expiry to the new paths. Natural PPT telemetry after the 25816d7 deploy (which regenerates every page) recorded 208 `page:cards` `getFullPriceAnalysis` attempts in ~19 min.
+- `fetchRelatedActiveDeals` is deliberately untagged so list expiry never re-renders active deal pages.
+
+**Offline verification** (`tests/harness/cache/retirementScenario.mjs`: real verify-deals and sweep-stale-deals handlers, real `fetchSetCatalog` and `fetchAllDealsPage` loaders, in-memory database, a tag-aware model of Next's cache read from `node_modules/next`, providers stubbed):
+- A database-only quarantine is still served by the set page and All deals (the 38057 gap).
+- verify-deals SOLD removes the offer from both; the UNKNOWN row and a SOLD whose write fails stay, and contribute no tags; same-set and other-set listings stay.
+- A queued script quarantine stays visible until sweep-stale-deals drains the queue, then disappears; the queue is emptied; the reason is preserved.
+- sweep-stale-deals expires surfaces for an ended auction and nothing for a freshness expiry; the only provider calls in the scenario are verify-deals' own eBay checks.
+- The model is not Next itself; the tag-to-page copy and blocking regeneration are taken from Next 16's `unstable-cache.js` and `revalidate.js`.
+
+**Checks:** `cache-retire-r1` 7 / 7; 64 related suites 1,107 tests, failures all in the pre-existing baseline after updating two structural anchors (`all-deals-r1` AD-14, `r6-category-currency`) to the new per-call wrappers; `next build` exit 0.

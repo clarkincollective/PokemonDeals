@@ -8,7 +8,7 @@ import { planDealFilters } from '../../lib/dealFilters.js';
 // No Next/provider imports or credentials are loaded.
 const source = readFileSync(new URL('../../lib/deals.js', import.meta.url), 'utf8');
 const start = source.indexOf('async function fetchDealsPageUncached(');
-const end = source.indexOf('export const fetchDealsPage =', start);
+const end = source.indexOf('export function fetchDealsPage(', start); // cache-retire-r1: a tagged per-call wrapper
 assert.ok(start > 0 && end > start);
 const rows = [
   { id: 1, is_active: true, card_language: 'english', total_price: 40, total_price_usd: 20 },
