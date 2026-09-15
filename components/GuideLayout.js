@@ -7,6 +7,14 @@ import { getGuide, GUIDES_PUBLISHED } from "@/lib/guides";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
+// "2026-09-16" -> "16 September 2026", rendered from the fixed registry
+// date at build time (never from the clock).
+function formatGuideDate(iso) {
+  const [y, m, d] = String(iso).split("-").map(Number);
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  return `${d} ${months[m - 1]} ${y}`;
+}
+
 function headingText(children) {
   return Children.toArray(children).map(child => isValidElement(child) ? headingText(child.props.children) : String(child)).join("");
 }
@@ -42,13 +50,16 @@ export default function GuideLayout({ slug, children }) {
   // A guide's own truthful publish date when it has one, else the
   // original-batch default. Never a build/deploy timestamp.
   const published = g.published ?? GUIDES_PUBLISHED;
+  // `updated`: the date a guide's facts were last checked (release guides
+  // carry one); it is shown on the page and is the schema's dateModified.
+  const updated = g.updated ?? published;
   const articleJsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: g.title,
     description: g.blurb,
     datePublished: published,
-    dateModified: published,
+    dateModified: updated,
     author: { "@id": `${SITE_URL}/#organization` },
     publisher: { "@id": `${SITE_URL}/#organization` },
     mainEntityOfPage: `${SITE_URL}/guides/${slug}`,
@@ -69,6 +80,11 @@ export default function GuideLayout({ slug, children }) {
           ← All guides
         </Link>
         <h1 className="mt-4 text-3xl font-bold tracking-tight text-black dark:text-zinc-50">{g.title}</h1>
+        {g.updated && (
+          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+            Published {formatGuideDate(published)} · Last checked against the official sources {formatGuideDate(updated)}
+          </p>
+        )}
         {headings.length > 1 && (
           <details className="mt-5 rounded-xl border border-zinc-200 bg-white px-4 dark:border-zinc-800 dark:bg-zinc-950">
             <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-zinc-800 dark:text-zinc-200">In this guide</summary>

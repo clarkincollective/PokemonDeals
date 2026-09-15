@@ -304,6 +304,14 @@ export default async function LatestReleasesPage() {
               </li>
             </ul>
             <div className="mt-5 flex flex-wrap gap-3">
+              <Link
+                href="/guides/pokemon-30th-celebration-guide"
+                data-analytics-click="guides_research_clicked"
+                data-analytics-props={JSON.stringify({ section: "latest_identify", content_id: "pokemon-30th-celebration-guide", placement: "latest_releases" })}
+                className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-600 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-red-600 dark:hover:text-white"
+              >
+                30th Celebration collector&apos;s guide →
+              </Link>
               {setHref("ME: 30th Celebration", validSetSlugs, slugifySet) && (
                 <Link
                   href={setHref("ME: 30th Celebration", validSetSlugs, slugifySet)}
