@@ -180,6 +180,11 @@ export async function GET(request) {
       observation: rl,
       ttlMs: (maxDuration + 60) * 1000,
     });
+    // Attached at once, so every exit below (including the floor skip) settles
+    // the lease through finishJobRun instead of leaving it to expire and be
+    // charged in full.
+    budgetLease = budget.lease;
+    attachBrowseLease(budgetLease);
     // Enforcing only in a window whose ledger is ACTIVE; otherwise (off,
     // observe, or an enforce window still pending) the absolute floor applies.
     const enforcing = budget.effective === "enforce";
@@ -194,8 +199,6 @@ export async function GET(request) {
       markSkipped(`budget_${budget.decision?.denied ?? "denied"}`);
       return Response.json({ ok: true, skipped: "browse_budget", budget: { mode: budget.mode, ...budget.decision } });
     }
-    budgetLease = budget.lease;
-    attachBrowseLease(budgetLease);
     // Rows this run may verify. Outside enforce: BATCH, as before. In
     // enforce: the grant, keeping one unit back for a 5xx retry when the
     // grant is large enough (unused units are released on settle).

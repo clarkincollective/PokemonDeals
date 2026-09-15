@@ -103,6 +103,9 @@ out.runs.push(await run("observe mode", "observe"));
   const run = await runPending(3000);
   const floorSkip = await runPending(810);
   const row = pendingDb.tables.catalog_snapshot.find((r) => r.kind.startsWith(budgetLib.LEDGER_KIND_PREFIX.enforce));
+  floorSkip.ledgerOpenAfter = Object.keys(row?.data?.open ?? {}).length;
+  floorSkip.settledAfter = row?.data?.counters?.settled ?? null;
+  floorSkip.usedVerifyAfter = row?.data?.used?.verify ?? 0;
   out.pending = { run, floorSkip, rowState: row?.data?.state ?? null, hypotheticalRequests: row?.data?.hypothetical?.verify?.requests ?? 0 };
 }
 process.stdout.write(JSON.stringify(out, null, 1));

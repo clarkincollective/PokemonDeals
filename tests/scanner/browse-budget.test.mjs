@@ -514,6 +514,10 @@ test("BB-15 real verify-deals route in a PENDING enforce window keeps today's fl
   assert.equal(pending.run.calls, 20, "BATCH 20, as today");
   assert.equal(pending.floorSkip.skipped, "quota_reserve", "the 800 floor still applies in a pending window");
   assert.equal(pending.floorSkip.calls, 0);
+  // the floor-skipped run's lease is settled (0 attempts), not left to expire and be charged 20
+  assert.equal(pending.floorSkip.ledgerOpenAfter, 0);
+  assert.equal(pending.floorSkip.settledAfter, 2);
+  assert.equal(pending.floorSkip.usedVerifyAfter, pending.run.calls);
   assert.equal(pending.rowState, "pending");
   assert.ok(pending.hypotheticalRequests >= 1);
 });
