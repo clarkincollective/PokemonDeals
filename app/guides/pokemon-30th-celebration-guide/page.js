@@ -60,9 +60,13 @@ function Srcs({ ids }) {
 // only printed where verified - the card face itself carries the credit.
 function CardTile({ card, caption, width = 168, priority = false }) {
   const height = Math.round((width * 1000) / 717);
+  // The link is full-width so the image's width/height attributes reserve
+  // the tile's space before the lazy image loads (a centred block would
+  // shrink-to-fit to 0 and the card would pop in). On phones two tiles
+  // share a row.
   return (
-    <li className="flex flex-col items-center" style={{ width, maxWidth: "100%" }}>
-      <Link href={card.href} className="block rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600">
+    <li className="flex flex-col items-center" style={{ width, maxWidth: "calc(50% - 0.5rem)" }}>
+      <Link href={card.href} className="block w-full rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600">
         <Image
           src={catalogImageUrl(card.tcgplayerId)}
           alt={`${card.label} — ${card.set}, complete card face`}
