@@ -5205,3 +5205,45 @@ providerLeft = remaining − unspentOpen − 420 − verifierCommitment
 - **Defect found in observe:** verify-deals attached its lease after the 800-floor check, so a floor-skipped run left the lease open. It then expired and was charged 20 in the observe ledger: a phantom charge per skipped verify run, in accounting only (no request or selection change).
   - **Fixed locally** (lease attached immediately after acquire; BB-15 asserts a floor skip leaves no open lease and charges 0).
   - **Not deployed:** this step authorised one deployment.
+
+### Deployment (2026-09-15): verifier lease fix live at `36704a0` (observe mode)
+- **Release:** `7317fdd` (verifier lease attached before the reserve-floor skip) + `36704a0` (apostrophes only), fast-forward from `8b21599`. `BROWSE_BUDGET_MODE` stays `observe`.
+- **Vercel:** `dpl_4DCKiGS6pFE5jLt7nEPps2KMYXEV` READY 01:27 UTC, aliased to pokemondealfinder.com. `/` and `/deals` return 200.
+- **Natural check:** the 01:30 verifier run skipped on its 800 floor (quota 230) and its lease settled with 0 attempts (`settled` 1, no open lease).
+- **Historical phantom charges** from the 00:30 and 01:00 runs remain as evidence: `expired` 2, `used.verify` 40. They were not rewritten.
+- **Accounting check (offline, no code change):**
+  - A 100-call lease opened before the reading, 20 attempts already in eBay's count: `observedBeyondSettled = 20`, `unspentOpen = 100 − 20 = 80`.
+  - `providerLeft = remaining (already −20) − 80 − 420 − verifierCommitment`, so all 100 are protected once.
+  - A reading taken before those attempts landed gives 100; a lease opened after the reading gives 100.
+  - Regression: BB-13 (300-call lease, 180 counted → 120).
+
+### Inventory and browsing assessment (2026-09-15 01:32 UTC, read-only, /deals pipeline)
+**Totals:** 866 unique eligible listings (852 raw, 14 graded; English 806, Japanese 60) from 1,053 marketplace rows. 733 listings are on one marketplace; 133 on 2–5.
+
+| Marketplace | Shown when pinned (raw / graded) | Item located in country | Only on this marketplace | Eligible elsewhere, not shown (all / graded) |
+|---|---|---|---|---|
+| US | 451 (442 / 9) | 376 | 375 | 415 / 5 |
+| GB | 214 (210 / 4) | 114 | 153 | 652 / 10 |
+| CA | 166 (166 / 0) | 34 | 92 | 700 / 14 |
+| AU | 103 (102 / 1) | 11 | 39 | 763 / 13 |
+| DE | 49 (49 / 0) | 9 | 37 | 817 / 14 |
+| IT | 70 (70 / 0) | 4 | 37 | 796 / 14 |
+
+**Defaults:**
+- `/deals` and `/cards/[slug]` show every marketplace.
+- `/`, `/best-finds`, `/japanese-cards`, `/pokemon/[slug]`, `/sets/[slug]` and category pages use `RegionRedirect`: a stored or geo-detected region becomes `?country=` (one marketplace).
+
+**Broadening:**
+- On pinned pages the listing-marketplace row has no All marketplaces option (only `/deals` passes `allOption`).
+- Country is not a filter chip, and `relaxationSteps` never drops it.
+- Removing `?country=` is immediately re-applied by `RegionRedirect` unless the visitor chose All countries in the header.
+
+**Presence vs shipping:**
+- A row on `EBAY_XX` means eBay's search with `deliveryCountry:XX` returned it at discovery time. It is not re-verified; the verifier checks availability, not shipping.
+- A listing present only on another marketplace has unknown shipping to the visitor's country and must be labelled that way.
+- `item_location_country` separates located-in-country from merely deliverable.
+
+**Proposal (not implemented):** a marketplace escape hatch on pinned pages, with no provider or database change:
+1. An explicit `country=all` value that `RegionRedirect` treats as a choice and the loaders read as no marketplace filter; an All marketplaces pill in the row.
+2. On thin or empty pinned results, a count of eligible listings on other eBay marketplaces for the same filters, from the cached per-marketplace inventory, labelled as shipping to the visitor's country not confirmed.
+3. Add all marketplaces as a relaxation step before Clear all filters.
