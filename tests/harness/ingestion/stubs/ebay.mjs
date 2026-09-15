@@ -41,6 +41,9 @@ export async function getGradingDetails(listingId) {
   return H().gradingFor(listingId);
 }
 export async function getRawListingDetail() {
+  // crossmatch-price-pilot-r1: one attempt through the real per-attempt guard,
+  // as lib/ebay.fetchWithRetry does (off/observe without a guard: always allowed)
+  guard();
   count("getRawListingDetail");
   return { tier: "Near Mint", imageCount: 6, returnsAccepted: true, soldOut: false };
 }

@@ -1,6 +1,6 @@
 // crossmatch-price-pilot-r1 - the REAL tier=allocated route offline over one
 // synthetic fixture (not production evidence), pilot off vs on.
-//   node --import ./tests/harness/ingestion/register.mjs tests/harness/ingestion/crossmatchPilot.mjs <off|on|insufficient|fail|fail-mid>
+//   node --import ./tests/harness/ingestion/register.mjs tests/harness/ingestion/crossmatchPilot.mjs <off|on|insufficient|fail|fail-mid|guard|observe|quota-unknown>
 //
 // Fixture: 71 English Base Set cards. ?targets=60: the allocator puts the 50
 // most overdue cards (0-49) in the least-recently-searched lane and the next
@@ -9,8 +9,9 @@
 //   card 0 new listing, card 1 stored active (re-sighting), card 50 (exploit tail) new listing
 //   card 55 listing (a target's identity: never a pilot candidate)
 //   card 60 two unstored listings + an old active stored listing of card 60 (must never be expired by the pilot)
-//   cards 61, 62 one unstored listing each
-//   card 63 unstored, but a concurrent writer inserts it just before the pilot's insert
+//   card 61 unstored; a concurrent writer creates a SAME-identity copy on EBAY_GB during the pilot's insert
+//   card 62 unstored; a concurrent writer creates a DIFFERENT-identity copy on EBAY_GB during the pilot's insert
+//   card 63 unstored, but a concurrent writer inserts it on EBAY_US just before the pilot's insert
 //   card 64 stored on EBAY_GB only                -> excluded (stored on another marketplace)
 //   card 65 stored EBAY_US identity quarantine    -> excluded (held, never revived)
 //   card 66 graded slab                            -> excluded (raw only)
@@ -27,12 +28,21 @@ const REPO = join(HERE, "..", "..", "..");
 const require = createRequire(import.meta.url);
 const mode = process.argv[2] ?? "off";
 process.env.CRON_SECRET = "harness";
-delete process.env.BROWSE_BUDGET_MODE;
+if (mode === "observe") process.env.BROWSE_BUDGET_MODE = "observe";
+else delete process.env.BROWSE_BUDGET_MODE;
 process.env.CROSSMATCH_OBSERVE = "on";
 if (mode === "off") delete process.env.CROSSMATCH_PRICE_PILOT;
 else process.env.CROSSMATCH_PRICE_PILOT = "on";
 
 const pilotModule = require(join(REPO, "lib", "crossMatchPricingPilot.js"));
+if (mode === "guard") {
+  // a one-attempt ceiling per substitution: card 60's second condition check is refused
+  const realAllowances = pilotModule.allowances;
+  pilotModule.allowances = (n) => {
+    const a = realAllowances(n);
+    return { ...a, pilotCardMax: { ...a.pilotCardMax, browseAttempts: 1 } };
+  };
+}
 if (mode === "fail") {
   pilotModule.rankPilotCards = () => {
     throw new Error("injected ranking failure");
@@ -119,12 +129,19 @@ db.from = (table) => {
       concurrent.inserted = true;
       db.tables.deals.push({ id: 9999, source: "ebay", marketplace: "EBAY_US", listing_id: CONCURRENT, watchlist_id: "sweep-writer", card_tcgplayer_id: cardId(63), is_active: true, disqualified_reason: null, first_seen_at: "2026-09-15T08:00:00.000Z", market_price: 777, title: "written by the concurrent sweep" });
     }
+    // cross-marketplace races: another writer creates a GB copy between the pilot's recheck and its insert
+    if (mode !== "off" && opts?.ignoreDuplicates && values?.marketplace === "EBAY_US" && ["v1|820000000061|0", "v1|820000000062|0"].includes(values?.listing_id) && !concurrent[values.listing_id]) {
+      concurrent[values.listing_id] = true;
+      const same = values.listing_id === "v1|820000000061|0";
+      db.tables.deals.push({ id: same ? 9961 : 9962, source: "ebay", marketplace: "EBAY_GB", listing_id: values.listing_id, watchlist_id: same ? "w61" : "w-gb-writer", card_tcgplayer_id: same ? cardId(61) : "x-other-printing", card_language: "english", is_active: true, disqualified_reason: null, first_seen_at: "2026-09-15T08:00:00.500Z", market_price: same ? 400 : 999, title: "GB copy written concurrently" });
+    }
     return upsert(values, opts);
   };
   return chain;
 };
 
 const harness = {
+  rateLimit: mode === "quota-unknown" ? { limit: null, remaining: null, reset: null } : undefined,
   calls: {},
   calledFor: { getConditionPrices: [], searchListings: [] },
   gradedPriceRequests: [],

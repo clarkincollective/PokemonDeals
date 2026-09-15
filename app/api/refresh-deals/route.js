@@ -10,7 +10,7 @@ import {
 import { getConditionPrices, getGradedPrice } from "@/lib/pokemonPriceTracker";
 import { getUsdRates, toUsd } from "@/lib/fx";
 import { logDiscoveryEvent } from "@/lib/discoveryLog";
-import { writeDiscoverySighting, insertNewSighting } from "@/lib/listingAvailability";
+import { writeDiscoverySighting, insertNewSighting, checkPilotInsertCopies } from "@/lib/listingAvailability";
 // 17C.10 - reference provenance for the comparison this scanner stores.
 import { selectConditionReference } from "@/lib/dealMatching";
 import { CARD_REFERENCE_COLUMNS, buildCardReference, clearedReference } from "@/lib/referenceProvenance";
@@ -55,7 +55,7 @@ import {
   isHighValueVintage,
 } from "@/lib/dealQuality";
 import { allocateScanTargets, nextTargetState, budgetForRun } from "@/lib/scanAllocator";
-import { attachBrowseLease, browseLeaseExhausted, browseBudgetMode } from "@/lib/ebayTelemetry";
+import { attachBrowseLease, browseLeaseExhausted, browseBudgetMode, setBrowseAttemptGuard, clearBrowseAttemptGuard } from "@/lib/ebayTelemetry";
 import { pilotTail, rankPilotCards, withoutStoredListings, allowances as pilotAllowances, PILOT_START_DEADLINE_MS, PILOT_STOP_DEADLINE_MS } from "@/lib/crossMatchPricingPilot";
 import { acquireBrowseLease } from "@/lib/browseBudget";
 import { createCrossMatchObserver, recordCrossMatchObservation } from "@/lib/crossMatchObservation";
@@ -432,7 +432,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
 
   let dealsFound = 0;
   let blockedRetired = 0; // sightings of verifier-retired rows, not re-published
-  const candidateOutcomes = { inserted: 0, existing: 0, writeErrors: 0 }; // candidate mode only
+  const candidateOutcomes = { inserted: 0, existing: 0, writeErrors: 0, quarantinedAfterInsert: 0, copyOnOtherMarketplace: 0 }; // candidate mode only
   let lastWriteOutcome = null;
 
   // STAGE 5 (reference-price sanity). If this card has a healthy supply of
@@ -519,14 +519,36 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     // never leave old evidence attached to a new market_price. Merged in
     // place (not rebound) so the write below stays one object.
     if (await referenceColumnsReady(db)) Object.assign(core, referenceFor(core));
-    const { outcome, error } = candidateMode ? await insertNewSighting(db, core) : await writeDiscoverySighting(db, core);
+    const written = candidateMode ? await insertNewSighting(db, core) : await writeDiscoverySighting(db, core);
+    let { outcome } = written;
+    const { error } = written;
+    // candidate mode: a copy another writer created on a DIFFERENT marketplace
+    // during the insert is invisible to the unique index - check right after
+    // (lib/listingAvailability.checkPilotInsertCopies)
+    let copyElsewhere = false;
+    if (candidateMode && outcome === "inserted") {
+      const copies = await checkPilotInsertCopies(db, { id: written.id, listingId: core.listing_id, cardId: row.justtcg_tcgplayer_id, language: row.language });
+      if (copies.quarantined || copies.otherCopies == null) {
+        outcome = "quarantined";
+        candidateOutcomes.quarantinedAfterInsert++;
+      } else if (copies.otherCopies > 0) {
+        copyElsewhere = true;
+        candidateOutcomes.copyOnOtherMarketplace++;
+      }
+    }
     lastWriteOutcome = error ? "error" : outcome;
     if (candidateMode && error) candidateOutcomes.writeErrors++;
     if (candidateMode && outcome === "exists") candidateOutcomes.existing++;
     if (error) console.error(`Failed to upsert deal ${core.listing_id}:`, error.message);
     else if (outcome === "blocked") blockedRetired++;
-    else if (outcome === "exists") {
-      // candidate mode: another writer owns this listing now - leave it alone
+    else if (outcome === "exists" || outcome === "quarantined") {
+      // candidate mode: another writer owns this listing, or its copies
+      // disagree - nothing more is written for it
+    } else if (copyElsewhere) {
+      // candidate mode: a same-identity copy appeared on another marketplace
+      // during the insert - the row stays, but it is not new supply and the
+      // other writer's discovery keeps the attribution
+      await persistImageUrls(db, core, image_urls);
     } else {
       if (candidateMode) candidateOutcomes.inserted++;
       dealsFound++;
@@ -654,7 +676,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
         condition,
       })
     );
-    // candidate mode touches only a row it inserted itself
+    // candidate mode touches only a row it inserted itself (and kept public)
     if (!candidateMode || lastWriteOutcome === "inserted")
     await enrichDealTrustSignals(db, listing, {
       imageCount: resolved.imageCount ?? null,
@@ -1402,7 +1424,21 @@ export async function GET(request) {
   let crossMatchSetupError = null;
   // crossmatch-price-pilot-r1: US allocated runs with the allocator only; off
   // unless CROSSMATCH_PRICE_PILOT=on (and it needs the observation on)
-  const pilotConfigured = allocatedMode && allocatedCountry === "EBAY_US" && process.env.CROSSMATCH_PRICE_PILOT === "on" && Boolean(allocation);
+  // Supported only where its accounting holds: budget mode off/observe (the
+  // worker loop always reaches a displaced target, so its price lookup is
+  // genuinely avoided outbound work; enforce may stop the loop first) and a
+  // known quota reading (an unknown one skips the allocated floor check).
+  const pilotRequested = allocatedMode && allocatedCountry === "EBAY_US" && process.env.CROSSMATCH_PRICE_PILOT === "on";
+  const pilotDisabledReason = !pilotRequested
+    ? null
+    : !allocation
+      ? "allocator_not_run"
+      : !["off", "observe"].includes(browseBudgetMode())
+        ? `budget_mode_${browseBudgetMode()}_unsupported`
+        : rateLimitRemaining == null
+          ? "quota_reading_unknown"
+          : null;
+  const pilotConfigured = pilotRequested && pilotDisabledReason == null;
   if (allocatedMode && process.env.CROSSMATCH_OBSERVE !== "off") {
     try {
       crossMatch = createCrossMatchObserver({ marketplace: allocatedCountry, jobStartedAt: Date.parse(ctx.startedAt) || Date.now(), limits: { retainRawCandidates: pilotConfigured } });
@@ -1547,7 +1583,7 @@ export async function GET(request) {
   // tail targets (lib/crossMatchPricingPilot), then scan whatever tail was not
   // displaced exactly as before. A pilot failure displaces nothing further and
   // never affects the normal targets, their state writes or lease settlement.
-  let crossMatchPilot = null;
+  let crossMatchPilot = pilotDisabledReason ? { v: 1, disabled: pilotDisabledReason } : null;
   if (pilotTailRows.length) {
     const pilot = await runCrossMatchPricingPilot(pilotTailRows);
     crossMatchPilot = pilot.summary;
@@ -1574,10 +1610,14 @@ export async function GET(request) {
       // the loop always reaches it); everything else it might have done is
       // only hypothetical and is not counted
       definitelyAvoided: { pptAttempts: 0, browseAttempts: 0 },
-      actual: { pptAttempts: 0, browseAttempts: null, browseResponses: 0 },
+      // browseAttempts: counted by the hard per-substitution guard (every mode, retries included)
+      actual: { pptAttempts: 0, browseAttempts: 0, browseAttemptsRefusedByGuard: 0, browseResponses: 0 },
+      // inserted = new rows with no copy anywhere at recheck or right after the insert
       inserted: 0,
       existing: 0,
       blocked: 0,
+      quarantinedAfterInsert: 0,
+      copyOnOtherMarketplace: 0,
       stoppedBy: null,
       error: null,
     };
@@ -1615,7 +1655,6 @@ export async function GET(request) {
         rankedCards: ranked.length,
       };
       const browseStart = ctx.browseCalls;
-      const leaseStart = budgetLease ? budgetLease.attempts : null;
       for (const card of ranked) {
         if (displaced.size >= tailRows.length) break;
         if (Date.now() - startedAt > PILOT_STOP_DEADLINE_MS) {
@@ -1634,8 +1673,12 @@ export async function GET(request) {
         const sub = { displacedTarget: String(target.justtcg_tcgplayer_id), pilotCard: String(pilotRow.justtcg_tcgplayer_id), candidateListings: pilotListings.length, promising: card.promising, outcome: null };
         displaced.add(target.id);
         summary.substitutions.push(sub);
-        if (summary.mode !== "enforce") summary.definitelyAvoided.pptAttempts++;
+        summary.definitelyAvoided.pptAttempts++;
         summary.actual.pptAttempts++;
+        // hard ceiling: this substitution may make at most the pilot card's
+        // maximum Browse attempts, in any budget mode, retries included;
+        // beyond it attempts are refused (the raw path then holds the listing)
+        const guard = setBrowseAttemptGuard(summary.allowances.pilotCardMax.browseAttempts);
         try {
           const marketData = await loadCardMarketData(pilotRow, pilotErrors);
           if (!marketData) {
@@ -1643,20 +1686,27 @@ export async function GET(request) {
             continue;
           }
           const r = await scanCardInMarketplace(pilotRow, allocatedCountry, marketData, db, discountThreshold, rates, "crossmatch", null, { candidateListings: pilotListings });
-          Object.assign(sub, { outcome: "priced", inserted: r.inserted, existing: r.existing, blocked: r.blockedRetired, writeErrors: r.writeErrors });
+          Object.assign(sub, { outcome: "priced", inserted: r.inserted, existing: r.existing, blocked: r.blockedRetired, writeErrors: r.writeErrors, quarantinedAfterInsert: r.quarantinedAfterInsert, copyOnOtherMarketplace: r.copyOnOtherMarketplace });
           summary.inserted += r.inserted;
           summary.existing += r.existing;
           summary.blocked += r.blockedRetired;
+          summary.quarantinedAfterInsert += r.quarantinedAfterInsert;
+          summary.copyOnOtherMarketplace += r.copyOnOtherMarketplace;
         } catch (e) {
           // the attempt consumed this target's slot; stop, and let the
           // untouched tail be scanned normally
           sub.outcome = "error";
           throw e;
+        } finally {
+          clearBrowseAttemptGuard();
+          sub.browseAttempts = guard?.attempts ?? null;
+          sub.browseAttemptsRefused = guard?.refused ?? null;
+          summary.actual.browseAttempts += guard?.attempts ?? 0;
+          summary.actual.browseAttemptsRefusedByGuard += guard?.refused ?? 0;
         }
       }
       if (!summary.stoppedBy) summary.stoppedBy = displaced.size >= tailRows.length ? "tail_filled" : "candidates_exhausted";
       summary.actual.browseResponses = ctx.browseCalls - browseStart;
-      summary.actual.browseAttempts = leaseStart == null ? null : budgetLease.attempts - leaseStart;
     } catch (e) {
       summary.error = String(e?.message ?? e).slice(0, 200);
     }

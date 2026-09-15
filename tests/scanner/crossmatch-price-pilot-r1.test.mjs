@@ -80,6 +80,11 @@ test("CP-3 request accounting: allowances vs definitely avoided vs actual, no cl
   });
   assert.deepEqual(p.definitelyAvoided, { pptAttempts: 5, browseAttempts: 0 });
   assert.equal(p.actual.pptAttempts, 5);
+  // Browse attempts counted by the hard per-substitution guard (not a lease): 2 + 1 + 1 + 1 + 0
+  assert.equal(p.actual.browseAttempts, 5);
+  assert.deepEqual(p.substitutions.map((s) => s.browseAttempts), [2, 1, 1, 1, 0]);
+  assert.ok(p.substitutions.every((s) => s.browseAttempts <= p.allowances.pilotCardMax.browseAttempts));
+  assert.equal(p.actual.browseAttemptsRefusedByGuard, 0);
   // the fixture's real request counts: PPT identical (5 avoided lookups, 5 pilot lookups);
   // Browse 5 fewer searches but 4 more condition checks - a fixture outcome, not a guarantee
   assert.equal(on.calls.getConditionPrices, off.calls.getConditionPrices);
@@ -99,13 +104,25 @@ test("CP-4 integrity: raw, one identity, unstored everywhere, outside the target
   assert.equal(p.candidates.storedListingsExcluded, 2, "the GB-stored and the held listing");
   assert.deepEqual(p.candidates.notWorth, { noCatalogPrice: 0, noListingBelowCatalogPrice: 1 });
   const deal = (listing) => on.dealsAfter.find((d) => d.listing_id === listing);
-  // new eligible inserts for the matched cards, attributed as cross-match discoveries
-  for (const [l, w] of [["v1|820000000060|0", "w60"], ["v1|820000000160|0", "w60"], ["v1|820000000061|0", "w61"], ["v1|820000000062|0", "w62"]]) {
-    assert.equal(deal(l).watchlist_id, w);
+  // new eligible inserts (no copy anywhere at recheck or just after), attributed as cross-match discoveries
+  for (const l of ["v1|820000000060|0", "v1|820000000160|0"]) {
+    assert.equal(deal(l).watchlist_id, "w60");
     assert.equal(deal(l).is_active, true);
   }
-  assert.deepEqual(on.discoveryEvents.filter((e) => e.search_type === "crossmatch").map((e) => e.listing).sort(), ["EBAY_US:820000000060", "EBAY_US:820000000061", "EBAY_US:820000000062", "EBAY_US:820000000160"]);
-  assert.equal(p.inserted, 4);
+  assert.deepEqual(on.discoveryEvents.filter((e) => e.search_type === "crossmatch").map((e) => e.listing).sort(), ["EBAY_US:820000000060", "EBAY_US:820000000160"]);
+  assert.equal(p.inserted, 2, "only listings with no copy on any marketplace count as new");
+  // cross-marketplace race, SAME identity: a GB copy appears during the insert - the US row stays, is a copy, not new supply, no discovery claim
+  const copies61 = on.dealsAfter.filter((d) => d.listing_id === "v1|820000000061|0");
+  assert.deepEqual(copies61.map((d) => [d.marketplace, d.watchlist_id, d.is_active, d.reason ?? null]).sort(), [["EBAY_GB", "w61", true, null], ["EBAY_US", "w61", true, null]]);
+  assert.equal(p.copyOnOtherMarketplace, 1);
+  // cross-marketplace race, DIFFERENT identity: the pilot's OWN row is quarantined; the other writer's GB row is untouched
+  const copies62 = on.dealsAfter.filter((d) => d.listing_id === "v1|820000000062|0");
+  const us62 = copies62.find((d) => d.marketplace === "EBAY_US");
+  const gb62 = copies62.find((d) => d.marketplace === "EBAY_GB");
+  assert.deepEqual([us62.is_active, us62.reason, us62.watchlist_id], [false, "identity:crossmatch_copy_conflict", "w62"]);
+  assert.deepEqual([gb62.is_active, gb62.reason, gb62.watchlist_id, gb62.market_price], [true, null, "w-gb-writer", 999]);
+  assert.equal(p.quarantinedAfterInsert, 1);
+  assert.ok(!on.dealWrites.some((w) => w.listing_id === "v1|820000000062|0" && w.watchlist_id === "w-gb-writer" && w.op === "update"), "the GB row is never updated");
   // concurrent insertion between recheck and insert: the other writer's row wins untouched, no event, no enrichment
   const concurrent = deal("v1|820000000063|0");
   assert.equal(concurrent.watchlist_id, "sweep-writer");
@@ -121,7 +138,11 @@ test("CP-4 integrity: raw, one identity, unstored everywhere, outside the target
   assert.ok(!on.dealsAfter.some((d) => d.listing_id === "v1|820000000066|0"), "graded never written");
   // a partial appearance never expires the matched card's other listings
   assert.equal(deal("v1|820000009960|0").is_active, true);
-  assert.ok(!on.dealWrites.some((w) => w.values && w.values.is_active === false), "no expiry update anywhere in the pilot run");
+  assert.deepEqual(
+    on.dealWrites.filter((w) => w.values && w.values.is_active === false).map((w) => [w.listing_id, w.values.disqualified_reason]),
+    [["v1|820000000062|0", "identity:crossmatch_copy_conflict"]],
+    "no expiry update anywhere in the pilot run - the only deactivation is the pilot quarantining its own conflicting row"
+  );
   // the displaced target's own listing is simply not written this run (its search did not happen)
   assert.ok(run("off").dealsAfter.some((d) => d.listing_id === "v1|820000000050|0"));
   assert.ok(!on.dealsAfter.some((d) => d.listing_id === "v1|820000000050|0"));
@@ -184,7 +205,8 @@ test("CP-6 helpers: tail selection, ranking on stored data only, stored-state re
 
 test("CP-7 wiring and off switch", () => {
   const src = read("app/api/refresh-deals/route.js");
-  assert.match(src, /const pilotConfigured = allocatedMode && allocatedCountry === "EBAY_US" && process\.env\.CROSSMATCH_PRICE_PILOT === "on" && Boolean\(allocation\);/);
+  assert.match(src, /const pilotRequested = allocatedMode && allocatedCountry === "EBAY_US" && process\.env\.CROSSMATCH_PRICE_PILOT === "on";/);
+  assert.match(src, /const pilotConfigured = pilotRequested && pilotDisabledReason == null;/);
   assert.match(src, /const canReconcile = !candidateMode && \(listings\.length > 0 \|\| total !== null\);/);
   assert.match(src, /if \(crossMatch && !candidateMode\) \{/);
   assert.match(src, /candidateMode \? await insertNewSighting\(db, core\) : await writeDiscoverySighting\(db, core\)/);
@@ -192,4 +214,95 @@ test("CP-7 wiring and off switch", () => {
   assert.match(src, /const r = await scanCardInMarketplace\(\s*row,\s*marketplaceId,\s*marketData,\s*db,\s*discountThreshold,\s*rates,\s*tier \|\| "manual",\s*crossMatch\s*\);/);
   assert.equal(pilot.PILOT_MAX_CARDS, 10);
   assert.ok(pilot.PILOT_STOP_DEADLINE_MS < 800_000 - 120_000, "pilot work stops well before the job deadline");
+});
+
+test("CP-8 request bounds without pacing enforcement: a hard per-substitution attempt ceiling in every mode; unsupported modes disable the pilot", async (t) => {
+  // route: guard exhaustion refuses the attempt, the listing is held (no write), later cards keep their own ceiling
+  const off = run("off");
+  const g = run("guard").response.crossMatchPilot;
+  assert.deepEqual(g.substitutions.map((s) => [s.pilotCard, s.browseAttempts, s.browseAttemptsRefused]), [["x-60", 1, 1], ["x-61", 1, 0], ["x-62", 1, 0], ["x-63", 1, 0], ["x-69", 0, 0]]);
+  assert.equal(g.actual.browseAttemptsRefusedByGuard, 1);
+  assert.equal(g.substitutions[0].inserted, 1, "the refused condition check leaves that listing unwritten");
+  assert.deepEqual(g.displacedTargets, ["x-50", "x-51", "x-52", "x-53", "x-54"], "exhaustion displaces nothing extra");
+  const gr = run("guard");
+  assert.equal(gr.calls.getRawListingDetail, 3 + 4, "normal targets' 3 checks + one per priced pilot card; nothing is spent through fallback targets");
+  assert.equal(gr.calls.searchListings, off.calls.searchListings - 5);
+  // observe mode behaves the same (the lease is not what bounds it)
+  const obs = run("observe").response.crossMatchPilot;
+  assert.equal(obs.mode, "observe");
+  assert.equal(obs.actual.browseAttempts, 5);
+  assert.deepEqual(obs.displacedTargets, ["x-50", "x-51", "x-52", "x-53", "x-54"]);
+  // unknown quota reading: pilot disabled, run identical to pilot off
+  const qu = run("quota-unknown");
+  assert.deepEqual(qu.response.crossMatchPilot, { v: 1, disabled: "quota_reading_unknown" });
+  assert.deepEqual(qu.calls, off.calls);
+  // enforce: disabled by construction
+  const src = read("app/api/refresh-deals/route.js");
+  assert.match(src, /!\["off", "observe"\]\.includes\(browseBudgetMode\(\)\)\s*\?\s*`budget_mode_\$\{browseBudgetMode\(\)\}_unsupported`/);
+  assert.match(src, /setBrowseAttemptGuard\(summary\.allowances\.pilotCardMax\.browseAttempts\)/);
+  assert.match(src, /finally \{\s*clearBrowseAttemptGuard\(\);/);
+
+  // the guard itself, through the real fetchWithRetry: retries count, observe and off never bypass it
+  const telemetry = require(join(ROOT, "lib/ebayTelemetry.js"));
+  const ebay = require(join(ROOT, "lib/ebay.js"));
+  const prevMode = process.env.BROWSE_BUDGET_MODE;
+  const prevFetch = globalThis.fetch;
+  t.after(() => { process.env.BROWSE_BUDGET_MODE = prevMode; globalThis.fetch = prevFetch; });
+  let sent = 0;
+  globalThis.fetch = async () => { sent++; return new Response("x", { status: 503 }); };
+  const inJob = (fn) => new Promise((resolve, reject) => setImmediate(() => { telemetry.beginJobRun({ job: "refresh-deals:allocated" }); fn().then(resolve, reject); }));
+  for (const mode of ["off", "observe"]) {
+    process.env.BROWSE_BUDGET_MODE = mode;
+    sent = 0;
+    await inJob(async () => {
+      const guard = telemetry.setBrowseAttemptGuard(3);
+      // 3 requests x (first attempt + one 5xx retry) would be 6 attempts; the ceiling stops at 3
+      for (let i = 0; i < 3; i++) {
+        try { await ebay.fetchWithRetry("https://api.ebay.com/buy/browse/v1/item/x", {}, { delayMs: 1 }); } catch (e) { assert.equal(e.name, "BrowseBudgetExhaustedError"); }
+      }
+      assert.equal(sent, 3, `${mode}: retries included, nothing beyond the ceiling is sent`);
+      assert.equal(guard.attempts, 3);
+      assert.ok(guard.refused >= 1);
+      telemetry.clearBrowseAttemptGuard();
+      await ebay.fetchWithRetry("https://api.ebay.com/buy/browse/v1/item/x", {}, { delayMs: 1 });
+      assert.equal(sent, 5, `${mode}: cleared guard restores normal behaviour for later (normal) work`);
+    });
+  }
+});
+
+test("CP-9 concurrency guarantee: same-marketplace duplicates are atomic; cross-marketplace copies are checked right after insert", async () => {
+  const schema = readFileSync(join(ROOT, "supabase/deals_v2_migration.sql"), "utf8");
+  assert.match(schema, /create unique index if not exists deals_unique_listing\s+on deals \(source, marketplace, listing_id\);/);
+  const { checkPilotInsertCopies, PILOT_COPY_CONFLICT_REASON } = require(join(ROOT, "lib/listingAvailability.js"));
+  const seed = (other) => createMemoryDb({ deals: [{ id: 1, source: "ebay", marketplace: "EBAY_US", listing_id: "v1|7|0", is_active: true, disqualified_reason: null }, ...(other ? [{ id: 2, source: "ebay", marketplace: "EBAY_GB", listing_id: "v1|7|0", ...other }] : [])] });
+  const check = (db) => checkPilotInsertCopies(db, { id: 1, listingId: "v1|7|0", cardId: "c1", language: "english" });
+  const row = (db, id) => db.tables.deals.find((d) => d.id === id);
+  // no copy: untouched
+  let db = seed(null);
+  assert.deepEqual(await check(db), { otherCopies: 0, quarantined: false });
+  // same identity copy: untouched, reported as a copy
+  db = seed({ card_tcgplayer_id: "c1", card_language: "english", is_active: true, disqualified_reason: null });
+  assert.deepEqual(await check(db), { otherCopies: 1, quarantined: false });
+  // held copy (identity quarantine) with the same identity: the pilot row is quarantined, the hold stays exactly as it was
+  db = seed({ card_tcgplayer_id: "c1", card_language: "english", is_active: false, disqualified_reason: "review:held" });
+  assert.equal((await check(db)).quarantined, true);
+  assert.equal(row(db, 1).disqualified_reason, PILOT_COPY_CONFLICT_REASON);
+  assert.equal(row(db, 2).disqualified_reason, "review:held");
+  // availability-retired copy with the same identity is not a conflict
+  db = seed({ card_tcgplayer_id: "c1", card_language: "english", is_active: false, disqualified_reason: "availability:sold" });
+  assert.equal((await check(db)).quarantined, false);
+  // different printing, different language, unreadable identity: quarantined; the other row untouched
+  for (const other of [{ card_tcgplayer_id: "c2", card_language: "english" }, { card_tcgplayer_id: "c1", card_language: "japanese" }, { card_tcgplayer_id: null, card_language: null }]) {
+    db = seed({ ...other, is_active: true, disqualified_reason: null });
+    assert.equal((await check(db)).quarantined, true, JSON.stringify(other));
+    assert.equal(row(db, 2).disqualified_reason, null);
+    assert.equal(row(db, 2).is_active, true);
+  }
+  // a failed read fails closed
+  const failing = { from: () => ({ select: () => ({ eq: async () => ({ data: null, error: { message: "down" } }) }), update: () => ({ eq: () => ({ is: () => ({ select: async () => ({ data: [{ id: 1 }], error: null }) }) }) }) }) };
+  assert.equal((await checkPilotInsertCopies(failing, { id: 1, listingId: "v1|7|0", cardId: "c1", language: "english" })).quarantined, true);
+  // a quarantined row is hidden by the display gate and never recoverable as an availability retirement
+  const dq = require(join(ROOT, "lib/dealQuality.js"));
+  assert.equal(dq.isDisplayableDeal({ is_active: true, disqualified_reason: PILOT_COPY_CONFLICT_REASON }), false);
+  assert.ok(!PILOT_COPY_CONFLICT_REASON.startsWith("availability:"));
 });
