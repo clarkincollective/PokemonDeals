@@ -75,8 +75,13 @@ very slowly; the referring URLs it does record are homepage filter/page permutat
    first two batches got 403 `SiteVerificationNotCompleted` while the engines fetched the key). Bing /
    DuckDuckGo / Yandex now have the full URL list; Google ignores IndexNow. Re-run after large sitemap
    changes.
-5. **Second indexing-request batch (same evening):** `/market-data`, `/deals/uk`, `/deals/australia`
-   (all "URL is not on Google" beforehand); `/sets` and `/guides` were already on Google and were skipped.
+5. **Second indexing-request batch (same evening, all confirmed):** `/market-data`, `/deals/uk`,
+   `/deals/australia`, `/deals/canada`, `/deals/usa`, `/pokemon/pikachu`, `/pokemon/umbreon`, `/best-finds`,
+   `/deals/auctions` (every one "URL is not on Google" beforehand). Already on Google, so skipped: `/sets`,
+   `/guides`, `/methodology`, `/sets/sv10-destined-rivals`. Remaining candidates for the next day's quota:
+   `/deals/under-25`, `/deals/under-50`, `/deals/graded` (re-check), `/sealed-deals`,
+   `/japanese-cards`, `/deals/vintage`, `/deals/modern`, `/cards/houndoom-ex-full-art-xy-breakthrough`,
+   `/cards/pikachu-ex-xy124-xy-promos`.
    Enhancement reports read: Breadcrumbs 3 valid / 0 errors; Product snippets and Merchant listings 0
    items (a card page only emits Product+Offer while it has a live listing - the sampled indexed card
    had none, so this is expected, not a regression); Core Web Vitals has no field data yet.
