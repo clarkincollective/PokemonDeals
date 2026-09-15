@@ -5247,3 +5247,24 @@ providerLeft = remaining − unspentOpen − 420 − verifierCommitment
 1. An explicit `country=all` value that `RegionRedirect` treats as a choice and the loaders read as no marketplace filter; an All marketplaces pill in the row.
 2. On thin or empty pinned results, a count of eligible listings on other eBay marketplaces for the same filters, from the cached per-marketplace inventory, labelled as shipping to the visitor's country not confirmed.
 3. Add all marketplaces as a relaxation step before Clear all filters.
+
+## Unown identity r1 (UNOWN-IDENTITY-R1), 2026-09-15
+**Defect.** Unown cards that differ only by letter share name tokens, set and set size. Name + set + "/28" evidence matched every letter: "Unown R/28" was stored as Unown (M) (deal 38057, live and displayable) and "#W/28 ... PSA 7" as Unown (!) (deal 21176). Of 188 stored Unown rows since 15 Aug, 147 have a readable title letter: 137 were stored against a different letter, 10 correctly.
+
+**Matcher (`lib/dealMatching.js`, shared by the scanner and the read-time display gate `listingStillMatchesCatalogue`):**
+- Catalogue letter from a letter collector number (`M/28`, `!/28`, `?/28`) or the name form `Unown (M)`: explicit title evidence required.
+- Name form `Unown [X]` (numbered sets): only a contradicting letter rejects; the collector number still decides.
+- Title evidence: a letter collector number (`R/28`, `#W/28`), `Unown (R)` / `Unown [R]`, or `Unown R` as its own token. A bare `Unown V` never counts (V mechanic). No evidence where required, or two different letters: no match, never a guessed letter.
+- **Not covered:** Japanese rows named `Unown W` / `Unown Z` / `Unown X` ("Darkness, and to Light...") carry neither a bracketed letter nor a catalogue number, so this rule asserts no letter for them; they remain ambiguous. The fix does not cover every Unown catalogue naming convention.
+- Existing rows are not rewritten: the 137 historical mismatches are inactive; the display gate would now hide them if reactivated with the old identity. Deal 37875 (K/28 stored as "?") is active but already hidden (`identity:visual_mismatch`) and not quarantined.
+
+**Replay (SELECT only, stored titles vs stored identity, scanner path with catalogue number / display path without):** 137 mismatches matched 64 / 137 before, 0 / 0 after; 10 correct matches 10 / 10 kept; 41 ambiguous titles 8 / 40 before, 0 / 0 after. Display-gate diff over all 1,128 active rows: only 37875 and 38057.
+
+**Checks:** `unown-identity-r1` (5) and `unown-identity-quarantine` (4) pass; 39 matching / quarantine suites 645 tests, 11 fail, all in the pre-existing baseline set; `next build` exit 0.
+
+**Quarantine (owner-approved, exactly one row).**
+- Script: `scripts/remediation/unownIdentityQuarantine.mjs`; manifest `scripts/remediation/unown-identity-quarantine-manifest.json`.
+- Applied 2026-09-15 02:49:34 UTC: deal 38057 `disqualified_reason = identity:collector_number_conflict`, guarded on id, `is_active`, null reason, `listing_id`, marketplace, `card_tcgplayer_id`, `watchlist_id` and exact title. Written 1 / 1. Nothing else changed.
+- Prior values: `scripts/remediation/applied/unown-identity-quarantine-prior-2026-09-15T02-49-33Z.json` (prior reason NULL, `is_active` true).
+- Rollback: `node scripts/remediation/unownIdentityQuarantine.mjs --rollback=scripts/remediation/applied/unown-identity-quarantine-prior-2026-09-15T02-49-33Z.json --confirm=1` (restores NULL only while the quarantine reason is present).
+- Visibility (plain requests): `/deals/38057` shows "cannot currently be shown" (noindex) and the `/deals` inventory no longer lists it by 03:00 UTC; `/pokemon/unown` never listed it; `/sets/ex-unseen-forces` still carried the cached offer at 03:00 (set catalogue cache 15 min, page ISR 1 h).
