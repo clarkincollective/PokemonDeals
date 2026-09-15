@@ -4,7 +4,7 @@ import { surfaceForPageName } from "@/lib/affiliateSurfaces";
 import { slugifySet } from "@/lib/slugify";
 import { currencyForDeal, refInListingCurrency } from "@/lib/money";
 import RelativeTime, { WithinWindow } from "@/components/RelativeTime";
-import { conditionLabel, listingPresentation } from "@/lib/dealQuality";
+import { conditionLabel, listingPresentation, savingsBadgeText, savingsPercentText } from "@/lib/dealQuality";
 import { normalizePublicText } from "@/lib/publicText";
 import { cardDisplayName } from "@/lib/cardName";
 import { priceBandUsd, discountBand, listingTypeProp, rawVsGraded } from "@/lib/analytics/props";
@@ -92,6 +92,8 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
   const dealRel = dealHref.includes("?") ? "nofollow" : undefined;
   const cardSet = deal.watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
+  // "N%" / "less than 1%" - a positive saving never renders as 0%
+  const pctText = savingsPercentText(deal.discount_pct);
   // Rendered in the listing's own currency on the server; <Price> swaps
   // each figure to the viewer's currency after hydration (see
   // components/Price.js / CurrencyProvider). market_price / the derived
@@ -235,7 +237,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
 
           {savingsSupported && (
             <span className={`absolute right-1.5 top-1.5 rounded-md px-1.5 py-0.5 text-xs font-extrabold leading-none shadow-sm sm:right-2 sm:top-2 sm:px-2 sm:py-1 sm:text-sm ${discountBadgeClass(discountPct)}`}>
-              −{discountPct}%
+              {savingsBadgeText(deal.discount_pct)}
             </span>
           )}
         </a>
@@ -341,11 +343,11 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
               {showRef ? (
                 <>
                   Save <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} />
-                  {ship.savingQualifier} · {discountPct}% below market
+                  {ship.savingQualifier} · {pctText} below market
                 </>
               ) : (
                 <>
-                  {discountPct}% below market{ship.savingQualifier ? ` (${ship.savingQualifier.trim()})` : ""}
+                  {pctText} below market{ship.savingQualifier ? ` (${ship.savingQualifier.trim()})` : ""}
                 </>
               )}
             </p>

@@ -8,6 +8,7 @@ import GridSkeleton from "@/components/GridSkeleton";
 import { AppliedFilters, FilterNotes, FilteredEmptyState, EmptyGridState } from "@/components/DealFilterChips";
 import MarketplaceScopeNote from "@/components/MarketplaceScopeNote";
 import { hasActiveDealFilters, normalizeDealFilters } from "@/lib/dealFilters";
+import { crossLanguageHref } from "@/lib/dealCategories";
 
 // The filterable, paginated deal grid for /sets/[slug] and
 // /pokemon/[slug]. Those pages render page 1 (no filters) server-side and
@@ -81,10 +82,49 @@ function parseSearch(search) {
 // a lower bound and the limitation notice appears on EVERY state built
 // from that inventory - including a small filtered result, an empty result
 // and an out-of-range page - never only when a large count is on screen.
-function ResultsSummary({ page, shown, totalCount, exact, pageSize }) {
+// graded-inventory-r1 - what a narrowing sort kept, as count nouns
+const NARROWED_NOUN = {
+  supported_saving: { one: "listing with a supported saving", many: "listings with a supported saving" },
+  live_auction: { one: "live auction", many: "live auctions" },
+};
+
+// The same URL with `keys` removed and pagination reset.
+function hrefWithout(params, keys, basePath) {
+  const sp = new URLSearchParams(params);
+  for (const k of [...keys, "page"]) sp.delete(k);
+  const qs = sp.toString();
+  return qs ? `${basePath}?${qs}` : basePath;
+}
+
+// graded-inventory-r1 - "Ending soon" / "Biggest discount" on an inventory
+// category list only the rows they rank. Say so, with the unrestricted count
+// for the same filters and marketplace, and a way back to every listing.
+function NarrowingNote({ narrowing, shown, exact, params, basePath, subject }) {
+  const atLeast = exact ? "" : "at least ";
+  const rule =
+    narrowing.kept === "live_auction"
+      ? "Ending soon shows live auctions only"
+      : "Biggest discount shows only listings priced below a supported market reference";
+  const all = narrowing.totalWithoutRestriction;
+  return (
+    <p data-sort-narrowing={narrowing.kept} className="mb-3 text-sm text-zinc-600 dark:text-zinc-300">
+      {rule}: <span className="tnum">{atLeast}{shown.toLocaleString("en-US")}</span> of{" "}
+      <span className="tnum">{atLeast}{all.toLocaleString("en-US")}</span> {subject}.{" "}
+      <a
+        href={hrefWithout(params, ["sort"], basePath)}
+        rel="nofollow"
+        className="font-semibold text-red-600 underline underline-offset-2 dark:text-red-500"
+      >
+        Show all {subject}, newest first
+      </a>
+    </p>
+  );
+}
+
+function ResultsSummary({ page, shown, totalCount, exact, pageSize, nouns }) {
   const first = (page - 1) * pageSize + 1;
   const last = first + shown - 1;
-  const noun = totalCount === 1 ? "listing" : "listings";
+  const noun = totalCount === 1 ? nouns?.one ?? "listing" : nouns?.many ?? "listings";
   const total = `${exact ? "" : "at least "}${totalCount.toLocaleString("en-US")} ${noun}`;
   return (
     <div role="status" className="mb-4 text-sm text-zinc-600 dark:text-zinc-300">
@@ -109,7 +149,7 @@ function ResultsSummary({ page, shown, totalCount, exact, pageSize }) {
   );
 }
 
-export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}, emptyLabel, validSetSlugs = [], defaultSort = "newest", subjectLabel, compactFilters = false, lockedCardType = null, exactInventory: inventoryCategory = false }) {
+export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}, emptyLabel, validSetSlugs = [], defaultSort = "newest", subjectLabel, compactFilters = false, lockedCardType = null, exactInventory: inventoryCategory = false, inventorySubject = "listings", languageScope = null }) {
   const search = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const params = useMemo(() => parseSearch(search), [search]);
   const reqKey = params.raw;
@@ -200,11 +240,12 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
             // exact extra listings on other marketplaces (all-deals inventory
             // only); null = not computable, show the action without a number
             additional: typeof d.additionalOnOtherMarketplaces === "number" ? d.additionalOnOtherMarketplaces : null,
+            narrowing: d.narrowing ?? null,
             error: d.error ?? null,
           });
       })
       .catch((e) => {
-        if (!cancelled) setFetched({ key: reqKey, deals: [], totalPages: 1, totalCount: 0, exact: false, outOfRange: false, additional: null, error: e.message });
+        if (!cancelled) setFetched({ key: reqKey, deals: [], totalPages: 1, totalCount: 0, exact: false, outOfRange: false, additional: null, narrowing: null, error: e.message });
       });
     return () => {
       cancelled = true;
@@ -221,11 +262,14 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
         pageSize: initial.pageSize ?? 24,
         outOfRange: false,
         additional: null, // the server default is never marketplace-scoped
-        // other kinds render their own server error above the grid
-        error: allDeals ? initial.error ?? null : null,
+        narrowing: initial.narrowing ?? null,
+        // exact-inventory pages show a load failure here (never as an empty
+        // or complete result); other kinds render their own server error
+        // above the grid
+        error: exactInventory ? initial.error ?? null : null,
       }
     : loading
-      ? { deals: [], totalPages: 1, totalCount: 0, exact: false, outOfRange: false, additional: null, error: null }
+      ? { deals: [], totalPages: 1, totalCount: 0, exact: false, outOfRange: false, additional: null, narrowing: null, error: null }
       : {
           deals: fetched.deals,
           totalPages: fetched.totalPages,
@@ -234,8 +278,11 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
           pageSize: fetched.pageSize,
           outOfRange: fetched.outOfRange,
           additional: fetched.additional,
+          narrowing: fetched.narrowing,
           error: fetched.error,
         };
+  const narrowing = exactInventory && !loading && !view.error ? view.narrowing : null;
+  const narrowedNouns = narrowing ? NARROWED_NOUN[narrowing.kept] : null;
 
   // On offer-first catalogue pages, a regional refresh can replace the
   // loading grid above an already-selected inventory anchor. Keep that
@@ -308,10 +355,37 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
         <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {view.error}</p>
       )}
 
+      {/* graded-inventory-r1: this page's catalogue-language scope, and the
+          same listings in every language on /deals */}
+      {languageScope && (
+        <p data-language-scope className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+          {languageScope.note}{" "}
+          <a
+            href={crossLanguageHref(params.obj, languageScope)}
+            rel="nofollow"
+            className="font-semibold text-red-600 underline underline-offset-2 dark:text-red-500"
+          >
+            {languageScope.label} →
+          </a>
+        </p>
+      )}
+
+      {narrowing && !view.outOfRange && (
+        <NarrowingNote
+          narrowing={narrowing}
+          shown={view.totalCount}
+          exact={view.exact}
+          params={params.obj}
+          basePath={basePath}
+          subject={inventorySubject}
+        />
+      )}
+
       {/* marketplace-broaden-r1: which marketplaces these results come from.
           Empty results carry the broadening action in their own state. */}
-      {!loading && !view.error && !view.outOfRange && view.deals.length > 0 && (
+      {!loading && !view.error && !view.outOfRange && (view.deals.length > 0 || narrowing) && (
         <MarketplaceScopeNote
+          additionalNouns={narrowedNouns}
           params={params.obj}
           basePath={basePath}
           // every DealGrid page except /deals mounts RegionRedirect
@@ -325,7 +399,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
       )}
 
       {exactInventory && !loading && !view.error && (view.deals.length > 0 || !view.exact) && (
-        <ResultsSummary page={params.page} shown={view.deals.length} totalCount={view.totalCount} exact={view.exact} pageSize={view.pageSize} />
+        <ResultsSummary page={params.page} shown={view.deals.length} totalCount={view.totalCount} exact={view.exact} pageSize={view.pageSize} nouns={narrowedNouns} />
       )}
 
       {loading ? (
@@ -354,7 +428,9 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
             searchQuery={searchable ? params.q : null}
             allByDefault={allDeals}
           />
-        ) : (
+        ) : narrowing ? null : (
+          // a narrowed sort explains its own empty result (NarrowingNote) -
+          // never "no listings" for the whole category
           <EmptyGridState label={emptyLabel} params={params.obj} basePath={basePath} allByDefault={allDeals} />
         )
       ) : (

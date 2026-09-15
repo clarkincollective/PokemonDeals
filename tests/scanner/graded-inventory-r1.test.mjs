@@ -212,3 +212,103 @@ test("GI-9. /deals without category options is unchanged: every language, no nar
   assert.equal(pages({ cardType: "graded", sort: "ending" }).first.totalCount, 69);
   assert.equal(inv.queryAllDeals(CHUNKS, {}, { now: NOW }).filters.language, null);
 });
+
+// ---- corrections before deployment ------------------------------------------
+
+const { renderToStaticMarkup } = await import("react-dom/server");
+const { createElement } = await import("react");
+const { DEAL_STATE_FIXTURES } = await import(pathToFileURL(join(REPO, "lib/dev/dealStateFixtures.js")).href);
+const { loadRoute } = await import(pathToFileURL(join(REPO, "tests/helpers/r3RouteHarness.mjs")).href);
+const slabTemplate = { ...DEAL_STATE_FIXTURES.find((f) => f.id === "graded").deal, is_active: true };
+const SAVINGS_STATES = {
+  whole: {},
+  underOnePercent: { discount_pct: 0.004 },
+  noComparison: { market_price: null, discount_pct: null },
+  zeroSaving: { discount_pct: 0 },
+  negativeSaving: { discount_pct: -0.1 },
+  nonFinite: { discount_pct: "n/a" },
+};
+
+test("GI-10. savings wording needs a valid trusted comparison and a finite positive saving; under 1% never reads 0%", async () => {
+  assert.equal(dq.savingsPercentText(0.2), "20%");
+  assert.equal(dq.savingsPercentText(0.004), "less than 1%");
+  assert.equal(dq.savingsBadgeText(0.004), "<1%");
+  assert.equal(dq.savingsBadgeText(0.2), "−20%");
+  for (const [name, over] of Object.entries(SAVINGS_STATES)) {
+    const deal = { ...slabTemplate, ...over };
+    const positive = name === "whole" || name === "underOnePercent";
+    assert.equal(dq.listingPresentation(deal).savings, positive ? "trusted" : null, name);
+    assert.equal(dq.isDisplayableDeal(deal), dq.isDisplayableDeal(slabTemplate), `${name}: visibility unchanged`);
+
+    // card rendering path 1: the grid tile (DealCard, real component)
+    const { route: Card } = loadRoute("components/DealCard.js", { renderComponents: "visual" });
+    const tile = renderToStaticMarkup(createElement(Card.default, { deal, pageName: "category_detail" }));
+    // card rendering path 2: the listing page the tile links to
+    const { route: page } = loadRoute("app/deals/[id]/page.js", { deal, renderComponents: true });
+    const params = Promise.resolve({ id: String(deal.id) });
+    const detail = renderToStaticMarkup(await page.default({ params }));
+    const meta = await page.generateMetadata({ params });
+    for (const [where, html] of [["tile", tile], ["listing page", detail]]) {
+      assert.doesNotMatch(html, /(?<![\d.])0% below|−0%|-0%/i, `${name} ${where}: never 0%`);
+      assert.match(html, /ebay\.com\/itm\//, `${name} ${where}: exact eBay link kept`);
+      assert.match(html, /sponsored/, `${name} ${where}: sponsored rel kept`);
+      if (positive) assert.match(html, name === "whole" ? /20% below market/i : /less than 1% below market/i, `${name} ${where}`);
+      else assert.doesNotMatch(html, /below market|% below/i, `${name} ${where}: no savings wording`);
+    }
+    if (name === "underOnePercent") assert.match(tile, />&lt;1%</);
+    assert.doesNotMatch(`${meta.title} ${meta.description}`, /(?<![\d.])0% below|−0%/i, `${name} metadata`);
+    if (!positive) assert.doesNotMatch(meta.title, /below market/i);
+  }
+});
+
+test("GI-11. narrowing sorts report what they kept, with counts and broadening restricted the same way", () => {
+  const discount = inv.queryAllDeals(CHUNKS, categoryInventoryParams(GRADED, { sort: "discount" }), { now: NOW });
+  assert.deepEqual(discount.narrowing, { sort: "discount", kept: "supported_saving", totalWithoutRestriction: 67 });
+  assert.equal(discount.totalCount, 46);
+  const endingUs = inv.queryAllDeals(CHUNKS, categoryInventoryParams(GRADED, { sort: "ending", country: "EBAY_US" }), { now: NOW });
+  assert.equal(endingUs.narrowing.kept, "live_auction");
+  assert.equal(endingUs.narrowing.totalWithoutRestriction, gradedPage({ country: "EBAY_US" }).first.totalCount);
+  assert.equal(endingUs.additionalOnOtherMarketplaces, gradedPage({ sort: "ending" }).first.totalCount - endingUs.totalCount, "broadening counts live auctions only");
+  assert.equal(inv.queryAllDeals(CHUNKS, categoryInventoryParams(GRADED, { sort: "newest" }), { now: NOW }).narrowing, null);
+  assert.equal(inv.queryAllDeals(CHUNKS, { cardType: "graded", sort: "discount" }, { now: NOW }).narrowing, null, "/deals never narrows");
+  const grid = read("components/DealGrid.js");
+  assert.match(grid, /Ending soon shows live auctions only/);
+  assert.match(grid, /Biggest discount shows only listings priced below a supported market reference/);
+  assert.match(grid, /Show all \{subject\}, newest first/);
+  assert.match(grid, /hrefWithout\(params, \["sort"\], basePath\)/);
+  assert.match(grid, /<ResultsSummary [^>]*nouns=\{narrowedNouns\}/);
+  assert.match(grid, /<MarketplaceScopeNote\s+additionalNouns=\{narrowedNouns\}/);
+  assert.match(grid, /\) : narrowing \? null : \(/, "a narrowed empty result is explained by the note, never 'no listings' for the category");
+  assert.match(read("components/MarketplaceScopeNote.js"), /more \$\{additional === 1 \? additionalNouns\?\.one \?\? "listing" : additionalNouns\?\.many \?\? "listings"\}/);
+  assert.match(read("components/DealCategoryPage.js"), /inventorySubject=\{cat\.inventorySubject\}/);
+});
+
+test("GI-12. English-only scope is stated, with a route to every catalogue language on /deals keeping compatible filters", () => {
+  const { crossLanguageHref } = require(join(REPO, "lib/dealCategories.js"));
+  const scope = GRADED.languageScope;
+  assert.equal(scope.label, "English and Japanese graded listings");
+  assert.equal(crossLanguageHref({}, scope), "/deals?type=graded");
+  assert.equal(
+    crossLanguageHref({ country: "EBAY_AU", grader: "PSA", grade: "10", listing: "AUCTION", minPrice: "100", maxPrice: "500", q: "zard", sort: "price_asc", page: "3", type: "raw" }, scope),
+    "/deals?type=graded&grader=PSA&grade=10&listing=AUCTION&minPrice=100&maxPrice=500&q=zard&sort=price_asc&country=EBAY_AU"
+  );
+  assert.equal(crossLanguageHref({ country: "all", grader: "CGC" }, scope), "/deals?type=graded&grader=CGC", "All marketplaces is the /deals default");
+  // the destination is the existing engine with no category options: Japanese slabs included
+  const dest = pages({ cardType: "graded", grader: "PSA", grade: "10" });
+  assert.ok(dest.deals.some((d) => d.card_language === "japanese"));
+  assert.equal(GRADED.inventory.language, "english", "category language rule unchanged");
+  assert.match(read("components/DealGrid.js"), /href=\{crossLanguageHref\(params\.obj, languageScope\)\}/);
+});
+
+test("GI-13. a failed marketplace read is an error, never a complete exact inventory or a definitive empty result", () => {
+  const deals = read("lib/deals.js");
+  assert.match(deals, /const failed = chunks\.find\(\(c\) => c\?\.error\);\s*if \(failed\) \{\s*return \{ deals: \[\], totalCount: 0, totalPages: 1, page: 1, exact: false, outOfRange: false, error: `Couldn't load \$\{failed\.marketplace\}: \$\{failed\.error\}` \};/);
+  const grid = read("components/DealGrid.js");
+  assert.match(grid, /error: exactInventory \? initial\.error \?\? null : null,/, "the server-rendered first page carries the failure into the grid");
+  assert.match(grid, /\{exactInventory && !loading && !view\.error && \(view\.deals\.length > 0 \|\| !view\.exact\) && \(/, "no count line on a failure");
+  assert.match(grid, /\) : !view\.error && view\.deals\.length === 0 \? \(/, "no empty state on a failure");
+  assert.match(grid, /const narrowing = exactInventory && !loading && !view\.error \? view\.narrowing : null;/);
+  assert.match(read("components/DealCategoryPage.js"), /\{error && !cat\.inventory && <p/, "no second, page-level error for an inventory category");
+  // a missing marketplace chunk is never exact
+  assert.equal(gradedPage({}, CHUNKS.filter((c) => c.marketplace !== "EBAY_AU")).first.exact, false);
+});

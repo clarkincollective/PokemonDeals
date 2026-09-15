@@ -8,7 +8,7 @@ import { dealPageTitle, dealCatalogSlugCandidate, expiredDealDestination } from 
 import { listingAvailabilityEvidence, dealDetailTag } from "@/lib/listingAvailability";
 import RelativeTime from "@/components/RelativeTime";
 import { shouldIndexDeal } from "@/lib/indexability";
-import { conditionLabel, isDisplayableDeal, listingPresentation } from "@/lib/dealQuality";
+import { conditionLabel, isDisplayableDeal, listingPresentation, savingsPercentText } from "@/lib/dealQuality";
 import { normalizePublicText } from "@/lib/publicText";
 import { cardDisplayName } from "@/lib/cardName";
 import { extractSpecies } from "@/lib/pokemonSpecies";
@@ -164,12 +164,13 @@ export async function generateMetadata({ params }) {
     }, trustedDealImageUrl(deal));
   }
   const discountPct = Math.round(deal.discount_pct * 100);
+  const pctText = savingsPercentText(deal.discount_pct);
   // SEO-2: card identity + the deal hook survive ahead of the "(set)"
   // context (lib/dealPage.js dealPageTitle) - a long set name used to
   // silently drop "- N% below market" and leave this URL titled exactly
   // like the permanent card page.
   const metadataShipping = offerShipping(deal);
-  const title = dealPageTitle({ cardName: metadataIsAuction ? `${cardName} auction` : cardName, cardSet, discountPct: !metadataIsAuction && metadataShipping.deliveredKnown ? discountPct : null });
+  const title = dealPageTitle({ cardName: metadataIsAuction ? `${cardName} auction` : cardName, cardSet, discountPct: !metadataIsAuction && metadataShipping.deliveredKnown && discountPct >= 1 ? discountPct : null });
   // Real card/set context up front, not just bare price numbers - a
   // search result showing only "$74.99 vs a $214.20 market price" gives a
   // searcher no reason to click over a competing result unless they've
@@ -194,7 +195,7 @@ export async function generateMetadata({ params }) {
     ? `${cardName}${cardSet ? ` (${cardSet})` : ""} eBay auction. ${bidText} Final price may rise. ${metadataShipping.note ?? "Shipping is additional to the bid."}`
     : metadataShipping.savingClaim === "none"
     ? `${cardName}${cardSet ? ` (${cardSet})` : ""} listed on eBay. Shipping breakdown not recorded; no savings claimed.`
-    : `${cardName}${cardSet ? ` (${cardSet})` : ""}${forClause} - ${discountPct}% below the $${marketUsd.toFixed(2)} market reference${metadataShipping.savingQualifier}. ${metadataShipping.note ?? "Includes recorded shipping."}`;
+    : `${cardName}${cardSet ? ` (${cardSet})` : ""}${forClause} - ${pctText} below the $${marketUsd.toFixed(2)} market reference${metadataShipping.savingQualifier}. ${metadataShipping.note ?? "Includes recorded shipping."}`;
 
   // P0 deal-image-integrity: never advertise a card-back seller photo as
   // the deal's identity image - trustedDealImageUrl yields the canonical
@@ -456,6 +457,7 @@ export default async function DealDetailPage({ params }) {
       ? { href: `/sets/${setSlug}`, label: cardSet }
       : { href: "/deals", label: "all deals" };
   const discountPct = Math.round(deal.discount_pct * 100);
+  const pctText = savingsPercentText(deal.discount_pct);
   // 17C.7: savings claims (badge, H1 suffix, strikethrough, "you save",
   // Product structured data, share text) need an evidenced reference.
   const presentation = listingPresentation(deal);
@@ -624,7 +626,7 @@ export default async function DealDetailPage({ params }) {
             <div className="flex flex-wrap items-center gap-2">
               {showSavings && (
                 <span className="rounded-md bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">
-                  {discountPct}% below market{shipping.savingQualifier}
+                  {pctText} below market{shipping.savingQualifier}
                 </span>
               )}
               {deal.watchlist?.language === "japanese" && (
@@ -658,7 +660,7 @@ export default async function DealDetailPage({ params }) {
                 already target but the page's own primary heading didn't. */}
             <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">
               {cardName}
-              {showSavings && <span className="font-medium text-zinc-500 dark:text-zinc-400"> - {discountPct}% Below Market{shipping.savingQualifier}</span>}
+              {showSavings && <span className="font-medium text-zinc-500 dark:text-zinc-400"> - {pctText} Below Market{shipping.savingQualifier}</span>}
             </h1>
             {cardSet && (
               setSlug ? (
@@ -730,11 +732,11 @@ export default async function DealDetailPage({ params }) {
                     <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
                       You save{" "}
                       <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}
-                      {discountPct}% below market{shipping.savingQualifier}
+                      {pctText} below market{shipping.savingQualifier}
                     </p>
                   ) : (
                     <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                      {discountPct}% below market{shipping.savingQualifier}
+                      {pctText} below market{shipping.savingQualifier}
                     </p>
                   )}
                 </>
@@ -806,10 +808,10 @@ export default async function DealDetailPage({ params }) {
               </AffiliateLink>
               <ShareButton
                 url={`${SITE_URL}/deals/${deal.id}`}
-                title={showSavings ? `${cardName} - ${discountPct}% below market${shipping.savingQualifier}` : cardName}
+                title={showSavings ? `${cardName} - ${pctText} below market${shipping.savingQualifier}` : cardName}
                 text={
                   showSavings
-                    ? `${cardName}${cardSet ? ` (${cardSet})` : ""}${dealTotalUsd(deal) ? ` - $${dealTotalUsd(deal).toFixed(2)},` : " -"} ${discountPct}% below market${shipping.savingQualifier} on Pokemon Deal Finder`
+                    ? `${cardName}${cardSet ? ` (${cardSet})` : ""}${dealTotalUsd(deal) ? ` - $${dealTotalUsd(deal).toFixed(2)},` : " -"} ${pctText} below market${shipping.savingQualifier} on Pokemon Deal Finder`
                     : `${cardName}${cardSet ? ` (${cardSet})` : ""} on Pokemon Deal Finder`
                 }
                 label="Share"
@@ -864,7 +866,7 @@ export default async function DealDetailPage({ params }) {
                   {" "}
                   — this listing is{" "}
                   <span className="font-semibold text-emerald-600 dark:text-emerald-500">
-                    {discountPct}% below{shipping.savingQualifier}
+                    {pctText} below{shipping.savingQualifier}
                   </span>{" "}
                   it
                 </>

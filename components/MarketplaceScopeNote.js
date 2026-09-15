@@ -44,7 +44,9 @@ function readStored() {
 }
 const storedOnServer = () => undefined;
 
-export default function MarketplaceScopeNote({ params, basePath, pinned = true, allByDefault = false, additional = null, thin = false }) {
+// additionalNouns: { one, many } for the extra count when the page's result
+// is restricted (graded-inventory-r1 narrowing sorts) - default "listing(s)".
+export default function MarketplaceScopeNote({ params, basePath, pinned = true, allByDefault = false, additional = null, thin = false, additionalNouns = null }) {
   const stored = useSyncExternalStore(subscribeStored, readStored, storedOnServer);
   const { marketplace: detected, rates } = useCurrency();
   const scope = effectiveMarketplaceScope({
@@ -59,7 +61,7 @@ export default function MarketplaceScopeNote({ params, basePath, pinned = true, 
     const { code } = scope;
     const more =
       typeof additional === "number" && additional > 0
-        ? `Browse all marketplaces (+${additional.toLocaleString("en-US")} more listing${additional === 1 ? "" : "s"})`
+        ? `Browse all marketplaces (+${additional.toLocaleString("en-US")} more ${additional === 1 ? additionalNouns?.one ?? "listing" : additionalNouns?.many ?? "listings"})`
         : "Browse all marketplaces";
     return (
       <div

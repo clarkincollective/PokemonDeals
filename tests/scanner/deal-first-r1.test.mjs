@@ -85,7 +85,8 @@ test("R1-4. DealCard: one dominant price with a clear meaning; shipping=0 is 'no
   assert.match(src, /shippingConfirmed \? \([\s\S]*?incl\.[\s\S]*?shipping[\s\S]*?\) : \(\s*ship\.note/);
   assert.doesNotMatch(src, /Free shipping|free delivery|delivered total|no shipping charge listed/i, "a 0 shipping figure is never called free on the card");
   // the derived saving never reads as a verified delivered saving
-  assert.match(src, /\{ship\.savingQualifier\} · \{discountPct\}% below market/);
+  // graded-inventory-r1: the percentage comes from savingsPercentText ("N%" / "less than 1%")
+  assert.match(src, /\{ship\.savingQualifier\} · \{pctText\} below market/);
   assert.match(src, /data-shipping=\{ship\.state\}/);
   assert.equal(offerShipping({ shipping: 0 }).headline, "Listing price");
   assert.equal(offerShipping({ shipping: 0 }).note, "Shipping not confirmed");

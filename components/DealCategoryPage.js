@@ -154,7 +154,8 @@ export default async function DealCategoryPage({ slug }) {
       </header>
 
       <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 scroll-mt-6 px-6 py-6 sm:py-8">
-        {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
+        {/* an inventory category shows its load failure inside the grid instead */}
+        {error && !cat.inventory && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
 
         <DealGrid
           kind="category"
@@ -162,6 +163,8 @@ export default async function DealCategoryPage({ slug }) {
           basePath={basePath}
           initial={initial}
           exactInventory={Boolean(cat.inventory)}
+          inventorySubject={cat.inventorySubject}
+          languageScope={cat.languageScope ?? null}
           hubCounts={hubCounts}
           emptyLabel={`No ${cat.h1.toLowerCase()} match these filters right now. Try clearing a filter, or check back after the next scan.`}
           validSetSlugs={validSetSlugs}

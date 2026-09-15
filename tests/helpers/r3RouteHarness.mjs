@@ -73,6 +73,8 @@ export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis
     if (name==='@/lib/supabaseClient') return {supabase:query};
     if (name==='@/lib/pokemonPriceTracker') return {getFullPriceAnalysis:record('fixture-price-analysis',analysis),getSealedPriceHistory:record('fixture-sealed-history',[])};
     if (name==='@/lib/email') return {emailEnabled:()=>false};
+    // ppt-telemetry-r1 consumer attribution: pass-through (the fixture price analysis records nothing)
+    if (name==='@/lib/pptTelemetry') return {withPptConsumer:(consumer,fn)=>fn(),setPptConsumer:()=>{}};
     if (name.startsWith('@/components/') || ['next/link','next/image'].includes(name)) {
       if (!components.has(name)) {
         substitutes.add(name);
