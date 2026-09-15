@@ -168,3 +168,94 @@ test("PT-7. wiring: every PPT request in the shared client goes through the inst
     assert.ok(readFileSync(join(REPO, file), "utf8").includes(`"${tag}"`), `${file} tags ${tag}`);
   }
 });
+
+test("PT-8. outside job runs the write is scheduled after the response through the request lifecycle, not awaited", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(join(REPO, "lib/pptTelemetry.js"), "utf8");
+  const sched = src.slice(src.indexOf("function scheduleAfterResponse"), src.indexOf("let afterOverride"));
+  assert.ok(sched.indexOf('require("next/server").after(') >= 0 && sched.indexOf('require("next/server").after(') < sched.indexOf('Symbol.for("@next/request-context")'), "Next after() first, then the request-context waitUntil");
+  assert.match(src, /if \(!scheduleAfterResponse\(persist\)\) await persist\(\);/);
+
+  // The real fallback path: a platform request context exposing waitUntil (as Vercel / next start provide).
+  const db = createMemoryDb({ catalog_snapshot: [] });
+  let release;
+  const gate = new Promise((r) => (release = r));
+  T.setPptTelemetrySink({ from: (t) => ({ insert: async (row) => { await gate; return db.from(t).insert(row); } }) });
+  const tracked = [];
+  const SYM = Symbol.for("@next/request-context");
+  const prev = globalThis[SYM];
+  globalThis[SYM] = { get: () => ({ waitUntil: (p) => tracked.push(p) }) };
+  try {
+    stubFetch([{ body: { data: [{ id: "x" }] } }]);
+    const t0 = Date.now();
+    const out = await PPT.listSets();
+    const elapsed = Date.now() - t0;
+    assert.deepEqual(out, [{ id: "x" }], "result unchanged");
+    assert.ok(elapsed < 500, `request returned in ${elapsed}ms while the telemetry write is still blocked`);
+    assert.equal(tracked.length, 1, "the write is handed to waitUntil (tracked, not fire-and-forget)");
+    assert.equal(pptRows(db).length, 0, "not yet written when the caller got its result");
+    release();
+    await Promise.all(tracked);
+    assert.equal(pptRows(db).length, 1, "written after the response, within the tracked lifetime");
+  } finally {
+    if (prev === undefined) delete globalThis[SYM];
+    else globalThis[SYM] = prev;
+  }
+  // a scheduled write that fails is swallowed inside the tracked task
+  T.setPptTelemetrySink({ from: () => ({ insert: () => Promise.reject(new Error("down")) }) });
+  const tasks = [];
+  T.setPptAfterResponse((task) => { tasks.push(task()); return true; });
+  try {
+    stubFetch([{ body: { data: [] } }]);
+    assert.deepEqual(await PPT.listSets(), []);
+    await assert.doesNotReject(() => Promise.all(tasks));
+  } finally {
+    T.setPptAfterResponse(null);
+  }
+});
+
+test("PT-9. consumer tags are request-local: two concurrent, differently tagged requests never mix", async () => {
+  const db = fresh();
+  const delays = { sets: 40, "sealed-products": 5 };
+  globalThis.fetch = async (url) => {
+    const family = new URL(String(url)).pathname.replace("/api/v2/", "").split("/")[0];
+    await new Promise((r) => setTimeout(r, delays[family] ?? 1));
+    return new Response(JSON.stringify({ data: [] }), { status: 200 });
+  };
+  // (a) withPptConsumer scopes, interleaved: A starts first and finishes last
+  const a = T.withPptConsumer("page:cards", async () => { await PPT.listSets(); await PPT.listSets(); });
+  const b = T.withPptConsumer("api:card-search", async () => { await PPT.getSealedPrice("1").catch(() => null); await PPT.getSealedPrice("2").catch(() => null); });
+  // (b) setPptConsumer (route handlers) from two separate request roots
+  const root = (tag, fn) => new Promise((resolve) => setImmediate(async () => { T.setPptConsumer(tag); await fn(); resolve(); }));
+  const c = root("cron:sync-watchlist", async () => { await PPT.listSets(); });
+  const d = root("page:search", async () => { await PPT.getSealedPrice("3").catch(() => null); });
+  await Promise.all([a, b, c, d]);
+  const byConsumer = {};
+  for (const r of pptRows(db)) {
+    const x = r.data.counts[0];
+    (byConsumer[x.consumer] ??= new Set()).add(x.op);
+  }
+  assert.deepEqual(Object.fromEntries(Object.entries(byConsumer).map(([k, v]) => [k, [...v]])), {
+    "page:cards": ["listSets"],
+    "api:card-search": ["getSealedPrice"],
+    "cron:sync-watchlist": ["listSets"],
+    "page:search": ["getSealedPrice"],
+  });
+  assert.equal(pptRows(db).length, 6);
+  assert.equal(T.resolveConsumer(null), "unknown", "no tag leaks back to the outer context");
+});
+
+test("PT-10. pruning deletes only this telemetry's own expired rows", async () => {
+  const old = "2026-01-01T00:00:00.000Z";
+  const db = createMemoryDb({
+    catalog_snapshot: [
+      { kind: "ppt_requests:2026-01-01:x:1", data: {}, updated_at: old },
+      { kind: "ppt_requests:2026-09-15:y:2", data: {}, updated_at: new Date().toISOString() },
+      { kind: "browse_budget_observe:2026-01-01T07:00:00.000Z", data: {}, updated_at: old },
+      { kind: "graded_item_grading:v1|1|0", data: {}, updated_at: old },
+      { kind: "pptx_other", data: {}, updated_at: old },
+    ],
+  });
+  assert.equal(await T.prunePptTelemetry(db), true);
+  assert.deepEqual(db.tables.catalog_snapshot.map((r) => r.kind), ["ppt_requests:2026-09-15:y:2", "browse_budget_observe:2026-01-01T07:00:00.000Z", "graded_item_grading:v1|1|0", "pptx_other"]);
+});

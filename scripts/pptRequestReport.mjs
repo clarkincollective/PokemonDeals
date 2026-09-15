@@ -50,11 +50,21 @@ for (const day of days) {
   out[day] = { rows: rows.length, total, byConsumerEndpointOp: lines, partialDay: day === today };
 }
 
+const LIMITATIONS = [
+  "Totals are RECORDED attempts through lib/pokemonPriceTracker - not credits, cost or billing headroom.",
+  "Excluded: scripts/ppt-history-backfill.mjs and scripts/auditMissingIds.js (direct fetch, bypass the shared client).",
+  "Can under-count: a process that dies before its job-run row or after-response write persists, or a write that fails / exceeds 1.5 s, leaves no record.",
+  "A job run spanning UTC midnight is assigned to the day it finished.",
+  "Missing or zero telemetry does not prove that no provider requests occurred (including during builds).",
+];
+
 if (asJson) {
-  console.log(JSON.stringify(out, null, 1));
+  console.log(JSON.stringify({ measure: "recorded PokemonPriceTracker request attempts", limitations: LIMITATIONS, days: out }, null, 1));
 } else {
+  console.log("Recorded PokemonPriceTracker request attempts (not credits or spending)");
+  for (const l of LIMITATIONS) console.log(`  - ${l}`);
   for (const [day, r] of Object.entries(out)) {
-    console.log(`\n${day}${r.partialDay ? " (partial, in progress)" : ""} - ${r.rows} rows - attempts ${r.total.attempts} (ok ${r.total.ok}, 429 ${r.total.r429}, failed ${r.total.failed}, network ${r.total.network_error}, retries ${r.total.retries})`);
+    console.log(`\n${day}${r.partialDay ? " (partial, in progress)" : ""} - ${r.rows} rows - recorded attempts ${r.total.attempts} (ok ${r.total.ok}, 429 ${r.total.r429}, failed ${r.total.failed}, network ${r.total.network_error}, retries ${r.total.retries})`);
     for (const l of r.byConsumerEndpointOp) {
       console.log(`  ${String(l.attempts).padStart(6)}  ${l.consumer.padEnd(28)} ${l.endpoint.padEnd(20)} ${l.op.padEnd(26)} ok ${l.ok} 429 ${l.r429} failed ${l.failed} net ${l.network_error} retries ${l.retries}`);
     }

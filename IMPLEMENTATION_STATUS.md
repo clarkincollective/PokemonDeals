@@ -5269,35 +5269,33 @@ providerLeft = remaining − unspentOpen − 420 − verifierCommitment
 - Rollback: `node scripts/remediation/unownIdentityQuarantine.mjs --rollback=scripts/remediation/applied/unown-identity-quarantine-prior-2026-09-15T02-49-33Z.json --confirm=1` (restores NULL only while the quarantine reason is present).
 - Visibility (plain requests): `/deals/38057` shows "cannot currently be shown" (noindex) and the `/deals` inventory no longer lists it by 03:00 UTC; `/pokemon/unown` never listed it; `/sets/ex-unseen-forces` still carried the cached offer at 03:00 (set catalogue cache 15 min, page ISR 1 h).
 
-## PokemonPriceTracker request telemetry (PPT-TELEMETRY-R1), 2026-09-15 (local review, not deployed)
-**Purpose.** Measure outbound PokemonPriceTracker REQUEST ATTEMPTS by consumer before any release that could raise them. It counts requests and attempts only, not credits or spending. The documented Business-tier 200,000 credits/day allowance remains unverified. No cap, refusal or behaviour change.
+## PokemonPriceTracker request telemetry (PPT-TELEMETRY-R1), 2026-09-15
+**Purpose.** Measure outbound PokemonPriceTracker request attempts by consumer before any release that could raise them. Records requests and attempts only, not credits, cost or billing headroom. The documented Business-tier 200,000 credits/day allowance remains unverified. No cap, refusal or behaviour change.
 
-**Instrumented path (`lib/pokemonPriceTracker.js`):** every outbound `fetch` in the shared client, i.e. `fetchPPT` (all 16 labelled call sites), `fetchPPTPaced` (each retry is its own attempt) and `downloadPrintingsExport`. One attempt is recorded after it settles:
-- consumer, endpoint family (`cards`, `cards+ebay`, `cards+ebay+history`, `sets`, `sealed-products`, `export`, ...), the lib function (`op`)
-- outcome: `ok`, `r429` (with the provider's `limitType` when the 429 body names one), `failed`, `network_error`; retries marked
-- standard `x-ratelimit-limit` / `-remaining` / `-reset` / `retry-after` values only if the response carries them as numbers
-- never the API key, query values (card ids, search text), response bodies or personal data
+**Instrumented path (`lib/pokemonPriceTracker.js`):** every outbound `fetch` in the shared client: `fetchPPT` (all 16 call sites name their lib function), `fetchPPTPaced` (each retry is its own attempt) and `downloadPrintingsExport`. Per attempt, after it settles:
+- consumer, endpoint family (`cards`, `cards+ebay`, `cards+ebay+history`, `sets`, `sealed-products`, `export`, ...), lib function
+- outcome `ok` / `r429` (with the 429 body's `limitType` when named) / `failed` / `network_error`; retries marked
+- standard `x-ratelimit-*` / `retry-after` values only if returned as numbers
+- never the API key, query values, response bodies or personal data
 
-A missing API key still throws before any request and is not counted. Results, thrown errors, retries, backoff and caching are unchanged. A cache hit makes no outbound request, so it is never counted (e.g. `unstable_cache` hits on card pages, refresh-deals' per-run condition-price cache).
+A missing API key still throws before any request and is not counted. Results, thrown errors, retries, backoff and caching are unchanged. Cache hits make no outbound request and are not counted.
 
-**Consumer attribution:** an explicit tag, else the eBay job run's `job`, else the explicit `unknown` bucket.
+**Consumer attribution:** explicit tag, else the eBay job run's `job`, else `unknown`. Tags live in an AsyncLocalStorage store (`withPptConsumer` = scoped run, `setPptConsumer` = rest of the current request): request-local, not module state. A concurrent check with differently tagged requests (scoped, and from separate request roots) shows no mixing.
 - Tagged: `page:cards`, `page:deal`, `page:sealed-deal`, `page:search`, `api:card-search`, `cron:sync-card-catalog`, `cron:sync-watchlist`, `cron:sync-sealed-catalog`.
-- From the eBay job context: `refresh-deals:sweep`, `refresh-deals:allocated`, `refresh-sealed-deals` (and any other `beginJobRun` route).
-- `unknown`: anything else through the shared client, e.g. manual scripts using `lib/pokemonPriceTracker` and any future caller.
+- From the eBay job context: `refresh-deals:sweep`, `refresh-deals:allocated`, `refresh-sealed-deals`, other `beginJobRun` routes.
+- `unknown`: any other caller of the shared client (e.g. manual scripts using it).
 
-**Storage (existing `catalog_snapshot`, no migration, insert-only):**
-- Inside an eBay job run: counts stay on the run context and `finishJobRun` inserts ONE row (`source: job_run`, job / mode / country) after the `ebay_job_runs` row, in its own try/catch.
-- Elsewhere: one row per attempt (`source: request`), written right after it with a 1.5 s bound on the write.
-- kind `ppt_requests:<UTC day>:<ISO time>:<random>`; no shared read-modify-write counter, so concurrent writers never lose increments. Rows older than 35 days are pruned (at most hourly per instance, from job-run flushes).
-- Recording failures (database down, insert error, hung write) are swallowed and never reach the request.
+**Storage and response latency (existing `catalog_snapshot`, no migration, insert-only):**
+- Inside an eBay job run (cron routes): counts stay on the run context; `finishJobRun` inserts ONE row after the `ebay_job_runs` row, in its own try/catch.
+- Elsewhere (pages, card search, catalogue syncs): one row per attempt, **persisted after the response**. `scheduleAfterResponse` hands the write to Next's `after()` (on Vercel backed by `waitUntil`, which keeps the invocation alive until the task settles). Where Next runs work without a request scope (e.g. background cache revalidation) it uses the request context's `waitUntil` directly (`globalThis[Symbol.for("@next/request-context")]`, the primitive `after()` uses). The page or API response never waits for the insert. Only where neither exists (scripts, tests) is the write awaited, bounded at 1.5 s. No untracked fire-and-forget promise.
+- kind `ppt_requests:<UTC day>:<ISO time>:<random>`; no shared read-modify-write counter. Pruning deletes only rows with the `ppt_requests:` prefix older than 35 days (at most hourly per instance, from job-run flushes).
+- Recording failures (database down, insert error, hung write, failed scheduled task) are swallowed.
 
-**Reading daily totals:** `node scripts/pptRequestReport.mjs [YYYY-MM-DD] [--json]` (read-only) sums the day's rows by consumer / endpoint / op with ok / 429 / failed / network / retries. Today's figure is partial. A job run's row carries the day the run finished, so a run spanning UTC midnight counts on the later day.
+**Reading daily totals:** `node scripts/pptRequestReport.mjs [YYYY-MM-DD] [--json]` (read-only) sums the day's rows by consumer / endpoint / function as **recorded attempts** with ok / 429 / failed / network / retries, and prints these limitations with every report:
+- Excluded: `scripts/ppt-history-backfill.mjs` and `scripts/auditMissingIds.js` call the provider with their own `fetch` (not changed in this release).
+- Can under-count: a process that dies before its job-run row or scheduled write persists, or a write that fails or exceeds 1.5 s, leaves no record.
+- A job run spanning UTC midnight is assigned to its finish day. Today's figure is partial.
+- Missing or zero telemetry does not prove that no provider requests occurred, including during builds.
+- Attempts are not credits: no cost or billing headroom can be inferred from request counts alone.
 
-**Coverage gaps (known):**
-- Not counted: `scripts/ppt-history-backfill.mjs` and `scripts/auditMissingIds.js` call the provider with their own `fetch`, bypassing the shared client.
-- Lost if the process dies before `finishJobRun` persists (job runs) or before a per-attempt write completes, or if the write exceeds 1.5 s: the totals can under-count, never over-count.
-- Per-attempt rows add one database insert (up to 1.5 s) after each non-job PPT attempt (page renders, card search, catalogue syncs).
-- Provider usage headers are unknown; only the standard names above are kept if present.
-- Credits per request are not known from any billing record; attempts are not converted to credits.
-
-**Checks:** `ppt-telemetry-r1` 7 / 7 (success, 429 / failure / network classification, paced retries counted per attempt with identical fetch count and result, telemetry failure and hung write, job-run aggregation, consumer buckets, wiring); 27 related suites 440 tests, 8 fail, 7 in the pre-existing baseline plus one search-page pin that was fixed by tagging `/search` at the page entry instead of wrapping the call (search suites 31 / 31); `next build` exit 0, no PPT request during the build.
+**Checks:** `ppt-telemetry-r1` 10 / 10: success; 429 / failure / network classification; paced retries counted per attempt with identical fetch count and result; telemetry failure and hung write; job-run aggregation; consumer buckets; wiring; after-response scheduling through the request-context `waitUntil` (the caller gets its result while the write is still blocked; a failing scheduled write is swallowed); concurrent tag isolation; prune scope. eBay telemetry suites (isolation, 14R) pass. Before the after-response correction: 27 related suites 440 tests, 8 fail (7 pre-existing baseline, 1 search-page pin fixed by tagging `/search` at the page entry; search suites 31 / 31). `next build` exit 0.
