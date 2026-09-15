@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { listSets, listSealedProductsForSet } from "@/lib/pokemonPriceTracker";
 import { sealedCatalogRecord, flagImplausibleSealedPrices } from "@/lib/sealedCatalog";
+import { setPptConsumer } from "@/lib/pptTelemetry";
 
 // Daily sync of PokemonPriceTracker's sealed-product catalogue into our
 // own `sealed_catalog` table - the browsing layer's source of "every
@@ -25,6 +26,7 @@ const PACE_MS = 1000; // listSealedProductsForSet self-throttles on 429
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function GET(request) {
+  setPptConsumer("cron:sync-sealed-catalog"); // ppt-telemetry-r1 attribution only
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });

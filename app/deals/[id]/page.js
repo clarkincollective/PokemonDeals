@@ -20,6 +20,7 @@ import { offerShipping } from "@/lib/offerPresentation";
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
+import { withPptConsumer } from "@/lib/pptTelemetry";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import VariantPriceGrid from "@/components/VariantPriceGrid";
 import SiteHeader from "@/components/SiteHeader";
@@ -233,7 +234,7 @@ export async function generateMetadata({ params }) {
 // separately above at 60s), so it can safely sit a few minutes stale.
 const loadPriceAnalysisUncached = async (tcgplayerId, grader, grade, language) => {
   try {
-    return await getFullPriceAnalysis(tcgplayerId, { primaryGrader: grader, primaryGrade: grade, language });
+    return await withPptConsumer("page:deal", () => getFullPriceAnalysis(tcgplayerId, { primaryGrader: grader, primaryGrade: grade, language }));
   } catch (err) {
     console.error("Price analysis lookup failed:", err.message);
     return null;

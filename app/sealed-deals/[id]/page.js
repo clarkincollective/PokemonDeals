@@ -11,6 +11,7 @@ import { currencyForDeal, refInListingCurrency, dealTotalUsd, hasPrice, auctionD
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
 import { getSealedPriceHistory } from "@/lib/pokemonPriceTracker";
+import { withPptConsumer } from "@/lib/pptTelemetry";
 import { shouldIndexDeal } from "@/lib/indexability";
 import { isDisplayableSealedDeal, listingPresentation } from "@/lib/dealQuality";
 import { timeAgo, timeUntil } from "@/lib/time";
@@ -62,7 +63,7 @@ const loadDeal = cache(loadDealFromDataCache);
 // live/sold state.
 const loadSealedHistoryUncached = async (tcgplayerId) => {
   try {
-    return await getSealedPriceHistory(tcgplayerId);
+    return await withPptConsumer("page:sealed-deal", () => getSealedPriceHistory(tcgplayerId));
   } catch (err) {
     console.error("Sealed price history lookup failed:", err.message);
     return [];

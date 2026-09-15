@@ -7,6 +7,7 @@ import {
   isSentinelPrice,
 } from "@/lib/pokemonPriceTracker";
 import { upsertWithProvenance } from "@/lib/referenceProvenanceDb";
+import { setPptConsumer } from "@/lib/pptTelemetry";
 
 // Pages through the entire Pokemon catalog, so this can take a while -
 // give it room instead of the default timeout.
@@ -401,6 +402,7 @@ async function syncViaSetCrawl(db, manualKeys, maxSets, language) {
 }
 
 export async function GET(request) {
+  setPptConsumer("cron:sync-watchlist"); // ppt-telemetry-r1 attribution only
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });

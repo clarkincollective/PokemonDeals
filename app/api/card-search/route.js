@@ -4,6 +4,7 @@ import { getRawPrice, getRawPriceHistory } from "@/lib/pokemonPriceTracker";
 import { isDisplayableDeal } from "@/lib/dealQuality";
 import { readSearchFilters } from "@/lib/searchFacets";
 import { runCardSearch } from "@/lib/searchEngine";
+import { setPptConsumer } from "@/lib/pptTelemetry";
 
 // Public, read-only, on-demand - not on the cron schedule, so no
 // CRON_SECRET check. Deals come straight from our own database (never a
@@ -20,6 +21,7 @@ export const dynamic = "force-dynamic";
 const IS_DEV = process.env.NODE_ENV !== "production";
 
 export async function GET(request) {
+  setPptConsumer("api:card-search"); // ppt-telemetry-r1 attribution only
   const url = new URL(request.url);
   const tcgplayerId = url.searchParams.get("tcgplayerId");
 

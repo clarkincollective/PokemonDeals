@@ -8,6 +8,7 @@ import {
 import { upsertWithProvenance, updateWithProvenance } from "@/lib/referenceProvenanceDb";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { catalogImageUrl } from "@/lib/cardImage";
+import { setPptConsumer } from "@/lib/pptTelemetry";
 
 // Daily sync of PokemonPriceTracker's full card catalogue into our own
 // `card_catalog` table - the browsing layer's source of "every card of a
@@ -39,6 +40,7 @@ function firstNonEmpty(...vals) {
 }
 
 export async function GET(request) {
+  setPptConsumer("cron:sync-card-catalog"); // ppt-telemetry-r1 attribution only
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });

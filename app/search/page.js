@@ -4,6 +4,7 @@ import JsonLd from "@/components/JsonLd";
 import { breadcrumbList } from "@/lib/jsonLd";
 import { fetchSetSlugs } from "@/lib/deals";
 import { runCardSearch } from "@/lib/searchEngine";
+import { setPptConsumer } from "@/lib/pptTelemetry";
 import { readSearchFilters, searchStateKey } from "@/lib/searchFacets";
 
 const SITE_URL = "https://pokemondealfinder.com";
@@ -61,6 +62,7 @@ export async function generateMetadata({ searchParams }) {
 export const dynamic = "force-dynamic";
 
 export default async function SearchPage({ searchParams }) {
+  setPptConsumer("page:search"); // ppt-telemetry-r1 attribution only
   const sp = (await searchParams) ?? {};
   const first = (v) => (Array.isArray(v) ? v[0] : v);
   const q = (typeof first(sp.q) === "string" ? first(sp.q) : "").trim();

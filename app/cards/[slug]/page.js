@@ -16,6 +16,7 @@ import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { wrapEbayAffiliateUrl, buildEbaySearchLink } from "@/lib/ebayLinks";
 import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
+import { withPptConsumer } from "@/lib/pptTelemetry";
 import SiteHeader from "@/components/SiteHeader";
 import SkipToContent from "@/components/SkipToContent";
 import CardDealFilters from "@/components/CardDealFilters";
@@ -79,7 +80,7 @@ const loadPriceAnalysisUncached = async (tcgplayerId) => {
     // canonical price_history spine (fetchCardPriceHistory), so this
     // request no longer needs includeHistory - one fewer provider credit
     // per uncached render and no page traffic on the history endpoint.
-    return await getFullPriceAnalysis(tcgplayerId, { includeHistory: false });
+    return await withPptConsumer("page:cards", () => getFullPriceAnalysis(tcgplayerId, { includeHistory: false }));
   } catch (err) {
     console.error("Price analysis lookup failed:", err.message);
     return null;
