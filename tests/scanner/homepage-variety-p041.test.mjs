@@ -319,7 +319,9 @@ test("14. the Under $25 lane price basis matches /deals/under-25 (total_price <=
 });
 
 test("15. app/page.js no longer shuffles per-request and renders the Under $25 lane", () => {
-  const src = read("app/page.js");
+  // Homepage-caching r1 moved the feed markup (incl. the Browse-all-deals
+  // CTA) into components/HomeFeed.js - splice it in at the call site.
+  const src = read("app/page.js").replace(/<HomeFeed[\s\S]*?\/>/, () => read("components/HomeFeed.js"));
   const code = src.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
   assert.doesNotMatch(code, /Math\.random\s*\(/, "per-request Math.random shuffle still in the homepage render path");
   assert.doesNotMatch(code, /function shuffled\s*\(/, "dead shuffled() helper still present");

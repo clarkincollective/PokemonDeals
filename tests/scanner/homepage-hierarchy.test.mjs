@@ -21,13 +21,23 @@ import { LANES } from "../../lib/homepageVariety.js";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
 
-const page = read("app/page.js");
+const pageOnly = read("app/page.js");
 const layout = read("app/layout.js");
 const laneLimit = (key) => LANES().find((l) => l.key === key)?.limit;
 
+// Homepage-caching r1 split the feed/explore markup out of app/page.js
+// into components/HomeFeed.js (a client component, so the host page reads
+// no searchParams and stays statically cacheable - see that file's own
+// header comment). Splicing HomeFeed's source in at the <HomeFeed ... />
+// call site reconstructs the same top-to-bottom document order the two
+// files render at runtime, so every structural/order assertion below
+// still means what it always meant.
+const homeFeed = read("components/HomeFeed.js");
+const page = pageOnly.replace(/<HomeFeed[\s\S]*?\/>/, () => homeFeed);
+
 const idx = (s, needle) => {
   const i = s.indexOf(needle);
-  assert.notEqual(i, -1, `expected to find ${JSON.stringify(needle)} in app/page.js`);
+  assert.notEqual(i, -1, `expected to find ${JSON.stringify(needle)} in app/page.js + components/HomeFeed.js`);
   return i;
 };
 
@@ -106,9 +116,9 @@ test("R2 - section order: feed (flagship row -> grid) -> explore -> guides -> ho
   // review fix P2: the default feed is MIXED (flagship BIN row + a grid
   // that may contain auctions), so it is labelled "Featured"; "Buy it now"
   // is the existing FIXED_PRICE filter, never the default's label
-  assert.match(page, /\{ href: "\/", label: "Featured", chip: "featured", home: true \}/);
-  assert.match(page, /\{ href: "\/\?listing=FIXED_PRICE", label: "Buy it now", chip: "buy_it_now" \}/);
-  assert.match(page, /kicker=\{anyFilter \? "Filtered" : "Buy it now and auctions"\}/);
+  assert.match(pageOnly, /\{ href: "\/", label: "Featured", chip: "featured", home: true \}/);
+  assert.match(pageOnly, /\{ href: "\/\?listing=FIXED_PRICE", label: "Buy it now", chip: "buy_it_now" \}/);
+  assert.match(page, /kicker=\{params\.anyFilter \? "Filtered" : "Buy it now and auctions"\}/);
 });
 
 test("R2 - the flagship row stays the first commercial content and keeps the shared lane contract", () => {

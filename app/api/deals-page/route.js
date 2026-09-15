@@ -1,6 +1,8 @@
 import {
   fetchAllDealsPage,
   fetchDealsPage,
+  fetchDealsPool,
+  fetchHomepageLanes,
   fetchSpeciesDealsPage,
   fetchSetDealsPage,
   fetchCardDealsPage,
@@ -11,6 +13,7 @@ import {
 } from "@/lib/deals";
 import { DEAL_CATEGORIES, categoryInventoryParams, isModernSet } from "@/lib/dealCategories";
 import { marketplaceFilterValue } from "@/lib/marketplaceScope";
+import { rotationBucket, rotateForBucket, selectDiverseLane, buildHomepageLanes } from "@/lib/homepageVariety";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +50,63 @@ export async function GET(request) {
   };
 
   try {
+    // Homepage feed - mirrors app/page.js's own (pre-refactor) server
+    // logic exactly, just reachable from the client so the host page
+    // itself never reads searchParams and stays statically cacheable.
+    // Page 1 with no filters (country included - deal-first review:
+    // "a country filter alone is allowed to keep the curated feed") is
+    // the curated flagship + diverse-grid promo view (lib/homepageVariety);
+    // any other combination is the plain rotated/diversified pool preview
+    // (no filters/page>1 -> stable fetchDealsPage list).
+    if (kind === "home") {
+      const previewSize = num("previewSize") ?? 9;
+      const rawSort = u.searchParams.get("sort");
+      const anyFilter = Boolean(filters.country || filters.cardType || filters.listingType || rawSort || filters.maxPrice || filters.minPrice);
+      const showPromo = filters.page === 1 && !filters.cardType && !filters.listingType && !rawSort && !filters.maxPrice && !filters.minPrice;
+      const useStableList = filters.page > 1 || Boolean(rawSort);
+      const bucket = rotationBucket();
+
+      let flagshipDeals = [];
+      let deals = [];
+      let totalPages = 1;
+      let error = null;
+
+      if (useStableList) {
+        const r = await fetchDealsPage({
+          table: "deals",
+          language: "english",
+          country: filters.country,
+          cardType: filters.cardType,
+          listingType: filters.listingType,
+          maxPrice: filters.maxPrice,
+          minPrice: filters.minPrice,
+          sort: rawSort ?? "newest",
+          page: filters.page,
+        });
+        deals = r?.deals ?? [];
+        totalPages = r?.totalPages ?? 1;
+        error = r?.error ?? null;
+      } else if (showPromo) {
+        const homeLanesResult = await fetchHomepageLanes({ country: filters.country });
+        const lanes = buildHomepageLanes(homeLanesResult?.pools ?? {}, { bucket, lanes: ["flagship", "grid"] });
+        flagshipDeals = lanes.flagship;
+        deals = lanes.grid;
+      } else {
+        const { data: filteredPool, error: poolError } = await fetchDealsPool({
+          language: "english",
+          country: filters.country,
+          cardType: filters.cardType,
+          listingType: filters.listingType,
+          maxPrice: filters.maxPrice,
+          minPrice: filters.minPrice,
+        });
+        error = poolError;
+        const ordered = rotateForBucket(filteredPool ?? [], { bucket, laneId: "grid_filtered", mode: "bucketPermute" });
+        deals = selectDiverseLane(ordered, { limit: previewSize, speciesCap: 3 });
+      }
+
+      return Response.json({ flagshipDeals, deals, totalPages, promo: showPromo, anyFilter, error });
+    }
     // /deals "All deals": every eligible listing, exact counts (see
     // lib/allDealsInventory). All marketplaces unless ?country is valid.
     if (kind === "all") {

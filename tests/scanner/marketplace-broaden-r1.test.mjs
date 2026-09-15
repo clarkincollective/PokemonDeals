@@ -13,6 +13,12 @@ import { dirname, join } from "node:path";
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const imp = (p) => import(pathToFileURL(join(REPO, p)).href);
 const read = (p) => readFileSync(join(REPO, p), "utf8");
+// Homepage-caching r1 moved the country-scoping/MarketplaceScopeNote
+// markup out of app/page.js into components/HomeFeed.js - reading a path
+// through this instead of plain read() keeps checking real homepage
+// content regardless of which of the two files it now lives in.
+const readPage = (p) =>
+  p === "app/page.js" ? read(p).replace(/<HomeFeed[\s\S]*?\/>/, () => read("components/HomeFeed.js")) : read(p);
 
 const scope = await imp("lib/marketplaceScope.js");
 const { relaxationSteps } = await imp("lib/dealFilters.js");
@@ -119,10 +125,19 @@ test("MB-4. no count when inventory is incomplete or a marketplace is missing", 
 test("MB-5. country=all reaches every loader as no marketplace filter", () => {
   const route = read("app/api/deals-page/route.js");
   assert.match(route, /country: marketplaceFilterValue\(u\.searchParams\.get\("country"\)\)/);
-  for (const p of ["app/page.js", "app/best-finds/page.js", "app/japanese-cards/page.js"]) {
+  for (const p of ["app/best-finds/page.js", "app/japanese-cards/page.js"]) {
     const src = read(p);
     assert.match(src, /const country = marketplaceFilterValue\(countryChoice\)/, p);
   }
+  // Homepage-caching r1: app/page.js no longer resolves country itself -
+  // it only ever renders the country: null default. HomeFeed forwards the
+  // raw ?country= value to /api/deals-page (like components/DealGrid.js
+  // does for every other page that route serves), which resolves it via
+  // the SAME marketplaceFilterValue() checked above.
+  assert.match(read("app/page.js"), /fetchHomepageLanes\(\{ country: null \}\)/);
+  const homeFeed = read("components/HomeFeed.js");
+  assert.match(homeFeed, /if \(params\.country\) q\.set\("country", params\.country\);/);
+  assert.doesNotMatch(homeFeed, /marketplaceFilterValue/, "resolution belongs in the API route, not the client");
   for (const p of ["components/CardDealFilters.js", "app/search/SearchClient.js"]) {
     assert.match(read(p), /const country = isAllMarketplaces\(sp\.get\("country"\)\) \? "" : sp\.get\("country"\) \?\? "";/, p);
   }
@@ -161,7 +176,7 @@ test("MB-7. visible controls: All marketplaces pill everywhere, scope note, broa
   assert.match(chips, /export function EmptyGridState\(\{ label, params, basePath, allByDefault = false \}\)/);
   const grid = read("components/DealGrid.js");
   assert.match(grid, /<EmptyGridState label=\{emptyLabel\} params=\{params\.obj\} basePath=\{basePath\} allByDefault=\{allDeals\} \/>/);
-  for (const p of ["app/page.js", "app/best-finds/page.js", "app/japanese-cards/page.js"]) assert.match(read(p), /<MarketplaceScopeNote /, p);
+  for (const p of ["app/page.js", "app/best-finds/page.js", "app/japanese-cards/page.js"]) assert.match(readPage(p), /<MarketplaceScopeNote /, p);
 });
 
 test("MB-8. wording: the header control names the marketplace, not shipping", () => {

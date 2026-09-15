@@ -7,14 +7,30 @@
 // Header rules keep the page static (no per-request render, no proxy).
 const ALL_DEALS_VARIANT_PARAMS = ["country", "type", "grader", "grade", "listing", "minPrice", "maxPrice", "q", "sort", "page"];
 
+// Homepage-caching r1: "/" follows the same static-page-plus-client-filter
+// shape as /deals now (components/HomeFeed.js + /api/deals-page?kind=home)
+// instead of reading searchParams itself - RegionRedirect's client-side geo
+// default was writing ?country= into the URL for almost every real visitor
+// right after hydration, which previously forced the WHOLE homepage to
+// render dynamically on every one of those requests, not just once per
+// country. No grader/grade/q - the homepage feed never took those.
+const HOME_VARIANT_PARAMS = ["country", "type", "listing", "minPrice", "maxPrice", "sort", "page"];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async headers() {
-    return ALL_DEALS_VARIANT_PARAMS.map((key) => ({
-      source: "/deals",
-      has: [{ type: "query", key }],
-      headers: [{ key: "X-Robots-Tag", value: "noindex, follow" }],
-    }));
+    return [
+      ...ALL_DEALS_VARIANT_PARAMS.map((key) => ({
+        source: "/deals",
+        has: [{ type: "query", key }],
+        headers: [{ key: "X-Robots-Tag", value: "noindex, follow" }],
+      })),
+      ...HOME_VARIANT_PARAMS.map((key) => ({
+        source: "/",
+        has: [{ type: "query", key }],
+        headers: [{ key: "X-Robots-Tag", value: "noindex, follow" }],
+      })),
+    ];
   },
   images: {
     // VERCEL-COST-1: WebP only. AVIF is ~20% smaller than WebP but each

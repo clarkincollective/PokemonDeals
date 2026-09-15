@@ -1,37 +1,24 @@
-import { marketplaceFilterValue } from "@/lib/marketplaceScope";
 import Image from "next/image";
 import Link from "next/link";
 import {
   fetchHomepageLanes,
-  fetchDealsPool,
-  fetchDealsPage,
   fetchLastScanTime,
   fetchCardHubs,
   fetchHubCounts,
   fetchMarketDataSummary,
   fetchSetSlugs,
 } from "@/lib/deals";
-import { buildHomepageLanes, rotationBucket, rotateForBucket, selectDiverseLane } from "@/lib/homepageVariety";
+import { buildHomepageLanes, rotationBucket } from "@/lib/homepageVariety";
 import { GUIDES } from "@/lib/guides";
-import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
 import SkipToContent from "@/components/SkipToContent";
 import SiteFooter from "@/components/SiteFooter";
 import RegionRedirect from "@/components/RegionRedirect";
-import Price from "@/components/Price";
 import HeroSearch from "@/components/HeroSearch";
 import MobileStickySearch from "@/components/MobileStickySearch";
 import SectionHeader from "@/components/SectionHeader";
-import DealCard from "@/components/DealCard";
-import HomeBrowseLinks from "@/components/HomeBrowseLinks";
-import FilterBar from "@/components/FilterBar";
-import MarketplaceScopeNote from "@/components/MarketplaceScopeNote";
-import { EmptyStateEscapes } from "@/components/DealFilterChips";
-import Pagination, { pageHref } from "@/components/Pagination";
+import HomeFeed from "@/components/HomeFeed";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
-import CardMemoryStrip from "@/components/CardMemoryStrip";
-import HomepageAnalytics from "@/components/analytics/HomepageAnalytics";
-import EmailCapture from "@/components/EmailCapture";
 import { emailEnabled } from "@/lib/email";
 import { catalogImageUrl } from "@/lib/cardImage";
 import { GUIDE_CARDS } from "@/lib/guideLinks";
@@ -88,36 +75,27 @@ const EDITORIAL_CARDS = [
 
 export const revalidate = 180;
 
-export async function generateMetadata({ searchParams }) {
-  const params = await searchParams;
-  const pageParam = typeof params.page === "string" ? Number(params.page) : 1;
-  const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
-  const canonical = page > 1 ? `/?page=${page}` : "/";
-  if (page > 1) {
-    // SEO-2: page 2+ of the rolling deal list is a low-value pagination
-    // variant - keep it self-canonical (it IS distinct paginated content,
-    // not a copy of page 1) but out of the index; follow so the deal /
-    // card links on it still pass equity.
-    return {
-      title: { absolute: `Pokemon Deal Finder - Page ${page}` },
-      alternates: { canonical },
-      robots: { index: false, follow: true },
-    };
-  }
-  // Page 1: a real head-term title + description rather than the root
-  // layout's bare "Pokemon Deal Finder" brand default. Leads with the
-  // phrase the homepage is the primary candidate for, keeps the
-  // below-market value framing, no stuffing. `absolute` bypasses the
-  // "%s | Pokemon Deal Finder" template (the brand is already inside).
-  return {
-    title: {
-      absolute: "Pokemon Card Deals — Cards Priced Below Market on eBay | Pokemon Deal Finder",
-    },
-    description:
-      "Live Pokemon card deals updated continuously: every eBay listing priced below its real market value, checked against recent sold data. Covers the US, UK, Australia, Canada, Germany and Italy.",
-    alternates: { canonical },
-  };
-}
+// Homepage-caching r1: a static export, not a generateMetadata function -
+// reading searchParams here (even just `page`) forced the WHOLE homepage to
+// render dynamically on every request, params or not. Every query variant
+// (?page=N, ?country=, filters - see HomeFeed / next.config.mjs's
+// HOME_VARIANT_PARAMS) now canonicalises to "/" and is kept out of the
+// index by the server's X-Robots-Tag header instead of a distinct
+// self-canonical + per-page <meta robots> - the same policy /deals already
+// uses for its own, much larger set of variants. A real head-term title +
+// description, not the root layout's bare "Pokemon Deal Finder" brand
+// default. Leads with the phrase the homepage is the primary candidate
+// for, keeps the below-market value framing, no stuffing. `absolute`
+// bypasses the "%s | Pokemon Deal Finder" template (the brand is already
+// inside).
+export const metadata = {
+  title: {
+    absolute: "Pokemon Card Deals — Cards Priced Below Market on eBay | Pokemon Deal Finder",
+  },
+  description:
+    "Live Pokemon card deals updated continuously: every eBay listing priced below its real market value, checked against recent sold data. Covers the US, UK, Australia, Canada, Germany and Italy.",
+  alternates: { canonical: "/" },
+};
 
 // Single source of truth for the FAQ section AND its FAQPage JSON-LD -
 // Google requires the two to match.
@@ -143,12 +121,6 @@ const FAQ_ITEMS = [
       "Matching is automated. We filter out obviously wrong matches, but always double-check a listing's photos and description before buying.",
   },
 ];
-
-const SCAN_FRESH_THRESHOLD_MS = 30 * 60 * 1000;
-
-function isRecentlyRefreshed(dateString) {
-  return Date.now() - new Date(dateString).getTime() <= SCAN_FRESH_THRESHOLD_MS;
-}
 
 // Deal-first R2 - the feed's MODE row. Every mode is an existing
 // destination with its own route and meaning (the dedicated /deals/<cat>
@@ -182,106 +154,56 @@ const SEARCH_EXAMPLES = [
   "Evolving Skies Umbreon",
 ];
 
-export default async function Home({ searchParams }) {
-  const params = await searchParams;
-  // marketplace-broaden-r1: `countryChoice` is the URL value the controls
-  // show and carry ("all" = an explicit All marketplaces choice); `country`
-  // is what the loaders filter on (null = every marketplace).
-  const countryChoice = typeof params.country === "string" ? params.country : null;
-  const country = marketplaceFilterValue(countryChoice);
-  const cardType = typeof params.type === "string" ? params.type : null;
-  const listingType = typeof params.listing === "string" ? params.listing : null;
-  const sort = typeof params.sort === "string" ? params.sort : null;
-  const maxPriceParam = typeof params.maxPrice === "string" ? Number(params.maxPrice) : null;
-  const maxPrice = Number.isFinite(maxPriceParam) && maxPriceParam > 0 ? maxPriceParam : null;
-  const minPriceParam = typeof params.minPrice === "string" ? Number(params.minPrice) : null;
-  const minPrice = Number.isFinite(minPriceParam) && minPriceParam > 0 ? minPriceParam : null;
-
+export default async function Home() {
+  // Homepage-caching r1: this Server Component reads no searchParams, so
+  // it always renders (and stays statically cacheable as) the one default
+  // view - page 1, every marketplace, no filters. RegionRedirect's
+  // client-side geo default writes ?country= into the URL for almost every
+  // real visitor shortly after hydration; reading that (or any other
+  // filter/page) here would force the whole homepage to render dynamically
+  // on every one of those requests, not just once per country. All of that
+  // variation is HomeFeed's job now (components/HomeFeed.js -> /api/deals-
+  // page?kind=home), the same client-fetch shape DealGrid already gives
+  // /pokemon/[slug], /sets/[slug] and /deals. Query variants are kept out
+  // of the index by next.config.mjs's X-Robots-Tag rule for "/", not a
+  // per-page canonical/robots computed here.
+  //
   // 13C.3 - the homepage's unfiltered page-1 grid is a PREVIEW of the
   // broader deal pool, not the full browser: 9 cards then a "Browse all
   // deals" link into the paginated list. Filtered / sorted / page-2+
-  // views (useStableList) keep the full LIST_PAGE_SIZE from fetchDealsPage.
+  // views (HomeFeed) keep the full LIST_PAGE_SIZE from fetchDealsPage.
   const HOME_PREVIEW_SIZE = 9;
-  const pageParam = typeof params.page === "string" ? Number(params.page) : 1;
-  const page = Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1;
-
-  // Promo sections make sense on the default page-1 view. A `country`
-  // filter alone is allowed to keep them - a region-set visitor still
-  // gets the curated homepage feed, just scoped to deals they can
-  // actually buy.
-  const anyFilter = Boolean(country || cardType || listingType || sort || maxPrice || minPrice);
-  const showPromo = page === 1 && !cardType && !listingType && !sort && !maxPrice && !minPrice;
-
-  const filters = { language: "english", country, cardType, listingType, maxPrice, minPrice };
-
-  // Page 1, no sort -> curated + diverse rotating lanes. Any sort, or
-  // page 2+ -> deterministic, stable pagination.
-  const useStableList = page > 1 || sort;
   // P0.4.1 - deterministic 3-hour rotation bucket. Every render inside one
   // bucket is byte-identical (cache-safe, no hydration drift, no SEO
   // churn); a new bucket rotates the visible curated inventory.
   const bucket = rotationBucket();
 
-  const [
-    homeLanesResult,
-    { data: filteredPool, error: poolError },
-    dealsPageResult,
-    lastRefreshed,
-    cardHubsResult,
-    hubCounts,
-    summary,
-    validSetSlugs,
-  ] = await Promise.all([
-    showPromo ? fetchHomepageLanes({ country }) : Promise.resolve(null),
-    !showPromo && !useStableList ? fetchDealsPool(filters) : Promise.resolve({ data: null, error: null }),
-    useStableList ? fetchDealsPage({ table: "deals", ...filters, sort: sort ?? "newest", page }) : Promise.resolve(null),
+  const [homeLanesResult, lastRefreshed, cardHubsResult, hubCounts, summary, validSetSlugs] = await Promise.all([
+    fetchHomepageLanes({ country: null }),
     fetchLastScanTime({ table: "deals", language: "english" }),
-    showPromo ? fetchCardHubs({ language: "english" }) : Promise.resolve({ hubs: [] }),
+    fetchCardHubs({ language: "english" }),
     fetchHubCounts({ language: "english" }),
-    showPromo ? fetchMarketDataSummary() : Promise.resolve(null),
+    fetchMarketDataSummary(),
     fetchSetSlugs("english"),
   ]);
 
-  const error = poolError || dealsPageResult?.error;
-
-  let flagshipDeals = [];
-  let deals = [];
-  let totalPages = 1;
-
-  if (useStableList) {
-    deals = dealsPageResult?.deals ?? [];
-    totalPages = dealsPageResult?.totalPages ?? 1;
-  } else if (showPromo) {
-    // One pass builds every curated lane with real cross-lane dedupe +
-    // the deterministic diversity selector + 3-hour rotation. Deal-first
-    // R2 renders ONE feed from it: the premium-gated flagship row first,
-    // then the diverse grid. The auction / just-added / under-$25 lanes
-    // the selector still computes are reached through the feed's mode
-    // row (their existing routes) instead of three more grids.
-    // `lanes`: only the two lanes this page renders take part in the
-    // cross-lane dedupe, so the folded lanes no longer reserve printings a
-    // visitor never sees (review fix P3). Same pools, same gates, same
-    // selector, same rotation.
-    const lanes = buildHomepageLanes(homeLanesResult?.pools ?? {}, { bucket, lanes: ["flagship", "grid"] });
-    flagshipDeals = lanes.flagship;
-    deals = lanes.grid;
-  } else {
-    // Filtered page-1 grid (no curated lanes): a deterministic per-bucket
-    // diverse slice of the WHOLE filtered pool - no per-request shuffle,
-    // no "newest 400 only" cap.
-    const ordered = rotateForBucket(filteredPool ?? [], {
-      bucket,
-      laneId: "grid_filtered",
-      mode: "bucketPermute",
-    });
-    deals = selectDiverseLane(ordered, { limit: HOME_PREVIEW_SIZE, speciesCap: 3 });
-  }
+  // One pass builds every curated lane with real cross-lane dedupe + the
+  // deterministic diversity selector + 3-hour rotation. Deal-first R2
+  // renders ONE feed from it: the premium-gated flagship row first, then
+  // the diverse grid. The auction / just-added / under-$25 lanes the
+  // selector still computes are reached through the feed's mode row
+  // (their existing routes) instead of three more grids. `lanes`: only the
+  // two lanes this page renders take part in the cross-lane dedupe, so the
+  // folded lanes no longer reserve printings a visitor never sees (review
+  // fix P3). Same pools, same gates, same selector, same rotation.
+  const lanes = buildHomepageLanes(homeLanesResult?.pools ?? {}, { bucket, lanes: ["flagship", "grid"] });
+  const flagshipDeals = lanes.flagship;
+  const deals = lanes.grid;
 
   // the six most-listed card hubs render ONCE, in the explore section
   // (fold revision: the hero's duplicate "Most listed" row is gone)
   const topHubs = cardHubsResult.hubs.slice(0, 6);
   const liveCount = summary?.activeDeals ?? null;
-  const feedEmpty = !error && flagshipDeals.length === 0 && (deals?.length ?? 0) === 0;
 
   const faqJsonLd = {
     "@context": "https://schema.org",
@@ -298,47 +220,30 @@ export default async function Home({ searchParams }) {
   // CollectionPage that names the same WebSite and, crucially, exposes the
   // real data-freshness timestamp - the SAME `lastRefreshed` value the
   // visible "checked X ago" line below uses (MAX(deals.last_seen_at) via
-  // fetchLastScanTime). Not new Date(), not a hardcoded date. Only on the
-  // canonical promo view; filtered / page-2+ views canonicalise to "/".
-  const homeCollectionJsonLd = showPromo
-    ? {
-        "@context": "https://schema.org",
-        "@type": "CollectionPage",
-        name: "Pokemon Deal Finder - below-market Pokemon card listings",
-        description:
-          liveCount != null
-            ? `Approximately ${liveCount.toLocaleString()} active below-market Pokemon card listings from eBay's US, UK, Australia, Canada, Germany and Italy marketplaces, each compared against real market prices and recent sold-listing data.`
-            : "Active below-market Pokemon card listings from eBay's US, UK, Australia, Canada, Germany and Italy marketplaces, each compared against real market prices and recent sold-listing data.",
-        url: `${SITE_URL}/`,
-        isPartOf: { "@id": `${SITE_URL}/#website` },
-        ...(lastRefreshed ? { dateModified: new Date(lastRefreshed).toISOString() } : {}),
-      }
-    : null;
-
-  // 44px tap targets; `shrink-0` + nowrap so the phone's scrolling row
-  // never squeezes a chip
-  const chip = (active) =>
-    `inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-lg border px-3.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 ${
-      active
-        ? "border-red-600 bg-red-600 text-white"
-        : "border-zinc-300 bg-white text-zinc-800 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
-    }`;
+  // fetchLastScanTime). Not new Date(), not a hardcoded date. This Server
+  // Component only ever renders the canonical promo view now (see Home
+  // above) - every query variant canonicalises to "/" (next.config.mjs).
+  const homeCollectionJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "Pokemon Deal Finder - below-market Pokemon card listings",
+    description:
+      liveCount != null
+        ? `Approximately ${liveCount.toLocaleString()} active below-market Pokemon card listings from eBay's US, UK, Australia, Canada, Germany and Italy marketplaces, each compared against real market prices and recent sold-listing data.`
+        : "Active below-market Pokemon card listings from eBay's US, UK, Australia, Canada, Germany and Italy marketplaces, each compared against real market prices and recent sold-listing data.",
+    url: `${SITE_URL}/`,
+    isPartOf: { "@id": `${SITE_URL}/#website` },
+    ...(lastRefreshed ? { dateModified: new Date(lastRefreshed).toISOString() } : {}),
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
-      {homeCollectionJsonLd && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homeCollectionJsonLd) }} />
-      )}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homeCollectionJsonLd) }} />
       <SkipToContent target="deals" />
       <SiteHeader />
       <MobileStickySearch />
       <RegionRedirect />
-      <HomepageAnalytics
-        variant={showPromo ? "promo" : page > 1 ? "paged" : "filtered"}
-        page={page}
-        hasFilters={anyFilter}
-      />
 
       {/* HERO - deal-first R2 (fold revision): a slim band, so a COMPLETE
           first offer (identity, artwork, price, shipping / comparison,
@@ -399,281 +304,21 @@ export default async function Home({ searchParams }) {
         </div>
       </header>
 
-      {/* THE FEED - one dominant deal feed: the premium-gated flagship
-          row (best_deals) then the diverse preview grid (all_deals), the
-          mode row above it, "More filters" for the full filter set, and
-          the paginated / filtered list on any non-default view. Section
-          ids keep their established analytics meaning. */}
-      <main id="deals" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 scroll-mt-6 px-6 py-5">
-        {/* Feed controls, kept to two short rows above the first offer:
-            (1) the section face + the nine mode links - one wrapping row
-            on desktop, a horizontally scrolling row on phones (every link
-            stays in the DOM and crawlable; the rightmost chips need a
-            swipe); (2) the live-count + trust line. The full FilterBar
-            ("More filters") sits between the flagship row and the grid it
-            filters, so it no longer pushes the first offer down. */}
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          {/* the default feed mixes Buy It Now (the flagship row is BIN only)
-              and auctions in the grid - every card names its own kind, so
-              the kicker says "featured", not "buy it now" */}
-          <SectionHeader
-            kicker={anyFilter ? "Filtered" : "Buy it now and auctions"}
-            title={anyFilter ? "Filtered deals" : page > 1 ? `All deals - page ${page}` : "Deals to explore"}
-          />
-          <nav
-            aria-label="Deal modes"
-            className="-mx-6 flex basis-full items-center gap-2 overflow-x-auto px-6 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:min-w-0 lg:flex-1 lg:basis-0 lg:flex-wrap lg:overflow-visible lg:px-0 lg:pb-0"
-          >
-            {FEED_MODES.map((m) => (
-              <Link
-                key={m.href}
-                href={m.href}
-                rel={m.href.includes("?") ? "nofollow" : undefined}
-                aria-current={m.home && showPromo ? "page" : undefined}
-                data-analytics-click="start_here_clicked"
-                data-analytics-props={JSON.stringify({ section: "feed_modes", chip: m.chip, ...(m.graded ? { graded_entry: true, source: "start_here" } : {}) })}
-                className={chip(m.home && showPromo)}
-              >
-                {m.label}
-              </Link>
-            ))}
-            {(useStableList || page > 1 || (anyFilter && !showPromo)) && (
-              <Link
-                href="/"
-                data-analytics-click="filter_cleared"
-                data-analytics-props={JSON.stringify({ facet: "all", context: "all_deals" })}
-                className="inline-flex min-h-11 shrink-0 items-center whitespace-nowrap px-2 text-sm font-medium text-zinc-600 underline-offset-2 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500"
-              >
-                Clear filters
-              </Link>
-            )}
-          </nav>
-        </div>
-
-        {/* Live count + slim trust line - the disclosure sits next to the
-            offers, not only in the footer; the methodology link is the
-            crawlable "how we price this" destination. */}
-        <p className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-          {lastRefreshed && (
-            <>
-              <span className="inline-flex h-2 w-2 rounded-full bg-live" />
-              {liveCount != null && <span className="tnum font-semibold text-zinc-700 dark:text-zinc-200">{liveCount.toLocaleString()} live deals</span>}
-              {liveCount != null && <span className="text-zinc-300 dark:text-zinc-700">·</span>}
-              <span>{isRecentlyRefreshed(lastRefreshed) ? `checked ${timeAgo(lastRefreshed)}` : "refreshing automatically"}</span>
-              <span className="text-zinc-300 dark:text-zinc-700">·</span>
-            </>
-          )}
-          <span>
-            We may earn a commission on eBay purchases.
-          </span>
-          <span className="text-zinc-300 dark:text-zinc-700">·</span>
-          <Link href="/methodology" className="font-medium text-zinc-600 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500">
-            How we compare →
-          </Link>
-        </p>
-
-        {error && <p className="mt-4 rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
-
-        {feedEmpty && (
-          <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
-            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-              {anyFilter
-                ? "No live deals match these filters right now."
-                : "No deals to show right now — the next scheduled scan will refresh this."}
-            </p>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              {anyFilter
-                ? "These filters run against real, currently-active listings — nothing was broadened."
-                : "Every deal is a live listing checked against real market data."}
-            </p>
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium">
-              {anyFilter && (
-                <Link
-                  href="/"
-                  data-analytics-click="filter_cleared"
-                  data-analytics-props={JSON.stringify({ facet: "all", context: "empty_state" })}
-                  className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 font-semibold text-black hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                >
-                  Clear filters
-                </Link>
-              )}
-              <EmptyStateEscapes />
-            </div>
-          </div>
-        )}
-
-        {/* flagship row: the four strongest offers (premium gate, Buy It
-            Now only, tile 1 = the single best deal), above-the-fold on
-            desktop so their images load eagerly */}
-        {showPromo && flagshipDeals.length > 0 && (
-          <section id="best-deals" data-analytics-section="best_deals" aria-label="Best deals right now" className="mt-4 scroll-mt-24">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
-              {flagshipDeals.map((deal, i) => (
-                <DealCard key={deal.id} deal={deal} rank={i + 1} hub={hubCounts[deal.watchlist_id]} pageName="home_best" validSetSlugs={validSetSlugs} priority={i < 2} analytics={{ section: "best_deals", rank: i + 1 }} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* The full existing filter set, collapsed behind "More filters":
-            it filters the grid below it, so it sits between the flagship
-            row and that grid (below the first complete offer). */}
-        <div className="mt-4" data-analytics-filter-bar="all_deals">
-          <FilterBar
-            params={params}
-            country={countryChoice}
-            cardType={cardType}
-            listingType={listingType}
-            maxPrice={maxPrice}
-            minPrice={minPrice}
-            sort={sort}
-            collapsible
-          />
-        </div>
-
-        <section data-analytics-section="all_deals" aria-label={anyFilter ? "Filtered deals" : "More deals"} className="mt-4">
-          <MarketplaceScopeNote params={params} basePath="/" thin={page === 1 && (deals?.length ?? 0) < 8} />
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {deals?.map((deal) => (
-              // 13C.5 - `home_all_deals` so an affiliate_click from this grid
-              // is attributable to the homepage All Deals lane, not the
-              // bare "home" catch-all shared with /cards, /sets, /deals grids.
-              <DealCard key={deal.id} deal={deal} hub={hubCounts[deal.watchlist_id]} validSetSlugs={validSetSlugs} pageName="home_all_deals" />
-            ))}
-          </div>
-
-          {!useStableList ? (
-            deals?.length > 0 && (
-              <div className="mt-8 flex flex-col items-center gap-2">
-                <Link
-                  href="/deals"
-                  data-analytics-click="browse_all_deals_clicked"
-                  data-analytics-props={JSON.stringify({ section: "all_deals" })}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-zinc-300 bg-white px-6 text-sm font-semibold text-zinc-900 transition-colors hover:border-zinc-400 hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
-                >
-                  Browse all live deals
-                  {liveCount != null && (
-                    <span className="tnum rounded-md bg-zinc-100 px-1.5 py-0.5 text-xs font-bold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                      {liveCount.toLocaleString()}
-                    </span>
-                  )}
-                  <span aria-hidden="true">→</span>
-                </Link>
-                <a
-                  href={pageHref(params, 2, "/")}
-                  className="text-xs font-medium text-zinc-500 underline-offset-2 hover:text-red-600 hover:underline dark:text-zinc-400 dark:hover:text-red-500"
-                >
-                  or keep scrolling this page
-                </a>
-              </div>
-            )
-          ) : (
-            <Pagination page={page} totalPages={totalPages} params={params} basePath="/" />
-          )}
-        </section>
-
-        {/* The viewer's own locally-saved / recently-viewed cards. Renders
-            nothing for first-time visitors and on the server; sits below
-            the first offers so it never stands between a new visitor and
-            a real deal. */}
-        {showPromo && <CardMemoryStrip />}
-
-        {/* CRM-1 - inline email capture AFTER the offers. Not a popup.
-            Rendered only when server-side email capture is enabled
-            (RESEND_API_KEY + ALERT_FROM_EMAIL); double opt-in, nothing sent
-            here. */}
-        {showPromo && emailEnabled() && (
-          <EmailCapture placement="homepage" pageType="homepage" className="mt-10" />
-        )}
-      </main>
-
-      {/* EXPLORE - compact catalogue / collecting entry points: the three
-          hubs, the six cards with the most active listings (real counts),
-          and the static Popular Pokemon / Key sets rows. Every link and
-          click event from the previous "Explore Pokemon cards" section is
-          preserved. */}
-      {showPromo && (
-        <section data-analytics-section="browse" className="border-t border-zinc-200 dark:border-zinc-800">
-          <div className="mx-auto max-w-7xl px-6 py-10">
-            <SectionHeader kicker="Know what you want" title="Explore more ways to collect" />
-
-            <div className="mt-5 grid gap-4 sm:grid-cols-3">
-              {[
-                { href: "/sets", event: "browse_sets_clicked", title: "Sets & checklists", copy: "Set checklists with market-reference prices - track a set and mark what you own." },
-                { href: "/pokemon", event: "browse_pokemon_clicked", title: "Pokemon cards", copy: "Card prices and values for a species across all its prints and sets - plus any current deal." },
-                { href: "/cards", event: "browse_catalogue_clicked", title: "Card database", copy: "Find an exact printing - a permanent page for every card we track, with a real market reference where one exists." },
-              ].map((t) => (
-                <Link
-                  key={t.href}
-                  href={t.href}
-                  data-analytics-click={t.event}
-                  data-analytics-props={JSON.stringify({ section: "browse" })}
-                  className="group flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white p-5 transition-colors hover:border-zinc-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600"
-                >
-                  <div>
-                    <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{t.title}</p>
-                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{t.copy}</p>
-                  </div>
-                  <span className="text-xl text-zinc-300 transition-colors group-hover:text-red-600 dark:text-zinc-600">→</span>
-                </Link>
-              ))}
-            </div>
-
-            {topHubs.length > 0 && (
-              <div className="mt-8">
-                <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
-                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
-                    Cards with the most active listings
-                  </h3>
-                  <Link
-                    href="/market-data/most-listed-cards"
-                    className="text-xs font-medium text-zinc-600 underline-offset-2 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500"
-                  >
-                    Compare all →
-                  </Link>
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-                  {topHubs.map((hub, i) => (
-                    <Link
-                      key={hub.id}
-                      href={`/cards/${hub.slug}`}
-                      data-analytics-click="most_active_clicked"
-                      data-analytics-props={JSON.stringify({ section: "most_active", card_slug: hub.slug, content_id: hub.slug, rank: i + 1 })}
-                      className="group flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white transition-colors hover:border-zinc-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600"
-                    >
-                      <div className="relative aspect-square w-full bg-zinc-50 dark:bg-zinc-900">
-                        {hub.image ? (
-                          <Image
-                            src={hub.image}
-                            alt={`${hub.name} - ${hub.set}`}
-                            fill
-                            sizes="(max-width: 640px) 50vw, 16vw"
-                            className="object-contain p-2"
-                          />
-                        ) : (
-                          <CardImagePlaceholder />
-                        )}
-                        <span className="absolute right-1.5 top-1.5 rounded-md bg-zinc-900/85 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                          {hub.count} {hub.count === 1 ? "listing" : "listings"}
-                        </span>
-                      </div>
-                      <div className="p-2.5">
-                        <p className="line-clamp-1 text-xs font-semibold text-zinc-900 dark:text-zinc-50">{hub.name}</p>
-                        <p className="line-clamp-1 text-[11px] text-zinc-500">{hub.set}</p>
-                        <p className="tnum mt-1 text-xs font-bold text-zinc-900 dark:text-zinc-50">
-                          from <Price usd={hub.cheapestPrice} native={{ amount: hub.cheapestPrice, currency: "USD" }} />
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <HomeBrowseLinks />
-          </div>
-        </section>
-      )}
+      {/* THE FEED - one dominant deal feed (flagship row -> grid), the
+          Explore section, and their supporting nav/analytics - all of it
+          driven by the real client URL (country/sort/filters/page), which
+          this Server Component never reads. See components/HomeFeed.js. */}
+      <HomeFeed
+        feedModes={FEED_MODES}
+        initial={{ flagshipDeals, deals }}
+        hubCounts={hubCounts}
+        validSetSlugs={validSetSlugs}
+        previewSize={HOME_PREVIEW_SIZE}
+        emailCaptureEnabled={emailEnabled()}
+        liveCount={liveCount}
+        lastRefreshed={lastRefreshed}
+        topHubs={topHubs}
+      />
 
       {/* GUIDES & RESEARCH - three editorial cards (section id pinned by
           homepage-hierarchy.test). Artwork only where the card is the

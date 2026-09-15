@@ -264,8 +264,10 @@ test("P2-1. default feed labelled Featured; 'Buy it now' is the existing FIXED_P
   const page = read("app/page.js");
   assert.match(page, /label: "Featured", chip: "featured", home: true/);
   assert.match(page, /href: "\/\?listing=FIXED_PRICE", label: "Buy it now"/);
-  assert.match(page, /"Buy it now and auctions"/);
-  assert.doesNotMatch(page, /kicker=\{anyFilter \? "Filtered" : "Buy it now"/);
+  // Homepage-caching r1 moved the feed's kicker into components/HomeFeed.js
+  const homeFeed = read("components/HomeFeed.js");
+  assert.match(homeFeed, /"Buy it now and auctions"/);
+  assert.doesNotMatch(homeFeed, /kicker=\{params\.anyFilter \? "Filtered" : "Buy it now"/);
 });
 
 // ---- P4: graded_clicked via the shared nav model, once per click -----

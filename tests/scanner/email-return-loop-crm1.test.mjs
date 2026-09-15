@@ -306,9 +306,15 @@ test("CRM1-24b the weekly digest has its own kill switch, separate from emailEna
 // ============================ placement rules ============================
 
 test("CRM1-25 homepage capture is present and gated", () => {
-  const src = read("app/page.js");
-  assert.match(src, /<EmailCapture placement="homepage"/);
-  assert.match(src, /emailEnabled\(\) && \(\s*<EmailCapture placement="homepage"/);
+  // Homepage-caching r1: app/page.js (a Server Component) computes the
+  // server-only emailEnabled() gate and hands it to components/HomeFeed.js
+  // (a client component) as a prop, which renders <EmailCapture> only when
+  // that prop AND the promo/default view are both true.
+  const page = read("app/page.js");
+  const homeFeed = read("components/HomeFeed.js");
+  assert.match(page, /emailCaptureEnabled=\{emailEnabled\(\)\}/);
+  assert.match(homeFeed, /<EmailCapture placement="homepage"/);
+  assert.match(homeFeed, /params\.showPromo && emailCaptureEnabled && \(\s*<EmailCapture placement="homepage"/);
 });
 
 test("CRM1-26 expired-deal capture is present", () => {

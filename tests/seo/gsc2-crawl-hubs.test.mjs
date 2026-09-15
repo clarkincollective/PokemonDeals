@@ -89,7 +89,10 @@ test("4. no robots / canonical / sitemap-lastmod / indexability change", () => {
 });
 
 test("5. P0.4.1 homepage variety is preserved (selectDiverseLane / rotationBucket still wired)", () => {
-  const home = read("app/page.js");
+  // Homepage-caching r1 moved the feed/explore markup (incl.
+  // HomeBrowseLinks) into components/HomeFeed.js - splice it in at the
+  // <HomeFeed ... /> call site.
+  const home = read("app/page.js").replace(/<HomeFeed[\s\S]*?\/>/, () => read("components/HomeFeed.js"));
   assert.match(home, /buildHomepageLanes|selectDiverseLane/, "homepage variety selector removed");
   assert.match(home, /HomeBrowseLinks/, "homepage static browse links removed");
   assert.doesNotMatch(home, /Math\.random\(\)/, "homepage re-introduced per-request randomisation");

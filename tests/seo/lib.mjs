@@ -26,6 +26,7 @@ export async function get(path) {
     location: res.headers.get("location"),
     contentType: res.headers.get("content-type") || "",
     isRedirect: res.status >= 300 && res.status < 400,
+    headers: res.headers,
     body,
   };
 }

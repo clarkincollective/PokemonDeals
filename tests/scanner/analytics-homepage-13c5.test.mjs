@@ -21,6 +21,12 @@ function walk(dir, out = []) {
 }
 const SRC = [...walk("app"), ...walk("components")];
 
+// Homepage-caching r1 moved the feed markup into components/HomeFeed.js -
+// splice it in at the <HomeFeed ... /> call site so checks against the
+// homepage's rendered markers keep working regardless of which file they
+// physically live in.
+const readHome = () => read("app/page.js").replace(/<HomeFeed[\s\S]*?\/>/, () => read("components/HomeFeed.js"));
+
 // === every rendered click marker is a declared, allow-listed event ===
 // This is the regression guard for the 13C.1 bug where the hero
 // "Browse today's deals" CTA and "try a search:" examples shipped with
@@ -47,7 +53,7 @@ test("13C.5 - the hero entry-path events are declared (Search vs Discover is mea
   // R2 removed the hero "Browse today's deals" scroll CTA (the first offers
   // are in view without it); its event name stays declared so historical
   // dashboards keep resolving, but no marker renders it any more.
-  const page = read("app/page.js");
+  const page = readHome();
   assert.match(page, /data-analytics-click="hero_example_clicked"/);
   assert.doesNotMatch(page, /data-analytics-click="discover_deals_clicked"/);
   // the feed's mode row reuses the established start_here_clicked marker
@@ -72,7 +78,7 @@ test("13C.5 - a click inside the affiliate CTA does NOT also fire the lane click
 // === All Deals affiliate attribution is not the bare "home" catch-all ==
 
 test("13C.5 - the homepage All Deals grid tags its own origin_section", () => {
-  const page = read("app/page.js");
+  const page = readHome();
   // deal-first R2: the all_deals grid is its own section after the
   // flagship row; anchor on the section marker rather than the filter bar
   const grid = page.slice(page.indexOf('data-analytics-section="all_deals"'));

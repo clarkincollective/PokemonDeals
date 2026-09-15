@@ -76,8 +76,12 @@ test("2b. no 'trending' / 'hot' / 'most viewed' / 'most searched' claim in publi
 
 // === 3. browse/directory copy reflects the catalogue architecture =
 
+// Homepage-caching r1 moved the feed/explore markup (incl. these browse
+// tiles) into components/HomeFeed.js - splice it in at the call site.
+const readHome = () => read("app/page.js").replace(/<HomeFeed[\s\S]*?\/>/, () => read("components/HomeFeed.js"));
+
 test("3. homepage browse tiles are not described as deal-only", () => {
-  const src = read("app/page.js");
+  const src = readHome();
   assert.doesNotMatch(src, /Every set with an active below-market deal, one set at a time/);
   assert.doesNotMatch(src, /Every deal for a species, across all its prints and sets/);
   // sets + pokemon tiles now mention checklists / prices / values
@@ -86,7 +90,7 @@ test("3. homepage browse tiles are not described as deal-only", () => {
 });
 
 test("3b. homepage 'most active listings' section is not titled 'Most sellers competing'", () => {
-  const src = read("app/page.js");
+  const src = readHome();
   assert.doesNotMatch(src, /Most sellers competing/);
   assert.match(src, /Cards with the most active listings/);
 });

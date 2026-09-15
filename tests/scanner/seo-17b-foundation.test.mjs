@@ -239,7 +239,10 @@ test("11. homepage keeps deals PRIMARY and keeps the price checker as the SECOND
   // card's "View deal on eBay", first offers in view under the hero); the
   // hero no longer carries a scroll CTA. The 17B value-intent entry stays
   // as a measurable text link in the hero, above the first offer.
-  const home = read("app/page.js");
+  // Homepage-caching r1 moved the feed markup (incl. best_deals) out of
+  // app/page.js into components/HomeFeed.js - splice it in at the
+  // <HomeFeed ... /> call site to keep checking real document order.
+  const home = read("app/page.js").replace(/<HomeFeed[\s\S]*?\/>/, () => read("components/HomeFeed.js"));
   const secondary = home.indexOf('data-analytics-click="price_checker_entry_clicked"');
   const firstOffer = home.indexOf('data-analytics-section="best_deals"');
   assert.ok(secondary > 0 && firstOffer > secondary, "the price-checker entry sits in the hero, before the feed");

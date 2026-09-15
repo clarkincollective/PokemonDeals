@@ -13,7 +13,7 @@
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import { BASE, get, parseHtml, sitemapUrls, pathOf, normPath } from "./lib.mjs";
 
@@ -265,24 +265,44 @@ test("16. weak index-page titles / H1s replaced with the SEO-2 wording", async (
 
 // --- 17: homepage pagination robots ------------------------------------
 
-test("17. homepage page 1 is indexable; page>1 is noindex,follow with its own self-canonical", async () => {
+test("17. homepage page 1 is indexable; every query variant (?page=N, ?country=, filters) canonicalises to '/' and is noindex,follow at the server", async () => {
+  // Homepage-caching r1: app/page.js reads no searchParams (so "/" stays
+  // statically cacheable - RegionRedirect's client-side geo default writes
+  // ?country= into the URL for almost every real visitor). Every query
+  // variant renders the SAME static "/" HTML (self-canonical to "/",
+  // never a distinct self-canonical per variant) and is kept out of the
+  // index by next.config.mjs's X-Robots-Tag header - the same policy
+  // /deals already uses for its own, much larger set of variants (see
+  // tests/scanner/all-deals-r1.test.mjs's AD-19 and this file's own
+  // HOME_VARIANT_PARAMS test below).
   const home = await get("/");
   assert.equal(home.status, 200);
   assert.ok(!/noindex/.test(parseHtml(home.body).robots ?? ""), "/ is noindex");
-  const p1 = await get("/?page=1");
-  assert.equal(p1.status, 200);
-  assert.ok(!/noindex/.test(parseHtml(p1.body).robots ?? ""), "/?page=1 is noindex");
-  assert.equal(normPath(parseHtml(p1.body).canonicals[0]), "/");
-  for (const n of [2, 25]) {
-    const r = await get(`/?page=${n}`);
-    assert.equal(r.status, 200, `/?page=${n} -> HTTP ${r.status}`);
+  assert.equal(normPath(parseHtml(home.body).canonicals[0]), "/");
+  assert.equal(home.headers?.get?.("x-robots-tag"), null);
+  for (const qs of ["?page=2", "?page=25", "?country=EBAY_GB", "?sort=newest", "?listing=FIXED_PRICE"]) {
+    const r = await get(`/${qs}`);
+    assert.equal(r.status, 200, `/${qs} -> HTTP ${r.status}`);
     const parsed = parseHtml(r.body);
-    assert.match(parsed.robots ?? "", /noindex/, `/?page=${n} is not noindex`);
-    assert.match(parsed.robots ?? "", /follow/, `/?page=${n} is not follow`);
-    assert.ok(!/nofollow/.test(parsed.robots ?? ""), `/?page=${n} is nofollow`);
-    assert.equal(parsed.canonicals[0], `${ORIGIN}/?page=${n}`, `/?page=${n} canonical`);
-    assert.ok(parsed.internalLinks.some((l) => l.startsWith("/deals/") || l.startsWith("/cards/")), `/?page=${n} has no deal/card links`);
+    assert.ok(!/noindex/.test(parsed.robots ?? ""), `/${qs} gained a <meta robots> noindex (must be header-only)`);
+    assert.equal(normPath(parsed.canonicals[0]), "/", `/${qs} canonical`);
+    assert.ok(parsed.internalLinks.some((l) => l.startsWith("/deals/") || l.startsWith("/cards/")), `/${qs} has no deal/card links`);
   }
+});
+
+test("17b. next.config.mjs sends X-Robots-Tag noindex,follow for every homepage query variant, never for the clean '/'", async () => {
+  const cfg = (await import(pathToFileURL(join(REPO, "next.config.mjs")).href)).default;
+  const rules = await cfg.headers();
+  const homeRules = rules.filter((r) => r.source === "/");
+  const keys = homeRules.map((r) => {
+    assert.deepEqual(r.headers, [{ key: "X-Robots-Tag", value: "noindex, follow" }]);
+    assert.equal(r.has.length, 1);
+    assert.equal(r.has[0].type, "query");
+    assert.equal(r.has[0].value, undefined, "any non-empty value matches (an empty param renders the clean default page)");
+    return r.has[0].key;
+  });
+  assert.deepEqual(keys.sort(), ["country", "listing", "maxPrice", "minPrice", "page", "sort", "type"]);
+  assert.ok(homeRules.length > 0 && rules.some((r) => r.source === "/deals"), "the /deals rule set is untouched");
 });
 
 // --- 18: guardrails ------------------------------------------------------

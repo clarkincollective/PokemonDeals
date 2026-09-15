@@ -26,7 +26,19 @@ import { dirname, join } from "node:path";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
 
-const HOME = read("app/page.js");
+// Homepage-caching r1 moved the feed/explore markup into
+// components/HomeFeed.js (a client component) and the country/filter/
+// page-driven data fetching into app/api/deals-page/route.js (kind=home),
+// so app/page.js can go back to reading no searchParams and stay
+// statically cacheable. HOME below splices HomeFeed's source in at the
+// <HomeFeed ... /> call site to keep checking real document order; HOME_ALL
+// additionally appends the API route for the "is this wiring still used
+// anywhere reachable from the homepage" checks.
+const HOME_PAGE_ONLY = read("app/page.js");
+const HOME_FEED = read("components/HomeFeed.js");
+const HOME_ROUTE = read("app/api/deals-page/route.js");
+const HOME = HOME_PAGE_ONLY.replace(/<HomeFeed[\s\S]*?\/>/, () => HOME_FEED);
+const HOME_ALL = HOME + "\n" + HOME_ROUTE;
 const DEALS_INDEX = read("app/deals/page.js");
 const DEALCARD = read("components/DealCard.js");
 const SPECIESCARD = read("components/SpeciesCard.js");
@@ -116,7 +128,7 @@ test("UX-CVR-2-5. an empty grid offers real recovery actions, never a dead blank
   assert.match(DEALGRID, /filtered \? \(\s*<FilteredEmptyState/);
   assert.match(DEALGRID, /<EmptyGridState label=\{emptyLabel\}/);
   // the homepage feed empty branch is a real block with Clear filters
-  assert.match(HOME, /const feedEmpty = !error && flagshipDeals\.length === 0 && \(deals\?\.length \?\? 0\) === 0;/);
+  assert.match(HOME, /const feedEmpty = !loading && !view\.error && view\.flagshipDeals\.length === 0 && \(view\.deals\?\.length \?\? 0\) === 0;/);
   assert.match(HOME, /\{feedEmpty && \(/);
   assert.match(HOME, /Clear filters/);
   assert.match(HOME, /<EmptyStateEscapes \/>/);
@@ -136,7 +148,7 @@ test("UX-CVR-2-6. active-filter visibility is on every grid now, not just the Po
 
 test("UX-CVR-2-7. the homepage + browse surfaces make no eBay call at render", () => {
   const BROWSE_EBAY = /from ["'][^"']*lib\/ebay["']|getListingFreshness|searchListings|searchNewlyListed|getBrowseRateLimit|browseSearch/;
-  for (const [name, src] of [["app/page.js", HOME], ["app/deals/page.js", DEALS_INDEX], ["components/DealGrid.js", DEALGRID], ["components/DealCategoryPage.js", CATPAGE], ["components/DealFilterChips.js", FILTERCHIPS]]) {
+  for (const [name, src] of [["app/page.js", HOME_PAGE_ONLY], ["components/HomeFeed.js", HOME_FEED], ["app/api/deals-page/route.js", HOME_ROUTE], ["app/deals/page.js", DEALS_INDEX], ["components/DealGrid.js", DEALGRID], ["components/DealCategoryPage.js", CATPAGE], ["components/DealFilterChips.js", FILTERCHIPS]]) {
     assert.doesNotMatch(src.replace(/\/\/[^\n]*/g, ""), BROWSE_EBAY, `${name} reaches an eBay API at render`);
   }
 });
@@ -154,11 +166,13 @@ test("UX-CVR-2-8. the affiliate disclosure stays present on the homepage and in 
 // ---- P0.4.1 untouched (§5) -------------------------------
 
 test("UX-CVR-2-9. P0.4.1 diversity / rotation wiring is untouched", () => {
-  // the homepage still drives its lanes through the diversity + 3h rotation helpers
+  // the homepage still drives its lanes through the diversity + 3h rotation
+  // helpers - rotateForBucket/selectDiverseLane now run in the API route
+  // that powers any non-default (filtered/paged) client fetch.
   for (const sym of ["buildHomepageLanes", "rotationBucket", "rotateForBucket", "selectDiverseLane"]) {
-    assert.ok(HOME.includes(sym), `app/page.js no longer uses ${sym}`);
+    assert.ok(HOME_ALL.includes(sym), `homepage no longer uses ${sym}`);
   }
-  assert.match(HOME, /speciesCap: 3/); // the species soft cap on the filtered grid
+  assert.match(HOME_ALL, /speciesCap: 3/); // the species soft cap on the filtered grid
   // the under-$25 route is reached from the feed's mode row (deal-first R2
   // folded the separate lane into the single feed; review fix P3: the page
   // asks the selector for only the two lanes it renders, so the folded
