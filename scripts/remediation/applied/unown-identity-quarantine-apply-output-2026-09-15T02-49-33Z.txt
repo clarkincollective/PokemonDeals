@@ -1,0 +1,48 @@
+[
+ {
+  "dealId": 38057,
+  "ebayListingId": "v1|267784443867|0",
+  "marketplace": "EBAY_US",
+  "title": "Unown R/28 Holo Rare Unseen Forces Pokemon Near Mint/NM",
+  "storedAs": "Unown (M) | #M/28",
+  "evidence": "title explicitly states the letter collector number R/28 (Unown R); stored card is Unown (M), catalogue number M/28 - a different card in the same 28-card Unown subset",
+  "current": {
+   "isActive": true,
+   "disqualifiedReason": null,
+   "displayable": true,
+   "catalogueNumberNow": "M/28",
+   "titleLetterPairs": [
+    "R"
+   ]
+  },
+  "decision": "quarantine",
+  "mutation": {
+   "set": {
+    "disqualified_reason": "identity:collector_number_conflict"
+   },
+   "guard": {
+    "id": 38057,
+    "is_active": true,
+    "disqualified_reason": null,
+    "listing_id": "v1|267784443867|0",
+    "marketplace": "EBAY_US",
+    "card_tcgplayer_id": "90180",
+    "watchlist_id": 14406,
+    "title": "Unown R/28 Holo Rare Unseen Forces Pokemon Near Mint/NM"
+   }
+  }
+ }
+]
+
+quarantine: 1   skip: 0   expected affected rows if applied: 1
+{
+ "expected": 1,
+ "written": 1,
+ "results": [
+  {
+   "dealId": 38057,
+   "updated": 1,
+   "error": null
+  }
+ ]
+}

@@ -1,0 +1,13 @@
+{
+ "reason": "identity:collector_number_conflict",
+ "appliedAt": "2026-09-15T02:49:34.750Z",
+ "rows": [
+  {
+   "dealId": 38057,
+   "ebayListingId": "v1|267784443867|0",
+   "title": "Unown R/28 Holo Rare Unseen Forces Pokemon Near Mint/NM",
+   "prior_disqualified_reason": null,
+   "prior_is_active": true
+  }
+ ]
+}
