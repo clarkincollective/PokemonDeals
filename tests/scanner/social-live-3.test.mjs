@@ -127,3 +127,53 @@ test("SL3-9 health reads only due posts and does not page on a transient Buffer 
   assert.match(ops, /if \(Number\.isFinite\(dueAt\) && dueAt > now\) continue;/);
   assert.match(ops, /st\.reason === "buffer_rate_limited" && now - dueAt < 6 \* 3_600_000/);
 });
+
+test("SL4-1 an explicit pause withdraws only not-yet-due autopilot posts from Buffer; a failed withdrawal alerts", async () => {
+  const { pauseWithdrawals, WITHDRAW_MIN_LEAD_MINUTES } = await import("../../lib/social/autopilot/ops.mjs");
+  const now = Date.parse("2026-09-15T12:00:00Z");
+  const at = (min) => new Date(now + min * 60_000).toISOString();
+  const rows = [
+    { placement_id: "a", story_id: "autopilot-2026-09-16-A", status: "BUFFER_QUEUED", buffer_provider_ref: "b1", scheduled_for: at(600) },
+    { placement_id: "soon", story_id: "autopilot-2026-09-16-A", status: "BUFFER_QUEUED", buffer_provider_ref: "b2", scheduled_for: at(WITHDRAW_MIN_LEAD_MINUTES - 1) },
+    { placement_id: "stageB", story_id: "stageb-story", status: "BUFFER_QUEUED", buffer_provider_ref: "b3", scheduled_for: at(600) },
+    { placement_id: "sent", story_id: "autopilot-2026-09-15-A", status: "PUBLISHED", buffer_provider_ref: "b4", scheduled_for: at(-60) },
+    { placement_id: "noref", story_id: "autopilot-2026-09-16-B", status: "BUFFER_QUEUED", buffer_provider_ref: null, scheduled_for: at(600) },
+    { placement_id: "submitting", story_id: "autopilot-2026-09-16-B", status: "BUFFER_SUBMITTING", buffer_provider_ref: null, scheduled_for: at(600) },
+  ];
+  assert.deepEqual(pauseWithdrawals(rows, { now }).map((p) => p.placement_id), ["a"]);
+  const ops = readFileSync("lib/social/autopilot/ops.mjs", "utf8");
+  assert.match(ops, /const explicitPause = circuit\.state === "OWNER_SUSPENDED" \|\| posture\.kill === true;/, "never on an unreadable circuit, an automatic trip or a config gap");
+  assert.match(ops, /if \(d\?\.ok && d\.deleted\) \{/);
+  assert.match(ops, /status: "AUTOPILOT_READY", buffer_provider_ref: null, scheduled_for: null, provider_state: "WITHDRAWN_BY_PAUSE"/);
+  assert.match(ops, /is still queued in Buffer/);
+  // the provider refuses to delete a post that has already sent
+  assert.match(readFileSync("lib/social/providers/buffer.mjs", "utf8"), /refusing_to_delete_sent_post/);
+});
+
+test("SL4-2 only a Buffer 429 (nothing created) is retried, at most 3 attempts; uncertain outcomes are never blind-retried", async () => {
+  const { rejectionOutcome, MAX_QUEUE_ATTEMPTS } = await import("../../lib/social/autopilot/ops.mjs");
+  assert.equal(MAX_QUEUE_ATTEMPTS, 3);
+  assert.deepEqual(rejectionOutcome({ reason: "buffer_rate_limited" }, undefined), { retry: true, attempts: 1, status: "AUTOPILOT_READY" });
+  assert.deepEqual(rejectionOutcome({ reason: "buffer_rate_limited" }, 1), { retry: true, attempts: 2, status: "AUTOPILOT_READY" });
+  assert.deepEqual(rejectionOutcome({ reason: "buffer_rate_limited" }, 2), { retry: false, attempts: 3, status: "QA_WATCH" });
+  for (const reason of ["buffer_network_timeout", "buffer_network_exception", "buffer_http_502", "buffer_error", "buffer_InvalidInputError"]) {
+    assert.equal(rejectionOutcome({ reason }, 0).retry, false, reason);
+  }
+  const ops = readFileSync("lib/social/autopilot/ops.mjs", "utf8");
+  assert.match(ops, /caption_style: \{ \.\.\.cap, queue_attempts: next\.attempts \}/, "the attempt count persists across invocations");
+  // the crash marker still precedes every provider submit
+  assert.ok(ops.indexOf('status: "BUFFER_SUBMITTING"') < ops.indexOf("prov.createPost("));
+});
+
+test("SL4-3 the story bank sustains two stories a day through its cooldown", async () => {
+  const { SPOTLIGHT_SETS, SPOTLIGHT_SPECIES, STORY_COOLDOWN_DAYS } = await import("../../lib/social/autopilot/stories.mjs");
+  const { CHECKLIST_SETS } = await import("../../lib/setChecklist.js");
+  const keys = candidateQueue({ used: new Set(), dayIndex: 0 }).length;
+  assert.equal(keys, GUIDE_STORIES.length + CHECKLIST_SETS.length + SPOTLIGHT_SETS.length + SPOTLIGHT_SPECIES.length);
+  assert.ok(keys >= 2 * STORY_COOLDOWN_DAYS * 1.25, `${keys} keys for a ${STORY_COOLDOWN_DAYS}-day cooldown at 2/day (25% margin for deferred stories)`);
+  assert.equal(new Set(SPOTLIGHT_SETS).size, SPOTLIGHT_SETS.length);
+  assert.equal(new Set(SPOTLIGHT_SPECIES).size, SPOTLIGHT_SPECIES.length);
+  for (const s of SPOTLIGHT_SETS) assert.ok(!CHECKLIST_SETS.includes(s), `${s} is not also a checklist story`);
+  // repeats still wait out the card cooldown
+  assert.match(readFileSync("scripts/socialAutopilot.mjs", "utf8"), /NOW - 21 \* 86_400_000/);
+});
