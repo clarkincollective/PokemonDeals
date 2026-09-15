@@ -51,9 +51,9 @@ test("CR-2. remediation queue: insert-only rows, drained once by the cron, only 
   const out = await L.drainCacheInvalidationQueue(db, (t, p) => expired.push([t, p]));
   assert.deepEqual(expired.map((e) => e[0]).sort(), ["deal-detail:5", "deal-lists", "set-deals:x"], "each queued tag expired once");
   for (const [, p] of expired) assert.deepEqual(p, { expire: 0 });
-  assert.deepEqual([out.rows, out.expired, out.errors], [2, 3, []]);
+  assert.deepEqual([out.rows, out.expired, out.acknowledged, out.retained, out.errors], [2, 3, 2, 0, []]);
   assert.deepEqual(db.tables.catalog_snapshot.map((r) => r.kind), ["digest_state"], "only queue rows removed");
-  assert.deepEqual(await L.drainCacheInvalidationQueue(db, () => {}), { rows: 0, expired: 0, errors: [] });
+  assert.deepEqual(await L.drainCacheInvalidationQueue(db, () => {}), { rows: 0, expired: 0, acknowledged: 0, retained: 0, errors: [] });
   const broken = { from: () => { throw new Error("db down"); } };
   assert.deepEqual(await L.queueCacheInvalidation(broken, ["a"]), { queued: 0, error: "db down" });
   assert.deepEqual((await L.drainCacheInvalidationQueue(broken, () => {})).errors, ["db down"]);
@@ -101,7 +101,8 @@ test("CR-5. a script quarantine is queued, stays visible until the cron drains i
   const [, , , queued, drained] = s.steps;
   assert.deepEqual(queued.queued, { queued: 5, error: null });
   assert.ok(queued.setPage.offers.includes("Unown (K)") && queued.allDeals.offers.includes("quarantined"), "no instant effect from a script");
-  assert.deepEqual(drained.sweep.queuedInvalidation, { rows: 1, expired: 5, errors: [] });
+  assert.deepEqual(drained.sweep.queuedInvalidation, { rows: 1, expired: 5, acknowledged: 1, retained: 0, errors: [] });
+  assert.equal(drained.sweep.invalidation.expired, 0, "no ended auctions in this run - the drain still ran");
   assert.deepEqual(drained.sweep.tags, ["deal-lists", "all-deals:EBAY_CA", "set-deals:ex-unseen-forces", "species-deals:unown", "deal-detail:3"]);
   assert.ok(!drained.setPage.offers.includes("Unown (K)") && !drained.allDeals.offers.includes("quarantined"));
   assert.deepEqual(drained.setPage.offers, ["Unown (A)", "Unown (B)", "Unown (R)"]);
@@ -161,4 +162,64 @@ test("CR-7. wiring: tagged loaders, one merged expiry per route, no deal-page po
   const script = code("scripts/remediation/unownIdentityQuarantine.mjs");
   assert.match(script, /const writtenIds = out\.results\.filter\(\(r\) => r\.updated > 0\)/);
   assert.match(script, /queueSurfaceInvalidation\(db, manifest, writtenIds, "unown-identity-quarantine:apply"\)/);
+});
+
+test("CR-8. queue acknowledgement: failed expiry keeps the row; rows queued during a drain survive; a failed delete keeps the row", async () => {
+  // a failed expiry for one tag keeps every row carrying that tag, and only those
+  const db = createMemoryDb({ catalog_snapshot: [] });
+  await L.queueCacheInvalidation(db, ["deal-lists", "set-deals:a"], { source: "t", now: "2026-09-15T05:00:00.000Z" });
+  await L.queueCacheInvalidation(db, ["set-deals:b"], { source: "t", now: "2026-09-15T05:00:01.000Z" });
+  const first = await L.drainCacheInvalidationQueue(db, (t) => { if (t === "set-deals:a") throw new Error("expire failed"); });
+  assert.deepEqual([first.rows, first.expired, first.acknowledged, first.retained], [2, 2, 1, 1]);
+  assert.match(first.errors.join(" "), /set-deals:a: expire failed/);
+  const left = db.tables.catalog_snapshot.map((r) => r.data.tags);
+  assert.deepEqual(left, [["deal-lists", "set-deals:a"]], "the row with the failed tag is retained for the next run");
+  const retry = [];
+  const second = await L.drainCacheInvalidationQueue(db, (t) => retry.push(t));
+  assert.deepEqual(retry.sort(), ["deal-lists", "set-deals:a"]);
+  assert.deepEqual([second.acknowledged, second.retained], [1, 0]);
+
+  // a row inserted after the drain read the queue is not deleted by that drain
+  const db2 = createMemoryDb({ catalog_snapshot: [] });
+  await L.queueCacheInvalidation(db2, ["set-deals:c"], { source: "t", now: "2026-09-15T05:01:00.000Z" });
+  const racing = {
+    from(name) {
+      const chain = db2.from(name);
+      const realDelete = chain.delete.bind(chain);
+      chain.delete = () => {
+        // another script enqueues between the drain's read and its delete
+        db2.tables.catalog_snapshot.push({ kind: "cache_invalidation:2026-09-15T05:01:30.000Z:late", data: { v: 1, tags: ["set-deals:late"] }, updated_at: "2026-09-15T05:01:30.000Z" });
+        return realDelete();
+      };
+      return chain;
+    },
+  };
+  const expired = [];
+  const out = await L.drainCacheInvalidationQueue(racing, (t) => expired.push(t));
+  assert.deepEqual(expired, ["set-deals:c"]);
+  assert.equal(out.acknowledged, 1);
+  assert.deepEqual(db2.tables.catalog_snapshot.map((r) => r.data.tags), [["set-deals:late"]], "the late row survives for the next run");
+
+  // a failed delete keeps the rows (their tags are expired again next run)
+  const db3 = createMemoryDb({ catalog_snapshot: [] });
+  await L.queueCacheInvalidation(db3, ["set-deals:d"], { source: "t" });
+  const noDelete = { from(name) { const c = db3.from(name); c.delete = () => ({ in: async () => ({ error: { message: "delete failed" } }) }); return c; } };
+  const out3 = await L.drainCacheInvalidationQueue(noDelete, () => {});
+  assert.deepEqual([out3.expired, out3.acknowledged, out3.retained], [1, 0, 1]);
+  assert.equal(db3.tables.catalog_snapshot.length, 1);
+});
+
+test("CR-9. the drain runs on every sweep, and a failed enqueue is reported by the script, not presented as queued", async () => {
+  // top level of the handler (two-space indent), after the retirement steps, not inside any condition
+  const sweep = read("app/api/sweep-stale-deals/route.js").split("\r\n").join("\n");
+  assert.match(sweep, /\n  const queued = await drainCacheInvalidationQueue\(db, revalidateTag\);\n/);
+  assert.ok(sweep.indexOf("const queued = await drainCacheInvalidationQueue") > sweep.indexOf("results.staleLow = await deactivate"));
+  const Q = await import(pathToFileURL(join(REPO, "scripts/remediation/unownIdentityQuarantine.mjs")).href);
+  const manifest = JSON.parse(read("scripts/remediation/unown-identity-quarantine-manifest.json"));
+  const broken = { from: () => ({ insert: async () => ({ error: { message: "insert denied" } }) }) };
+  assert.deepEqual(await Q.queueSurfaceInvalidation(broken, manifest, [38057], "t"), { queued: 0, error: "insert denied" });
+  const script = code("scripts/remediation/unownIdentityQuarantine.mjs");
+  assert.match(script, /if \(writtenIds\.length && !cacheInvalidation\?\.queued\) \{\s*console\.error\(CACHE_NOT_QUEUED\(cacheInvalidation\?\.error\)\);\s*process\.exit\(3\);/);
+  assert.match(script, /if \(restoredIds\.length && !out\.cacheInvalidation\?\.queued\) \{\s*console\.error\(CACHE_NOT_QUEUED\(out\.cacheInvalidation\?\.error\)\);\s*process\.exit\(3\);/);
+  assert.match(read("scripts/remediation/unownIdentityQuarantine.mjs"), /cache invalidation was NOT queued/);
 });

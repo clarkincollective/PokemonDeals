@@ -138,6 +138,11 @@ export async function queueSurfaceInvalidation(db, manifest, dealIds, source) {
   return L.queueCacheInvalidation(db, plan.tags, { source });
 }
 
+// The database write succeeded but no invalidation was queued: say so plainly.
+const CACHE_NOT_QUEUED = (error) =>
+  `WARNING: the database change was written, but cache invalidation was NOT queued (${error ?? "unknown error"}). ` +
+  "Affected pages will not update promptly; they refresh only when their normal cache windows expire (up to about an hour).";
+
 async function main() {
   const arg = (name) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split("=").slice(1).join("=");
   const has = (name) => process.argv.includes(`--${name}`);
@@ -155,7 +160,12 @@ async function main() {
     const restoredIds = out.results.filter((r) => r.restored > 0).map((r) => r.dealId);
     if (restoredIds.length) out.cacheInvalidation = await queueSurfaceInvalidation(db, manifest, restoredIds, "unown-identity-quarantine:rollback");
     console.log(JSON.stringify(out, null, 1));
-    process.exit(out.restored === out.expected ? 0 : 2);
+    if (out.restored !== out.expected) process.exit(2);
+    if (restoredIds.length && !out.cacheInvalidation?.queued) {
+      console.error(CACHE_NOT_QUEUED(out.cacheInvalidation?.error));
+      process.exit(3);
+    }
+    process.exit(0);
   }
   const plan = await planQuarantine(db, manifest);
   console.log(JSON.stringify(plan, null, 1));
@@ -172,7 +182,12 @@ async function main() {
   const writtenIds = out.results.filter((r) => r.updated > 0).map((r) => r.dealId);
   const cacheInvalidation = writtenIds.length ? await queueSurfaceInvalidation(db, manifest, writtenIds, "unown-identity-quarantine:apply") : null;
   console.log(JSON.stringify({ expected: out.expected, written: out.written, results: out.results, cacheInvalidation }, null, 1));
-  process.exit(out.written === out.expected ? 0 : 2);
+  if (out.written !== out.expected) process.exit(2);
+  if (writtenIds.length && !cacheInvalidation?.queued) {
+    console.error(CACHE_NOT_QUEUED(cacheInvalidation?.error));
+    process.exit(3);
+  }
+  process.exit(0);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
