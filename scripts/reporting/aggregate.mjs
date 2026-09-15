@@ -83,6 +83,8 @@ export function aggregateRows(rows) {
       browse_catalogue_clicked: sum(byEvent(EVENTS.BROWSE_CATALOGUE_CLICKED)),
       browse_sets_clicked: sum(byEvent(EVENTS.BROWSE_SETS_CLICKED)),
       browse_pokemon_clicked: sum(byEvent(EVENTS.BROWSE_POKEMON_CLICKED)),
+      // audit-r1: Recently Viewed tile clicks (instrumented 15 Sep 2026)
+      recently_viewed_clicked: sum(byEvent(EVENTS.RECENTLY_VIEWED_CLICKED)),
     },
 
     // affiliate_click is the one event that is directly, honestly
@@ -206,11 +208,9 @@ export function buildReport(
     status: sampleStatus({ impressions: m.sections.all_deals.impressions, clicks: m.filterInteractions, qca: m.affiliateByOrigin.home_all_deals }),
   };
 
-  const recentlyViewed = {
-    impressions: m.sections.recently_viewed.impressions,
-    clickCoverage: "NOT CURRENTLY INSTRUMENTED",
-    status: "MISSING COVERAGE",
-  };
+  // audit-r1: tile clicks are instrumented from 15 Sep 2026 (recently_viewed_clicked);
+  // the strip has no affiliate origin of its own (a tile opens a card / deal page)
+  const recentlyViewed = { ...lane("recently_viewed", "recently_viewed_clicked", null), clickCoverage: "recently_viewed_clicked since 2026-09-15" };
 
   const searchVsDiscover = {
     homepageViews: m.homepageViews,

@@ -62,7 +62,7 @@ export default function CardNextSteps({
             Get an email when a listing for this card appears
           </p>
           <div className="mt-2">
-            <PriceAlertForm cardSlug={alert.cardSlug} cardName={alert.cardName} suggestedPrice={null} />
+            <PriceAlertForm cardSlug={alert.cardSlug} cardName={alert.cardName} suggestedPrice={alert.suggestedPrice ?? null} />
           </div>
         </div>
       )}

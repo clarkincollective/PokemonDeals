@@ -12,6 +12,8 @@ const STATIC_PATHS = [
   "/deals/auctions",
   "/deals/vintage",
   "/deals/modern",
+  "/deals/uk",
+  "/deals/australia",
   "/cards",
   "/sets",
   "/pokemon",

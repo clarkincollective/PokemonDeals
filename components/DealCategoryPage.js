@@ -173,6 +173,8 @@ export default async function DealCategoryPage({ slug }) {
           // a Raw/Graded pill a visitor could click into a silent
           // contradiction (the preset always wins server-side regardless).
           lockedCardType={cat.filter?.cardType ?? null}
+          // audit-r1: a country landing page fixes the marketplace the same way
+          lockedCountry={cat.filter?.country ?? null}
         />
 
         <nav className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">

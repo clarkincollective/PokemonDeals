@@ -474,7 +474,8 @@ export default async function CardHubPage({ params }) {
                   <PriceAlertForm
                     cardSlug={slug}
                     cardName={hub.name}
-                    suggestedPrice={cheapest ? (cheapest.total_price_usd ?? cheapest.total_price) : null}
+                    // audit-r1: without a live offer, suggest 10% under the catalogue reference
+                    suggestedPrice={cheapest ? (cheapest.total_price_usd ?? cheapest.total_price) : isUsableUsdPrice(hubRaw) ? Math.round(Number(hubRaw) * 0.9 * 100) / 100 : null}
                   />
                 )}
               </div>

@@ -228,7 +228,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                 HTML + first paint, the viewer's clock after hydration. */}
             {!isAuction && (
               <WithinWindow date={deal.first_seen_at} withinMs={JUST_FOUND_MS}>
-                <span className="rounded-md bg-live/95 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-900 shadow-sm">
+                <span className="rounded-md bg-live/95 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-zinc-900 shadow-sm">
                   Just found
                 </span>
               </WithinWindow>
@@ -293,7 +293,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           />
         ) : (
           <div className="mt-2">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               {ship.headline}
             </p>
             <Price
@@ -318,7 +318,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
         {!showSavings ? (
           <div className="mt-1.5 flex flex-col gap-1">
             {presentation.notes.map((note) => (
-              <p key={note} className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+              <p key={note} className="text-xs leading-snug text-zinc-500 dark:text-zinc-400">
                 {note}
               </p>
             ))}
@@ -335,7 +335,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             ) : null}
             {!savingsSupported ? (
               // unknown breakdown: the reference stands, the saving does not
-              <p className="text-[11px] leading-snug text-amber-700 dark:text-amber-500">
+              <p className="text-xs leading-snug text-amber-700 dark:text-amber-500">
                 No saving stated: shipping breakdown not recorded
               </p>
             ) : (
@@ -361,14 +361,14 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             listing was found - the listing marketplace, never a claim about
             where it ships. */}
         {Array.isArray(deal.also_on) && marketInfo && (
-          <p data-listing-marketplace className="mt-1.5 text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+          <p data-listing-marketplace className="mt-1.5 text-xs leading-snug text-zinc-500 dark:text-zinc-400">
             {deal.also_on.length > 0 ? "Price shown from" : "Listed on"} eBay {marketInfo.label}
             {deal.also_on.length > 0 &&
               ` · also on ${deal.also_on.map((m) => `eBay ${MARKETPLACES[m]?.label ?? m}`).join(", ")}`}
           </p>
         )}
 
-        <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+        <div className="mt-1.5 flex items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400">
           <p className="min-w-0 truncate">
             {isAuction ? (
               <>

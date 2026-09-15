@@ -257,7 +257,7 @@ export default function CatalogCardView({
         <CardNextSteps
           variant="no-deal"
           links={nextLinks}
-          alert={alertsEnabled ? { cardSlug: slug, cardName: card.name } : null}
+          alert={alertsEnabled ? { cardSlug: slug, cardName: card.name, suggestedPrice: isUsableUsdPrice(refPrice) ? Math.round(Number(refPrice) * 0.9 * 100) / 100 : null } : null}
           ebaySearchHref={ebaySearchHref}
         />
 

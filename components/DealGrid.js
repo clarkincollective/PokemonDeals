@@ -149,7 +149,7 @@ function ResultsSummary({ page, shown, totalCount, exact, pageSize, nouns }) {
   );
 }
 
-export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}, emptyLabel, validSetSlugs = [], defaultSort = "newest", subjectLabel, compactFilters = false, lockedCardType = null, exactInventory: inventoryCategory = false, inventorySubject = "listings", languageScope = null }) {
+export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}, emptyLabel, validSetSlugs = [], defaultSort = "newest", subjectLabel, compactFilters = false, lockedCardType = null, lockedCountry = null, exactInventory: inventoryCategory = false, inventorySubject = "listings", languageScope = null }) {
   const search = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const params = useMemo(() => parseSearch(search), [search]);
   const reqKey = params.raw;
@@ -468,7 +468,8 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
         <FilterBar
           collapsible={compactFilters}
           params={params.obj}
-          country={params.country}
+          country={lockedCountry ?? params.country}
+          lockedCountry={lockedCountry}
           cardType={lockedCardType ?? (showGrading ? effType : params.cardType)}
           grader={showGrading ? effGrader : undefined}
           grade={showGrading ? effGrade : undefined}

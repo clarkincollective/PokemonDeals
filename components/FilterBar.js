@@ -1,5 +1,5 @@
 import { MARKETPLACES } from "@/lib/ebayLinks";
-import { allMarketplacesHref, isAllMarketplaces } from "@/lib/marketplaceScope";
+import { allMarketplacesHref, isAllMarketplaces, marketplaceName } from "@/lib/marketplaceScope";
 import FilterToggle from "@/components/FilterToggle";
 import { GRADER_CHOICES, GRADE_CHOICES } from "@/lib/dealFilters";
 
@@ -341,6 +341,10 @@ export default function FilterBar({
   // raw cards under a page titled Graded). When set, that toggle is
   // replaced with a plain, non-interactive label instead.
   lockedCardType = null,
+  // audit-r1: a country landing page (/deals/uk, ...) fixes the marketplace
+  // the same way - the country row becomes a plain label, never a pill
+  // that would contradict the page (the preset wins server-side).
+  lockedCountry = null,
   // Pilot scope only (currently just the graded category) - renders
   // SearchWithinRow when true.
   searchable = false,
@@ -352,7 +356,7 @@ export default function FilterBar({
   allMarketplaces = false,
 }) {
   const activeCount = [
-    country,
+    lockedCountry ? null : country,
     // A locked cardType is the page's own identity, not a visitor choice -
     // it must not inflate the "N filters active" badge or force the panel
     // open on a page where nothing has actually been picked yet.
@@ -376,7 +380,16 @@ export default function FilterBar({
         <div className="flex flex-col gap-4">
           <SortRow params={params} sort={sort} basePath={basePath} defaultValue="newest" />
 
-          <CountryFilterRow params={params} country={country} basePath={basePath} allOption={allMarketplaces} />
+          {lockedCountry ? (
+            <div>
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">Marketplace</span>
+              <span className="inline-block whitespace-nowrap rounded-full border border-zinc-300 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+                {marketplaceName(lockedCountry) ?? lockedCountry} listings only
+              </span>
+            </div>
+          ) : (
+            <CountryFilterRow params={params} country={country} basePath={basePath} allOption={allMarketplaces} />
+          )}
 
           <div>
             <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">

@@ -57,7 +57,14 @@ function Tile({ card, onRemove, fx }) {
       >
         ×
       </button>
-      <Link href={entryHref(card)} className="group flex flex-col gap-1.5">
+      <Link
+        href={entryHref(card)}
+        className="group flex flex-col gap-1.5"
+        // audit-r1: the Recently Viewed strip's clicks were the one homepage
+        // section without click coverage (same marker convention as the lanes)
+        data-analytics-click="recently_viewed_clicked"
+        data-analytics-props={JSON.stringify({ section: "recently_viewed", source: "homepage" })}
+      >
         <div className="relative h-32 w-32 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
           {card.image ? (
             <Image src={upgradeCatalogImage(card.image)} alt={card.name || "Card"} fill sizes="128px" quality={85} className="object-contain p-2" />

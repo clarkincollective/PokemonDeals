@@ -226,7 +226,10 @@ test("13C.6.0 - lane impressions/clicks/affiliate map to the correct section", (
   assert.equal(report.explore.clicksByType.most_active_clicked, 10);
   assert.equal(report.explore.totalClicks, 10 + 6 + 5 + 7);
   assert.equal(report.recentlyViewed.impressions, 60);
-  assert.equal(report.recentlyViewed.status, "MISSING COVERAGE");
+  // audit-r1: tile clicks are instrumented (recently_viewed_clicked); the fixture has none, so the lane reads as a low sample, not missing coverage
+  assert.equal(report.recentlyViewed.clicks, 0);
+  assert.equal(report.recentlyViewed.status, "LOW SAMPLE");
+  assert.match(report.recentlyViewed.clickCoverage, /recently_viewed_clicked since 2026-09-15/);
 });
 
 // === 7. QCA definition ================================================
