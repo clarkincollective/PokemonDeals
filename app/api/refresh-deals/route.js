@@ -10,7 +10,7 @@ import {
 import { getConditionPrices, getGradedPrice } from "@/lib/pokemonPriceTracker";
 import { getUsdRates, toUsd } from "@/lib/fx";
 import { logDiscoveryEvent } from "@/lib/discoveryLog";
-import { writeDiscoverySighting } from "@/lib/listingAvailability";
+import { writeDiscoverySighting, insertNewSighting } from "@/lib/listingAvailability";
 // 17C.10 - reference provenance for the comparison this scanner stores.
 import { selectConditionReference } from "@/lib/dealMatching";
 import { CARD_REFERENCE_COLUMNS, buildCardReference, clearedReference } from "@/lib/referenceProvenance";
@@ -55,7 +55,8 @@ import {
   isHighValueVintage,
 } from "@/lib/dealQuality";
 import { allocateScanTargets, nextTargetState, budgetForRun } from "@/lib/scanAllocator";
-import { attachBrowseLease, browseLeaseExhausted } from "@/lib/ebayTelemetry";
+import { attachBrowseLease, browseLeaseExhausted, browseBudgetMode } from "@/lib/ebayTelemetry";
+import { pilotTail, rankPilotCards, withoutStoredListings, allowances as pilotAllowances, PILOT_START_DEADLINE_MS, PILOT_STOP_DEADLINE_MS } from "@/lib/crossMatchPricingPilot";
 import { acquireBrowseLease } from "@/lib/browseBudget";
 import { createCrossMatchObserver, recordCrossMatchObservation } from "@/lib/crossMatchObservation";
 import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError, recordDedupeSavedGrading } from "@/lib/ebayTelemetry";
@@ -388,7 +389,16 @@ async function enrichDealTrustSignals(db, listing, { imageCount = null, returnsA
 // graded listing gets the extra getGradingDetails() + graded-price lookup,
 // to keep both eBay's per-item budget and PokemonPriceTracker's metered
 // credits bounded per scan cycle.
-async function scanCardInMarketplace(row, marketplaceId, marketData, db, discountThreshold, rates, searchType = "priority", crossMatch = null) {
+// crossmatch-price-pilot-r1 - `candidateListings` (array) = CANDIDATE MODE:
+// price listings this invocation's own searches already returned for this
+// card (lib/crossMatchPricingPilot) through the unchanged raw path below,
+// instead of searching. It is not a complete search of the card, so it: never
+// searches, writes insert-only (insertNewSighting - no update, no revival,
+// nothing overwritten), never expires listings for being absent, and is not
+// observed or reported as a scan. The graded branch never runs (the pilot
+// passes raw listings only).
+async function scanCardInMarketplace(row, marketplaceId, marketData, db, discountThreshold, rates, searchType = "priority", crossMatch = null, { candidateListings = null } = {}) {
+  const candidateMode = Array.isArray(candidateListings);
   const baseQuery = row.set ? `${row.name} ${row.set}` : row.name;
   // Biases eBay's own relevance ranking toward genuine Japanese-print
   // listings (sellers overwhelmingly include "Japanese" in the title) -
@@ -407,9 +417,11 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     (p) => p != null
   );
   const lowestKnownPrice = knownPrices.length > 0 ? Math.min(...knownPrices) : marketData.fallbackPrice;
-  const { listings, total } = await searchListings(query, marketplaceId, {
-    minPrice: lowestKnownPrice * SANITY_FLOOR_PCT,
-  });
+  const { listings, total } = candidateMode
+    ? { listings: candidateListings.filter((l) => !l.isGraded), total: null }
+    : await searchListings(query, marketplaceId, {
+        minPrice: lowestKnownPrice * SANITY_FLOOR_PCT,
+      });
 
   const rawListings = listings.filter((l) => !l.isGraded);
   // graded-growth-r1: this scan's single graded lookup goes to the cheapest
@@ -420,6 +432,8 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
 
   let dealsFound = 0;
   let blockedRetired = 0; // sightings of verifier-retired rows, not re-published
+  const candidateOutcomes = { inserted: 0, existing: 0, writeErrors: 0 }; // candidate mode only
+  let lastWriteOutcome = null;
 
   // STAGE 5 (reference-price sanity). If this card has a healthy supply of
   // genuine, matched, trustworthy raw listings and EVERY ONE of them sits
@@ -505,10 +519,16 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     // never leave old evidence attached to a new market_price. Merged in
     // place (not rebound) so the write below stays one object.
     if (await referenceColumnsReady(db)) Object.assign(core, referenceFor(core));
-    const { outcome, error } = await writeDiscoverySighting(db, core);
+    const { outcome, error } = candidateMode ? await insertNewSighting(db, core) : await writeDiscoverySighting(db, core);
+    lastWriteOutcome = error ? "error" : outcome;
+    if (candidateMode && error) candidateOutcomes.writeErrors++;
+    if (candidateMode && outcome === "exists") candidateOutcomes.existing++;
     if (error) console.error(`Failed to upsert deal ${core.listing_id}:`, error.message);
     else if (outcome === "blocked") blockedRetired++;
-    else {
+    else if (outcome === "exists") {
+      // candidate mode: another writer owns this listing now - leave it alone
+    } else {
+      if (candidateMode) candidateOutcomes.inserted++;
       dealsFound++;
       // Best-effort discovery-analytics event (Phase 2). Never awaited on
       // the critical path in a way that can fail the scan.
@@ -634,6 +654,8 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
         condition,
       })
     );
+    // candidate mode touches only a row it inserted itself
+    if (!candidateMode || lastWriteOutcome === "inserted")
     await enrichDealTrustSignals(db, listing, {
       imageCount: resolved.imageCount ?? null,
       returnsAccepted: resolved.returnsAccepted ?? null,
@@ -705,7 +727,9 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
   const graceDays = marketplaceId === "EBAY_US" ? 2 : 5;
   const graceCutoff = new Date(Date.now() - graceDays * 24 * 60 * 60 * 1000).toISOString();
 
-  const canReconcile = listings.length > 0 || total !== null;
+  // crossmatch-price-pilot-r1: a candidate pass saw only some of this card's
+  // listings, so absence proves nothing - never expire from it
+  const canReconcile = !candidateMode && (listings.length > 0 || total !== null);
 
   if (canReconcile) {
     await db
@@ -723,11 +747,12 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
   // returned (turnover signal).
   // crossmatch-shadow-r1 - count-only: AFTER this card's normal processing,
   // over the results already in hand. Synchronous, bounded, never throws out.
-  if (crossMatch) {
+  if (crossMatch && !candidateMode) {
     try {
       crossMatch.observe(listings, row);
     } catch {}
   }
+  if (candidateMode) return { dealsFound, blockedRetired, candidateListings: listings.length, ...candidateOutcomes };
   return { dealsFound, uniqueListings: listings.length, blockedRetired };
 }
 
@@ -1375,9 +1400,12 @@ export async function GET(request) {
   let crossMatch = null;
   let crossMatchIndex = null;
   let crossMatchSetupError = null;
+  // crossmatch-price-pilot-r1: US allocated runs with the allocator only; off
+  // unless CROSSMATCH_PRICE_PILOT=on (and it needs the observation on)
+  const pilotConfigured = allocatedMode && allocatedCountry === "EBAY_US" && process.env.CROSSMATCH_PRICE_PILOT === "on" && Boolean(allocation);
   if (allocatedMode && process.env.CROSSMATCH_OBSERVE !== "off") {
     try {
-      crossMatch = createCrossMatchObserver({ marketplace: allocatedCountry, jobStartedAt: Date.parse(ctx.startedAt) || Date.now() });
+      crossMatch = createCrossMatchObserver({ marketplace: allocatedCountry, jobStartedAt: Date.parse(ctx.startedAt) || Date.now(), limits: { retainRawCandidates: pilotConfigured } });
       const observer = crossMatch;
       const obsRows = (watchlistRowsRaw ?? []).filter((r) => r.justtcg_tcgplayer_id).map((r) => ({ ...r }));
       // selected rows already carry their catalogue number; read only the rest
@@ -1414,13 +1442,16 @@ export async function GET(request) {
   let scanned = 0;
   const errors = [];
 
-  async function scanOneCard(row) {
+  // The per-card market reference (one PokemonPriceTracker request) with its
+  // trust checks. Shared by scanOneCard and the cross-matching pricing pilot,
+  // so both price against exactly the same reference rules. null = skip.
+  async function loadCardMarketData(row, errors) {
     let marketData;
     try {
       const raw = await getConditionPrices(row.justtcg_tcgplayer_id, row.language);
       if (!raw || (raw.fallbackPrice == null && Object.keys(raw.byCondition).length === 0)) {
         errors.push(`No price for watchlist item "${row.name}" (id ${row.id})`);
-        return;
+        return null;
       }
 
       // When PokemonPriceTracker only has a single aggregate price for a
@@ -1441,14 +1472,20 @@ export async function GET(request) {
         errors.push(
           `Untrusted market price for "${row.name}" (id ${row.id}): live ${raw.fallbackPrice} vs last_known ${lastKnown}`
         );
-        return;
+        return null;
       }
 
       marketData = { byCondition: raw.byCondition, fallbackPrice: raw.fallbackPrice, priceChange24hr: null };
     } catch (err) {
       errors.push(`Price lookup failed for "${row.name}": ${err.message}`);
-      return;
+      return null;
     }
+    return marketData;
+  }
+
+  async function scanOneCard(row) {
+    const marketData = await loadCardMarketData(row, errors);
+    if (!marketData) return;
 
     // At most 2 marketplaces per card, so running those in parallel too
     // is cheap and doesn't need its own concurrency cap.
@@ -1479,7 +1516,20 @@ export async function GET(request) {
   // PokemonPriceTracker has no multi-card batch endpoint, and running
   // cards fully sequentially took ~6.5 min for 76 cards - both APIs
   // comfortably support CONCURRENCY cards in flight at once.
-  const queue = [...watchlistRows];
+  // crossmatch-price-pilot-r1 - with the pilot on, the lowest-scoring exploit
+  // targets (at most 10) are held back until everything else is scanned; each
+  // is displaced only if a pilot card is actually attempted in its place, and
+  // the rest are scanned normally below. Pilot off: this is the old queue.
+  let pilotTailRows = [];
+  if (pilotConfigured && crossMatch) {
+    try {
+      pilotTailRows = pilotTail(allocation.selected).map((s) => s._row);
+    } catch {
+      pilotTailRows = [];
+    }
+  }
+  const heldBack = new Set(pilotTailRows.map((r) => r.id));
+  const queue = watchlistRows.filter((r) => !heldBack.has(r.id));
   async function worker() {
     let row;
     while ((row = queue.shift())) {
@@ -1492,6 +1542,128 @@ export async function GET(request) {
     }
   }
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+
+  // crossmatch-price-pilot-r1 - price cross-matched cards in place of held-back
+  // tail targets (lib/crossMatchPricingPilot), then scan whatever tail was not
+  // displaced exactly as before. A pilot failure displaces nothing further and
+  // never affects the normal targets, their state writes or lease settlement.
+  let crossMatchPilot = null;
+  if (pilotTailRows.length) {
+    const pilot = await runCrossMatchPricingPilot(pilotTailRows);
+    crossMatchPilot = pilot.summary;
+    const tailToScan = pilotTailRows.filter((r) => !pilot.displaced.has(r.id));
+    crossMatchPilot.tailScannedNormally = tailToScan.map((r) => String(r.justtcg_tcgplayer_id));
+    if (tailToScan.length) {
+      queue.push(...tailToScan);
+      await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+    }
+  }
+
+  async function runCrossMatchPricingPilot(tailRows) {
+    const identity = (r) => `${r.justtcg_tcgplayer_id}|${r.language ?? ""}`;
+    const summary = {
+      v: 1,
+      mode: browseBudgetMode(),
+      heldBackTail: tailRows.map((r) => String(r.justtcg_tcgplayer_id)),
+      allowances: pilotAllowances(RAW_CONDITION_LOOKUP_PER_CARD),
+      candidates: null,
+      substitutions: [],
+      displacedTargets: [],
+      tailScannedNormally: null,
+      // definitely avoided: each displaced target's price lookup (observe/off:
+      // the loop always reaches it); everything else it might have done is
+      // only hypothetical and is not counted
+      definitelyAvoided: { pptAttempts: 0, browseAttempts: 0 },
+      actual: { pptAttempts: 0, browseAttempts: null, browseResponses: 0 },
+      inserted: 0,
+      existing: 0,
+      blocked: 0,
+      stoppedBy: null,
+      error: null,
+    };
+    const displaced = new Set();
+    const pilotErrors = [];
+    const startedAt = Date.parse(ctx.startedAt) || Date.now();
+    try {
+      if (Date.now() - startedAt > PILOT_START_DEADLINE_MS) {
+        summary.stoppedBy = "start_deadline";
+        return { summary, displaced };
+      }
+      if (browseLeaseExhausted()) {
+        summary.stoppedBy = "lease_exhausted";
+        return { summary, displaced };
+      }
+      await Promise.race([crossMatchIndex, new Promise((resolve) => setTimeout(resolve, 5000).unref?.())]);
+      const { cards, skipped } = crossMatch.rawCandidateCards({ excludeIdentities: new Set(watchlistRows.map(identity)) });
+      const unstored = await withoutStoredListings(db, cards);
+      if (unstored.error) {
+        summary.stoppedBy = "stored_state_unreadable";
+        return { summary, displaced };
+      }
+      const { ranked, notWorth } = rankPilotCards(unstored.cards, {
+        usdTotal: (l) => pricedListing(l, 1, rates).totalUsd,
+        discountThreshold,
+        sanityFloorPct: SANITY_FLOOR_PCT,
+      });
+      summary.candidates = {
+        cards: cards.length,
+        listings: cards.reduce((a, c) => a + c.listings.length, 0),
+        skipped,
+        storedListingsExcluded: unstored.storedListings,
+        cardsWithUnstoredListings: unstored.cards.length,
+        notWorth,
+        rankedCards: ranked.length,
+      };
+      const browseStart = ctx.browseCalls;
+      const leaseStart = budgetLease ? budgetLease.attempts : null;
+      for (const card of ranked) {
+        if (displaced.size >= tailRows.length) break;
+        if (Date.now() - startedAt > PILOT_STOP_DEADLINE_MS) {
+          summary.stoppedBy = "stop_deadline";
+          break;
+        }
+        if (browseLeaseExhausted()) {
+          summary.stoppedBy = "lease_exhausted";
+          break;
+        }
+        const target = tailRows[displaced.size];
+        // everything the substitution needs is read BEFORE the target is
+        // displaced, so a bad candidate can never drop a target for nothing
+        const pilotRow = card.row;
+        const pilotListings = [...card.listings];
+        const sub = { displacedTarget: String(target.justtcg_tcgplayer_id), pilotCard: String(pilotRow.justtcg_tcgplayer_id), candidateListings: pilotListings.length, promising: card.promising, outcome: null };
+        displaced.add(target.id);
+        summary.substitutions.push(sub);
+        if (summary.mode !== "enforce") summary.definitelyAvoided.pptAttempts++;
+        summary.actual.pptAttempts++;
+        try {
+          const marketData = await loadCardMarketData(pilotRow, pilotErrors);
+          if (!marketData) {
+            sub.outcome = "no_usable_reference";
+            continue;
+          }
+          const r = await scanCardInMarketplace(pilotRow, allocatedCountry, marketData, db, discountThreshold, rates, "crossmatch", null, { candidateListings: pilotListings });
+          Object.assign(sub, { outcome: "priced", inserted: r.inserted, existing: r.existing, blocked: r.blockedRetired, writeErrors: r.writeErrors });
+          summary.inserted += r.inserted;
+          summary.existing += r.existing;
+          summary.blocked += r.blockedRetired;
+        } catch (e) {
+          // the attempt consumed this target's slot; stop, and let the
+          // untouched tail be scanned normally
+          sub.outcome = "error";
+          throw e;
+        }
+      }
+      if (!summary.stoppedBy) summary.stoppedBy = displaced.size >= tailRows.length ? "tail_filled" : "candidates_exhausted";
+      summary.actual.browseResponses = ctx.browseCalls - browseStart;
+      summary.actual.browseAttempts = leaseStart == null ? null : budgetLease.attempts - leaseStart;
+    } catch (e) {
+      summary.error = String(e?.message ?? e).slice(0, 200);
+    }
+    summary.displacedTargets = tailRows.filter((r) => displaced.has(r.id)).map((r) => String(r.justtcg_tcgplayer_id));
+    summary.priceLookupNotes = pilotErrors.slice(0, 10);
+    return { summary, displaced };
+  }
 
   // P0.4.2 - persist the allocator's per-target state + one run summary.
   // Best-effort: a write failure here never fails the scan (mirrors
@@ -1568,6 +1740,8 @@ export async function GET(request) {
         crossMatchObservation =
           (await withinMs(crossMatch.finalize(db), 25000)) ?? { v: 1, marketplace: allocatedCountry, partial: true, truncatedBy: ["finalize_time"] };
       }
+      // crossmatch-price-pilot-r1: the pilot's accounting travels with the run's record
+      if (crossMatchPilot) crossMatchObservation.pilot = crossMatchPilot;
       crossMatchObservation.recorded = (await withinMs(recordCrossMatchObservation(db, crossMatchObservation), 5000))?.ok === true;
     } catch (e) {
       crossMatchObservation = { v: 1, marketplace: allocatedCountry, partial: true, error: String(e?.message ?? e).slice(0, 200) };
@@ -1582,7 +1756,7 @@ export async function GET(request) {
     rateLimitRemaining,
     scannedAt: new Date().toISOString(),
     ...(allocatedMode
-      ? { tier: "allocated", country: allocatedCountry, allocatorFallback, allocation: allocationSummary, crossMatchObservation }
+      ? { tier: "allocated", country: allocatedCountry, allocatorFallback, allocation: allocationSummary, crossMatchObservation, crossMatchPilot }
       : {}),
   });
   } catch (err) {
