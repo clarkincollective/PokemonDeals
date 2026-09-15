@@ -9,7 +9,7 @@ import DealCard from "@/components/DealCard";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbList, collectionPage, itemList } from "@/lib/jsonLd";
 import { filterHref, PriceFilterRow, CountryFilterRow } from "@/components/FilterBar";
-import { MarketplaceScopeNote } from "@/components/DealFilterChips";
+import MarketplaceScopeNote from "@/components/MarketplaceScopeNote";
 
 export const revalidate = 300;
 

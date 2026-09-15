@@ -7,8 +7,7 @@
 // no state. Query-param links carry rel="nofollow", matching the site's
 // crawl-hygiene rule for internal parameter links.
 
-import { MARKETPLACES } from "@/lib/ebayLinks";
-import { allMarketplacesHref, DELIVERY_NOT_CONFIRMED as DELIVERY_NOTE, marketplaceName, selectedMarketplace } from "@/lib/marketplaceScope";
+import { allMarketplacesHref, marketplaceName } from "@/lib/marketplaceScope";
 import {
   appliedFilterChips,
   relaxationSteps,
@@ -126,7 +125,10 @@ export function AppliedFilters({ params, basePath, resultCount, totalCount, sear
 // States plainly that nothing matches (never silently shows unrelated
 // listings) and offers relaxation actions that each explicitly change the
 // filter state.
-export function FilteredEmptyState({ params, basePath, subjectLabel, searchQuery }) {
+// allByDefault: the page's own default is every marketplace (/deals), so
+// "Browse all marketplaces" goes to the clean URL (country dropped, other
+// filters kept) rather than a duplicate ?country=all variant.
+export function FilteredEmptyState({ params, basePath, subjectLabel, searchQuery, allByDefault = false }) {
   const steps = relaxationSteps({
     type: params.type,
     grader: params.grader,
@@ -173,7 +175,11 @@ export function FilteredEmptyState({ params, basePath, subjectLabel, searchQuery
         {steps.map((s, i) => (
           <a
             key={i}
-            href={hrefWithout(params, s.drop, basePath, s.set)}
+            href={
+              s.set?.country === "all"
+                ? allMarketplacesHref(params, basePath, { defaultIsAll: allByDefault })
+                : hrefWithout(params, s.drop, basePath, s.set)
+            }
             rel="nofollow"
             {...(s.set?.country === "all" ? { "data-marketplace-choice": "all" } : {})}
             data-analytics-click="filter_cleared"
@@ -209,7 +215,7 @@ export function EmptyStateEscapes({ className = "" }) {
 //
 // params/basePath (optional): when the grid is scoped to one marketplace,
 // offer "Browse all marketplaces" for the same page first.
-export function EmptyGridState({ label, params, basePath }) {
+export function EmptyGridState({ label, params, basePath, allByDefault = false }) {
   const scopedTo = params ? marketplaceName(params.country) : null;
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
@@ -218,7 +224,7 @@ export function EmptyGridState({ label, params, basePath }) {
         <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
           Only listings on {scopedTo} are shown.{" "}
           <a
-            href={allMarketplacesHref(params, basePath)}
+            href={allMarketplacesHref(params, basePath, { defaultIsAll: allByDefault })}
             rel="nofollow"
             data-marketplace-choice="all"
             className="font-semibold text-red-600 underline underline-offset-2 dark:text-red-500"
@@ -232,59 +238,3 @@ export function EmptyGridState({ label, params, basePath }) {
   );
 }
 
-// marketplace-broaden-r1: which marketplaces this grid is drawing from, and
-// the way out of a single-marketplace scope. Rendered above results on
-// DealGrid pages (graded, categories, species, sets, /deals).
-//
-//   one marketplace -> "Showing listings on eBay Germany only." + "Browse
-//                      all marketplaces" (every filter kept, page reset).
-//                      `additional` (exact, or null) adds "N more
-//                      listings" only when the caller computed it from the
-//                      same eligibility rules, filters and listing
-//                      identities as the destination; `thin` makes the
-//                      note prominent.
-//   all marketplaces -> the delivery-not-confirmed note.
-export function MarketplaceScopeNote({ params, basePath, allByDefault = false, additional = null, thin = false }) {
-  const code = selectedMarketplace(params.country);
-  const explicitAll = typeof params.country === "string" && params.country.toLowerCase() === "all";
-  if (code) {
-    const name = marketplaceName(code);
-    const more =
-      typeof additional === "number" && additional > 0
-        ? `Browse all marketplaces (+${additional.toLocaleString("en-US")} more listing${additional === 1 ? "" : "s"})`
-        : "Browse all marketplaces";
-    return (
-      <div
-        data-marketplace-scope={code}
-        className={
-          thin
-            ? "mb-4 rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200"
-            : "mb-4 text-sm text-zinc-600 dark:text-zinc-300"
-        }
-      >
-        <p>
-          <span aria-hidden="true">{MARKETPLACES[code].flag}</span> Showing listings on {name} only
-          {thin ? " - there are few here for this selection." : "."}{" "}
-          <a
-            href={allMarketplacesHref(params, basePath, { defaultIsAll: allByDefault })}
-            rel="nofollow"
-            data-marketplace-choice="all"
-            data-analytics-click="filter_cleared"
-            data-analytics-props={JSON.stringify({ facet: "country", context: thin ? "thin_results" : "scope_note" })}
-            className="font-semibold text-red-600 underline underline-offset-2 dark:text-red-500"
-          >
-            {more}
-          </a>
-        </p>
-      </div>
-    );
-  }
-  if (explicitAll || allByDefault) {
-    return (
-      <p data-marketplace-scope="all" className="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
-        <span aria-hidden="true">🌐</span> {DELIVERY_NOTE}
-      </p>
-    );
-  }
-  return null;
-}

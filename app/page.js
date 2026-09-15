@@ -25,7 +25,7 @@ import SectionHeader from "@/components/SectionHeader";
 import DealCard from "@/components/DealCard";
 import HomeBrowseLinks from "@/components/HomeBrowseLinks";
 import FilterBar from "@/components/FilterBar";
-import { MarketplaceScopeNote } from "@/components/DealFilterChips";
+import MarketplaceScopeNote from "@/components/MarketplaceScopeNote";
 import { EmptyStateEscapes } from "@/components/DealFilterChips";
 import Pagination, { pageHref } from "@/components/Pagination";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";

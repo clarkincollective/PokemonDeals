@@ -9,7 +9,7 @@ import DealCard from "@/components/DealCard";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbList, collectionPage } from "@/lib/jsonLd";
 import FilterBar from "@/components/FilterBar";
-import { MarketplaceScopeNote } from "@/components/DealFilterChips";
+import MarketplaceScopeNote from "@/components/MarketplaceScopeNote";
 import Pagination, { pageHref } from "@/components/Pagination";
 
 // Re-check for new deals at most once a minute - same as the homepage.

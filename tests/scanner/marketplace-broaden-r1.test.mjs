@@ -23,6 +23,7 @@ const build = (rows = allDealsRows, opts = {}) =>
   inv.ALL_DEALS_MARKETPLACES.map((m) => inv.encodeMarketplaceInventory(rows, { marketplace: m, ...opts }));
 const CHUNKS = build();
 const all = (params, chunks = CHUNKS) => inv.queryAllDeals(chunks, params, { pageSize: 100000 });
+const grid0 = () => read("components/DealGrid.js");
 const ids = (r) => new Set(r.deals.map((d) => d.listing_id));
 const marketsOf = new Map();
 for (const r of allDealsRows) (marketsOf.get(r.listing_id) ?? marketsOf.set(r.listing_id, new Set()).get(r.listing_id)).add(r.marketplace);
@@ -55,7 +56,8 @@ test("MB-1. scope helpers: all is explicit, loaders get null, hrefs keep filters
   // /deals already defaults to every marketplace: the clean URL, no duplicate variant
   assert.equal(scope.allMarketplacesHref({ country: "EBAY_US", page: "2" }, "/deals", { defaultIsAll: true }), "/deals");
   assert.equal(scope.allMarketplacesHref({ country: "EBAY_US", type: "graded" }, "/deals", { defaultIsAll: true }), "/deals?type=graded");
-  assert.match(scope.DELIVERY_NOT_CONFIRMED, /Delivery to your location isn't confirmed/);
+  assert.match(scope.DELIVERY_NOT_CONFIRMED, /doesn't mean it delivers to you/);
+  assert.doesNotMatch(scope.DELIVERY_NOT_CONFIRMED, /ships to you|delivers worldwide|confirmed delivery/i);
 });
 
 test("MB-2. relaxation: Browse all marketplaces comes first, keeps every filter, and only when one marketplace is selected", () => {
@@ -71,7 +73,9 @@ test("MB-2. relaxation: Browse all marketplaces comes first, keeps every filter,
   // the empty state applies `set` and still resets ?page
   const chips = read("components/DealFilterChips.js");
   assert.match(chips, /for \(const \[k, v\] of Object\.entries\(setParams \?\? \{\}\)\) params\.set\(k, v\);/);
-  assert.match(chips, /href=\{hrefWithout\(params, s\.drop, basePath, s\.set\)\}/);
+  assert.match(chips, /s\.set\?\.country === "all"\s*\? allMarketplacesHref\(params, basePath, \{ defaultIsAll: allByDefault \}\)\s*: hrefWithout\(params, s\.drop, basePath, s\.set\)/);
+  assert.match(read("components/DealGrid.js"), /<FilteredEmptyState[\s\S]{0,300}allByDefault=\{allDeals\}/);
+  assert.match(read("components/DealGrid.js"), /<EmptyGridState [^>]*allByDefault=\{allDeals\}/);
   assert.match(chips, /country: params\.country,\s*\}\);/, "the page's country reaches relaxationSteps");
 });
 
@@ -147,11 +151,14 @@ test("MB-7. visible controls: All marketplaces pill everywhere, scope note, broa
   assert.match(row, /not where it ships or where the seller is/);
   assert.match(bar, /\{\.\.\.rest\}\s*href=\{href\}/);
   const chips = read("components/DealFilterChips.js");
-  assert.match(chips, /export function MarketplaceScopeNote/);
-  assert.match(chips, /Showing listings on \{name\} only/);
-  assert.match(chips, /export function EmptyGridState\(\{ label, params, basePath \}\)/);
+  const note = read("components/MarketplaceScopeNote.js");
+  assert.match(note, /^"use client";/);
+  assert.match(note, /Showing listings on \{marketplaceName\(code\)\} only/);
+  assert.match(note, /effectiveMarketplaceScope\(\{/);
+  assert.match(grid0(), /pinned=\{!allDeals\}/);
+  assert.match(chips, /export function EmptyGridState\(\{ label, params, basePath, allByDefault = false \}\)/);
   const grid = read("components/DealGrid.js");
-  assert.match(grid, /<EmptyGridState label=\{emptyLabel\} params=\{params\.obj\} basePath=\{basePath\} \/>/);
+  assert.match(grid, /<EmptyGridState label=\{emptyLabel\} params=\{params\.obj\} basePath=\{basePath\} allByDefault=\{allDeals\} \/>/);
   for (const p of ["app/page.js", "app/best-finds/page.js", "app/japanese-cards/page.js"]) assert.match(read(p), /<MarketplaceScopeNote /, p);
 });
 
@@ -168,12 +175,39 @@ test("MB-9. attribution and indexing unchanged", () => {
   const card = read("components/DealCard.js");
   assert.match(card, /wrapEbayAffiliateUrl\(deal\.affiliate_url, \{ surface: surfaceForPageName\(pageName\) \}\)/);
   // new links are internal, nofollow query links
-  const chips = read("components/DealFilterChips.js");
-  const note = chips.slice(chips.indexOf("export function MarketplaceScopeNote"));
+  const note = read("components/MarketplaceScopeNote.js");
   assert.match(note, /rel="nofollow"/);
   assert.doesNotMatch(note, /ebay\.|affiliate/i);
   // /deals variants stay noindex (country covered); other pages keep static canonicals
   assert.match(read("next.config.mjs"), /"country"/);
   assert.match(read("components/DealCategoryPage.js"), /const canonical = `\/deals\/\$\{slug\}`;/);
   assert.match(read("app/best-finds/page.js"), /alternates: \{ canonical: "\/best-finds" \}/);
+});
+
+test("MB-10. effective scope: the delivery note follows what the page actually shows", () => {
+  const e = scope.effectiveMarketplaceScope;
+  // explicit URL choices, whatever is stored
+  assert.deepEqual(e({ urlCountry: "EBAY_DE", pinned: true, stored: "" }), { kind: "one", code: "EBAY_DE" });
+  assert.deepEqual(e({ urlCountry: "all", pinned: true, stored: "EBAY_DE" }), { kind: "all" });
+  // saved All marketplaces on a pinned URL without country -> worldwide results, note shown
+  assert.deepEqual(e({ urlCountry: null, pinned: true, stored: "" }), { kind: "all" });
+  assert.deepEqual(e({ urlCountry: undefined, pinned: true, stored: "", geoResolved: true, detected: "EBAY_US" }), { kind: "all" }, "saved All beats geo");
+  // saved single marketplace or a geo default: RegionRedirect is about to scope -> no note
+  assert.deepEqual(e({ urlCountry: null, pinned: true, stored: "EBAY_DE" }), { kind: "pending" });
+  assert.deepEqual(e({ urlCountry: null, pinned: true, stored: null, geoResolved: true, detected: "EBAY_GB" }), { kind: "pending" });
+  assert.deepEqual(e({ urlCountry: null, pinned: true, stored: null, geoResolved: false }), { kind: "pending" });
+  // no choice and no detected marketplace: stays worldwide
+  assert.deepEqual(e({ urlCountry: null, pinned: true, stored: null, geoResolved: true, detected: null }), { kind: "all" });
+  // server render cannot see storage
+  assert.deepEqual(e({ urlCountry: null, pinned: true, stored: undefined }), { kind: "pending" });
+  // /deals is never pinned: no country = every marketplace, even with a saved single marketplace
+  assert.deepEqual(e({ urlCountry: null, pinned: false, stored: "EBAY_DE" }), { kind: "all" });
+  // junk on the URL is not claimed as worldwide on a pinned page
+  assert.deepEqual(e({ urlCountry: "EBAY_ZZ", pinned: true, stored: "" }), { kind: "pending" });
+  // RegionRedirect applies exactly the rule the scope mirrors
+  const redirect = read("components/RegionRedirect.js");
+  assert.match(redirect, /if \(stored === null && !detected\) return;\s*const target = stored === null \? detected : stored;\s*if \(!target\) return;/);
+  // the /deals broadening link is the clean URL: filters kept, no country, so a saved single marketplace is not restored (no RegionRedirect there)
+  assert.equal(scope.allMarketplacesHref({ country: "EBAY_DE", type: "graded", grader: "PSA", q: "char", page: "2" }, "/deals", { defaultIsAll: true }), "/deals?type=graded&grader=PSA&q=char");
+  assert.doesNotMatch(read("app/deals/page.js").replace(/\/\/[^\n]*/g, ""), /RegionRedirect/);
 });

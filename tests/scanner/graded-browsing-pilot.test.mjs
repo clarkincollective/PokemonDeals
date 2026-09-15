@@ -104,7 +104,8 @@ test('DealGrid: q is part of the isDefault computation, so a search term correct
 test('DealFilterChips: AppliedFilters/FilteredEmptyState search-chip support is additive (opt-in), not a behaviour change for existing callers', () => {
   const chips = src('components/DealFilterChips.js');
   assert.match(chips, /export function AppliedFilters\(\{ params, basePath, resultCount, totalCount, searchQuery \}\)/);
-  assert.match(chips, /export function FilteredEmptyState\(\{ params, basePath, subjectLabel, searchQuery \}\)/);
+  // marketplace-broaden-r1 adds an equally opt-in allByDefault (defaults off)
+  assert.match(chips, /export function FilteredEmptyState\(\{ params, basePath, subjectLabel, searchQuery(, allByDefault = false)? \}\)/);
   // "Clear all" must drop q too when a search is active, or it re-lands on
   // the same empty state.
   assert.match(chips, /clearAll\.drop = \[\.\.\.clearAll\.drop, "q"\];/);

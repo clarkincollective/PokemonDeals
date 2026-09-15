@@ -5,7 +5,8 @@ import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
 import Pagination, { pageHref } from "@/components/Pagination";
 import GridSkeleton from "@/components/GridSkeleton";
-import { AppliedFilters, FilterNotes, FilteredEmptyState, EmptyGridState, MarketplaceScopeNote } from "@/components/DealFilterChips";
+import { AppliedFilters, FilterNotes, FilteredEmptyState, EmptyGridState } from "@/components/DealFilterChips";
+import MarketplaceScopeNote from "@/components/MarketplaceScopeNote";
 import { hasActiveDealFilters, normalizeDealFilters } from "@/lib/dealFilters";
 
 // The filterable, paginated deal grid for /sets/[slug] and
@@ -308,6 +309,8 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
         <MarketplaceScopeNote
           params={params.obj}
           basePath={basePath}
+          // every DealGrid page except /deals mounts RegionRedirect
+          pinned={!allDeals}
           allByDefault={allDeals}
           // exact only where the loader computes it (all-deals inventory,
           // complete); legacy loaders' counts are estimates -> no number
@@ -344,9 +347,10 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
             basePath={basePath}
             subjectLabel={subjectLabel ?? "matching"}
             searchQuery={searchable ? params.q : null}
+            allByDefault={allDeals}
           />
         ) : (
-          <EmptyGridState label={emptyLabel} params={params.obj} basePath={basePath} />
+          <EmptyGridState label={emptyLabel} params={params.obj} basePath={basePath} allByDefault={allDeals} />
         )
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
