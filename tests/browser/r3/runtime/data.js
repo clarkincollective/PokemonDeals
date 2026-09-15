@@ -27,6 +27,7 @@ export const cardColsReady = async () => true;
 export const withCard = row => row;
 export const resolveCardSlug = async slug => slug==='fixture-hub'?{...card,id:'fixture-hub',slug}:null;
 export const resolveCatalogCard = async slug => ['fixture-reference','fixture-no-reference','clefable-jungle'].includes(slug)?{...card,slug,...(slug==='fixture-no-reference'?{tcgplayerId:null,refPrice:null,indexable:false}:{})}:null;
+export const resolveCatalogCardById = async id => String(id)===String(card.tcgplayerId)?{...card,slug:"fixture-reference"}:null;
 export const findCardHubByWatchlistId = async () => ({...card,id:'fixture-hub',slug:'fixture-hub'});
 export const resolveSpeciesByName = async () => null;
 export const fetchSetSlugs = async () => [...new Set(['jungle','neo-destiny','boundaries-crossed','ex-legend-maker','xy-promos',...savedCatalogue.Dragonite.map(c=>slugifySet(c.set)),...savedCatalogue.Charizard.map(c=>slugifySet(c.set))])];

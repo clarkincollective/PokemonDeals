@@ -164,7 +164,7 @@ test("PT-7. wiring: every PPT request in the shared client goes through the inst
   assert.equal((src.match(/await fetch\(/g) ?? []).length, 3, "fetchPPT, fetchPPTPaced, downloadPrintingsExport");
   assert.equal((src.match(/recordPptAttempt\(/g) ?? []).length, 9);
   assert.doesNotMatch(src, /await fetchPPT\(url\);|await fetchPPTPaced\(url\);/, "every call site names its op");
-  for (const [file, tag] of [["app/cards/[slug]/page.js", "page:cards"], ["app/deals/[id]/page.js", "page:deal"], ["app/sealed-deals/[id]/page.js", "page:sealed-deal"], ["app/search/page.js", "page:search"], ["app/api/card-search/route.js", "api:card-search"], ["app/api/sync-card-catalog/route.js", "cron:sync-card-catalog"], ["app/api/sync-watchlist/route.js", "cron:sync-watchlist"], ["app/api/sync-sealed-catalog/route.js", "cron:sync-sealed-catalog"]]) {
+  for (const [file, tag] of [["lib/cardPriceAnalysis.js", "page:cards"], ["app/deals/[id]/page.js", "page:deal"], ["app/sealed-deals/[id]/page.js", "page:sealed-deal"], ["app/search/page.js", "page:search"], ["app/api/card-search/route.js", "api:card-search"], ["app/api/sync-card-catalog/route.js", "cron:sync-card-catalog"], ["app/api/sync-watchlist/route.js", "cron:sync-watchlist"], ["app/api/sync-sealed-catalog/route.js", "cron:sync-sealed-catalog"]]) {
     assert.ok(readFileSync(join(REPO, file), "utf8").includes(`"${tag}"`), `${file} tags ${tag}`);
   }
 });

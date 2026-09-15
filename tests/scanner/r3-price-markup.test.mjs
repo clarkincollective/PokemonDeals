@@ -40,25 +40,31 @@ for (const priced of [true,false]) {
   });
 }
 
-test('live hub hero shows the actual raw reference and its condition',async()=>{
+// audit-r1: the hero is the dated catalogue reference, labelled by the
+// condition the catalogue recorded; the provider analysis (condition
+// ladder, graded tiers) arrives with the client market panel and can
+// never change the server-rendered figure.
+test('live hub hero shows the catalogue reference and its recorded condition',async()=>{
   const {route}=loadRoute('app/cards/[slug]/page.js',{
     hub:{id:'fixture-hub',name:'Clefable',set:'Jungle',tcgplayerId:'45120'},
-    analysis:{raw:{currentPrice:42,referenceCondition:'Lightly Played'},graded:[]},renderComponents:"visual",
+    card:{name:'Clefable',set:'Jungle',tcgplayerId:'45120',refPrice:42,refCondition:'Lightly Played'},
+    analysis:{raw:{currentPrice:99,referenceCondition:'Near Mint'},graded:[]},renderComponents:"visual",
   });
   const html=renderToStaticMarkup(await route.default({params:Promise.resolve({slug:'fixture-clefable'})}));
   const hero=html.match(/id="card-worth"[\s\S]*?<\/section>/)?.[0];
   assert.ok(hero);
   assert.match(hero,/42\.00/);
   assert.match(hero,/Lightly Played/);
+  assert.doesNotMatch(html,/99\.00/);
 });
-test('rejected analysis cannot resurrect catalogue reference in the hero',async()=>{
+test('no catalogue reference means one unavailable answer, whatever the analysis says',async()=>{
   const {route}=loadRoute('app/cards/[slug]/page.js',{
-    card:{name:'Clefable',set:'Jungle',refPrice:30,tcgplayerId:'45120'},
-    analysis:{raw:{currentPrice:null},graded:[]},renderComponents:"visual",
+    card:{name:'Clefable',set:'Jungle',refPrice:null,tcgplayerId:'45120'},
+    analysis:{raw:{currentPrice:42},graded:[]},renderComponents:"visual",
   });
   const html=renderToStaticMarkup(await route.default({params:Promise.resolve({slug:'fixture-clefable'})}));
   const hero=html.match(/id="card-worth"[\s\S]*?<\/section>/)?.[0];
   assert.ok(hero);
   assert.match(hero,/reliable recent-sold market price/);
-  assert.doesNotMatch(hero,/30\.00/);
+  assert.doesNotMatch(html,/42\.00/);
 });

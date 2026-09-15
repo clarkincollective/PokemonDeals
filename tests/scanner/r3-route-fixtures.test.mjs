@@ -56,7 +56,9 @@ for (const hasOffers of [true,false]) {
     const tree=await route.default({params});
     assert.equal(meta.alternates.canonical,'/cards/fixture-clefable');
     assert.ok(elements(tree).length>10);
-    assert.ok(calls.some(c=>c.name==='fixture-price-analysis'));
+    // audit-r1: the hub renders from the catalogue record; the provider analysis is never requested on render
+    assert.ok(calls.some(c=>c.name==='resolveCatalogCardById'));
+    assert.ok(!calls.some(c=>c.name==='fixture-price-analysis'));
   });
 }
 

@@ -1,65 +1,98 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import SpeciesCard from "@/components/SpeciesCard";
 
 // The standalone /sealed-deals catalogue: every sealed product PPT
 // tracks, grouped by set (newest first), each tile flagged as an active
-// deal (emerald) or browse-only (plain "View on eBay"). Client-side
-// filter over the already-server-rendered list - name search, product-
-// type chips, "deals only" toggle - same progressive-enhancement shape
-// as PokemonFilterList / SetsFilterList.
+// deal (emerald) or browse-only (plain "View on eBay"). Name search,
+// product-type chips and a "deals only" toggle - same progressive-
+// enhancement shape as PokemonFilterList / SetsFilterList.
 //
-// `groups` = [{ set, slug, logo, products: [SpeciesCard cards], dealCount }],
-// products pre-sorted deals-first by fetchSealedCatalog; `logo` from
-// setImage() enriched in the page (null when pokemontcg.io has no logo).
+// audit-r1 (page-weight): the page ships products only for the sets that
+// open by default (`products` is null for the rest, which carry
+// `productCount`). Opening another set, or applying any filter, fetches
+// from /api/sealed-catalog (same 15-minute cache the page renders from).
+// Until 15 Sep 2026 every product (2,344) travelled as client props: 1.8 MB
+// of the page's 2.35 MB.
+
 const GRID = "mt-3 grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
 
-export default function SealedProductBrowser({ groups, types }) {
+async function fetchJson(url) {
+  const r = await fetch(url, { headers: { accept: "application/json" } });
+  if (!r.ok) throw new Error(`sealed catalogue ${r.status}`);
+  return r.json();
+}
+
+export default function SealedProductBrowser({ groups, types, totals = null }) {
   const [query, setQuery] = useState("");
   const [type, setType] = useState("all");
   const [dealsOnly, setDealsOnly] = useState(false);
-  const [openSets, setOpenSets] = useState(() => new Set(groups.slice(0, 6).map((g) => g.set)));
+  const [openSets, setOpenSets] = useState(() => new Set(groups.filter((g) => g.products).map((g) => g.set)));
+  // set -> products, seeded from the page; filled per set on demand
+  const [loaded, setLoaded] = useState(() => new Map(groups.filter((g) => g.products).map((g) => [g.set, g.products])));
+  const [pending, setPending] = useState(() => new Set());
+  // the server-filtered result while any filter is active (null = none)
+  const [filteredGroups, setFilteredGroups] = useState(null);
+  const [filterState, setFilterState] = useState("idle"); // idle | loading | error
+  const filterSeq = useRef(0);
 
-  const totalProducts = useMemo(
-    () => groups.reduce((n, g) => n + g.products.length, 0),
-    [groups]
-  );
-  const totalDeals = useMemo(
-    () => groups.reduce((n, g) => n + g.dealCount, 0),
-    [groups]
-  );
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return groups
-      .map((g) => ({
-        ...g,
-        products: g.products.filter((p) => {
-          if (dealsOnly && !p.deal) return false;
-          if (type !== "all" && p.productType !== type) return false;
-          if (q && !p.name.toLowerCase().includes(q) && !g.set.toLowerCase().includes(q)) return false;
-          return true;
-        }),
-      }))
-      .filter((g) => g.products.length > 0);
-  }, [groups, query, type, dealsOnly]);
-
-  const shownCount = useMemo(
-    () => filtered.reduce((n, g) => n + g.products.length, 0),
-    [filtered]
-  );
+  const totalProducts = totals?.products ?? groups.reduce((n, g) => n + (g.productCount ?? g.products?.length ?? 0), 0);
+  const totalDeals = totals?.deals ?? groups.reduce((n, g) => n + g.dealCount, 0);
+  const logoBySet = useMemo(() => new Map(groups.map((g) => [g.set, g.logo ?? null])), [groups]);
   const filtering = query.trim() !== "" || type !== "all" || dealsOnly;
 
-  function toggleSet(set) {
+  // filters: one debounced request, latest wins
+  useEffect(() => {
+    if (!filtering) {
+      setFilteredGroups(null);
+      setFilterState("idle");
+      return undefined;
+    }
+    const seq = ++filterSeq.current;
+    setFilterState("loading");
+    const t = setTimeout(() => {
+      const sp = new URLSearchParams();
+      if (query.trim()) sp.set("q", query.trim());
+      if (type !== "all") sp.set("type", type);
+      if (dealsOnly) sp.set("deals", "1");
+      fetchJson(`/api/sealed-catalog?${sp.toString()}`)
+        .then((j) => {
+          if (seq !== filterSeq.current) return;
+          setFilteredGroups(j.groups ?? []);
+          setFilterState("idle");
+        })
+        .catch(() => {
+          if (seq !== filterSeq.current) return;
+          setFilteredGroups([]);
+          setFilterState("error");
+        });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [query, type, dealsOnly, filtering]);
+
+  function loadSet(g) {
+    if (loaded.has(g.set) || pending.has(g.set)) return;
+    setPending((prev) => new Set(prev).add(g.set));
+    fetchJson(`/api/sealed-catalog?set=${encodeURIComponent(g.slug)}`)
+      .then((j) => setLoaded((prev) => new Map(prev).set(g.set, j.products ?? [])))
+      .catch(() => setLoaded((prev) => new Map(prev).set(g.set, null)))
+      .finally(() => setPending((prev) => { const next = new Set(prev); next.delete(g.set); return next; }));
+  }
+
+  function toggleSet(g) {
     setOpenSets((prev) => {
       const next = new Set(prev);
-      if (next.has(set)) next.delete(set);
-      else next.add(set);
+      if (next.has(g.set)) next.delete(g.set);
+      else next.add(g.set);
       return next;
     });
+    if (!openSets.has(g.set)) loadSet(g);
   }
+
+  const shown = filtering ? (filteredGroups ?? []) : groups;
+  const shownCount = filtering ? shown.reduce((n, g) => n + g.products.length, 0) : totalProducts;
 
   return (
     <div>
@@ -115,21 +148,28 @@ export default function SealedProductBrowser({ groups, types }) {
 
       <p role="status" className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
         {filtering
-          ? `${shownCount} of ${totalProducts} products match`
+          ? filterState === "loading"
+            ? "Searching…"
+            : filterState === "error"
+              ? "The catalogue could not be searched right now. Clear the filters to browse by set."
+              : `${shownCount} of ${totalProducts} products match`
           : `${totalProducts} sealed products across ${groups.length} sets · ${totalDeals} with an active deal right now`}
       </p>
 
-      {filtered.length === 0 ? (
+      {shown.length === 0 && filterState !== "loading" ? (
         <p className="mt-6 text-zinc-500">No sealed products match those filters.</p>
       ) : (
         <div className="mt-4 flex flex-col gap-3">
-          {filtered.map((g) => {
+          {shown.map((g) => {
             const open = filtering || openSets.has(g.set);
+            const products = filtering ? g.products : loaded.get(g.set);
+            const count = filtering ? g.products.length : g.productCount ?? g.products?.length ?? products?.length ?? 0;
+            const logo = filtering ? logoBySet.get(g.set) ?? null : g.logo;
             return (
               <section key={g.set} className="rounded-xl border border-zinc-200 dark:border-zinc-800">
                 <button
                   type="button"
-                  onClick={() => toggleSet(g.set)}
+                  onClick={() => toggleSet(g)}
                   aria-expanded={open}
                   className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
                 >
@@ -139,9 +179,9 @@ export default function SealedProductBrowser({ groups, types }) {
                         there's no layout shift; lazy by default. No logo ->
                         empty box, the set name still identifies it. */}
                     <span className="relative block h-7 w-16 shrink-0">
-                      {g.logo && (
+                      {logo && (
                         <Image
-                          src={g.logo}
+                          src={logo}
                           alt=""
                           fill
                           sizes="64px"
@@ -152,7 +192,7 @@ export default function SealedProductBrowser({ groups, types }) {
                     <span className="flex flex-wrap items-baseline gap-x-2 text-sm font-bold text-black dark:text-zinc-50">
                       {g.set}
                       <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                        {g.products.length} product{g.products.length === 1 ? "" : "s"}
+                        {count} product{count === 1 ? "" : "s"}
                         {g.dealCount > 0 ? ` · ${g.dealCount} deal${g.dealCount === 1 ? "" : "s"}` : ""}
                       </span>
                     </span>
@@ -163,16 +203,22 @@ export default function SealedProductBrowser({ groups, types }) {
                 </button>
                 {open && (
                   <div className="border-t border-zinc-100 px-4 py-3 dark:border-zinc-900">
-                    <div className={GRID}>
-                      {g.products.map((p) => (
-                        <SpeciesCard
-                          key={p.tcgplayerId ?? p.name}
-                          card={p}
-                          label={g.set}
-                          pageName="sealed_hub"
-                        />
-                      ))}
-                    </div>
+                    {products === undefined || pending.has(g.set) ? (
+                      <p className="text-sm text-zinc-500" aria-live="polite">Loading products…</p>
+                    ) : products === null ? (
+                      <p className="text-sm text-zinc-500">These products could not be loaded right now.</p>
+                    ) : (
+                      <div className={GRID}>
+                        {products.map((p) => (
+                          <SpeciesCard
+                            key={p.tcgplayerId ?? p.name}
+                            card={p}
+                            label={g.set}
+                            pageName="sealed_hub"
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </section>

@@ -1,9 +1,8 @@
-import { unstable_cache } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { resolveCardSlug, resolveCatalogCard, fetchCardOffers, fetchCardRelations, fetchSetSlugs, fetchCardPriceHistory, fetchSets, fetchSpeciesHubs } from "@/lib/deals";
-import { cardWorthAnswer, pageShowsGraded, isUsableUsdPrice } from "@/lib/cardWorth";
+import { resolveCardSlug, resolveCatalogCard, resolveCatalogCardById, fetchCardOffers, fetchCardRelations, fetchSetSlugs, fetchCardPriceHistory, fetchSets, fetchSpeciesHubs } from "@/lib/deals";
+import { cardWorthAnswer, isUsableUsdPrice } from "@/lib/cardWorth";
 import { cardNextSteps } from "@/lib/cardNextSteps";
 import CardWorthAnswer from "@/components/CardWorthAnswer";
 import CardNextSteps from "@/components/CardNextSteps";
@@ -15,16 +14,12 @@ import { cardSpeciesLink } from "@/lib/cardLinks";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { wrapEbayAffiliateUrl, buildEbaySearchLink } from "@/lib/ebayLinks";
-import { getFullPriceAnalysis } from "@/lib/pokemonPriceTracker";
-import { withPptConsumer } from "@/lib/pptTelemetry";
 import SiteHeader from "@/components/SiteHeader";
 import SkipToContent from "@/components/SkipToContent";
 import CardDealFilters from "@/components/CardDealFilters";
 import { currencyForDeal, auctionDisplayParts, dealTotalUsd, hasPrice } from "@/lib/money";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
-import VariantPriceGrid from "@/components/VariantPriceGrid";
-import RecentSales from "@/components/RecentSales";
-import CardPriceSummary from "@/components/CardPriceSummary";
+import CardMarketPanel, { CardMarketSummary } from "@/components/CardMarketPanel";
 import CardPriceIntelligence from "@/components/CardPriceIntelligence";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import AffiliateLink from "@/components/AffiliateLink";
@@ -69,27 +64,11 @@ export async function generateStaticParams() {
 // print into one strong page instead of leaving them as several
 // near-identical /deals/[id] pages competing with each other.
 //
-// Reference market data, cached separately from the live offers list
-// (which changes as listings sell/expire) - same 300s window and
-// primitive-keyed cache as app/deals/[id]/page.js's loadPriceAnalysis,
-// reused here rather than duplicated.
-const loadPriceAnalysisUncached = async (tcgplayerId) => {
-  if (!tcgplayerId) return null;
-  try {
-    // Phase 11C: the raw Near Mint history series is now sourced from the
-    // canonical price_history spine (fetchCardPriceHistory), so this
-    // request no longer needs includeHistory - one fewer provider credit
-    // per uncached render and no page traffic on the history endpoint.
-    return await withPptConsumer("page:cards", () => getFullPriceAnalysis(tcgplayerId, { includeHistory: false }));
-  } catch (err) {
-    console.error("Price analysis lookup failed:", err.message);
-    return null;
-  }
-};
-
-const loadPriceAnalysis = unstable_cache(loadPriceAnalysisUncached, ["card-hub-price-analysis"], {
-  revalidate: 300,
-});
+// audit-r1: the provider market analysis is no longer loaded here. The
+// page renders from the catalogue reference (resolveCatalogCardById) and
+// components/CardMarketPanel fetches lib/cardPriceAnalysis through
+// /api/card-analysis after the page has rendered - so a cold render, and a
+// crawler's render in particular, makes no PokemonPriceTracker call.
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -177,12 +156,11 @@ export async function generateMetadata({ params }) {
   // Collector-number source precedence (8A closeout): the STRUCTURED full
   // number wins over any partial pulled from the display name. The
   // live-deal hub object carries only name + set, so read the structured
-  // number from the price-analysis record (d.cardNumber). loadPriceAnalysis
-  // is unstable_cache'd and the page component calls it too, so this adds
-  // no net billed request - just orders the same cached call first.
-  const analysis = await loadPriceAnalysis(hub.tcgplayerId);
+  // number from the catalogue record (audit-r1: no provider call here; the
+  // page component reads the same cached row).
+  const catalog = await resolveCatalogCardById(hub.tcgplayerId);
   const hubName = cardDisplayName(hub);
-  const hubNumber = analysis?.cardNumber ?? collectorNumberFromName(hub.name);
+  const hubNumber = catalog?.cardNumber ?? collectorNumberFromName(hub.name);
   const title = catalogCardTitle(hubName, hub.set, hubNumber);
   const description = `${hubName}${hubNumber ? ` #${hubNumber}` : ""} (${hub.set}) Pokemon card price & value — raw market reference (labelled by its real condition) and condition-by-condition prices from real recent sold data, graded (PSA/CGC/BGS) tiers where available, and live eBay listings compared cheapest first.`;
 
@@ -214,8 +192,7 @@ export default async function CardHubPage({ params }) {
     const card = await resolveCatalogCard(slug);
     if (!card) notFound();
     const catalogSpecies = cardSpeciesLink({ name: card.name, cardType: card.cardType, species: card.species });
-    const [analysis, validSetSlugs, relations, priceHistory, { species: speciesHubs }, { sets: liveSets }] = await Promise.all([
-      loadPriceAnalysis(card.tcgplayerId),
+    const [validSetSlugs, relations, priceHistory, { species: speciesHubs }, { sets: liveSets }] = await Promise.all([
       fetchSetSlugs("english"),
       fetchCardRelations(slug, card.name, card.set, card.species),
       fetchCardPriceHistory(card.tcgplayerId),
@@ -229,7 +206,6 @@ export default async function CardHubPage({ params }) {
     return (
       <CatalogCardView
         card={card}
-        analysis={analysis}
         priceHistory={priceHistory}
         setHasPage={validSetSlugs.includes(setSlugHere)}
         relations={relations}
@@ -250,10 +226,10 @@ export default async function CardHubPage({ params }) {
   // OG - the exact catalogue name, only TCGplayer's "(#NN)" collector-
   // number parenthetical removed (it's on the identity line below).
   const cardName = cardDisplayName(hub);
-  const [{ deals: offers, error }, analysis, relations, validSetSlugs, priceHistory, { species: speciesHubs }, { sets: liveSets }] =
+  const [{ deals: offers, error }, catalog, relations, validSetSlugs, priceHistory, { species: speciesHubs }, { sets: liveSets }] =
     await Promise.all([
       fetchCardOffers(hub.id),
-      loadPriceAnalysis(hub.tcgplayerId),
+      resolveCatalogCardById(hub.tcgplayerId),
       fetchCardRelations(slug, hub.name, hub.set, null),
       fetchSetSlugs("english"),
       fetchCardPriceHistory(hub.tcgplayerId),
@@ -266,8 +242,8 @@ export default async function CardHubPage({ params }) {
   // structured values from the price-analysis record (same provider call
   // already made, no extra request), falling back to a number embedded in
   // the watchlist name.
-  const cardCollectorNumber = analysis?.cardNumber ?? collectorNumberFromName(hub.name);
-  const cardRarity = analysis?.rarity ?? null;
+  const cardCollectorNumber = catalog?.cardNumber ?? collectorNumberFromName(hub.name);
+  const cardRarity = catalog?.rarity ?? null;
   // Trusted canonical artwork for this exact product - see generateMetadata.
   const canonicalImage = catalogImageUrl(hub.tcgplayerId);
   // P0 deal-image-integrity: the permanent card hero is the canonical
@@ -311,32 +287,28 @@ export default async function CardHubPage({ params }) {
   // history comparable to the latest recorded reference (null until such
   // history exists) - never the whole series, whose older points may be
   // for an unrecorded or different condition / printing.
-  const canonRaw = analysis?.raw
-    ? {
-        ...analysis.raw,
-        history: chartPoints,
-        minPrice: priceHistory?.comparableRange?.min ?? null,
-        maxPrice: priceHistory?.comparableRange?.max ?? null,
-      }
-    : analysis?.raw;
   const tcgplayerLink = buildTcgplayerLink(hub.name, hub.tcgplayerId);
 
   // Phase 17B - the "How much is <card> worth?" answer: the SAME raw Near
   // Mint figure CardPriceSummary shows (analysis.raw.currentPrice) and the
   // real live-listing count / cheapest asking price already on this page.
-  const hubRaw = analysis?.raw?.currentPrice;
+  // the daily-synced catalogue reference, labelled by its real condition
+  const hubRaw = catalog?.refPrice;
   const worth = cardWorthAnswer({
     name: cardName,
     set: hub.set,
     cardNumber: cardCollectorNumber,
     rarity: cardRarity,
     marketUsd: isUsableUsdPrice(hubRaw) ? Number(hubRaw) : null,
-    priceSource: "analysis",
-    priceUpdatedAt: analysis?.priceUpdatedAt ?? null,
+    priceSource: "catalog",
+    priceUpdatedAt: catalog?.syncedAt ?? null,
     // Price-condition provenance: the condition the figure is really for.
-    referenceCondition: analysis?.raw?.referenceCondition ?? null,
-    firstEditionExcluded: Boolean(analysis?.firstEditionExcluded),
-    gradedAvailable: pageShowsGraded(analysis),
+    referenceCondition: catalog?.refCondition ?? null,
+    // an "Unlimited" reference printing exists only where a 1st Edition
+    // printing does too, so that figure excludes 1st Edition copies
+    firstEditionExcluded: /unlimited/i.test(catalog?.refPrinting ?? ""),
+    // graded tiers load with the market panel, after the answer renders
+    gradedAvailable: false,
     liveListings: { count: offers.length, lowUsd: rangeLowUsd },
     nowMs: Date.now(),
   });
@@ -510,15 +482,12 @@ export default async function CardHubPage({ params }) {
           </div>
         </div>
 
-        <CardPriceSummary
-          analysis={analysis}
-          detailsOnly
-        />
+        <CardMarketSummary tcgplayerId={hub.tcgplayerId} />
 
         <CardPriceIntelligence
           detailsOnly
-          marketValueUsd={analysis?.raw?.currentPrice ?? null}
-          referenceCondition={analysis?.raw?.referenceCondition ?? null}
+          marketValueUsd={hubRaw ?? null}
+          referenceCondition={catalog?.refCondition ?? null}
           trends={priceHistory?.trends ?? null}
           signal={priceHistory?.signal ?? null}
           coverage={priceHistory?.coverage ?? null}
@@ -553,23 +522,12 @@ export default async function CardHubPage({ params }) {
           </div>
         )}
 
-        {analysis && (analysis.graded.length > 0 || chartPoints.length >= 2) && (
-          <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
-            <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Every variant, side by side</h2>
-            <p className="text-xs text-zinc-600 dark:text-zinc-400">Raw and every graded tier with real recorded sales.</p>
-            <div className="mt-4">
-              <VariantPriceGrid raw={canonRaw} graded={analysis.graded} cardName={hub.name} surface="card" />
-            </div>
-          </div>
-        )}
-
-        <RecentSales
-          sales={analysis?.primaryRecentSales}
+        <CardMarketPanel
+          tcgplayerId={hub.tcgplayerId}
           cardName={cardName}
-          page="card_recent_sales"
-          surface="card"
-          variant={analysis?.primaryKey === "raw" ? "raw" : null}
-          className="mt-6"
+          gridName={hub.name}
+          chartPoints={chartPoints}
+          comparableRange={priceHistory?.comparableRange ?? null}
         />
 
         <p className="mt-6 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">

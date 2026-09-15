@@ -267,3 +267,31 @@ p a {
     display: none !important;
   }
 }
+
+
+/* audit-r1 (page-weight): the /pokemon index renders ~924 species tiles;
+   one class per tile instead of ~1 KB of utilities each (the page was
+   841 KB of HTML). Same visual rules as before. */
+@layer components {
+  .species-tile {
+    @apply flex min-h-11 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm transition-colors;
+  }
+  .species-tile-deal {
+    @apply border-emerald-500/40 bg-emerald-50 hover:border-emerald-500 dark:border-emerald-500/30 dark:bg-emerald-950/30;
+  }
+  .species-tile-plain {
+    @apply border-transparent text-zinc-600 hover:text-red-600 hover:underline dark:text-zinc-400 dark:hover:text-red-500;
+  }
+  .species-sprite {
+    @apply h-7 w-7 shrink-0 [image-rendering:pixelated];
+  }
+  .species-dex {
+    @apply shrink-0 text-[10px] tabular-nums text-zinc-600 dark:text-zinc-400;
+  }
+  .species-name {
+    @apply break-words;
+  }
+  .species-name-deal {
+    @apply font-semibold text-black dark:text-zinc-50;
+  }
+}

@@ -1,5 +1,8 @@
 import SkipToContent from "@/components/SkipToContent";
-import { fetchSealedDealsPool, fetchSealedCatalog, fetchLastScanTime } from "@/lib/deals";
+import { fetchSealedDealsPool, fetchSealedCatalog, fetchLastScanTime, slimSealedProduct } from "@/lib/deals";
+
+// the sets SealedProductBrowser opens by default; only these ship products
+const INITIAL_OPEN_SETS = 6;
 import { dealScore } from "@/lib/dealScore";
 import { timeAgo } from "@/lib/time";
 import { SEALED_PRODUCT_TYPES } from "@/lib/sealedCatalog";
@@ -60,7 +63,20 @@ export default async function SealedDealsPage() {
 
   // Attach the pokemontcg.io set logo (same assets as /sets) to each
   // group; null when that set has no catalogued logo -> text-only header.
-  const groupsWithLogos = catalog.groups.map((g) => ({ ...g, logo: setImage(g.set)?.logo ?? null }));
+  // audit-r1 (page-weight): only the sets the browser opens by default carry
+  // their products in the page (slimmed to the tile's fields); every other
+  // set is a header with counts, and the browser loads its products from
+  // /api/sealed-catalog when it is opened or when a filter is applied.
+  // Before: all 2,344 products travelled as client props (1.8 MB).
+  const groupsWithLogos = catalog.groups.map((g, i) => ({
+    set: g.set,
+    slug: g.slug,
+    logo: setImage(g.set)?.logo ?? null,
+    dealCount: g.dealCount,
+    productCount: g.products.length,
+    products: i < INITIAL_OPEN_SETS ? g.products.map(slimSealedProduct) : null,
+  }));
+  const catalogTotals = { products: catalog.productCount, deals: catalog.dealCount };
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
@@ -130,7 +146,7 @@ export default async function SealedDealsPage() {
         </p>
 
         {catalog.groups.length > 0 ? (
-          <SealedProductBrowser groups={groupsWithLogos} types={types} />
+          <SealedProductBrowser groups={groupsWithLogos} types={types} totals={catalogTotals} />
         ) : (
           <p className="text-zinc-500">
             The sealed-product catalogue is still syncing. Live deals above are unaffected — check

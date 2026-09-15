@@ -241,7 +241,8 @@ test("9. static: every public label derives from the reference's recorded condit
   const src = code("lib/pokemonPriceTracker.js");
   assert.match(src, /referenceCondition: rawRef\.condition,\s*referencePrinting: rawRef\.printing,\s*referenceExact: rawRef\.exact,/);
   // both card render paths pass it to the worth answer
-  assert.match(code("app/cards/[slug]/page.js"), /referenceCondition: analysis\?\.raw\?\.referenceCondition \?\? null,/);
+  // audit-r1: the hub renders from the catalogue reference; the analysis condition travels with the client market panel
+  assert.match(code("app/cards/[slug]/page.js"), /referenceCondition: catalog\?\.refCondition \?\? null,/);
   assert.match(code("components/CatalogCardView.js"), /referenceCondition: analysisHasPrice \? analysis\?\.raw\?\.referenceCondition \?\? null : card\.refCondition \?\? null,/);
   // meta descriptions no longer claim Near Mint for every card
   assert.doesNotMatch(read("app/cards/[slug]/page.js"), /Raw Near Mint market reference|raw Near Mint market reference/);
@@ -469,12 +470,16 @@ test("15. chart: unknown points stay on the chart but are distinguished by THEIR
   assert.match(chart, /condition not recorded/, "tooltip names an unrecorded point as such");
   assert.match(chart, /No verified comparable history yet/, "legend when nothing comparable exists");
   assert.match(chart, /Verified\{" "\}\s*\{last\.c\}, \{last\.pr\} reference since/, "legend wording comes from the latest point's own record");
-  // both card render paths take the tile range from the comparable run, not the whole series
+  // both card render paths hand the comparable run (never the whole series) to the
+  // market panel, which merges it into the variant tile exactly as the pages did
   for (const f of ["app/cards/[slug]/page.js", "components/CatalogCardView.js"]) {
     const src = code(f);
-    assert.match(src, /minPrice: priceHistory\?\.comparableRange\?\.min \?\? null,\s*maxPrice: priceHistory\?\.comparableRange\?\.max \?\? null,/, f);
+    assert.match(src, /comparableRange=\{priceHistory\?\.comparableRange \?\? null\}/, f);
     assert.doesNotMatch(src, /Math\.min\(\.\.\.chartPoints/, f + ": no whole-series range");
   }
+  const panel = code("components/CardMarketPanel.js");
+  assert.match(panel, /minPrice: comparableRange\?\.min \?\? null, maxPrice: comparableRange\?\.max \?\? null/);
+  assert.doesNotMatch(panel, /Math\.min\(\.\.\.chartPoints/);
   // the intelligence panel explains both withheld reasons
   const cpi = read("components/CardPriceIntelligence.js");
   assert.match(cpi, /provenance-unknown/);

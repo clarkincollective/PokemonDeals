@@ -1,0 +1,44 @@
+# Pokemon Deal Finder
+
+> Pokemon Deal Finder (https://pokemondealfinder.com) lists live eBay listings of Pokemon trading cards that are priced below a documented market reference, across the US, UK, Australia, Canada, Germany and Italy. Every listed offer is checked before it is shown: the card's exact printing is matched, the seller's stated condition is verified through eBay's item record, the listing's availability is re-checked against eBay, and listings that fail image-based authenticity screening are withheld. Prices are compared in US dollars and shown in the visitor's currency.
+
+## What a "deal" means here
+
+- A deal is a live eBay listing whose delivered price is below the market reference for that exact card and condition. The reference comes from recent sold data for the same printing and condition, labelled by that condition (for example "Near Mint" or "Lightly Played").
+- A market reference is not a guaranteed sale price. The site never calls a reference a "sold" price.
+- Listings are hidden when they cannot be shown honestly: wrong printing, a condition that cannot be verified, an ended auction, a listing not seen on eBay recently, or a failed authenticity screen.
+- Graded cards (PSA, CGC, BGS, SGC, ACE, TAG) are compared against graded references for the same grader and grade, never against raw prices.
+
+## Main pages
+
+- All deals: https://pokemondealfinder.com/deals (filters for country, raw/graded, price, auction or buy-it-now)
+- Deals under a price: https://pokemondealfinder.com/deals/under-25, /deals/under-50, /deals/under-100
+- Graded deals: https://pokemondealfinder.com/deals/graded
+- Auctions: https://pokemondealfinder.com/deals/auctions
+- Vintage (1998-2003) and modern deals: https://pokemondealfinder.com/deals/vintage, /deals/modern
+- Japanese cards: https://pokemondealfinder.com/japanese-cards
+- Sealed products: https://pokemondealfinder.com/sealed-deals
+- Card pages (price, value and live listings for one exact printing): https://pokemondealfinder.com/cards/<card-slug>
+- Set pages with checklists and prices: https://pokemondealfinder.com/sets/<set-slug>
+- Pokemon pages (every card of one Pokemon): https://pokemondealfinder.com/pokemon/<pokemon-slug>
+- Card price checker: https://pokemondealfinder.com/search
+- Guides: https://pokemondealfinder.com/guides
+- Market data: https://pokemondealfinder.com/market-data
+- Methodology: https://pokemondealfinder.com/methodology
+- How it works: https://pokemondealfinder.com/how-it-works
+
+## How to cite
+
+- Cite a card page for a card's market reference and its live listings; the page states the condition the reference is for and when it was recorded.
+- Cite a deal page (https://pokemondealfinder.com/deals/<id>) for one specific listing; the page shows the listing total, the reference it was compared with, the savings figure and the checks that were run.
+- Deals change continuously. A deal page that says "This listing is unavailable" is no longer a live offer.
+
+## Machine-readable
+
+- Sitemap index: https://pokemondealfinder.com/sitemap.xml
+- Structured data: Product / Offer / BreadcrumbList on deal and card pages; FAQPage on the homepage; CollectionPage and ItemList on catalogue pages.
+- The /api/ routes are internal and are not for automated use.
+
+## Affiliation
+
+- Links to eBay are affiliate links (eBay Partner Network). This does not change the price a buyer pays.

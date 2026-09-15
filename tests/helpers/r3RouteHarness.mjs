@@ -18,6 +18,8 @@ export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis
     findCardHubByWatchlistId:record('findCardHubByWatchlistId',hub),
     resolveSpeciesByName:record('resolveSpeciesByName',null),
     resolveCatalogCard:record('resolveCatalogCard',card), resolveCardSlug:record('resolveCardSlug',hub),
+    // audit-r1: the hub path reads the same catalogue record by id (no provider call on render)
+    resolveCatalogCardById:record('resolveCatalogCardById',card),
     fetchRelatedActiveDeals:record('fetchRelatedActiveDeals',[]), fetchSetSlugs:record('fetchSetSlugs',[]),
     fetchCardOffers:record('fetchCardOffers',{deals:offers,error:null}),
     fetchCardRelations:record('fetchCardRelations',{}), fetchCardPriceHistory:record('fetchCardPriceHistory',null),
@@ -80,6 +82,10 @@ export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis
         substitutes.add(name);
         function FixtureChild(){return null;}
         FixtureChild.displayName=name;
+        // a module's named component exports substitute the same way (swc's CJS
+        // interop copies enumerable keys, so they must be real properties)
+        const named={'@/components/CardMarketPanel':['CardMarketSummary']}[name]??[];
+        for (const n of named) FixtureChild[n]=FixtureChild;
         components.set(name,FixtureChild);
       }
       return components.get(name);

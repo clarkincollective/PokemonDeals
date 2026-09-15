@@ -60,7 +60,9 @@ test("1. fetchCardPriceHistory reads the canonical spine, not a provider call", 
 // === 2. no page-time PPT history request ==========================
 
 test("2. the card page asks getFullPriceAnalysis for NO history series", () => {
-  assert.match(PAGE_SRC, /getFullPriceAnalysis\(tcgplayerId, \{ includeHistory: false \}\)/);
+  // audit-r1: the request moved off the page render into lib/cardPriceAnalysis (fetched by the market panel)
+  assert.match(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "lib", "cardPriceAnalysis.js"), "utf8"), /getFullPriceAnalysis\(tcgplayerId, \{ includeHistory: false \}\)/);
+  assert.doesNotMatch(PAGE_SRC, /getFullPriceAnalysis\(/);
   // getFullPriceAnalysis honours the opt-out (only sets includeHistory when asked)
   assert.match(PPT_SRC, /if \(includeHistory\) url\.searchParams\.set\("includeHistory", "true"\)/);
   assert.match(PPT_SRC, /includeHistory = true/); // default preserved for other callers

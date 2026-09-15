@@ -12,11 +12,9 @@ import SkipToContent from "@/components/SkipToContent";
 import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
-import CardPriceSummary from "@/components/CardPriceSummary";
+import CardMarketPanel, { CardMarketSummary } from "@/components/CardMarketPanel";
 import CardPriceIntelligence from "@/components/CardPriceIntelligence";
-import VariantPriceGrid from "@/components/VariantPriceGrid";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
-import RecentSales from "@/components/RecentSales";
 import AffiliateLink from "@/components/AffiliateLink";
 import ListingChecks from "@/components/ListingChecks";
 import RelatedCards from "@/components/RelatedCards";
@@ -116,12 +114,13 @@ export default function CatalogCardView({
     rarity,
     marketUsd: worthUsd,
     priceSource: analysisHasPrice ? "analysis" : "catalog",
-    priceUpdatedAt: analysisHasPrice ? analysis?.priceUpdatedAt ?? null : null,
+    // audit-r1: the catalogue reference carries its own sync date
+    priceUpdatedAt: analysisHasPrice ? analysis?.priceUpdatedAt ?? null : card.syncedAt ?? null,
     // Price-condition provenance, from whichever source supplied the figure:
     // the live analysis's recorded condition, else the catalogue's stored
     // market_condition (null until the provenance migration + a sync).
     referenceCondition: analysisHasPrice ? analysis?.raw?.referenceCondition ?? null : card.refCondition ?? null,
-    firstEditionExcluded: analysisHasPrice ? Boolean(analysis?.firstEditionExcluded) : false,
+    firstEditionExcluded: analysisHasPrice ? Boolean(analysis?.firstEditionExcluded) : /unlimited/i.test(card.refPrinting ?? ""),
     gradedAvailable: analysisHasPrice && pageShowsGraded(analysis),
     liveListings: null,
     nowMs,
@@ -239,13 +238,13 @@ export default function CatalogCardView({
             to the daily-synced card_catalog figure ONLY when the analysis
             fetch itself failed (analysis == null) - never to paper over a
             price the analysis deliberately rejected. Otherwise say so. */}
-        {analysisHasPrice ? (
+        <CardMarketSummary tcgplayerId={card.tcgplayerId} />
+        {isUsableUsdPrice(refPrice) ? (
           <>
-            <CardPriceSummary analysis={analysis} detailsOnly />
             <CardPriceIntelligence
-          detailsOnly
-              marketValueUsd={analysis?.raw?.currentPrice ?? null}
-              referenceCondition={analysis?.raw?.referenceCondition ?? null}
+              detailsOnly
+              marketValueUsd={Number(refPrice)}
+              referenceCondition={card.refCondition ?? null}
               trends={priceHistory?.trends ?? null}
               signal={priceHistory?.signal ?? null}
               coverage={priceHistory?.coverage ?? null}
@@ -275,23 +274,11 @@ export default function CatalogCardView({
           </div>
         )}
 
-        {hasAnalysis && (
-          <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
-            <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Every variant, side by side</h2>
-            <p className="text-xs text-zinc-600 dark:text-zinc-400">Raw and every graded tier with real recorded sales.</p>
-            <div className="mt-4">
-              <VariantPriceGrid raw={canonRaw} graded={analysis.graded} cardName={name} surface="card" />
-            </div>
-          </div>
-        )}
-
-        <RecentSales
-          sales={analysis?.primaryRecentSales}
+        <CardMarketPanel
+          tcgplayerId={card.tcgplayerId}
           cardName={name}
-          page="card_recent_sales"
-          surface="card"
-          variant={analysis?.primaryKey === "raw" ? "raw" : null}
-          className="mt-6"
+          chartPoints={chartPoints}
+          comparableRange={priceHistory?.comparableRange ?? null}
         />
 
         <p className="mt-6 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">

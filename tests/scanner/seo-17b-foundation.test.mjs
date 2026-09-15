@@ -61,7 +61,8 @@ test("3. worth answer states exactly the market figure it is given, in USD, with
 
 test("3. both /cards render paths feed the worth answer the SAME raw figure the Price & value box shows", () => {
   const hub = read("app/cards/[slug]/page.js");
-  assert.match(hub, /const hubRaw = analysis\?\.raw\?\.currentPrice;/);
+  // audit-r1: the hub's headline figure is the dated catalogue reference (no provider call on render)
+  assert.match(hub, /const hubRaw = catalog\?\.refPrice;/);
   assert.match(hub, /marketUsd: isUsableUsdPrice\(hubRaw\) \? Number\(hubRaw\) : null/);
   const cat = read("components/CatalogCardView.js");
   // same precedence as the visible box: analysis raw; catalogue copy ONLY when the analysis call failed

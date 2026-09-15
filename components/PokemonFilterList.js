@@ -136,11 +136,7 @@ export default function PokemonFilterList({ groups }) {
                       <Link
                         key={s.name}
                         href={`/pokemon/${s.slug}`}
-                        className={
-                          s.hasDeal
-                            ? "flex min-h-11 items-center justify-between gap-2 rounded-lg border border-emerald-500/40 bg-emerald-50 px-3 py-2 text-sm transition-colors hover:border-emerald-500 dark:border-emerald-500/30 dark:bg-emerald-950/30"
-                            : "flex min-h-11 items-center justify-between gap-2 rounded-lg border border-transparent px-3 py-2 text-sm text-zinc-600 transition-colors hover:text-red-600 hover:underline dark:text-zinc-400 dark:hover:text-red-500"
-                        }
+                        className={s.hasDeal ? "species-tile species-tile-deal" : "species-tile species-tile-plain"}
                         title={s.hasDeal ? `${s.count} active deal${s.count === 1 ? "" : "s"}` : "Browse every card"}
                       >
                         <span className="flex min-w-0 items-center gap-1.5">
@@ -156,16 +152,16 @@ export default function PokemonFilterList({ groups }) {
                             height={28}
                             loading="lazy"
                             decoding="async"
-                            className="h-7 w-7 shrink-0 [image-rendering:pixelated]"
+                            className="species-sprite"
                             onError={(e) => {
                               e.currentTarget.style.visibility = "hidden";
                             }}
                           />
-                          <span className="shrink-0 text-[10px] tabular-nums text-zinc-600 dark:text-zinc-400">
+                          <span className="species-dex">
                             {String(s.dex).padStart(4, "0")}
                           </span>
                           <span
-                            className={`break-words ${s.hasDeal ? "font-semibold text-black dark:text-zinc-50" : ""}`}
+                            className={s.hasDeal ? "species-name species-name-deal" : "species-name"}
                           >
                             {s.name}
                           </span>
