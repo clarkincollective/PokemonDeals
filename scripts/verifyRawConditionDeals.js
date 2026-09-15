@@ -58,6 +58,8 @@ async function loadSuspects(db) {
 }
 
 async function main() {
+  // browse-budget-r1 - refuses before any Browse request unless the durable ledger shows production is not enforcing
+  await require("../lib/browseBudget").ensureManualBrowseAllowed({ db: supabaseAdmin(), getRateLimit: require("../lib/ebay").getBrowseRateLimit });
   const db = supabaseAdmin();
   console.log(APPLY ? "APPLY mode - will write." : "DRY RUN - pass --apply to write.");
 

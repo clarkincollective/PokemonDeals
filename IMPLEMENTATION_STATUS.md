@@ -5111,7 +5111,7 @@ The no-settle case shows the accounting bound holds even then, at the cost of li
 - **Idle capacity:** about 400–550 calls/day stay unused, deliberately, as the reserve plus retained-floor losses.
 - **Unfunded:** sealed discovery (was already skipped daily).
 
-### Deployment plan (not executed)
+### Deployment plan (superseded below: observe first; enforce only at a confirmed new window)
 1. Deploy with `BROWSE_BUDGET_MODE` unset (= `off`; behaviour identical to `bb35780`).
 2. Set `BROWSE_BUDGET_MODE=observe` in Vercel production and redeploy. For one window, check:
    - `browse_budget_observe:*` rows: `used` vs caps, `reserveAbsorbed`, counters
@@ -5120,3 +5120,77 @@ The no-settle case shows the accounting bound holds even then, at the cost of li
 3. `BROWSE_BUDGET_MODE=enforce` only after that review.
 
 **Rollback:** set `BROWSE_BUDGET_MODE=off` (or remove it) and redeploy. Or `vercel rollback dpl_baBbEa2TP81nFsaDxTTizVJyxhM2 --scope clarkin-collective`. Ledger rows are inert; optional cleanup: `delete from catalog_snapshot where kind like 'browse_budget%';`
+
+### Pre-deployment checks and corrections (2026-09-15)
+
+**Quota-window input (actual).**
+- **Retained real reading** through the existing metadata path (`getBrowseRateLimit` → Developer Analytics `getRateLimits`, not a Browse call), `.social-preview/operator-dashboard/dashboard.json`, read `2026-09-08T03:48:04.560Z`:
+  `{ "limit": 5000, "remaining": 240, "reset": "2026-09-08T07:00:00.000Z" }`
+  The same machine's quota-wait log shows 230 at 07:00Z and 5000 at 07:15Z.
+- **`reset` format:** a string, ISO 8601, UTC, with milliseconds and `Z`.
+- **Metadata pass-through:** `getBrowseRateLimit` now also returns eBay's `timeWindow` (seconds) and `readAt`, with no extra call.
+- **Window mapping:** `[reset − timeWindow, reset]`, reset rounded to 5 minutes; 86,400 s when `timeWindow` is absent (`windowSource` records which). 07:00 UTC is never assumed (it moves with US daylight saving) and no local calendar date is used.
+- **Parser:** rejects non-strings (epoch numbers), strings without an explicit zone, unparseable values, resets already passed (stale), and resets outside the current window's horizon. Those deny in enforce and create no row.
+- **Retained reading mapped:** window `2026-09-07T07:00Z–2026-09-08T07:00Z`, elapsed 0.8667 at the read time. A lease taken 06:55Z expires, and its attempts stop, at 06:58:00Z.
+
+**Mode transitions.**
+- **Enforce rows record** `state`, `stateReason` and `enforceSeenAt`, fixed at the window row's birth.
+- **Active** only if the previous window's enforce row was first created ≥ 15 min before that window ended (every older-deployment invocation has finished; the longest route is 800 s) **and** eBay shows ≤ 150 calls consumed at birth. Those calls are recorded as `used.unattributed_at_birth`, not reserve drift.
+- **Pending** in every other case (enforce switched on mid-window, gap, missing history, too much prior consumption):
+  - the window keeps today's protections, including verify's 800 floor and batch 20, with no refusals
+  - leases are recorded with enforce's hypothetical decisions
+  - the next window can be born active
+
+| Transition | Outcome |
+|---|---|
+| Observe starting mid-window | Records from then on, never blocks; prior usage appears as unaccounted in the observe row only |
+| Enforce enabled mid-window | Pending until a confirmed new window; no fresh 4,580 allowance over earlier usage |
+| Deployment restart | Killed invocations' leases expire and are charged in full, in their own window |
+| Old and new invocations overlap | Each settles only its own row (`lease.kind`); a late settle never touches another window |
+
+- **Observe ledger not used for enforcement:** observe grants what is requested (it can exceed hypothetical caps), may start mid-window, and is a separate row. Enforcement starts only from its own ledger, born active at a confirmed new window.
+- **Missing or unreadable ledger / window in enforce:** deny (no budget is created). An unexpected ledger exception passes through in observe and denies in enforce.
+
+**Reconciliation with open leases (correction).** The first version subtracted every open lease's full grant from eBay's remaining count, even calls eBay had already counted. A running allocated pass (up to 530) could therefore refuse up to that much useful discovery late in a window. Now:
+
+```
+unspentOpen = (grants of leases opened after the reading) + max(0, (grants of leases opened before it) − max(0, limit − remaining − Σused))
+providerLeft = remaining − unspentOpen − 420 − verifierCommitment
+```
+
+- Calls eBay has counted are subtracted once.
+- A stale reading cannot over-grant: leases opened after it count in full, and an observation without `readAt` counts every open lease in full.
+- **Residual:** consumption outside the ledger during an open lease can be mistaken for that lease's spend, reducing the margin by at most that unaccounted amount — the reserve's purpose.
+- The drift figure (`reserveAbsorbed`) keeps the fully conservative formula.
+
+**Direct-script bypasses (closed; eight scripts, not two).**
+- **Clearance:** `ensureManualBrowseAllowed` reads the provider window (Analytics) and the durable ledger. It refuses before any Browse request if:
+  - the process is in enforce mode
+  - an enforce row exists for the current or previous provider window (production enforce configured; manual budget 0)
+  - the window or ledger cannot be read
+- It does not depend on the local environment.
+- **The two forensic scripts** (`_auctionPriceForensics`, `_dealImageForensics`) now send Browse requests only through `lib/ebay.fetchWithRetry` after that clearance.
+- **Six other scripts** obtain it at entry: `_reverifyActiveAuctions`, `_screenDealImages` (recover), `auditHighRiskListings`, `backfillDealImages`, `backfillDealQuality`, `verifyRawConditionDeals`.
+- **Guard outside a route job:** refused in enforce mode, after a refused clearance, or past a clearance's window.
+- **BB-16** statically requires the clearance in every committed script that can send a Browse request.
+- **BB-14 runs both forensic scripts for real, offline** (stubbed `dotenv` / Supabase, recording `fetch`, no `BROWSE_BUDGET_MODE`):
+  - enforce row → exit 1, `production_enforce_configured`, 0 Browse requests
+  - observe-only row → exit 0, 1 Browse request (stubbed)
+
+**Claims corrected.**
+- **Per-market verification minimums are not implemented.** The verifier has one 720-call cap with no per-country share. Per-country caps exist only for allocated scans and sweeps. Follow-up: a per-marketplace minimum inside the verifier's grant.
+- **Replay results are projected call capacity only.** They are not evidence of more raw checks, more graded inventory, or better freshness.
+- **Guaranteed capacity ≠ expected execution.** Caps are maxima; floors, provider outages, unknown windows, pending windows and missing candidates can all prevent runs.
+
+**Checks.**
+- **`browse-budget` BB-1..16: 16/16.**
+  - **BB-11:** real reading, offsets, provider `timeWindow`, malformed/stale inputs, the reset − 2 min deadline.
+  - **BB-12:** transitions: observe mid-window, enforce mid-window pending, overlap, restart, active birth with prior calls attributed, too-close and too-much-consumed births.
+  - **BB-13:** open-lease reconciliation.
+  - **BB-14:** scripts, run for real offline.
+  - **BB-15:** real verify-deals in a pending window: batch 20, the 800 floor applies, hypothetical recorded.
+  - **BB-16:** static script coverage.
+- **`browse-budget-postgres` PG-1..4: 4/4** (active window seeded; the pending-row race also exercised).
+- **Focused existing set, 27 files** (P0.4.3, 17C.9, sold-item and availability, integrity-followup-r2, 14Q/14R, telemetry isolation, affiliate, client boundary, P0.3.2, P0.4.2, image integrity, deal image, eBay search, raw condition, species shop, deal freshness, AUTO-2/3, 13E9a, integrity-r1 e2e, graded retention/growth, 17C.10, auction price integrity): 462 / 6 fail, the same 6 as `bb35780`.
+- **Pin updated:** deal-freshness #10 (`batch: runBatch`, never above `BATCH`). This pin also regressed in `9bf3ba1`; its file had not been in that focused set.
+- `next build`: exit 0.

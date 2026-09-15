@@ -23,6 +23,8 @@ const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABA
 const legacyId = (s) => (String(s ?? "").match(/^v\d+\|(\d+)\|/) || String(s ?? "").match(/^(\d+)$/) || [])[1] ?? null;
 
 (async () => {
+  // browse-budget-r1 - refuses before any Browse request unless the durable ledger shows production is not enforcing
+  await require("../lib/browseBudget").ensureManualBrowseAllowed({ db: db, getRateLimit: getBrowseRateLimit });
   const rows = [];
   for (let f = 0; ; f += 1000) {
     const { data, error } = await db

@@ -17,7 +17,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { PGlite } from "@electric-sql/pglite";
-import { acquireBrowseLease, settleBrowseLease, CONSUMER_CAPS, BROWSE_RESERVE } from "../../lib/browseBudget.js";
+import { acquireBrowseLease, settleBrowseLease, emptyLedger, CONSUMER_CAPS, BROWSE_RESERVE } from "../../lib/browseBudget.js";
 
 const H = 3.6e6;
 const END = Date.parse("2026-09-16T07:00:00.000Z");
@@ -77,17 +77,25 @@ async function database() {
     },
   };
   const ledger = async (kind) => (await pg.query("select data from catalog_snapshot where kind = $1", [kind])).rows[0]?.data ?? null;
-  return { pg, db, stats, ledger };
+  // an enforce ledger already ACTIVE for the window (born at a confirmed new window)
+  const seedActive = async (end = END) => {
+    const start = new Date(end - 24 * H).toISOString();
+    const data = { ...emptyLedger({ windowStart: end - 24 * H, windowEnd: end }), state: "active", stateReason: "test_seed", enforceSeenAt: start };
+    await pg.query("insert into catalog_snapshot (kind, data, updated_at) values ($1, $2::jsonb, $3::timestamptz)", [`browse_budget:${new Date(end).toISOString()}`, JSON.stringify(data), start]);
+  };
+  return { pg, db, stats, ledger, seedActive };
 }
 
 const sumOpen = (l, key) => Object.values(l.open).filter((x) => !key || x.key === key).reduce((t, x) => t + x.granted, 0);
 
 test("PG-1 overlapping acquisitions for one consumer never grant a call twice (real CAS misses and a real primary-key conflict occur)", async () => {
-  const { db, stats, ledger } = await database();
+  const { db, stats, ledger, seedActive } = await database();
   const now = at(23.5); // pace allows the whole 720-call verifier cap
   const wave = (n, offset) =>
     Promise.all(Array.from({ length: n }, (_, i) => acquireBrowseLease(db, { key: "verify", requested: 20, minGrant: 5, observation: obs(5000), now: now + offset + i, ttlMs: 600_000, mode: "enforce" })));
-  // wave 1 races to create the window row; wave 2 races on the existing row
+  // wave 0 races to create the next window's (pending) row; the active window: wave 1 + 2 race on the existing row
+  await Promise.all(Array.from({ length: 6 }, (_, i) => acquireBrowseLease(db, { key: "verify", requested: 20, observation: obs(5000, END + 24 * H), now: END + 60_000 + i, ttlMs: 60_000, mode: "enforce" })));
+  await seedActive();
   const results = [...(await wave(8, 0)), ...(await wave(40, 100))];
   const granted = results.reduce((t, r) => t + r.granted, 0);
   const kind = results.find((r) => r.lease)?.lease.kind;
@@ -100,7 +108,8 @@ test("PG-1 overlapping acquisitions for one consumer never grant a call twice (r
 });
 
 test("PG-2 mixed overlapping consumers: every consumer's cap and the provider balance (reserve + verifier commitment) hold together", async () => {
-  const { db, ledger } = await database();
+  const { db, ledger, seedActive } = await database();
+  await seedActive();
   const now = at(20);
   const remaining = 2000;
   const jobs = [];
@@ -125,7 +134,8 @@ test("PG-2 mixed overlapping consumers: every consumer's cap and the provider ba
 });
 
 test("PG-3 crash, timeout and late settlement: an unsettled lease is charged in full on expiry and a late settle restores nothing; a normal settle releases only unsent units", async () => {
-  const { db, ledger } = await database();
+  const { db, ledger, seedActive } = await database();
+  await seedActive();
   const now = at(12);
   const ok = await acquireBrowseLease(db, { key: "sweep:EBAY_GB", requested: 26, observation: obs(4000), now, ttlMs: 120_000, mode: "enforce" });
   ok.lease.attempts = 9;
@@ -143,7 +153,8 @@ test("PG-3 crash, timeout and late settlement: an unsettled lease is charged in 
 });
 
 test("PG-4 reset boundary: an old window's worker cannot obtain or spend the new window's capacity; the new window row starts empty", async () => {
-  const { db, ledger } = await database();
+  const { db, ledger, seedActive } = await database();
+  await seedActive();
   const old = await acquireBrowseLease(db, { key: "verify", requested: 20, observation: obs(900), now: END - 10 * 60_000, ttlMs: 30 * 60_000, mode: "enforce" });
   assert.equal(old.lease.expiresAt, END - 2 * 60_000, "the lease ends at the guard instant, not after the reset");
   const inBand = await acquireBrowseLease(db, { key: "verify", requested: 20, observation: obs(880), now: END - 60_000, ttlMs: 60_000, mode: "enforce" });

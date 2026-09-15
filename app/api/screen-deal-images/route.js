@@ -174,7 +174,7 @@ export async function GET(request) {
     const budget = await acquireBrowseLease(db, { key: "images", requested: recoverDemand, minGrant: 1, observation: rl, ttlMs: (maxDuration + 60) * 1000 });
     budgetLease = budget.lease;
     attachBrowseLease(budgetLease);
-    if (budget.mode === "enforce") recoverBudget = Math.min(recoverBudget, budget.granted);
+    if (budget.effective === "enforce") recoverBudget = Math.min(recoverBudget, budget.granted);
   }
   let recoverUsed = 0;
   let browseCalls = 0;

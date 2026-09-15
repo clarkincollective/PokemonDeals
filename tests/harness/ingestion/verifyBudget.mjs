@@ -35,10 +35,19 @@ const slabs = Array.from({ length: 3 }, (_, i) =>
 const raws = Array.from({ length: 80 }, (_, i) => row({ id: 100 + i, first_seen_at: iso(-2 - i * 0.001), exact_verified_at: null }));
 const db = createMemoryDb({ deals: [...critical, ...slabs, ...raws], catalog_snapshot: [], sealed_deals: [], ebay_job_runs: [] }, { unique: { catalog_snapshot: ["kind"] } });
 
-const harness = { calls: {}, db, rateLimit: { remaining: 3000, limit: 5000, reset: RESET }, snapshotFor: () => ({ status: "ACTIVE", calls: 1, evidence: "harness" }) };
+const harness = { calls: {}, db, rateLimit: { remaining: 3000, limit: 5000, reset: RESET, timeWindow: 86400, readAt: new Date(T0).toISOString() }, snapshotFor: () => ({ status: "ACTIVE", calls: 1, evidence: "harness" }) };
 globalThis.__ingestHarness = harness;
 const mod = await import(pathToFileURL(join(REPO, "app", "api", "verify-deals", "route.js")).href);
 const budgetLib = await import(pathToFileURL(join(REPO, "lib", "browseBudget.js")).href);
+// an enforce ledger already ACTIVE for this window (born at a confirmed new window)
+{
+  const win = budgetLib.windowFromObservation(harness.rateLimit, T0);
+  db.tables.catalog_snapshot.push({
+    kind: `${budgetLib.LEDGER_KIND_PREFIX.enforce}${win.id}`,
+    data: { ...budgetLib.emptyLedger(win), state: "active", stateReason: "harness_seed", enforceSeenAt: new Date(win.windowStart).toISOString() },
+    updated_at: new Date(win.windowStart).toISOString(),
+  });
+}
 
 const ledgerRow = (mode = "enforce") => db.tables.catalog_snapshot.find((r) => r.kind.startsWith(budgetLib.LEDGER_KIND_PREFIX[mode]));
 const setUsed = (n) => {
@@ -79,4 +88,21 @@ out.crashGranted = crash.granted;
 out.runs.push(await run("after a crashed lease expired"));
 // observe: never blocks, separate ledger row
 out.runs.push(await run("observe mode", "observe"));
+// a PENDING enforce window (enforce switched on mid-window): today's floor and batch, no refusals
+{
+  const pendingDb = createMemoryDb({ deals: [...critical, ...slabs, ...raws], catalog_snapshot: [], sealed_deals: [], ebay_job_runs: [] }, { unique: { catalog_snapshot: ["kind"] } });
+  harness.db = pendingDb;
+  const runPending = async (remaining) => {
+    process.env.BROWSE_BUDGET_MODE = "enforce";
+    harness.rateLimit = { ...harness.rateLimit, remaining };
+    harness.calls = {};
+    const res = await mod.GET(new Request("http://harness/api/verify-deals", { headers: { authorization: "Bearer harness" } }));
+    const body = await res.json();
+    return { skipped: body.skipped ?? null, calls: harness.calls.getListingSnapshot ?? 0, budget: body.budget ?? null };
+  };
+  const run = await runPending(3000);
+  const floorSkip = await runPending(810);
+  const row = pendingDb.tables.catalog_snapshot.find((r) => r.kind.startsWith(budgetLib.LEDGER_KIND_PREFIX.enforce));
+  out.pending = { run, floorSkip, rowState: row?.data?.state ?? null, hypotheticalRequests: row?.data?.hypothetical?.verify?.requests ?? 0 };
+}
 process.stdout.write(JSON.stringify(out, null, 1));

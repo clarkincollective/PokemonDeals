@@ -172,7 +172,10 @@ test("10. /api/verify-deals is hard-capped at a small batch", () => {
   // P0.4.3: batch composition moved to the pure allocator, which hard-caps
   // its output at `batch` (lib/verifyAllocator + verify-allocator-p043 tests).
   assert.match(src, /allocateVerifyBatch\(\{/);
-  assert.match(src, /\bbatch:\s*BATCH\b/);
+  // browse-budget-r1: the allocator gets runBatch - BATCH outside an actively
+  // enforcing window, the lease grant (never above BATCH) inside one
+  assert.match(src, /\bbatch:\s*runBatch\b/);
+  assert.match(src, /const runBatch = enforcing \? Math\.min\(BATCH, [^;]+\) : BATCH;/);
 });
 
 test("11. /api/verify-deals refuses to run below the protected Browse reserve", () => {

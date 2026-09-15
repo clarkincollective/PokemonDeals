@@ -34,6 +34,8 @@ function descWords(html) {
 }
 
 (async () => {
+  // browse-budget-r1 - refuses before any Browse request unless the durable ledger shows production is not enforcing
+  await require("../lib/browseBudget").ensureManualBrowseAllowed({ db: db, getRateLimit: ebay.getBrowseRateLimit });
   let pop;
   try {
     pop = JSON.parse(fs.readFileSync(POP, "utf8"));

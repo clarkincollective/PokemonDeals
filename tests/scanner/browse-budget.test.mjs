@@ -23,8 +23,12 @@ import {
   expireLeases,
   reconcile,
   windowFromObservation,
+  elapsedFraction,
   acquireBrowseLease,
   settleBrowseLease,
+  unspentOpen,
+  ensureManualBrowseAllowed,
+  LEDGER_KIND_PREFIX,
 } from "../../lib/browseBudget.js";
 import { createMemoryDb } from "../harness/ingestion/memoryDb.mjs";
 
@@ -41,6 +45,18 @@ const at = (hoursAfterReset) => START + hoursAfterReset * H;
 const win = { id: new Date(END).toISOString(), windowEnd: END, windowStart: START };
 const obs = (remaining) => ({ remaining, limit: 5000, reset: new Date(END).toISOString() });
 const ledgerWith = (used = {}, open = {}) => ({ ...emptyLedger(win), used: { ...used }, open: { ...open } });
+// An enforce ledger that is already ACTIVE for the window (as if born at a
+// confirmed new window) - for tests of enforcement itself.
+function activeDb(end = END) {
+  const db = createMemoryDb({ catalog_snapshot: [] }, { unique: { catalog_snapshot: ["kind"] } });
+  const w = { id: new Date(end).toISOString(), windowEnd: end, windowStart: end - 24 * H };
+  db.tables.catalog_snapshot.push({
+    kind: `browse_budget:${w.id}`,
+    data: { ...emptyLedger(w), state: "active", stateReason: "test_seed", enforceSeenAt: new Date(w.windowStart).toISOString() },
+    updated_at: new Date(w.windowStart).toISOString(),
+  });
+  return db;
+}
 
 test("BB-1 envelope: consumer caps + 420 reserve = 5,000; per-country caps sum to their group; sealed and manual unfunded", () => {
   const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
@@ -138,7 +154,7 @@ test("BB-6 reset boundary: the window comes from eBay's reported reset; no grant
 });
 
 test("BB-7 settle charges started attempts and releases only unsent units; a late settle after expiry restores nothing; contention never double-grants (in-memory interleaving)", async () => {
-  const db = createMemoryDb({ catalog_snapshot: [] }, { unique: { catalog_snapshot: ["kind"] } });
+  const db = activeDb();
   const now = at(23.5);
   const a = await acquireBrowseLease(db, { key: "verify", requested: 20, observation: obs(4000), now, ttlMs: 60_000, mode: "enforce" });
   a.lease.attempts = 7;
@@ -251,7 +267,7 @@ test("BB-9 every scheduled Browse route reserves before calling eBay and settles
   assert.match(refresh, /const RATE_LIMIT_FLOORS = \{ sweep: 250, priority: 600, extended: 1500, allocated: 1200, default: 250 \};/);
   assert.match(read("app/api/ingest-feed/route.js"), /const RATE_LIMIT_FLOOR = 800;/);
   const verify = read("app/api/verify-deals/route.js");
-  assert.match(verify, /if \(budgetMode !== "enforce"\) \{\s*\n(?:\s*\/\/.*\n)*\s*if \(rl\.remaining - BATCH < RESERVE\)/, "the 800 floor still applies outside enforce");
+  assert.ok(/const enforcing = budget\.effective === "enforce";\s*\n\s*if \(!enforcing\) \{\s*\n(?:\s*\/\/.*\n)*\s*if \(rl\.remaining - BATCH < RESERVE\)/.test(verify), "the 800 floor applies unless the window is actively enforcing");
   assert.match(read("lib/ebay.js"), /if \(!consumeBrowseAttempt\(\)\) \{/);
   assert.match(read("lib/ebayTelemetry.js"), /if \(!db\) return;\s*\n(?:\s*\/\/.*\n)*\s*if \(ctx\.browseLease\?\.kind\) \{\s*\n\s*await require\("\.\/browseBudget"\)\.settleBrowseLease\(db, ctx\.browseLease\)\.catch\(\(\) => \{\}\);/, "finishJobRun settles the lease");
 });
@@ -285,4 +301,233 @@ test("BB-10 real verify-deals route under enforce: calls never exceed the grant;
   assert.equal(observe.skipped, null);
   assert.equal(observe.calls, 20, "observe mode keeps today's batch");
   assert.equal(observe.ledger.used.verify, 20, "observe records real attempts in its own row");
+});
+
+
+test("BB-11 provider window input: the retained real reading maps to the ledger window; zone, elapsed and the reset-2-minute deadline are exact; malformed or stale metadata never creates a budget", async () => {
+  // real reading via getBrowseRateLimit (.social-preview/operator-dashboard/dashboard.json)
+  const readAt = Date.parse("2026-09-08T03:48:04.560Z");
+  const real = { limit: 5000, remaining: 240, reset: "2026-09-08T07:00:00.000Z" };
+  const w = windowFromObservation(real, readAt);
+  assert.equal(w.id, "2026-09-08T07:00:00.000Z");
+  assert.equal(new Date(w.windowStart).toISOString(), "2026-09-07T07:00:00.000Z");
+  assert.equal(w.windowSource, "default_86400s");
+  const l = emptyLedger(w);
+  assert.equal(Math.round(elapsedFraction(l, readAt) * 10000) / 10000, 0.8667, "20.8 h into the 24 h window");
+  // the same instant written with an offset names the same window
+  assert.equal(windowFromObservation({ ...real, reset: "2026-09-08T09:00:00.000+02:00" }, readAt).id, w.id);
+  // provider timeWindow (e.g. a 25 h window at the end of US daylight saving) is used, not assumed
+  const dst = windowFromObservation({ reset: "2026-11-02T08:00:00.000Z", timeWindow: 90000 }, Date.parse("2026-11-01T12:00:00Z"));
+  assert.equal(new Date(dst.windowStart).toISOString(), "2026-11-01T07:00:00.000Z");
+  assert.equal(dst.windowSource, "provider_timeWindow");
+  for (const bad of [
+    { reset: Date.parse(real.reset) }, // epoch number
+    { reset: "2026-09-08T07:00:00" }, // no zone: Date.parse would use local time
+    { reset: "2026-09-08 07:00:00Z" },
+    { reset: "" },
+    { reset: null },
+    {},
+    { reset: "2026-09-07T07:00:00.000Z" }, // stale: already passed
+    { reset: "2026-09-10T07:00:00.000Z" }, // not the current window
+  ]) {
+    assert.equal(windowFromObservation({ limit: 5000, remaining: 4000, ...bad }, readAt), null, JSON.stringify(bad));
+    const db = createMemoryDb({ catalog_snapshot: [] }, { unique: { catalog_snapshot: ["kind"] } });
+    const r = await acquireBrowseLease(db, { key: "verify", requested: 20, observation: { limit: 5000, remaining: 4000, ...bad }, now: readAt, ttlMs: 180_000, mode: "enforce" });
+    assert.equal(r.granted, 0);
+    assert.equal(r.decision.denied, "window_unknown");
+    assert.equal(db.tables.catalog_snapshot.length, 0, "no ledger row is created");
+  }
+  // the lease deadline is reset - 2 min, for a lease taken 5 minutes before the reset
+  const db = activeDb(Date.parse(real.reset));
+  const late = await acquireBrowseLease(db, { key: "verify", requested: 20, observation: { ...real, remaining: 4000 }, now: Date.parse("2026-09-08T06:55:00.000Z"), ttlMs: 180_000, mode: "enforce" });
+  assert.equal(new Date(late.lease.expiresAt).toISOString(), "2026-09-08T06:58:00.000Z");
+  assert.equal(new Date(late.lease.guardAt).toISOString(), "2026-09-08T06:58:00.000Z");
+});
+
+test("BB-12 mode transitions: observe or enforce starting mid-window never lays a fresh allowance over earlier usage; enforce activates only at a confirmed new window; old and new invocations only touch their own rows", async () => {
+  const db = createMemoryDb({ catalog_snapshot: [] }, { unique: { catalog_snapshot: ["kind"] } });
+  const W = END; // window W ends at END
+  const W1 = END + 24 * H; // the next window
+  const obsW = (remaining, readAt) => ({ limit: 5000, remaining, reset: new Date(W).toISOString(), readAt: new Date(readAt).toISOString() });
+  const obsW1 = (remaining, readAt) => ({ limit: 5000, remaining, reset: new Date(W1).toISOString(), readAt: new Date(readAt).toISOString() });
+
+  // 1. observe deployed ~18 h into W, after 2,600 calls: records from here, never blocks
+  const t1 = at(17.95);
+  const o = await acquireBrowseLease(db, { key: "sweep:EBAY_US", requested: 25, observation: obsW(2400, t1), now: t1, ttlMs: 860_000, mode: "observe" });
+  assert.equal(o.effective, "observe");
+  assert.equal(o.granted, 25);
+  const oRow = db.tables.catalog_snapshot.find((r) => r.kind === o.lease.kind);
+  assert.equal(oRow.data.state, null, "observe rows have no enforce state");
+  assert.equal(oRow.data.reserveAbsorbed, 2600, "prior usage is visible as unaccounted - in the observe row only");
+
+  // 2. enforce switched on 3 minutes later, while that observe invocation is still running: the enforce row is born
+  //    PENDING - today's protections, recorded, no refusals
+  const t2 = at(18);
+  const e = await acquireBrowseLease(db, { key: "sweep:EBAY_US", requested: 25, observation: obsW(2380, t2), now: t2, ttlMs: 860_000, mode: "enforce" });
+  const eRow = db.tables.catalog_snapshot.find((r) => r.kind === `browse_budget:${new Date(W).toISOString()}`);
+  assert.equal(eRow.data.state, "pending");
+  assert.equal(eRow.data.stateReason, "enforce_not_configured_in_previous_window");
+  assert.equal(e.effective, "observe");
+  assert.equal(e.granted, 25, "no refusal in a pending window");
+  assert.equal(e.lease.mode, "observe");
+  assert.equal(eRow.data.hypothetical["sweep:EBAY_US"].requests, 1, "enforce's hypothetical decision is recorded");
+  assert.deepEqual(eRow.data.used, {}, "no fresh allowance is initialised over the 2,620 calls already consumed");
+  assert.notEqual(o.lease.kind, e.lease.kind, "the observe ledger is never promoted into the enforce ledger");
+
+  // 3. old (observe) and new (enforce) invocations overlap: each settles only its own row
+  o.lease.attempts = 11;
+  e.lease.attempts = 9;
+  await settleBrowseLease(db, o.lease, { now: t2 + 1000 });
+  await settleBrowseLease(db, e.lease, { now: t2 + 2000 });
+  assert.equal(db.tables.catalog_snapshot.find((r) => r.kind === o.lease.kind).data.used["sweep:EBAY_US"], 11);
+  assert.equal(db.tables.catalog_snapshot.find((r) => r.kind === e.lease.kind).data.used["sweep:EBAY_US"], 9);
+
+  // 4. a deployment restart kills an invocation mid-lease: charged in full when it expires, in ITS window only
+  const killed = await acquireBrowseLease(db, { key: "verify", requested: 20, observation: obsW(850, at(20)), now: at(20), ttlMs: 180_000, mode: "enforce" });
+  // 5. W+1 is born ACTIVE: enforce was configured 6 h before W ended; eBay shows 40 calls consumed at birth
+  const t5 = W + 5 * 60_000;
+  const a = await acquireBrowseLease(db, { key: "verify", requested: 20, observation: obsW1(4960, t5), now: t5, ttlMs: 180_000, mode: "enforce" });
+  const aRow = db.tables.catalog_snapshot.find((r) => r.kind === `browse_budget:${new Date(W1).toISOString()}`);
+  assert.equal(aRow.data.state, "active");
+  assert.equal(aRow.data.stateReason, "confirmed_new_window");
+  assert.equal(aRow.data.used.unattributed_at_birth, 40, "calls consumed before the first record are accounted, not reserve drift");
+  assert.equal(aRow.data.reserveAbsorbed, 0);
+  assert.equal(a.effective, "enforce");
+  assert.equal(a.lease.mode, "enforce");
+  // the killed W lease settles late: W's row only, charged in full, W+1 untouched
+  killed.lease.attempts = 2;
+  assert.equal((await settleBrowseLease(db, killed.lease, { now: t5 })).reason, "expired_charged_in_full");
+  assert.equal(db.tables.catalog_snapshot.find((r) => r.kind === killed.lease.kind).data.used.verify, 20);
+  assert.equal(db.tables.catalog_snapshot.find((r) => r.kind === aRow.kind).data.used.verify ?? 0, 0);
+
+  // 6. not confirmed: enforce first seen 10 minutes before the reset, or too much consumed at birth -> the next window stays pending
+  const db2 = createMemoryDb({ catalog_snapshot: [] }, { unique: { catalog_snapshot: ["kind"] } });
+  await acquireBrowseLease(db2, { key: "verify", requested: 20, observation: obsW(700, W - 10 * 60_000), now: W - 10 * 60_000, ttlMs: 180_000, mode: "enforce" });
+  const p1 = await acquireBrowseLease(db2, { key: "verify", requested: 20, observation: obsW1(4990, t5), now: t5, ttlMs: 180_000, mode: "enforce" });
+  assert.equal(p1.effective, "observe");
+  assert.equal(db2.tables.catalog_snapshot.find((r) => r.kind === p1.lease.kind).data.stateReason, "enforce_configured_too_close_to_reset");
+  const db3 = createMemoryDb({ catalog_snapshot: [] }, { unique: { catalog_snapshot: ["kind"] } });
+  await acquireBrowseLease(db3, { key: "verify", requested: 20, observation: obsW(900, at(18)), now: at(18), ttlMs: 180_000, mode: "enforce" });
+  const p2 = await acquireBrowseLease(db3, { key: "verify", requested: 20, observation: obsW1(4600, t5), now: t5, ttlMs: 180_000, mode: "enforce" });
+  assert.equal(p2.effective, "observe");
+  assert.equal(db3.tables.catalog_snapshot.find((r) => r.kind === p2.lease.kind).data.stateReason, "prior_consumption_unaccounted");
+});
+
+test("BB-13 reconciliation with open leases: calls eBay has already counted are not subtracted twice; leases opened after the reading are counted in full; a stale reading cannot over-grant", () => {
+  const readAt = at(10);
+  const iso = (t) => new Date(t).toISOString();
+  const openBefore = { a: { key: "allocated:EBAY_US", granted: 300, at: iso(readAt - 600_000), expiresAt: iso(readAt + 600_000) } };
+  // 200 settled; eBay shows 380 consumed -> 180 of the open lease's 300 are already in eBay's count
+  const l = ledgerWith({ "sweep:EBAY_US": 200 }, openBefore);
+  const o = { limit: 5000, remaining: 4620, readAt: iso(readAt) };
+  assert.equal(unspentOpen(l, o), 120);
+  // the old formula subtracted all 300 again: 180 calls of useful work would have been refused
+  const g = evaluateGrant(l, { key: "sweep:EBAY_GB", requested: 26, observation: o, now: readAt });
+  assert.equal(g.providerLeft, 4620 - 120 - 420 - 720);
+  // a lease opened after the reading is counted in full
+  const l2 = ledgerWith({ "sweep:EBAY_US": 200 }, { ...openBefore, b: { key: "verify", granted: 20, at: iso(readAt + 1000), expiresAt: iso(readAt + 180_000) } });
+  assert.equal(unspentOpen(l2, o), 120 + 20);
+  // no read time -> nothing is assumed already counted
+  assert.equal(unspentOpen(l, { limit: 5000, remaining: 4620 }), 300);
+});
+
+test("BB-14 manual scripts: without a job context no Browse request is sent unless a durable clearance exists; production enforce rows refuse even with no local mode flag; the two forensic scripts refuse before any Browse request when run outside Vercel", async (t) => {
+  const prevMode = process.env.BROWSE_BUDGET_MODE;
+  const prevFetch = globalThis.fetch;
+  t.after(() => {
+    process.env.BROWSE_BUDGET_MODE = prevMode;
+    globalThis.fetch = prevFetch;
+    telemetry.setManualBrowseClearance(null);
+  });
+  delete process.env.BROWSE_BUDGET_MODE; // a laptop without the production environment
+  let sent = 0;
+  globalThis.fetch = async () => { sent++; return new Response("{}", { status: 200 }); };
+  const now = at(6);
+  const rateLimit = async () => ({ limit: 5000, remaining: 4000, reset: new Date(END).toISOString(), timeWindow: 86400 });
+  const outside = () => new Promise((resolve, reject) => setTimeout(() => ebay.fetchWithRetry("https://api.ebay.com/buy/browse/v1/item/x", {}, { retries: 0 }).then(resolve, reject), 0));
+
+  telemetry.setManualBrowseClearance(null);
+  // production enforce configured for the current or previous window
+  for (const kind of [`browse_budget:${new Date(END).toISOString()}`, `browse_budget:${new Date(START).toISOString()}`]) {
+    const db = createMemoryDb({ catalog_snapshot: [{ kind, data: {}, updated_at: new Date(START).toISOString() }] });
+    await assert.rejects(() => ensureManualBrowseAllowed({ db, getRateLimit: rateLimit, now }), (e) => e.reason === "production_enforce_configured");
+    await assert.rejects(outside, (e) => e.name === "BrowseBudgetExhaustedError");
+  }
+  // unknown window, unreadable ledger, or a local enforce flag all refuse
+  await assert.rejects(() => ensureManualBrowseAllowed({ db: createMemoryDb({ catalog_snapshot: [] }), getRateLimit: async () => null, now }), (e) => e.reason === "window_unknown");
+  await assert.rejects(() => ensureManualBrowseAllowed({ db: { from: () => { throw new Error("down"); } }, getRateLimit: rateLimit, now }), (e) => e.reason === "ledger_unavailable");
+  await assert.rejects(() => ensureManualBrowseAllowed({ db: createMemoryDb({ catalog_snapshot: [] }), getRateLimit: rateLimit, now, env: { BROWSE_BUDGET_MODE: "enforce" } }), (e) => e.reason === "enforce_mode_manual_budget_is_zero");
+  assert.equal(sent, 0, "no request left the process");
+  // observe-only history: cleared, requests allowed until the window's guard instant
+  const c = await ensureManualBrowseAllowed({ db: createMemoryDb({ catalog_snapshot: [{ kind: `${LEDGER_KIND_PREFIX.observe}${new Date(END).toISOString()}`, data: {} }] }), getRateLimit: rateLimit, now });
+  assert.equal(c.guardAt, END - WINDOW_GUARD_MS);
+  telemetry.setManualBrowseClearance({ guardAt: Date.now() + H });
+  await outside();
+  assert.equal(sent, 1);
+  // a clearance past its window's guard instant, or a process-level enforce flag, refuses outside a job
+  telemetry.setManualBrowseClearance({ guardAt: Date.now() - 1 });
+  await assert.rejects(outside, (e) => e.name === "BrowseBudgetExhaustedError");
+  telemetry.setManualBrowseClearance(null);
+  process.env.BROWSE_BUDGET_MODE = "enforce";
+  await assert.rejects(outside, (e) => e.name === "BrowseBudgetExhaustedError");
+  delete process.env.BROWSE_BUDGET_MODE;
+  assert.equal(sent, 1);
+
+  // the real forensic scripts, offline, no BROWSE_BUDGET_MODE: enforce row -> exit 1 and ZERO Browse requests
+  const { spawnSync } = await import("node:child_process");
+  const { mkdtempSync, readFileSync: readLog } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  for (const script of ["scripts/_dealImageForensics.mjs", "scripts/_auctionPriceForensics.mjs"]) {
+    for (const seed of ["enforce", "observe"]) {
+      const log = join(mkdtempSync(join(tmpdir(), "bb14-")), "requests.log");
+      const env = { ...process.env, SCRIPT_HARNESS_LOG: log, SCRIPT_HARNESS_LEDGER: seed, EBAY_CLIENT_ID: "x", EBAY_CLIENT_SECRET: "y", NEXT_PUBLIC_SUPABASE_URL: "http://stub", SUPABASE_SERVICE_ROLE_KEY: "stub" };
+      delete env.BROWSE_BUDGET_MODE;
+      readFileSync; // (source reads above use the ROOT reader)
+      require("node:fs").writeFileSync(log, "");
+      const r = spawnSync(process.execPath, ["--no-warnings", "--import", "./tests/harness/scripts/register.mjs", script, "32672"], { cwd: ROOT, env, encoding: "utf8", timeout: 60_000 });
+      const urls = readLog(log, "utf8").split("\n").filter(Boolean);
+      const browse = urls.filter((u) => u.includes("api.ebay.com/buy/browse")).length;
+      if (seed === "enforce") {
+        assert.equal(r.status, 1, `${script}: refused`);
+        assert.match(r.stderr, /manual Browse use refused: production_enforce_configured/);
+        assert.equal(browse, 0, `${script}: no Browse request was sent`);
+      } else {
+        assert.equal(r.status, 0, `${script}: allowed when production is not enforcing (${r.stderr})`);
+        assert.equal(browse, 1, `${script}: its one request went through the guarded path`);
+      }
+    }
+    const src = read(script);
+    assert.ok(!/\bfetch\([\s\S]{0,200}?X-EBAY-C-MARKETPLACE-ID/.test(src), `${script}: no direct Browse fetch remains`);
+    assert.match(src, /browseRequest\(/);
+  }
+  for (const s of ["scripts/auditHighRiskListings.js", "scripts/backfillDealImages.js", "scripts/backfillDealQuality.js", "scripts/verifyRawConditionDeals.js"]) {
+    assert.match(read(s), /ensureManualBrowseAllowed\(/, `${s} obtains the clearance`);
+  }
+});
+
+test("BB-15 real verify-deals route in a PENDING enforce window keeps today's floor and batch, refuses nothing, and records enforce's hypothetical decision", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const r = spawnSync(process.execPath, ["--no-warnings", "--import", "./tests/harness/ingestion/register.mjs", "tests/harness/ingestion/verifyBudget.mjs"], { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  assert.equal(r.status, 0, r.stderr);
+  const { pending } = JSON.parse(r.stdout);
+  assert.equal(pending.run.budget.effective, "observe");
+  assert.equal(pending.run.calls, 20, "BATCH 20, as today");
+  assert.equal(pending.floorSkip.skipped, "quota_reserve", "the 800 floor still applies in a pending window");
+  assert.equal(pending.floorSkip.calls, 0);
+  assert.equal(pending.rowState, "pending");
+  assert.ok(pending.hypotheticalRequests >= 1);
+});
+
+test("BB-16 every committed script that can send a Browse request obtains the durable clearance before it does", async () => {
+  const { readdirSync } = await import("node:fs");
+  const scripts = readdirSync(join(ROOT, "scripts")).filter((f) => /\.(m?js|cjs)$/.test(f));
+  const browseCapable = scripts.filter((f) => {
+    const src = read(`scripts/${f}`);
+    const usesClient = /require\(["']\.\.\/lib\/ebay(?:\.js)?["']\)|from ["']\.\.\/lib\/ebay(?:\.js)?["']/.test(src);
+    const callsBrowse = /api\.ebay\.com\/buy\/browse/.test(src);
+    const onlyRateLimit = usesClient && !callsBrowse && /getBrowseRateLimit/.test(src) && !/(searchListings|searchNewlyListed|getGradingDetails|getRawListingDetail|getRawCardCondition|getListingSnapshot|getListingFreshness|getItemsByLegacyIds|fetchWithRetry)\b/.test(src);
+    return (usesClient || callsBrowse) && !onlyRateLimit;
+  });
+  assert.ok(browseCapable.length >= 6, `found ${browseCapable.join(", ")}`);
+  for (const f of browseCapable) assert.match(read(`scripts/${f}`), /ensureManualBrowseAllowed\(/, `scripts/${f} must obtain the clearance`);
 });

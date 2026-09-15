@@ -11,6 +11,21 @@ import { getUsdRates, toUsd } from "../lib/fx.js";
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const TARGET = process.argv[2] || "33143";
 
+// browse-budget-r1 - Browse requests go through lib/ebay.fetchWithRetry (the
+// shared per-attempt guard) and only after a DURABLE clearance: if production
+// has enforce configured for this or the previous provider window, or the
+// window / ledger cannot be read, this refuses before any Browse request -
+// even when the script runs outside Vercel without the production env.
+import ebayLib from "../lib/ebay.js";
+import browseBudgetLib from "../lib/browseBudget.js";
+let _browseClearance = null;
+async function browseRequest(url, init) {
+  _browseClearance ??= browseBudgetLib.ensureManualBrowseAllowed({ db, getRateLimit: ebayLib.getBrowseRateLimit });
+  await _browseClearance;
+  return ebayLib.fetchWithRetry(url, init, { retries: 0 });
+}
+
+
 const EBAY_TOKEN_URL = "https://api.ebay.com/identity/v1/oauth2/token";
 const EBAY_BROWSE_URL = "https://api.ebay.com/buy/browse/v1";
 let _tok = null;
@@ -32,7 +47,7 @@ const legacyOf = (listingId) => String(listingId ?? "").split("|")[1] || String(
 async function liveListing(legacyId, marketplace) {
   const t = await token();
   const url = `${EBAY_BROWSE_URL}/item/get_item_by_legacy_id?legacy_item_id=${encodeURIComponent(legacyId)}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${t}`, "X-EBAY-C-MARKETPLACE-ID": marketplace } });
+  const res = await browseRequest(url, { headers: { Authorization: `Bearer ${t}`, "X-EBAY-C-MARKETPLACE-ID": marketplace } });
   if (res.status === 404 || res.status === 410) return { status: "ENDED" };
   if (!res.ok) return { status: `HTTP_${res.status}`, body: await res.text() };
   const b = await res.json();

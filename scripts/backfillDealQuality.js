@@ -134,6 +134,8 @@ async function stampInactive(hasReasonCol) {
 }
 
 (async () => {
+  // browse-budget-r1 - refuses before any Browse request unless the durable ledger shows production is not enforcing
+  await require("../lib/browseBudget").ensureManualBrowseAllowed({ db: db, getRateLimit: getBrowseRateLimit });
   const hasReasonCol = await columnExists("deals", "disqualified_reason");
   log(`disqualified_reason column: ${hasReasonCol ? "present (audit trail on)" : "ABSENT (is_active / condition only)"}`);
   const rl = await getBrowseRateLimit();

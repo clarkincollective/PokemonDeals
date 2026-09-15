@@ -22,6 +22,7 @@ config({ path: ".env.local", quiet: true });
 import { createClient } from "@supabase/supabase-js";
 import { getUsdRates } from "../lib/fx.js";
 import { getListingSnapshot, getBrowseRateLimit } from "../lib/ebay.js";
+import browseBudgetLib from "../lib/browseBudget.js";
 import { repricedAuctionPatch } from "../lib/auctionPricing.js";
 
 const APPLY = process.argv.includes("--apply");
@@ -30,6 +31,8 @@ const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABA
 const legacyOf = (listingId) => String(listingId ?? "").split("|")[1] || String(listingId ?? "") || null;
 
 async function main() {
+  // browse-budget-r1 - refuses before any Browse request unless the durable ledger shows production is not enforcing
+  await browseBudgetLib.ensureManualBrowseAllowed({ db, getRateLimit: getBrowseRateLimit });
   const rl = await getBrowseRateLimit();
   console.log("Browse quota:", rl);
   const rates = await getUsdRates();

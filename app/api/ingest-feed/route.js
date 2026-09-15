@@ -234,7 +234,7 @@ export async function GET(request) {
     }
     budgetLease = budget.lease;
     attachBrowseLease(budgetLease);
-    if (budget.mode === "enforce") verifyBudget = Math.min(MAX_NEW_PER_CYCLE, budget.granted - (budget.granted >= 10 ? 2 : 0));
+    if (budget.effective === "enforce") verifyBudget = Math.min(MAX_NEW_PER_CYCLE, budget.granted - (budget.granted >= 10 ? 2 : 0));
   }
   const toVerify = allocateVerifyBudget({
     neverSeen: part.neverSeen,

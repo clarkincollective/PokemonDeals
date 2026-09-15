@@ -1232,7 +1232,7 @@ export async function GET(request) {
   let allocatedGrant = null;
   if (!allocatedMode) {
     const manualBudget = await acquireBrowseLease(db, { key: "manual", requested: 1, observation: rl, ttlMs: (maxDuration + 60) * 1000 });
-    if (manualBudget.mode === "enforce") {
+    if (manualBudget.effective === "enforce") {
       markSkipped("budget_unfunded");
       return Response.json({ skipped: "browse_budget", budget: { mode: manualBudget.mode, ...manualBudget.decision } });
     }
@@ -1282,7 +1282,7 @@ export async function GET(request) {
     attachBrowseLease(budgetLease);
     // targets sized to the grant BEFORE any call (enforce); unchanged otherwise
     allocatedGrant =
-      allocatedBudget.mode === "enforce" ? Math.max(0, Math.floor((allocatedBudget.granted - BUDGET_RETRY_UNITS) / perTarget)) : null;
+      allocatedBudget.effective === "enforce" ? Math.max(0, Math.floor((allocatedBudget.granted - BUDGET_RETRY_UNITS) / perTarget)) : null;
     const active = (watchlistRowsRaw ?? []).filter((r) => r.justtcg_tcgplayer_id);
 
     let stateByCard = null;

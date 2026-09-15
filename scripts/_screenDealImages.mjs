@@ -20,6 +20,7 @@ import { createClient } from "@supabase/supabase-js";
 import { IMAGE_VERDICT } from "../lib/listingImage.js";
 import { classifyListingImage } from "../lib/listingImageClassify.js";
 import { getListingSnapshot, getBrowseRateLimit } from "../lib/ebay.js";
+import browseBudgetLib from "../lib/browseBudget.js";
 
 const APPLY = process.argv.includes("--apply");
 const RECOVER = process.argv.includes("--recover");
@@ -74,6 +75,8 @@ async function pageAllActive(cols, filter = (q) => q) {
 
 // --- --recover: pull missing seller images from eBay -------------------
 async function runRecover() {
+  // browse-budget-r1 - refuses before any Browse request unless the durable ledger shows production is not enforcing
+  await browseBudgetLib.ensureManualBrowseAllowed({ db, getRateLimit: getBrowseRateLimit });
   const rows = await pageAllActive(
     "id, card_name, card_set, card_tcgplayer_id, listing_id, marketplace, image_url, image_urls, image_verdict",
     (q) => q.is("image_url", null)

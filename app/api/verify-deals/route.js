@@ -173,13 +173,6 @@ export async function GET(request) {
     // window, a provider-balance check that keeps the 420 reserve and every
     // open lease untouchable, and a per-attempt lease (lib/browseBudget.mjs).
     const budgetMode = browseBudgetMode();
-    if (budgetMode !== "enforce") {
-      // Need headroom for the whole batch and still stay above the reserve.
-      if (rl.remaining - BATCH < RESERVE) {
-        markSkipped("quota_reserve");
-        return Response.json({ ok: true, skipped: "quota_reserve", remaining: rl.remaining, reserve: RESERVE });
-      }
-    }
     const budget = await acquireBrowseLease(db, {
       key: "verify",
       requested: BATCH,
@@ -187,6 +180,16 @@ export async function GET(request) {
       observation: rl,
       ttlMs: (maxDuration + 60) * 1000,
     });
+    // Enforcing only in a window whose ledger is ACTIVE; otherwise (off,
+    // observe, or an enforce window still pending) the absolute floor applies.
+    const enforcing = budget.effective === "enforce";
+    if (!enforcing) {
+      // Need headroom for the whole batch and still stay above the reserve.
+      if (rl.remaining - BATCH < RESERVE) {
+        markSkipped("quota_reserve");
+        return Response.json({ ok: true, skipped: "quota_reserve", remaining: rl.remaining, reserve: RESERVE });
+      }
+    }
     if (budget.granted <= 0) {
       markSkipped(`budget_${budget.decision?.denied ?? "denied"}`);
       return Response.json({ ok: true, skipped: "browse_budget", budget: { mode: budget.mode, ...budget.decision } });
@@ -196,11 +199,11 @@ export async function GET(request) {
     // Rows this run may verify. Outside enforce: BATCH, as before. In
     // enforce: the grant, keeping one unit back for a 5xx retry when the
     // grant is large enough (unused units are released on settle).
-    const runBatch = budgetMode === "enforce" ? Math.min(BATCH, budget.granted - (budget.granted >= 10 ? 1 : 0)) : BATCH;
+    const runBatch = enforcing ? Math.min(BATCH, budget.granted - (budget.granted >= 10 ? 1 : 0)) : BATCH;
     // The optional lanes' "tight day" signal: provider remaining outside
     // enforce (as before); in enforce, the verifier's own remaining cap.
     const laneQuotaRemaining =
-      budgetMode === "enforce"
+      enforcing
         ? (budget.decision?.capLeft ?? 0) - budget.granted >= VERIFY_LANE_MIN_CAP_LEFT
           ? Infinity
           : 0
@@ -535,7 +538,7 @@ export async function GET(request) {
         sealed_recovery: sealed.recovery,
         card_verified: batch.length,
         card_results: out,
-        browse_budget: [budgetMode, budget.granted, runBatch, budgetLease?.attempts ?? null], // browse-budget-r1: mode, granted, rows, attempts
+        browse_budget: [budgetMode, budget.effective, budget.decision?.granted ?? null, runBatch, budgetLease?.attempts ?? null], // mode, effective, would/grant, rows, attempts
         // graded-retention-r1 - lane usage and what it displaced (counts only)
         critical_auctions: allocation.critical_auctions,
         graded_retention_used: allocation.graded_retention_used,
@@ -558,7 +561,7 @@ export async function GET(request) {
     ok: true,
     poolSize: pool.length,
     verified: batch.length,
-    budget: { mode: budgetMode, granted: budget.granted, runBatch, attempts: budgetLease?.attempts ?? null, decision: budget.decision },
+    budget: { mode: budgetMode, effective: budget.effective, granted: budget.granted, runBatch, attempts: budgetLease?.attempts ?? null, decision: budget.decision },
     results: out,
     calls,
     remainingBefore: rl.remaining,

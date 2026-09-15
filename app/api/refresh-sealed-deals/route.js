@@ -166,7 +166,7 @@ export async function GET(request) {
   // fixed envelope: in enforce mode it makes no Browse calls. Observe / off
   // keep today's behaviour (the lease only records what it spends).
   const sealedBudget = await acquireBrowseLease(db, { key: "sealed", requested: 1, observation: rl, ttlMs: (maxDuration + 60) * 1000 });
-  if (sealedBudget.mode === "enforce") {
+  if (sealedBudget.effective === "enforce") {
     markSkipped("budget_unfunded");
     return Response.json({ skipped: "browse_budget", budget: { mode: sealedBudget.mode, ...sealedBudget.decision } });
   }
