@@ -279,3 +279,65 @@ test("PR-5 the 07:30 metadata failure: enforce sends nothing without a lease; ob
   const empty = createMemoryDb({ catalog_snapshot: [] }, { unique: { catalog_snapshot: ["kind"] } });
   assert.deepEqual(await recordUnleasedAttempts(empty, { attempts: 17, job: "refresh-deals:sweep", startedAt: new Date(t("07:30:02")).toISOString() }), { recorded: false, reason: "no_ledger_row_for_time" });
 });
+
+test("PR-6 activation after a stale reset: a partly used open lease cannot hide unexplained provider spend, is never charged twice, and still counts in full against new grants", async () => {
+  const seedUnconfirmed = async () => {
+    const db = seededDb();
+    await acquireBrowseLease(db, { key: "verify", requested: 20, observation: reading(230, "07:00:04"), now: t("07:00:04"), ttlMs: 60_000, mode: "enforce" });
+    return db;
+  };
+
+  // A. 300-call allocated lease opened on the stale reading, 40 attempts made so far; eBay then shows 300 consumed
+  //    = 40 from the lease + 260 unexplained. Subtracting the whole open grant would show 0 and activate.
+  {
+    const db = await seedUnconfirmed();
+    const alloc = await acquireBrowseLease(db, { key: "allocated:EBAY_US", requested: 300, observation: reading(230, "07:00:30"), now: t("07:00:30"), ttlMs: 30 * 60_000, mode: "enforce" });
+    alloc.lease.attempts = 40; // in-process; the ledger does not know this until settle
+    await acquireBrowseLease(db, { key: "images", requested: 1, observation: reading(4700, "07:15:00"), now: t("07:15:00"), ttlMs: 60_000, mode: "enforce" });
+    let l = row(db, "enforce");
+    assert.equal(l.reset.outcome, "stale_counter", "the balance itself is confirmed");
+    assert.equal(l.state, "unconfirmed", "but activation is not decided while an open grant could explain anything from 0 to 300");
+    assert.equal(l.stateReason, "activation_awaiting_open_leases");
+    assert.equal(l.used.unattributed_at_birth ?? 0, 0);
+    // the unused part of the grant still protects capacity: counted in full for grants
+    const g = evaluateGrant(structuredClone(l), { key: "sweep:EBAY_US", requested: 30, observation: reading(4700, "07:15:01"), now: t("07:15:01") });
+    // ledger: verify's 60 s lease expired and was charged 20; open grants 300 (allocated) + 1 (images) count IN FULL
+    assert.equal(g.providerLeft, 5000 - 20 - (300 + 1) - BROWSE_RESERVE - (CONSUMER_CAPS.verify - 20));
+    // the lease settles with its real 40 attempts; the next reading shows 310 consumed (10 more lag)
+    await settleBrowseLease(db, alloc.lease, { now: t("07:16:00") });
+    await acquireBrowseLease(db, { key: "images", requested: 1, observation: reading(4690, "07:20:00"), now: t("07:20:00"), ttlMs: 60_000, mode: "enforce" });
+    l = row(db, "enforce");
+    assert.equal(l.state, "pending", "310 consumed - 40 settled = 270 unexplained: the spend is not hidden");
+    assert.equal(l.stateReason, "prior_consumption_unaccounted");
+    assert.equal(l.used["allocated:EBAY_US"], 40, "charged once, by its attempts");
+  }
+
+  // B. the same open lease really made 290 attempts (all eBay saw): after it settles the window activates, with no double charge
+  {
+    const db = await seedUnconfirmed();
+    const alloc = await acquireBrowseLease(db, { key: "allocated:EBAY_US", requested: 300, observation: reading(230, "07:00:30"), now: t("07:00:30"), ttlMs: 30 * 60_000, mode: "enforce" });
+    alloc.lease.attempts = 290;
+    await acquireBrowseLease(db, { key: "images", requested: 1, observation: reading(4710, "07:15:00"), now: t("07:15:00"), ttlMs: 60_000, mode: "enforce" });
+    assert.equal(row(db, "enforce").stateReason, "activation_awaiting_open_leases");
+    await settleBrowseLease(db, alloc.lease, { now: t("07:16:00") });
+    // eBay now shows 320 consumed; settled = verify 20 (expired lease, charged in full) + allocated 290 + images 1 (expired) = 311
+    await acquireBrowseLease(db, { key: "images", requested: 1, observation: reading(4680, "07:20:00"), now: t("07:20:00"), ttlMs: 60_000, mode: "enforce" });
+    const l = row(db, "enforce");
+    assert.equal(l.state, "active");
+    assert.equal(l.used["allocated:EBAY_US"], 290, "the lease is charged once, by its attempts");
+    // upper = 320 - 311 = 9 <= 150; nothing open at the decision, so lower = 9 and only those 9 are charged - not 290 again
+    assert.equal(l.used.unattributed_at_birth, 9);
+  }
+
+  // C. leases that never settle in time: fail closed
+  {
+    const db = await seedUnconfirmed();
+    const alloc = await acquireBrowseLease(db, { key: "allocated:EBAY_US", requested: 300, observation: reading(230, "07:00:30"), now: t("07:00:30"), ttlMs: 90 * 60_000, mode: "enforce" });
+    alloc.lease.attempts = 100;
+    await acquireBrowseLease(db, { key: "images", requested: 1, observation: reading(4700, "07:15:00"), now: t("07:15:00"), ttlMs: 60_000, mode: "enforce" });
+    await acquireBrowseLease(db, { key: "images", requested: 1, observation: reading(4690, "07:46:00"), now: t("07:46:00"), ttlMs: 60_000, mode: "enforce" });
+    const l = row(db, "enforce");
+    assert.equal(l.state, "pending");
+    assert.equal(l.stateReason, "activation_unresolved_open_leases");
+  }
+});
