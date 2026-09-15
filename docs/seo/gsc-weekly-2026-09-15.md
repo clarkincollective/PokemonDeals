@@ -70,6 +70,17 @@ very slowly; the referring URLs it does record are homepage filter/page permutat
    `/sets`, `/guides`, `/market-data`, `/deals/uk`, `/deals/australia`, `/pokemon/pikachu`, `/pokemon/umbreon`,
    `/sets/sv10-destined-rivals`, `/best-finds`, `/methodology`.
 
+4. **IndexNow** (`7280650`): key file live at `/7a55ee1154e991b2366b89fcc47ed41e.txt`; `npm run seo:indexnow`
+   submitted all 26,319 sitemap URLs (three batches, all HTTP 200 on the second run - the first run's
+   first two batches got 403 `SiteVerificationNotCompleted` while the engines fetched the key). Bing /
+   DuckDuckGo / Yandex now have the full URL list; Google ignores IndexNow. Re-run after large sitemap
+   changes.
+5. **Second indexing-request batch (same evening):** `/market-data`, `/deals/uk`, `/deals/australia`
+   (all "URL is not on Google" beforehand); `/sets` and `/guides` were already on Google and were skipped.
+   Enhancement reports read: Breadcrumbs 3 valid / 0 errors; Product snippets and Merchant listings 0
+   items (a card page only emits Product+Offer while it has a live listing - the sampled indexed card
+   had none, so this is expected, not a regression); Core Web Vitals has no field data yet.
+
 ## What to check next Monday (2026-09-22)
 
 - Sitemaps report: "discovered" per child should stop reading as the raw URL count and start showing
