@@ -194,3 +194,8 @@ const excluded = [
 ];
 
 export const allDealsRows = [...bulk, ...dups, ...grades, ...auctions, ...japanese, ...identityConflict, ...excluded];
+
+// graded-inventory-r1 - the same row builders, for fixture extensions that
+// must render through identical rules (gradedInventoryRows.js). Rows above
+// are unchanged.
+export const fixtureRow = { copy, tpl, ago, ahead, japaneseCard };

@@ -9,7 +9,7 @@ import {
   resolveSpeciesSlug,
   resolveCardSlug,
 } from "@/lib/deals";
-import { DEAL_CATEGORIES, isModernSet } from "@/lib/dealCategories";
+import { DEAL_CATEGORIES, categoryInventoryParams, isModernSet } from "@/lib/dealCategories";
 import { marketplaceFilterValue } from "@/lib/marketplaceScope";
 
 export const dynamic = "force-dynamic";
@@ -111,6 +111,24 @@ export async function GET(request) {
       const cat = DEAL_CATEGORIES[slug];
       if (!cat || cat.redirect) {
         return Response.json({ deals: [], totalPages: 1, error: "not found" }, { status: 404 });
+      }
+      // graded-inventory-r1 - an inventory category (/deals/graded) counts and
+      // paginates the All deals inventory with its own preset and options.
+      if (cat.inventory) {
+        const r = await fetchAllDealsPage(
+          categoryInventoryParams(cat, {
+            country: filters.country,
+            grader: gradedFilters.grader,
+            grade: gradedFilters.grade,
+            listingType: filters.listingType,
+            minPrice: filters.minPrice,
+            maxPrice: filters.maxPrice,
+            q: u.searchParams.get("q"),
+            sort: u.searchParams.get("sort") ?? cat.defaultSort ?? "newest",
+            page: filters.page,
+          })
+        );
+        return Response.json(r);
       }
       // Preset filter for the category. Only overlay the user filters
       // that are actually set (an unset maxPrice arrives as null and

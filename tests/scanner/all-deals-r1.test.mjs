@@ -311,8 +311,13 @@ test("AD-16. Japanese-catalogue inventory is included under the same display gat
   // identity on a listing that states English is hidden and not counted
   assert.equal(dq.isDisplayableDeal(byId.get(974005)), false);
   assert.ok(!deals.some((d) => d.id === 974005));
-  // no language pre-filter in the pure module either
-  assert.doesNotMatch(read("lib/allDealsInventory.js").replace(/\/\/[^\n]*/g, ""), /card_language\s*[!=]==|language\s*===\s*"english"/);
+  // no language pre-filter in the pure module either: the only language
+  // filter is the opt-in `params.language` a category passes (graded-inventory-r1);
+  // /deals passes none, so the result above still includes Japanese listings
+  const pure = read("lib/allDealsInventory.js").replace(/\/\/[^\n]*/g, "");
+  assert.doesNotMatch(pure, /card_language\s*[!=]==\s*["']|language\s*===\s*"english"/);
+  assert.equal((pure.match(/card_language\s*[!=]==/g) ?? []).length, 1);
+  assert.match(pure, /if \(language\) r = r\.filter\(\(x\) => x\.card_language === language\);/);
   assert.match(read("app/deals/page.js"), /English and Japanese/);
 });
 
@@ -355,7 +360,8 @@ test("AD-18. an incomplete inventory is reported on every result built from it, 
   assert.equal(inv.queryAllDeals([...CHUNKS.slice(0, 3), overCapChunk, ...CHUNKS.slice(4)], { listingType: "AUCTION" }).exact, false);
   // UI: the summary renders whenever the result is inexact, even with no tiles
   const grid = read("components/DealGrid.js");
-  assert.match(grid, /allDeals && !loading && !view\.error && \(view\.deals\.length > 0 \|\| !view\.exact\) && \(/);
+  // exactInventory = /deals or an inventory category (graded-inventory-r1)
+  assert.match(grid, /exactInventory && !loading && !view\.error && \(view\.deals\.length > 0 \|\| !view\.exact\) && \(/);
   assert.match(grid, /\{!exact && \(\s*<p data-inventory-incomplete/);
   assert.match(grid, /exact \? "" : "at least "/);
 });

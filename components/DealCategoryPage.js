@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { permanentRedirect } from "next/navigation";
 import {
+  fetchAllDealsPage,
   fetchDealsPage,
   fetchSets,
   fetchHubCounts,
   fetchSetSlugs,
 } from "@/lib/deals";
-import { DEAL_CATEGORIES, DEAL_CATEGORY_SLUGS, isModernSet } from "@/lib/dealCategories";
+import { DEAL_CATEGORIES, DEAL_CATEGORY_SLUGS, categoryInventoryParams, isModernSet } from "@/lib/dealCategories";
 import { normalizePublicText } from "@/lib/publicText";
 import SiteHeader from "@/components/SiteHeader";
 import SkipToContent from "@/components/SkipToContent";
@@ -56,19 +57,24 @@ export default async function DealCategoryPage({ slug }) {
   delete preset.sets;
   delete preset.modernEra;
 
-  const [{ deals, totalPages, error }, hubCounts, validSetSlugs] = await Promise.all([
-    fetchDealsPage({
-      table: "deals",
-      language: "english",
-      ...preset,
-      sets: sets ?? undefined,
-      sort: cat.defaultSort ?? "newest",
-      page: 1,
-      pageSize: 24,
-    }),
+  const [initial, hubCounts, validSetSlugs] = await Promise.all([
+    // graded-inventory-r1 - an inventory category renders page 1 from the
+    // same exact inventory its filters and pages use (/api/deals-page).
+    cat.inventory
+      ? fetchAllDealsPage(categoryInventoryParams(cat, { sort: cat.defaultSort ?? "newest", page: 1 }))
+      : fetchDealsPage({
+          table: "deals",
+          language: "english",
+          ...preset,
+          sets: sets ?? undefined,
+          sort: cat.defaultSort ?? "newest",
+          page: 1,
+          pageSize: 24,
+        }),
     fetchHubCounts({ language: "english" }),
     fetchSetSlugs("english"),
   ]);
+  const { deals, error } = initial;
 
   const basePath = `/deals/${slug}`;
 
@@ -154,7 +160,8 @@ export default async function DealCategoryPage({ slug }) {
           kind="category"
           slug={slug}
           basePath={basePath}
-          initial={{ deals, totalPages }}
+          initial={initial}
+          exactInventory={Boolean(cat.inventory)}
           hubCounts={hubCounts}
           emptyLabel={`No ${cat.h1.toLowerCase()} match these filters right now. Try clearing a filter, or check back after the next scan.`}
           validSetSlugs={validSetSlugs}

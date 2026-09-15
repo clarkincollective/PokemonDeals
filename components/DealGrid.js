@@ -109,7 +109,7 @@ function ResultsSummary({ page, shown, totalCount, exact, pageSize }) {
   );
 }
 
-export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}, emptyLabel, validSetSlugs = [], defaultSort = "newest", subjectLabel, compactFilters = false, lockedCardType = null }) {
+export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}, emptyLabel, validSetSlugs = [], defaultSort = "newest", subjectLabel, compactFilters = false, lockedCardType = null, exactInventory: inventoryCategory = false }) {
   const search = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const params = useMemo(() => parseSearch(search), [search]);
   const reqKey = params.raw;
@@ -124,6 +124,11 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
   // "All deals" (/deals, kind "all") takes the full contract too: grading,
   // search and the cold-navigation guard below, plus an exact count.
   const allDeals = kind === "all";
+  // graded-inventory-r1 - pages whose loader is the All deals inventory
+  // (/deals, and a category the server marks as an inventory category) get
+  // its exact count line, incomplete-inventory notice and exact broadening
+  // number. Region pinning and empty-state defaults stay per page.
+  const exactInventory = allDeals || (kind === "category" && inventoryCategory);
   const showGrading = allDeals || kind === "species" || kind === "set" || (kind === "category" && slug === "graded");
   // Same pilot scope for search-within-inventory.
   const searchable = allDeals || (kind === "category" && slug === "graded");
@@ -314,12 +319,12 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
           allByDefault={allDeals}
           // exact only where the loader computes it (all-deals inventory,
           // complete); legacy loaders' counts are estimates -> no number
-          additional={allDeals && view.exact ? view.additional : null}
+          additional={exactInventory && view.exact ? view.additional : null}
           thin={params.page === 1 && view.totalPages <= 1 && view.deals.length < 8}
         />
       )}
 
-      {allDeals && !loading && !view.error && (view.deals.length > 0 || !view.exact) && (
+      {exactInventory && !loading && !view.error && (view.deals.length > 0 || !view.exact) && (
         <ResultsSummary page={params.page} shown={view.deals.length} totalCount={view.totalCount} exact={view.exact} pageSize={view.pageSize} />
       )}
 
@@ -411,8 +416,8 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
         <AppliedFilters
           params={params.obj}
           basePath={basePath}
-          resultCount={loading || allDeals ? undefined : view.deals.length}
-          totalCount={loading || allDeals ? undefined : view.totalCount}
+          resultCount={loading || exactInventory ? undefined : view.deals.length}
+          totalCount={loading || exactInventory ? undefined : view.totalCount}
           searchQuery={searchable ? params.q : null}
         />
       )}

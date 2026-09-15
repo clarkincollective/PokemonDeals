@@ -107,8 +107,10 @@ test("MB-4. no count when inventory is incomplete or a marketplace is missing", 
   assert.equal(r.additionalOnOtherMarketplaces, null, "but the other side is a lower bound -> no number");
   assert.equal(all({ country: "EBAY_US" }, CHUNKS.slice(0, 5)).additionalOnOtherMarketplaces, null);
   // the grid only ever shows the number for the exact all-deals inventory
+  // (/deals, or an inventory category served from it - graded-inventory-r1)
   const grid = read("components/DealGrid.js");
-  assert.match(grid, /additional=\{allDeals && view\.exact \? view\.additional : null\}/);
+  assert.match(grid, /additional=\{exactInventory && view\.exact \? view\.additional : null\}/);
+  assert.match(grid, /const exactInventory = allDeals \|\| \(kind === "category" && inventoryCategory\);/);
   assert.match(grid, /typeof d\.additionalOnOtherMarketplaces === "number" \? d\.additionalOnOtherMarketplaces : null/);
   // legacy loaders never return it
   assert.doesNotMatch(read("lib/deals.js"), /additionalOnOtherMarketplaces/);
