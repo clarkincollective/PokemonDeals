@@ -32,7 +32,9 @@ const REJECTED_SLUGS = ["psa-vs-cgc", "cgc-vs-bgs", "psa-vs-cgc-vs-bgs", "which-
 test("1. exactly two new guides added this phase; the PSA-vs-CGC-vs-BGS candidate was not created", () => {
   const guides = read("lib/guides.js");
   const slugs = [...guides.matchAll(/slug:\s*"([^"]+)"/g)].map((m) => m[1]);
-  assert.equal(slugs.length, 6, `expected 6 guides, got ${slugs.length}: ${slugs.join(", ")}`);
+  // Guides added by later phases (set-and-number, the 30th Celebration
+  // release guide) are legitimate; this test pins only THIS phase's two.
+  assert.ok(slugs.length >= 6, `expected at least 6 guides, got ${slugs.length}: ${slugs.join(", ")}`);
   assert.ok(slugs.includes("pokemon-card-grading-scale"));
   assert.ok(slugs.includes("how-to-check-pokemon-card-condition"));
   for (const r of REJECTED_SLUGS) {
