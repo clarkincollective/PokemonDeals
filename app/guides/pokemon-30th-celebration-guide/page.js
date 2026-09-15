@@ -14,19 +14,43 @@ export const metadata = guideMetadata(SLUG);
 // so and never calls it complete. Nothing here is a price, a pull rate or
 // a stock claim. Checked 2026-09-16.
 const SOURCES = {
-  expansion: { href: "https://tcg.pokemon.com/en-us/expansions/30th-celebration/", label: "Official expansion page" },
-  gallery: { href: "https://tcg.pokemon.com/en-us/galleries/30th-celebration/", label: "Official card gallery" },
-  announce: { href: "https://www.pokemon.com/uk/news/get-ready-for-pokemon-tcg-30th-celebration", label: "Official announcement (UK, 1 June 2026)" },
-  showcase: { href: "https://www.pokemon.com/uk/news/pokemon-tcg-30th-celebration-product-showcase", label: "Official product showcase (UK, 30 June 2026)" },
-  etb: { href: "https://www.pokemon.com/us/pokemon-tcg/product-gallery/30th-celebration-elite-trainer-box", label: "Official Elite Trainer Box product page (US)" },
+  expansion: { href: "https://tcg.pokemon.com/en-us/expansions/30th-celebration/", label: "Official expansion page", short: "expansion page" },
+  gallery: { href: "https://tcg.pokemon.com/en-us/galleries/30th-celebration/", label: "Official card gallery", short: "card gallery" },
+  announce: { href: "https://www.pokemon.com/uk/news/get-ready-for-pokemon-tcg-30th-celebration", label: "Official announcement (UK, 1 June 2026)", short: "announcement" },
+  showcase: { href: "https://www.pokemon.com/uk/news/pokemon-tcg-30th-celebration-product-showcase", label: "Official product showcase (UK, 30 June 2026)", short: "product showcase" },
+  etb: { href: "https://www.pokemon.com/us/pokemon-tcg/product-gallery/30th-celebration-elite-trainer-box", label: "Official Elite Trainer Box product page (US)", short: "Elite Trainer Box page" },
 };
 
+const SRC_LINK = "text-zinc-500 underline decoration-zinc-300 underline-offset-2 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-500";
+
+// Inline citation. With children it is a plain labelled link (used inside
+// tables); on its own it reads "(source: expansion page)" so two citations
+// in a row never collapse into "source source".
 function Src({ id, children }) {
   const s = SOURCES[id];
-  return (
-    <a href={s.href} rel="noopener noreferrer" target="_blank" className="text-zinc-500 underline decoration-zinc-300 underline-offset-2 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-500">
-      {children ?? "source"}
+  const link = (
+    <a href={s.href} rel="noopener noreferrer" target="_blank" className={SRC_LINK}>
+      {children ?? s.short}
     </a>
+  );
+  if (children) return link;
+  return <span className="text-sm text-zinc-500 dark:text-zinc-400">(source: {link})</span>;
+}
+
+function Srcs({ ids }) {
+  return (
+    <span className="text-sm text-zinc-500 dark:text-zinc-400">
+      (sources:{" "}
+      {ids.map((id, i) => (
+        <span key={id}>
+          {i > 0 ? ", " : ""}
+          <a href={SOURCES[id].href} rel="noopener noreferrer" target="_blank" className={SRC_LINK}>
+            {SOURCES[id].short}
+          </a>
+        </span>
+      ))}
+      )
+    </span>
   );
 }
 
@@ -181,7 +205,7 @@ export default function Page() {
       <GP>
         The official expansion page presents <em>30th Celebration</em> as a celebration of 30 years of
         the Pokemon Trading Card Game, and its announcement described the set as the first to have a
-        simultaneous global release. <Src id="expansion" /> <Src id="announce" />
+        simultaneous global release. <Srcs ids={["expansion", "announce"]} />
       </GP>
       <GP>
         It is not the same product as <strong>Celebrations</strong>, the 2021 expansion for the
@@ -237,7 +261,7 @@ export default function Page() {
       <GP>
         <em>30th Celebration</em> debuts the Futuristic rare, a card type designed by the artist
         YOSHIROTTEN, who also illustrated the set&apos;s foil Basic Energy cards. The two revealed
-        Futuristic rares are Mewtwo ex and Mew ex. <Src id="expansion" /> <Src id="announce" /> In our
+        Futuristic rares are Mewtwo ex and Mew ex. <Srcs ids={["expansion", "announce"]} /> In our
         catalogue they sit at 157/128 and 158/128, the last two numbers we hold for the set. The
         official gallery lists &ldquo;Futuristic Rare&rdquo; as one of its own filter categories, next to
         Pokemon ex, Special Art, Pikachu Rare and Classic Collection. <Src id="gallery" />
@@ -268,7 +292,7 @@ export default function Page() {
         The other anniversary idea is the Classic Collection: cards from the game&apos;s history
         reprinted with a new foil treatment. The official pages name Charizard from Base Set and
         Pikachu &amp; Zekrom-GX from Sun &amp; Moon&mdash;Team Up as examples, and note these reprints
-        are not legal in the Standard format. <Src id="expansion" /> <Src id="announce" /> The
+        are not legal in the Standard format. <Srcs ids={["expansion", "announce"]} /> The
         expansion page describes them as cards you can encounter in <em>30th Celebration</em> booster
         packs; the product showcase separately lists a &ldquo;30th Celebration Classic Collection
         booster pack&rdquo; inside the November Ultra-Premium Collection. <Src id="showcase" /> Both
@@ -312,7 +336,7 @@ export default function Page() {
       <GH2>Every announced product</GH2>
       <GP>
         Contents and release waves as stated on the official product showcase and, for the Elite
-        Trainer Box, its US product page. <Src id="showcase" /> <Src id="etb" /> No prices are given
+        Trainer Box, its US product page. <Srcs ids={["showcase", "etb"]} /> No prices are given
         on those pages, and this guide does not add any: retail prices differ by country and change
         over time.
       </GP>
@@ -430,7 +454,7 @@ export default function Page() {
         </li>
         <li>
           <strong>What is the Elite Trainer Box promo?</strong> A full-art Nidorina; the Pokemon Center
-          version includes two, one with the Pokemon Center logo. <Src id="etb" /> <Src id="showcase" />
+          version includes two, one with the Pokemon Center logo. <Srcs ids={["etb", "showcase"]} />
         </li>
         <li>
           <strong>When is it out in Australia?</strong> The expansion&apos;s worldwide date is 16
