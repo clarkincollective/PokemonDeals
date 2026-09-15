@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { catalogImageUrl } from "@/lib/cardImage";
 import { isVisualScreeningCandidate, screenDeal } from "@/lib/visualAuthenticity";
+import { COPY_HOLD_REASON, COUNTERFEIT_VISUAL_VERDICTS } from "@/lib/listingAvailability";
 
 // OUT-OF-BAND visual counterfeit screening worker (Phase: bounded visual
 // screening). Runs on its own cron - NEVER on the Browse scan path. Each
@@ -42,7 +43,7 @@ const SCAN_CAP = 12000;
 const PAGE = 1000;
 
 const COLS =
-  "id, card_name, card_set, card_tcgplayer_id, image_url, market_price, discount_pct, is_graded, " +
+  "id, listing_id, card_name, card_set, card_tcgplayer_id, image_url, market_price, discount_pct, is_graded, " +
   "price, total_price, total_price_usd, " +
   "disqualified_reason, seller_feedback_score, image_count, returns_accepted, " +
   "visual_authenticity_status, visual_authenticity_checked_at";
@@ -121,6 +122,14 @@ export async function GET(request) {
       })
       .eq("id", row.id);
     if (error) results.errors++;
+    // integrity-copy-hold: a counterfeit verdict also holds this eBay item's
+    // copies on other marketplaces that carry no reason yet (a review hold,
+    // not a verdict about them; never released automatically)
+    if (!error && COUNTERFEIT_VISUAL_VERDICTS.includes(verdict.status) && row.listing_id) {
+      const held = await db.from("deals").update({ disqualified_reason: COPY_HOLD_REASON }).eq("listing_id", row.listing_id).neq("id", row.id).is("disqualified_reason", null).select("id");
+      if (held.error) results.errors++;
+      else if ((held.data ?? []).length) detail.at(-1).copiesHeld = held.data.map((h) => h.id);
+    }
   }
 
   return Response.json({ ok: true, mode: recheck ? "recheck-mismatch" : "queue", screened: candidates.length, results, detail });

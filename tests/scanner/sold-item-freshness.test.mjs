@@ -245,6 +245,9 @@ function fakeDb(initialRows = []) {
         rows.push(created);
         return { data: [{ id: created.id }], error: null };
       }
+      // integrity-copy-hold: the read of the item's other-marketplace copies
+      // before an insert
+      if (st.op === null) return { data: rows.filter((r) => st.filters.every((f) => f(r))).map((r) => ({ ...r })), error: null };
       throw new Error(`unmodelled op ${st.op}`);
     }
     return api;
