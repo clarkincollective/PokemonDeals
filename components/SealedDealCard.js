@@ -85,10 +85,10 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex flex-wrap items-center gap-1.5">
           <DealScoreBadge score={showSavings ? scoreBadge : null} />
-          <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+          <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             Sealed
           </span>
-          <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+          <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             {isAuction ? "Auction" : "Buy It Now"}
           </span>
         </div>
@@ -137,7 +137,7 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
               </p>
               {!showSavings ? (
                 presentation.notes.map((note) => (
-                  <p key={note} className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+                  <p key={note} className="text-xs leading-snug text-zinc-500 dark:text-zinc-400">
                     {note}
                   </p>
                 ))
@@ -161,7 +161,7 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
           </div>
         )}
 
-        <p className="text-[11px] text-zinc-400">
+        <p className="text-xs text-zinc-400">
           Found <RelativeTime date={deal.first_seen_at} />
           {deal.seller_feedback_pct != null && ` · ${Number(deal.seller_feedback_pct).toFixed(1)}% seller feedback`}
         </p>

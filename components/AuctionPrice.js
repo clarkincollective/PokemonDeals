@@ -63,7 +63,7 @@ export default function AuctionPrice({
     const shipUsd = ship.state === "confirmed" && usdTotal > 0 && total > 0 ? ship.amount * (usdTotal / total) : null;
     return (
       <div className={className}>
-        <p className="text-[11px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-500">
+        <p className="text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-500">
           {ship.auctionTotalLabel}
         </p>
         <Price
@@ -85,7 +85,7 @@ export default function AuctionPrice({
             {discountPct}% under market ref{pctQualifier} · bids can raise the final price
           </p>
         ) : (
-          <p className="text-[11px] text-zinc-600 dark:text-zinc-400">bids can raise the final price</p>
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">bids can raise the final price</p>
         )}
       </div>
     );
@@ -95,7 +95,7 @@ export default function AuctionPrice({
 
   return (
     <div className={className}>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-500">
+      <p className="text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-500">
         Current bid
         {deal.bid_count != null ? ` · ${deal.bid_count} ${deal.bid_count === 1 ? "bid" : "bids"}` : ""}
       </p>
@@ -128,11 +128,11 @@ export default function AuctionPrice({
         )}
       </p>
       {showPct ? (
-        <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
+        <p className="text-xs text-zinc-600 dark:text-zinc-400">
           {discountPct}% under the market reference{pctQualifier} — bids can raise the final price
         </p>
       ) : (
-        <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
+        <p className="text-xs text-zinc-600 dark:text-zinc-400">
           {claim === "none" ? "No comparison stated: shipping breakdown not recorded — " : ""}bids can raise the final price
         </p>
       )}
