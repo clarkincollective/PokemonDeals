@@ -35,7 +35,8 @@ export default function DealBackLink({ fallbackHref, fallbackLabel, className = 
   const sp = new URLSearchParams(search);
   const from = safeReturnPath(sp.get("from"));
   const rawCountry = sp.get("country");
-  const country = rawCountry && KNOWN_COUNTRY.has(rawCountry) ? rawCountry : null;
+  // "all" = the explicit All marketplaces choice (lib/marketplaceScope)
+  const country = rawCountry && (KNOWN_COUNTRY.has(rawCountry) || rawCountry === "all") ? rawCountry : null;
 
   let href = fallbackHref;
   let text = fallbackLabel;

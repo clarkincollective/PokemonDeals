@@ -7,6 +7,8 @@
 // no state. Query-param links carry rel="nofollow", matching the site's
 // crawl-hygiene rule for internal parameter links.
 
+import { MARKETPLACES } from "@/lib/ebayLinks";
+import { allMarketplacesHref, DELIVERY_NOT_CONFIRMED as DELIVERY_NOTE, marketplaceName, selectedMarketplace } from "@/lib/marketplaceScope";
 import {
   appliedFilterChips,
   relaxationSteps,
@@ -15,9 +17,10 @@ import {
 
 // currentParams: a plain object of the live query string.
 // Drop the given keys (and always ?page=) and return the resulting href.
-function hrefWithout(currentParams, dropKeys, basePath) {
+function hrefWithout(currentParams, dropKeys, basePath, setParams = null) {
   const params = new URLSearchParams(currentParams);
   for (const k of dropKeys) params.delete(k);
+  for (const [k, v] of Object.entries(setParams ?? {})) params.set(k, v);
   params.delete("page");
   const qs = params.toString();
   return qs ? `${basePath}?${qs}` : basePath;
@@ -131,6 +134,7 @@ export function FilteredEmptyState({ params, basePath, subjectLabel, searchQuery
     listing: params.listing,
     minPrice: params.minPrice,
     maxPrice: params.maxPrice,
+    country: params.country,
   });
   // Explicit broadening only (13B.3 §9's own rule) - a search term is
   // offered as its own removable step, same as any other narrowing, never
@@ -138,7 +142,8 @@ export function FilteredEmptyState({ params, basePath, subjectLabel, searchQuery
   // step must also drop q, or clicking it while a search term lingers
   // just re-lands on the same empty state.
   if (searchQuery) {
-    steps.unshift({ label: "Clear search", drop: ["q"] });
+    // after "Browse all marketplaces" (which keeps the search), before the rest
+    steps.splice(steps[0]?.set ? 1 : 0, 0, { label: "Clear search", drop: ["q"] });
     const clearAll = steps[steps.length - 1];
     if (clearAll?.label === "Clear all filters") clearAll.drop = [...clearAll.drop, "q"];
   }
@@ -152,11 +157,13 @@ export function FilteredEmptyState({ params, basePath, subjectLabel, searchQuery
   });
   if (searchQuery) chips.push({ label: `Search: "${searchQuery}"` });
   const summary = chips.map((c) => c.label).join(" · ");
+  const scopedTo = marketplaceName(params.country);
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
       <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-        No live {subjectLabel} deals match {summary || "these filters"} right now.
+        No live {subjectLabel} deals match {summary || "these filters"}
+        {scopedTo ? ` on ${scopedTo}` : ""} right now.
       </p>
       <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
         These filters are applied to real, currently-active listings — nothing has been
@@ -166,8 +173,9 @@ export function FilteredEmptyState({ params, basePath, subjectLabel, searchQuery
         {steps.map((s, i) => (
           <a
             key={i}
-            href={hrefWithout(params, s.drop, basePath)}
+            href={hrefWithout(params, s.drop, basePath, s.set)}
             rel="nofollow"
+            {...(s.set?.country === "all" ? { "data-marketplace-choice": "all" } : {})}
             data-analytics-click="filter_cleared"
             data-analytics-props={JSON.stringify({ facet: "relax", context: "empty_state" })}
             className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
@@ -198,11 +206,85 @@ export function EmptyStateEscapes({ className = "" }) {
 // Shown instead of the grid when a NON-filtered grid is genuinely empty
 // (a whole category with no live deals right now). Truthful - never shows
 // unrelated listings - and always offers a real route forward.
-export function EmptyGridState({ label }) {
+//
+// params/basePath (optional): when the grid is scoped to one marketplace,
+// offer "Browse all marketplaces" for the same page first.
+export function EmptyGridState({ label, params, basePath }) {
+  const scopedTo = params ? marketplaceName(params.country) : null;
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
       <p className="text-sm text-zinc-600 dark:text-zinc-300">{label}</p>
+      {scopedTo && (
+        <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
+          Only listings on {scopedTo} are shown.{" "}
+          <a
+            href={allMarketplacesHref(params, basePath)}
+            rel="nofollow"
+            data-marketplace-choice="all"
+            className="font-semibold text-red-600 underline underline-offset-2 dark:text-red-500"
+          >
+            Browse all marketplaces
+          </a>
+        </p>
+      )}
       <EmptyStateEscapes className="mt-3" />
     </div>
   );
+}
+
+// marketplace-broaden-r1: which marketplaces this grid is drawing from, and
+// the way out of a single-marketplace scope. Rendered above results on
+// DealGrid pages (graded, categories, species, sets, /deals).
+//
+//   one marketplace -> "Showing listings on eBay Germany only." + "Browse
+//                      all marketplaces" (every filter kept, page reset).
+//                      `additional` (exact, or null) adds "N more
+//                      listings" only when the caller computed it from the
+//                      same eligibility rules, filters and listing
+//                      identities as the destination; `thin` makes the
+//                      note prominent.
+//   all marketplaces -> the delivery-not-confirmed note.
+export function MarketplaceScopeNote({ params, basePath, allByDefault = false, additional = null, thin = false }) {
+  const code = selectedMarketplace(params.country);
+  const explicitAll = typeof params.country === "string" && params.country.toLowerCase() === "all";
+  if (code) {
+    const name = marketplaceName(code);
+    const more =
+      typeof additional === "number" && additional > 0
+        ? `Browse all marketplaces (+${additional.toLocaleString("en-US")} more listing${additional === 1 ? "" : "s"})`
+        : "Browse all marketplaces";
+    return (
+      <div
+        data-marketplace-scope={code}
+        className={
+          thin
+            ? "mb-4 rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200"
+            : "mb-4 text-sm text-zinc-600 dark:text-zinc-300"
+        }
+      >
+        <p>
+          <span aria-hidden="true">{MARKETPLACES[code].flag}</span> Showing listings on {name} only
+          {thin ? " - there are few here for this selection." : "."}{" "}
+          <a
+            href={allMarketplacesHref(params, basePath, { defaultIsAll: allByDefault })}
+            rel="nofollow"
+            data-marketplace-choice="all"
+            data-analytics-click="filter_cleared"
+            data-analytics-props={JSON.stringify({ facet: "country", context: thin ? "thin_results" : "scope_note" })}
+            className="font-semibold text-red-600 underline underline-offset-2 dark:text-red-500"
+          >
+            {more}
+          </a>
+        </p>
+      </div>
+    );
+  }
+  if (explicitAll || allByDefault) {
+    return (
+      <p data-marketplace-scope="all" className="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
+        <span aria-hidden="true">🌐</span> {DELIVERY_NOTE}
+      </p>
+    );
+  }
+  return null;
 }

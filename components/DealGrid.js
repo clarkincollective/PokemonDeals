@@ -5,7 +5,7 @@ import DealCard from "@/components/DealCard";
 import FilterBar from "@/components/FilterBar";
 import Pagination, { pageHref } from "@/components/Pagination";
 import GridSkeleton from "@/components/GridSkeleton";
-import { AppliedFilters, FilterNotes, FilteredEmptyState, EmptyGridState } from "@/components/DealFilterChips";
+import { AppliedFilters, FilterNotes, FilteredEmptyState, EmptyGridState, MarketplaceScopeNote } from "@/components/DealFilterChips";
 import { hasActiveDealFilters, normalizeDealFilters } from "@/lib/dealFilters";
 
 // The filterable, paginated deal grid for /sets/[slug] and
@@ -191,11 +191,14 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
             exact: d.exact !== false,
             pageSize: d.pageSize ?? 24,
             outOfRange: Boolean(d.outOfRange),
+            // exact extra listings on other marketplaces (all-deals inventory
+            // only); null = not computable, show the action without a number
+            additional: typeof d.additionalOnOtherMarketplaces === "number" ? d.additionalOnOtherMarketplaces : null,
             error: d.error ?? null,
           });
       })
       .catch((e) => {
-        if (!cancelled) setFetched({ key: reqKey, deals: [], totalPages: 1, totalCount: 0, exact: false, outOfRange: false, error: e.message });
+        if (!cancelled) setFetched({ key: reqKey, deals: [], totalPages: 1, totalCount: 0, exact: false, outOfRange: false, additional: null, error: e.message });
       });
     return () => {
       cancelled = true;
@@ -211,11 +214,12 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
         exact: initial.exact !== false,
         pageSize: initial.pageSize ?? 24,
         outOfRange: false,
+        additional: null, // the server default is never marketplace-scoped
         // other kinds render their own server error above the grid
         error: allDeals ? initial.error ?? null : null,
       }
     : loading
-      ? { deals: [], totalPages: 1, totalCount: 0, exact: false, outOfRange: false, error: null }
+      ? { deals: [], totalPages: 1, totalCount: 0, exact: false, outOfRange: false, additional: null, error: null }
       : {
           deals: fetched.deals,
           totalPages: fetched.totalPages,
@@ -223,6 +227,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
           exact: fetched.exact,
           pageSize: fetched.pageSize,
           outOfRange: fetched.outOfRange,
+          additional: fetched.additional,
           error: fetched.error,
         };
 
@@ -297,6 +302,20 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
         <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {view.error}</p>
       )}
 
+      {/* marketplace-broaden-r1: which marketplaces these results come from.
+          Empty results carry the broadening action in their own state. */}
+      {!loading && !view.error && !view.outOfRange && view.deals.length > 0 && (
+        <MarketplaceScopeNote
+          params={params.obj}
+          basePath={basePath}
+          allByDefault={allDeals}
+          // exact only where the loader computes it (all-deals inventory,
+          // complete); legacy loaders' counts are estimates -> no number
+          additional={allDeals && view.exact ? view.additional : null}
+          thin={params.page === 1 && view.totalPages <= 1 && view.deals.length < 8}
+        />
+      )}
+
       {allDeals && !loading && !view.error && (view.deals.length > 0 || !view.exact) && (
         <ResultsSummary page={params.page} shown={view.deals.length} totalCount={view.totalCount} exact={view.exact} pageSize={view.pageSize} />
       )}
@@ -327,7 +346,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
             searchQuery={searchable ? params.q : null}
           />
         ) : (
-          <EmptyGridState label={emptyLabel} />
+          <EmptyGridState label={emptyLabel} params={params.obj} basePath={basePath} />
         )
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

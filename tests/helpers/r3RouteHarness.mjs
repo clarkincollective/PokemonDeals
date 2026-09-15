@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url);
 const root = resolve(import.meta.dirname,'../..');
 const pure = new Set(['dealPage','listingAvailability','indexability','dealQuality','publicText',
   'cardName','pokemonSpecies','slugify','tcgplayer','ebayLinks','money','offerPresentation',
-  'affiliateSurfaces','dealFilters','navLinks','socialProfiles','trustContent','time','recentCards','ebaySearch','returnContext','analytics/events','analytics/props','referenceCondition','listingImage','dealCategories','cardWorth','cardNextSteps','cardSlug','cardImage','cardLinks']);
+  'affiliateSurfaces','dealFilters','navLinks','socialProfiles','trustContent','time','recentCards','ebaySearch','returnContext','analytics/events','analytics/props','referenceCondition','listingImage','dealCategories','cardWorth','cardNextSteps','cardSlug','cardImage','cardLinks','marketplaceScope']);
 export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis=null,renderComponents=false,currency={viewer:null,rates:null}}={}) {
   const calls=[];
   const components=new Map();

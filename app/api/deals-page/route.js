@@ -10,6 +10,7 @@ import {
   resolveCardSlug,
 } from "@/lib/deals";
 import { DEAL_CATEGORIES, isModernSet } from "@/lib/dealCategories";
+import { marketplaceFilterValue } from "@/lib/marketplaceScope";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,8 @@ export async function GET(request) {
     return Number.isFinite(n) && n > 0 ? n : null;
   };
   const filters = {
-    country: u.searchParams.get("country") || null,
+    // "all" = explicit All marketplaces -> no marketplace filter
+    country: marketplaceFilterValue(u.searchParams.get("country")),
     cardType: u.searchParams.get("type") || null,
     listingType: u.searchParams.get("listing") || null,
     maxPrice: num("maxPrice"),

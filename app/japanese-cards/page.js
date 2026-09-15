@@ -1,3 +1,4 @@
+import { marketplaceFilterValue } from "@/lib/marketplaceScope";
 import SkipToContent from "@/components/SkipToContent";
 import { fetchDealsPool, fetchDealsPage, fetchLastScanTime, fetchHubCounts } from "@/lib/deals";
 import { timeAgo } from "@/lib/time";
@@ -8,6 +9,7 @@ import DealCard from "@/components/DealCard";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbList, collectionPage } from "@/lib/jsonLd";
 import FilterBar from "@/components/FilterBar";
+import { MarketplaceScopeNote } from "@/components/DealFilterChips";
 import Pagination, { pageHref } from "@/components/Pagination";
 
 // Re-check for new deals at most once a minute - same as the homepage.
@@ -48,7 +50,8 @@ function shuffled(array) {
 
 export default async function JapaneseCardsPage({ searchParams }) {
   const params = await searchParams;
-  const country = typeof params.country === "string" ? params.country : null;
+  const countryChoice = typeof params.country === "string" ? params.country : null;
+  const country = marketplaceFilterValue(countryChoice); // "all" -> every marketplace
   const cardType = typeof params.type === "string" ? params.type : null;
   const listingType = typeof params.listing === "string" ? params.listing : null;
   const maxPriceParam = typeof params.maxPrice === "string" ? Number(params.maxPrice) : null;
@@ -139,7 +142,7 @@ export default async function JapaneseCardsPage({ searchParams }) {
           <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
             <FilterBar
               params={params}
-              country={country}
+              country={countryChoice}
               cardType={cardType}
               listingType={listingType}
               maxPrice={maxPrice}
@@ -157,6 +160,8 @@ export default async function JapaneseCardsPage({ searchParams }) {
         </h2>
 
         {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
+
+        {!error && <MarketplaceScopeNote params={params} basePath="/japanese-cards" thin={page === 1 && (deals?.length ?? 0) < 8} />}
 
         {!error && deals?.length === 0 && (
           <p className="text-zinc-500">

@@ -1,4 +1,5 @@
 import { MARKETPLACES } from "@/lib/ebayLinks";
+import { allMarketplacesHref, isAllMarketplaces } from "@/lib/marketplaceScope";
 import FilterToggle from "@/components/FilterToggle";
 import { GRADER_CHOICES, GRADE_CHOICES } from "@/lib/dealFilters";
 
@@ -79,9 +80,10 @@ export function typeFilterHref(currentParams, value, basePath) {
   return qs ? `${basePath}?${qs}` : basePath;
 }
 
-function FilterPill({ href, active, children }) {
+function FilterPill({ href, active, children, ...rest }) {
   return (
     <a
+      {...rest}
       href={href}
       // Filter / sort permutations all canonicalise back to the base URL -
       // no reason for Google to spend a new site's small crawl budget
@@ -121,25 +123,32 @@ function ScrollRow({ children }) {
 // flags for both risked a visitor reading this as "ships to Australia"
 // when it means "listed on ebay.com.au", a US-marketplace listing can
 // still ship to Australia and vice versa.
+// "All marketplaces" is always offered (marketplace-broaden-r1). It keeps
+// every other filter, resets ?page and sets the explicit ?country=all, which
+// a stored or geo-detected region never overrides; the click also saves the
+// choice (data-marketplace-choice, handled by the header RegionControl).
 // allOption: "All deals" (/deals) browses every marketplace by default, so
-// the default state is itself a choice - shown as an active "All
-// marketplaces" pill that clears ?country (and ?page, like every filter).
+// there the default state (no ?country) is itself that choice, shows the
+// pill as active, and the pill links to the clean URL.
 export function CountryFilterRow({ params, country, basePath = "/", allOption = false }) {
+  const allActive = isAllMarketplaces(country) || (allOption && !country);
   return (
     <div>
       <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
         Listing marketplace
       </span>
       <p className="mb-2 text-[11px] text-zinc-400">
-        Which eBay site the listing is on - not where it ships. Shipping destination is the
-        &quot;Shipping to&quot; control above.
+        Which eBay site the listing is on - not where it ships or where the seller is. Check
+        delivery to you on the eBay listing.
       </p>
       <ScrollRow>
-        {allOption && (
-          <FilterPill href={withoutParams(params, ["country"], basePath)} active={!country}>
-            All marketplaces
-          </FilterPill>
-        )}
+        <FilterPill
+          href={allOption ? withoutParams(params, ["country"], basePath) : allMarketplacesHref(params, basePath)}
+          active={allActive}
+          data-marketplace-choice="all"
+        >
+          All marketplaces
+        </FilterPill>
         {Object.entries(MARKETPLACES).map(([id, info]) => (
           <FilterPill key={id} href={filterHref(params, "country", id, basePath)} active={country === id}>
             {info.flag} {info.label}

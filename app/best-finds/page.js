@@ -1,3 +1,4 @@
+import { marketplaceFilterValue } from "@/lib/marketplaceScope";
 import Link from "next/link";
 import { fetchBestFinds, fetchHubCounts, fetchSetSlugs } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
@@ -8,6 +9,7 @@ import DealCard from "@/components/DealCard";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbList, collectionPage, itemList } from "@/lib/jsonLd";
 import { filterHref, PriceFilterRow, CountryFilterRow } from "@/components/FilterBar";
+import { MarketplaceScopeNote } from "@/components/DealFilterChips";
 
 export const revalidate = 300;
 
@@ -58,7 +60,8 @@ export default async function BestFindsPage({ searchParams }) {
   // graded one) - default to raw since it's the far larger, more
   // frequently-updated list.
   const type = params.type === "graded" ? "graded" : "raw";
-  const country = typeof params.country === "string" ? params.country : null;
+  const countryChoice = typeof params.country === "string" ? params.country : null;
+  const country = marketplaceFilterValue(countryChoice); // "all" -> every marketplace
   const maxPriceParam = typeof params.maxPrice === "string" ? Number(params.maxPrice) : null;
   const maxPrice = Number.isFinite(maxPriceParam) && maxPriceParam > 0 ? maxPriceParam : null;
   const minPriceParam = typeof params.minPrice === "string" ? Number(params.minPrice) : null;
@@ -120,7 +123,7 @@ export default async function BestFindsPage({ searchParams }) {
           <TypeToggle params={params} type={type} />
 
           <div className="mt-6 flex flex-col gap-4 border-t border-zinc-200 pt-5 dark:border-zinc-800">
-            <CountryFilterRow params={params} country={country} basePath="/best-finds" />
+            <CountryFilterRow params={params} country={countryChoice} basePath="/best-finds" />
             <PriceFilterRow params={params} maxPrice={maxPrice} minPrice={minPrice} basePath="/best-finds" />
           </div>
         </div>
@@ -130,6 +133,8 @@ export default async function BestFindsPage({ searchParams }) {
         {error && (
           <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error.message}</p>
         )}
+
+        {!error && <MarketplaceScopeNote params={params} basePath="/best-finds" thin={deals.length < 8} />}
 
         {!error && deals.length === 0 && (
           <p className="text-zinc-500">

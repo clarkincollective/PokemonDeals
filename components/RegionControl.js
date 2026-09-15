@@ -6,7 +6,7 @@ import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react"
 // the codes/labels is MARKETPLACES in lib/ebay.js; kept in sync by hand
 // (this list changes about once a year).
 export const REGIONS = [
-  { code: "", label: "All countries", flag: "🌐" },
+  { code: "", label: "All marketplaces", flag: "🌐" },
   { code: "EBAY_US", label: "United States", flag: "🇺🇸" },
   { code: "EBAY_GB", label: "United Kingdom", flag: "🇬🇧" },
   { code: "EBAY_AU", label: "Australia", flag: "🇦🇺" },
@@ -16,9 +16,10 @@ export const REGIONS = [
 ];
 
 // localStorage value:
-//   absent  -> no choice yet (don't force a country anywhere)
-//   ""      -> explicitly chose "All countries" (also don't force)
-//   EBAY_XX -> force this country as the default filter site-wide
+//   absent  -> no choice yet (don't force a marketplace anywhere)
+//   ""      -> explicitly chose "All marketplaces" (also don't force)
+//   EBAY_XX -> force this marketplace as the default filter site-wide
+// The URL form of "All marketplaces" is ?country=all (lib/marketplaceScope).
 export const REGION_KEY = "pdf:region";
 
 const KNOWN_CODES = new Set(REGIONS.map((r) => r.code).filter(Boolean));
@@ -32,16 +33,33 @@ function readStoredRegion() {
   }
 }
 
-// The region the header should reflect: the stored choice if there is one
-// (including "" for an explicit "All countries"), otherwise the country
-// currently applied via ?country= (set by a filter click or the geo-IP
-// default in RegionRedirect), otherwise null ("Shipping to…").
+// The marketplace the header should reflect. An explicit ?country= on the
+// URL wins (a known marketplace, or "all" -> ""), because that is what the
+// page is actually showing; otherwise the stored choice (including "" for
+// All marketplaces); otherwise null (no choice yet).
 function readEffectiveRegion() {
-  const stored = readStoredRegion();
-  if (stored !== null) return stored;
   if (typeof window === "undefined") return null;
   const fromUrl = new URLSearchParams(window.location.search).get("country");
-  return fromUrl && KNOWN_CODES.has(fromUrl) ? fromUrl : null;
+  if (fromUrl && KNOWN_CODES.has(fromUrl)) return fromUrl;
+  if (fromUrl && fromUrl.toLowerCase() === "all") return "";
+  return readStoredRegion();
+}
+
+// An explicit "All marketplaces" link anywhere on the page
+// (data-marketplace-choice="all": the filter pill, the broadening action)
+// saves the choice in the same stored preference the menu uses, so the
+// visitor's later pages keep showing every marketplace until they pick one.
+function rememberMarketplaceChoice(event) {
+  const link = event.target?.closest?.("[data-marketplace-choice]");
+  if (!link) return;
+  const choice = link.getAttribute("data-marketplace-choice");
+  const code = choice === "all" ? "" : KNOWN_CODES.has(choice) ? choice : null;
+  if (code === null) return;
+  try {
+    window.localStorage.setItem(REGION_KEY, code);
+  } catch {
+    /* ignore - the URL still carries the choice */
+  }
 }
 
 function subscribeRegion(onChange) {
@@ -67,6 +85,11 @@ export default function RegionControl() {
   const rootRef = useRef(null);
   const buttonRef = useRef(null);
   const menuId = useId();
+
+  useEffect(() => {
+    document.addEventListener("click", rememberMarketplaceChoice, true);
+    return () => document.removeEventListener("click", rememberMarketplaceChoice, true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -118,8 +141,9 @@ export default function RegionControl() {
 
     const url = new URL(window.location.href);
     url.searchParams.delete("page");
-    if (code) url.searchParams.set("country", code);
-    else url.searchParams.delete("country");
+    // "" is the explicit All marketplaces choice: carried on the URL too, so
+    // it survives even where the stored preference is unavailable.
+    url.searchParams.set("country", code || "all");
     window.location.assign(url.toString());
   }
 
@@ -128,7 +152,7 @@ export default function RegionControl() {
       <button
         type="button"
         ref={buttonRef}
-        aria-label={`Listing country: ${current.label}`}
+        aria-label={`eBay marketplace: ${current.label}`}
         aria-controls={open ? menuId : undefined}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -137,7 +161,7 @@ export default function RegionControl() {
       >
         <span aria-hidden>{current.flag}</span>
         <span className="hidden sm:inline">
-          {region === null ? "Shipping to…" : current.code ? current.label : "All countries"}
+          {region === null ? "eBay marketplace" : current.code ? `eBay ${current.label}` : "All marketplaces"}
         </span>
         <svg
           aria-hidden
@@ -157,11 +181,11 @@ export default function RegionControl() {
         <div
           id={menuId}
           role="menu"
-          aria-label="Listing country"
+          aria-label="eBay marketplace"
           className="absolute right-0 top-full z-40 mt-2 w-52 rounded-lg border border-zinc-200 bg-white p-1.5 shadow-lg dark:border-zinc-800 dark:bg-zinc-950"
         >
           <p className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
-            Show deals shipping from
+            Show listings on
           </p>
           {REGIONS.map((r) => (
             <button

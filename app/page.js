@@ -1,3 +1,4 @@
+import { marketplaceFilterValue } from "@/lib/marketplaceScope";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -24,6 +25,7 @@ import SectionHeader from "@/components/SectionHeader";
 import DealCard from "@/components/DealCard";
 import HomeBrowseLinks from "@/components/HomeBrowseLinks";
 import FilterBar from "@/components/FilterBar";
+import { MarketplaceScopeNote } from "@/components/DealFilterChips";
 import { EmptyStateEscapes } from "@/components/DealFilterChips";
 import Pagination, { pageHref } from "@/components/Pagination";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
@@ -182,7 +184,11 @@ const SEARCH_EXAMPLES = [
 
 export default async function Home({ searchParams }) {
   const params = await searchParams;
-  const country = typeof params.country === "string" ? params.country : null;
+  // marketplace-broaden-r1: `countryChoice` is the URL value the controls
+  // show and carry ("all" = an explicit All marketplaces choice); `country`
+  // is what the loaders filter on (null = every marketplace).
+  const countryChoice = typeof params.country === "string" ? params.country : null;
+  const country = marketplaceFilterValue(countryChoice);
   const cardType = typeof params.type === "string" ? params.type : null;
   const listingType = typeof params.listing === "string" ? params.listing : null;
   const sort = typeof params.sort === "string" ? params.sort : null;
@@ -515,7 +521,7 @@ export default async function Home({ searchParams }) {
         <div className="mt-4" data-analytics-filter-bar="all_deals">
           <FilterBar
             params={params}
-            country={country}
+            country={countryChoice}
             cardType={cardType}
             listingType={listingType}
             maxPrice={maxPrice}
@@ -526,6 +532,7 @@ export default async function Home({ searchParams }) {
         </div>
 
         <section data-analytics-section="all_deals" aria-label={anyFilter ? "Filtered deals" : "More deals"} className="mt-4">
+          <MarketplaceScopeNote params={params} basePath="/" thin={page === 1 && (deals?.length ?? 0) < 8} />
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {deals?.map((deal) => (
               // 13C.5 - `home_all_deals` so an affiliate_click from this grid

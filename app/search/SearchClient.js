@@ -29,6 +29,7 @@ import {
 } from "@/lib/dealFilters";
 import { speciesDealsHref, exactCardHref, setDealsHref, intersectionCopy } from "@/lib/searchNav";
 import { searchStateKey } from "@/lib/searchFacets";
+import { isAllMarketplaces } from "@/lib/marketplaceScope";
 
 // SEO Phase 3 - the Pokemon Card Price Checker front door.
 //
@@ -122,7 +123,8 @@ export default function SearchClient({
   const sp = useMemo(() => new URLSearchParams(rawSearch), [rawSearch]);
 
   const urlQ = (sp.get("q") ?? "").trim();
-  const country = sp.get("country") ?? "";
+  // "all" is the explicit All marketplaces choice - this page's own default
+  const country = isAllMarketplaces(sp.get("country")) ? "" : sp.get("country") ?? "";
   const sort = sp.get("sort") || "discount";
   const urlFilterState = useMemo(
     () => ({
@@ -816,7 +818,7 @@ function SearchFilters({
           <div className="flex flex-wrap items-end gap-4">
             <div>
               <label htmlFor="pc-country" className="block text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                Deal location
+                Listing marketplace
               </label>
               <select
                 id="pc-country"
@@ -824,7 +826,7 @@ function SearchFilters({
                 onChange={(e) => onFacet({ country: e.target.value || null }, { action: e.target.value ? "apply" : "remove" })}
                 className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               >
-                <option value="">Any</option>
+                <option value="">All marketplaces</option>
                 {Object.entries(MARKETPLACES).map(([id, info]) => (
                   <option key={id} value={id}>
                     {info.flag} {info.label}

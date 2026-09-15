@@ -10,6 +10,7 @@ import { capture } from "@/lib/analytics/client";
 import { EVENTS } from "@/lib/analytics/events";
 import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import { currencyForDeal } from "@/lib/money";
+import { isAllMarketplaces } from "@/lib/marketplaceScope";
 import {
   appliedFilterChips,
   relaxationSteps,
@@ -108,7 +109,8 @@ export default function CardDealFilters({
     }),
     [rawSearch] // eslint-disable-line react-hooks/exhaustive-deps
   );
-  const country = sp.get("country") ?? "";
+  // "all" is the explicit All marketplaces choice - this page's own default
+  const country = isAllMarketplaces(sp.get("country")) ? "" : sp.get("country") ?? "";
   const sort = sp.get("sort") || "price_asc";
 
   const dealFiltersActive = hasActiveDealFilters(urlFilterState);
@@ -272,7 +274,7 @@ export default function CardDealFilters({
             <div className="flex flex-wrap items-end gap-4">
               <div>
                 <label htmlFor="cd-country" className="block text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
-                  Deal location
+                  Listing marketplace
                 </label>
                 <select
                   id="cd-country"
@@ -280,7 +282,7 @@ export default function CardDealFilters({
                   onChange={(e) => applyFacets({ country: e.target.value || null }, { action: e.target.value ? "apply" : "remove" })}
                   className="mt-1 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                 >
-                  <option value="">Any</option>
+                  <option value="">All marketplaces</option>
                   {Object.entries(MARKETPLACES).map(([id, info]) => (
                     <option key={id} value={id}>
                       {info.flag} {info.label}
