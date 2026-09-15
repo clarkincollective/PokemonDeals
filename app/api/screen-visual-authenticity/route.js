@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { catalogImageUrl } from "@/lib/cardImage";
 import { isVisualScreeningCandidate, screenDeal } from "@/lib/visualAuthenticity";
-import { COPY_HOLD_REASON, COUNTERFEIT_VISUAL_VERDICTS } from "@/lib/listingAvailability";
+import { COPY_HOLD_REASON, COUNTERFEIT_VISUAL_VERDICTS, authenticityVerdictHold } from "@/lib/listingAvailability";
 
 // OUT-OF-BAND visual counterfeit screening worker (Phase: bounded visual
 // screening). Runs on its own cron - NEVER on the Browse scan path. Each
@@ -122,6 +122,15 @@ export async function GET(request) {
       })
       .eq("id", row.id);
     if (error) results.errors++;
+    // integrity-copy-hold-2: a counterfeit verdict is persisted as the row's
+    // own hold (guarded: a reason written meanwhile is kept), so every reader
+    // withholds it, not only those that load the verdict column
+    const own = authenticityVerdictHold(verdict, row);
+    if (!error && own) {
+      const h = await db.from("deals").update(own).eq("id", row.id).is("disqualified_reason", null).select("id");
+      if (h.error) results.errors++;
+      else detail.at(-1).held = (h.data ?? []).length === 1;
+    }
     // integrity-copy-hold: a counterfeit verdict also holds this eBay item's
     // copies on other marketplaces that carry no reason yet (a review hold,
     // not a verdict about them; never released automatically)

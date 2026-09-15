@@ -116,7 +116,7 @@ test("IDB-6. DEAL_POOL_SELECT is a superset of the stored fields and the display
   const sel = new Set(DEAL_POOL_SELECT.split(",").map((s) => s.trim()));
   for (const f of POOL_ROW_FIELDS) assert.ok(sel.has(f), `select missing stored field ${f}`);
   // isDisplayableDeal / isExactEbayDealDestination / conditionLabel inputs
-  for (const f of ["is_active", "disqualified_reason", "listing_url", "listing_id", "affiliate_url", "condition", "title", "market_price", "discount_pct", "card_name", "card_set", "card_language", "is_graded", "grade", "grader", "returns_accepted", "image_count", "seller_feedback_score", "listing_type"]) {
+  for (const f of ["is_active", "disqualified_reason", "listing_url", "listing_id", "affiliate_url", "condition", "title", "market_price", "discount_pct", "card_name", "card_set", "card_language", "is_graded", "grade", "grader", "returns_accepted", "image_count", "seller_feedback_score", "listing_type", "visual_authenticity_status"]) {
     assert.ok(sel.has(f), `select missing display-gate input ${f}`);
   }
   // it must NOT re-introduce the heavy columns

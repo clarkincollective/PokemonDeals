@@ -92,6 +92,58 @@ test("ICH-3 an existing held row stays held when re-sighted; an unreadable copy 
   assert.equal(gbRow(d, US_4220.listing_id).disqualified_reason, "review:copy_check_failed");
 });
 
+test("ICH-5 row 38096: the verdict was persisted but the hold was not - the gate hid it only where the verdict column was loaded; the screener now holds the row itself, and re-sightings keep the hold", async () => {
+  const dq = require(join(ROOT, "lib/dealQuality.js"));
+  const now = Date.now();
+  // the stored EBAY_US row as it was from the 14 Sep 09:40 UTC verdict until containment
+  const stored = {
+    id: 38096, watchlist_id: 13372, source: "ebay", marketplace: "EBAY_US", listing_id: "v1|267754207264|0",
+    title: "Pikachu & Zekrom GX (Full Art) 162/181 Sm-Team Up Holo",
+    listing_url: "https://www.ebay.com/itm/267754207264?_skw=x&hash=item3e5764f820:g:vcwAAeSw3T9qe4aE",
+    affiliate_url: "https://www.ebay.com/itm/267754207264?_skw=x&hash=item3e5764f820%3Ag%3AvcwAAeSw3T9qe4aE&mkevt=1&mkcid=1&mkrid=711-53200-19255-0&campid=5339197414&customid=&toolid=10049",
+    image_url: "https://i.ebayimg.com/images/g/vcwAAeSw3T9qe4aE/s-l1600.jpg", listing_type: "FIXED_PRICE", condition: "Near Mint",
+    price: 84.99, shipping: 10, total_price: 94.99, total_price_usd: 94.99, market_price: 170.8, discount_pct: 0.4438, currency: "USD",
+    seller_username: "handiman38", seller_feedback_pct: 100, seller_feedback_score: 4929, image_count: 1, returns_accepted: false,
+    card_name: "Pikachu & Zekrom GX (Full Art)", card_set: "SM - Team Up", card_language: "english", card_tcgplayer_id: "183805",
+    is_active: true, is_graded: false, disqualified_reason: null, first_seen_at: new Date(now - 30 * 3.6e6).toISOString(), last_seen_at: new Date(now - 2 * 3.6e6).toISOString(), exact_verified_at: new Date(now - 2 * 3.6e6).toISOString(),
+    visual_authenticity_status: "COUNTERFEIT_MISMATCH", visual_authenticity_reason: "vision:Entire card is a metallic gold-plated novelty item | stage1 stage1_inconclusive ratio=0.37",
+    visual_authenticity_checked_at: "2026-09-14T09:40:45.408Z",
+  };
+  // SYNTHETIC control: the same shape screened MATCH (its own eBay item)
+  const genuine = { ...stored, id: 2, listing_id: "v1|900000000002|0", listing_url: "https://www.ebay.com/itm/900000000002?_skw=x", affiliate_url: "https://www.ebay.com/itm/900000000002?_skw=x&mkevt=1&mkcid=1&mkrid=711-53200-19255-0&campid=5339197414&customid=&toolid=10049", visual_authenticity_status: "MATCH", visual_authenticity_reason: "stage1 match" };
+  assert.equal(dq.isDisplayableDeal(genuine), true, "control is displayable (the fixture shape passes every other gate)");
+  // 1. readers that load the verdict column withheld it (pool, inventory, detail, offers select the column)
+  assert.equal(dq.isDisplayableDeal(stored), false);
+  assert.equal(dq.disqualificationReason(stored), "authenticity:proxy_or_counterfeit");
+  // 2. the defect: with only the row's persisted hold to go on, nothing withheld it -
+  //    and the homepage deal pool selected exactly that column subset
+  const { visual_authenticity_status, visual_authenticity_reason, ...withoutVerdictColumn } = stored;
+  assert.equal(dq.isDisplayableDeal(withoutVerdictColumn), true, "no persisted hold: a column-limited reader counted it live");
+  const { DEAL_POOL_SELECT } = await import(pathToFileURL(join(ROOT, "lib/dealPoolShape.mjs")).href);
+  const poolRow = Object.fromEntries(DEAL_POOL_SELECT.split(", ").map((c) => [c, stored[c] ?? null]));
+  assert.equal(dq.isDisplayableDeal(poolRow), false, "the pool select now carries the verdict to the gate");
+  for (const c of ["visual_authenticity_status", "disqualified_reason"]) assert.ok(DEAL_POOL_SELECT.includes(c), c);
+  // 3. the fix: the verdict persists the gate's own reason on the row; stronger reasons are kept; nothing else holds
+  assert.deepEqual(la.authenticityVerdictHold({ status: "COUNTERFEIT_MISMATCH" }, stored), { disqualified_reason: "authenticity:proxy_or_counterfeit" });
+  assert.deepEqual(la.authenticityVerdictHold({ status: "MISMATCH" }, stored), { disqualified_reason: "authenticity:proxy_or_counterfeit" });
+  assert.equal(la.authenticityVerdictHold({ status: "COUNTERFEIT_MISMATCH" }, { ...stored, disqualified_reason: "review:owner_reported_counterfeit" }), null);
+  for (const status of ["MATCH", "UNKNOWN", "IDENTITY_MISMATCH"]) assert.equal(la.authenticityVerdictHold({ status }, stored), null, status);
+  const held = { ...withoutVerdictColumn, ...la.authenticityVerdictHold({ status: "COUNTERFEIT_MISMATCH" }, stored) };
+  assert.equal(dq.isDisplayableDeal(held), false, "held even where the verdict column is not loaded");
+  // 4. a normal re-sighting (dealRow shape: no reason column) updates the row but keeps the hold
+  const d = db([held]);
+  const w = await la.writeDiscoverySighting(d, gbSighting(held, { marketplace: "EBAY_US", price: 79.99, is_active: true, last_seen_at: new Date(now).toISOString() }));
+  assert.equal(w.outcome, "updated");
+  const after = d.tables.deals.find((r) => r.id === 38096);
+  assert.deepEqual([after.price, after.disqualified_reason], [79.99, "authenticity:proxy_or_counterfeit"]);
+  assert.equal(dq.isDisplayableDeal({ ...after, ...withoutVerdictColumn, disqualified_reason: after.disqualified_reason }), false);
+  assert.ok(!la.isAvailabilityRetired(after), "not an availability retirement: verify-deals recovery never lifts it");
+  // 5. the screener applies it, guarded, to the original row
+  const screener = read("app/api/screen-visual-authenticity/route.js");
+  assert.match(screener, /const own = authenticityVerdictHold\(verdict, row\);/);
+  assert.match(screener, /db\.from\("deals"\)\.update\(own\)\.eq\("id", row\.id\)\.is\("disqualified_reason", null\)/);
+});
+
 test("ICH-4 every deals discovery path uses the guarded writer; the screener holds existing copies on a counterfeit verdict", () => {
   const route = read("app/api/refresh-deals/route.js");
   assert.match(route, /: await writeDiscoverySighting\(db, core\);/, "allocated / per-card scans");
