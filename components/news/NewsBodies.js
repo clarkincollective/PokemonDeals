@@ -350,7 +350,137 @@ function RgbMew() {
   );
 }
 
+// Delta Reign: three tiers of fact, kept apart on the page - what The
+// Pokemon Company has said about the English set; what is already printed
+// and on sale in Japan (a real product, but a different one); and what
+// circulated as a leak before Japan's release. No Delta Reign card exists
+// in our catalogue yet, so the gallery shows the Rayquaza cards we DO hold
+// and says so. No English card numbers, rarities or pull rates are
+// asserted - the English list is not published.
+function DeltaReign() {
+  return (
+    <>
+      <p className={P}>
+        The next English expansion after <em>30th Celebration</em> is <em>Mega Evolution&mdash;Delta Reign</em>,
+        released on 6 November 2026 and led by Mega Rayquaza ex. Unusually, a great deal about it is already known
+        in detail, and the reason is simple: the Japanese set it draws from has been on sale since July. What follows
+        separates three things people are running together &mdash; what is official for the English set, what is
+        already printed in Japan, and what circulated as a leak in July.
+      </p>
+
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.rayquazaAscendedHeroes, caption: "Rayquaza, Ascended Heroes — in our catalogue now" },
+          { card: GUIDE_CARDS.c30ClassicRayquazaEx, caption: "Rayquaza EX, Classic Collection reprint — in our catalogue now" },
+        ]}
+        width={168}
+        priorityCount={2}
+        note="These are the Rayquaza cards we hold today, not Delta Reign cards. No Delta Reign card is in our catalogue yet; the set's cards will appear here once it is listed and priced."
+      />
+
+      <h2 className={H2}>What is official for the English set</h2>
+      <ul className={UL}>
+        <li>
+          <strong>Release: 6 November 2026.</strong> Stated on the official expansion page and announcement.
+        </li>
+        <li>
+          <strong>Size: &quot;over 135 cards&quot;</strong>, with &quot;more than 20 Trainer cards&quot; and
+          &quot;more than 35 Pokemon and Trainer cards with special illustrations&quot; &mdash; the official
+          wording, and deliberately approximate. No exact English count or numbering has been published.
+        </li>
+        <li>
+          <strong>Named cards:</strong> Mega Rayquaza ex, Mega Golurk ex, Mega Malamar ex and Mega Golisopod ex.
+          Those four are the only cards the official English pages name.
+        </li>
+        <li>
+          <strong>Series and format:</strong> Mega Evolution Series; Standard-legal.
+        </li>
+      </ul>
+      <p className={P}>
+        A new mechanic, the <strong>Legendary Stadium</strong>, is widely reported: two Stadium cards played as a
+        pair, forming one extended artwork when placed side by side. Reporting from PokeBeach and PokemonCard.io
+        names three pairs in the Japanese set. We are treating the mechanic&apos;s English details as reported rather
+        than official until the English pages describe it.
+      </p>
+
+      <h2 className={H2}>What is already out in Japan</h2>
+      <p className={P}>
+        The Japanese source set is <em>M6: Storm Emeralda</em>, released in Japan on 31 July 2026. Per PokeBeach and
+        PokemonCard.io it has 76 cards in its main set and 113 in total once the secret rares above the printed
+        total are counted, and it introduced Mega Rayquaza ex, the three other Mega Pokemon ex named above, and the
+        Legendary Stadium pairs. Those cards are real, printed, and on sale &mdash; in Japanese.
+      </p>
+      <p className={P}>
+        That last word matters for anyone shopping now. A Japanese Storm Emeralda card is a different product from
+        the English Delta Reign card that will follow it: different language, different set, different numbering,
+        and a different market reference on this site. Buying one is a perfectly good way to own the artwork early.
+        It is not a way to own the English card, and a listing that blurs the two should be read carefully. Our{" "}
+        <Link href="/guides/how-to-find-pokemon-card-set-and-number" className={A}>
+          set-and-number guide
+        </Link>{" "}
+        covers where the language and set are printed.
+      </p>
+
+      <h2 className={H2}>The July &quot;leak&quot;, and why it no longer is one</h2>
+      <p className={P}>
+        On 28 July 2026, three days before the Japanese release, photographs of 14 cards said to be from Storm
+        Emeralda circulated online: special illustration rares of Mega Rayquaza ex, Mega Golurk ex, Mega Golisopod
+        ex, Raikou ex and a Supporter, a gold Mega Rayquaza ex, and eight illustration rares. PokePursuit reported
+        them at the time with the caveat that none had been officially revealed and all should be treated as
+        unconfirmed.
+      </p>
+      <p className={P}>
+        That caveat has since expired in the most ordinary way: the Japanese set released and the cards are in it.
+        What was a leak in July is now simply a Japanese card you can buy. It is worth being clear about this because
+        &quot;leaked Delta Reign card&quot; still appears in listing titles as though it meant something secret.
+      </p>
+      <p className={P}>
+        What remains genuinely unknown is the English side: which of the 113 Japanese cards carry over, at what
+        English collector numbers, and at which English rarities. English sets in this series have not been
+        one-to-one copies of their Japanese sources, so a Japanese number is not a prediction of an English one.
+        We will not guess at any of it.
+      </p>
+
+      <h2 className={H2}>What we would tell a buyer today</h2>
+      <ul className={UL}>
+        <li>
+          <strong>Japanese now, English in November</strong> &mdash; two different cards. Decide which you want
+          before you decide what to pay.
+        </li>
+        <li>
+          <strong>No English pull rates, counts or prices exist yet.</strong> Any figure attached to Delta Reign
+          singles today is either a Japanese figure or an invention.
+        </li>
+        <li>
+          <strong>Sealed English product does not exist yet either.</strong> A &quot;Delta Reign&quot; box listed
+          today is a preorder. Our listings for an unreleased set are held until eBay confirms each one is active
+          &mdash; the same rule that applied to 30th Celebration before its release day.
+        </li>
+        <li>
+          <strong>Prerelease events</strong> are reported by PokeBeach for the week before release; a prerelease
+          card is a stamped set card with the set&apos;s own number, as our{" "}
+          <Link href="/guides/pokemon-promo-card-numbers" className={A}>
+            promo-numbers guide
+          </Link>{" "}
+          explains.
+        </li>
+      </ul>
+
+      <h2 className={H2}>We will update this</h2>
+      <p className={P}>
+        When the English card list is published, when the set enters our catalogue, and on release day, this
+        article will be updated and will say what changed. The{" "}
+        <Link href="/latest-releases" className={A}>
+          latest releases
+        </Link>{" "}
+        page carries the official date alongside the other current expansions.
+      </p>
+    </>
+  );
+}
+
 export const NEWS_BODIES = {
+  "mega-evolution-delta-reign-what-is-known": DeltaReign,
   "pokemon-tcg-30th-celebration-out-now": ThirtiethOutNow,
   "rgb-mew-30th-celebration-unconfirmed": RgbMew,
 };

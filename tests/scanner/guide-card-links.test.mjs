@@ -39,6 +39,7 @@ const VERIFIED = {
   promoPikachu227SP: ["257103", "Pikachu - 227/S-P", "SWSH: Sword & Shield Promo Cards", "227/S-P", "/cards/pikachu-227-s-p-swsh-sword-shield-promo-cards"],
   promoPikachuMe093: ["712963", "Pikachu - 093", "ME: Mega Evolution Promo", "093", "/cards/pikachu-093-me-mega-evolution-promo"],
   promoMewWotc08: ["87394", "Mew (8)", "WoTC Promo", "08/53", "/cards/mew-8-wotc-promo"],
+  rayquazaAscendedHeroes: ["675965", "Rayquaza", "ME: Ascended Heroes", "153/217", "/cards/rayquaza-me-ascended-heroes"],
   arcanineBaseSet2: ["42472", "Arcanine", "Base Set 2", "033/130", "/cards/arcanine-base-set-2"],
   umbreonVmax: ["246720", "Umbreon VMAX", "SWSH07: Evolving Skies", "095/203", "/cards/umbreon-vmax-swsh07-evolving-skies"],
   umbreonVmaxSecret: ["246722", "Umbreon VMAX (Secret)", "SWSH07: Evolving Skies", "214/203", "/cards/umbreon-vmax-secret-swsh07-evolving-skies"],

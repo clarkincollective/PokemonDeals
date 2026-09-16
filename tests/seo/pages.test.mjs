@@ -53,6 +53,7 @@ const STATIC_PATHS = [
   "/news",
   "/news/pokemon-tcg-30th-celebration-out-now",
   "/news/rgb-mew-30th-celebration-unconfirmed",
+  "/news/mega-evolution-delta-reign-what-is-known",
 ];
 
 // Dynamic types to sample from the sitemap.
