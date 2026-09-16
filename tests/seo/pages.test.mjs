@@ -38,6 +38,11 @@ const STATIC_PATHS = [
   "/guides/pokemon-card-grading-scale",
   "/guides/how-to-check-pokemon-card-condition",
   "/guides/pokemon-30th-celebration-guide",
+  "/guides/pokemon-30th-celebration-pikachu-checklist",
+  "/guides/best-pokemon-30th-celebration-pikachu-cards",
+  "/guides/pokemon-30th-celebration-classic-collection",
+  "/news",
+  "/news/pokemon-tcg-30th-celebration-out-now",
 ];
 
 // Dynamic types to sample from the sitemap.

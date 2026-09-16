@@ -467,6 +467,33 @@ export default function Page() {
         </li>
       </GUL>
 
+      <GH2>More on 30th Celebration</GH2>
+      <GP>
+        This guide is the overview. These go deeper on one question each:
+      </GP>
+      <GUL>
+        <li>
+          <Link href="/guides/pokemon-30th-celebration-pikachu-checklist" className={GUIDE_LINK_CLASS}>
+            All thirty Pikachu cards: a visual checklist
+          </Link>{" "}
+          &mdash; every Pikachu rare from 023/128 to 052/128 in printed order, and which Pikachu cards do not count
+          towards the run.
+        </li>
+        <li>
+          <Link href="/guides/best-pokemon-30th-celebration-pikachu-cards" className={GUIDE_LINK_CLASS}>
+            The best Pikachu artwork in the set
+          </Link>{" "}
+          &mdash; our editorial picks from the thirty, with the criteria we used.
+        </li>
+        <li>
+          <Link href="/guides/pokemon-30th-celebration-classic-collection" className={GUIDE_LINK_CLASS}>
+            Classic Collection: reprint or original?
+          </Link>{" "}
+          &mdash; how to tell a 2026 anniversary reprint from the original card it copies, and the thirty reprints we
+          track.
+        </li>
+      </GUL>
+
       <GH2>Sources and what is still unconfirmed</GH2>
       <GUL>
         {Object.values(SOURCES).map((s) => (
