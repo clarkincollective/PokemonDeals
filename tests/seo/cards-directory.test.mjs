@@ -299,9 +299,15 @@ test("21. no new card-value URL universe was created", async () => {
 
 test("22. card-detail sitemap parity is unchanged (bare /cards not counted as a card entity)", () => {
   const detail = (cardsSitemap.match(/<loc>[^<]*\/cards\/[^<]+<\/loc>/g) ?? []).length;
-  // the segment is still ~23k real card slugs; adding the directory did
-  // not inflate or deflate it
-  assert.ok(detail >= 20000 && detail <= 30000, `card-detail sitemap count ${detail} outside expected band`);
+  // Every entry is a real card slug and the directory itself is not one of
+  // them. The COUNT is now set by the SEO-1.1 substance gate (a card URL is
+  // advertised only with a live deal, a proven lastmod, or a guide link), so
+  // it is pinned against the shard's own declared figure rather than the
+  // pre-gate ~23k band - adding the directory must still not move it.
+  const gate = cardsSitemap.match(/substance-gate on \((\d+)\/(\d+) advertised, \d+ unchanged cards not listed\)/);
+  if (gate) assert.equal(detail, Number(gate[1]), `card-detail count ${detail} != the ${gate[1]} advertised`);
+  else assert.ok(detail >= 20000 && detail <= 30000, `card-detail sitemap count ${detail} outside expected band`);
+  assert.ok(detail > 1000, `only ${detail} card URLs advertised - the sitemap has collapsed`);
   const src = readFileSync(join(REPO, "lib", "sitemap.js"), "utf8");
   const cardsCase = src.slice(src.indexOf("if (isCardSitemapSegment(segment))"), src.indexOf('case "deals"'));
   assert.ok(!/\/cards["'`]\s*,/.test(cardsCase.replace(/\/cards\/\$\{/g, "")), "bare /cards added to the cards sitemap case");

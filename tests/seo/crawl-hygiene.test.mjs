@@ -82,6 +82,19 @@ test("3. per-URL <lastmod> only appears where a truthful source exists (deals / 
       for (const v of lm) assert.match(v, /^\d{4}-\d{2}-\d{2}$/, `${seg} lastmod is not a W3C date: ${v}`);
       for (const v of lm) assert.ok(v <= today, `${seg} future lastmod ${v}`);
       if (lm.length > 100) assert.ok(new Set(lm).size > 1, `${seg} every lastmod is the same value - looks stamped, not observed`);
+    } else if (seg === "pages") {
+      // Dated news items carry their OWN published / updated date from
+      // lib/news (`lastmod: n.updated ?? n.published`) - a real editorial
+      // fact, and the one truthful lastmod source outside deals and cards.
+      // Every other page in this child stays undated.
+      for (const block of body.match(/<url>[\s\S]*?<\/url>/g) ?? []) {
+        const loc = (block.match(/<loc>([^<]+)<\/loc>/) ?? [])[1] ?? "";
+        const lastmod = (block.match(/<lastmod>([^<]+)<\/lastmod>/) ?? [])[1] ?? null;
+        if (lastmod === null) continue;
+        assert.match(loc, /\/news\/[a-z0-9-]+$/, `${seg}: ${loc} has no trustworthy lastmod source (should omit)`);
+        assert.match(lastmod, /^\d{4}-\d{2}-\d{2}$/, `${seg}: ${loc} lastmod is not a W3C date: ${lastmod}`);
+        assert.ok(lastmod <= today, `${seg}: ${loc} future lastmod ${lastmod}`);
+      }
     } else {
       assert.equal(lm.length, 0, `${seg} emits <lastmod> but has no trustworthy source (should omit)`);
     }

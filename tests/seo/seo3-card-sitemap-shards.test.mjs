@@ -40,7 +40,8 @@ test("2. the retired /sitemaps/cards.xml is no longer served (404), each shard i
     assert.match(r.contentType, /xml/i, `${s} content-type ${r.contentType}`);
     // an optional single snapshot-identity comment may sit between the XML
     // declaration and the urlset (SEO-3.1)
-    assert.match(r.body, /^<\?xml version="1\.0" encoding="UTF-8"\?>\s*(<!-- card-sitemap snapshot [0-9a-f]{16} lastmod-source (rpc|unavailable) -->\s*)?<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9">/);
+    // SEO-1.1 added the substance gate, and its own counts, to this comment
+    assert.match(r.body, /^<\?xml version="1\.0" encoding="UTF-8"\?>\s*(<!-- card-sitemap snapshot [0-9a-f]{16} lastmod-source (rpc|unavailable)( substance-gate (on \(\d+\/\d+ advertised, \d+ unchanged cards not listed\)|off \(lastmod unavailable\)))? -->\s*)?<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9">/);
     assert.match(r.body, /<\/urlset>\s*$/);
     assert.ok(!/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;)/.test(r.body), `${s} has a raw ampersand`);
   }
@@ -60,7 +61,23 @@ test("3. every card URL is in exactly one shard; the union is the eligible-card 
   }
   const set = new Set(all);
   assert.equal(set.size, all.length, `duplicate card URLs across shards: ${all.length - set.size}`);
-  assert.ok(all.length >= 20000 && all.length <= 30000, `card union ${all.length} outside the expected ~23k band`);
+  // SEO-1.1 substance gate: a card URL is advertised only when it is a
+  // live-deal hub, carries a proven lastmod, or is linked from a guide, so
+  // the union is no longer the whole eligible set. Pinned against the
+  // shard's OWN declared counts rather than a hard-coded band, so the gate
+  // can neither silently collapse the sitemap nor quietly stop applying.
+  const gate = bodies["cards-high"].body.match(/substance-gate on \((\d+)\/(\d+) advertised, (\d+) unchanged cards not listed\)/);
+  if (gate) {
+    const [advertised, eligible, dropped] = gate.slice(1).map(Number);
+    assert.equal(all.length, advertised, `shards hold ${all.length} URLs but declare ${advertised} advertised`);
+    assert.equal(advertised + dropped, eligible, `the gate's own arithmetic does not close: ${advertised} + ${dropped} != ${eligible}`);
+    assert.ok(eligible >= 20000 && eligible <= 30000, `eligible card set ${eligible} outside the expected ~23k band`);
+    assert.ok(advertised > 1000, `only ${advertised} card URLs advertised - the gate has collapsed the sitemap`);
+    assert.ok(advertised < eligible, "the gate is declared on but drops nothing");
+  } else {
+    // gate off (lastmod source unavailable): the whole eligible set is advertised
+    assert.ok(all.length >= 20000 && all.length <= 30000, `card union ${all.length} outside the expected ~23k band`);
+  }
   // the high shard is the smallest cohort, bulk the largest (value distribution)
   assert.ok(locs(bodies["cards-high"].body).length < locs(bodies["cards-bulk"].body).length);
 });
@@ -97,7 +114,7 @@ test("5. sampled shard URLs are 200, self-canonical, indexable and unchanged car
 test("7. all four card shards carry the SAME snapshot id (one dataset generation) and the short card edge-cache policy", async () => {
   const ids = new Set();
   for (const s of SHARDS) {
-    const m = bodies[s].body.match(/<!-- card-sitemap snapshot ([0-9a-f]{16}) lastmod-source (rpc|unavailable) -->/);
+    const m = bodies[s].body.match(/<!-- card-sitemap snapshot ([0-9a-f]{16}) lastmod-source (rpc|unavailable)(?: substance-gate [^>]*?)? -->/);
     assert.ok(m, `${s}: no snapshot identity comment`);
     ids.add(m[1]);
     const res = await fetch(`${BASE}/sitemaps/${s}.xml`, { method: "HEAD" }).catch(() => null);
@@ -117,11 +134,25 @@ test("7. all four card shards carry the SAME snapshot id (one dataset generation
 });
 
 test("6. non-card children are unchanged in shape (no lastmod on stable segments, real lastmod on deals)", async () => {
-  for (const s of ["pages", "sets", "pokemon"]) {
+  for (const s of ["sets", "pokemon"]) {
     const r = await get(`/sitemaps/${s}.xml`);
     assert.equal(r.status, 200);
     assert.ok(!/<lastmod>/.test(r.body), `${s} gained a lastmod`);
     assert.ok(locs(r.body).length > 0);
+  }
+  // `pages` carries a lastmod on dated NEWS items only - their own published
+  // / updated date from lib/news, never a clock. Every other page in that
+  // child is undated and must stay that way.
+  const pages = await get("/sitemaps/pages.xml");
+  assert.equal(pages.status, 200);
+  assert.ok(locs(pages.body).length > 0);
+  for (const block of pages.body.match(/<url>[\s\S]*?<\/url>/g) ?? []) {
+    const loc = (block.match(/<loc>([^<]+)<\/loc>/) ?? [])[1] ?? "";
+    const lm = (block.match(/<lastmod>([^<]+)<\/lastmod>/) ?? [])[1] ?? null;
+    if (lm === null) continue;
+    assert.match(loc, /\/news\/[a-z0-9-]+$/, `only dated news may carry a lastmod, not ${loc}`);
+    assert.match(lm, /^\d{4}-\d{2}-\d{2}$/, `${loc}: lastmod is not a W3C date: ${lm}`);
+    assert.ok(lm <= today, `${loc}: future lastmod ${lm}`);
   }
   const d = await get("/sitemaps/deals.xml");
   assert.equal(d.status, 200);

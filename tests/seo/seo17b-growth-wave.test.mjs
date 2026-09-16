@@ -161,7 +161,9 @@ test("sitemaps: lastmod is sparse, dated, never future, and not clustered on one
     }
   }
   const withLastmod = [...days.values()].reduce((a, b) => a + b, 0);
-  assert.ok(urls > 20000, `card shards hold ${urls} URLs`);
+  // SEO-1.1 substance gate: the shards advertise the cards worth recrawling,
+  // not the whole catalogue. Still a substantial set - a collapse is a bug.
+  assert.ok(urls > 1000, `card shards hold only ${urls} URLs - the sitemap has collapsed`);
   if (withLastmod === 0) return; // lastmod source unavailable: absent, never faked
   assert.ok(withLastmod / urls < 0.6, `${withLastmod}/${urls} cards carry lastmod - the material-change rule should leave most without one`);
   const top = Math.max(...days.values());
