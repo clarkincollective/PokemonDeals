@@ -26,7 +26,12 @@ const {
   FORBIDDEN_FIELDS,
   utcDay,
 } = require("../../lib/listingObservations.js");
-const { isMissingObservationTableError } = require("../../lib/listingObservationsDb.js");
+const { newObservationTally, countObservation } = require("../../lib/listingObservations.js");
+const {
+  isMissingObservationTableError,
+  isDailyDuplicateError,
+  DAILY_UNIQUE_CONSTRAINT,
+} = require("../../lib/listingObservationsDb.js");
 
 const core = (over = {}) => ({
   source: "ebay",
@@ -159,7 +164,7 @@ function fakeDb(behaviour) {
   return {
     from() {
       return {
-        upsert() {
+        insert() {
           return { select: async () => behaviour };
         },
       };
@@ -167,21 +172,73 @@ function fakeDb(behaviour) {
   };
 }
 
-test("11. a first observation is written; a same-day repeat is suppressed", async () => {
+test("11. a first observation is written", async () => {
   const written = await recordObservation(fakeDb({ data: [{ id: 1 }], error: null }), core(), { now: AT });
   assert.equal(written.outcome, "written");
-  // the partial unique index makes Postgres drop the repeat; ignoreDuplicates
-  // returns no row rather than an error
-  const dup = await recordObservation(fakeDb({ data: [], error: null }), core(), { now: AT });
-  assert.equal(dup.outcome, "duplicate");
+  assert.equal(written.error, null);
 });
 
-test("12. deduplication is enforced by the DATABASE, not by a pre-read", () => {
-  // a read-then-write would double the query cost on every re-sighting
+test("11b. SEO-2.5.1 - a same-day repeat is the 23505 duplicate, not an error", async () => {
+  // THE REGRESSION THIS REPAIRS. The writer used .upsert(..., { onConflict }),
+  // but the daily index is PARTIAL (WHERE kind = 'daily') and PostgreSQL
+  // cannot infer a partial index as an ON CONFLICT target without repeating
+  // its predicate, which PostgREST cannot express. Every write failed 42P10
+  // and production recorded nothing for its first 25 minutes.
+  const dup = await recordObservation(
+    fakeDb({ data: null, error: { code: "23505", message: `duplicate key value violates unique constraint "${DAILY_UNIQUE_CONSTRAINT}"` } }),
+    core(),
+    { now: AT }
+  );
+  assert.equal(dup.outcome, "duplicate");
+  assert.equal(dup.error, null, "a routine same-day re-sighting is not an error");
+});
+
+test("11c. a 23505 from a DIFFERENT constraint stays an error", async () => {
+  // matched on the constraint NAME, not just the code, so an unrelated
+  // uniqueness failure is never silently counted as a routine duplicate
+  const other = await recordObservation(
+    fakeDb({ data: null, error: { code: "23505", message: 'duplicate key value violates unique constraint "some_other_uniq"' } }),
+    core(),
+    { now: AT }
+  );
+  assert.equal(other.outcome, "error");
+  assert.ok(other.error);
+  assert.equal(isDailyDuplicateError({ code: "23505", message: `violates "${DAILY_UNIQUE_CONSTRAINT}"` }), true);
+  assert.equal(isDailyDuplicateError({ code: "23505", message: 'violates "deals_unique_listing"' }), false);
+  assert.equal(isDailyDuplicateError({ code: "42P10", message: DAILY_UNIQUE_CONSTRAINT }), false);
+});
+
+test("11d. the next UTC day is a new observation, not a duplicate", () => {
+  const d1 = buildObservation(core(), { now: Date.parse("2026-09-16T23:59:59Z") });
+  const d2 = buildObservation(core(), { now: Date.parse("2026-09-17T00:00:01Z") });
+  assert.equal(d1.observation_date, "2026-09-16");
+  assert.equal(d2.observation_date, "2026-09-17");
+});
+
+test("11e. the health tally distinguishes written / duplicate / absent / error", () => {
+  // the defect was invisible because the scan reported success while every
+  // observation write failed; this is what makes that visible
+  const t = newObservationTally();
+  countObservation(t, { outcome: "written" });
+  countObservation(t, { outcome: "duplicate" });
+  countObservation(t, { outcome: "absent" });
+  countObservation(t, { outcome: "error", error: { code: "42P10" } });
+  assert.deepEqual(
+    { written: t.written, duplicate: t.duplicate, absent: t.absent, error: t.error },
+    { written: 1, duplicate: 1, absent: 1, error: 1 }
+  );
+  assert.equal(t.firstError, "42P10", "the first error code is retained for diagnosis");
+});
+
+test("12. deduplication is the DATABASE's job - plain insert, no pre-read, no upsert", () => {
   const src = read("lib/listingObservations.js");
-  assert.match(src, /ignoreDuplicates: true/);
-  assert.match(src, /onConflict: "source,marketplace,listing_id,observation_date"/);
-  assert.doesNotMatch(src, /\.select\("id"\)\s*\n\s*\.eq\(/, "no pre-read before the insert");
+  // strip // comments: the file DESCRIBES the upsert that failed, so only
+  // executable code is checked here
+  const code = src.replace(/^\s*\/\/.*$/gm, "");
+  assert.match(code, /\.from\("listing_observations"\)\.insert\(row\)/, "plain insert");
+  assert.doesNotMatch(code, /onConflict/, "a partial index cannot be an ON CONFLICT target");
+  assert.doesNotMatch(code, /ignoreDuplicates/);
+  assert.doesNotMatch(code, /\.select\("id"\)\s*\n\s*\.eq\(/, "no pre-read before the insert");
   const sql = read("supabase/listing_observations_migration.sql");
   assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS listing_observations_daily_uniq/);
   assert.match(sql, /WHERE kind = 'daily'/, "partial, so transition rows are still allowed");
@@ -257,6 +314,59 @@ test("17. the migration is additive only", () => {
   }
   // history is the asset: nothing should ever rewrite a row
   assert.match(sql, /Never UPDATE or DELETE a row here/);
+});
+
+test("19. SEO-2.5.1 - BOTH discovery paths record observations", () => {
+  // the cross-match pricing pilot enters `deals` through insertNewSighting,
+  // not writeDiscoverySighting, and was recording nothing
+  const src = read("lib/listingAvailability.js");
+  const cross = src.slice(src.indexOf("async function insertNewSighting"), src.indexOf("// crossmatch-price-pilot-r1 - PUBLICATION IN TWO STEPS"));
+  assert.match(cross, /await logObservation\(db, core\);/, "the cross-match path must record");
+  const discovery = src.slice(src.indexOf("async function writeDiscoverySighting"), src.indexOf("async function logObservation"));
+  assert.match(discovery, /await logObservation\(db, core\);/);
+  // one shared writer, so pricing / identity / screening logic is not duplicated
+  assert.equal((src.match(/async function logObservation/g) ?? []).length, 1);
+});
+
+test("20. a listing entering by BOTH paths cannot double-count for one day", () => {
+  // the database constraint stays authoritative; neither path second-guesses it
+  const src = read("lib/listingAvailability.js");
+  assert.match(src, /the partial unique index is authoritative/);
+  const obs = read("lib/listingObservations.js");
+  assert.doesNotMatch(obs, /\.select\("id"\)[\s\S]{0,40}\.eq\("listing_id"/, "no path-level dedupe guess");
+});
+
+test("21. an observation failure cannot change a sighting or deal result", () => {
+  const src = read("lib/listingAvailability.js");
+  const log = src.slice(src.indexOf("async function logObservation"), src.indexOf("let observationTally"));
+  // it swallows everything and returns nothing the caller can branch on
+  assert.match(log, /try \{/);
+  assert.match(log, /catch \(e\)/);
+  assert.doesNotMatch(log, /return (?!;)/, "logObservation must not hand a value back");
+  // the cross-match path logs BEFORE its own error return, and the returned
+  // shape is untouched by logging
+  const cross = src.slice(src.indexOf("async function insertNewSighting"), src.indexOf("// crossmatch-price-pilot-r1 - PUBLICATION IN TWO STEPS"));
+  assert.match(cross, /if \(ins\.error\) return \{ outcome: "error", error: ins\.error, where: null \};/);
+  assert.match(cross, /return \{ outcome: "exists", error: null, where: "concurrent_insert" \};/);
+});
+
+test("22. the tally is reported, never acted on, and costs no Browse call", () => {
+  const route = read("app/api/refresh-deals/route.js");
+  assert.match(route, /const observations = takeObservationTally\(\);/);
+  assert.match(route, /^\s*observations,$/m, "folded into the existing response");
+  // no branching on it, and no scanner budget or eBay call involved
+  assert.doesNotMatch(route, /if \(observations\./, "nothing may branch on the tally");
+  const lib = read("lib/listingObservations.js");
+  for (const forbidden of ["searchListings", "getBrowseRateLimit", "acquireBrowseLease", "recordBrowseCall"]) {
+    assert.ok(!lib.includes(forbidden), `the observation layer must not touch ${forbidden}`);
+  }
+});
+
+test("23. the repair changed no deal qualification, pricing, screening or visibility rule", () => {
+  // the observation layer still reads nothing and decides nothing
+  for (const f of ["lib/dealQuality.js", "lib/dealMatching.js", "lib/browseBudget.js", "lib/catalogAggregates.js", "lib/sitemap.js"]) {
+    assert.doesNotMatch(read(f), /listing_observations|recordObservation|logObservation/, `${f} must be untouched by the observation layer`);
+  }
 });
 
 test("18. backfill rows are marked so they can be excluded from time series", () => {

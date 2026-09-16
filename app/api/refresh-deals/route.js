@@ -11,7 +11,7 @@ import {
 import { getConditionPrices, getGradedPrice } from "@/lib/pokemonPriceTracker";
 import { getUsdRates, toUsd } from "@/lib/fx";
 import { logDiscoveryEvent } from "@/lib/discoveryLog";
-import { writeDiscoverySighting, insertNewSighting, finalisePilotInsert, abandonedPilotPendingRows, PILOT_PENDING_REASON, DEAL_LISTS_TAG } from "@/lib/listingAvailability";
+import { writeDiscoverySighting, insertNewSighting, finalisePilotInsert, abandonedPilotPendingRows, PILOT_PENDING_REASON, DEAL_LISTS_TAG, takeObservationTally } from "@/lib/listingAvailability";
 // 17C.10 - reference provenance for the comparison this scanner stores.
 import { selectConditionReference } from "@/lib/dealMatching";
 import { CARD_REFERENCE_COLUMNS, buildCardReference, clearedReference } from "@/lib/referenceProvenance";
@@ -1865,9 +1865,18 @@ export async function GET(request) {
     }
   }
 
+  // SEO-2.5.1 health signal. The writer defect this repairs was invisible:
+  // the scan reported success while every observation write failed with
+  // 42P10. Folding the tally into the run's existing response means
+  // "scan succeeded but observations are failing" is visible wherever the
+  // run is already inspected, with no new table, service or dashboard.
+  // Read-only: nothing branches on it.
+  const observations = takeObservationTally();
+
   return Response.json({
     scanned,
     dealsFound,
+    observations,
     invalidated,
     invalidationErrors,
     blockedRetired,

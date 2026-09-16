@@ -200,7 +200,12 @@ test("CP-6 helpers: tail selection, ranking on stored data only, stored-state re
   const db = createMemoryDb({ deals: [{ id: 1, source: "ebay", marketplace: "EBAY_GB", listing_id: "v1|9|0" }] });
   assert.equal((await insertNewSighting(db, { source: "ebay", marketplace: "EBAY_US", listing_id: "v1|9|0" })).where, "stored_before_write");
   assert.equal((await insertNewSighting(db, { source: "ebay", marketplace: "EBAY_US", listing_id: "v1|8|0", title: "new" })).outcome, "inserted");
-  assert.equal(db.writes.filter((w) => w.op !== "upsert-insert").length, 0, "insert-only: never an update");
+  // Scoped to `deals`: SEO-2.5.1 added a non-authoritative observation
+  // INSERT to listing_observations on this path, which is a different table
+  // and is never an update. The invariant here is unchanged - the pilot must
+  // never UPDATE a deals row, only insert one.
+  assert.equal(db.writes.filter((w) => w.table === "deals" && w.op !== "upsert-insert").length, 0, "insert-only: never an update to deals");
+  assert.equal(db.writes.filter((w) => w.table === "deals" && w.op === "update").length, 0);
 });
 
 test("CP-7 wiring and off switch", () => {
