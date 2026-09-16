@@ -11,10 +11,15 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 const PAGE_SIZE = 1000;
+// Both selects carry lib/deals SAVINGS_EVIDENCE_COLUMNS verbatim (kept as
+// plain strings here; a test pins them to that list). computeAggregates
+// filters on savingsClaimTrusted, which reads the stored reference
+// evidence - without these columns every row of a tracked recent release
+// fails that check and the set can never become deal-backed.
 const SELECT =
-  "total_price, total_price_usd, image_url, disqualified_reason, visual_authenticity_status, visual_authenticity_reason, market_price, discount_pct, watchlist:watchlist_id!inner (id, name, set, language, justtcg_tcgplayer_id)";
+  "total_price, total_price_usd, image_url, disqualified_reason, visual_authenticity_status, visual_authenticity_reason, market_price, discount_pct, card_set, title, card_tcgplayer_id, is_graded, grader, grade, condition, reference_product_id, reference_amount, reference_currency, reference_fx_rate, reference_fx_asof, reference_observed_at, reference_condition, reference_printing, reference_grader, reference_grade, watchlist:watchlist_id!inner (id, name, set, language, justtcg_tcgplayer_id)";
 const SELECT_LEGACY =
-  "total_price, image_url, disqualified_reason, visual_authenticity_status, visual_authenticity_reason, market_price, discount_pct, watchlist:watchlist_id!inner (id, name, set, language, justtcg_tcgplayer_id)";
+  "total_price, image_url, disqualified_reason, visual_authenticity_status, visual_authenticity_reason, market_price, discount_pct, card_set, title, card_tcgplayer_id, is_graded, grader, grade, condition, reference_product_id, reference_amount, reference_currency, reference_fx_rate, reference_fx_asof, reference_observed_at, reference_condition, reference_printing, reference_grader, reference_grade, watchlist:watchlist_id!inner (id, name, set, language, justtcg_tcgplayer_id)";
 
 export async function GET() {
   const started = Date.now();
