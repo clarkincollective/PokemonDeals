@@ -1,9 +1,9 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
-import { GuideTable } from "@/components/guides/CardArt";
+import { Gallery, GuideTable } from "@/components/guides/CardArt";
 import { Src, Srcs, SourceList } from "@/components/guides/Src";
 import { guideMetadata } from "@/lib/guides";
-import { GUIDE_SETS, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
+import { GUIDE_CARDS, GUIDE_SETS, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 
 const SLUG = "organise-pokemon-30th-celebration-collection";
 export const metadata = guideMetadata(SLUG);
@@ -53,6 +53,20 @@ export default function Page() {
         </Link>{" "}
         covers how to tell them apart.
       </GP>
+
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.c30PikachuRare023, caption: "Main set — Pikachu rare" },
+          { card: GUIDE_CARDS.c30MewEx066, caption: "Main set — Pokemon ex" },
+          { card: GUIDE_CARDS.c30LaprasIr, caption: "Above 128 — illustration rare" },
+          { card: GUIDE_CARDS.c30MewtwoExFuturistic, caption: "Above 128 — Futuristic rare" },
+          { card: GUIDE_CARDS.c30ClassicCharizard, caption: "Classic Collection — keeps 4/102" },
+          { card: GUIDE_CARDS.c30ClassicLugia, caption: "Classic Collection — keeps 149/147" },
+        ]}
+        width={150}
+        priorityCount={3}
+        note="One card from each group, in the order the table sets them out. The two Classic Collection cards at the end keep their original set numbers rather than a number out of 128 — which is why they are filed apart."
+      />
 
       <GH2>Decide what &quot;complete&quot; means before you start</GH2>
       <GP>

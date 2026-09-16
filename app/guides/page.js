@@ -1,5 +1,7 @@
 import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
+import Image from "next/image";
+import { catalogImageUrl } from "@/lib/cardImage";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { GUIDES } from "@/lib/guides";
@@ -131,10 +133,27 @@ export default function GuidesIndexPage() {
               <li key={g.slug}>
                 <Link
                   href={`/guides/${g.slug}`}
-                  className="block h-full rounded-xl border border-zinc-200 bg-white p-5 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600"
+                  className="flex h-full gap-4 rounded-xl border border-zinc-200 bg-white p-5 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600"
                 >
-                  <span className="block font-semibold text-black dark:text-zinc-50">{g.title}</span>
-                  <span className="mt-2 block text-base leading-relaxed text-zinc-600 dark:text-zinc-400">{g.blurb}</span>
+                  {/* A guide with a registry `image` shows that card as its
+                      thumbnail - a real catalogue scan, the same source the
+                      card pages use. Fixed 717:1000 box so the row never
+                      shifts as the lazy image arrives. */}
+                  {g.image && (
+                    <Image
+                      src={catalogImageUrl(g.image)}
+                      alt=""
+                      aria-hidden="true"
+                      width={64}
+                      height={89}
+                      sizes="64px"
+                      className="h-auto w-16 shrink-0 self-start rounded-md shadow-sm"
+                    />
+                  )}
+                  <span className="block">
+                    <span className="block font-semibold text-black dark:text-zinc-50">{g.title}</span>
+                    <span className="mt-2 block text-base leading-relaxed text-zinc-600 dark:text-zinc-400">{g.blurb}</span>
+                  </span>
                 </Link>
               </li>
             ))}

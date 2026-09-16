@@ -1,9 +1,9 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
-import { GuideTable } from "@/components/guides/CardArt";
+import { Gallery, GuideTable } from "@/components/guides/CardArt";
 import { Src, Srcs, SourceList } from "@/components/guides/Src";
 import { guideMetadata } from "@/lib/guides";
-import { GUIDE_SETS, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
+import { GUIDE_CARDS, GUIDE_SETS, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 
 const SLUG = "pokemon-30th-celebration-release-dates";
 export const metadata = guideMetadata(SLUG);
@@ -51,6 +51,18 @@ export default function Page() {
         rows={SCHEDULE}
         minWidth="46rem"
         caption="Availability exactly as each official showcase states it, read on 16 September 2026."
+      />
+
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.c30PikachuRare023, caption: "Out on 16 September" },
+          { card: GUIDE_CARDS.c30MewtwoExFuturistic, caption: "Out on 16 September" },
+          { card: GUIDE_CARDS.c30EspeonEx, caption: "Battle Decks, October" },
+          { card: GUIDE_CARDS.c30UmbreonEx, caption: "Battle Decks, October" },
+        ]}
+        width={150}
+        priorityCount={2}
+        note="The expansion itself released worldwide on 16 September 2026; the products built around these cards arrive across later waves. Catalogue scans, complete card faces."
       />
 
       <GH2>The two that genuinely differ</GH2>

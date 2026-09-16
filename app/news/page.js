@@ -1,5 +1,7 @@
 import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
+import Image from "next/image";
+import { catalogImageUrl } from "@/lib/cardImage";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { newsSorted, formatNewsDate } from "@/lib/news";
@@ -57,56 +59,68 @@ const ELSEWHERE = [
 // reference and editorial rather than dated news; the hub links them so a
 // reader arriving for the release finds the depth without the same article
 // existing under two URLs.
+// Each carries the catalogue id of a real card from the article, so the
+// cluster reads visually rather than as ten lines of text.
 const C30_COVERAGE = [
   {
     href: "/guides/pokemon-30th-celebration-guide",
     title: "30th Celebration collector's guide",
     description: "The overview: what the set is, how it differs from Celebrations (2021), and every announced product.",
+    image: "696688",
   },
   {
     href: "/guides/pokemon-30th-celebration-pikachu-checklist",
     title: "All 30 Pikachu cards: visual checklist",
     description: "Every Pikachu rare from 023/128 to 052/128 in printed order, and which Pikachu cards do not count.",
+    image: "712934",
   },
   {
     href: "/guides/best-pokemon-30th-celebration-pikachu-cards",
     title: "Best Pikachu artwork: our picks",
     description: "Our editorial selection from the thirty, with the criteria we used. Not a value or rarity ranking.",
+    image: "712953",
   },
   {
     href: "/guides/pokemon-30th-celebration-classic-collection",
     title: "Classic Collection: reprint or original?",
     description: "A 2026 reprint and a 1999 card can both read 4/102. How to tell them apart before you buy.",
+    image: "714372",
   },
   {
     href: "/guides/pokemon-30th-celebration-elite-trainer-box",
     title: "Elite Trainer Box vs Pokemon Center ETB",
     description: "Two extra packs and a second Nidorina promo. The two boxes compared from their official contents lists.",
+    image: "716465",
   },
   {
     href: "/guides/pokemon-30th-celebration-promo-cards",
     title: "Promo cards: which product has which",
     description: "Every guaranteed promo and the product it ships in — and why you cannot pull a promo from a pack.",
+    image: "696687",
   },
   {
     href: "/guides/pokemon-30th-celebration-release-dates",
     title: "Release dates: UK and US schedules",
     description: "The products arrive in waves, and the official UK and US pages disagree on two of them.",
+    image: "716232",
   },
   {
     href: "/guides/pokemon-30th-celebration-mew-mewtwo",
     title: "Mew and Mewtwo, and the Futuristic rares",
     description: "The set's brand-new rarity, and all six Mew and Mewtwo cards — four of which share a name.",
+    image: "716463",
   },
   {
     href: "/guides/best-pokemon-30th-celebration-cards",
     title: "The best cards beyond Pikachu",
     description: "Our editorial picks from the illustration rares, special illustration rares and ex cards.",
+    image: "696683",
   },
   {
     href: "/guides/organise-pokemon-30th-celebration-collection",
     title: "Organising a 30th Celebration collection",
     description: "Five groups that need handling differently, and how to decide what “complete” means.",
+    image: "716231",
   },
 ];
 
@@ -162,13 +176,26 @@ export default function NewsIndexPage() {
               <li key={n.slug}>
                 <Link
                   href={`/news/${n.slug}`}
-                  className="block rounded-xl border border-zinc-200 bg-white p-5 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600"
+                  className="flex gap-4 rounded-xl border border-zinc-200 bg-white p-5 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600"
                 >
-                  <time dateTime={n.published} className="block text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                    {formatNewsDate(n.published)}
-                  </time>
-                  <span className="mt-1 block text-lg font-semibold text-black dark:text-zinc-50">{n.title}</span>
-                  <span className="mt-2 block text-base leading-relaxed text-zinc-600 dark:text-zinc-400">{n.blurb}</span>
+                  {n.image && (
+                    <Image
+                      src={catalogImageUrl(n.image)}
+                      alt=""
+                      aria-hidden="true"
+                      width={72}
+                      height={100}
+                      sizes="72px"
+                      className="h-auto w-[72px] shrink-0 self-start rounded-md shadow-sm"
+                    />
+                  )}
+                  <span className="block">
+                    <time dateTime={n.published} className="block text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                      {formatNewsDate(n.published)}
+                    </time>
+                    <span className="mt-1 block text-lg font-semibold text-black dark:text-zinc-50">{n.title}</span>
+                    <span className="mt-2 block text-base leading-relaxed text-zinc-600 dark:text-zinc-400">{n.blurb}</span>
+                  </span>
                 </Link>
               </li>
             ))}
@@ -187,10 +214,21 @@ export default function NewsIndexPage() {
               <li key={c.href}>
                 <Link
                   href={c.href}
-                  className="block h-full rounded-xl border border-zinc-200 bg-white p-5 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600"
+                  className="flex h-full gap-4 rounded-xl border border-zinc-200 bg-white p-5 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600"
                 >
-                  <span className="block font-semibold text-black dark:text-zinc-50">{c.title}</span>
-                  <span className="mt-2 block text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{c.description}</span>
+                  <Image
+                    src={catalogImageUrl(c.image)}
+                    alt=""
+                    aria-hidden="true"
+                    width={56}
+                    height={78}
+                    sizes="56px"
+                    className="h-auto w-14 shrink-0 self-start rounded-md shadow-sm"
+                  />
+                  <span className="block">
+                    <span className="block font-semibold text-black dark:text-zinc-50">{c.title}</span>
+                    <span className="mt-2 block text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{c.description}</span>
+                  </span>
                 </Link>
               </li>
             ))}

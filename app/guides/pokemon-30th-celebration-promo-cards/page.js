@@ -1,9 +1,9 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
-import { GuideTable } from "@/components/guides/CardArt";
+import { Gallery, GuideTable } from "@/components/guides/CardArt";
 import { Src, SourceList } from "@/components/guides/Src";
 import { guideMetadata } from "@/lib/guides";
-import { GUIDE_SETS, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
+import { GUIDE_CARDS, GUIDE_SETS, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 
 const SLUG = "pokemon-30th-celebration-promo-cards";
 export const metadata = guideMetadata(SLUG);
@@ -47,6 +47,18 @@ export default function Page() {
         rows={PROMOS}
         minWidth="52rem"
         caption="Contents as stated on the official US product showcase, checked 16 September 2026. Products showing 'none stated' are not listed with a promo on that page."
+      />
+
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.c30EspeonEx, caption: "Leads the Espeon ex Battle Deck" },
+          { card: GUIDE_CARDS.c30UmbreonEx, caption: "Leads the Umbreon ex Battle Deck" },
+          { card: GUIDE_CARDS.c30SylveonExSir, caption: "Named on the Pokemon ex Box" },
+          { card: GUIDE_CARDS.c30GreninjaExSir, caption: "The other Pokemon ex Box option" },
+        ]}
+        width={150}
+        priorityCount={2}
+        note="Pokemon named on the products above, as they appear in the main set. These are the set cards, not the promo versions — the promos are separate cards and are not in our catalogue."
       />
 
       <GH2>Guaranteed promo or booster pull? They are not the same thing</GH2>

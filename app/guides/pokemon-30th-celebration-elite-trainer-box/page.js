@@ -1,9 +1,9 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
-import { GuideTable } from "@/components/guides/CardArt";
+import { Gallery, GuideTable } from "@/components/guides/CardArt";
 import { Src, Srcs, SourceList } from "@/components/guides/Src";
 import { guideMetadata } from "@/lib/guides";
-import { GUIDE_SETS, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
+import { GUIDE_CARDS, GUIDE_SETS, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 
 const SLUG = "pokemon-30th-celebration-elite-trainer-box";
 export const metadata = guideMetadata(SLUG);
@@ -48,6 +48,18 @@ export default function Page() {
         rows={COMPARE}
         minWidth="46rem"
         caption="Contents as stated on each box's official product page, checked 16 September 2026."
+      />
+
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.c30MewExFuturistic, caption: "Futuristic rare" },
+          { card: GUIDE_CARDS.c30PikachuExSir149, caption: "Special illustration rare" },
+          { card: GUIDE_CARDS.c30SylveonExSir, caption: "Special illustration rare" },
+          { card: GUIDE_CARDS.c30LaprasIr, caption: "Illustration rare" },
+        ]}
+        width={150}
+        priorityCount={2}
+        note="What the packs inside either box are for: the set's higher rarities. Catalogue scans, complete card faces; each links to its own card page. Neither box guarantees any of these — the only guaranteed card is the Nidorina promo."
       />
 
       <GH2>What the difference actually gets you</GH2>
