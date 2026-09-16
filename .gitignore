@@ -65,3 +65,6 @@ next-env.d.ts
 .env*
 scripts/_*.js
 .secrets/
+
+# session scratch probes
+.tmp-probe/
