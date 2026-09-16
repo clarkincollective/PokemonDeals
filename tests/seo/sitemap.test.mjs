@@ -78,17 +78,16 @@ describe("sitemap.xml", () => {
     const observations = [];
     const pending = [];
     for (const { type, url } of checks) {
-      const observedAt = Date.now();
       const res = await get(pathOf(url));
       if (/\/deals\/\d+$/.test(pathOf(url))) {
-        // A deal can legitimately sell, be held, be quarantined or age out
-        // after the snapshot. Only a membership generated AFTER this
-        // observation can say whether the query is at fault; the redirect
-        // destination is validated unconditionally either way.
+        // A deal can legitimately sell, be held, be quarantined, age out or
+        // lose its permanent card page after the membership was computed.
+        // Which happened first is not observable here, so the observation is
+        // recorded; the redirect destination is validated unconditionally.
         const dest = res.isRedirect ? await checkRetiredDealRedirect(res.location) : null;
         pending.push({
           url,
-          page: { status: res.status, isRedirect: res.isRedirect, noindex: isNoindexHtml(res.body), destinationOk: dest ? dest.ok : null, destinationReason: dest?.reason ?? null, observedAt },
+          page: { status: res.status, isRedirect: res.isRedirect, location: res.location, noindex: isNoindexHtml(res.body), destinationOk: dest ? dest.ok : null, destinationReason: dest?.reason ?? null },
         });
         continue;
       }
@@ -97,17 +96,11 @@ describe("sitemap.xml", () => {
       assert.ok(!isNoindexHtml(res.body), `${type} ${url} is in the sitemap but noindexed`);
     }
 
-    // ONE later membership read - not a resampling loop
-    const recheck = pending.length ? await membershipSnapshot("deals") : null;
+    // No second read: a later segment could only show whether the URL is
+    // still listed, which establishes removal at best and cannot order the
+    // membership against the observation.
     for (const { url, page } of pending) {
-      observations.push(
-        classifyDealObservation({
-          url,
-          page,
-          snapshot: dealMembership,
-          recheck: recheck ? { generatedAt: recheck.generatedAt, advertised: recheck.advertised.has(pathOf(url)) } : null,
-        })
-      );
+      observations.push(classifyDealObservation({ url, page, advertised: dealMembership.advertised.has(pathOf(url)) }));
     }
     const defects = observations.filter((o) => o.kind === CLASSIFICATION.DEFECT);
     assert.deepEqual(defects.map((d) => d.reason), [], `deal lifecycle contract defects:\n  ${defects.map((d) => d.reason).join("\n  ")}`);
@@ -128,6 +121,12 @@ describe("deals sitemap <-> /deals/[id] robots parity", () => {
     const dealMembership = await membershipSnapshot("deals");
     // The "deals" bucket also holds /deals and the /deals/<slug> category
     // pages - the individually-indexable listing URLs are /deals/<id>.
+    // unconditional: every advertised deal URL must be well formed
+    const malformed = (byType.get("deals") ?? []).filter((u) => {
+      const path = pathOf(u);
+      return !(path === "/deals" || /^\/deals\/\d+$/.test(path) || /^\/deals\/[a-z0-9][a-z0-9-]*$/.test(path));
+    });
+    assert.deepEqual(malformed, [], `malformed URLs in the deals segment: ${malformed.slice(0, 5).join(", ")}`);
     const dealUrls = (byType.get("deals") ?? []).filter((u) => /\/deals\/\d+$/.test(pathOf(u)));
     if (dealUrls.length === 0) return; // no live individually-indexable deals right now
     const picks = sample(dealUrls, 40);
@@ -136,27 +135,20 @@ describe("deals sitemap <-> /deals/[id] robots parity", () => {
     const pending = [];
     const eligible = [];
     for (const url of picks) {
-      const observedAt = Date.now();
       const res = await get(pathOf(url));
       const indexable = !res.isRedirect && res.status === 200 && !isNoindexHtml(res.body);
       if (!indexable) {
         const dest = res.isRedirect ? await checkRetiredDealRedirect(res.location) : null;
         pending.push({
           url,
-          page: { status: res.status, isRedirect: res.isRedirect, noindex: isNoindexHtml(res.body), destinationOk: dest ? dest.ok : null, destinationReason: dest?.reason ?? null, observedAt },
+          page: { status: res.status, isRedirect: res.isRedirect, location: res.location, noindex: isNoindexHtml(res.body), destinationOk: dest ? dest.ok : null, destinationReason: dest?.reason ?? null },
         });
         continue;
       }
       eligible.push({ url, res });
     }
-    const recheck = pending.length ? await membershipSnapshot("deals") : null;
     const observations = pending.map(({ url, page }) =>
-      classifyDealObservation({
-        url,
-        page,
-        snapshot: dealMembership,
-        recheck: recheck ? { generatedAt: recheck.generatedAt, advertised: recheck.advertised.has(pathOf(url)) } : null,
-      })
+      classifyDealObservation({ url, page, advertised: dealMembership.advertised.has(pathOf(url)) })
     );
     for (const o of observations.filter((x) => x.kind === CLASSIFICATION.DEFECT)) bad.push(o.reason);
     const { inconclusive } = reportObservations("deep deal sample", observations);

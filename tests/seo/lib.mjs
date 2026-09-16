@@ -168,90 +168,68 @@ export async function sitemapUrls() {
 // and evenly-spaced middle) so samples aren't all clustered at the top of
 // the sitemap.
 // ---------------------------------------------------------------------------
-// Sampled deal URLs: what the evidence can and cannot establish
+// Sampled deal URLs: what a live observation can and cannot establish
 // ---------------------------------------------------------------------------
 //
-// A /deals/<id> URL taken from the sitemap can be ineligible by the time the
-// page is fetched - the listing sold or ended (308 to its card page), a hold
-// or quarantine landed, or it aged out of the freshness window. All of those
-// are CORRECT behaviour. The defect is the opposite: a membership query that
-// advertises a URL it should already have excluded.
+// The live suite samples /deals/<id> URLs out of the sitemap. One of them can
+// be ineligible by the time its page is fetched - the listing sold or ended,
+// a hold or quarantine landed, it aged out of the freshness window - or the
+// membership query advertised something it should already have excluded.
+// Those are different things, and over HTTP they look identical.
 //
-// WHAT AN EARLIER VERSION OF THIS FILE GOT WRONG. It judged the two apart
-// using the segment's <lastmod> and the freshness TTLs. Every step of that
-// was unsound:
-//   * <lastmod> is the row's last_seen_at. It is NOT when the segment was
-//     generated, so it cannot date the snapshot.
-//   * a recent last_seen_at with a noindex page is not a defect - a sale, a
-//     hold, a quarantine or any other eligibility change can land after the
-//     snapshot while the row was seen minutes ago.
-//   * age beyond a TTL does not prove the row went stale AFTER the snapshot;
-//     it is equally consistent with membership that was already stale when
-//     the segment was built, which IS a defect.
-//   * a redirect landing on a real card page does not prove that card is the
-//     one this listing was for. Over HTTP the row is not available, so the
-//     own-card assertion belongs in the offline harness
-//     (tests/scanner/deal-lifecycle-routes.test.mjs), where the fixture row
-//     and its destination are both known.
+// TWO EARLIER ATTEMPTS TO TELL THEM APART WERE WRONG, and both are pinned
+// against in tests/scanner/sitemap-live-classification.test.mjs:
 //
-// WHAT THE EVIDENCE DOES SUPPORT. The cache metadata on the segment response
-// dates the membership: generatedAt = Date(response) - age. If a membership
-// generated AFTER the page was observed ineligible still advertises the URL,
-// the query and the page genuinely disagree - a defect, with no timing
-// inference. If such a membership no longer advertises it, the transition
-// after the snapshot is confirmed. If no post-observation membership is
-// available (the cache has not turned over), the observation is
-// INCONCLUSIVE - reported as such, never counted as a pass or a defect.
+//   * the segment's <lastmod> with the freshness TTLs. <lastmod> is the
+//     row's last_seen_at: it does not date the snapshot, a recent value with
+//     a noindex page is explained by any later eligibility change, and age
+//     past a TTL is equally consistent with membership that was already
+//     stale when the segment was built.
+//   * the response's cache metadata (Date - Age). That dates the HTTP cache
+//     entry, not the application-cached membership behind it: the segment's
+//     rows come from an unstable_cache with its own revalidate window, so a
+//     CDN MISS can still serve a membership computed minutes earlier, and a
+//     missing Age says nothing about when the membership was computed.
 //
-// No production instrumentation and no provider request is added to fill the
-// gap: transition records are not exposed over HTTP, and inventing a way to
-// see them is not worth a test's convenience.
+// So the ordering is simply NOT OBSERVABLE from here. What is recorded is
+// what was actually seen: the URL was advertised in the segment, and the
+// page responded thus. Anything that needs to know which happened first is
+// INCONCLUSIVE, reported as such, and counted neither as a pass nor as a
+// defect. No production timestamp, telemetry, provider call or repeated
+// fetch is added to manufacture the missing chronology.
+//
+// What still fails unconditionally needs no chronology at all: a malformed
+// URL in the segment, a redirect whose destination is not a resolving
+// /cards/<slug>, a redirect chain or loop, and a server error. Genuinely
+// incorrect membership is caught deterministically, on controlled data, by
+// tests/scanner/sitemap-substance.test.mjs and the count/comment
+// reconciliation in tests/seo/seo3-card-sitemap-shards.test.mjs.
 
 export const CLASSIFICATION = Object.freeze({
   OK: "ok",
   DEFECT: "confirmed_contract_defect",
-  TRANSITION: "confirmed_transition_after_snapshot",
   INCONCLUSIVE: "inconclusive",
 });
 
-// When was this membership computed? `age` is how long the shared cache has
-// been serving it, so Date(response) - age dates the generation. Absent age
-// (a MISS, or a server that sends none) means it was generated for this
-// request. Null when the response carries no usable Date at all.
-export function membershipGeneratedAt(headers, receivedAt = Date.now()) {
-  const dateHeader = headers?.get?.("date") ?? null;
-  const ageHeader = headers?.get?.("age") ?? null;
-  const base = dateHeader ? Date.parse(dateHeader) : receivedAt;
-  if (!Number.isFinite(base)) return null;
-  const age = ageHeader != null && /^\d+$/.test(String(ageHeader).trim()) ? Number(ageHeader) * 1000 : 0;
-  return base - age;
-}
-
-// One read of a sitemap child, with the membership dated and the advertised
-// paths extracted.
+// One read of a sitemap child: which paths it advertises. Deliberately no
+// generation time - see above.
 export async function membershipSnapshot(segment) {
-  const receivedAt = Date.now();
   const res = await get(`/sitemaps/${segment}.xml`);
   const advertised = new Set();
   if (res.status === 200) {
     for (const m of res.body.matchAll(/<loc>([^<]+)<\/loc>/g)) advertised.add(pathOf(decodeEntities(m[1].trim())));
   }
-  return {
-    segment,
-    status: res.status,
-    advertised,
-    generatedAt: res.status === 200 ? membershipGeneratedAt(res.headers, receivedAt) : null,
-    cacheState: res.headers?.get?.("x-vercel-cache") ?? null,
-  };
+  return { segment, status: res.status, advertised };
 }
 
 export function isNoindexHtml(html) {
   return /<meta[^>]+name=["']robots["'][^>]+content=["'][^"']*noindex/i.test(html ?? "");
 }
 
-// UNCONDITIONAL destination validation for a retired-deal redirect. Shape,
-// single hop, and that the destination actually resolves. Whether it is the
-// RIGHT card is not decidable here and is asserted per row offline.
+// UNCONDITIONAL destination validation for a deal redirect: shape, a single
+// hop, and that the destination actually resolves. Whether it is the RIGHT
+// card is not decidable here; that assertion lives in the offline harness
+// (tests/scanner/deal-lifecycle-routes.test.mjs), where the row is known.
 export async function checkRetiredDealRedirect(location) {
   const target = pathOf(location ?? "");
   if (!/^\/cards\/[a-z0-9][a-z0-9-]*$/.test(target)) return { ok: false, reason: `destination ${target} is not a card page` };
@@ -261,57 +239,39 @@ export async function checkRetiredDealRedirect(location) {
   return { ok: true, reason: null, target };
 }
 
-// PURE. Given what was observed, say what the evidence establishes.
-//
-//   page     { status, isRedirect, noindex, destinationOk, destinationReason, observedAt }
-//   snapshot { generatedAt } - the membership the URL was sampled from
-//   recheck  { generatedAt, advertised } | null - a later membership read
-//
-// Fixtures for the three outcomes live in
-// tests/scanner/sitemap-live-classification.test.mjs.
-export function classifyDealObservation({ url, page, snapshot = null, recheck = null }) {
-  const at = (kind, reason) => ({ kind, url, reason });
+// PURE. Records what was observed and says only what it establishes.
+//   page { status, isRedirect, noindex, destinationOk, destinationReason }
+//   advertised - the URL was present in the segment that was sampled
+export function classifyDealObservation({ url, page, advertised = true }) {
+  const seen = `advertised=${advertised}, page=HTTP ${page.status}${page.isRedirect ? ` -> ${page.location ?? "?"}` : page.status === 200 && page.noindex ? " noindex" : ""}`;
+  const at = (kind, reason) => ({ kind, url, advertised, reason });
 
-  // Unconditional failures: nothing about timing can excuse these.
+  // Unconditional: no chronology can excuse these.
   if (page.isRedirect && page.destinationOk === false) {
-    return at(CLASSIFICATION.DEFECT, `${url} redirects, but ${page.destinationReason}`);
+    return at(CLASSIFICATION.DEFECT, `${url} redirects, but ${page.destinationReason} (${seen})`);
   }
-  if (!page.isRedirect && page.status !== 200) {
-    return at(CLASSIFICATION.DEFECT, `${url} is advertised but returned HTTP ${page.status}`);
+  if (page.status >= 500) {
+    return at(CLASSIFICATION.DEFECT, `${url} is advertised but the page returned a server error: HTTP ${page.status} (${seen})`);
   }
   if (!page.isRedirect && page.status === 200 && !page.noindex) return at(CLASSIFICATION.OK, null);
 
-  // The URL is advertised and not indexable. Only a membership computed
-  // AFTER the observation can say which side is wrong.
-  const observedAt = page.observedAt ?? null;
-  if (recheck && recheck.generatedAt != null && observedAt != null && recheck.generatedAt > observedAt) {
-    return recheck.advertised
-      ? at(CLASSIFICATION.DEFECT, `${url} is not indexable, yet a membership generated after it was observed (${new Date(recheck.generatedAt).toISOString()}) still advertises it`)
-      : at(CLASSIFICATION.TRANSITION, `${url} left the indexable set after the snapshot; the membership generated at ${new Date(recheck.generatedAt).toISOString()} no longer advertises it`);
-  }
-  const why =
-    recheck == null
-      ? "no later membership was read"
-      : recheck.generatedAt == null
-        ? "the later membership carried no usable cache metadata"
-        : `the latest membership (${new Date(recheck.generatedAt).toISOString()}) predates the observation`;
+  // Everything else - noindex, a valid redirect to a card page, 404 or 410 -
+  // is a state the lifecycle legitimately produces. Which came first, the
+  // membership or the change, is not observable over HTTP.
   return at(
     CLASSIFICATION.INCONCLUSIVE,
-    `${url} is advertised but not indexable; ${why}, and transition timing is not exposed over HTTP - neither a defect nor a pass${snapshot?.generatedAt ? ` (sampled membership generated ${new Date(snapshot.generatedAt).toISOString()})` : ""}`
+    `${url}: ${seen}. The lifecycle can legitimately produce this after the membership was computed, and no independent membership or transition timing is available - neither a defect nor a pass.`
   );
 }
 
-// A readable line for the suite output. Inconclusive observations are
-// REPORTED, never silently absorbed.
+// Inconclusive observations are REPORTED, never silently absorbed.
 export function reportObservations(label, observations) {
   const inconclusive = observations.filter((o) => o.kind === CLASSIFICATION.INCONCLUSIVE);
-  const transitions = observations.filter((o) => o.kind === CLASSIFICATION.TRANSITION);
-  if (transitions.length) console.error(`  ${label}: ${transitions.length} confirmed transition(s) after the snapshot`);
   if (inconclusive.length) {
-    console.error(`  ${label}: ${inconclusive.length} INCONCLUSIVE observation(s) - not verified, not a defect:`);
+    console.error(`  ${label}: ${inconclusive.length} INCONCLUSIVE observation(s) - lifecycle ordering not established by the available evidence:`);
     for (const o of inconclusive) console.error(`    - ${o.reason}`);
   }
-  return { inconclusive, transitions };
+  return { inconclusive };
 }
 
 export function sample(arr, n) {
