@@ -1,6 +1,7 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import GuideFigure from "@/components/guides/GuideFigure";
+import { Gallery } from "@/components/guides/CardArt";
 import ConditionScale from "@/components/guides/ConditionScale";
 import { guideMetadata } from "@/lib/guides";
 import { GUIDE_CARDS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
@@ -110,6 +111,17 @@ export default function Page() {
         </Link>{" "}
         page.
       </GP>
+
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.pikachuVFullArt, caption: "Full art: edges and surface show wear first" },
+          { card: GUIDE_CARDS.umbreonVmax, caption: "Textured VMAX: check the surface under angled light" },
+          { card: GUIDE_CARDS.charizardBaseSet, caption: "Vintage holo: corners and centering carry the most weight" },
+        ]}
+        width={150}
+        priorityCount={2}
+        note="Condition is judged on the card in hand, not on a scan. These catalogue images show the card faces, not the condition of any particular copy. Each links to its own page."
+      />
 
       <GH2>Third-party grading</GH2>
       <GP>

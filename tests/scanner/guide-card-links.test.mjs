@@ -28,6 +28,17 @@ const VERIFIED = {
   charizardEvolutions: ["124026", "Charizard", "XY - Evolutions", "11/108", "/cards/charizard-xy-evolutions"],
   arcanineBaseSet: ["42364", "Arcanine", "Base Set", "023/102", "/cards/arcanine-base-set"],
   arcanineShadowless: ["107018", "Arcanine", "Base Set (Shadowless)", "023/102", "/cards/arcanine-base-set-shadowless"],
+  promoGlaceonBw90: ["85748", "Glaceon - BW90", "Black and White Promos", "BW90", "/cards/glaceon-bw90-black-and-white-promos"],
+  promoEeveeSwsh042: ["220271", "Eevee - SWSH042", "SWSH: Sword & Shield Promo Cards", "SWSH042", "/cards/eevee-swsh042-swsh-sword-shield-promo-cards"],
+  promoPikachuSwsh020: ["214241", "Pikachu - SWSH020", "SWSH: Sword & Shield Promo Cards", "SWSH020", "/cards/pikachu-swsh020-swsh-sword-shield-promo-cards"],
+  promoMewExSvp053: ["518871", "Mew ex - 053", "SV: Scarlet & Violet Promo Cards", "053", "/cards/mew-ex-053-sv-scarlet-violet-promo-cards"],
+  promoCharizardXyPrerelease: ["126023", "Charizard - 11/108 (Prerelease)", "XY Promos", "11/108", "/cards/charizard-11-108-prerelease-xy-promos"],
+  promoCharizardGLvxDp45: ["84202", "Charizard G LV.X - DP45", "Diamond and Pearl Promos", "DP45", "/cards/charizard-g-lv-x-dp45-diamond-and-pearl-promos"],
+  promoPikachuHgss03: ["88098", "Pikachu - HGSS03", "HGSS Promos", "HGSS03", "/cards/pikachu-hgss03-hgss-promos"],
+  promoVoltorbProfessor: ["651981", "Voltorb - 066/193", "Professor Program Promos", "066/193", "/cards/voltorb-066-193-professor-program-promos"],
+  promoPikachu227SP: ["257103", "Pikachu - 227/S-P", "SWSH: Sword & Shield Promo Cards", "227/S-P", "/cards/pikachu-227-s-p-swsh-sword-shield-promo-cards"],
+  promoPikachuMe093: ["712963", "Pikachu - 093", "ME: Mega Evolution Promo", "093", "/cards/pikachu-093-me-mega-evolution-promo"],
+  promoMewWotc08: ["87394", "Mew (8)", "WoTC Promo", "08/53", "/cards/mew-8-wotc-promo"],
   arcanineBaseSet2: ["42472", "Arcanine", "Base Set 2", "033/130", "/cards/arcanine-base-set-2"],
   umbreonVmax: ["246720", "Umbreon VMAX", "SWSH07: Evolving Skies", "095/203", "/cards/umbreon-vmax-swsh07-evolving-skies"],
   umbreonVmaxSecret: ["246722", "Umbreon VMAX (Secret)", "SWSH07: Evolving Skies", "214/203", "/cards/umbreon-vmax-secret-swsh07-evolving-skies"],
@@ -204,6 +215,8 @@ test("3. the contextual links landed where they explain identity, grading or val
     // links the two Base Set set pages in prose.
     "how-much-is-my-pokemon-card-worth": 0,
     "base-set-shadowless-unlimited-first-edition": 2,
+    // the promo guide's cards are all gallery figures (data arrays)
+    "pokemon-promo-card-numbers": 0,
   });
   // The release guide's galleries: every tile is a GUIDE_CARDS identity
   // rendered as a complete card face linked to its own page (a figure
@@ -212,7 +225,7 @@ test("3. the contextual links landed where they explain identity, grading or val
   assert.ok(gallery >= 20 && gallery <= 30, `30th Celebration gallery references ${gallery} cards`);
   // the price checker is reachable from the guides that talk about looking a card up
   const withChecker = GUIDE_FILES.filter((f) => /href=\{PRICE_CHECKER_HREF\}/.test(read(f))).map((f) => f.split("/")[2]).sort();
-  assert.deepEqual(withChecker, ["base-set-shadowless-unlimited-first-edition", "card-condition-grading", "how-much-is-my-pokemon-card-worth", "how-pokemon-card-prices-work", "how-to-check-pokemon-card-condition", "pokemon-card-grading-scale", "raw-vs-graded-pokemon-cards"]);
+  assert.deepEqual(withChecker, ["base-set-shadowless-unlimited-first-edition", "card-condition-grading", "how-much-is-my-pokemon-card-worth", "how-pokemon-card-prices-work", "how-to-check-pokemon-card-condition", "pokemon-card-grading-scale", "pokemon-promo-card-numbers", "raw-vs-graded-pokemon-cards"]);
   // every new link uses the guides' existing inline style
   assert.equal(GUIDE_LINK_CLASS, "text-red-600 hover:underline dark:text-red-500");
   for (const f of GUIDE_FILES) {
@@ -262,6 +275,7 @@ test("5. routes, canonicals and indexability of the guides are untouched", () =>
     "organise-pokemon-30th-celebration-collection",
     "how-much-is-my-pokemon-card-worth",
     "base-set-shadowless-unlimited-first-edition",
+    "pokemon-promo-card-numbers",
   ]);
   const guidesLib = read("lib/guides.js");
   assert.match(guidesLib, /alternates: \{ canonical: `\/guides\/\$\{slug\}` \}/);

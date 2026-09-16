@@ -48,6 +48,18 @@ function ThirtiethOutNow() {
         game&apos;s 30th anniversary.
       </p>
 
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.c30PikachuRare023, caption: "One of the thirty Pikachu rares" },
+          { card: GUIDE_CARDS.c30MewExFuturistic, caption: "Futuristic rare - the new rarity" },
+          { card: GUIDE_CARDS.c30PikachuExSir149, caption: "Special illustration rare" },
+          { card: GUIDE_CARDS.c30ClassicCharizard, caption: "Classic Collection reprint, 4/102" },
+        ]}
+        width={150}
+        priorityCount={4}
+        note="Four of the card types in the release. Catalogue scans, complete card faces; each links to its own card page."
+      />
+
       <h2 className={H2}>What is in the packs</h2>
       <p className={P}>
         Every card in a <em>30th Celebration</em> booster pack is foil, including the Basic Energy cards, and every

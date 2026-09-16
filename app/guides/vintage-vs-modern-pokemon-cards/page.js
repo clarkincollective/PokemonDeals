@@ -1,6 +1,7 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import GuideFigure from "@/components/guides/GuideFigure";
+import { Gallery } from "@/components/guides/CardArt";
 import EraTimeline from "@/components/guides/EraTimeline";
 import { guideMetadata } from "@/lib/guides";
 import { GUIDE_CARDS, GUIDE_SETS, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
@@ -62,6 +63,17 @@ export default function Page() {
         </Link>
         .
       </GP>
+
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.charizardBaseSet, caption: "1999 - Base Set" },
+          { card: GUIDE_CARDS.charizardEvolutions, caption: "2016 - XY Evolutions" },
+          { card: GUIDE_CARDS.c30MewExFuturistic, caption: "2026 - 30th Celebration" },
+        ]}
+        width={150}
+        priorityCount={2}
+        note="Three eras on one page: the original print, a modern remake of it, and a new rarity introduced this year. Catalogue scans, complete card faces; each links to its own page."
+      />
 
       <GH2>What drives value in vintage</GH2>
       <GUL>

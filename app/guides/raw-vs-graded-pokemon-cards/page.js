@@ -1,6 +1,7 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import GuideFigure from "@/components/guides/GuideFigure";
+import { Gallery } from "@/components/guides/CardArt";
 import RawVsGraded from "@/components/guides/RawVsGraded";
 import { guideMetadata } from "@/lib/guides";
 import { GUIDE_CARDS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
@@ -60,6 +61,17 @@ export default function Page() {
         </Link>
         .
       </GP>
+
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.charizardBaseSet, caption: "Vintage - the classic grading candidate" },
+          { card: GUIDE_CARDS.pikachuVFullArt, caption: "Modern full art" },
+          { card: GUIDE_CARDS.umbreonVmaxAltArt, caption: "Modern alternate art" },
+        ]}
+        width={150}
+        priorityCount={2}
+        note="Cards commonly sent for grading. Raw and graded figures for any of them are separate on its card page, and graded tiers appear only where there are enough recent graded sales. Catalogue scans, complete card faces."
+      />
 
       <GH2>What grading costs and takes</GH2>
       <GP>

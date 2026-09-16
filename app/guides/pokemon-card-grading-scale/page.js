@@ -1,6 +1,7 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import GuideFigure from "@/components/guides/GuideFigure";
+import { Gallery } from "@/components/guides/CardArt";
 import GradeScaleTable from "@/components/guides/GradeScaleTable";
 import ConditionAxes from "@/components/guides/ConditionAxes";
 import { guideMetadata } from "@/lib/guides";
@@ -70,6 +71,16 @@ export default function Page() {
       <GuideFigure caption="A single hard flaw — a crease, a badly dinged corner — caps the grade regardless of how clean the rest of the card is.">
         <GradeScaleTable />
       </GuideFigure>
+
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.pikachuVFullArt, caption: "Full art - surface and edges decide the top grades" },
+          { card: GUIDE_CARDS.umbreonVmax, caption: "Textured VMAX - centering is the usual separator" },
+        ]}
+        width={168}
+        priorityCount={2}
+        note="A grade describes one physical copy, never the artwork. These are catalogue scans of the card faces; the grading company decides the number for any given copy."
+      />
 
       <GH2>What usually separates a 7, 8, 9 and 10</GH2>
       <GP>

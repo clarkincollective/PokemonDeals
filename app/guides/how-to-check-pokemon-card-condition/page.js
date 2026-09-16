@@ -1,10 +1,11 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import GuideFigure from "@/components/guides/GuideFigure";
+import { Gallery } from "@/components/guides/CardArt";
 import ConditionAxes from "@/components/guides/ConditionAxes";
 import ConditionScale from "@/components/guides/ConditionScale";
 import { guideMetadata } from "@/lib/guides";
-import { PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
+import { GUIDE_CARDS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 
 const SLUG = "how-to-check-pokemon-card-condition";
 export const metadata = guideMetadata(SLUG);
@@ -73,6 +74,16 @@ export default function Page() {
           you are not adding fingerprints to the surface while you inspect it.
         </li>
       </GUL>
+
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.charizardBaseSet, caption: "A vintage holo: look at corners and centering first" },
+          { card: GUIDE_CARDS.c30PikachuExSir149, caption: "A modern special illustration rare: look at edges and surface first" },
+        ]}
+        width={168}
+        priorityCount={2}
+        note="The same four checks apply to both, but the wear shows in different places. Catalogue scans of the card faces, not a particular copy; each links to its own page."
+      />
 
       <GH2>The four things to check</GH2>
       <GP>

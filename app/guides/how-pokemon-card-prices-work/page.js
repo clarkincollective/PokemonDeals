@@ -1,6 +1,7 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import GuideFigure from "@/components/guides/GuideFigure";
+import { Gallery } from "@/components/guides/CardArt";
 import PriceForkDiagram from "@/components/guides/PriceForkDiagram";
 import { guideMetadata } from "@/lib/guides";
 import { GUIDE_CARDS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
@@ -63,6 +64,18 @@ export default function Page() {
           or a promo can see its price drop sharply, even for the original printing.
         </li>
       </GUL>
+
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.charizardBaseSet, caption: "Base Set (Unlimited)" },
+          { card: GUIDE_CARDS.charizardShadowless, caption: "Base Set (Shadowless)" },
+          { card: GUIDE_CARDS.charizardBaseSet2, caption: "Base Set 2" },
+          { card: GUIDE_CARDS.charizardEvolutions, caption: "XY Evolutions" },
+        ]}
+        width={150}
+        priorityCount={2}
+        note="The same artwork, four printings, four separate cards - each with its own page and its own reference. Catalogue scans, complete card faces."
+      />
 
       <GH2>The four things that split one card into many prices</GH2>
       <GP>

@@ -49,6 +49,7 @@ const STATIC_PATHS = [
   "/guides/organise-pokemon-30th-celebration-collection",
   "/guides/how-much-is-my-pokemon-card-worth",
   "/guides/base-set-shadowless-unlimited-first-edition",
+  "/guides/pokemon-promo-card-numbers",
   "/news",
   "/news/pokemon-tcg-30th-celebration-out-now",
   "/news/rgb-mew-30th-celebration-unconfirmed",
