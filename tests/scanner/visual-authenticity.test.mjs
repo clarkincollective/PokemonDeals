@@ -500,6 +500,16 @@ test("taxonomy: the vision prompt keeps the counterfeit guardrails", () => {
   }
   // wrong card but real paper -> identity, not counterfeit
   assert.match(p, /IDENTITY_MISMATCH, not COUNTERFEIT/);
+  // WOTC printing markers (deal 38589, owner-reported 16 Sep 2026): a
+  // 1st Edition Shadowless Charizard matched to the Unlimited catalogue
+  // card was cleared as MATCH because the name, number, HP, attacks,
+  // artwork and copyright line all agreed - which they do across every
+  // Base Set print run. The prompt must name the two markers that
+  // actually separate them, and say those matching is not enough.
+  assert.match(p, /1st Edition" stamp/);
+  assert.match(p, /drop shadow/);
+  assert.match(p, /Unlimited printing unless its set name says otherwise/);
+  assert.match(p, /does NOT establish MATCH/);
 });
 
 test("taxonomy: 12766 & 4582 (metal-plate repros) -> COUNTERFEIT_MISMATCH -> hidden as counterfeit", () => {
