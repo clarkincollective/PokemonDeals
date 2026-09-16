@@ -233,6 +233,82 @@ check(
   "warn"
 );
 
+// --- SCANNER HEALTH ---------------------------------------------------
+//
+// A JOB THAT IS SCHEDULED BUT NEVER EXECUTES LOOKS EXACTLY LIKE A JOB THAT
+// IS WORKING. Found on 2026-09-16: refresh-sealed-deals had been skipped on
+// every single attempt for five consecutive days (12-16 Sep), each time
+// with skip_reason "ebay_rate_limited" and a quota of ~200-240 against a
+// reserve floor of 250. It fires at 06:00 UTC, by which point the 15-minute
+// sweeps have taken the daily Browse quota below the floor, so the guard
+// correctly refuses to run it - and it therefore never runs at all.
+//
+// The consequences were invisible from the site: sealed inventory was two
+// days stale, and no sealed row had EVER been written with the reference
+// provenance added at 17C.10, so no sealed listing could evidence a saving.
+// Nothing errored. The cron reported itself as having run.
+//
+// These checks read the job log only. They change no schedule, budget,
+// reserve floor or enforcement rule - that is deliberately the owner's
+// call; this only makes the silence audible.
+const JOB_MAX_AGE_HOURS = { "refresh-sealed-deals": 48, "refresh-deals:sweep": 6, "verify-deals": 12, "ingest-feed": 12 };
+const { data: jobRuns } = await db
+  .from("ebay_job_runs")
+  .select("job, status, skip_reason, browse_calls, started_at, quota_limit")
+  .gte("started_at", new Date(Date.now() - 4 * 86400_000).toISOString())
+  .order("started_at", { ascending: false });
+
+const stale = [];
+for (const [job, maxH] of Object.entries(JOB_MAX_AGE_HOURS)) {
+  const runs = (jobRuns ?? []).filter((r) => r.job === job);
+  if (!runs.length) continue; // job not scheduled here; nothing to assert
+  const lastOk = runs.find((r) => r.status === "success");
+  const ageH = lastOk ? (Date.now() - Date.parse(lastOk.started_at)) / 3.6e6 : Infinity;
+  if (ageH > maxH) {
+    const reasons = [...new Set(runs.filter((r) => r.status === "skipped").map((r) => r.skip_reason))].join(", ");
+    stale.push(
+      `${job}: last success ${lastOk ? `${ageH.toFixed(0)}h ago` : "never in this window"}, ` +
+        `${runs.filter((r) => r.status === "skipped").length}/${runs.length} attempts skipped (${reasons || "no reason"})`
+    );
+  }
+}
+check(
+  "INV-9  every scheduled eBay job has actually succeeded recently",
+  stale.length === 0,
+  stale.join("  |  ")
+);
+
+// INV-10. Daily Browse usage against the quota. Overdrawing it is what
+// pushes every later job into ebay_rate_limited, and the job that loses is
+// whichever is scheduled last.
+const byDay = new Map();
+for (const r of jobRuns ?? []) {
+  const d = String(r.started_at).slice(0, 10);
+  byDay.set(d, (byDay.get(d) ?? 0) + (r.browse_calls ?? 0));
+}
+const limit = (jobRuns ?? []).find((r) => r.quota_limit)?.quota_limit ?? 5000;
+const over = [...byDay.entries()].filter(([, n]) => n > limit).map(([d, n]) => `${d}: ${n}/${limit}`);
+check(
+  "INV-10 daily eBay Browse usage stays inside the quota",
+  over.length === 0,
+  `over quota on ${over.join(", ")} - later jobs get rate-limited and the last-scheduled one starves`
+);
+
+// INV-11. Sealed inventory freshness, stated as a fact about the rows
+// rather than about the job, so it stays true whatever the cause.
+const { data: sealedFresh } = await db
+  .from("sealed_deals")
+  .select("last_seen_at")
+  .eq("is_active", true)
+  .order("last_seen_at", { ascending: false })
+  .limit(1);
+const sealedAgeH = sealedFresh?.[0] ? (Date.now() - Date.parse(sealedFresh[0].last_seen_at)) / 3.6e6 : Infinity;
+check(
+  "INV-11 sealed inventory has been re-seen recently",
+  sealedAgeH <= 48,
+  `the freshest active sealed listing was last seen ${Number.isFinite(sealedAgeH) ? `${sealedAgeH.toFixed(0)}h ago` : "never"} - sealed listings may have sold`
+);
+
 // ---------------------------------------------------------------------
 const failed = results.filter((r) => !r.ok && r.severity === "fail");
 const warned = results.filter((r) => !r.ok && r.severity === "warn");
