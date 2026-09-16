@@ -22,6 +22,7 @@ const BROWSE_LINKS = [
   { href: "/cards", label: "Card Database" },
   { href: "/pokemon", label: "Browse by Pokemon" },
   { href: "/sets", label: "Browse by Set" },
+  { href: "/news", label: "Latest News" },
   { href: "/guides", label: "Buying Guides" },
 ];
 

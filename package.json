@@ -45,7 +45,8 @@
     "infra:db-health": "node scripts/infraDbHealth.mjs",
     "social:creative-pack": "node scripts/socialCreativePack.mjs",
     "social:creative-harden": "node scripts/socialCreativeHarden.mjs",
-    "social:review-policy": "node scripts/socialReviewPolicy.mjs"
+    "social:review-policy": "node scripts/socialReviewPolicy.mjs",
+    "news:weekly": "node scripts/newsWeeklyReport.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",

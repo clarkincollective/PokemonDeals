@@ -87,7 +87,12 @@ export default function GuidesIndexPage() {
           </h1>
           <p className="mt-3 text-base text-zinc-600 dark:text-zinc-400">
             Short, evergreen explainers — the background worth having before you buy — and the dated
-            research behind how we read the market. For how this site finds and prices deals, see{" "}
+            research behind how we read the market. For dated items on new sets, new cards and price
+            movements, see{" "}
+            <Link href="/news" className="text-red-600 hover:underline dark:text-red-500">
+              latest news
+            </Link>
+            ; for how this site finds and prices deals, see{" "}
             <Link href="/methodology" className="text-red-600 hover:underline dark:text-red-500">
               our methodology
             </Link>

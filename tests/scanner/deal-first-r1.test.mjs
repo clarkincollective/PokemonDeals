@@ -23,10 +23,15 @@ const read = (p) => readFileSync(join(ROOT, p), "utf8");
 // ---- nav model ---------------------------------------------------------
 
 test("R1-1. the header is three destinations: Deals, Cards & Sets, Guides & Research - every prior route kept in a submenu", () => {
-  assert.deepEqual(NAV_GROUPS.map((g) => g.label), ["Deals", "Cards & Sets"]);
-  assert.deepEqual(navInlineItems().map((l) => l.label), ["Guides & Research"]);
+  // STILL THREE DESTINATIONS. When /news was added the editorial slot
+  // became a submenu ("News & Guides") rather than a fourth top-level
+  // entry, so the deal-first cap this test exists to protect is intact:
+  // header destinations = NAV_GROUPS + navInlineItems() = 3.
+  assert.deepEqual(NAV_GROUPS.map((g) => g.label), ["Deals", "Cards & Sets", "News & Guides"]);
+  assert.deepEqual(navInlineItems().map((l) => l.label), []);
+  assert.equal(NAV_GROUPS.length + navInlineItems().length, 3, "the header must stay three destinations");
   const all = NAV_PRIMARY.map((l) => l.href);
-  for (const href of ["/deals", "/best-finds", "/deals/auctions", "/deals/graded", "/deals/under-25", "/sealed-deals", "/japanese-cards", "/latest-releases", "/search", "/cards", "/sets", "/pokemon", "/market-data", "/guides"]) {
+  for (const href of ["/deals", "/best-finds", "/deals/auctions", "/deals/graded", "/deals/under-25", "/sealed-deals", "/japanese-cards", "/latest-releases", "/search", "/cards", "/sets", "/pokemon", "/market-data", "/guides", "/news"]) {
     assert.ok(all.includes(href), `nav still reaches ${href}`);
   }
   // the old Learn entries did not vanish: mobile menu + footer carry them
@@ -35,7 +40,10 @@ test("R1-1. the header is three destinations: Deals, Cards & Sets, Guides & Rese
   assert.ok(NAV_PRIMARY.every((l) => !l.href.includes("?")));
   // every declared event is allow-listed
   for (const l of NAV_PRIMARY) if (l.analyticsClick) assert.ok(ALLOWED_EVENTS.has(l.analyticsClick), l.analyticsClick);
-  assert.equal(navGroupItems("deals").length + navGroupItems("catalogue").length + navInlineItems().length, NAV_PRIMARY.length);
+  assert.equal(
+    navGroupItems("deals").length + navGroupItems("catalogue").length + navGroupItems("editorial").length + navInlineItems().length,
+    NAV_PRIMARY.length
+  );
 });
 
 test("R1-2. header, mobile menu and footer all render from the one model; dropdown links are in the HTML", () => {
