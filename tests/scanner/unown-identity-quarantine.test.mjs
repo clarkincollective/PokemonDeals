@@ -4,6 +4,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
@@ -14,7 +15,7 @@ const Q = await import(pathToFileURL(join(REPO, "scripts/remediation/unownIdenti
 const manifest = JSON.parse(readFileSync(join(REPO, "scripts/remediation/unown-identity-quarantine-manifest.json"), "utf8"));
 const C = manifest.candidates[0];
 
-const reviewed = () => ({
+const reviewed = () => withReferenceEvidence({
   id: 38057,
   listing_id: C.ebayListingId,
   marketplace: "EBAY_US",

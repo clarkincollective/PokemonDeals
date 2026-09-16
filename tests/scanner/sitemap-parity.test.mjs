@@ -15,6 +15,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -47,7 +48,7 @@ const projectToSitemapRow = (row) => {
 
 // A fully-populated, otherwise-clean displayable deal row (same shape as
 // deal-freshness.test.mjs, kept independent).
-const deal = (over = {}) => ({
+const deal = (over = {}) => withReferenceEvidence({
   id: 1,
   is_active: true,
   is_graded: false,

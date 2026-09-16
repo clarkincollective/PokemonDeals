@@ -11,11 +11,21 @@ import { fetchActiveDealPool } from "../lib/social/db.mjs";
 import { socialBinPool } from "../lib/social/candidates.mjs";
 import { fetchMovementForCard } from "../lib/social/priceMovement.mjs";
 
+// SEO-4 (16 Sep 2026): `condition` and the stored reference columns were
+// missing here, so every fixture row arrived with an Unknown condition and
+// no provenance. That did not matter while savingsClaimTrusted waved
+// through any row outside a tracked release; now that a savings claim
+// needs evidence everywhere, a row without these columns can never be a
+// trusted comparison, and the social lanes that require one had nothing to
+// pick. They are part of the row's meaning, so they are pulled with it.
 const KEEP = [
   "id", "card_tcgplayer_id", "card_name", "card_set", "card_language",
-  "is_graded", "grader", "grade", "listing_type", "marketplace",
+  "condition", "is_graded", "grader", "grade", "listing_type", "marketplace",
   "total_price_usd", "total_price", "market_price", "discount_pct",
   "exact_verified_at", "first_seen_at", "last_seen_at", "auction_end_at",
+  "reference_source", "reference_product_id", "reference_amount",
+  "reference_currency", "reference_observed_at", "reference_synced_at",
+  "reference_condition", "reference_printing", "reference_grader", "reference_grade",
 ];
 const slim = (r) => Object.fromEntries(KEEP.map((k) => [k, r[k] ?? null]));
 

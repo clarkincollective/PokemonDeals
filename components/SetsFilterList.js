@@ -80,11 +80,14 @@ export default function SetsFilterList({ sets, checklistSlugs = [], filter = tru
               </span>
               <span className="min-w-0 flex-1 text-black dark:text-zinc-50">
                 <span className="block font-semibold">{s.set}</span>
-                <span className="mt-1 block text-xs text-zinc-600 dark:text-zinc-400">{s.count > 0 ? "Explore deals & cards" : "Explore card list"}</span>
+                <span className="mt-1 block text-xs text-zinc-600 dark:text-zinc-400">{s.count > 0 ? "Explore listings & cards" : "Explore card list"}</span>
               </span>
               {s.count > 0 && (
+                // SEO-4: the count is every offer we hold for the set, not
+                // only the ones that can evidence a discount - so it says
+                // "listings". See lib/catalogAggregates.js computeAggregates.
                 <span className="shrink-0 rounded-md bg-emerald-700 px-2 py-0.5 text-xs font-semibold text-white">
-                  {s.count} {s.count === 1 ? "deal" : "deals"}
+                  {s.count} {s.count === 1 ? "listing" : "listings"}
                 </span>
               )}
             </Link>

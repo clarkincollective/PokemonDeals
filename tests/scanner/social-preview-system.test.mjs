@@ -6,6 +6,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { referenceEvidenceFor } from "../helpers/referenceEvidence.mjs";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -71,7 +72,7 @@ const dealRow = (over = {}) => {
   const row = {
     id: 501,
     watchlist_id: 9001,
-    card_tcgplayer_id: null,
+    card_tcgplayer_id: "45120",
     card_name: cardName,
     card_set: cardSet,
     card_language: "english",
@@ -103,7 +104,11 @@ const dealRow = (over = {}) => {
     ...over,
   };
   if (over.exact_verified_at && !("last_seen_at" in over)) row.last_seen_at = over.exact_verified_at;
-  return row;
+  // SEO-4: a social post IS a savings claim, so every candidate row needs
+  // the stored reference evidence savingsClaimTrusted requires. Derived
+  // from the row so an overridden market_price keeps matching evidence; a
+  // test that pins its own reference_* still wins.
+  return { ...referenceEvidenceFor(row), ...row };
 };
 
 // === 1-4. eligibility: reuses existing truth contracts, adds only freshness ===

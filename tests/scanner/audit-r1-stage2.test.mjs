@@ -3,6 +3,7 @@
 // and the verifier's featured tier. Source pins plus the allocator run.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -66,7 +67,10 @@ test("AR1S2-5 the catalogue set index reads the precomputed snapshot first and k
 test("AR1S2-6 verifier featured tier: a deal the premium lanes would show once verified is checked before other high-value rows, highest savings first; auctions and new listings keep precedence; a freshly verified one is not re-checked", () => {
   const NOW = Date.parse("2026-09-15T12:00:00Z");
   const iso = (h) => new Date(NOW + h * 3.6e6).toISOString();
-  const bin = (o) => ({ listing_type: "FIXED_PRICE", is_active: true, card_set: "Base Set", title: "Charizard 4/102 Base Set Holo", first_seen_at: iso(-300), last_seen_at: iso(-1), exact_verified_at: iso(-30), visual_authenticity_status: "MATCH", market_price: 200, discount_pct: 0.4, ...o });
+  // SEO-4: card_tcgplayer_id and condition are what the stored reference
+  // evidence is matched against, so the row can carry a trusted savings
+  // claim (a featured candidate is one the premium lanes would show).
+  const bin = (o) => withReferenceEvidence({ listing_type: "FIXED_PRICE", is_active: true, card_set: "Base Set", card_tcgplayer_id: "42382", condition: "Near Mint", is_graded: false, title: "Charizard 4/102 Base Set Holo", first_seen_at: iso(-300), last_seen_at: iso(-1), exact_verified_at: iso(-30), visual_authenticity_status: "MATCH", market_price: 200, discount_pct: 0.4, ...o });
   assert.equal(FEATURED_MIN_MARKET_PRICE, 75);
   assert.equal(FEATURED_MAX_DISCOUNT_PCT, 0.65);
   // mirrors the Best Finds band in lib/deals

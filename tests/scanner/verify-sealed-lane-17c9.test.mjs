@@ -6,6 +6,7 @@
 // the repo already uses for this file.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,7 +26,7 @@ const HEALTHY = 2000;
 const NOW = Date.parse("2026-09-12T12:00:00Z");
 
 // a stored sealed row that IS a verification candidate
-const sealedRow = (over = {}) => ({
+const sealedRow = (over = {}) => withReferenceEvidence({
   id: 1,
   sealed_watchlist_id: 76,
   listing_id: "v1|1234567890|0",

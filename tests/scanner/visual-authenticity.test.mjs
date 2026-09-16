@@ -12,6 +12,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -179,7 +180,7 @@ test("13. a failed image fetch degrades to UNKNOWN, never blocks (ingestion unaf
 
 // --- display policy ---------------------------------------------------
 
-const deal = (over) => ({
+const deal = (over) => withReferenceEvidence({
   id: 1,
   is_active: true,
   is_graded: false,

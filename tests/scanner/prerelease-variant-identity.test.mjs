@@ -29,6 +29,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { listingMatchesCard } from "../../lib/dealMatching.js";
 import { isDisplayableDeal, isPremiumDealEligible } from "../../lib/dealQuality.js";
 
@@ -45,7 +46,7 @@ const VERIFIED_AT = ago(1);
 // A fully-populated, otherwise-clean deal row for isDisplayableDeal/
 // isPremiumDealEligible testing - mirrors the real shape returned by
 // Supabase, overridable per test.
-const dealRow = (over = {}) => ({
+const dealRow = (over = {}) => withReferenceEvidence({
   id: 999999,
   is_active: true,
   disqualified_reason: null,

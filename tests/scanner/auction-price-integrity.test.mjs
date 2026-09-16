@@ -11,6 +11,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,7 +25,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const RATES = { USD: 1, GBP: 0.74, AUD: 1.39, EUR: 0.86, CAD: 1.38 };
 
 // the failure-shape row: GB auction, GBP-priced, bid << landed total.
-const failShape = (over = {}) => ({
+const failShape = (over = {}) => withReferenceEvidence({
   id: 999,
   is_active: true,
   is_graded: false,

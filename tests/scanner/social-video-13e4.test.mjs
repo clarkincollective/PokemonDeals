@@ -10,6 +10,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -43,7 +44,7 @@ const VIDEO_FILES = readdirSync(join(ROOT, "lib/social"))
   .map((f) => "lib/social/" + f)
   .concat(["scripts/socialVideo.mjs"]);
 
-const dealRow = (over = {}) => ({
+const dealRow = (over = {}) => withReferenceEvidence({
   id: 700,
   watchlist_id: 700,
   card_tcgplayer_id: "12345",

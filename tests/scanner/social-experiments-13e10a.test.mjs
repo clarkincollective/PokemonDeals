@@ -18,6 +18,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -257,7 +258,7 @@ test("13E.10A-20. the report joins ledger rows by content_id + variant and holds
 // ---- §20 batch freeze --------------------------------
 
 test("13E.10A-21. experiment fields freeze into the batch and any change invalidates the approval checksum", () => {
-  const row = (over = {}) => ({
+  const row = (over = {}) => withReferenceEvidence({
     job_id: `pdf-x::instagram_reel::A`, content_id: "pdf-x", platform: "instagram_reel", placement: "reel", creative_variant: "A",
     channel_key: "instagram_main", channel_id: "chan1", media_sha256: "sha", public_media_url: "https://h/x.mp4",
     caption: "cap", youtube_title: null, cta_url: "https://pokemondealfinder.com/deals/1?utm_source=instagram", hashtags: [],

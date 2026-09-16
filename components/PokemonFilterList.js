@@ -137,7 +137,7 @@ export default function PokemonFilterList({ groups }) {
                         key={s.name}
                         href={`/pokemon/${s.slug}`}
                         className={s.hasDeal ? "species-tile species-tile-deal" : "species-tile species-tile-plain"}
-                        title={s.hasDeal ? `${s.count} active deal${s.count === 1 ? "" : "s"}` : "Browse every card"}
+                        title={s.hasDeal ? `${s.count} active listing${s.count === 1 ? "" : "s"}` : "Browse every card"}
                       >
                         <span className="flex min-w-0 items-center gap-1.5">
                           {/* PokéAPI game sprite - small identification-

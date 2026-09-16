@@ -5,6 +5,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -28,7 +29,7 @@ const iso = (hFromNow) => new Date(NOW + hFromNow * 3.6e6).toISOString();
 
 // a fully-displayable BIN row (mirrors the sitemap-parity.test.mjs shape
 // that is known to pass isDisplayableDeal)
-const bin = (over = {}) => ({
+const bin = (over = {}) => withReferenceEvidence({
   id: 1, listing_type: "FIXED_PRICE", is_active: true, is_graded: false,
   condition: "Near Mint", card_language: "english",
   card_name: "Charizard GX", card_set: "SM - Hidden Fates",

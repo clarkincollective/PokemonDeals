@@ -132,8 +132,16 @@ test("PG-4. savings need evidence that matches the stored comparison, captured n
     assert.equal(savingsClaimTrusted({ ...gradedEvidence, reference_grade: "9" }), false, "grade mismatch");
     assert.equal(savingsClaimTrusted({ ...gradedEvidence, reference_product_id: "999999" }), false, "identity mismatch");
     assert.equal(savingsClaimTrusted({ ...gradedEvidence, reference_amount: 1.23 }), false, "amount mismatch");
-    // sets outside the tracked recent releases are unchanged by this patch
-    assert.equal(savingsClaimTrusted({ ...base, card_set: "Base Set", watchlist: { set: "Base Set" }, title: "Charizard 4/102" }), true);
+    // SEO-4 (16 Sep 2026): sets outside the tracked recent releases are NO
+    // LONGER exempt. This assertion used to read `..., true)` on a row with
+    // no evidence at all, which is exactly the hole that let ~787 of 1,259
+    // live claiming rows show an uncheckable "% below market".
+    const untracked = { ...base, card_set: "Base Set", watchlist: { set: "Base Set" }, title: "Charizard 4/102" };
+    assert.equal(savingsClaimTrusted(untracked), false, "an untracked set still needs evidence");
+    // with evidence it qualifies, and needs no provider observation time:
+    // that extra floor exists only where the claim is temporal (a tracked
+    // release must be evidenced at or after its release day)
+    assert.equal(savingsClaimTrusted(withEvidence(untracked, { reference_observed_at: null })), true);
   });
 });
 
@@ -169,15 +177,33 @@ test("PG-6. a plain listing inherits no savings treatment anywhere", () => {
   assert.equal((deals.match(/sort === "discount" && !savingsClaimTrusted\(/g) || []).length, 4, "every discount-sorted view");
   assert.equal((deals.match(/savingsClaimTrusted\(d\) \? Number\(d\.discount_pct\) : null/g) || []).length, 3, "catalogue tiles");
   assert.match(src("components/SealedDealCard.js"), /<DealScoreBadge score=\{showSavings \? scoreBadge : null\}/);
-  // reader-consistency added the offer-eligibility rule alongside; the savings rule itself is unchanged
-  assert.match(src("lib/catalogAggregates.js"), /rows = \(rows \?\? \[\]\)\.filter\(\(row\) => isOfferCountable\(row\) && savingsClaimTrusted\(row\)\)/);
+  // SEO-4: hub membership is no longer gated on the savings rule - a count of
+  // offers and a lowest asking price are listing facts, and coupling them to
+  // discount evidence meant tightening that rule 404'd pages. The savings
+  // treatment itself is still withheld at every render site, which is what
+  // the assertions above and below this line check.
+  assert.match(src("lib/catalogAggregates.js"), /rows = \(rows \?\? \[\]\)\.filter\(\(row\) => isOfferCountable\(row\)\)/);
   assert.match(src("lib/sitemap.js"), /isDisplayableDeal\(r\) && savingsClaimTrusted\(r\)/);
   for (const page of ["app/deals/[id]/page.js", "app/sealed-deals/[id]/page.js"]) {
-    assert.match(src(page), /\{showSavings && \(?\s*<script/, `${page}: Product JSON-LD only with evidenced savings`);
+    // showSavings must GATE the Product JSON-LD. Both pages narrowed the
+    // condition further after this pin was written (an auction also needs
+    // resolvable bid parts), so extra conjuncts between showSavings and the
+    // <script> are allowed - what matters is that showSavings leads it and
+    // nothing renders the block without it.
+    assert.match(
+      src(page),
+      /\{showSavings &&[^}]*?<script\s+type="application\/ld\+json"/,
+      `${page}: Product JSON-LD only with evidenced savings`
+    );
     assert.match(src(page), /robots: \{ index: false, follow: true \}/, `${page}: plain listing is noindex`);
   }
   for (const c of ["components/DealCard.js", "components/SealedDealCard.js"]) {
-    assert.match(src(c), /const showSavings = presentation\.savings === "trusted";/, c);
+    // The trusted-comparison test must be a NECESSARY part of showSavings.
+    // SealedDealCard additionally requires both prices and a usable shipping
+    // claim, which is strictly tighter, so the pin checks the conjunct rather
+    // than the whole expression.
+    assert.match(src(c), /const showSavings = [^;]*presentation\.savings === "trusted"/, c);
+    assert.doesNotMatch(src(c), /const showSavings = [^;]*\|\|[^;]*;/, `${c}: showSavings must not be widened by an OR`);
   }
 });
 

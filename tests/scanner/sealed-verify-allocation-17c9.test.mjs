@@ -4,6 +4,7 @@
 // 20, never added to them.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 
 import {
   SEALED_MAX_PER_RUN,
@@ -51,7 +52,7 @@ test("SV-4. 3 slots/run covers the post-re-home demand, and the displaced card c
 
 test("SV-5. the card allocator itself is unchanged when it is handed the reduced batch", () => {
   const now = Date.parse("2026-09-12T12:00:00Z");
-  const pool = Array.from({ length: 40 }, (_, i) => ({
+  const pool = Array.from({ length: 40 }, (_, i) => withReferenceEvidence({
     id: i + 1,
     listing_type: "FIXED_PRICE",
     market_price: 120,

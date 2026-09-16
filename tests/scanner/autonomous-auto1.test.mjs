@@ -6,6 +6,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -255,7 +256,7 @@ test("AUTO1-17 preSendRevalidate: price drift -> SKIP, listing ended -> CANCEL",
 
 // ============================ email: content & audience ============================
 
-const digDeal = (over = {}) => ({
+const digDeal = (over = {}) => withReferenceEvidence({
   id: 1, is_active: true, listing_type: "FIXED_PRICE", total_price: 40, market_price: 120,
   discount_pct: 0.66, last_seen_at: new Date().toISOString(), ...over,
 });

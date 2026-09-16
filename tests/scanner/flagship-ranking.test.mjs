@@ -3,6 +3,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -20,7 +21,7 @@ const read = (p) => readFileSync(join(HERE, "..", "..", p), "utf8");
 
 // a fixed-price flagship-shaped row
 let _id = 0;
-const row = (o = {}) => ({
+const row = (o = {}) => withReferenceEvidence({
   id: ++_id,
   watchlist_id: _id * 100,
   listing_type: "FIXED_PRICE",

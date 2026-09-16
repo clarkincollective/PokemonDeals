@@ -11,6 +11,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -38,7 +39,7 @@ const HOUR = 3_600_000;
 // (separate clock reads could differ by a millisecond and fail the rule).
 const VERIFIED_AT = new Date(Date.now() - HOUR).toISOString();
 
-const dealRow = (over = {}) => ({
+const dealRow = (over = {}) => withReferenceEvidence({
   id: 700, watchlist_id: 700, card_tcgplayer_id: "12345",
   card_name: over.card_name ?? "Charizard", card_set: over.card_set ?? "Base Set",
   is_graded: over.is_graded ?? false, grader: over.grader ?? null, grade: over.grade ?? null,

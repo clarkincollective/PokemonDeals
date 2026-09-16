@@ -10,6 +10,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync, mkdtempSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -57,7 +58,7 @@ const APPLIED_IDS = [...collectorPrior.rows.map((r) => r.dealId), ...languagePri
 
 // verify-deals' recovery candidate filter (is_active=false + a seen-again marker)
 const recoveryCandidates = (db) => db.tables.deals.filter((r) => r.is_active === false && [LA.SEEN_AGAIN.SOLD, LA.SEEN_AGAIN.NOT_FOUND_IN_MARKETPLACE].includes(r.disqualified_reason));
-const sightingOf = (r) => ({ source: "ebay", marketplace: r.marketplace, listing_id: r.listing_id, title: r.title, watchlist_id: r.watchlist_id, market_price: r.market_price, discount_pct: r.discount_pct, is_active: true, last_seen_at: nowIso() });
+const sightingOf = (r) => withReferenceEvidence({ source: "ebay", marketplace: r.marketplace, listing_id: r.listing_id, title: r.title, watchlist_id: r.watchlist_id, market_price: r.market_price, discount_pct: r.discount_pct, is_active: true, last_seen_at: nowIso() });
 // the exact pre-r2 feed sold-on-lookup statement, for contrast
 const oldFeedSold = (db, r) =>
   db.from("deals").update({ is_active: false, disqualified_reason: SOLD, exact_verified_at: nowIso() }).match({ source: "ebay", marketplace: r.marketplace, listing_id: r.listing_id }).eq("is_active", true).select("id");

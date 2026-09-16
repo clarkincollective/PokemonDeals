@@ -147,11 +147,13 @@ test("IDB-7. fetchDealsPool uses the slim select + ceiling + projection, keeps t
 test("IDB-8. the pool + homepage-lanes cache keys were bumped so a stale entry of an older shape is not reused", () => {
   const src = read("lib/deals.js");
   // v2 = slim rows (INFRA-DB-1); v3 = slim rows carrying price + shipping
-  // (deal-first P1) - a v2 entry lacks the fields the card now reads
-  assert.match(src, /\["deals-pool-v3"\]/);
-  assert.match(src, /\["homepage-lanes-v3"\]/);
-  assert.doesNotMatch(src, /\["deals-pool"\]|\["deals-pool-v2"\]/);
-  assert.doesNotMatch(src, /\["homepage-lanes-v1"\]|\["homepage-lanes-v2"\]/);
+  // (deal-first P1); v4 = slim rows carrying the stored reference evidence
+  // (SEO-4) - a v3 entry has no evidence, so every row in it would render
+  // with no saving at all until the entry expired
+  assert.match(src, /\["deals-pool-v4"\]/);
+  assert.match(src, /\["homepage-lanes-v4"\]/);
+  assert.doesNotMatch(src, /\["deals-pool"\]|\["deals-pool-v2"\]|\["deals-pool-v3"\]/);
+  assert.doesNotMatch(src, /\["homepage-lanes-v1"\]|\["homepage-lanes-v2"\]|\["homepage-lanes-v3"\]/);
 });
 
 test("IDB-9. every homepage lane pool is slimmed before it enters the homepage-lanes cache entry", () => {

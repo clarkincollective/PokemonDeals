@@ -89,7 +89,12 @@ for (const [index, expression] of projections.entries()) {
 for (const shipping of [undefined,0,5]) {
   test('sealed card and share text preserve shipping uncertainty: '+shipping, () => {
     const fixture = DEAL_STATE_FIXTURES.find(f=>f.id==='bin_compared').deal;
-    const deal = {...fixture,shipping,sealed_watchlist:{name:'Simulated sealed fixture',set:'Fixture'}};
+    // SEO-4: a sealed row is evidenced against sealed_watchlist.tcgplayer_id
+    // (not card_tcgplayer_id), so the synthetic product carries the same id
+    // the borrowed fixture's stored reference names. Without it this row has
+    // no evidence and renders with no savings claim at all - which is a
+    // different state from the shipping one this test is about.
+    const deal = {...fixture,shipping,sealed_watchlist:{name:'Simulated sealed fixture',set:'Fixture',tcgplayer_id:fixture.reference_product_id}};
     const el = SealedDealCard({deal});
     const text = words(el);
     const share = find(el,component('@/components/ShareButton'));

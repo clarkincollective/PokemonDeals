@@ -4,6 +4,7 @@
 // -> the real write path. Not sealedListingDecision in isolation.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { createRequire } from "node:module";
 
 import {
@@ -150,7 +151,7 @@ function fakeDb(seed = []) {
     },
   };
 }
-const deps = (product) => ({
+const deps = (product) => withReferenceEvidence({
   product,
   marketPrice: product.price,
   discountThreshold: 0.1,
@@ -158,7 +159,7 @@ const deps = (product) => ({
   isTrustworthy: () => true,
   matchesName: listingMatchesSealedProduct, // THE REAL ONE, as the route injects it
   priceListing: (l, mp) => ({ totalLocal: l.price, totalUsd: l.price, discountPct: (mp - l.price) / mp }),
-  buildRow: ({ productId, listing, totalPrice, marketPrice, discountPct }) => ({
+  buildRow: ({ productId, listing, totalPrice, marketPrice, discountPct }) => withReferenceEvidence({
     sealed_watchlist_id: productId, source: "ebay", marketplace: listing.marketplace,
     listing_id: listing.listingId, title: listing.title, total_price: totalPrice,
     market_price: marketPrice, discount_pct: discountPct, is_active: true,

@@ -69,7 +69,34 @@ function copy(base, { id, listingId, marketplace, itemUsd, shipUsd, firstSeenH, 
   };
   if (shipUsd === undefined) delete row.shipping;
   else row.shipping = money(shipUsd * m.rate);
-  return row;
+  // SEO-4: the stored reference evidence a savings claim needs on every set
+  // (lib/dealQuality storedReferenceEvidence). Recomputed from the FINISHED
+  // row, and the inherited copy is dropped first: `base` is a shared
+  // template that already carries its own evidence, and a copy that changes
+  // market_price, grade or condition would otherwise keep the template's -
+  // a reference describing a different comparison, which is exactly what
+  // the rule exists to reject. An explicit reference_* passed to this copy
+  // still wins, so a test can pin a deliberately mismatched one.
+  const pinned = Object.fromEntries(Object.entries(over).filter(([k]) => k.startsWith("reference_")));
+  for (const k of Object.keys(row)) if (k.startsWith("reference_")) delete row[k];
+  return { ...row, ...referenceEvidenceForRow(row), ...pinned };
+}
+
+// Local copy of the rule the scanner writes: identity + amount + what the
+// reference was for. Kept here (not imported from tests/helpers) because
+// this module is loaded by the browser runtime harness as well.
+function referenceEvidenceForRow(r) {
+  if (r.market_price == null || r.card_tcgplayer_id == null) return {};
+  const base = {
+    reference_source: "fixture",
+    reference_product_id: String(r.card_tcgplayer_id),
+    reference_amount: r.market_price,
+    reference_currency: "USD",
+    reference_observed_at: ago(6),
+    reference_synced_at: ago(6),
+  };
+  if (r.is_graded) return { ...base, reference_grader: r.grader ?? null, reference_grade: r.grade == null ? null : String(r.grade) };
+  return { ...base, reference_condition: r.condition ?? null, reference_printing: "Holofoil" };
 }
 
 // Ordinary eligible listings: 84 distinct listings over 6 raw templates,

@@ -9,6 +9,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -31,7 +32,7 @@ const read = (p) => readFileSync(join(ROOT, p), "utf8");
 let _id = 0;
 // a deal-shaped row. `species` picks a real Pokemon name so extractSpecies
 // resolves it; `printing` sets a distinct card_tcgplayer_id.
-const deal = (o = {}) => ({
+const deal = (o = {}) => withReferenceEvidence({
   id: ++_id,
   watchlist_id: (o.printing ?? _id) * 10,
   card_tcgplayer_id: String(o.printing ?? _id),

@@ -8,6 +8,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -35,7 +36,7 @@ const read = (p) => readFileSync(join(ROOT, p), "utf8");
 //     out exactly one thing ------------------------------------------------
 const GREEN_FLAGS = { publishEnabled: true, dryRun: false, epnAiClassification: "NOT_APPLICABLE_CURRENT_PIPELINE", hasBufferToken: true };
 
-const FRESH_SNAP = () => ({ market_price: 100, discount_pct: 0.5, source_is_live: true, source_captured_at: new Date().toISOString() });
+const FRESH_SNAP = () => withReferenceEvidence({ market_price: 100, discount_pct: 0.5, source_is_live: true, source_captured_at: new Date().toISOString() });
 function greenVariant(over = {}) {
   return {
     media: { kind: "video_916", files: ["/x/a.mp4"], width: 1080, height: 1920, durationS: 8, filesExist: true },

@@ -11,6 +11,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -38,7 +39,7 @@ const VERIFIED_AT = ago(1);
 
 
 // a minimally-complete displayable, socially-eligible row
-const row = (over = {}) => ({
+const row = (over = {}) => withReferenceEvidence({
   id: 42,
   card_name: "Ditto",
   card_set: "EX Delta Species",

@@ -174,8 +174,8 @@ test("P1-4b. projection edge rows: DB null shipping -> unknown; non-USD row keep
 
 test("P1-5. the cache keys were bumped so entries of the older slim shape are not served to the new card", () => {
   const src = read("lib/deals.js");
-  assert.match(src, /\["homepage-lanes-v3"\]/);
-  assert.match(src, /\["deals-pool-v3"\]/);
+  assert.match(src, /\["homepage-lanes-v4"\]/);
+  assert.match(src, /\["deals-pool-v4"\]/);
 });
 
 test("P1-6. DealCard reads the shared contract - no private shipping rule", () => {

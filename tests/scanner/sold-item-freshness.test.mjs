@@ -15,6 +15,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -259,7 +260,7 @@ const T0 = "2026-09-11T08:00:00.000Z";
 const T_SALE_CHECK = "2026-09-11T09:00:00.000Z";
 const T_SIGHT = "2026-09-11T09:05:00.000Z";
 
-const liveRow = (over = {}) => ({
+const liveRow = (over = {}) => withReferenceEvidence({
   id: 1,
   source: "ebay",
   marketplace: "EBAY_US",
@@ -699,7 +700,7 @@ const HOUR_MS = 3_600_000;
 const hoursAgo = (h, base) => new Date(base - h * HOUR_MS).toISOString();
 // A fully displayable, premium-shaped BIN row (same shape as the
 // deal-availability-freshness fixture), with the timestamps supplied.
-const premiumRow = ({ lastSeen, exact, reason = null, active = true }) => ({
+const premiumRow = ({ lastSeen, exact, reason = null, active = true }) => withReferenceEvidence({
   id: 4242,
   is_active: active,
   is_graded: false,

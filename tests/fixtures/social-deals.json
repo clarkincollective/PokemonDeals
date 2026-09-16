@@ -23,7 +23,16 @@
         "exact_verified_at": "2026-09-06T00:00:11.961+00:00",
         "first_seen_at": "2026-08-31T22:06:07.643499+00:00",
         "last_seen_at": "2026-09-06T00:00:11.961+00:00",
-        "auction_end_at": null
+        "auction_end_at": null,
+        "condition": "Lightly Played",
+        "reference_source": "fixture_constructed",
+        "reference_product_id": "84832",
+        "reference_amount": 140.82,
+        "reference_currency": "USD",
+        "reference_observed_at": "2026-09-15T00:00:00.000Z",
+        "reference_synced_at": "2026-09-15T00:00:00.000Z",
+        "reference_condition": "Lightly Played",
+        "reference_printing": "Holofoil"
       }
     },
     {
@@ -46,7 +55,16 @@
         "exact_verified_at": "2026-09-05T23:30:16.865+00:00",
         "first_seen_at": "2026-08-31T19:31:34.921575+00:00",
         "last_seen_at": "2026-09-05T23:30:16.865+00:00",
-        "auction_end_at": null
+        "auction_end_at": null,
+        "condition": "Near Mint",
+        "reference_source": "fixture_constructed",
+        "reference_product_id": "90739",
+        "reference_amount": 397.98,
+        "reference_currency": "USD",
+        "reference_observed_at": "2026-09-15T00:00:00.000Z",
+        "reference_synced_at": "2026-09-15T00:00:00.000Z",
+        "reference_condition": "Near Mint",
+        "reference_printing": "Holofoil"
       }
     },
     {
@@ -69,7 +87,16 @@
         "exact_verified_at": "2026-09-06T00:00:12.807+00:00",
         "first_seen_at": "2026-08-31T22:15:54.60999+00:00",
         "last_seen_at": "2026-09-06T00:00:12.807+00:00",
-        "auction_end_at": null
+        "auction_end_at": null,
+        "condition": "Graded",
+        "reference_source": "fixture_constructed",
+        "reference_product_id": "86903",
+        "reference_amount": 4425,
+        "reference_currency": "USD",
+        "reference_observed_at": "2026-09-15T00:00:00.000Z",
+        "reference_synced_at": "2026-09-15T00:00:00.000Z",
+        "reference_grader": "BGS",
+        "reference_grade": "8.5"
       }
     },
     {
@@ -92,7 +119,16 @@
         "exact_verified_at": "2026-09-06T00:00:08.2+00:00",
         "first_seen_at": "2026-09-04T09:30:20.1698+00:00",
         "last_seen_at": "2026-09-06T00:00:08.2+00:00",
-        "auction_end_at": null
+        "auction_end_at": null,
+        "condition": "Graded",
+        "reference_source": "fixture_constructed",
+        "reference_product_id": "284283",
+        "reference_amount": 305,
+        "reference_currency": "USD",
+        "reference_observed_at": "2026-09-15T00:00:00.000Z",
+        "reference_synced_at": "2026-09-15T00:00:00.000Z",
+        "reference_grader": "PSA",
+        "reference_grade": "10"
       }
     },
     {
@@ -115,7 +151,16 @@
         "exact_verified_at": "2026-09-05T23:30:14.802+00:00",
         "first_seen_at": "2026-09-04T08:30:22.222655+00:00",
         "last_seen_at": "2026-09-05T23:30:14.802+00:00",
-        "auction_end_at": null
+        "auction_end_at": null,
+        "condition": "Near Mint",
+        "reference_source": "fixture_constructed",
+        "reference_product_id": "84606",
+        "reference_amount": 75.65,
+        "reference_currency": "USD",
+        "reference_observed_at": "2026-09-15T00:00:00.000Z",
+        "reference_synced_at": "2026-09-15T00:00:00.000Z",
+        "reference_condition": "Near Mint",
+        "reference_printing": "Holofoil"
       }
     },
     {
@@ -138,7 +183,16 @@
         "exact_verified_at": "2026-09-06T00:00:20.587+00:00",
         "first_seen_at": "2026-09-05T18:35:54.707597+00:00",
         "last_seen_at": "2026-09-06T00:00:20.587+00:00",
-        "auction_end_at": null
+        "auction_end_at": null,
+        "condition": "Near Mint",
+        "reference_source": "fixture_constructed",
+        "reference_product_id": "90137",
+        "reference_amount": 752.74,
+        "reference_currency": "USD",
+        "reference_observed_at": "2026-09-15T00:00:00.000Z",
+        "reference_synced_at": "2026-09-15T00:00:00.000Z",
+        "reference_condition": "Near Mint",
+        "reference_printing": "Holofoil"
       }
     },
     {
@@ -161,7 +215,16 @@
         "exact_verified_at": "2026-09-05T23:30:16.198+00:00",
         "first_seen_at": "2026-09-04T08:35:53.484633+00:00",
         "last_seen_at": "2026-09-05T23:30:16.198+00:00",
-        "auction_end_at": null
+        "auction_end_at": null,
+        "condition": "Near Mint",
+        "reference_source": "fixture_constructed",
+        "reference_product_id": "84606",
+        "reference_amount": 75.65,
+        "reference_currency": "USD",
+        "reference_observed_at": "2026-09-15T00:00:00.000Z",
+        "reference_synced_at": "2026-09-15T00:00:00.000Z",
+        "reference_condition": "Near Mint",
+        "reference_printing": "Holofoil"
       }
     }
   ],
@@ -186,7 +249,16 @@
         "exact_verified_at": "2026-09-06T00:00:11.961+00:00",
         "first_seen_at": "2026-08-31T22:06:07.643499+00:00",
         "last_seen_at": "2026-09-06T00:00:11.961+00:00",
-        "auction_end_at": null
+        "auction_end_at": null,
+        "condition": "Lightly Played",
+        "reference_source": "fixture_constructed",
+        "reference_product_id": "84832",
+        "reference_amount": 140.82,
+        "reference_currency": "USD",
+        "reference_observed_at": "2026-09-15T00:00:00.000Z",
+        "reference_synced_at": "2026-09-15T00:00:00.000Z",
+        "reference_condition": "Lightly Played",
+        "reference_printing": "Holofoil"
       },
       "movement": {
         "ok": true,
@@ -459,7 +531,16 @@
         "exact_verified_at": "2026-09-05T23:30:15.478+00:00",
         "first_seen_at": "2026-09-04T08:30:26.188451+00:00",
         "last_seen_at": "2026-09-05T23:30:15.478+00:00",
-        "auction_end_at": null
+        "auction_end_at": null,
+        "condition": "Lightly Played",
+        "reference_source": "fixture_constructed",
+        "reference_product_id": "88018",
+        "reference_amount": 44.23,
+        "reference_currency": "USD",
+        "reference_observed_at": "2026-09-15T00:00:00.000Z",
+        "reference_synced_at": "2026-09-15T00:00:00.000Z",
+        "reference_condition": "Lightly Played",
+        "reference_printing": "Holofoil"
       },
       "movement": {
         "ok": true,
@@ -732,7 +813,16 @@
         "exact_verified_at": "2026-09-06T00:00:08.2+00:00",
         "first_seen_at": "2026-09-04T09:30:20.1698+00:00",
         "last_seen_at": "2026-09-06T00:00:08.2+00:00",
-        "auction_end_at": null
+        "auction_end_at": null,
+        "condition": "Graded",
+        "reference_source": "fixture_constructed",
+        "reference_product_id": "284283",
+        "reference_amount": 305,
+        "reference_currency": "USD",
+        "reference_observed_at": "2026-09-15T00:00:00.000Z",
+        "reference_synced_at": "2026-09-15T00:00:00.000Z",
+        "reference_grader": "PSA",
+        "reference_grade": "10"
       },
       "movement": {
         "ok": true,
@@ -1005,7 +1095,16 @@
         "exact_verified_at": "2026-09-05T23:30:18.546+00:00",
         "first_seen_at": "2026-09-01T22:46:10.558941+00:00",
         "last_seen_at": "2026-09-05T23:30:18.546+00:00",
-        "auction_end_at": null
+        "auction_end_at": null,
+        "condition": "Near Mint",
+        "reference_source": "fixture_constructed",
+        "reference_product_id": "86917",
+        "reference_amount": 322.49,
+        "reference_currency": "USD",
+        "reference_observed_at": "2026-09-15T00:00:00.000Z",
+        "reference_synced_at": "2026-09-15T00:00:00.000Z",
+        "reference_condition": "Near Mint",
+        "reference_printing": "Holofoil"
       },
       "movement": {
         "ok": true,
@@ -1303,5 +1402,6 @@
         "auction_end_at": null
       }
     ]
-  }
+  },
+  "_reference_note": "SEO-4 (2026-09-16): `condition` is the row's real stored value; the reference_* columns are CONSTRUCTED for the fixture (reference_source 'fixture_constructed') so each row carries the stored reference evidence savingsClaimTrusted now requires. The live rows predate reference provenance, so there was nothing real to copy. Regenerating with scripts/_pullSocialFixtures.mjs pulls the real columns once the scanner has written them."
 }

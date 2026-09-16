@@ -110,7 +110,14 @@ test("RC-5 wiring: every offer-counting reader excludes held rows at the query a
   assert.match(prints, /\$\{OFFER_ELIGIBILITY_COLUMNS\}/);
   assert.match(prints, /\.is\("disqualified_reason", null\)/);
   assert.match(prints, /for \(const row of \(data \?\? \[\]\)\.filter\(isOfferCountable\)\)/);
-  assert.match(read("lib/catalogAggregates.js"), /rows = \(rows \?\? \[\]\)\.filter\(\(row\) => isOfferCountable\(row\) && savingsClaimTrusted\(row\)\);/);
+  // SEO-4 (16 Sep 2026): this used to also require savingsClaimTrusted, which
+  // made a set/species/card hub EXIST only if its listings could evidence a
+  // discount. Those are different questions - a count of offers and a lowest
+  // asking price are listing facts - and the coupling meant tightening the
+  // savings rule silently 404'd pages (simulated: set hubs 89 -> 49, species
+  // 64 -> 20, five card hubs gone). The savings claim is still gated where it
+  // is rendered; see tests/scanner/savings-evidence.test.mjs.
+  assert.match(read("lib/catalogAggregates.js"), /rows = \(rows \?\? \[\]\)\.filter\(\(row\) => isOfferCountable\(row\)\);/);
   const snapshot = read("app/api/refresh-catalog/route.js");
   assert.match(snapshot, /\.eq\("is_active", true\)\s*\n(?:\s*\/\/.*\n)*\s*\.is\("disqualified_reason", null\)/);
   assert.ok(/const SELECT =\s*\n\s*"[^"]*visual_authenticity_reason[^"]*"/.test(snapshot) && /const SELECT_LEGACY =\s*\n\s*"[^"]*visual_authenticity_reason[^"]*"/.test(snapshot));

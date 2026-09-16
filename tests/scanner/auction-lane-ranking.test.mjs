@@ -3,6 +3,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -23,7 +24,7 @@ const read = (p) => readFileSync(join(HERE, "..", "..", p), "utf8");
 const NOW = Date.parse("2026-01-01T12:00:00Z");
 const endIn = (mins) => new Date(NOW + mins * 60000).toISOString();
 let _id = 0;
-const auc = (o = {}) => ({
+const auc = (o = {}) => withReferenceEvidence({
   id: ++_id,
   watchlist_id: _id * 10,
   listing_type: "AUCTION",

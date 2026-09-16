@@ -13,6 +13,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -35,7 +36,7 @@ const ago = (h) => new Date(Date.now() - h * HOUR).toISOString();
 const ahead = (h) => new Date(Date.now() + h * HOUR).toISOString();
 
 // A fully-populated, otherwise-clean displayable deal row.
-const deal = (over = {}) => ({
+const deal = (over = {}) => withReferenceEvidence({
   id: 1,
   is_active: true,
   is_graded: false,

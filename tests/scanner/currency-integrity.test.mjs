@@ -11,6 +11,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -33,7 +34,7 @@ const RATES = { USD: 1, GBP: 0.79, EUR: 0.92, AUD: 1.52, CAD: 1.36 };
 
 // a deal row like the DB stores: total_price NATIVE, total_price_usd USD,
 // market_price USD.
-const deal = (over = {}) => ({
+const deal = (over = {}) => withReferenceEvidence({
   marketplace: "EBAY_AU",
   currency: "AUD",
   total_price: 121.6, // A$121.60

@@ -21,6 +21,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { referenceEvidenceFor } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -73,7 +74,10 @@ const deal = (over = {}) => {
     ...over,
   };
   if (over.exact_verified_at && !("last_seen_at" in over)) row.last_seen_at = over.exact_verified_at;
-  return row;
+  // SEO-4: premium/social eligibility builds on a trusted savings claim, which
+  // now needs stored reference evidence on every set. Derived from the row so
+  // an overridden market_price keeps matching evidence.
+  return { ...referenceEvidenceFor(row), ...row };
 };
 
 // --- 1: the exact bug class - recent last_seen_at, no/old exact verification
