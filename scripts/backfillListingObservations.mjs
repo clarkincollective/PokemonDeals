@@ -43,7 +43,7 @@ else loadDotenv({ quiet: true });
 const require = createRequire(import.meta.url);
 const { buildObservation } = require("../lib/listingObservations.js");
 const { isMissingObservationTableError, BACKFILL_UNIQUE_CONSTRAINT } = require("../lib/listingObservationsDb.js");
-const { fetchExistingBackfillKeys, writeBackfillObservations } = require("../lib/listingObservationsBackfill.js");
+const { fetchExistingBackfillKeys, planBackfill, writeBackfillObservations } = require("../lib/listingObservationsBackfill.js");
 
 const APPLY = process.argv.includes("--apply");
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -97,26 +97,44 @@ async function main() {
   console.error("\nThese are a SNAPSHOT of retained state, not observed history.");
   console.error("They carry kind='backfill' and must be excluded from time series.");
 
-  if (!APPLY) {
-    console.error("\n--apply not given: nothing written.");
-    console.error(`--apply requires ${BACKFILL_UNIQUE_CONSTRAINT}; run`);
-    console.error("supabase/listing_observations_backfill_uniq_migration.sql first, or a re-run");
-    console.error("would insert a SECOND copy of every row above.");
-    return;
-  }
-
   // RESUME. One paged read of the keys already snapshotted - not a SELECT
   // per row - so a completed backfill re-runs in seconds. It is only an
   // optimisation: the final state is identical without it, because
   // listing_observations_backfill_uniq rejects a repeat as 23505 and the
   // writer counts that as already-done.
+  //
+  // Read in BOTH modes, so a preview can answer the only question that
+  // matters after an apply: how much is left. A preview that could not see
+  // the existing snapshot would report 29,098 rows "to write" forever.
   const { keys: existingKeys, error: keysError } = await fetchExistingBackfillKeys(db);
   if (keysError) {
     console.error(`\ncould not read existing backfill keys (${keysError.message}); relying on the database constraint alone.`);
-  } else if (existingKeys.size) {
-    console.error(`\nresuming: ${existingKeys.size} listing/day keys already snapshotted.`);
+  }
+  const { pending, skipped: alreadyDone } = planBackfill(observations, existingKeys);
+  console.error(`\nalready snapshotted        : ${alreadyDone.length}`);
+  console.error(`pending insert             : ${pending.length}`);
+
+  if (!APPLY) {
+    console.error("\n--apply not given: nothing written.");
+    if (alreadyDone.length) {
+      // The snapshot has already been taken. Anything still pending is a
+      // listing DISCOVERED SINCE, which live daily capture is already
+      // recording properly - it does not need a backfill row and re-running
+      // --apply is not how it should be added.
+      console.error(
+        pending.length
+          ? `the snapshot is complete; the ${pending.length} pending row(s) are listings discovered since, already covered by live daily capture.`
+          : "the snapshot is complete; a further --apply would insert nothing."
+      );
+    } else {
+      console.error(`--apply requires ${BACKFILL_UNIQUE_CONSTRAINT}; run`);
+      console.error("supabase/listing_observations_backfill_uniq_migration.sql first, or a re-run");
+      console.error("would insert a SECOND copy of every row above.");
+    }
+    return;
   }
 
+  // WRITE.
   console.error(`\nwriting (plain inserts, idempotent via ${BACKFILL_UNIQUE_CONSTRAINT})...`);
   const tally = await writeBackfillObservations(db, observations, {
     existingKeys,

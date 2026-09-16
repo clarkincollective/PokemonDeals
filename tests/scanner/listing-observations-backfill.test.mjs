@@ -408,8 +408,12 @@ test("16. --apply is gated on the migration being run", () => {
   const src = read("scripts/backfillListingObservations.mjs");
   assert.match(src, /BACKFILL_UNIQUE_CONSTRAINT/);
   assert.match(src, /listing_observations_backfill_uniq_migration\.sql/);
-  // the preview path still writes nothing
-  const applyGuard = src.slice(src.indexOf("if (!APPLY)"), src.indexOf("// RESUME."));
+  // the preview path still writes nothing, and returns before the writer
+  const applyGuard = src.slice(src.indexOf("if (!APPLY)"), src.indexOf("// WRITE."));
   assert.match(applyGuard, /nothing written/);
   assert.match(applyGuard, /return;/);
+  assert.doesNotMatch(applyGuard, /writeBackfillObservations\(/, "preview must not reach the writer");
+  // and a preview reports what is left, in both modes
+  assert.ok(src.indexOf("planBackfill(observations") < src.indexOf("if (!APPLY)"), "the resume read runs in preview too");
+  assert.match(src, /pending insert/);
 });
