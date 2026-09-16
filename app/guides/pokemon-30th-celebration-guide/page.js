@@ -511,6 +511,24 @@ export default function Page() {
           &mdash; including the two products the official pages disagree on. The product table above uses the UK
           showcase&apos;s wording.
         </li>
+        <li>
+          <Link href="/guides/pokemon-30th-celebration-mew-mewtwo" className={GUIDE_LINK_CLASS}>
+            Mew and Mewtwo, and the Futuristic rares
+          </Link>{" "}
+          &mdash; what the set&apos;s new rarity is, and all six Mew and Mewtwo cards in the release.
+        </li>
+        <li>
+          <Link href="/guides/best-pokemon-30th-celebration-cards" className={GUIDE_LINK_CLASS}>
+            The best cards beyond Pikachu
+          </Link>{" "}
+          &mdash; our editorial picks from the illustration rares, special illustration rares and ex cards.
+        </li>
+        <li>
+          <Link href="/guides/organise-pokemon-30th-celebration-collection" className={GUIDE_LINK_CLASS}>
+            How to organise a 30th Celebration collection
+          </Link>{" "}
+          &mdash; the five groups the set splits into, and deciding what &quot;complete&quot; means.
+        </li>
       </GUL>
 
       <GH2>Sources and what is still unconfirmed</GH2>
