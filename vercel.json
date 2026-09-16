@@ -21,7 +21,7 @@
       "schedule": "0 15 * * 1"
     },
     {
-      "path": "/api/refresh-deals?mode=sweep&country=EBAY_US&pages=5",
+      "path": "/api/refresh-deals?mode=sweep&country=EBAY_US&pages=5&minDiscount=0",
       "schedule": "*/15 * * * *"
     },
     {

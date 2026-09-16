@@ -384,7 +384,13 @@ test("14R-12. vercel.json cron schedules for every eBay-consuming route are STIL
   const byPath = Object.fromEntries(cfg.crons.map((c) => [c.path, c.schedule]));
   assert.equal(byPath["/api/verify-deals"], "*/30 * * * *");
   assert.equal(byPath["/api/screen-deal-images"], "15 * * * *");
-  assert.equal(byPath["/api/refresh-deals?mode=sweep&country=EBAY_US&pages=5"], "*/15 * * * *");
+  // listings-rev1 (16 Sep 2026): the US sweep carries &minDiscount=0 as a
+  // bounded trial. The discount floor is applied AFTER the eBay call (six
+  // `if (priced.discountPct < discountThreshold) continue` sites), so every
+  // listing it discarded had already been paid for in Browse quota. At 0 the
+  // sweep keeps everything at or below market instead of only 10%+ off, at
+  // zero extra quota. One marketplace only, so the other five stay a control.
+  assert.equal(byPath["/api/refresh-deals?mode=sweep&country=EBAY_US&pages=5&minDiscount=0"], "*/15 * * * *");
   assert.equal(byPath["/api/ingest-feed"], "0 * * * *");
   // sealed-rev1 (16 Sep 2026): moved from 06:00 to 07:20 UTC and scoped to one
   // marketplace. 06:00 sits an hour BEFORE the daily Browse reset, so this job

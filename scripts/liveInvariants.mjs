@@ -233,6 +233,32 @@ check(
   "warn"
 );
 
+// INV-12. INVENTORY MIX (listings-rev1, 16 Sep 2026). The scanners' discount
+// floor is applied AFTER the eBay call, so every listing discarded for being
+// "only" 5% below market had already been paid for in Browse quota. The US
+// sweep now runs with minDiscount=0 as a bounded trial: it keeps everything at
+// or below market, at no extra quota, while the other five marketplaces stay
+// at the 10% floor as a control.
+//
+// This is a REPORT, not a pass/fail rule - there is no correct mix. It exists
+// so the trial's effect is visible: how much inventory the change adds, and
+// whether the deep discounts (what the site is actually for) are still there
+// and still ranked above the rest.
+{
+  const band = (lo, hi) => countable.filter((r) => Number(r.discount_pct) >= lo && Number(r.discount_pct) < hi).length;
+  const atMarket = band(0, 0.1);
+  const real = countable.filter((r) => Number(r.discount_pct) >= 0.1).length;
+  const us = countable.filter((r) => r.marketplace === "EBAY_US");
+  const usAtMarket = us.filter((r) => Number(r.discount_pct) >= 0 && Number(r.discount_pct) < 0.1).length;
+  if (!JSON_OUT) {
+    console.log(
+      `info  INV-12 inventory mix: ${countable.length} countable | ${real} at 10%+ off | ${atMarket} at 0-10% ` +
+        `(US ${usAtMarket} of ${us.length}) | deep (30%+) ${band(0.3, 1.01)}`
+    );
+  }
+  results.push({ name: "INV-12 inventory mix", ok: true, detail: { countable: countable.length, real, atMarket, usAtMarket, usTotal: us.length }, severity: "info" });
+}
+
 // --- SCANNER HEALTH ---------------------------------------------------
 //
 // A JOB THAT IS SCHEDULED BUT NEVER EXECUTES LOOKS EXACTLY LIKE A JOB THAT
