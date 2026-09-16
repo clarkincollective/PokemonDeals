@@ -17,6 +17,7 @@ import {
 import { setImage } from "@/lib/setImages";
 import { VINTAGE_SETS, isModernSet } from "@/lib/dealCategories";
 import { setEra } from "@/lib/setSummary";
+import { guideForSet, guideLinkLabel } from "@/lib/guides";
 import SiteHeader from "@/components/SiteHeader";
 import RegionRedirect from "@/components/RegionRedirect";
 import DealGrid from "@/components/DealGrid";
@@ -156,6 +157,8 @@ export default async function SetDetailPage({ params }) {
 
   const logo = setImage(resolved.set)?.logo ?? null;
   const era = setEra(resolved.set, { vintageSets: VINTAGE_SETS, isModernSet });
+  // The guide written about this set, if one exists (exact set-name match).
+  const setGuide = guideForSet(resolved.set);
 
   // A catalogue-backed set always shows the checklist + SEO sections;
   // a deal-backed set shows them once card_catalog has a meaningful slice.
@@ -316,6 +319,22 @@ export default async function SetDetailPage({ params }) {
           <p className="mt-2 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
             {hasLiveOffers ? "Compare current offers or jump straight to the card list." : "Browse the card list and recent-sold market references."}
           </p>
+          {/* A guide written about this set (lib/guides `sets`), linked from
+              the set it is actually about. Editorial - it makes no claim
+              about listings, stock or price. */}
+          {setGuide && (
+            <p className="mt-3 max-w-xl text-sm">
+              <Link
+                href={`/guides/${setGuide.slug}`}
+                data-analytics-click="guides_research_clicked"
+                data-analytics-props={JSON.stringify({ section: "set_context", content_id: setGuide.slug, placement: "set_detail" })}
+                className="font-semibold text-red-600 underline underline-offset-4 hover:text-red-700 dark:text-red-400"
+              >
+                Read the {guideLinkLabel(setGuide)}
+              </Link>{" "}
+              <span className="text-zinc-600 dark:text-zinc-400">— what this set is, and how to tell the printings apart.</span>
+            </p>
+          )}
           <nav aria-label="On this page" className="mt-3 flex flex-wrap gap-2">
             {hasLiveOffers && <a href="#deals" className="inline-flex min-h-11 items-center rounded-full bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700">View deals ↓</a>}
             {showCatalog && <a href="#inventory" className="inline-flex min-h-11 items-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">{checklistPilot ? "Open checklist" : "Browse cards"} ↓</a>}

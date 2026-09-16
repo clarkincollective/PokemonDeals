@@ -11,7 +11,8 @@ import { dirname, join } from "node:path";
 import { GUIDE_CARDS, GUIDE_SETS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "../../lib/guideLinks.js";
 import { catalogCardSlug } from "../../lib/cardSlug.js";
 import { slugifySet } from "../../lib/slugify.js";
-import { GUIDES } from "../../lib/guides.js";
+import { GUIDES, guideForSet } from "../../lib/guides.js";
+import { cardNextSteps } from "../../lib/cardNextSteps.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
@@ -167,4 +168,62 @@ test("5. routes, canonicals and indexability of the guides are untouched", () =>
   // the registry is a plain data module: no client code, no fetch, nothing server-only
   const reg = read("lib/guideLinks.js");
   assert.doesNotMatch(reg, /"use client"|fetch\(|supabase|process\.env/);
+});
+
+// ---------------------------------------------------------------------------
+// Reciprocal linking: a set (and its cards) link back to the guide written
+// about that set. The guide already links into the card pages; without this
+// the relationship is one-way and the highest-intent surfaces - the set page
+// and the card pages themselves - never mention the guide.
+// ---------------------------------------------------------------------------
+
+test("6. guideForSet matches a set's guide on the exact catalogue set name only", () => {
+  const g = guideForSet("ME: 30th Celebration");
+  assert.ok(g, "no guide found for ME: 30th Celebration");
+  assert.equal(g.slug, "pokemon-30th-celebration-guide");
+  // the Classic Collection is filed as its own set and shares the guide
+  assert.equal(guideForSet("ME: 30th Celebration Classic Collection")?.slug, g.slug);
+  // case-insensitive, whitespace-tolerant, but never fuzzy: the 2021
+  // "Celebrations" set is a different product and must not pick this up
+  assert.equal(guideForSet("  me: 30th celebration  ")?.slug, g.slug);
+  assert.equal(guideForSet("Celebrations"), null, "the 2021 Celebrations set must not match the 30th guide");
+  assert.equal(guideForSet("30th Celebration"), null, "partial set names must not match");
+  assert.equal(guideForSet("Base Set"), null);
+  for (const empty of [null, undefined, "", "   "]) assert.equal(guideForSet(empty), null);
+});
+
+test("7. every set a guide claims is a real set name the catalogue uses", () => {
+  const known = new Set(Object.values(GUIDE_CARDS).map((c) => c.set));
+  for (const g of GUIDES) {
+    for (const s of g.sets ?? []) {
+      assert.ok(known.has(s), `guide ${g.slug} names set "${s}", which no verified GUIDE_CARDS entry uses - a typo here silently links nothing`);
+    }
+  }
+});
+
+test("8. a card in a guided set offers the guide as a next step, with no deal claim", () => {
+  const links = cardNextSteps({
+    species: { name: "Pikachu", slug: "pikachu" }, speciesLive: 3,
+    set: { name: "ME: 30th Celebration", slug: "me-30th-celebration" }, setLive: 5,
+    marketUsd: 20, setName: "ME: 30th Celebration",
+  });
+  const guide = links.find((l) => l.key === "guide");
+  assert.ok(guide, `no guide next-step link: ${JSON.stringify(links.map((l) => l.key))}`);
+  assert.equal(guide.href, "/guides/pokemon-30th-celebration-guide");
+  assert.ok(guide.label.length > 0 && guide.label.length <= 60, `guide label is ${guide.label.length} chars: ${guide.label}`);
+  // editorial link: never a live-deal count or an availability claim
+  assert.equal(guide.live, null);
+  assert.doesNotMatch(guide.label, /live|deal|in stock|cheap|save/i, `guide label implies deals: ${guide.label}`);
+  assert.ok(links.length <= 4, "next-step links stay bounded at 4");
+  // a set with no guide gets no guide link (never a 404 link)
+  assert.ok(!cardNextSteps({ set: { name: "Jungle", slug: "jungle" }, setName: "Jungle" }).some((l) => l.key === "guide"));
+});
+
+test("9. the set page links its guide from the registry, not a hand-typed URL", () => {
+  const src = read("app/sets/[slug]/page.js");
+  assert.match(src, /guideForSet\(/, "set page does not consult the guide registry");
+  assert.match(src, /href=\{`\/guides\/\$\{setGuide\.slug\}`\}/, "set page does not build the guide href from the registry entry");
+  // the same rule the guides themselves follow: no hand-typed guide slugs
+  const typed = [...src.matchAll(/href="\/guides\/[^"]+"/g)].map((m) => m[0]);
+  assert.deepEqual(typed, [], `hand-typed guide hrefs on the set page: ${typed.join(", ")}`);
 });
