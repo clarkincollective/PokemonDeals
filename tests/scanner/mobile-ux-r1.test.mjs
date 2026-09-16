@@ -141,7 +141,7 @@ test("MUX-8. one inventory heading states an honest tracked count; no 'every car
   assert.doesNotMatch(species, /Every \{resolved\.name\} card, by set/);
   assert.match(species, /market prices are recent-sold references, not\s+guaranteed values/);
   const set = src("app/sets/[slug]/page.js");
-  assert.match(set, /\{resolved\.set\} cards we track/);
+  assert.match(set, /\{setLabel\} cards we track/); // the display name (release code stripped), same count
   assert.match(set, /market prices are recent-sold references, not guaranteed values/);
 });
 

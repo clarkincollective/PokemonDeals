@@ -26,6 +26,9 @@ const VERIFIED = {
   charizardShadowless: ["106999", "Charizard", "Base Set (Shadowless)", "004/102", "/cards/charizard-base-set-shadowless"],
   charizardBaseSet2: ["42479", "Charizard", "Base Set 2", "004/130", "/cards/charizard-base-set-2"],
   charizardEvolutions: ["124026", "Charizard", "XY - Evolutions", "11/108", "/cards/charizard-xy-evolutions"],
+  arcanineBaseSet: ["42364", "Arcanine", "Base Set", "023/102", "/cards/arcanine-base-set"],
+  arcanineShadowless: ["107018", "Arcanine", "Base Set (Shadowless)", "023/102", "/cards/arcanine-base-set-shadowless"],
+  arcanineBaseSet2: ["42472", "Arcanine", "Base Set 2", "033/130", "/cards/arcanine-base-set-2"],
   umbreonVmax: ["246720", "Umbreon VMAX", "SWSH07: Evolving Skies", "095/203", "/cards/umbreon-vmax-swsh07-evolving-skies"],
   umbreonVmaxSecret: ["246722", "Umbreon VMAX (Secret)", "SWSH07: Evolving Skies", "214/203", "/cards/umbreon-vmax-secret-swsh07-evolving-skies"],
   umbreonVmaxAltArt: ["246723", "Umbreon VMAX (Alternate Art Secret)", "SWSH07: Evolving Skies", "215/203", "/cards/umbreon-vmax-alternate-art-secret-swsh07-evolving-skies"],
@@ -196,6 +199,11 @@ test("3. the contextual links landed where they explain identity, grading or val
     "pokemon-30th-celebration-mew-mewtwo": 1,
     "best-pokemon-30th-celebration-cards": 1,
     "organise-pokemon-30th-celebration-collection": 1,
+    // the worth guide sends readers to the price checker and to sibling
+    // guides; its card art is a gallery (data array). The printings guide
+    // links the two Base Set set pages in prose.
+    "how-much-is-my-pokemon-card-worth": 0,
+    "base-set-shadowless-unlimited-first-edition": 2,
   });
   // The release guide's galleries: every tile is a GUIDE_CARDS identity
   // rendered as a complete card face linked to its own page (a figure
@@ -204,7 +212,7 @@ test("3. the contextual links landed where they explain identity, grading or val
   assert.ok(gallery >= 20 && gallery <= 30, `30th Celebration gallery references ${gallery} cards`);
   // the price checker is reachable from the guides that talk about looking a card up
   const withChecker = GUIDE_FILES.filter((f) => /href=\{PRICE_CHECKER_HREF\}/.test(read(f))).map((f) => f.split("/")[2]).sort();
-  assert.deepEqual(withChecker, ["card-condition-grading", "how-pokemon-card-prices-work", "how-to-check-pokemon-card-condition", "pokemon-card-grading-scale", "raw-vs-graded-pokemon-cards"]);
+  assert.deepEqual(withChecker, ["base-set-shadowless-unlimited-first-edition", "card-condition-grading", "how-much-is-my-pokemon-card-worth", "how-pokemon-card-prices-work", "how-to-check-pokemon-card-condition", "pokemon-card-grading-scale", "raw-vs-graded-pokemon-cards"]);
   // every new link uses the guides' existing inline style
   assert.equal(GUIDE_LINK_CLASS, "text-red-600 hover:underline dark:text-red-500");
   for (const f of GUIDE_FILES) {
@@ -252,6 +260,8 @@ test("5. routes, canonicals and indexability of the guides are untouched", () =>
     "pokemon-30th-celebration-mew-mewtwo",
     "best-pokemon-30th-celebration-cards",
     "organise-pokemon-30th-celebration-collection",
+    "how-much-is-my-pokemon-card-worth",
+    "base-set-shadowless-unlimited-first-edition",
   ]);
   const guidesLib = read("lib/guides.js");
   assert.match(guidesLib, /alternates: \{ canonical: `\/guides\/\$\{slug\}` \}/);

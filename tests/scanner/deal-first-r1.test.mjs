@@ -134,7 +134,10 @@ test("R1-6. the fixtures reach each state through the REAL rules (no bypass)", (
   assert.equal(listingPresentation(by.bin_compared.deal).savings, "trusted");
   assert.equal(listingPresentation(by.bin_plain.deal).savings, null);
   assert.match(listingPresentation(by.bin_plain.deal).notes.join(" "), /No verified market reference/);
-  const up = listingPresentation(by.bin_upcoming.deal);
+  // The upcoming fixture is judged at a fixed pre-release instant: the
+  // expansion has since released (16 Sep 2026), so the system clock would
+  // - correctly - render it "released ... this listing predates it".
+  const up = listingPresentation(by.bin_upcoming.deal, Date.parse("2026-09-12T12:00:00Z"));
   assert.equal(up.savings, null);
   assert.equal(up.early, true);
   assert.match(up.notes.join(" "), /Upcoming — 30th Celebration releases/);

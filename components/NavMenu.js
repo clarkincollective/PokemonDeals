@@ -7,7 +7,7 @@ import { NAV_PRIMARY, NAV_GROUPS, NAV_LEARN, NAV_SEARCH } from "@/lib/navLinks";
 // Mobile slide-in menu (deal-first R1; mobile UX refinement 2026-09-14).
 // First screen: Search, then the deal shortcut tiles (`menuShortcut` in
 // lib/navLinks). Everything else sits in expandable groups that follow the
-// desktop header - remaining Deals, Cards & Sets - plus a Guides & help
+// desktop header - remaining Deals, Cards & Sets - plus an About this site
 // group (the inline Guides & Research entry and the Learn links the footer
 // also carries). Every destination the menu had is still reachable.
 //
@@ -102,7 +102,9 @@ export default function NavMenu() {
     })),
     {
       id: "learn",
-      label: "Guides & help",
+      // Site help (How It Works / Methodology / FAQ). It used to be labelled
+      // "Guides & help" - confusing once "News & Guides" sat directly above it.
+      label: "About this site",
       links: [...NAV_PRIMARY.filter((link) => link.group == null), ...NAV_LEARN],
     },
   ].filter((g) => g.links.length > 0);

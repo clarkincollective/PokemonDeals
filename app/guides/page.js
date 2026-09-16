@@ -61,8 +61,8 @@ const GUIDE_GROUPS = [
       "organise-pokemon-30th-celebration-collection",
     ],
   },
-  { title: "Identify your card", slugs: ["how-to-find-pokemon-card-set-and-number", "vintage-vs-modern-pokemon-cards"] },
-  { title: "Understand its price", slugs: ["how-pokemon-card-prices-work", "raw-vs-graded-pokemon-cards"] },
+  { title: "Identify your card", slugs: ["how-to-find-pokemon-card-set-and-number", "base-set-shadowless-unlimited-first-edition", "vintage-vs-modern-pokemon-cards"] },
+  { title: "Understand its price", slugs: ["how-much-is-my-pokemon-card-worth", "how-pokemon-card-prices-work", "raw-vs-graded-pokemon-cards"] },
   { title: "Check condition and grade", slugs: ["card-condition-grading", "how-to-check-pokemon-card-condition", "pokemon-card-grading-scale"] },
 ];
 
