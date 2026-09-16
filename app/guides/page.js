@@ -44,7 +44,15 @@ const RESEARCH = [
 ];
 
 const GUIDE_GROUPS = [
-  { title: "New releases", slugs: ["pokemon-30th-celebration-guide"] },
+  {
+    title: "New releases",
+    slugs: [
+      "pokemon-30th-celebration-guide",
+      "pokemon-30th-celebration-pikachu-checklist",
+      "best-pokemon-30th-celebration-pikachu-cards",
+      "pokemon-30th-celebration-classic-collection",
+    ],
+  },
   { title: "Identify your card", slugs: ["how-to-find-pokemon-card-set-and-number", "vintage-vs-modern-pokemon-cards"] },
   { title: "Understand its price", slugs: ["how-pokemon-card-prices-work", "raw-vs-graded-pokemon-cards"] },
   { title: "Check condition and grade", slugs: ["card-condition-grading", "how-to-check-pokemon-card-condition", "pokemon-card-grading-scale"] },

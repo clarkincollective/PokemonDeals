@@ -53,6 +53,33 @@ const ELSEWHERE = [
   },
 ];
 
+// The 30th Celebration cluster. These live in /guides because they are
+// reference and editorial rather than dated news; the hub links them so a
+// reader arriving for the release finds the depth without the same article
+// existing under two URLs.
+const C30_COVERAGE = [
+  {
+    href: "/guides/pokemon-30th-celebration-guide",
+    title: "30th Celebration collector's guide",
+    description: "The overview: what the set is, how it differs from Celebrations (2021), and every announced product.",
+  },
+  {
+    href: "/guides/pokemon-30th-celebration-pikachu-checklist",
+    title: "All 30 Pikachu cards: visual checklist",
+    description: "Every Pikachu rare from 023/128 to 052/128 in printed order, and which Pikachu cards do not count.",
+  },
+  {
+    href: "/guides/best-pokemon-30th-celebration-pikachu-cards",
+    title: "Best Pikachu artwork: our picks",
+    description: "Our editorial selection from the thirty, with the criteria we used. Not a value or rarity ranking.",
+  },
+  {
+    href: "/guides/pokemon-30th-celebration-classic-collection",
+    title: "Classic Collection: reprint or original?",
+    description: "A 2026 reprint and a 1999 card can both read 4/102. How to tell them apart before you buy.",
+  },
+];
+
 export default function NewsIndexPage() {
   const items = newsSorted();
   const itemListJsonLd = {
@@ -112,6 +139,28 @@ export default function NewsIndexPage() {
                   </time>
                   <span className="mt-1 block text-lg font-semibold text-black dark:text-zinc-50">{n.title}</span>
                   <span className="mt-2 block text-base leading-relaxed text-zinc-600 dark:text-zinc-400">{n.blurb}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section aria-labelledby="c30-heading" className="mt-12">
+          <h2 id="c30-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-600 dark:text-zinc-400">
+            30th Celebration coverage
+          </h2>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+            The anniversary expansion in depth. The guide is the overview; each companion answers one question.
+          </p>
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+            {C30_COVERAGE.map((c) => (
+              <li key={c.href}>
+                <Link
+                  href={c.href}
+                  className="block h-full rounded-xl border border-zinc-200 bg-white p-5 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600"
+                >
+                  <span className="block font-semibold text-black dark:text-zinc-50">{c.title}</span>
+                  <span className="mt-2 block text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{c.description}</span>
                 </Link>
               </li>
             ))}
