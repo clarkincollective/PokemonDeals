@@ -27,12 +27,20 @@ for (const auction of [false, true]) {
       assert.equal(result.offers.price, auction ? '20.00' : '25.00');
     });
   }
+  // SEO-2.6.1: a recorded charge used to emit OfferShippingDetails with
+  // shippingRate + shippingDestination but no deliveryTime, which Google's
+  // Merchant Listing enhancement reports as incomplete. We hold no delivery
+  // time and must not invent one, so the block is withheld entirely; the
+  // charge is still shown on the visible page (offerShipping).
   for (const shipping of [5, '5.25']) {
-    test('recorded charge retained, auction=' + auction + ', charge=' + shipping, () => {
+    test('recorded charge is NOT emitted as incomplete shippingDetails, auction=' + auction + ', charge=' + shipping, () => {
       const result = schema({shipping}, auction);
-      assert.equal(result.offers.shippingDetails.shippingRate.value, Number(shipping).toFixed(2));
-      assert.equal(result.offers.shippingDetails.shippingRate.currency, 'GBP');
-      assert.equal(result.offers.shippingDetails.shippingDestination.addressCountry, 'GB');
+      assert.equal(Object.hasOwn(result.offers, 'shippingDetails'), false);
+      assert.equal(offerShipping({shipping}).state, 'confirmed', 'the charge itself is still a confirmed visible fact');
+      assert.equal(result.offers.priceCurrency, 'GBP');
+      assert.equal(result.offers.price, auction ? '20.00' : '25.00');
+      // (slimPoolRow strips listing_url from this fixture; the Offer URL is
+      // proven at route level in seo-2-6-1-merchant-listing.test.mjs)
     });
   }
 }

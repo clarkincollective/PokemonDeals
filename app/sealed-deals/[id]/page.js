@@ -207,10 +207,12 @@ export default async function SealedDealDetailPage({ params }) {
     history = await loadSealedHistory(watchlist.tcgplayer_id);
   }
 
-  // brand/shippingDetails are real data (see app/deals/[id]/page.js's
-  // identical reasoning) - deliberately no hasMerchantReturnPolicy, since
-  // the real return policy is set by whichever eBay seller has the
-  // listing and varies per one.
+  // brand is real data; deliberately no hasMerchantReturnPolicy, since the
+  // real return policy is set by whichever eBay seller has the listing and
+  // varies per one. SEO-2.6.1: likewise no shippingDetails - see
+  // app/deals/[id]/page.js for the identical reasoning (we hold only the
+  // charge, never a delivery time, and must not invent one). The recorded
+  // charge stays on the visible page via `shipping`.
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -225,18 +227,6 @@ export default async function SealedDealDetailPage({ params }) {
       price: Number(auctionParts ? auctionParts.bid.native : deal.total_price).toFixed(2),
       availability: deal.is_active ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/NewCondition",
-      shippingDetails: shipping.state === "confirmed" ? {
-        "@type": "OfferShippingDetails",
-        shippingRate: {
-          "@type": "MonetaryAmount",
-          value: Number(deal.shipping).toFixed(2),
-          currency: nativeCurrency,
-        },
-        shippingDestination: {
-          "@type": "DefinedRegion",
-          addressCountry: deal.marketplace?.replace("EBAY_", "") ?? "US",
-        },
-      } : undefined,
     },
   };
 

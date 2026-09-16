@@ -21,7 +21,8 @@ for(const {state,deal} of sealedFixtures){
   if(state==='unpriced'){assert.match(html,/Price unavailable/);assert.doesNotMatch(html,/\$0\.00|You save|% below market/);assert.equal(product,undefined);assert.equal(meta.robots.index,false);}
   if(state==='market_unavailable'){assert.match(html,/No verified market reference/);assert.doesNotMatch(html,/\$0\.00|You save|% below market/);assert.equal(product,undefined);assert.equal(meta.robots.index,false);}
   if(state==='unavailable'){assert.match(html,/This listing is unavailable here/);assert.doesNotMatch(html,/View listing on eBay/);assert.equal(product,undefined);}
-  if(state==='compared'){assert.equal(product.offers.price,'50.00');assert.equal(product.offers.shippingDetails.shippingRate.value,'5.00');assert.match(html,/Includes recorded shipping/);}
+  // SEO-2.6.1: the recorded charge stays visible, but is no longer emitted as an incomplete (no deliveryTime) OfferShippingDetails
+  if(state==='compared'){assert.equal(product.offers.price,'50.00');assert.equal(product.offers.shippingDetails,undefined);assert.match(html,/Includes recorded shipping/);}
  });
  if(state!=='unavailable')test('sealed tile state: '+state,()=>{
   const {route}=loadRoute('components/SealedDealCard.js',{renderComponents:true,currency:{viewer:'AUD',rates:{USD:1,AUD:1.5,CAD:1.5}}});

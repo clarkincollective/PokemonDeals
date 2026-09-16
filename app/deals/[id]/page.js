@@ -503,15 +503,22 @@ export default async function DealDetailPage({ params }) {
   // not a special schema.org auction type - Offer doesn't model
   // "current bid, may rise" cleanly, and this stays accurate either way.
   //
-  // brand and shippingDetails are both real data, not filled in to please
-  // Search Console: "Pokemon" is genuinely the brand of every card here,
-  // shippingRate is emitted only for a recorded positive charge. Zero
-  // currently means free OR unstated, so it cannot support a free-shipping
-  // claim. Missing/invalid breakdowns likewise omit the optional details.
-  // Deliberately NOT adding hasMerchantReturnPolicy - the real return
-  // policy is set by whichever eBay seller has the listing and genuinely
-  // varies per listing; asserting one here would mean stating something
-  // we don't actually know is true for this specific sale.
+  // brand is real data, not filled in to please Search Console: "Pokemon"
+  // is genuinely the brand of every card here.
+  //
+  // SEO-2.6.1: NO shippingDetails, even when a shipping charge was
+  // recorded. Google's Merchant Listing enhancement treats
+  // OfferShippingDetails as incomplete without a deliveryTime, and the only
+  // shipping fact we hold is the charge - no handling time, transit time or
+  // estimated delivery exists in our data, and we are neither the seller
+  // nor the fulfiller, so any window we emitted would be invented. The
+  // recorded charge still appears on the visible page and in the metadata
+  // description (offerShipping); it is only withheld from the schema until
+  // genuine delivery-time data exists. Same reasoning as the deliberate
+  // absence of hasMerchantReturnPolicy - the real return policy is set by
+  // whichever eBay seller has the listing and genuinely varies per listing;
+  // asserting one here would mean stating something we don't actually know
+  // is true for this specific sale.
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -533,18 +540,6 @@ export default async function DealDetailPage({ params }) {
       price: Number(auctionParts ? auctionParts.bid.native : deal.total_price).toFixed(2),
       availability: deal.is_active ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/UsedCondition",
-      shippingDetails: offerShipping(deal).state === "confirmed" ? {
-        "@type": "OfferShippingDetails",
-        shippingRate: {
-          "@type": "MonetaryAmount",
-          value: Number(deal.shipping).toFixed(2),
-          currency: nativeCurrency,
-        },
-        shippingDestination: {
-          "@type": "DefinedRegion",
-          addressCountry: deal.marketplace?.replace("EBAY_", "") ?? "US",
-        },
-      } : undefined,
     },
   };
 
