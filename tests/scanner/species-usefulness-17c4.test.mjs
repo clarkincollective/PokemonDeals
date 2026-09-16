@@ -43,9 +43,15 @@ const card = (over = {}) => {
 
 test("SP-1. Dragonite stays first on the reviewed allowlist (17C.5 adds five more)", () => {
   assert.equal(SPECIES_PILOT[0], "Dragonite");
-  assert.equal(SPECIES_PILOT.length, 6);
+  // SEO-2.3 expanded the cohort to 26 (6 original + 20 experiment). The
+  // 17C.4 invariant this test protects is that Dragonite stays first and the
+  // original six remain treated, not that the list never grows.
+  assert.equal(SPECIES_PILOT.length, 26);
+  for (const n of ["Dragonite", "Cleffa", "Arcanine", "Houndoom", "Electrode", "Growlithe"]) {
+    assert.ok(SPECIES_PILOT.includes(n), `${n} must remain treated`);
+  }
   assert.equal(isSpeciesPilot("Dragonite"), true);
-  assert.equal(isSpeciesPilot("Pikachu"), false);
+  assert.equal(isSpeciesPilot("Eevee"), false, "a pre-registered SEO-2.3 control species stays untreated");
   assert.equal(isSpeciesPilot("dragonite"), false, "exact species name, as resolved");
 });
 
@@ -162,7 +168,14 @@ test("SP-8. no new routes, metadata untouched, provenance read with the missing-
   assert.deepEqual(pokemonRoutes.map(String).sort(), ["[slug]\\page.js", "page.js"].map((p) => p.replace(/\\/g, process.platform === "win32" ? "\\" : "/")).sort());
   const page = code("app/pokemon/[slug]/page.js");
   const meta = page.slice(page.indexOf("export async function generateMetadata"), page.indexOf("export default async function"));
-  assert.doesNotMatch(meta, /pilot|speciesCoverage|eraGroups/, "generateMetadata is unchanged by the pilot");
+  // SUPERSEDED BY SEO-2.3. This assertion was correct for 17C.4, which was
+  // deliberately a body-only pilot. SEO-2.3 extends the same allowlist into
+  // metadata (title + a deterministic, price-free description) as an
+  // explicit, separately controlled experiment. What still must hold is that
+  // metadata reads the pilot through the shared helper and touches no
+  // era-grouping internals directly.
+  assert.match(meta, /pilotMetaFor\(/, "metadata routes through the shared pilot helper");
+  assert.doesNotMatch(meta, /eraGroups/, "metadata must not reach into era grouping directly");
   const deals = code("lib/deals.js");
   assert.match(deals, /async function readSpeciesCatalogRows\(speciesName, language\)/);
   assert.match(deals, /if \(withProvenance\.error && isMissingProvenanceColumnError\(withProvenance\.error\)\) return run\(BASE_COLS\);/);

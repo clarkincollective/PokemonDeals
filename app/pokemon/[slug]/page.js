@@ -1,7 +1,7 @@
 import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { speciesPageTitle } from "@/lib/speciesHub";
+import { speciesPageTitle, speciesPilotPageTitle } from "@/lib/speciesHub";
 import { collectionPage } from "@/lib/jsonLd";
 import {
   resolveSpeciesSlug,
@@ -30,7 +30,7 @@ import SiteFooter from "@/components/SiteFooter";
 import { hasPrice } from "@/lib/money";
 import { cardTier } from "@/lib/catalogueView";
 import { speciesPriceSnapshot, speciesBySet } from "@/lib/speciesSummary";
-import { isSpeciesPilot, speciesEraGroups, speciesCoverageFacts, speciesConditionNote, speciesReferencesLikeForLike } from "@/lib/speciesCoverage";
+import { isSpeciesPilot, speciesEraGroups, speciesCoverageFacts, speciesConditionNote, speciesReferencesLikeForLike, speciesPilotDescription } from "@/lib/speciesCoverage";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -71,6 +71,18 @@ function representativeCatalogImage(cards) {
   return pick?.image ?? null;
 }
 
+// SEO-2.3 experiment. A pilot species gets the new title + deterministic
+// description; every other species falls through to the existing wording,
+// untouched, as the control. `cards` is the same isEligibleSpeciesCard-
+// filtered list the page body renders, so the counts always agree.
+function pilotMetaFor(speciesName, cards) {
+  if (!isSpeciesPilot(speciesName)) return null;
+  const facts = speciesCoverageFacts(cards ?? []);
+  const description = speciesPilotDescription(speciesName, facts);
+  if (!description) return null;
+  return { title: speciesPilotPageTitle(speciesName), description };
+}
+
 export async function generateMetadata({ params }) {
   const { slug: rawSlug } = await params;
   const slug = canonicalSpeciesSlug(rawSlug);
@@ -90,8 +102,9 @@ export async function generateMetadata({ params }) {
         // Stable, species-specific - no volatile price range in the
         // description (it moves with the market + every catalogue sync).
         // The visible page carries the real counts and range.
-        const t = speciesPageTitle(speciesName);
-        const description = `Every ${speciesName} Pokemon card we track, with real recent-sold market references grouped by set — compare ${speciesName} card prices and values, see the most valuable cards, and check current below-market eBay deals where available.`;
+        const pilot = pilotMetaFor(speciesName, cards);
+        const t = pilot?.title ?? speciesPageTitle(speciesName);
+        const description = pilot?.description ?? `Every ${speciesName} Pokemon card we track, with real recent-sold market references grouped by set — compare ${speciesName} card prices and values, see the most valuable cards, and check current below-market eBay deals where available.`;
         const image = representativeCatalogImage(cards);
         return {
           title: t,
@@ -121,8 +134,16 @@ export async function generateMetadata({ params }) {
   // churns the index. Deals stay a prominent visible module; the title
   // does not advertise them. No volatile count or price range - those
   // live in the page body.
-  const title = speciesPageTitle(resolved.name);
-  const description = `Every ${resolved.name} Pokemon card we track, with real recent-sold market references grouped by set — compare ${resolved.name} card prices and values, see the most valuable cards, and check current below-market eBay deals where available.`;
+  // SEO-2.3: a pilot species needs its eligible card list to count cards,
+  // sets and eras. fetchSpeciesCatalog is unstable_cache'd (species-catalog-v3)
+  // and the page component below already calls it for this same species, so
+  // this reuses that cached entry rather than adding a query. Non-pilot
+  // species skip the call entirely and keep the existing wording.
+  const pilot = isSpeciesPilot(resolved.name)
+    ? pilotMetaFor(resolved.name, (await fetchSpeciesCatalog(resolved.name)).cards)
+    : null;
+  const title = pilot?.title ?? speciesPageTitle(resolved.name);
+  const description = pilot?.description ?? `Every ${resolved.name} Pokemon card we track, with real recent-sold market references grouped by set — compare ${resolved.name} card prices and values, see the most valuable cards, and check current below-market eBay deals where available.`;
   const canonical = `/pokemon/${slug}`;
 
   // Explicit openGraph/twitter blocks - same site-wide fix as

@@ -40,8 +40,16 @@ const card = (over = {}) => {
 };
 
 test("C5-1. allowlist: Dragonite plus exactly five GSC-backed species; nothing else", () => {
-  assert.deepEqual([...SPECIES_PILOT], ["Dragonite", "Cleffa", "Arcanine", "Houndoom", "Electrode", "Growlithe"]);
-  for (const s of ["Charizard", "Shieldon", "Pikachu", "cleffa"]) assert.equal(isSpeciesPilot(s), false, s);
+  // SEO-2.3 (2026-09-16) added 20 more species as a separate controlled
+  // experiment with its own matched control cohort. The 17C.5 six must stay
+  // treated, in order, at the head of the list - that is what this test is
+  // for. The full membership is pinned by species-pilot-seo23.test.mjs.
+  assert.deepEqual([...SPECIES_PILOT].slice(0, 6), ["Dragonite", "Cleffa", "Arcanine", "Houndoom", "Electrode", "Growlithe"]);
+  // Charizard and Pikachu were untreated at 17C.5 and are treated as of
+  // SEO-2.3 (Charizard's "25 undated sets" objection re-measured at 18 / 71%
+  // dated, level with Arcanine and Cleffa). Shieldon stays out as too thin.
+  // "cleffa" lower-case stays out: the allowlist is exact species names.
+  for (const s of ["Shieldon", "Eevee", "Popplio", "cleffa"]) assert.equal(isSpeciesPilot(s), false, s);
   assert.ok(Object.isFrozen(SPECIES_PILOT));
 });
 

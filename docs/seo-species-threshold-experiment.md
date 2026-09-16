@@ -124,3 +124,110 @@ If the cohort indexes cleanly and picks up impressions with no
 manual-action / thin-content signal, the next experiment is
 **6 → 5** (which would pull in the 34-species exactly-5 group,
 Finizen included). See §"Recommendation" in the Phase 2B report.
+
+---
+
+## Experiment 2 — Pokemon page enrichment pilot (SEO-2.3)
+
+A different lever from Experiment 1. That one changed **which** species
+pages are indexable. This one changes **what** a treated page says, for a
+bounded cohort, with a matched untreated control recorded in advance.
+
+| Field | Value |
+|---|---|
+| Phase | SEO-2.3 |
+| Deployment date | 2026-09-16 |
+| Treated cohort | 26 species (6 from 17C.4/17C.5 + 20 new) |
+| Control cohort | 20 species, matched, pre-registered, untreated |
+| Untreated remainder | ~948 indexable species |
+| Cohort source of truth | `SPECIES_PILOT_SEO23` / `SPECIES_CONTROL_SEO23` in `lib/speciesCoverage.js` |
+| Baseline GSC window | 2026-08-18 to 2026-09-16 (28 days) |
+
+### Treatment
+
+1. **Title.** `{Species} Cards: Prices, Values & Card List`, replacing
+   `{Species} Cards – Full List, Prices & Values`. The control keeps the
+   old title. "Full List" was dropped because the page's own FAQ says these
+   are "the cards we price and monitor", "not necessarily the set's full
+   printed checklist", and each page reports how many of its cards have no
+   reliable reference. Deterministic 3-rung length ladder, cap 65.
+2. **Meta description.** `Browse {n} cards we track for {Species} across
+   {sets} sets, spanning {eras} eras. Compare card prices, values and
+   current marketplace deals where available.` Counts come from
+   `speciesCoverageFacts` over the `isEligibleSpeciesCard`-filtered list the
+   body renders, so metadata and body can never disagree. Era clause is
+   withheld below 2 dated eras. Singular/plural handled.
+3. **Body.** The existing era-checklist / coverage treatment, unchanged,
+   now applied to the expanded allowlist. No new component, no new prose.
+
+**No prices in metadata.** Minimum, maximum, median, largest discount and
+live-deal count are all real but move with every sync and scan. The
+metadata architecture deliberately avoids churn. Current references stay
+visible in the page body where they already were.
+
+### Cohorts
+
+**Treated (20 new):** Pikachu, Charizard, Mewtwo, Lucario, Rayquaza,
+Snorlax, Umbreon, Espeon, Moltres, Lugia, Vaporeon, Voltorb, Glaceon,
+Palkia, Kangaskhan, Blaziken, Absol, Aegislash, Registeel, Feraligatr.
+
+**Control (20, matched, untreated):** Eevee, Raichu, Meowth, Gyarados,
+Gardevoir, Vulpix, Venusaur, Articuno, Crobat, Darkrai, Latias, Clefairy,
+Sylveon, Luxray, Ho-Oh, Altaria, Mawile, Malamar, Ludicolo, Pidgeot.
+
+Pairs were matched on eligible card count, set count and era count. The
+weakest pair is Pikachu (359 cards) against Eevee (123) — Pikachu is an
+outlier with no close match.
+
+Selection rule: indexable, >=13 eligible cards, >=5 dated eras, and card
+pages that already earned Search Console impressions in the baseline
+window. Deliberately not head terms only — the cohort spans 359 cards
+(Pikachu) down to 18 (Registeel).
+
+**Charizard included, reversing the 17C.5 exclusion.** That note said "25
+undated sets - not manageable yet". Re-measured 2026-09-16: 62 sets, 18
+undated, 71% dated — level with Arcanine (72%) and Cleffa (71%), better
+than Dragonite (69%).
+
+**Popplio rejected** despite the third-highest card-page demand in the
+catalogue (13 impressions): 9 sets, 3 dated (33%), 2 eras. The era
+checklist would be mostly "undated". Feraligatr replaced it (33 cards,
+21 sets, 8 eras, 67% dated, 7 card impressions).
+
+**Pikachu carries the cohort's weakest dating** at 58%. Included because
+`speciesEraGroups` reports undated sets as undated rather than guessing.
+
+### Baseline (2026-08-18 to 2026-09-16, `/pokemon/` pages)
+
+| Cohort | Pages with impressions | Impressions | Clicks | Distinct queries |
+|---|---:|---:|---:|---:|
+| Existing pilot (6) | 3 | 25 | 0 | 22 |
+| **Treated, 20 new** | **0** | **0** | **0** | **0** |
+| **Control (20)** | **0** | **0** | **0** | **0** |
+
+Per-species baseline, only those with any impressions: Dragonite 18
+impressions / 15 queries, Cleffa 5 / 5, Electrode 2 / 2 — all three from
+the existing pilot.
+
+Test and control both start at exactly zero, so any divergence is
+attributable. Note the circumstantial prior: the only three Pokemon pages
+on the site with impressions are all already-treated species, while the 20
+highest-demand untreated species (Pikachu and Charizard card pages earn 24
+and 39 impressions) had zero hub impressions.
+
+### Measurement
+
+Primary window **6 to 8 weeks**. Review dates: **2026-10-28** (6 weeks)
+and **2026-11-11** (8 weeks). Earlier checks are for crawling, indexing and
+regressions only — not ranking conclusions.
+
+Primary signals, treated versus control: impressions per indexed page,
+distinct queries per page, growth in species/list/value query impressions,
+clicks, and CTR once samples allow. Dragonite's 15 distinct queries is the
+benchmark for query diversity.
+
+Average position is **secondary**: an expanding query mix can make
+aggregate position look worse while the experiment is succeeding.
+
+Do not change either cohort during the window unless a production issue
+forces it.
