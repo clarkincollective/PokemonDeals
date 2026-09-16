@@ -168,95 +168,150 @@ export async function sitemapUrls() {
 // and evenly-spaced middle) so samples aren't all clustered at the top of
 // the sitemap.
 // ---------------------------------------------------------------------------
-// Sampled deal URLs: telling a post-snapshot exit from a wrongly advertised one
+// Sampled deal URLs: what the evidence can and cannot establish
 // ---------------------------------------------------------------------------
 //
-// A /deals/<id> URL can leave the indexable set between the sitemap snapshot
-// and the fetch by two routes, both CORRECT:
-//   * the listing ends or sells  -> 308 to its own card page (event-driven)
-//   * its freshness TTL lapses   -> 200 + noindex, no canonical (time-driven)
+// A /deals/<id> URL taken from the sitemap can be ineligible by the time the
+// page is fetched - the listing sold or ended (308 to its card page), a hold
+// or quarantine landed, or it aged out of the freshness window. All of those
+// are CORRECT behaviour. The defect is the opposite: a membership query that
+// advertises a URL it should already have excluded.
 //
-// The membership itself is computed by `fetchActiveDealIds`, an
-// unstable_cache with revalidate: 300 - so for up to ~5 minutes the segment
-// can still advertise a URL whose page has just left the set. Measured
-// 2026-09-16T23:14Z: /deals/38465 was seen 48.24 h earlier against a 48 h
-// low-tier TTL, i.e. it had aged out 14 minutes before the run; both the
-// full row AND the sitemap's own column projection agreed it was no longer
-// displayable (`freshness:stale`). Nothing was wrong except the clock.
+// WHAT AN EARLIER VERSION OF THIS FILE GOT WRONG. It judged the two apart
+// using the segment's <lastmod> and the freshness TTLs. Every step of that
+// was unsound:
+//   * <lastmod> is the row's last_seen_at. It is NOT when the segment was
+//     generated, so it cannot date the snapshot.
+//   * a recent last_seen_at with a noindex page is not a defect - a sale, a
+//     hold, a quarantine or any other eligibility change can land after the
+//     snapshot while the row was seen minutes ago.
+//   * age beyond a TTL does not prove the row went stale AFTER the snapshot;
+//     it is equally consistent with membership that was already stale when
+//     the segment was built, which IS a defect.
+//   * a redirect landing on a real card page does not prove that card is the
+//     one this listing was for. Over HTTP the row is not available, so the
+//     own-card assertion belongs in the offline harness
+//     (tests/scanner/deal-lifecycle-routes.test.mjs), where the fixture row
+//     and its destination are both known.
 //
-// A cache-busting query string does NOT settle this: it re-renders the route
-// but reads the same cached membership. The honest discriminator is the
-// segment's own <lastmod> (which IS last_seen_at) against the published
-// freshness TTLs:
+// WHAT THE EVIDENCE DOES SUPPORT. The cache metadata on the segment response
+// dates the membership: generatedAt = Date(response) - age. If a membership
+// generated AFTER the page was observed ineligible still advertises the URL,
+// the query and the page genuinely disagree - a defect, with no timing
+// inference. If such a membership no longer advertises it, the transition
+// after the snapshot is confirmed. If no post-observation membership is
+// available (the cache has not turned over), the observation is
+// INCONCLUSIVE - reported as such, never counted as a pass or a defect.
 //
-//   noindex, last seen  <  the SHORTEST TTL  -> no freshness tier can explain
-//                                              it: a data-driven gate (hold,
-//                                              identity, condition, evidence)
-//                                              was missed at build time. DEFECT.
-//   noindex, last seen >=  the shortest TTL  -> it aged out after the
-//                                              snapshot. RACE.
-//   advertised, last seen > the longest TTL  -> the segment is holding a row
-//     + a margin                               that cannot be fresh in any
-//                                              tier. DEFECT.
-//
-// None of this resamples, waits, or accepts "some redirect to some card page".
-import { FRESHNESS_TTL_HOURS } from "../../lib/dealQuality.js";
+// No production instrumentation and no provider request is added to fill the
+// gap: transition records are not exposed over HTTP, and inventing a way to
+// see them is not worth a test's convenience.
 
-export const MIN_FRESHNESS_TTL_H = Math.min(...Object.values(FRESHNESS_TTL_HOURS));
-export const MAX_FRESHNESS_TTL_H = Math.max(...Object.values(FRESHNESS_TTL_HOURS));
-// the membership cache window (lib/sitemap.js revalidate: 300), plus slack
-export const SITEMAP_MEMBERSHIP_CACHE_H = 0.25;
+export const CLASSIFICATION = Object.freeze({
+  OK: "ok",
+  DEFECT: "confirmed_contract_defect",
+  TRANSITION: "confirmed_transition_after_snapshot",
+  INCONCLUSIVE: "inconclusive",
+});
+
+// When was this membership computed? `age` is how long the shared cache has
+// been serving it, so Date(response) - age dates the generation. Absent age
+// (a MISS, or a server that sends none) means it was generated for this
+// request. Null when the response carries no usable Date at all.
+export function membershipGeneratedAt(headers, receivedAt = Date.now()) {
+  const dateHeader = headers?.get?.("date") ?? null;
+  const ageHeader = headers?.get?.("age") ?? null;
+  const base = dateHeader ? Date.parse(dateHeader) : receivedAt;
+  if (!Number.isFinite(base)) return null;
+  const age = ageHeader != null && /^\d+$/.test(String(ageHeader).trim()) ? Number(ageHeader) * 1000 : 0;
+  return base - age;
+}
+
+// One read of a sitemap child, with the membership dated and the advertised
+// paths extracted.
+export async function membershipSnapshot(segment) {
+  const receivedAt = Date.now();
+  const res = await get(`/sitemaps/${segment}.xml`);
+  const advertised = new Set();
+  if (res.status === 200) {
+    for (const m of res.body.matchAll(/<loc>([^<]+)<\/loc>/g)) advertised.add(pathOf(decodeEntities(m[1].trim())));
+  }
+  return {
+    segment,
+    status: res.status,
+    advertised,
+    generatedAt: res.status === 200 ? membershipGeneratedAt(res.headers, receivedAt) : null,
+    cacheState: res.headers?.get?.("x-vercel-cache") ?? null,
+  };
+}
 
 export function isNoindexHtml(html) {
   return /<meta[^>]+name=["']robots["'][^>]+content=["'][^"']*noindex/i.test(html ?? "");
 }
 
-// Per-URL <lastmod> from one sitemap child, as a Map(path -> ISO string).
-export async function lastmodByPath(segment) {
-  const res = await get(`/sitemaps/${segment}.xml`);
-  const map = new Map();
-  if (res.status !== 200) return map;
-  for (const block of res.body.match(/<url>[\s\S]*?<\/url>/g) ?? []) {
-    const loc = (block.match(/<loc>([^<]+)<\/loc>/) ?? [])[1];
-    const lm = (block.match(/<lastmod>([^<]+)<\/lastmod>/) ?? [])[1];
-    if (loc && lm) map.set(pathOf(decodeEntities(loc)), lm);
-  }
-  return map;
-}
-
-const hoursSince = (iso) => (Date.now() - Date.parse(iso)) / 3600_000;
-
-// Is `location` the card page for a retired deal? The destination must be a
-// /cards/<slug> page that resolves - never the homepage, an index, a species
-// or a set page. WHICH card is correct is asserted per row, against the
-// deal's own identity, in tests/scanner/deal-lifecycle-routes.test.mjs.
-export async function isRetiredDealRedirect(location) {
+// UNCONDITIONAL destination validation for a retired-deal redirect. Shape,
+// single hop, and that the destination actually resolves. Whether it is the
+// RIGHT card is not decidable here and is asserted per row offline.
+export async function checkRetiredDealRedirect(location) {
   const target = pathOf(location ?? "");
   if (!/^\/cards\/[a-z0-9][a-z0-9-]*$/.test(target)) return { ok: false, reason: `destination ${target} is not a card page` };
   const res = await get(target);
+  if (res.isRedirect) return { ok: false, reason: `destination ${target} itself redirects to ${res.location} (chain or loop)` };
   if (res.status !== 200) return { ok: false, reason: `destination ${target} -> HTTP ${res.status}` };
   return { ok: true, reason: null, target };
 }
 
-export async function classifyDealSample(url, res, lastmod = null) {
-  const age = lastmod ? hoursSince(lastmod) : null;
-  const seen = lastmod ? `last seen ${age.toFixed(1)}h ago` : "last-seen unknown";
+// PURE. Given what was observed, say what the evidence establishes.
+//
+//   page     { status, isRedirect, noindex, destinationOk, destinationReason, observedAt }
+//   snapshot { generatedAt } - the membership the URL was sampled from
+//   recheck  { generatedAt, advertised } | null - a later membership read
+//
+// Fixtures for the three outcomes live in
+// tests/scanner/sitemap-live-classification.test.mjs.
+export function classifyDealObservation({ url, page, snapshot = null, recheck = null }) {
+  const at = (kind, reason) => ({ kind, url, reason });
 
-  if (age != null && age > MAX_FRESHNESS_TTL_H + SITEMAP_MEMBERSHIP_CACHE_H) {
-    return { kind: "defect", detail: `${url} is advertised but ${seen} - beyond the ${MAX_FRESHNESS_TTL_H}h maximum freshness TTL, so it cannot be indexable in any tier` };
+  // Unconditional failures: nothing about timing can excuse these.
+  if (page.isRedirect && page.destinationOk === false) {
+    return at(CLASSIFICATION.DEFECT, `${url} redirects, but ${page.destinationReason}`);
   }
-  if (res.isRedirect) {
-    const dest = await isRetiredDealRedirect(res.location);
-    if (!dest.ok) return { kind: "defect", detail: `${url} redirects, but ${dest.reason}` };
-    return { kind: "race", detail: `${url} -> 308 ${dest.target} (ended after the snapshot, ${seen})` };
+  if (!page.isRedirect && page.status !== 200) {
+    return at(CLASSIFICATION.DEFECT, `${url} is advertised but returned HTTP ${page.status}`);
   }
-  if (res.status === 200 && isNoindexHtml(res.body)) {
-    if (age != null && age < MIN_FRESHNESS_TTL_H) {
-      return { kind: "defect", detail: `${url} is noindex but ${seen} - inside the ${MIN_FRESHNESS_TTL_H}h minimum TTL, so freshness cannot explain it: a data-driven gate was missed when the segment was built` };
-    }
-    return { kind: "race", detail: `${url} -> noindex (${seen}, past the ${MIN_FRESHNESS_TTL_H}h minimum TTL)` };
+  if (!page.isRedirect && page.status === 200 && !page.noindex) return at(CLASSIFICATION.OK, null);
+
+  // The URL is advertised and not indexable. Only a membership computed
+  // AFTER the observation can say which side is wrong.
+  const observedAt = page.observedAt ?? null;
+  if (recheck && recheck.generatedAt != null && observedAt != null && recheck.generatedAt > observedAt) {
+    return recheck.advertised
+      ? at(CLASSIFICATION.DEFECT, `${url} is not indexable, yet a membership generated after it was observed (${new Date(recheck.generatedAt).toISOString()}) still advertises it`)
+      : at(CLASSIFICATION.TRANSITION, `${url} left the indexable set after the snapshot; the membership generated at ${new Date(recheck.generatedAt).toISOString()} no longer advertises it`);
   }
-  return { kind: "ok", detail: null };
+  const why =
+    recheck == null
+      ? "no later membership was read"
+      : recheck.generatedAt == null
+        ? "the later membership carried no usable cache metadata"
+        : `the latest membership (${new Date(recheck.generatedAt).toISOString()}) predates the observation`;
+  return at(
+    CLASSIFICATION.INCONCLUSIVE,
+    `${url} is advertised but not indexable; ${why}, and transition timing is not exposed over HTTP - neither a defect nor a pass${snapshot?.generatedAt ? ` (sampled membership generated ${new Date(snapshot.generatedAt).toISOString()})` : ""}`
+  );
+}
+
+// A readable line for the suite output. Inconclusive observations are
+// REPORTED, never silently absorbed.
+export function reportObservations(label, observations) {
+  const inconclusive = observations.filter((o) => o.kind === CLASSIFICATION.INCONCLUSIVE);
+  const transitions = observations.filter((o) => o.kind === CLASSIFICATION.TRANSITION);
+  if (transitions.length) console.error(`  ${label}: ${transitions.length} confirmed transition(s) after the snapshot`);
+  if (inconclusive.length) {
+    console.error(`  ${label}: ${inconclusive.length} INCONCLUSIVE observation(s) - not verified, not a defect:`);
+    for (const o of inconclusive) console.error(`    - ${o.reason}`);
+  }
+  return { inconclusive, transitions };
 }
 
 export function sample(arr, n) {

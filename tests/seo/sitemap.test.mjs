@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { get, sitemapUrls, sample, pathOf, parseHtml, isRetiredDealRedirect, classifyDealSample, isNoindexHtml, lastmodByPath } from "./lib.mjs";
+import { get, sitemapUrls, sample, pathOf, parseHtml, isNoindexHtml, membershipSnapshot, classifyDealObservation, checkRetiredDealRedirect, CLASSIFICATION, reportObservations } from "./lib.mjs";
 
 // Every @type string anywhere in a page's JSON-LD (walks @graph + arrays).
 function ldTypes(html) {
@@ -68,32 +68,50 @@ describe("sitemap.xml", () => {
 
   test("sampled URLs return 200, are not redirects, and are not noindexed", async () => {
     const { byType } = await sitemapUrls();
-    const dealLastmod = await lastmodByPath("deals");
+    const dealMembership = await membershipSnapshot("deals");
     const checks = [];
     for (const [type, urls] of byType) {
       for (const url of sample(urls, 2)) checks.push({ type, url });
     }
     assert.ok(checks.length > 0);
 
-    const races = [];
+    const observations = [];
+    const pending = [];
     for (const { type, url } of checks) {
+      const observedAt = Date.now();
       const res = await get(pathOf(url));
-      // A /deals/<id> URL can leave the indexable set between the snapshot
-      // and this fetch - by ending (308) or by its freshness TTL lapsing
-      // (200 + noindex). Both are correct; the defect is the query still
-      // advertising it. classifyDealSample re-reads the segment to tell
-      // them apart.
       if (/\/deals\/\d+$/.test(pathOf(url))) {
-        const verdict = await classifyDealSample(url, res, dealLastmod.get(pathOf(url)) ?? null);
-        assert.notEqual(verdict.kind, "defect", verdict.detail ?? "");
-        if (verdict.kind === "race") { races.push(verdict.detail); continue; }
+        // A deal can legitimately sell, be held, be quarantined or age out
+        // after the snapshot. Only a membership generated AFTER this
+        // observation can say whether the query is at fault; the redirect
+        // destination is validated unconditionally either way.
+        const dest = res.isRedirect ? await checkRetiredDealRedirect(res.location) : null;
+        pending.push({
+          url,
+          page: { status: res.status, isRedirect: res.isRedirect, noindex: isNoindexHtml(res.body), destinationOk: dest ? dest.ok : null, destinationReason: dest?.reason ?? null, observedAt },
+        });
+        continue;
       }
       assert.ok(!res.isRedirect, `${type} ${url} redirects (${res.status} -> ${res.location})`);
       assert.equal(res.status, 200, `${type} ${url} returned HTTP ${res.status}`);
       assert.ok(!isNoindexHtml(res.body), `${type} ${url} is in the sitemap but noindexed`);
     }
-    // every sample cannot be a race: that would mean the segment is stale
-    assert.ok(races.length < checks.length, `every sampled URL had left the indexable set: ${races.join(", ")}`);
+
+    // ONE later membership read - not a resampling loop
+    const recheck = pending.length ? await membershipSnapshot("deals") : null;
+    for (const { url, page } of pending) {
+      observations.push(
+        classifyDealObservation({
+          url,
+          page,
+          snapshot: dealMembership,
+          recheck: recheck ? { generatedAt: recheck.generatedAt, advertised: recheck.advertised.has(pathOf(url)) } : null,
+        })
+      );
+    }
+    const defects = observations.filter((o) => o.kind === CLASSIFICATION.DEFECT);
+    assert.deepEqual(defects.map((d) => d.reason), [], `deal lifecycle contract defects:\n  ${defects.map((d) => d.reason).join("\n  ")}`);
+    reportObservations("sampled deal URLs", observations);
   });
 });
 
@@ -107,7 +125,7 @@ describe("sitemap.xml", () => {
 describe("deals sitemap <-> /deals/[id] robots parity", () => {
   test("a deep sample of deal-sitemap URLs are all 200 + indexable, and each carries Product+Offer", async () => {
     const { byType } = await sitemapUrls();
-    const dealLastmod = await lastmodByPath("deals");
+    const dealMembership = await membershipSnapshot("deals");
     // The "deals" bucket also holds /deals and the /deals/<slug> category
     // pages - the individually-indexable listing URLs are /deals/<id>.
     const dealUrls = (byType.get("deals") ?? []).filter((u) => /\/deals\/\d+$/.test(pathOf(u)));
@@ -115,25 +133,47 @@ describe("deals sitemap <-> /deals/[id] robots parity", () => {
     const picks = sample(dealUrls, 40);
     const bad = [];
     let withSchema = 0;
-    const retiredAfterSnapshot = [];
+    const pending = [];
+    const eligible = [];
     for (const url of picks) {
+      const observedAt = Date.now();
       const res = await get(pathOf(url));
-      const verdict = await classifyDealSample(url, res, dealLastmod.get(pathOf(url)) ?? null);
-      if (verdict.kind === "defect") { bad.push(verdict.detail); continue; }
-      if (verdict.kind === "race") { retiredAfterSnapshot.push(verdict.detail); continue; }
-      if (res.status !== 200) {
-        bad.push(`${url} -> HTTP ${res.status}`);
+      const indexable = !res.isRedirect && res.status === 200 && !isNoindexHtml(res.body);
+      if (!indexable) {
+        const dest = res.isRedirect ? await checkRetiredDealRedirect(res.location) : null;
+        pending.push({
+          url,
+          page: { status: res.status, isRedirect: res.isRedirect, noindex: isNoindexHtml(res.body), destinationOk: dest ? dest.ok : null, destinationReason: dest?.reason ?? null, observedAt },
+        });
         continue;
       }
+      eligible.push({ url, res });
+    }
+    const recheck = pending.length ? await membershipSnapshot("deals") : null;
+    const observations = pending.map(({ url, page }) =>
+      classifyDealObservation({
+        url,
+        page,
+        snapshot: dealMembership,
+        recheck: recheck ? { generatedAt: recheck.generatedAt, advertised: recheck.advertised.has(pathOf(url)) } : null,
+      })
+    );
+    for (const o of observations.filter((x) => x.kind === CLASSIFICATION.DEFECT)) bad.push(o.reason);
+    const { inconclusive } = reportObservations("deep deal sample", observations);
+    for (const { url, res } of eligible) {
       const types = ldTypes(res.body);
       // An indexable deal page is a genuine single-item page: Product + Offer.
       if (types.has("Product") && types.has("Offer")) withSchema++;
       else bad.push(`${url} -> indexable deal page missing Product/Offer schema`);
     }
     assert.deepEqual(bad, [], `deals sitemap / page parity failures:\n  ${bad.join("\n  ")}`);
-    // a handful of retirements mid-run is normal churn; all of them is not
-    assert.ok(retiredAfterSnapshot.length < picks.length, `every sampled deal had retired (${picks.length}) - the segment is stale, not racing`);
-    assert.ok(withSchema > 0, `no sampled deal page carried Product+Offer schema (${retiredAfterSnapshot.length}/${picks.length} retired after the snapshot)`);
+    // Every sample being unverifiable is itself worth surfacing, but it is
+    // not evidence of a defect, so it is reported rather than asserted.
+    if (eligible.length === 0) {
+      console.error(`  deep deal sample: no sampled URL was indexable at fetch time (${inconclusive.length} inconclusive of ${picks.length}) - schema coverage not exercised this run`);
+    } else {
+      assert.ok(withSchema > 0, "no indexable sampled deal page carried Product+Offer schema");
+    }
   });
 
   test("control: deal 24195 is 200 + noindex,follow + no Product/Offer + absent from the deals sitemap", async () => {

@@ -1,6 +1,6 @@
 import { test, describe, before } from "node:test";
 import assert from "node:assert/strict";
-import { BASE, get, parseHtml, pathOf, normPath, titleCore, sitemapUrls, sample, SAMPLE_PER_TYPE, classifyDealSample, lastmodByPath } from "./lib.mjs";
+import { BASE, get, parseHtml, pathOf, normPath, titleCore, sitemapUrls, sample, SAMPLE_PER_TYPE, isNoindexHtml } from "./lib.mjs";
 
 // Static routes that must always exist, one of every hand-built page type.
 const STATIC_PATHS = [
@@ -60,7 +60,7 @@ const STATIC_PATHS = [
 const DYNAMIC_TYPES = ["sets", "cards", "pokemon", "deals", "sealed-deals"];
 
 let pages = [];
-const retiredDuringRun = [];
+const notIndexableAtFetch = [];
 
 before(async () => {
   const targets = [...STATIC_PATHS];
@@ -76,7 +76,6 @@ before(async () => {
     console.error(`  (could not sample dynamic pages from sitemap: ${err.message})`);
   }
 
-  const dealLastmod = await lastmodByPath("deals");
   const collected = await Promise.all(
     [...new Set(targets)].map(async (path) => {
       const res = await get(path);
@@ -92,16 +91,23 @@ before(async () => {
   // is asserted in tests/seo/sitemap.test.mjs, which re-reads the segment.
   // The route contract itself is pinned deterministically in
   // tests/scanner/deal-lifecycle-routes.test.mjs.
+  // A sampled /deals/<id> that is no longer indexable at fetch time is not a
+  // page whose per-page invariants can be judged: it may have sold, been
+  // held, been quarantined or aged out after the snapshot. Whether the
+  // membership query is at fault is decided - on cache-dated evidence, and
+  // reported as inconclusive when the evidence is absent - by
+  // tests/seo/sitemap.test.mjs, which owns that contract. Nothing here
+  // infers a reason.
   pages = [];
   for (const page of collected) {
-    if (/^\/deals\/\d+$/.test(page.path)) {
-      const verdict = await classifyDealSample(page.path, page.res, dealLastmod.get(page.path) ?? null);
-      // a defect is asserted by tests/seo/sitemap.test.mjs, which owns the
-      // sitemap<->page parity contract; here it is simply not a page whose
-      // per-page invariants can be judged
-      if (verdict.kind !== "ok") { retiredDuringRun.push(verdict.detail); continue; }
+    if (/^\/deals\/\d+$/.test(page.path) && (page.res.isRedirect || page.res.status !== 200 || isNoindexHtml(page.res.body))) {
+      notIndexableAtFetch.push(`${page.path} (HTTP ${page.res.status}${page.res.isRedirect ? ` -> ${pathOf(page.res.location ?? "")}` : page.res.status === 200 ? ", noindex" : ""})`);
+      continue;
     }
     pages.push(page);
+  }
+  if (notIndexableAtFetch.length) {
+    console.error(`  (${notIndexableAtFetch.length} sampled deal URL(s) were not indexable at fetch time and were not judged here: ${notIndexableAtFetch.join(", ")})`);
   }
 });
 
@@ -120,7 +126,7 @@ describe("per-page SEO invariants", () => {
     const dynamic = pages.filter((p) => !staticSet.has(p.path));
     assert.ok(
       dynamic.length > 0,
-      `no dynamic pages were sampled from the sitemap${retiredDuringRun.length ? ` (${retiredDuringRun.length} retired mid-run: ${retiredDuringRun.join(", ")})` : ""}`
+      `no dynamic pages were sampled from the sitemap${notIndexableAtFetch.length ? ` (${notIndexableAtFetch.length} not indexable at fetch time: ${notIndexableAtFetch.join(", ")})` : ""}`
     );
     const failures = [];
     for (const page of dynamic) {
