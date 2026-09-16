@@ -93,6 +93,21 @@ const C30_COVERAGE = [
     title: "Release dates: UK and US schedules",
     description: "The products arrive in waves, and the official UK and US pages disagree on two of them.",
   },
+  {
+    href: "/guides/pokemon-30th-celebration-mew-mewtwo",
+    title: "Mew and Mewtwo, and the Futuristic rares",
+    description: "The set's brand-new rarity, and all six Mew and Mewtwo cards — four of which share a name.",
+  },
+  {
+    href: "/guides/best-pokemon-30th-celebration-cards",
+    title: "The best cards beyond Pikachu",
+    description: "Our editorial picks from the illustration rares, special illustration rares and ex cards.",
+  },
+  {
+    href: "/guides/organise-pokemon-30th-celebration-collection",
+    title: "Organising a 30th Celebration collection",
+    description: "Five groups that need handling differently, and how to decide what “complete” means.",
+  },
 ];
 
 export default function NewsIndexPage() {
