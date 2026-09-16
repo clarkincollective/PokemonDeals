@@ -1546,7 +1546,26 @@ export async function GET(request) {
         return null;
       }
 
-      marketData = { byCondition: raw.byCondition, fallbackPrice: raw.fallbackPrice, priceChange24hr: null };
+      // 17C.10 carries each figure's provenance ALONGSIDE the figure, and
+      // referenceFor() evidences a stored comparison only when it can find
+      // the reference that produced `market_price`. This builder omitted the
+      // three provenance fields the sweep builder above supplies, so
+      // selectConditionReference() was handed `undefined` and every RAW row
+      // written through this path - the whole allocated tier, and the
+      // cross-match pilot that reuses it - was stored with the CLEARED
+      // reference set and could never make a savings claim. Measured
+      // 2026-09-16: allocated runs wrote provenance for 7/7 graded rows (a
+      // self-contained branch) and 14/282 raw ones, while sweep runs wrote
+      // it for 31/31. The numbers below are unchanged: only the evidence
+      // that was already fetched is now carried with them.
+      marketData = {
+        byCondition: raw.byCondition,
+        fallbackPrice: raw.fallbackPrice,
+        priceChange24hr: null,
+        byConditionReference: raw.byConditionReference,
+        fallbackReference: raw.fallbackReference,
+        observedAt: raw.lastUpdated ?? null,
+      };
     } catch (err) {
       errors.push(`Price lookup failed for "${row.name}": ${err.message}`);
       return null;
