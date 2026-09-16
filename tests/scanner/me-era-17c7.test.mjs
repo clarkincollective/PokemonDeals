@@ -10,6 +10,9 @@ import {
   SET_RELEASE_ORDER,
   OFFICIAL_RELEASES,
   RELEASE_TIME_ZONE,
+  WORLDWIDE_RELEASE_TIME_ZONE,
+  releaseZoneFor,
+  officialReleaseForSet,
   RELEASE_STATUS_MAX_REVALIDATE,
   officialRelease,
   releaseDayOf,
@@ -111,6 +114,10 @@ test("S-2. eras: SV closes at 2025; Mega Evolution holds only confirmed ME expan
 // ---------------------------------------------------------- release clock
 
 const BOUNDARY = "2026-09-16T07:00:00.000Z"; // midnight 16 Sep in Los Angeles (PDT)
+// 30th Celebration is a simultaneous WORLDWIDE release (record.worldwide),
+// so its day is judged where it begins first among the big English-language
+// markets: midnight 16 Sep in Sydney (AEST, UTC+10).
+const WW_BOUNDARY = "2026-09-15T14:00:00.000Z";
 const at = (iso) => new Date(iso);
 
 test("C-1. the release day is read from an explicit clock in the official zone", () => {
@@ -128,17 +135,23 @@ test("C-1. the release day is read from an explicit clock in the official zone",
 test("C-2. before / on / after release day", () => {
   const s = (clock) => expansionReleaseStatus("ME: 30th Celebration", clock);
   assert.equal(s(at("2026-09-12T12:00:00Z")), "upcoming", "today (audit date)");
-  assert.equal(s(at("2026-09-16T06:59:59.999Z")), "upcoming", "one ms before the boundary");
-  assert.equal(s(at("2026-09-16T00:00:00+10:00")), "upcoming", "already the 16th in Sydney, not yet in Los Angeles");
-  assert.equal(s(at(BOUNDARY)), "released", "on the boundary");
+  assert.equal(s(at("2026-09-15T13:59:59.999Z")), "upcoming", "one ms before the worldwide boundary");
+  assert.equal(s(at("2026-09-16T00:00:00+10:00")), "released", "worldwide release: the 16th has begun in Sydney");
+  assert.equal(s(at(WW_BOUNDARY)), "released", "on the worldwide boundary");
+  assert.equal(s(at("2026-09-16T06:59:59.999Z")), "released", "still the 15th in Los Angeles - irrelevant for a worldwide release");
+  assert.equal(s(at(BOUNDARY)), "released", "on the Los Angeles boundary");
   assert.equal(s(at("2026-09-20T00:00:00Z")), "released", "after");
+  // the US-first default still governs a record without the worldwide flag
+  assert.equal(releaseZoneFor(officialReleaseForSet("ME: 30th Celebration")), WORLDWIDE_RELEASE_TIME_ZONE);
+  assert.equal(releaseZoneFor(officialReleaseForSet("ME05: Pitch Black")), RELEASE_TIME_ZONE);
+  assert.equal(releaseZoneFor(officialReleaseForSet("ME: 30th Celebration Classic Collection")), WORLDWIDE_RELEASE_TIME_ZONE, "the dated supplement inherits its parent's zone");
   assert.equal(expansionReleaseStatus("ME05: Pitch Black", at("2026-09-12T00:00:00Z")), "released");
   assert.equal(expansionReleaseStatus("Made Up Set", at(BOUNDARY)), null);
 });
 
 test("C-3. latest released expansions follow the clock and never include an upcoming one", () => {
-  const before = latestReleasedExpansions(at("2026-09-16T06:59:59Z")).map((r) => r.set);
-  const on = latestReleasedExpansions(at(BOUNDARY)).map((r) => r.set);
+  const before = latestReleasedExpansions(at("2026-09-15T13:59:59Z")).map((r) => r.set);
+  const on = latestReleasedExpansions(at(WW_BOUNDARY)).map((r) => r.set);
   assert.deepEqual(before, ["ME05: Pitch Black", "ME04: Chaos Rising", "ME03: Perfect Order"]);
   assert.deepEqual(on, ["ME: 30th Celebration", "ME05: Pitch Black", "ME04: Chaos Rising"]);
   assert.deepEqual(latestReleasedExpansions("2025-08-01", 2).map((r) => r.set), ["SV: White Flare", "SV: Black Bolt"], "same-day split: list order breaks the tie");
@@ -146,16 +159,16 @@ test("C-3. latest released expansions follow the clock and never include an upco
 });
 
 test("C-4. the next release boundary is exact, so a cache can be bounded by it", () => {
-  assert.equal(nextReleaseBoundary(at("2026-09-12T00:00:00Z")).toISOString(), BOUNDARY);
-  assert.equal(nextReleaseBoundary(at("2026-09-16T06:59:59Z")).toISOString(), BOUNDARY);
-  assert.equal(nextReleaseBoundary(at(BOUNDARY)), null, "nothing officially dated after 30th Celebration");
+  assert.equal(nextReleaseBoundary(at("2026-09-12T00:00:00Z")).toISOString(), WW_BOUNDARY);
+  assert.equal(nextReleaseBoundary(at("2026-09-15T13:59:59Z")).toISOString(), WW_BOUNDARY);
+  assert.equal(nextReleaseBoundary(at(WW_BOUNDARY)), null, "nothing officially dated after 30th Celebration");
   // a page cached just before the boundary with the maximum allowed
   // revalidate is re-rendered, and so shows "released", within one hour
-  const cachedAt = Date.parse(BOUNDARY) - 1000;
+  const cachedAt = Date.parse(WW_BOUNDARY) - 1000;
   const refreshedBy = cachedAt + RELEASE_STATUS_MAX_REVALIDATE * 1000;
   assert.equal(expansionReleaseStatus("ME: 30th Celebration", cachedAt), "upcoming");
   assert.equal(expansionReleaseStatus("ME: 30th Celebration", refreshedBy), "released");
-  assert.ok(refreshedBy - Date.parse(BOUNDARY) < 3600 * 1000);
+  assert.ok(refreshedBy - Date.parse(WW_BOUNDARY) < 3600 * 1000);
 });
 
 // every source file (not tests) that imports a release-status helper

@@ -201,15 +201,31 @@ export default async function LatestReleasesPage() {
                   <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">Different from Celebrations (2021). <a href="#release-identity" className="underline">Check set and box identity</a>.</p>
                 )}
                 <div className="mt-4 flex flex-wrap gap-3">
+                  {/* Primary: the set's deals section on its own set page
+                      (every active deal for the set, or the page's honest
+                      empty state). Secondary: the checklist on the same
+                      page. Both are the EXISTING set page - never a second
+                      page of our own - so this holds for whichever set is
+                      featured. */}
                   {setHref(featured.set, validSetSlugs, slugifySet) && (
-                    <Link
-                      href={setHref(featured.set, validSetSlugs, slugifySet)}
-                      data-analytics-click="latest_releases_set_clicked"
-                      data-analytics-props={JSON.stringify({ section: "latest_featured", set_slug: slugifySet(featured.set) })}
-                      className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-600 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-red-600 dark:hover:text-white"
-                    >
-                      See the {featured.officialName} checklist →
-                    </Link>
+                    <>
+                      <Link
+                        href={`${setHref(featured.set, validSetSlugs, slugifySet)}#deals`}
+                        data-analytics-click="latest_releases_set_clicked"
+                        data-analytics-props={JSON.stringify({ section: "latest_featured", set_slug: slugifySet(featured.set), destination: "deals" })}
+                        className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-600 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-red-600 dark:hover:text-white"
+                      >
+                        See {featured.officialName} deals →
+                      </Link>
+                      <Link
+                        href={`${setHref(featured.set, validSetSlugs, slugifySet)}#inventory`}
+                        data-analytics-click="latest_releases_set_clicked"
+                        data-analytics-props={JSON.stringify({ section: "latest_featured", set_slug: slugifySet(featured.set), destination: "checklist" })}
+                        className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:text-zinc-300"
+                      >
+                        Checklist
+                      </Link>
+                    </>
                   )}
                   <Link
                     href="/sealed-deals"
@@ -246,9 +262,9 @@ export default async function LatestReleasesPage() {
                 <li key={e.set} className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
                   {href ? (
                     <Link
-                      href={href}
+                      href={`${href}#deals`}
                       data-analytics-click="latest_releases_set_clicked"
-                      data-analytics-props={JSON.stringify({ section: "latest_lineup", set_slug: slugifySet(e.set) })}
+                      data-analytics-props={JSON.stringify({ section: "latest_lineup", set_slug: slugifySet(e.set), destination: "deals" })}
                       className="block hover:underline"
                     >
                       {body}
