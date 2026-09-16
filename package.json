@@ -49,7 +49,8 @@
     "news:weekly": "node scripts/newsWeeklyReport.mjs",
     "deals:fix-references": "node scripts/fixImplausibleReferences.mjs",
     "test:ratchet": "node scripts/testRatchet.mjs",
-    "check:invariants": "node scripts/liveInvariants.mjs"
+    "check:invariants": "node scripts/liveInvariants.mjs",
+    "observations:backfill": "node scripts/backfillListingObservations.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",

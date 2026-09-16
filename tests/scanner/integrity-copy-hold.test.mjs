@@ -150,7 +150,14 @@ test("ICH-4 every deals discovery path uses the guarded writer; the screener hol
   assert.match(route, /const \{ outcome, error \} = await writeDiscoverySighting\(db, core\);/, "sweep");
   assert.match(read("app/api/ingest-feed/route.js"), /await writeDiscoverySighting\(/, "competitor-board ingest");
   const src = read("lib/listingAvailability.js");
-  assert.match(src, /return writeGuardedSighting\(db, "deals", core, \{ insertHold: copyAuthenticityHold \}\);/);
+  // SEO-2.5 added a non-authoritative observation log after this call, so
+  // the body is no longer a single return. The invariant this pins is
+  // unchanged: discovery still goes through the guarded writer WITH the
+  // copy-authenticity hold, and its result is what the caller receives.
+  assert.match(src, /await writeGuardedSighting\(db, "deals", core, \{ insertHold: copyAuthenticityHold \}\);/);
+  const fn = src.slice(src.indexOf("async function writeDiscoverySighting"), src.indexOf("let lastObservationOutcome"));
+  assert.match(fn, /return result;/, "the guarded writer's result is returned unchanged");
+  assert.doesNotMatch(fn, /result\s*=\s*await recordObservation/, "observation logging must not alter the result");
   const screener = read("app/api/screen-visual-authenticity/route.js");
   assert.match(screener, /"id, listing_id, card_name/);
   assert.match(screener, /update\(\{ disqualified_reason: COPY_HOLD_REASON \}\)\.eq\("listing_id", row\.listing_id\)\.neq\("id", row\.id\)\.is\("disqualified_reason", null\)/);
