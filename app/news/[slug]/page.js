@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { NEWS, getNewsItem, newsMetadata, formatNewsDate, newsImageUrl } from "@/lib/news";
+import RelatedReading from "@/components/RelatedReading";
 import { NEWS_BODIES } from "@/components/news/NewsBodies";
 
 const SITE_URL = "https://pokemondealfinder.com";
@@ -105,6 +106,9 @@ export default async function NewsItemPage({ params }) {
             </ul>
           </section>
         )}
+
+        {/* the guides covering this story's set (lib/editorialRelated) */}
+        <RelatedReading kind="news" slug={item.slug} />
       </main>
 
       <SiteFooter />

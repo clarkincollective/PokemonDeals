@@ -4,6 +4,7 @@ import SkipToContent from "@/components/SkipToContent";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { getGuide, GUIDES_PUBLISHED } from "@/lib/guides";
+import RelatedReading from "@/components/RelatedReading";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -96,6 +97,9 @@ export default function GuideLayout({ slug, children }) {
           </details>
         )}
         <div className="mt-6">{children}</div>
+
+        {/* the news about this guide's release, when there is any (lib/editorialRelated) */}
+        <RelatedReading kind="guide" slug={slug} />
       </main>
 
       <SiteFooter />
