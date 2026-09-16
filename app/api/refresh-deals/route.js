@@ -1,3 +1,4 @@
+import { revalidateTag } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   MARKETPLACES,
@@ -10,7 +11,7 @@ import {
 import { getConditionPrices, getGradedPrice } from "@/lib/pokemonPriceTracker";
 import { getUsdRates, toUsd } from "@/lib/fx";
 import { logDiscoveryEvent } from "@/lib/discoveryLog";
-import { writeDiscoverySighting, insertNewSighting, finalisePilotInsert, abandonedPilotPendingRows, PILOT_PENDING_REASON } from "@/lib/listingAvailability";
+import { writeDiscoverySighting, insertNewSighting, finalisePilotInsert, abandonedPilotPendingRows, PILOT_PENDING_REASON, DEAL_LISTS_TAG } from "@/lib/listingAvailability";
 // 17C.10 - reference provenance for the comparison this scanner stores.
 import { selectConditionReference } from "@/lib/dealMatching";
 import { CARD_REFERENCE_COLUMNS, buildCardReference, clearedReference } from "@/lib/referenceProvenance";
@@ -1845,9 +1846,30 @@ export async function GET(request) {
     }
   }
 
+  // SEO-4 freshness. A scan that found new deals must hand them to the
+  // next visitor, not to the next cache window: the deal pool and the
+  // homepage lanes are cached under DEAL_LISTS_TAG, so without this a
+  // newly scanned listing waited out the pool revalidate window before it
+  // could appear. Only fires when the scan actually stored something, and
+  // never throws - the rows are already written and a failed invalidation
+  // must not fail the scan. Scanner budgets, cadence and enforcement are
+  // untouched; this is a cache concern only.
+  let invalidated = 0;
+  const invalidationErrors = [];
+  if (dealsFound > 0) {
+    try {
+      revalidateTag(DEAL_LISTS_TAG, { expire: 0 });
+      invalidated = 1;
+    } catch (e) {
+      invalidationErrors.push(e?.message ?? String(e));
+    }
+  }
+
   return Response.json({
     scanned,
     dealsFound,
+    invalidated,
+    invalidationErrors,
     blockedRetired,
     errors,
     rateLimitRemaining,

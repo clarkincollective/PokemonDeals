@@ -1,6 +1,8 @@
+import { revalidateTag } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { computeAggregates } from "@/lib/catalogAggregates";
 import { buildSetVocabularyFromRows, buildCatalogSetsFromRows } from "@/lib/setCatalogAggregates";
+import { DEAL_LISTS_TAG } from "@/lib/listingAvailability";
 
 // Recomputes the per-catalogue aggregates (sets / card hubs / species
 // hubs) and stores them in catalog_snapshot, so the read path in
@@ -105,8 +107,29 @@ export async function GET() {
     setSnapshotError = err.message;
   }
 
+  // SEO-4 freshness. Writing the snapshot is not enough on its own: the
+  // read path caches it (fetchSets, unstable_cache 900s) and the set /
+  // species pages are ISR on top of that, so a newly deal-backed set took
+  // up to ~75 minutes to surface even though the snapshot was current
+  // within 30. Expiring the shared list tag here hands the new snapshot to
+  // the next visitor instead of the next cache window.
+  //
+  // Never throws - a failed invalidation must not fail the refresh, which
+  // has already written its rows. The outcome is reported so a run that
+  // silently stopped invalidating is visible.
+  let invalidated = 0;
+  const invalidationErrors = [];
+  try {
+    revalidateTag(DEAL_LISTS_TAG, { expire: 0 });
+    invalidated = 1;
+  } catch (e) {
+    invalidationErrors.push(e?.message ?? String(e));
+  }
+
   return Response.json({
     ok: true,
+    invalidated,
+    invalidationErrors,
     scannedRows: rows.length,
     sets: sets.length,
     cardHubs: cardHubs.length,
