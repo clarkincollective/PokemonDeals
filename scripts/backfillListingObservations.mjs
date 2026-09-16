@@ -21,10 +21,16 @@
 // Every row it writes carries kind='backfill' and observation_date =
 // last_seen_at's UTC day, so analysis can exclude it from any time series
 // with one predicate. A backfill row can never collide with a live daily
-// observation: the unique index is partial on kind='daily'.
+// observation: each uniqueness index is partial on its own kind.
 //
-// Run ONCE, after the migration. Safe to re-run: the insert is
-// ignoreDuplicates on the same natural key.
+// IDEMPOTENT (SEO-2.5.2). Re-running, or resuming after an interruption,
+// converges on exactly one backfill row per (source, marketplace,
+// listing_id, observation_date). That guarantee is the database's:
+// listing_observations_backfill_uniq, added by
+// supabase/listing_observations_backfill_uniq_migration.sql, which MUST be
+// run before the first --apply. Without it there is no constraint on
+// backfill rows and a second run would duplicate the whole snapshot.
+// See lib/listingObservationsBackfill.js for the write mechanism.
 
 import { existsSync } from "node:fs";
 import { config as loadDotenv } from "dotenv";
@@ -36,7 +42,8 @@ else loadDotenv({ quiet: true });
 
 const require = createRequire(import.meta.url);
 const { buildObservation } = require("../lib/listingObservations.js");
-const { isMissingObservationTableError } = require("../lib/listingObservationsDb.js");
+const { isMissingObservationTableError, BACKFILL_UNIQUE_CONSTRAINT } = require("../lib/listingObservationsDb.js");
+const { fetchExistingBackfillKeys, writeBackfillObservations } = require("../lib/listingObservationsBackfill.js");
 
 const APPLY = process.argv.includes("--apply");
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -92,23 +99,42 @@ async function main() {
 
   if (!APPLY) {
     console.error("\n--apply not given: nothing written.");
+    console.error(`--apply requires ${BACKFILL_UNIQUE_CONSTRAINT}; run`);
+    console.error("supabase/listing_observations_backfill_uniq_migration.sql first, or a re-run");
+    console.error("would insert a SECOND copy of every row above.");
     return;
   }
 
-  let written = 0;
-  for (let i = 0; i < observations.length; i += 500) {
-    const slice = observations.slice(i, i + 500);
-    const { data, error } = await db
-      .from("listing_observations")
-      .upsert(slice, { onConflict: "source,marketplace,listing_id,observation_date", ignoreDuplicates: true })
-      .select("id");
-    if (error) {
-      console.error(`  batch ${i} FAILED: ${error.message}`);
-      continue;
-    }
-    written += (data ?? []).length;
+  // RESUME. One paged read of the keys already snapshotted - not a SELECT
+  // per row - so a completed backfill re-runs in seconds. It is only an
+  // optimisation: the final state is identical without it, because
+  // listing_observations_backfill_uniq rejects a repeat as 23505 and the
+  // writer counts that as already-done.
+  const { keys: existingKeys, error: keysError } = await fetchExistingBackfillKeys(db);
+  if (keysError) {
+    console.error(`\ncould not read existing backfill keys (${keysError.message}); relying on the database constraint alone.`);
+  } else if (existingKeys.size) {
+    console.error(`\nresuming: ${existingKeys.size} listing/day keys already snapshotted.`);
   }
-  console.error(`\nwrote ${written} backfill observations.`);
+
+  console.error(`\nwriting (plain inserts, idempotent via ${BACKFILL_UNIQUE_CONSTRAINT})...`);
+  const tally = await writeBackfillObservations(db, observations, {
+    existingKeys,
+    onProgress: ({ done, total }) => {
+      if (done % 5000 === 0 || done === total) console.error(`  ${done}/${total}`);
+    },
+  });
+
+  console.error(
+    `\ninserted ${tally.inserted} | already present ${tally.duplicate + tally.skipped} ` +
+      `(${tally.skipped} skipped by resume, ${tally.duplicate} rejected by the constraint) | failed ${tally.failed}`
+  );
+  console.error(`statements issued: ${tally.statements}`);
+  if (tally.failed) {
+    console.error(`FIRST ERROR: ${tally.firstError}`);
+    console.error("nothing was updated or deleted; re-run to retry exactly the failed rows.");
+    process.exit(1);
+  }
 }
 
 main().catch((e) => {
