@@ -135,7 +135,7 @@ test("C3-7. the page and data wiring are unchanged apart from the allowlist + gu
   assert.match(deals, /const checklistCards =\s*isChecklistSet\(setName\) && checklistIdentityCheck\(cards\)\.ok \? cards : null;/);
   const page = code("app/sets/[slug]/page.js");
   assert.match(page, /<SetChecklist setName=\{resolved\.set\} cards=\{checklistCards\} headingId="full-set-index" compact \/>/);
-  assert.match(page, /<CatalogueLinkIndex label=\{resolved\.set\} cards=\{catalogueIndexItems\} headingId="full-set-index" \/>/);
+  assert.match(page, /<CatalogueLinkIndex label=\{setLabel\} cards=\{catalogueIndexItems\} headingId="full-set-index" \/>/);
   assert.match(page, /<CatalogueBrowser/);
   assert.match(page, /const canonical = `\/sets\/\$\{slug\}`;/);
   assert.match(page, /export const revalidate = 3600;/);

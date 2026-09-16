@@ -17,6 +17,7 @@ import {
 import { setImage } from "@/lib/setImages";
 import { VINTAGE_SETS, isModernSet } from "@/lib/dealCategories";
 import { setEra } from "@/lib/setSummary";
+import { setDisplayName } from "@/lib/pokemonSets";
 import { guideForSet, guideLinkLabel } from "@/lib/guides";
 import SiteHeader from "@/components/SiteHeader";
 import RegionRedirect from "@/components/RegionRedirect";
@@ -81,8 +82,8 @@ export async function generateMetadata({ params }) {
   // change because a below-market listing appeared, so the title doesn't
   // flip. No live deal count, no volatile price range - the visible page
   // carries the real counts.
-  const title = setPageTitle(resolved.set);
-  const description = `The complete ${resolved.set} Pokemon card checklist with real recent-sold market references, the set's most valuable cards, and the Pokemon in the set — plus current below-market eBay deals where available.`;
+  const title = setPageTitle(setDisplayName(resolved.set));
+  const description = `The complete ${setDisplayName(resolved.set)} Pokemon card checklist with real recent-sold market references, the set's most valuable cards, and the Pokemon in the set — plus current below-market eBay deals where available.`;
 
   let image = setImage(resolved.set)?.logo ?? null;
   if (!catalogueOnly) {
@@ -233,8 +234,8 @@ export default async function SetDetailPage({ params }) {
     ? {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
-        name: `${resolved.set} Pokemon cards`,
-        description: `${resolved.set} Pokemon card checklist with real recent-sold market references and the Pokemon in the set.`,
+        name: `${setDisplayName(resolved.set)} Pokemon cards`,
+        description: `${setDisplayName(resolved.set)} Pokemon card checklist with real recent-sold market references and the Pokemon in the set.`,
         url: `${SITE_URL}${basePath}`,
         isPartOf: { "@id": `${SITE_URL}/#website` },
       }
@@ -244,7 +245,7 @@ export default async function SetDetailPage({ params }) {
     ? {
         "@context": "https://schema.org",
         "@type": "ItemList",
-        name: `${resolved.set} Pokemon cards`,
+        name: `${setDisplayName(resolved.set)} Pokemon cards`,
         numberOfItems: catalogCards.length,
         // Bounded to the most meaningful visible slice - the complete
         // crawlable checklist is the CatalogueLinkIndex in the page body.
@@ -261,14 +262,15 @@ export default async function SetDetailPage({ params }) {
       }
     : null;
 
-  const h1 = setPageTitle(resolved.set);
+  const setLabel = setDisplayName(resolved.set);
+  const h1 = setPageTitle(setLabel);
   // Placement uses the existing eligible initial inventory only. Never add
   // offers, change ordering, or relax eligibility to populate this section.
   const hasLiveOffers = !catalogueOnly && deals.length > 0;
   const dealsSection = !catalogueOnly && (
     <section aria-labelledby="deals" className={hasLiveOffers ? "mb-8" : "mt-12"}>
       <h2 id="deals" className="mb-2 scroll-mt-24 text-lg font-bold text-zinc-900 dark:text-zinc-100">
-        {resolved.set} deals
+        {setLabel} deals
       </h2>
       <DealGrid
         kind="set"
@@ -276,8 +278,8 @@ export default async function SetDetailPage({ params }) {
         basePath={basePath}
         initial={{ deals, totalPages }}
         hubCounts={hubCounts}
-        subjectLabel={resolved.set}
-        emptyLabel={`No ${resolved.set} deals match these filters right now. Try clearing a filter, or check back after the next scheduled scan.`}
+        subjectLabel={setLabel}
+        emptyLabel={`No ${setLabel} deals match these filters right now. Try clearing a filter, or check back after the next scheduled scan.`}
         validSetSlugs={[slug]}
         compactFilters
       />
@@ -303,7 +305,7 @@ export default async function SetDetailPage({ params }) {
             items={[
               { name: "Deals", href: "/" },
               { name: "Sets", href: "/sets" },
-              { name: resolved.set },
+              { name: setLabel },
             ]}
           />
           <div className="mt-3 flex items-center gap-3">
@@ -351,13 +353,13 @@ export default async function SetDetailPage({ params }) {
             {/* One heading carries the tracked count (the list's sections and
                 the gallery toolbar no longer repeat it). The gallery leads
                 unless this set has the interactive checklist. */}
-            <h2 className="text-lg font-bold text-black dark:text-zinc-50">{resolved.set} cards we track</h2>
+            <h2 className="text-lg font-bold text-black dark:text-zinc-50">{setLabel} cards we track</h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
               {catalogTotal} {catalogTotal === 1 ? "card" : "cards"} · market prices are recent-sold references, not guaranteed values
             </p>
             <CatalogueViews defaultView={checklistPilot ? "list" : "gallery"} listLabel={checklistPilot ? "Checklist" : "Card list"} gallery={<CatalogueBrowser
               variant="set"
-              label={resolved.set}
+              label={setLabel}
               items={
                 catalogueItems.length > RICH_BROWSER_CAP
                   ? sortCards(catalogueItems, DEFAULT_SORT, { relevanceTier: true }).slice(0, RICH_BROWSER_CAP)
@@ -368,7 +370,7 @@ export default async function SetDetailPage({ params }) {
             {checklistPilot ? (
               <SetChecklist setName={resolved.set} cards={checklistCards} headingId="full-set-index" compact />
             ) : (
-              <CatalogueLinkIndex label={resolved.set} cards={catalogueIndexItems} headingId="full-set-index" />
+              <CatalogueLinkIndex label={setLabel} cards={catalogueIndexItems} headingId="full-set-index" />
             )}
             </CatalogueViews>
           </section>
@@ -378,10 +380,10 @@ export default async function SetDetailPage({ params }) {
         {!hasLiveOffers && dealsSection}
 
         <section id="set-context" className="mt-12 scroll-mt-24 border-t border-zinc-200 pt-6 dark:border-zinc-800">
-          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">About {resolved.set}</h2>
+          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">About {setLabel}</h2>
           <p className="mt-2 max-w-3xl text-sm text-zinc-600 dark:text-zinc-400">
-            Browse the {resolved.set} card list and compare recent-sold references.{" "}
-            {catalogueOnly ? <>There is no qualifying below-market {resolved.set} deal to feature right now — the checklist and prices stay available.</> : <>Use the deals section for the relevant eBay offers.</>}
+            Browse the {setLabel} card list and compare recent-sold references.{" "}
+            {catalogueOnly ? <>There is no qualifying below-market {setLabel} deal to feature right now — the checklist and prices stay available.</> : <>Use the deals section for the relevant eBay offers.</>}
           </p>
           <SetFactStrip setName={resolved.set} snapshot={snapshot} era={era} />
         </section>
@@ -395,7 +397,7 @@ export default async function SetDetailPage({ params }) {
         {showCatalog && featuredItems.length >= 4 && (
           <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
             <h2 className="text-lg font-bold text-black dark:text-zinc-50">
-              Most valuable {resolved.set} cards we track
+              Most valuable {setLabel} cards we track
             </h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
               The highest market references currently in our catalogue — not an all-time ranking.
@@ -417,8 +419,8 @@ export default async function SetDetailPage({ params }) {
           <section className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
               {sealedTruncated
-                ? `Sealed products for ${resolved.set} (${sealedProducts.length} of ${sealedTotal})`
-                : `Sealed products for ${resolved.set} (${sealedTotal})`}
+                ? `Sealed products for ${setLabel} (${sealedProducts.length} of ${sealedTotal})`
+                : `Sealed products for ${setLabel} (${sealedTotal})`}
             </h2>
             <p className="mt-1 text-xs text-zinc-400">
               Booster boxes, elite trainer boxes, bundles, blisters and more, priciest first.{" "}

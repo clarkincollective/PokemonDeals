@@ -66,7 +66,7 @@ test("3. the /sets/[slug] crawl index (CatalogueLinkIndex) gets the FULL set, no
   const setpage = read("app/sets/[slug]/page.js");
   assert.match(setpage, /indexCards: catalogIndexCards/);
   assert.match(setpage, /catalogueIndexItems = buildCatalogueItems\(\s*catalogIndexCards/s);
-  assert.match(setpage, /<CatalogueLinkIndex label=\{resolved\.set\} cards=\{catalogueIndexItems\}/);
+  assert.match(setpage, /<CatalogueLinkIndex label=\{setLabel\} cards=\{catalogueIndexItems\}/);
 });
 
 // ---------------------------------------------------------------------------

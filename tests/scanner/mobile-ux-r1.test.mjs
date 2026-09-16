@@ -131,7 +131,7 @@ test("MUX-7. pages open on the gallery only where the list is the plain index; c
   const set = src("app/sets/[slug]/page.js");
   assert.match(set, /defaultView=\{checklistPilot \? "list" : "gallery"\}/);
   // pinned 17C.2/17C.3/17C.4 call sites unchanged
-  assert.match(set, /<CatalogueLinkIndex label=\{resolved\.set\} cards=\{catalogueIndexItems\} headingId="full-set-index" \/>/);
+  assert.match(set, /<CatalogueLinkIndex label=\{setLabel\} cards=\{catalogueIndexItems\} headingId="full-set-index" \/>/);
   assert.match(species, /<CatalogueLinkIndex label=\{speciesName\} cards=\{items\} headingId="full-card-index" \/>/);
 });
 
