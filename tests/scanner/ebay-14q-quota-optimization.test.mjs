@@ -160,7 +160,10 @@ test("14Q-20. vercel.json cron schedules for every eBay-consuming route are unch
   assert.equal(byPath["/api/screen-deal-images"], "15 * * * *");
   assert.equal(byPath["/api/refresh-deals?mode=sweep&country=EBAY_US&pages=5"], "*/15 * * * *");
   assert.equal(byPath["/api/ingest-feed"], "0 * * * *");
-  assert.equal(byPath["/api/refresh-sealed-deals"], "0 6 * * *");
+  // sealed-rev1 (16 Sep 2026): moved from 06:00 to 07:20 UTC and scoped to one
+  // marketplace. 06:00 sits an hour BEFORE the daily Browse reset, so this job
+  // was skipped "ebay_rate_limited" on every attempt for five straight days.
+  assert.equal(byPath["/api/refresh-sealed-deals?country=EBAY_US"], "20 7 * * *");
 });
 
 test("14Q-21. no provider/social/Buffer code path was touched by this phase's changes", () => {

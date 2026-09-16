@@ -32,10 +32,13 @@ function sweep(...args) {
 const attempts = (run, grant) => run.ledger.used["sweep:EBAY_US"] - (budget.CONSUMER_CAPS["sweep:EBAY_US"] - grant);
 
 test("AR2-1 envelope, first-pass shares and the sweep graded lookup cap are the authorised revision 2 values", () => {
-  assert.deepEqual({ ...budget.CONSUMER_GROUP_CAPS }, { verify: 450, allocated: 2350, sweep: 1730, ingest: 40, images: 10, sealed: 0, manual: 0 });
+  // sealed-rev1 (16 Sep 2026) amends revision 2: sealed funded at 200, taken
+  // entirely from sweep (1,730 -> 1,530, all off EBAY_US). The job had been
+  // skipped every day for five days, partly because it was capped at 0 here.
+  assert.deepEqual({ ...budget.CONSUMER_GROUP_CAPS }, { verify: 450, allocated: 2350, sweep: 1530, ingest: 40, images: 10, sealed: 200, manual: 0 });
   assert.equal(budget.BROWSE_RESERVE, 420);
   assert.deepEqual({ ...budget.ALLOCATED_COUNTRY_CAPS }, { EBAY_US: 650, EBAY_GB: 445, EBAY_CA: 435, EBAY_AU: 370, EBAY_DE: 150, EBAY_IT: 300 });
-  assert.deepEqual({ ...budget.SWEEP_COUNTRY_CAPS }, { EBAY_US: 990, EBAY_GB: 160, EBAY_CA: 160, EBAY_AU: 150, EBAY_DE: 130, EBAY_IT: 140 });
+  assert.deepEqual({ ...budget.SWEEP_COUNTRY_CAPS }, { EBAY_US: 790, EBAY_GB: 160, EBAY_CA: 160, EBAY_AU: 150, EBAY_DE: 130, EBAY_IT: 140 });
   assert.ok(Object.values(budget.ALLOCATED_FIRST_PASS_SHARE).every((s) => s === 1));
   const route = read("app/api/refresh-deals/route.js");
   assert.match(route, /const GRADED_LOOKUP_CAP = 3;/);

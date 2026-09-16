@@ -145,11 +145,21 @@ export async function GET(request) {
   const supportsReferenceColumns = writesReferenceColumns(await probeReferenceColumns(db, "sealed_deals"));
 
   // Pre-flight Browse API quota check - same guard as app/api/refresh-deals
-  // (see docs/ebay-rate-limits.md). This run scans ~194 products (48
-  // manual + ~146 auto-promoted Booster Box / ETB) x 6 marketplaces
-  // ≈ 1,150 Browse calls, and fires at 06:00 UTC, an hour before the
-  // daily reset - the run most likely to hit an already-spent quota.
-  // Floor 250.
+  // (see docs/ebay-rate-limits.md). Floor 250.
+  //
+  // sealed-rev1 (16 Sep 2026). This comment used to end "...and fires at
+  // 06:00 UTC, an hour before the daily reset - the run most likely to hit
+  // an already-spent quota." That was exactly right and was never acted on:
+  // the job was skipped "ebay_rate_limited" on every attempt for five
+  // consecutive days, with 200-240 remaining against this floor of 250.
+  // Sealed inventory went 43h+ stale and no sealed row was ever written with
+  // reference provenance, so no sealed product could evidence a saving.
+  //
+  // Fixed on both sides. The cron now runs at 07:20 UTC, just after the
+  // 07:00 reset refills to 5,000 (observed full by 07:15), instead of at the
+  // emptiest moment of the day; and it passes ?country=EBAY_US so one pass
+  // over the ~195-product watchlist costs ~195 calls rather than ~1,170
+  // across six marketplaces.
   const rl = await getBrowseRateLimit();
   setQuotaSnapshot({ remainingStart: rl?.remaining ?? null, limit: rl?.limit ?? null, reserveFloor: 250 });
   if (rl && rl.remaining != null && rl.remaining < 250) {
@@ -162,17 +172,6 @@ export async function GET(request) {
     });
   }
 
-  // browse-budget-r1 - sealed discovery is explicitly UNFUNDED (cap 0) in the
-  // fixed envelope: in enforce mode it makes no Browse calls. Observe / off
-  // keep today's behaviour (the lease only records what it spends).
-  const sealedBudget = await acquireBrowseLease(db, { key: "sealed", requested: 1, observation: rl, ttlMs: (maxDuration + 60) * 1000 });
-  if (sealedBudget.effective === "enforce") {
-    markSkipped("budget_unfunded");
-    return Response.json({ skipped: "browse_budget", budget: { mode: sealedBudget.mode, ...sealedBudget.decision } });
-  }
-  budgetLease = sealedBudget.lease;
-  attachBrowseLease(budgetLease);
-
   const minDiscountParam = url.searchParams.get("minDiscount");
   const discountThreshold = minDiscountParam != null ? Number(minDiscountParam) : DISCOUNT_THRESHOLD;
 
@@ -184,6 +183,36 @@ export async function GET(request) {
     .from("sealed_watchlist")
     .select("*")
     .eq("active", true);
+
+  // sealed-rev1 (16 Sep 2026) - sealed is FUNDED now (lib/browseBudget, 200/day
+  // taken from sweep:EBAY_US), so this asks for a real lease sized to the run
+  // instead of hard-skipping in enforce mode as an unfunded consumer did.
+  //
+  // The request is one Browse call per product per marketplace, which is what
+  // scanProductInMarketplace actually spends. Scoped to one marketplace by the
+  // cron's ?country= this is ~195; unscoped it would be ~1,170 and the grant
+  // would (correctly) be short, so the run is bounded by what it is given
+  // rather than by luck. minGrant is a quarter of the ask: a partial pass over
+  // the watchlist is still worth making, a token grant is not.
+  const plannedCalls = (watchlistRows?.length ?? 0) * marketplaceIds.length;
+  const sealedBudget = await acquireBrowseLease(db, {
+    key: "sealed",
+    requested: Math.max(plannedCalls, 1),
+    minGrant: Math.max(Math.ceil(plannedCalls / 4), 1),
+    observation: rl,
+    ttlMs: (maxDuration + 60) * 1000,
+  });
+  if (sealedBudget.granted <= 0) {
+    markSkipped(`budget_${sealedBudget.decision?.denied ?? "denied"}`);
+    return Response.json({
+      skipped: "browse_budget",
+      planned: plannedCalls,
+      marketplaces: marketplaceIds,
+      budget: { mode: sealedBudget.mode, ...sealedBudget.decision },
+    });
+  }
+  budgetLease = sealedBudget.lease;
+  attachBrowseLease(budgetLease);
 
   // Reference prices: batch-read them from `sealed_catalog` (populated
   // daily by /api/sync-sealed-catalog, ~1h before this cron) keyed by

@@ -29,8 +29,7 @@ import {
   settleBrowseLease,
   unspentOpen,
   ensureManualBrowseAllowed,
-  LEDGER_KIND_PREFIX,
-} from "../../lib/browseBudget.js";
+  LEDGER_KIND_PREFIX, PACE_BURST } from "../../lib/browseBudget.js";
 import { createMemoryDb } from "../harness/ingestion/memoryDb.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -59,22 +58,43 @@ function activeDb(end = END) {
   return db;
 }
 
-test("BB-1 envelope: consumer caps + 420 reserve = 5,000; per-country caps sum to their group; sealed and manual unfunded", () => {
+test("BB-1 envelope: consumer caps + 420 reserve = 5,000; per-country caps sum to their group; sealed funded, manual unfunded", () => {
   const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
   assert.equal(BROWSE_DAILY_LIMIT, 5000);
   assert.equal(BROWSE_RESERVE, 420);
+  // sealed-rev1 (16 Sep 2026): sealed funded at 200, taken entirely from
+  // sweep (1,730 -> 1,530, all of it off sweep:EBAY_US). The job had been
+  // skipped on every attempt for five days - both because it fired an hour
+  // BEFORE the daily quota reset and because it was capped at 0 here, so it
+  // could not have run even with quota to spare.
   assert.deepEqual(
-    { verify: 450, allocated: 2350, sweep: 1730, ingest: 40, images: 10, sealed: 0, manual: 0 },
+    { verify: 450, allocated: 2350, sweep: 1530, ingest: 40, images: 10, sealed: 200, manual: 0 },
     { ...CONSUMER_GROUP_CAPS }
   );
-  assert.equal(sum(CONSUMER_CAPS), 4580);
-  assert.equal(sum(ALLOCATED_COUNTRY_CAPS), 2350);
-  assert.equal(sum(SWEEP_COUNTRY_CAPS), 1730);
+  assert.equal(sum(CONSUMER_CAPS), 4580, "the envelope is zero-sum: funding sealed took capacity from sweep");
+  assert.equal(sum(ALLOCATED_COUNTRY_CAPS), 2350, "allocated passes were deliberately not touched");
+  assert.equal(sum(SWEEP_COUNTRY_CAPS), 1530);
+  assert.equal(SWEEP_COUNTRY_CAPS.EBAY_US, 790, "the 200 came off the most redundant consumer (96 runs/day, same queries)");
   for (const c of ["EBAY_US", "EBAY_GB", "EBAY_CA", "EBAY_AU", "EBAY_DE", "EBAY_IT"]) {
     assert.ok(ALLOCATED_COUNTRY_CAPS[c] > 0 && SWEEP_COUNTRY_CAPS[c] > 0, `${c} has guaranteed allocated and sweep capacity`);
   }
-  assert.equal(CONSUMER_CAPS.sealed, 0);
-  assert.equal(evaluateGrant(ledgerWith(), { key: "sealed", requested: 50, observation: obs(5000), now: at(12) }).denied, "unfunded");
+  // sealed can now be granted; manual is still unfunded
+  assert.equal(CONSUMER_CAPS.sealed, 200);
+  // sealed is a once-daily batch 20 minutes after reset, so its burst is its
+  // whole cap - paced like a continuous consumer it would get ~3 calls
+  assert.equal(PACE_BURST.sealed, 200);
+  assert.equal(
+    evaluateGrant(ledgerWith(), { key: "sealed", requested: 195, observation: obs(5000), now: at(0.33) }).granted,
+    195,
+    "a full watchlist pass fits in one run just after reset"
+  );
+  // and it is still hard-capped: a second run the same day gets nothing
+  assert.equal(evaluateGrant(ledgerWith({ sealed: 200 }), { key: "sealed", requested: 10, observation: obs(5000), now: at(12) }).granted, 0);
+  assert.equal(
+    evaluateGrant(ledgerWith(), { key: "sealed", requested: 1170, observation: obs(5000), now: at(0.33) }).granted,
+    200,
+    "an unscoped six-marketplace run is truncated to the cap, never allowed to overrun"
+  );
   assert.equal(evaluateGrant(ledgerWith(), { key: "manual", requested: 1, observation: obs(5000), now: at(12) }).denied, "unfunded");
 });
 
