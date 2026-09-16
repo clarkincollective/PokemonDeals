@@ -405,9 +405,9 @@ function DeltaReign() {
 
       <h2 className={H2}>What is already out in Japan</h2>
       <p className={P}>
-        The Japanese source set is <em>M6: Storm Emeralda</em>, released in Japan on 31 July 2026. Per PokeBeach and
-        PokemonCard.io it has 76 cards in its main set and 113 in total once the secret rares above the printed
-        total are counted, and it introduced Mega Rayquaza ex, the three other Mega Pokemon ex named above, and the
+        The Japanese source set is <em>M6: Storm Emeralda</em>, released in Japan on 31 July 2026. PokeBeach reported
+        all 76 of its main-set cards before release; collector sites put the total at 113 once the secret rares above
+        the printed total are counted. It introduced Mega Rayquaza ex, the three other Mega Pokemon ex named above, and the
         Legendary Stadium pairs. Those cards are real, printed, and on sale &mdash; in Japanese.
       </p>
       <p className={P}>
