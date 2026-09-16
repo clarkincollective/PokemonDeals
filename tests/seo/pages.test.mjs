@@ -41,6 +41,9 @@ const STATIC_PATHS = [
   "/guides/pokemon-30th-celebration-pikachu-checklist",
   "/guides/best-pokemon-30th-celebration-pikachu-cards",
   "/guides/pokemon-30th-celebration-classic-collection",
+  "/guides/pokemon-30th-celebration-elite-trainer-box",
+  "/guides/pokemon-30th-celebration-promo-cards",
+  "/guides/pokemon-30th-celebration-release-dates",
   "/news",
   "/news/pokemon-tcg-30th-celebration-out-now",
 ];

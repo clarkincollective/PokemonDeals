@@ -78,6 +78,21 @@ const C30_COVERAGE = [
     title: "Classic Collection: reprint or original?",
     description: "A 2026 reprint and a 1999 card can both read 4/102. How to tell them apart before you buy.",
   },
+  {
+    href: "/guides/pokemon-30th-celebration-elite-trainer-box",
+    title: "Elite Trainer Box vs Pokemon Center ETB",
+    description: "Two extra packs and a second Nidorina promo. The two boxes compared from their official contents lists.",
+  },
+  {
+    href: "/guides/pokemon-30th-celebration-promo-cards",
+    title: "Promo cards: which product has which",
+    description: "Every guaranteed promo and the product it ships in — and why you cannot pull a promo from a pack.",
+  },
+  {
+    href: "/guides/pokemon-30th-celebration-release-dates",
+    title: "Release dates: UK and US schedules",
+    description: "The products arrive in waves, and the official UK and US pages disagree on two of them.",
+  },
 ];
 
 export default function NewsIndexPage() {

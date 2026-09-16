@@ -492,6 +492,25 @@ export default function Page() {
           &mdash; how to tell a 2026 anniversary reprint from the original card it copies, and the thirty reprints we
           track.
         </li>
+        <li>
+          <Link href="/guides/pokemon-30th-celebration-elite-trainer-box" className={GUIDE_LINK_CLASS}>
+            Elite Trainer Box vs Pokemon Center Elite Trainer Box
+          </Link>{" "}
+          &mdash; the two boxes compared line by line from their official contents lists.
+        </li>
+        <li>
+          <Link href="/guides/pokemon-30th-celebration-promo-cards" className={GUIDE_LINK_CLASS}>
+            Promo cards: which product has which
+          </Link>{" "}
+          &mdash; every guaranteed promo in the lineup and the product it ships in.
+        </li>
+        <li>
+          <Link href="/guides/pokemon-30th-celebration-release-dates" className={GUIDE_LINK_CLASS}>
+            Release dates: the UK and US schedules
+          </Link>{" "}
+          &mdash; including the two products the official pages disagree on. The product table above uses the UK
+          showcase&apos;s wording.
+        </li>
       </GUL>
 
       <GH2>Sources and what is still unconfirmed</GH2>
