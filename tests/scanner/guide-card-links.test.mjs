@@ -188,6 +188,11 @@ test("3. the contextual links landed where they explain identity, grading or val
     "pokemon-30th-celebration-pikachu-checklist": 1,
     "best-pokemon-30th-celebration-pikachu-cards": 1,
     "pokemon-30th-celebration-classic-collection": 3,
+    // the product articles are about boxes, not individual cards: each
+    // links the set page once and otherwise sends readers to a sibling.
+    "pokemon-30th-celebration-elite-trainer-box": 1,
+    "pokemon-30th-celebration-promo-cards": 1,
+    "pokemon-30th-celebration-release-dates": 1,
   });
   // The release guide's galleries: every tile is a GUIDE_CARDS identity
   // rendered as a complete card face linked to its own page (a figure
@@ -238,6 +243,9 @@ test("5. routes, canonicals and indexability of the guides are untouched", () =>
     "pokemon-30th-celebration-pikachu-checklist",
     "best-pokemon-30th-celebration-pikachu-cards",
     "pokemon-30th-celebration-classic-collection",
+    "pokemon-30th-celebration-elite-trainer-box",
+    "pokemon-30th-celebration-promo-cards",
+    "pokemon-30th-celebration-release-dates",
   ]);
   const guidesLib = read("lib/guides.js");
   assert.match(guidesLib, /alternates: \{ canonical: `\/guides\/\$\{slug\}` \}/);
