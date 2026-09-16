@@ -6,7 +6,7 @@ import { cardWorthAnswer, isUsableUsdPrice } from "@/lib/cardWorth";
 import { cardNextSteps } from "@/lib/cardNextSteps";
 import CardWorthAnswer from "@/components/CardWorthAnswer";
 import CardNextSteps from "@/components/CardNextSteps";
-import { catalogCardTitle, catalogCardHeading } from "@/lib/cardSlug";
+import { catalogCardTitle, catalogCardHeading, catalogCardIdentity } from "@/lib/cardSlug";
 import { cardDisplayName, collectorNumberFromName } from "@/lib/cardName";
 import { catalogImageUrl } from "@/lib/cardImage";
 import { trustedDealImageUrl } from "@/lib/listingImage";
@@ -92,10 +92,15 @@ export async function generateMetadata({ params }) {
     // embedded in the name (near-zero here - card_catalog is ~99% numbered).
     const catNumber = card.cardNumber ?? collectorNumberFromName(card.name);
     const title = catalogCardTitle(dn, card.set, catNumber);
-    const idBits = [catNumber, card.rarity].filter(Boolean).join(", ");
+    // SEO-1.1 P6: the same identity helper as the title above, so a name
+    // that already embeds its collector number does not get it a second
+    // time. The number now lives in the identity, so `idBits` carries only
+    // the rarity - it was the other half of the same duplication.
+    const identity = catalogCardIdentity(dn, catNumber);
+    const idBits = [card.rarity].filter(Boolean).join(", ");
     const description = card.refPrice != null
-      ? `${dn} (${card.set}) Pokemon card price & value${idBits ? ` — ${idBits}` : ""}. Raw market reference (labelled by its real condition) and condition-by-condition prices from real recent sold data, plus a TCGPlayer link.`
-      : `${dn} (${card.set}) Pokemon card${idBits ? ` — ${idBits}` : ""}. Identity, image and a TCGPlayer link. Market price currently unavailable.`;
+      ? `${identity} (${card.set}) Pokemon card price & value${idBits ? ` — ${idBits}` : ""}. Raw market reference (labelled by its real condition) and condition-by-condition prices from real recent sold data, plus a TCGPlayer link.`
+      : `${identity} (${card.set}) Pokemon card${idBits ? ` — ${idBits}` : ""}. Identity, image and a TCGPlayer link. Market price currently unavailable.`;
     return {
       title,
       description,
@@ -162,7 +167,14 @@ export async function generateMetadata({ params }) {
   const hubName = cardDisplayName(hub);
   const hubNumber = catalog?.cardNumber ?? collectorNumberFromName(hub.name);
   const title = catalogCardTitle(hubName, hub.set, hubNumber);
-  const description = `${hubName}${hubNumber ? ` #${hubNumber}` : ""} (${hub.set}) Pokemon card price & value — raw market reference (labelled by its real condition) and condition-by-condition prices from real recent sold data, graded (PSA/CGC/BGS) tiers where available, and live eBay listings compared cheapest first.`;
+  // SEO-1.1 P6: catalogCardIdentity, NOT `name + " #" + number`. Some
+  // catalogue and watchlist names already carry the collector number
+  // ("Riolu - 61/130"), and appending it again produced descriptions like
+  // "Riolu - 61/130 #061/130 (Countdown Calendar Promos)". The identity
+  // helper strips an embedded number - tolerating leading zeroes and the
+  // numerator-only form - and re-attaches it exactly once, which is the
+  // same function the <title> on the line above and the H1 already use.
+  const description = `${catalogCardIdentity(hubName, hubNumber)} (${hub.set}) Pokemon card price & value — raw market reference (labelled by its real condition) and condition-by-condition prices from real recent sold data, graded (PSA/CGC/BGS) tiers where available, and live eBay listings compared cheapest first.`;
 
   return {
     title,

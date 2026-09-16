@@ -16,12 +16,39 @@ const ALL_DEALS_VARIANT_PARAMS = ["country", "type", "grader", "grade", "listing
 // country. No grader/grade/q - the homepage feed never took those.
 const HOME_VARIANT_PARAMS = ["country", "type", "listing", "minPrice", "maxPrice", "sort", "page"];
 
+// SEO-1.1 P2: the same rule for everything UNDER /deals.
+//
+// The rule above uses source "/deals", which path-matches that exact path
+// and nothing else - so /deals?page=2 was served X-Robots-Tag noindex while
+// /deals/under-50?page=2 was not, even though the category pages render the
+// same DealGrid with the same 28 filter/sort/page variant links. The audit
+// confirmed the gap on /deals/graded?page=2 and ?sort=discount.
+//
+// The variants were never an open crawl trap - every one of those links is
+// rel="nofollow" and every variant already self-canonicalises to the bare
+// category URL - so this is the third layer of the same defence, applied
+// consistently rather than only to one of the two shapes.
+//
+// `:slug` also covers /deals/[id] detail pages, which take a `from=`
+// attribution parameter on internal links. Those links are likewise
+// nofollowed and the bare URL is canonical, so the same header belongs on
+// them for the same reason; `from` is in the list below for that case.
+//
+// The bare category page is untouched: `has` fires only when one of these
+// query keys is actually present, so /deals/under-50 stays indexable.
+const DEALS_SUBPATH_VARIANT_PARAMS = [...ALL_DEALS_VARIANT_PARAMS, "from"];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async headers() {
     return [
       ...ALL_DEALS_VARIANT_PARAMS.map((key) => ({
         source: "/deals",
+        has: [{ type: "query", key }],
+        headers: [{ key: "X-Robots-Tag", value: "noindex, follow" }],
+      })),
+      ...DEALS_SUBPATH_VARIANT_PARAMS.map((key) => ({
+        source: "/deals/:slug",
         has: [{ type: "query", key }],
         headers: [{ key: "X-Robots-Tag", value: "noindex, follow" }],
       })),
