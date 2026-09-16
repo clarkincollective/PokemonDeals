@@ -9,6 +9,7 @@
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
 import { BASE, get, parseHtml, pathOf, sample } from "./lib.mjs";
+import { NEWS } from "../../lib/news.js";
 
 const SHARDS = ["cards-high", "cards-mid", "cards-low", "cards-bulk"];
 const ORIGIN = "https://pokemondealfinder.com";
@@ -146,14 +147,24 @@ test("6. non-card children are unchanged in shape (no lastmod on stable segments
   const pages = await get("/sitemaps/pages.xml");
   assert.equal(pages.status, 200);
   assert.ok(locs(pages.body).length > 0);
+  const registry = new Map(NEWS.map((n) => [`${ORIGIN}/news/${n.slug}`, n.updated ?? n.published]));
+  let dated = 0;
   for (const block of pages.body.match(/<url>[\s\S]*?<\/url>/g) ?? []) {
     const loc = (block.match(/<loc>([^<]+)<\/loc>/) ?? [])[1] ?? "";
     const lm = (block.match(/<lastmod>([^<]+)<\/lastmod>/) ?? [])[1] ?? null;
-    if (lm === null) continue;
-    assert.match(loc, /\/news\/[a-z0-9-]+$/, `only dated news may carry a lastmod, not ${loc}`);
+    if (lm === null) {
+      assert.ok(!registry.has(loc), `${loc} is a dated news item but carries no lastmod`);
+      continue;
+    }
+    assert.ok(registry.has(loc), `only dated news may carry a lastmod, not ${loc}`);
+    // agrees with lib/news (`lastmod: n.updated ?? n.published`), not just
+    // "some valid past date"
+    assert.equal(lm, registry.get(loc), `${loc}: lastmod ${lm} != the registry's ${registry.get(loc)}`);
     assert.match(lm, /^\d{4}-\d{2}-\d{2}$/, `${loc}: lastmod is not a W3C date: ${lm}`);
     assert.ok(lm <= today, `${loc}: future lastmod ${lm}`);
+    dated++;
   }
+  assert.equal(dated, NEWS.length, `pages carries ${dated} dated news items, the registry has ${NEWS.length}`);
   const d = await get("/sitemaps/deals.xml");
   assert.equal(d.status, 200);
   assert.ok(/<lastmod>\d{4}-\d{2}-\d{2}T/.test(d.body), "deals lastmod is no longer an ISO datetime");

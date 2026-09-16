@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { get, sitemapUrls, sample, pathOf, parseHtml } from "./lib.mjs";
+import { get, sitemapUrls, sample, pathOf, parseHtml, isRetiredDealRedirect, classifyDealSample, isNoindexHtml, lastmodByPath } from "./lib.mjs";
 
 // Every @type string anywhere in a page's JSON-LD (walks @graph + arrays).
 function ldTypes(html) {
@@ -68,21 +68,32 @@ describe("sitemap.xml", () => {
 
   test("sampled URLs return 200, are not redirects, and are not noindexed", async () => {
     const { byType } = await sitemapUrls();
+    const dealLastmod = await lastmodByPath("deals");
     const checks = [];
     for (const [type, urls] of byType) {
       for (const url of sample(urls, 2)) checks.push({ type, url });
     }
     assert.ok(checks.length > 0);
 
+    const races = [];
     for (const { type, url } of checks) {
       const res = await get(pathOf(url));
+      // A /deals/<id> URL can leave the indexable set between the snapshot
+      // and this fetch - by ending (308) or by its freshness TTL lapsing
+      // (200 + noindex). Both are correct; the defect is the query still
+      // advertising it. classifyDealSample re-reads the segment to tell
+      // them apart.
+      if (/\/deals\/\d+$/.test(pathOf(url))) {
+        const verdict = await classifyDealSample(url, res, dealLastmod.get(pathOf(url)) ?? null);
+        assert.notEqual(verdict.kind, "defect", verdict.detail ?? "");
+        if (verdict.kind === "race") { races.push(verdict.detail); continue; }
+      }
       assert.ok(!res.isRedirect, `${type} ${url} redirects (${res.status} -> ${res.location})`);
       assert.equal(res.status, 200, `${type} ${url} returned HTTP ${res.status}`);
-      assert.ok(
-        !/<meta[^>]+name=["']robots["'][^>]+content=["'][^"']*noindex/i.test(res.body),
-        `${type} ${url} is in the sitemap but noindexed`
-      );
+      assert.ok(!isNoindexHtml(res.body), `${type} ${url} is in the sitemap but noindexed`);
     }
+    // every sample cannot be a race: that would mean the segment is stale
+    assert.ok(races.length < checks.length, `every sampled URL had left the indexable set: ${races.join(", ")}`);
   });
 });
 
@@ -96,6 +107,7 @@ describe("sitemap.xml", () => {
 describe("deals sitemap <-> /deals/[id] robots parity", () => {
   test("a deep sample of deal-sitemap URLs are all 200 + indexable, and each carries Product+Offer", async () => {
     const { byType } = await sitemapUrls();
+    const dealLastmod = await lastmodByPath("deals");
     // The "deals" bucket also holds /deals and the /deals/<slug> category
     // pages - the individually-indexable listing URLs are /deals/<id>.
     const dealUrls = (byType.get("deals") ?? []).filter((u) => /\/deals\/\d+$/.test(pathOf(u)));
@@ -103,14 +115,14 @@ describe("deals sitemap <-> /deals/[id] robots parity", () => {
     const picks = sample(dealUrls, 40);
     const bad = [];
     let withSchema = 0;
+    const retiredAfterSnapshot = [];
     for (const url of picks) {
       const res = await get(pathOf(url));
-      if (res.isRedirect || res.status !== 200) {
-        bad.push(`${url} -> HTTP ${res.status}${res.isRedirect ? ` (redirect ${res.location})` : ""}`);
-        continue;
-      }
-      if (isNoindex(res.body)) {
-        bad.push(`${url} -> in deals sitemap but page is noindex`);
+      const verdict = await classifyDealSample(url, res, dealLastmod.get(pathOf(url)) ?? null);
+      if (verdict.kind === "defect") { bad.push(verdict.detail); continue; }
+      if (verdict.kind === "race") { retiredAfterSnapshot.push(verdict.detail); continue; }
+      if (res.status !== 200) {
+        bad.push(`${url} -> HTTP ${res.status}`);
         continue;
       }
       const types = ldTypes(res.body);
@@ -119,7 +131,9 @@ describe("deals sitemap <-> /deals/[id] robots parity", () => {
       else bad.push(`${url} -> indexable deal page missing Product/Offer schema`);
     }
     assert.deepEqual(bad, [], `deals sitemap / page parity failures:\n  ${bad.join("\n  ")}`);
-    assert.ok(withSchema > 0, "no sampled deal page carried Product+Offer schema");
+    // a handful of retirements mid-run is normal churn; all of them is not
+    assert.ok(retiredAfterSnapshot.length < picks.length, `every sampled deal had retired (${picks.length}) - the segment is stale, not racing`);
+    assert.ok(withSchema > 0, `no sampled deal page carried Product+Offer schema (${retiredAfterSnapshot.length}/${picks.length} retired after the snapshot)`);
   });
 
   test("control: deal 24195 is 200 + noindex,follow + no Product/Offer + absent from the deals sitemap", async () => {

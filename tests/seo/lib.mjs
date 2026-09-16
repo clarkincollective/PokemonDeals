@@ -167,6 +167,98 @@ export async function sitemapUrls() {
 // A deterministic spread of up to `n` items from an array (first, last,
 // and evenly-spaced middle) so samples aren't all clustered at the top of
 // the sitemap.
+// ---------------------------------------------------------------------------
+// Sampled deal URLs: telling a post-snapshot exit from a wrongly advertised one
+// ---------------------------------------------------------------------------
+//
+// A /deals/<id> URL can leave the indexable set between the sitemap snapshot
+// and the fetch by two routes, both CORRECT:
+//   * the listing ends or sells  -> 308 to its own card page (event-driven)
+//   * its freshness TTL lapses   -> 200 + noindex, no canonical (time-driven)
+//
+// The membership itself is computed by `fetchActiveDealIds`, an
+// unstable_cache with revalidate: 300 - so for up to ~5 minutes the segment
+// can still advertise a URL whose page has just left the set. Measured
+// 2026-09-16T23:14Z: /deals/38465 was seen 48.24 h earlier against a 48 h
+// low-tier TTL, i.e. it had aged out 14 minutes before the run; both the
+// full row AND the sitemap's own column projection agreed it was no longer
+// displayable (`freshness:stale`). Nothing was wrong except the clock.
+//
+// A cache-busting query string does NOT settle this: it re-renders the route
+// but reads the same cached membership. The honest discriminator is the
+// segment's own <lastmod> (which IS last_seen_at) against the published
+// freshness TTLs:
+//
+//   noindex, last seen  <  the SHORTEST TTL  -> no freshness tier can explain
+//                                              it: a data-driven gate (hold,
+//                                              identity, condition, evidence)
+//                                              was missed at build time. DEFECT.
+//   noindex, last seen >=  the shortest TTL  -> it aged out after the
+//                                              snapshot. RACE.
+//   advertised, last seen > the longest TTL  -> the segment is holding a row
+//     + a margin                               that cannot be fresh in any
+//                                              tier. DEFECT.
+//
+// None of this resamples, waits, or accepts "some redirect to some card page".
+import { FRESHNESS_TTL_HOURS } from "../../lib/dealQuality.js";
+
+export const MIN_FRESHNESS_TTL_H = Math.min(...Object.values(FRESHNESS_TTL_HOURS));
+export const MAX_FRESHNESS_TTL_H = Math.max(...Object.values(FRESHNESS_TTL_HOURS));
+// the membership cache window (lib/sitemap.js revalidate: 300), plus slack
+export const SITEMAP_MEMBERSHIP_CACHE_H = 0.25;
+
+export function isNoindexHtml(html) {
+  return /<meta[^>]+name=["']robots["'][^>]+content=["'][^"']*noindex/i.test(html ?? "");
+}
+
+// Per-URL <lastmod> from one sitemap child, as a Map(path -> ISO string).
+export async function lastmodByPath(segment) {
+  const res = await get(`/sitemaps/${segment}.xml`);
+  const map = new Map();
+  if (res.status !== 200) return map;
+  for (const block of res.body.match(/<url>[\s\S]*?<\/url>/g) ?? []) {
+    const loc = (block.match(/<loc>([^<]+)<\/loc>/) ?? [])[1];
+    const lm = (block.match(/<lastmod>([^<]+)<\/lastmod>/) ?? [])[1];
+    if (loc && lm) map.set(pathOf(decodeEntities(loc)), lm);
+  }
+  return map;
+}
+
+const hoursSince = (iso) => (Date.now() - Date.parse(iso)) / 3600_000;
+
+// Is `location` the card page for a retired deal? The destination must be a
+// /cards/<slug> page that resolves - never the homepage, an index, a species
+// or a set page. WHICH card is correct is asserted per row, against the
+// deal's own identity, in tests/scanner/deal-lifecycle-routes.test.mjs.
+export async function isRetiredDealRedirect(location) {
+  const target = pathOf(location ?? "");
+  if (!/^\/cards\/[a-z0-9][a-z0-9-]*$/.test(target)) return { ok: false, reason: `destination ${target} is not a card page` };
+  const res = await get(target);
+  if (res.status !== 200) return { ok: false, reason: `destination ${target} -> HTTP ${res.status}` };
+  return { ok: true, reason: null, target };
+}
+
+export async function classifyDealSample(url, res, lastmod = null) {
+  const age = lastmod ? hoursSince(lastmod) : null;
+  const seen = lastmod ? `last seen ${age.toFixed(1)}h ago` : "last-seen unknown";
+
+  if (age != null && age > MAX_FRESHNESS_TTL_H + SITEMAP_MEMBERSHIP_CACHE_H) {
+    return { kind: "defect", detail: `${url} is advertised but ${seen} - beyond the ${MAX_FRESHNESS_TTL_H}h maximum freshness TTL, so it cannot be indexable in any tier` };
+  }
+  if (res.isRedirect) {
+    const dest = await isRetiredDealRedirect(res.location);
+    if (!dest.ok) return { kind: "defect", detail: `${url} redirects, but ${dest.reason}` };
+    return { kind: "race", detail: `${url} -> 308 ${dest.target} (ended after the snapshot, ${seen})` };
+  }
+  if (res.status === 200 && isNoindexHtml(res.body)) {
+    if (age != null && age < MIN_FRESHNESS_TTL_H) {
+      return { kind: "defect", detail: `${url} is noindex but ${seen} - inside the ${MIN_FRESHNESS_TTL_H}h minimum TTL, so freshness cannot explain it: a data-driven gate was missed when the segment was built` };
+    }
+    return { kind: "race", detail: `${url} -> noindex (${seen}, past the ${MIN_FRESHNESS_TTL_H}h minimum TTL)` };
+  }
+  return { kind: "ok", detail: null };
+}
+
 export function sample(arr, n) {
   if (arr.length <= n) return [...arr];
   const out = [];

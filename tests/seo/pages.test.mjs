@@ -1,6 +1,6 @@
 import { test, describe, before } from "node:test";
 import assert from "node:assert/strict";
-import { BASE, get, parseHtml, pathOf, normPath, titleCore, sitemapUrls, sample, SAMPLE_PER_TYPE } from "./lib.mjs";
+import { BASE, get, parseHtml, pathOf, normPath, titleCore, sitemapUrls, sample, SAMPLE_PER_TYPE, classifyDealSample, lastmodByPath } from "./lib.mjs";
 
 // Static routes that must always exist, one of every hand-built page type.
 const STATIC_PATHS = [
@@ -60,6 +60,7 @@ const STATIC_PATHS = [
 const DYNAMIC_TYPES = ["sets", "cards", "pokemon", "deals", "sealed-deals"];
 
 let pages = [];
+const retiredDuringRun = [];
 
 before(async () => {
   const targets = [...STATIC_PATHS];
@@ -75,13 +76,33 @@ before(async () => {
     console.error(`  (could not sample dynamic pages from sitemap: ${err.message})`);
   }
 
-  pages = await Promise.all(
+  const dealLastmod = await lastmodByPath("deals");
+  const collected = await Promise.all(
     [...new Set(targets)].map(async (path) => {
       const res = await get(path);
       const parsed = res.status === 200 ? parseHtml(res.body) : null;
       return { path, res, parsed };
     })
   );
+
+  // A sampled /deals/<id> can retire between the sitemap snapshot and the
+  // fetch; it then correctly 308s to its card page and is no longer a claim
+  // the site is making, so it is not evidence about per-page invariants.
+  // A listing that has retired yet is STILL advertised is a real defect and
+  // is asserted in tests/seo/sitemap.test.mjs, which re-reads the segment.
+  // The route contract itself is pinned deterministically in
+  // tests/scanner/deal-lifecycle-routes.test.mjs.
+  pages = [];
+  for (const page of collected) {
+    if (/^\/deals\/\d+$/.test(page.path)) {
+      const verdict = await classifyDealSample(page.path, page.res, dealLastmod.get(page.path) ?? null);
+      // a defect is asserted by tests/seo/sitemap.test.mjs, which owns the
+      // sitemap<->page parity contract; here it is simply not a page whose
+      // per-page invariants can be judged
+      if (verdict.kind !== "ok") { retiredDuringRun.push(verdict.detail); continue; }
+    }
+    pages.push(page);
+  }
 });
 
 describe("per-page SEO invariants", () => {
@@ -97,7 +118,10 @@ describe("per-page SEO invariants", () => {
   test("sampled dynamic pages", () => {
     const staticSet = new Set(STATIC_PATHS.map(normPath));
     const dynamic = pages.filter((p) => !staticSet.has(p.path));
-    assert.ok(dynamic.length > 0, "no dynamic pages were sampled from the sitemap");
+    assert.ok(
+      dynamic.length > 0,
+      `no dynamic pages were sampled from the sitemap${retiredDuringRun.length ? ` (${retiredDuringRun.length} retired mid-run: ${retiredDuringRun.join(", ")})` : ""}`
+    );
     const failures = [];
     for (const page of dynamic) {
       try {
@@ -136,6 +160,9 @@ describe("cross-page uniqueness", () => {
     const seen = new Map();
     for (const p of pages) {
       if (!p.parsed) continue;
+      // a page with no canonical is a missing canonical, not a page whose
+      // canonical is "/undefined" - pathOf(undefined) used to produce that
+      assert.equal(p.parsed.canonicals.length, 1, `${p.path}: expected 1 canonical, found ${p.parsed.canonicals.length}`);
       const canonical = p.parsed.canonicals[0];
       const canonicalPath = pathOf(canonical);
       // self-referencing: canonical path === the page's own path

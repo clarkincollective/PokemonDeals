@@ -17,6 +17,7 @@ import { get, parseHtml, sitemapUrls, sample, pathOf, normPath } from "./lib.mjs
 import { CARD_HUB_MIN_LISTINGS, SET_MIN_LISTINGS, SPECIES_MIN_LISTINGS } from "../../lib/indexability.js";
 import { SET_CATALOG_MIN_CARDS } from "../../lib/setHub.js";
 import { SPECIES_CATALOG_MIN_CARDS } from "../../lib/speciesHub.js";
+import { NEWS } from "../../lib/news.js";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const ACCENTED = `Pok${String.fromCharCode(233)}mon`;
@@ -87,13 +88,21 @@ test("3. per-URL <lastmod> only appears where a truthful source exists (deals / 
       // lib/news (`lastmod: n.updated ?? n.published`) - a real editorial
       // fact, and the one truthful lastmod source outside deals and cards.
       // Every other page in this child stays undated.
+      const registry = new Map(NEWS.map((n) => [`/news/${n.slug}`, n.updated ?? n.published]));
       for (const block of body.match(/<url>[\s\S]*?<\/url>/g) ?? []) {
         const loc = (block.match(/<loc>([^<]+)<\/loc>/) ?? [])[1] ?? "";
         const lastmod = (block.match(/<lastmod>([^<]+)<\/lastmod>/) ?? [])[1] ?? null;
-        if (lastmod === null) continue;
-        assert.match(loc, /\/news\/[a-z0-9-]+$/, `${seg}: ${loc} has no trustworthy lastmod source (should omit)`);
-        assert.match(lastmod, /^\d{4}-\d{2}-\d{2}$/, `${seg}: ${loc} lastmod is not a W3C date: ${lastmod}`);
-        assert.ok(lastmod <= today, `${seg}: ${loc} future lastmod ${lastmod}`);
+        const path = new URL(loc, "https://pokemondealfinder.com").pathname.replace(/\/$/, "");
+        if (lastmod === null) {
+          assert.ok(!registry.has(path), `${seg}: ${path} is a dated news item but carries no lastmod`);
+          continue;
+        }
+        assert.ok(registry.has(path), `${seg}: ${path} has no trustworthy lastmod source (should omit)`);
+        // the value is the REGISTRY's own editorial date, not merely a
+        // plausible past date - a clock-stamped or drifted value fails here
+        assert.equal(lastmod, registry.get(path), `${seg}: ${path} lastmod ${lastmod} != the registry's ${registry.get(path)}`);
+        assert.match(lastmod, /^\d{4}-\d{2}-\d{2}$/, `${seg}: ${path} lastmod is not a W3C date: ${lastmod}`);
+        assert.ok(lastmod <= today, `${seg}: ${path} future lastmod ${lastmod}`);
       }
     } else {
       assert.equal(lm.length, 0, `${seg} emits <lastmod> but has no trustworthy source (should omit)`);
