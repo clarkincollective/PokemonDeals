@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { NEWS, getNewsItem, newsMetadata, formatNewsDate } from "@/lib/news";
+import { NEWS, getNewsItem, newsMetadata, formatNewsDate, newsImageUrl } from "@/lib/news";
 import { NEWS_BODIES } from "@/components/news/NewsBodies";
 
 const SITE_URL = "https://pokemondealfinder.com";
@@ -30,7 +30,9 @@ export default async function NewsItemPage({ params }) {
   if (!Body) notFound();
 
   const updated = item.updated ?? item.published;
-  const image = item.image ? `https://tcgplayer-cdn.tcgplayer.com/product/${item.image}_in_1000x1000.jpg` : null;
+  // NewsArticle.image must be absolute, so a hosted path is prefixed.
+  const rawImage = newsImageUrl(item);
+  const image = rawImage && rawImage.startsWith("/") ? `${SITE_URL}${rawImage}` : rawImage;
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",

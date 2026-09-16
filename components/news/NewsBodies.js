@@ -1,6 +1,30 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Gallery } from "@/components/guides/CardArt";
 import { GUIDE_CARDS } from "@/lib/guideLinks";
+
+// A supplied photograph rather than a catalogue scan. Credit is required
+// and the caption carries it, so a reader always knows whose image this is
+// and that it is not our own scan. Dimensions are reserved so the lazy
+// image never shifts the article as it loads.
+function PhotoFigure({ src, width, height, alt, caption, priority = false }) {
+  return (
+    <figure className="mt-6 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+      <Image
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        sizes="(max-width: 768px) 100vw, 720px"
+        priority={priority}
+        className="h-auto w-full"
+      />
+      <figcaption className="border-t border-zinc-200 px-5 py-3 text-xs leading-relaxed text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+        {caption}
+      </figcaption>
+    </figure>
+  );
+}
 
 // Story bodies, one per written news item, keyed by slug. Kept out of the
 // route so the route stays a thin renderer that both kinds of item share.
@@ -93,6 +117,15 @@ function RgbMew() {
         claim, not confirmation, and we have marked which is which.
       </p>
 
+      <PhotoFigure
+        src="/news/rgb-mew-trio.jpg"
+        width={1200}
+        height={577}
+        alt="Three reported RGB Mew cards held in hand, in red, green and blue, each showing a Mew silhouette over a radiating background"
+        caption="The three reported RGB Mew variants. Photograph via PokeBeach reporting; card artwork © Pokemon. This is a collector's photograph of a reported pull, not a scan of our own, and it has been resized and sharpened in circulation — read it for the colours and the layout, not for the fine print."
+        priority
+      />
+
       <h2 className={H2}>What is actually claimed</h2>
       <ul className={UL}>
         <li>
@@ -150,6 +183,14 @@ function RgbMew() {
         story.
       </p>
 
+      <PhotoFigure
+        src="/news/rgb-mew-blue.jpg"
+        width={800}
+        height={942}
+        alt="A reported blue RGB Mew card in a sleeve, showing a green and yellow Mew silhouette on a blue radiating background"
+        caption="The blue variant. Photograph via PokeBeach reporting; card artwork © Pokemon."
+      />
+
       <h2 className={H2}>Where the cards came from</h2>
       <p className={P}>
         The trio first surfaced roughly two months before release, when streamers opened <em>30th Celebration</em>{" "}
@@ -161,6 +202,36 @@ function RgbMew() {
         That progression matters for how much weight to put on the story. Early sightings from a single unauthorised
         batch are weak evidence; independent pulls from normal retail stock across many people are considerably
         stronger. It is still not official confirmation, and we are not going to promote it to one.
+      </p>
+
+      <PhotoFigure
+        src="/news/rgb-mew-red.jpg"
+        width={800}
+        height={933}
+        alt="A reported red RGB Mew card held in hand, showing a blue Mew silhouette on a red radiating background"
+        caption="The red variant, from the early openings. Photograph via PokeBeach reporting; card artwork © Pokemon."
+      />
+
+      <h2 className={H2}>eBay removed the early listings</h2>
+      <p className={P}>
+        This is the part that matters most if you are thinking about buying one, and it is a matter of record rather
+        than rumour. In August 2026, before the set released, eBay began removing listings for unreleased{" "}
+        <em>30th Celebration</em> cards under its <strong>Stolen Property Policy</strong>, after being contacted by
+        The Pokemon Company International. Sellers who received a removal notice were told that TPCi had indicated the
+        cards were not, at that time, distributed or available for public sale through authorised channels. The
+        crackdown was reported by PokeBeach, Dexerto and Wargamer among others.
+      </p>
+      <p className={P}>
+        Two things follow from that, and they pull in different directions. It is the clearest signal yet that the
+        early product genuinely was outside authorised distribution &mdash; TPCi does not send that kind of notice
+        about cards it has released. But it applied to <em>pre-release</em> listings: the expansion has since released
+        normally on 16 September, so a card pulled from a pack bought in a shop this week is in an entirely different
+        position from one sold in August.
+      </p>
+      <p className={P}>
+        The practical warning is narrow and worth heeding. If you are offered an RGB Mew, when and how the seller
+        obtained it is a fair question, and a listing that cannot answer it is one to leave alone. We have no way to
+        tell you which side of that line any individual card falls on, and neither, in most cases, will the listing.
       </p>
 
       <h2 className={H2}>About the &quot;1 in 20,000&quot; figure</h2>
@@ -199,13 +270,26 @@ function RgbMew() {
         priorityCount={2}
         note="These are NOT the RGB Mew cards. They are the confirmed Futuristic rares — Mew ex 158/128 and Mewtwo ex 157/128 — by YOSHIROTTEN, the artist reportedly connected to the RGB cards. Catalogue scans, complete card faces."
       />
+      <PhotoFigure
+        src="/news/rgb-mew-green.jpg"
+        width={800}
+        height={952}
+        alt="A reported green RGB Mew card held in a sleeve, showing a red Mew silhouette on a green radiating background"
+        caption="The green variant. Photograph via PokeBeach reporting; card artwork © Pokemon."
+      />
       <p className={P}>
-        We have deliberately not published an image of an RGB Mew. The photographs in circulation were taken by the
-        collectors who pulled the cards and belong to them; the card artwork itself is Pokemon&apos;s. We have no
-        authentic scan of our own, the cards are not in our catalogue, and reconstructing a card face or presenting a
-        mock-up as though it were the real thing is not something we will do &mdash; least of all for a card whose
-        status is the entire question. If you want to see them, go to the outlets that did the reporting and have the
-        rights to the images; they are linked at the foot of this article.
+        A word on these photographs, because this article is about not treating unverified things as settled. They are
+        collectors&apos; and reporters&apos; images of reported pulls, not scans we have taken, and the versions in
+        circulation have been resized and sharpened as they have been passed around &mdash; which visibly degrades the
+        small text. Different copies of the same photograph disagree with each other on the fine print. So treat them
+        as evidence of what the cards look like: three colours, a Mew silhouette, a radiating background. Do not treat
+        them as a reliable reading of the card&apos;s name, attack or wording, and do not use them to authenticate a
+        card you are being offered.
+      </p>
+      <p className={P}>
+        We have not reconstructed, redrawn or AI-enhanced anything here, and we will not. When the cards enter our
+        catalogue, these will be replaced with our own scans, the same source every other card image on this site
+        comes from.
       </p>
 
       <h2 className={H2}>What we would tell a buyer today</h2>
@@ -221,6 +305,11 @@ function RgbMew() {
         <li>
           <strong>A price paid is not a value.</strong> Early sales of an unconfirmed card tell you what one person
           paid in an information vacuum. We are not quoting figures for this reason.
+        </li>
+        <li>
+          <strong>Ask when and where it was obtained.</strong> eBay removed pre-release listings of this set under its
+          Stolen Property Policy after a notice from TPCi. That was about August listings, not cards pulled since
+          release &mdash; but it makes provenance a reasonable thing to ask about.
         </li>
         <li>
           <strong>The confirmed cards are the safe purchase</strong> if what you want is the YOSHIROTTEN artwork. The

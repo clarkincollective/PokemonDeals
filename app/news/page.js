@@ -4,7 +4,7 @@ import Image from "next/image";
 import { catalogImageUrl } from "@/lib/cardImage";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { newsSorted, formatNewsDate } from "@/lib/news";
+import { newsSorted, formatNewsDate, newsImageUrl } from "@/lib/news";
 
 const SITE_URL = "https://pokemondealfinder.com";
 const PATH = "/news";
@@ -178,15 +178,15 @@ export default function NewsIndexPage() {
                   href={`/news/${n.slug}`}
                   className="flex gap-4 rounded-xl border border-zinc-200 bg-white p-5 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600"
                 >
-                  {n.image && (
+                  {newsImageUrl(n) && (
                     <Image
-                      src={catalogImageUrl(n.image)}
+                      src={newsImageUrl(n)}
                       alt=""
                       aria-hidden="true"
                       width={72}
                       height={100}
                       sizes="72px"
-                      className="h-auto w-[72px] shrink-0 self-start rounded-md shadow-sm"
+                      className="h-[100px] w-[72px] shrink-0 self-start rounded-md object-cover shadow-sm"
                     />
                   )}
                   <span className="block">
