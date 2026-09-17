@@ -240,6 +240,7 @@ test("14R-11. the persisted row shape never includes a token, credential, or raw
       "browse_429",
       "browse_4xx",
       "browse_5xx",
+      "browse_other_status",
       "browse_transport_failures",
       "calls_skipped",
       "completed_at",

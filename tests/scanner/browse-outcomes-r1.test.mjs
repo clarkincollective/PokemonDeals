@@ -25,7 +25,7 @@ const T = require(join(REPO, "lib/ebayTelemetry.js"));
 const src = (p) => readFileSync(join(REPO, p), "utf8");
 const code = (p) => src(p).replace(/\/\/[^\n]*/g, "");
 
-const BUCKETS = ["browse_ok", "browse_401", "browse_403", "browse_429", "browse_4xx", "browse_5xx"];
+const BUCKETS = ["browse_ok", "browse_401", "browse_403", "browse_429", "browse_4xx", "browse_5xx", "browse_other_status"];
 
 // Drive the real recorders inside a real job context.
 function runWith(statuses, transportFailures = 0) {
@@ -46,8 +46,8 @@ test("BO-1. every answered response lands in exactly one bucket, and they sum to
   const summed = BUCKETS.reduce((t, k) => t + cols[k], 0);
   assert.equal(summed, ctx.browseCalls, `buckets sum to ${summed} but browse_calls is ${ctx.browseCalls}`);
   assert.deepEqual(
-    { ok: cols.browse_ok, a401: cols.browse_401, a403: cols.browse_403, a429: cols.browse_429, other4xx: cols.browse_4xx, s5xx: cols.browse_5xx },
-    { ok: 3, a401: 1, a403: 1, a429: 2, other4xx: 2, s5xx: 2 }
+    { ok: cols.browse_ok, a401: cols.browse_401, a403: cols.browse_403, a429: cols.browse_429, other4xx: cols.browse_4xx, s5xx: cols.browse_5xx, other: cols.browse_other_status },
+    { ok: 3, a401: 1, a403: 1, a429: 2, other4xx: 2, s5xx: 2, other: 0 }
   );
   // 401/403/429 are broken out and must NOT also be inside the generic 4xx
   assert.equal(cols.browse_4xx, 2, "401/403/429 are being double-counted into browse_4xx");
@@ -71,6 +71,22 @@ test("BO-3. a transport failure is NOT an answered response and NOT a browse cal
   assert.notEqual(cols.browse_transport_failures, 0);
 });
 
+test("BO-3b. an answered response outside the named buckets still gets one - the identity never breaks", () => {
+  // 1xx / 3xx / anything unexpected. These would previously have been
+  // counted in browse_calls but landed in NO bucket, so the sum would
+  // silently fall short of browse_calls and a real gap would look like a
+  // missing response rather than an unnamed status.
+  const odd = [301, 302, 100, 199, 308, 600];
+  const { ctx, cols } = runWith(odd);
+  assert.equal(ctx.browseCalls, odd.length);
+  assert.equal(cols.browse_other_status, odd.length, "an unclassified answered response was dropped");
+  assert.equal(BUCKETS.reduce((t, k) => t + cols[k], 0), ctx.browseCalls, "the identity broke on unnamed statuses");
+  // and it is genuinely a LAST resort - a named status never lands here
+  const named = runWith([200, 401, 403, 429, 404, 500]);
+  assert.equal(named.cols.browse_other_status, 0, "a named status leaked into the other bucket");
+  assert.equal(BUCKETS.reduce((t, k) => t + named.cols[k], 0), named.ctx.browseCalls);
+});
+
 test("BO-4. the recorders add no budget charge and no provider request", () => {
   const s = code("lib/ebayTelemetry.js");
   const fn = s.slice(s.indexOf("function recordBrowseOutcome"), s.indexOf("function recordBrowseTransportFailure"));
@@ -81,6 +97,30 @@ test("BO-4. the recorders add no budget charge and no provider request", () => {
   const e = code("lib/ebay.js");
   assert.match(e, /recordBrowseCall\(\);\s*recordBrowseOutcome\(res\.status\)/, "the outcome is not recorded on the same answered attempt");
   assert.match(e, /catch \(err\) \{\s*recordBrowseTransportFailure\(\)/, "transport failures are not recorded in the catch branch");
+});
+
+test("BO-3c. historical rows stay distinguishable from measured zeros", () => {
+  // The migration adds NULLABLE columns with no default, so a row written
+  // before this shipped keeps NULL ("not measured") and can never be read as
+  // a run that observed zero. There is no backfill.
+  // strip -- comments first: the rationale above the DDL legitimately uses
+  // words like "default" and "drop" in prose
+  const sql = src("supabase/ebay_job_runs_browse_outcomes_migration.sql")
+    .split(/\r?\n/)
+    .filter((l) => !l.trim().startsWith("--"))
+    .join(" ");
+  assert.ok(!/NOT NULL/i.test(sql), "a NOT NULL column would force historical rows to a value");
+  assert.ok(!/DEFAULT/i.test(sql), "a DEFAULT would make historical rows look like measured zeros");
+  assert.ok(!/UPDATE |INSERT |BACKFILL/i.test(sql), "the migration rewrites existing rows");
+  // additive and non-destructive only
+  for (const destructive of ["DROP ", "RENAME", "ALTER COLUMN", "TRUNCATE", "DELETE "]) {
+    assert.ok(!sql.toUpperCase().includes(destructive), `migration contains ${destructive}`);
+  }
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS/, "migration is not additive/re-runnable");
+  // an instrumented run writes a real integer, including a genuine zero
+  const { cols } = runWith([200]);
+  assert.equal(cols.browse_429, 0, "an instrumented run must write 0, not null, for a bucket it did not see");
+  assert.equal(typeof cols.browse_429, "number");
 });
 
 test("BO-5. no URL, token, header or body can reach telemetry", () => {
