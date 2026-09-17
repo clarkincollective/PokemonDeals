@@ -60,10 +60,6 @@
       "test": "card hub does not call a native GBP value USD"
     },
     {
-      "file": "tests/scanner/r6-category-currency.test.mjs",
-      "test": "ordinary category listing does not require a market comparison"
-    },
-    {
       "file": "tests/scanner/recent-sales-filter.test.mjs",
       "test": "30. the price-sanity filter feeds NOTHING but the displayed list"
     },
