@@ -193,7 +193,19 @@ async function buildPackage(cand, { storyId, renderer, sceneRenderer, bgIndex })
     if (report.reviews_used >= MAX_REVIEWS) return { ok: false, reason: "review budget for this run used - remaining slots wait for the next run" };
     report.reviews_used += 1;
     review = await reviewRenderedCreative(imgPath, { platform: "instagram", family: `autopilot_${story.layout}`, series: ST.AUTOPILOT_SERIES[cand.kind], cardForward: true, editorial: true }, { noCache: true });
-    if (review.verdict !== "PASS") return { ok: false, reason: `visual review ${review.verdict}: ${(review.blockers ?? review.notes ?? []).slice(0, 2).join(" | ")}` };
+    if (review.verdict !== "PASS") {
+      // fail() returns blockers: [] and puts the cause in notes, so `??` (which
+      // only falls through on null/undefined) reported every non-PASS as an
+      // empty string - the reason a whole run of skips said nothing at all.
+      const why = (review.blockers?.length ? review.blockers : review.notes ?? []).slice(0, 2).join(" | ");
+      // A reviewer that could not run is NOT a quality verdict. available:false
+      // (no key, HTTP error, unparseable) silently skipped every slot and still
+      // exited 0, so the workflow stayed green while output went to zero.
+      // Raise it as an alert: the run then fails visibly and the owner alert path
+      // sees it, instead of the queue draining unnoticed.
+      if (review.available === false) alert(`visual review unavailable (${review.verdict}): ${why || "no detail"} - not a quality verdict`);
+      return { ok: false, reason: `visual review ${review.verdict}: ${why || "(no detail returned)"}` };
+    }
   }
 
   const scenes = CR.renderStoryScenesHtml(story, { art, bg });
