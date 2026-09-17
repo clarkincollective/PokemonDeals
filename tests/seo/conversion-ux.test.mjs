@@ -11,6 +11,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { get, parseHtml, sitemapUrls, sample, pathOf } from "./lib.mjs";
+import { offerShipping } from "../../lib/offerPresentation.js";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const ACCENTED = `Pok${String.fromCharCode(233)}mon`;
@@ -85,8 +86,33 @@ test("2. no 'save' / below-market styling on an ordinary catalogue card", () => 
   const nonDeal = sc.slice(at - 400, at + 800);
   assert.ok(!/below market/i.test(nonDeal), "catalogue branch of SpeciesCard shows 'below market'");
   assert.ok(!/\bsave\b|current bid/i.test(nonDeal), "catalogue branch of SpeciesCard shows a savings / bid claim");
-  // SearchClient: the below-market badge only renders when c.deal is truthy
-  assert.match(read("app/search/SearchClient.js"), /\{c\.deal &&[\s\S]{0,260}below market/);
+  // SearchClient's below-market badge. This used to match the literal
+  // `{c.deal && ...}`; the badge is now behind a NAMED gate, so assert what
+  // the gate MEANS. `c.deal &&` was mere truthiness - a deal row with no
+  // trusted comparison would still have shown the badge. The current gate
+  // additionally requires a discount to exist and the shipping breakdown to
+  // support a claim, so this is a strictly stronger rule, not a relaxed one.
+  const search = read("app/search/SearchClient.js");
+  const gate = (search.match(/const showSavings = ([^;]+);/) ?? [])[1];
+  assert.ok(gate, "SearchClient no longer defines the showSavings gate the badge hangs on");
+  assert.match(gate, /c\.deal\?\.discountPct != null/, `badge gate no longer requires a deal with a discount: ${gate}`);
+  assert.match(gate, /savingClaim !== "none"/, `badge gate no longer requires a claimable saving: ${gate}`);
+  // ...and the badge is genuinely inside that gate, not merely near it
+  const badgeAt = search.indexOf("% below market");
+  assert.ok(badgeAt > 0, "SearchClient no longer renders a below-market badge at all");
+  assert.match(
+    search.slice(Math.max(0, badgeAt - 300), badgeAt),
+    /\{showSavings &&/,
+    "the below-market badge is no longer rendered inside the showSavings gate"
+  );
+
+  // The rendered proof: a catalogue-only page has no qualifying deal by
+  // definition, so no savings framing may reach the visitor on one.
+  for (const [label, body] of [["species", catSpeciesText], ["set", catSetText]]) {
+    if (!body) continue;
+    assert.ok(!/\d+% below market/i.test(body), `${label} catalogue-only page renders a below-market percentage`);
+    assert.ok(!/\bYou save\b/i.test(body), `${label} catalogue-only page renders a "You save" claim`);
+  }
 });
 
 test("3. deal CTAs name eBay / the destination (no vague 'view' / 'go' / 'click here')", () => {
@@ -136,13 +162,41 @@ test("6. an auction's current bid is never framed as a settled / guaranteed belo
   assert.ok(!/You save|Save <Price/.test(ap), "AuctionPrice must not tell the visitor they 'save $' on an auction");
   // Projected-shape tiles (no stored bid available) show the landed figure
   // as an ESTIMATE - never labelled "current bid" - and still flag rises.
-  for (const f of ["components/SpeciesCard.js", "components/CatalogueBrowser.js"]) {
-    const src = read(f);
-    if (!/isAuction/.test(src)) continue;
-    assert.match(src, /isAuction[\s\S]{0,400}Est\. total/, `${f}: auction landed figure isn't labelled 'est. total'`);
-    assert.match(src, /isAuction[\s\S]{0,400}(bids can rise|can rise)/i, `${f}: auction copy doesn't say the price can rise`);
+  //
+  // SpeciesCard no longer hard-codes that label: it renders
+  // shipping.auctionTotalLabel, so the guarantee now lives in
+  // lib/offerPresentation. Check the helper's ACTUAL output for every
+  // shipping state against literal expected strings (not against the helper
+  // itself), then check each tile really uses it.
+  const AUCTION_LABELS = [
+    [{ shipping: 4.5 }, "confirmed", "Est. total"],
+    [{ shipping: 0 }, "unconfirmed", "Est. total before shipping"],
+    [{ shipping: null }, "unknown", "Recorded total"],
+  ];
+  for (const [row, expectedState, expectedLabel] of AUCTION_LABELS) {
+    const s = offerShipping(row);
+    assert.equal(s.state, expectedState, `offerShipping(${JSON.stringify(row)}) state`);
+    assert.equal(s.auctionTotalLabel, expectedLabel, `offerShipping(${JSON.stringify(row)}) auction label`);
+    // the point of the rule: in NO state is the landed figure called a bid,
+    // and in no state is it presented as a settled price
+    assert.ok(!/current bid/i.test(s.auctionTotalLabel), `auction label reads as a bid: ${s.auctionTotalLabel}`);
+    assert.match(s.auctionTotalLabel, /^(Est\. total|Recorded total)/, `auction label is not marked as an estimate: ${s.auctionTotalLabel}`);
+  }
+  // the "unknown" state may claim no saving at all - so a landed figure we
+  // cannot break down can never carry a below-market percentage
+  assert.equal(offerShipping({ shipping: null }).savingClaim, "none");
+
+  const speciesSrc = read("components/SpeciesCard.js");
+  assert.match(speciesSrc, /isAuction \? shipping\.auctionTotalLabel/, "SpeciesCard no longer labels the auction figure from offerShipping");
+  assert.match(speciesSrc, /Auction, bids can rise/, "SpeciesCard auction tile lost the 'bids can rise' caveat");
+  // CatalogueBrowser still labels its auction tile inline; that literal is
+  // the behaviour, so assert it directly.
+  const browserSrc = read("components/CatalogueBrowser.js");
+  assert.match(browserSrc, /isAuction && \([\s\S]{0,300}Est\. total/, "CatalogueBrowser auction tile no longer labels the figure 'Est. total'");
+  assert.match(browserSrc, /auction, bids can rise/i, "CatalogueBrowser auction tile lost the 'bids can rise' caveat");
+  for (const [f, src] of [["components/SpeciesCard.js", speciesSrc], ["components/CatalogueBrowser.js", browserSrc]]) {
     assert.ok(!/isAuction \?[\s\S]{0,300}(You save|Save <Price)/.test(src), `${f}: auction branch still says "save $"`);
-    assert.ok(!/isAuction \?[\s\S]{0,300}Current bid/.test(src), `${f}: landed total still mislabelled "Current bid"`);
+    assert.ok(!/isAuction[\s\S]{0,300}Current bid/.test(src), `${f}: landed total still mislabelled "Current bid"`);
   }
   // and never the words "guaranteed final price"
   for (const f of ["app/deals/[id]/page.js", "app/sealed-deals/[id]/page.js", "components/DealCard.js", "components/AuctionPrice.js"]) {
@@ -205,14 +259,54 @@ test("11. search results route into permanent /cards/[slug] pages", () => {
   assert.ok(!/showModal|<dialog|PriceModal/i.test(src), "SearchClient reintroduced a price modal");
 });
 
-test("12. the exact-card page keeps the market reference above the deal/listings context", () => {
+test("12. the exact-card page keeps the market reference above the deal/listings context", async () => {
+  // This used to look for "<CardPriceSummary" in the page source. That
+  // component is now rendered further down, INSIDE <CardMarketPanel> (the
+  // condition/graded ladder), while the headline reference moved to
+  // <CardMarketSummary> / <CardPriceIntelligence>. Naming components made
+  // the assertion track the component tree rather than the thing it
+  // protects, so check the ORDER A VISITOR ACTUALLY SEES in the rendered
+  // page: the market reference is established before the listings context.
+  // Reaching a card page that HAS a listings area matters: a card with no
+  // hub/offers renders <CatalogCardView> instead, which has no listings
+  // section to order anything against. Sampling /cards/* at random mostly
+  // lands on those. A deal page, by definition, has a live listing - so
+  // follow its card link and we are guaranteed the template under test.
+  const sm = await sitemapUrls();
+  const dealPages = (sm.byType.get("deals") ?? []).map(pathOf).filter((p) => /^\/deals\/\d+$/.test(p));
+  assert.ok(dealPages.length > 0, "no deal pages in the sitemap to reach a card page from");
+  let checked = 0;
+  for (const dp of sample(dealPages, 10)) {
+    const dr = await get(dp);
+    if (dr.status !== 200) continue;
+    const cardHref = (dr.body.match(/href="(\/cards\/[a-z0-9-]+)"/) ?? [])[1];
+    if (!cardHref) continue;
+    const r = await get(cardHref);
+    if (r.status !== 200) continue;
+    const html = r.body;
+    // the listings AREA wrapper (id="card-offers") is rendered unconditionally
+    // around <CardDealFilters>; the inner id="listings" anchor only appears
+    // once there are offers, so it is the wrong thing to order against.
+    const iListings = html.indexOf('id="card-offers"');
+    if (iListings < 0) continue;
+    const iRef = html.search(/market reference/i);
+    assert.ok(iRef >= 0, `${cardHref}: no market reference on the page at all`);
+    assert.ok(iRef < iListings, `${cardHref}: the listings area (${iListings}) precedes the market reference (${iRef})`);
+    checked++;
+    if (checked >= 3) break;
+  }
+  assert.ok(checked > 0, "no card page with a listings area was reachable to check ordering");
+
+  // and the source still puts the reference components before the filters,
+  // so a reorder is caught even when no live listing exists to render
   const src = read("app/cards/[slug]/page.js");
-  const iSummary = src.indexOf("<CardPriceSummary");
-  // 13B.4.2: the live-listings area (with the id="listings" anchor + the
-  // structured deal filters) is now the <CardDealFilters> client
-  // component; the market-reference summary must still render before it.
-  const iListings = src.indexOf("<CardDealFilters");
-  assert.ok(iSummary > 0 && iListings > 0 && iSummary < iListings, "CardPriceSummary must render before the listings area");
+  const iSummary = src.indexOf("<CardMarketSummary");
+  const iIntel = src.indexOf("<CardPriceIntelligence");
+  const iFilters = src.indexOf("<CardDealFilters");
+  assert.ok(iSummary > 0, "the card page no longer renders <CardMarketSummary>");
+  assert.ok(iFilters > 0, "the card page no longer renders the <CardDealFilters> listings area");
+  assert.ok(iSummary < iFilters, "<CardMarketSummary> must render before the listings area");
+  assert.ok(iIntel > 0 && iIntel < iFilters, "<CardPriceIntelligence> must render before the listings area");
 });
 
 test("13. affiliate links keep rel=\"sponsored\"", () => {

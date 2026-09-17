@@ -12,6 +12,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { get, parseHtml, sitemapUrls, sample, pathOf } from "./lib.mjs";
+import { isDisplayableDeal } from "../../lib/dealQuality.js";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const ORIGIN = "https://pokemondealfinder.com";
@@ -246,14 +247,59 @@ test("19. no deal / matcher / authenticity / freshness logic was changed", () =>
 
 // --- 20: search API only surfaces displayable deals ---
 
-test("20. the search API filters deals through isDisplayableDeal on every path", () => {
-  // 13B.6.2 - the search engine moved to lib/searchEngine.js; the API
-  // route (card-detail path) still filters too.
+test("20. the search API never returns a held or otherwise undisplayable listing", async () => {
+  // This used to assert the exact import line
+  // `import { isDisplayableDeal } from "@/lib/dealQuality"`, which broke the
+  // day a second symbol joined the braces - while proving nothing about
+  // whether anything was actually filtered. Counting occurrences of an
+  // identifier is not coverage of an exclusion rule. So: run the real
+  // endpoint and put every row it returns back through the real gate.
+  const res = await get("/api/card-search?q=charizard");
+  assert.equal(res.status, 200, "card-search did not answer");
+  let body;
+  try {
+    body = JSON.parse(res.body);
+  } catch {
+    assert.fail("card-search did not return JSON");
+  }
+  assert.ok(Array.isArray(body.deals), "card-search response has no deals array");
+  if (body.deals.length === 0) {
+    // an empty result set cannot demonstrate the rule; say so rather than
+    // passing silently on nothing
+    assert.fail("card-search returned no deals for 'charizard' - the exclusion rule was not exercised");
+  }
+  const leaked = body.deals.filter((d) => !isDisplayableDeal(d));
+  assert.deepEqual(
+    leaked.map((d) => `${d.id}: active=${d.is_active} disq=${d.disqualified_reason ?? "-"} type=${d.listing_type}`),
+    [],
+    "card-search returned listings the display gate rejects"
+  );
+  // the gate is not vacuous: it really does reject the shapes we care about
+  const sample0 = body.deals[0];
+  assert.ok(!isDisplayableDeal({ ...sample0, is_active: false }), "gate accepts an inactive listing");
+  assert.ok(!isDisplayableDeal({ ...sample0, disqualified_reason: "held" }), "gate accepts a held listing");
+  // isExactEbayDealDestination reads affiliate_url and FALLS BACK to
+  // listing_url, so a destination control has to break both to be a control
+  // at all - breaking only one proves nothing.
+  const SEARCH_URL = "https://www.ebay.com/sch/i.html?_nkw=charizard";
+  assert.ok(
+    isDisplayableDeal({ ...sample0, affiliate_url: SEARCH_URL }),
+    "affiliate_url alone should still resolve via listing_url - fallback lost"
+  );
+  assert.ok(
+    !isDisplayableDeal({ ...sample0, affiliate_url: SEARCH_URL, listing_url: SEARCH_URL }),
+    "gate accepts a non-exact search destination"
+  );
+
+  // structural backstop: every place the search stack reads deal rows out of
+  // Supabase must hand them to the gate, so a NEW path cannot skip it.
   const engine = readFileSync(join(REPO, "lib", "searchEngine.js"), "utf8");
   const route = readFileSync(join(REPO, "app", "api", "card-search", "route.js"), "utf8");
-  const total =
-    (engine.match(/isDisplayableDeal/g) ?? []).length + (route.match(/isDisplayableDeal/g) ?? []).length;
-  assert.ok(total >= 3, `card-search dropped an isDisplayableDeal guard (found ${total})`);
-  assert.match(engine, /import \{ isDisplayableDeal \} from "@\/lib\/dealQuality"/);
-  assert.match(route, /runCardSearch/);
+  for (const [name, src] of [["lib/searchEngine.js", engine], ["app/api/card-search/route.js", route]]) {
+    assert.match(src, /\bisDisplayableDeal\b[\s\S]*?from "@\/lib\/dealQuality"/, `${name} no longer imports the display gate`);
+    const reads = (src.match(/\.from\("deals"\)/g) ?? []).length;
+    const gates = (src.match(/\.filter\(isDisplayableDeal\)/g) ?? []).length;
+    assert.ok(gates >= reads, `${name}: ${reads} deal reads but only ${gates} isDisplayableDeal filters`);
+  }
+  assert.match(route, /runCardSearch/, "the card-search route no longer delegates to the shared engine");
 });

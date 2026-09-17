@@ -123,8 +123,32 @@ test("7. /market-data/most-expensive-cards localises its ranked prices", () => {
 
 test("8. the CatalogCardView 'market reference' fallback localises", () => {
   const src = read("components/CatalogCardView.js");
+  // the original regression: a local usd() helper that hard-formatted USD
   assert.ok(!/function usd\(n\)/.test(src), "CatalogCardView still has the raw usd() helper");
-  assert.match(src, /<Price usd=\{refPrice\}/);
+
+  // The fallback reference is no longer rendered inline as <Price usd={refPrice}>;
+  // CatalogCardView hands it to CardPriceIntelligence. Localisation is only
+  // preserved if the WHOLE chain holds, so assert each link rather than one
+  // JSX spelling: refPrice -> CardPriceIntelligence -> <Price> -> conversion.
+  assert.match(
+    src,
+    /marketValueUsd=\{Number\(refPrice\)\}/,
+    "CatalogCardView no longer hands the catalogue refPrice to a price renderer"
+  );
+  assert.ok(
+    !/\$\{[^}]*refPrice[^}]*\}|toFixed\(2\)/.test(src),
+    "CatalogCardView formats refPrice itself instead of delegating"
+  );
+  const intel = read("components/CardPriceIntelligence.js");
+  assert.match(intel, /const mv = hasPrice\(marketValueUsd\)/, "CardPriceIntelligence no longer reads marketValueUsd");
+  assert.match(intel, /<Price usd=\{mv\}/, "CardPriceIntelligence no longer renders the market value through <Price>");
+  // <Price> is the only component that converts; if it stops, everything
+  // downstream silently reverts to USD.
+  assert.match(
+    read("components/Price.js"),
+    /formatMoney\(toViewerCurrency\(usd, viewer, rates\), viewer\)/,
+    "<Price> no longer converts the USD figure into the viewer's currency"
+  );
 });
 
 // ---------------------------------------------------------------------------
