@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { planSlotGroups, STORY_SLOTS, brisbaneLabel } from "../../lib/social/autopilot/slots.mjs";
+import { planSlotGroups, STORY_SLOTS, brisbaneLabel, autopilotPlatforms, manualPlatforms } from "../../lib/social/autopilot/slots.mjs";
 import { slotsBooked } from "../../lib/newsroom/backlogRefill.mjs";
 import { topByMarket, buildCatalogueStory, candidateQueue, GUIDE_STORIES, catalogueEligible, AUTOPILOT_SERIES } from "../../lib/social/autopilot/stories.mjs";
 import { storyCaptions, renderStoryImageHtml, renderStoryScenesHtml } from "../../lib/social/autopilot/creative.mjs";
@@ -10,16 +10,38 @@ import { refillConsiderable } from "../../lib/social/newsroom/refill.mjs";
 
 const NOW = Date.parse("2026-09-14T10:00:00Z"); // 20:00 Brisbane
 
+// ALL = the slot grid itself, with no feed held back for manual production.
+// Pinned explicitly so this test states the cadence contract and does not move
+// when the owner changes which feeds they write by hand.
+const ALL = { SOCIAL_AUTOPILOT_MANUAL_PLATFORMS: "" };
+
 test("SL3-1 slot groups: two story slots a day, Brisbane times, 65 min lead, 48 h horizon", () => {
-  const g = planSlotGroups({ now: NOW, horizonHours: 48 });
+  const g = planSlotGroups({ now: NOW, horizonHours: 48, env: ALL });
   assert.deepEqual(g.map((x) => x.key), ["2026-09-15|A", "2026-09-15|B", "2026-09-16|A", "2026-09-16|B"]);
   assert.equal(brisbaneLabel(g[0].times.x), "2026-09-15 08:00 AEST");
   assert.equal(brisbaneLabel(g[0].times.instagram), "2026-09-15 10:00 AEST");
   assert.equal(brisbaneLabel(g[1].times.youtube), "2026-09-15 20:00 AEST");
-  const soon = planSlotGroups({ now: Date.parse("2026-09-14T21:30:00Z"), horizonHours: 48 }); // 07:30 Brisbane
+  const soon = planSlotGroups({ now: Date.parse("2026-09-14T21:30:00Z"), horizonHours: 48, env: ALL }); // 07:30 Brisbane
   assert.ok(!("x" in soon[0].times), "08:00 is inside the 65 min lead");
   assert.ok("instagram" in soon[0].times);
   assert.deepEqual(Object.keys(STORY_SLOTS.A).sort(), ["instagram", "tiktok", "x", "youtube"]);
+});
+
+test("SL3-1b a manually produced feed is planned no slot, and the rest keep their times", () => {
+  const manual = { SOCIAL_AUTOPILOT_MANUAL_PLATFORMS: "instagram" };
+  const g = planSlotGroups({ now: NOW, horizonHours: 48, env: manual });
+  // same groups, same hours for everyone else - only Instagram disappears
+  assert.deepEqual(g.map((x) => x.key), ["2026-09-15|A", "2026-09-15|B", "2026-09-16|A", "2026-09-16|B"]);
+  for (const grp of g) assert.ok(!("instagram" in grp.times), `${grp.key} still plans an Instagram slot`);
+  assert.deepEqual(Object.keys(g[0].times).sort(), ["tiktok", "x", "youtube"]);
+  assert.equal(brisbaneLabel(g[0].times.x), "2026-09-15 08:00 AEST");
+  assert.equal(brisbaneLabel(g[0].times.tiktok), "2026-09-15 11:30 AEST");
+  assert.equal(brisbaneLabel(g[1].times.youtube), "2026-09-15 20:00 AEST");
+  // the default ships with Instagram manual (owner decision, 2026-09-18)
+  assert.deepEqual(autopilotPlatforms({}), ["x", "tiktok", "youtube"]);
+  assert.ok(manualPlatforms({}).has("instagram"));
+  // and it is reversible without a deploy
+  assert.deepEqual(autopilotPlatforms(ALL), ["x", "instagram", "tiktok", "youtube"]);
 });
 
 test("SL3-2 a booked feed slot (queued, submitting, published or with a provider ref) is never re-booked", () => {
