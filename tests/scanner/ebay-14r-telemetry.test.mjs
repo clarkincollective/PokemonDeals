@@ -231,6 +231,16 @@ test("14R-11. the persisted row shape never includes a token, credential, or raw
     [
       "analytics_calls",
       "browse_calls",
+      // browse-outcomes-r1: the answered-response status classes. They
+      // partition browse_calls; browse_transport_failures sits outside it.
+      // The forbidden-pattern check above still applies to every one of them.
+      "browse_ok",
+      "browse_401",
+      "browse_403",
+      "browse_429",
+      "browse_4xx",
+      "browse_5xx",
+      "browse_transport_failures",
       "calls_skipped",
       "completed_at",
       "country",
