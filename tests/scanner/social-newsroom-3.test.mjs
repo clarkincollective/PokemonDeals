@@ -11,6 +11,7 @@ import {
   REFILL_SCHEDULE, EDITORIAL_REFILL_PLATFORMS, INITIAL_HORIZON_DAYS,
   refillConsiderable, refillNeedsConsensus, planRefill,
 } from "../../lib/social/newsroom/refill.mjs";
+import { manualPlatforms } from "../../lib/social/autopilot/slots.mjs";
 import { classifyQaRows, qaRetentionReport, QA_ROW_WARN_THRESHOLD, QA_ROW_ALERT_THRESHOLD } from "../../lib/social/newsroom/qaRetention.mjs";
 import { VISUAL_REVIEW_POLICY_VERSION } from "../../lib/newsroom/visualConsensus.mjs";
 import { familyStatusFor } from "../../lib/social/newsroom/cardLayoutStatus.mjs";
@@ -40,20 +41,54 @@ test("N3-2. CONDITIONAL families require per-artifact consensus; AUTONOMOUS_SAFE
   assert.equal(refillNeedsConsensus("EXACT_PRINTING_MATTERS"), false);
 });
 
+// the SS5 scope rule itself, with no feed held back for manual production
+const ALL_FEEDS = { SOCIAL_AUTOPILOT_MANUAL_PLATFORMS: "" };
+
 test("N3-3. planRefill: IG + X only; initial horizon caps; NOT_PLATFORM_FIT/YouTube out of scope; no filler when nothing qualifies", () => {
   // nothing qualifies -> BACKLOG_LOW_BUT_NO_QUALITY_CONTENT, refill 0, no filler
-  const empty = planRefill({ candidateSeries: [], placements: [], initial: true });
+  const empty = planRefill({ candidateSeries: [], placements: [], initial: true, env: ALL_FEEDS });
   const igEmpty = empty.needs.find((n) => n.platform === "instagram");
   assert.ok(!igEmpty || igEmpty.state === "BACKLOG_LOW_BUT_NO_QUALITY_CONTENT" || igEmpty.refill === 0);
   assert.equal(empty.total_refill_slots, 0);
   // platforms other than IG/X are OUT_OF_INITIAL_SCOPE, never EMPTY-driving-a-loop
-  const withCands = planRefill({ candidateSeries: ["MARKET_SNAPSHOT", "EXACT_PRINTING_MATTERS"], placements: [], initial: true });
+  const withCands = planRefill({ candidateSeries: ["MARKET_SNAPSHOT", "EXACT_PRINTING_MATTERS"], placements: [], initial: true, env: ALL_FEEDS });
   for (const n of withCands.needs) {
     if (n.platform !== "instagram" && n.platform !== "x") assert.equal(n.state, "OUT_OF_INITIAL_SCOPE");
   }
   assert.deepEqual([...EDITORIAL_REFILL_PLATFORMS], ["instagram", "x"]);
   assert.deepEqual(INITIAL_HORIZON_DAYS.instagram, [3, 5]);
   assert.deepEqual(INITIAL_HORIZON_DAYS.x, [2, 3]);
+});
+
+test("N3-3b. the backlog pipeline honours the manual-platform control: Instagram asks for no refill and is never curated", () => {
+  const manualEnv = { SOCIAL_AUTOPILOT_MANUAL_PLATFORMS: "instagram" };
+  const cands = ["MARKET_SNAPSHOT", "EXACT_PRINTING_MATTERS"];
+
+  // coverage: Instagram reports MANUALLY_PRODUCED with zero refill slots, and
+  // is NOT conflated with the SS5 out-of-scope rule
+  const plan = planRefill({ candidateSeries: cands, placements: [], initial: true, env: manualEnv });
+  const ig = plan.needs.find((n) => n.platform === "instagram");
+  assert.equal(ig.state, "MANUALLY_PRODUCED");
+  assert.equal(ig.refill, 0);
+  // X is untouched by the control
+  const x = plan.needs.find((n) => n.platform === "x");
+  assert.notEqual(x.state, "MANUALLY_PRODUCED");
+  // with the control off, Instagram is back in scope and can ask again
+  const off = planRefill({ candidateSeries: cands, placements: [], initial: true, env: ALL_FEEDS });
+  assert.notEqual(off.needs.find((n) => n.platform === "instagram").state, "MANUALLY_PRODUCED");
+
+  // the shipped default holds Instagram back on this path too
+  assert.deepEqual(EDITORIAL_REFILL_PLATFORMS.filter((p) => !manualPlatforms({}).has(p)), ["x"]);
+
+  // submission: refillQueueReconcile must derive its platform list from the
+  // manual filter and skip a manual feed's rows BEFORE the scope check, so the
+  // filter cannot be dropped without this failing
+  const src = read("lib/newsroom/backlogRefill.mjs");
+  assert.match(src, /const manual = manualPlatforms\(env\);/);
+  assert.match(src, /const platforms = requestedPlatforms\.filter\(\(p\) => !manual\.has\(p\)\);/);
+  const manualIdx = src.indexOf("manual.has(p.platform)");
+  const scopeIdx = src.indexOf("!platforms.includes(p.platform)");
+  assert.ok(manualIdx > 0 && manualIdx < scopeIdx, "the manual skip must come before the scope skip");
 });
 
 // ---- schedule / timezone ---------------------------------------
