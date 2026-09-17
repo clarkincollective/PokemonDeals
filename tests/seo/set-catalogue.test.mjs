@@ -56,7 +56,12 @@ function catalogueOnlyState(res) {
   const name = m[1].trim();
   const body = text(res.body);
   if (!new RegExp(`no qualifying below-market ${esc(name)} deal to feature right now`, "i").test(body)) return null;
-  if (new RegExp(`${esc(name)} deals</h2>`, "i").test(res.body) || /id="deals"/i.test(res.body)) return null;
+  // "Catalogue-only" means NO OFFERS, not "no deals section". The #deals
+  // anchor is a promoted destination and now renders on every set page -
+  // on a catalogue-only set it carries the honest empty-state line instead
+  // of a grid. So the discriminator is the absence of the deal MODULE
+  // (offer tiles / CTAs), which is what this check always meant.
+  if (/View (deal|auction) on eBay/i.test(body) || /data-deal-card|View Deal on eBay/i.test(res.body)) return null;
   return { name, parsed: p };
 }
 
@@ -180,10 +185,20 @@ test("4. a below-threshold set stays out of the index and the sitemap", async ()
 test("5. a catalogue-only set does not claim live deals", () => {
   const t = text(catRes.body);
   assert.match(t, new RegExp(`no qualifying below-market ${esc(CAT_NAME)} deal to feature right now`, "i"));
+  // The #deals heading now renders on every set page (it is a promoted
+  // destination); what a catalogue-only set must never do is CLAIM a live
+  // deal. So: no offer tiles, no deal CTAs, no savings claim - while the
+  // honest empty-state line asserted above is required to be present.
   assert.ok(
-    !new RegExp(`${esc(CAT_NAME)} deals</h2>`, "i").test(catRes.body) && !/id="deals"/i.test(catRes.body),
-    `catalogue-only set ${CAT_PATH} rendered a deals module`
+    !/View (deal|auction) on eBay/i.test(t),
+    `catalogue-only set ${CAT_PATH} rendered a deal CTA`
   );
+  assert.ok(
+    !/\d+% below market|You save/i.test(t),
+    `catalogue-only set ${CAT_PATH} rendered a savings claim`
+  );
+  // and the anchor a promoted link depends on is still there, explaining why
+  assert.match(catRes.body, /id="deals"/, `${CAT_PATH}: the promoted #deals anchor is missing`);
 });
 
 // --- 6-8: stable metadata + H1 intent ----------------------
@@ -240,6 +255,25 @@ test("9. the card index names its set, is accessibly headed, and links to /cards
     cardLinks.length >= shown,
     `index heading claims ${shown} cards but only ${cardLinks.length} distinct /cards/ links are on the page`
   );
+});
+
+test("8b. the #deals anchor exists on a catalogue-only set, not just a deal-backed one", () => {
+  // /sets/<slug>#deals is a PROMOTED destination: social posts link straight
+  // to it and stay up long after a set's offers come and go. The section
+  // used to be dropped entirely when a set had no qualifying deals, taking
+  // the anchor with it, so such a link landed the visitor at the top of the
+  // page with no sign of where "deals" went. The heading must always render;
+  // only its contents switch.
+  assert.ok(catRes, "no catalogue-only set fixture resolved");
+  assert.match(catRes.body, /id="deals"/, `${CAT_PATH}: the #deals anchor is missing on a catalogue-only set`);
+  // and it still says, at that anchor, why there is nothing to show
+  const at = catRes.body.indexOf('id="deals"');
+  const section = text(catRes.body.slice(at, at + 4000));
+  assert.match(section, /no qualifying below-market/i, "the #deals section does not explain the empty offer state");
+  // with a real route forward rather than a dead end
+  assert.match(catRes.body.slice(at, at + 4000), /href="[^"]*#full-set-index"/, "the empty #deals section offers no way onward");
+  // deal eligibility is untouched: a catalogue-only set still shows no offers
+  assert.ok(!/View deal on eBay/i.test(section), "a catalogue-only set is rendering deal CTAs at #deals");
 });
 
 test("9b. the card index contract holds on controlled data (offline, no page request)", async () => {

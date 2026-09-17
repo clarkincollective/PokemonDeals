@@ -267,11 +267,29 @@ export default async function SetDetailPage({ params }) {
   // Placement uses the existing eligible initial inventory only. Never add
   // offers, change ordering, or relax eligibility to populate this section.
   const hasLiveOffers = !catalogueOnly && deals.length > 0;
-  const dealsSection = !catalogueOnly && (
+  // The #deals anchor is a PROMOTED, durable destination (social posts link
+  // straight to /sets/<slug>#deals and stay up long after a set's offers
+  // come and go). It used to disappear entirely on a catalogue-only set -
+  // the whole section, anchor included - so such a link silently dropped the
+  // visitor at the top of the page with no sign of where "deals" went, while
+  // the explanation sat unanchored further down under "About <set>". The
+  // heading now always renders; only its CONTENTS switch. Nothing about deal
+  // eligibility changes - a catalogue-only set still has no deals to show.
+  const dealsSection = (
     <section aria-labelledby="deals" className={hasLiveOffers ? "mb-8" : "mt-12"}>
       <h2 id="deals" className="mb-2 scroll-mt-24 text-lg font-bold text-zinc-900 dark:text-zinc-100">
         {setLabel} deals
       </h2>
+      {catalogueOnly ? (
+        <p className="max-w-3xl text-sm text-zinc-600 dark:text-zinc-400">
+          There is no qualifying below-market {setLabel} deal to feature right now — the checklist and
+          recent-sold references stay available.{" "}
+          <Link href={`${basePath}#full-set-index`} className="font-medium text-red-600 hover:underline dark:text-red-500">
+            Browse the {setLabel} card list
+          </Link>
+          .
+        </p>
+      ) : (
       <DealGrid
         kind="set"
         slug={slug}
@@ -283,6 +301,7 @@ export default async function SetDetailPage({ params }) {
         validSetSlugs={[slug]}
         compactFilters
       />
+      )}
     </section>
   );
 
@@ -383,7 +402,7 @@ export default async function SetDetailPage({ params }) {
           <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">About {setLabel}</h2>
           <p className="mt-2 max-w-3xl text-sm text-zinc-600 dark:text-zinc-400">
             Browse the {setLabel} card list and compare recent-sold references.{" "}
-            {catalogueOnly ? <>There is no qualifying below-market {setLabel} deal to feature right now — the checklist and prices stay available.</> : <>Use the deals section for the relevant eBay offers.</>}
+            {catalogueOnly ? <>The deals section above explains the current offer state; the checklist and prices stay available either way.</> : <>Use the deals section for the relevant eBay offers.</>}
           </p>
           <SetFactStrip setName={resolved.set} snapshot={snapshot} era={era} />
         </section>
