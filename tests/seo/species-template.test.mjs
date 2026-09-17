@@ -11,6 +11,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { get, parseHtml, sitemapUrls, sample, pathOf } from "./lib.mjs";
+import { SPECIES_PILOT, SPECIES_CONTROL_SEO23 } from "../../lib/speciesCoverage.js";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const ORIGIN = "https://pokemondealfinder.com";
@@ -74,6 +75,21 @@ const CAT_CANDIDATES = [
 // catalogue-only STATE is identified from the body, not the title:
 // the honest "no qualifying below-market <Name> deal to feature right
 // now" line is present and there is no "Best <Name> deals" section.
+
+// SEO-2.3 cohort expectations, from docs/seo-species-threshold-experiment.md
+// ("Experiment 2"). The formulas are written out LITERALLY here rather than
+// imported from lib/speciesHub, so these assert the documented contract
+// rather than comparing a helper with itself. Cohort MEMBERSHIP is read from
+// lib/speciesCoverage, the experiment's source of truth, so a test can never
+// silently disagree with the running cohort.
+const CONTROL_TITLE = (name) => `${name} Cards – Full List, Prices & Values`;
+const TREATED_TITLE = (name) => `${name} Cards: Prices, Values & Card List`;
+// The H1 is OUTSIDE the treatment: every species keeps the control wording.
+const SPECIES_H1 = (name) => `${name} Cards – Full List, Prices & Values`;
+const isTreated = (name) => SPECIES_PILOT.includes(name);
+const speciesNameFromTitle = (title) => (title ?? "").split(" Cards")[0].trim();
+const expectedTitle = (name) => (isTreated(name) ? TREATED_TITLE(name) : CONTROL_TITLE(name));
+
 const SPECIES_TITLE_RE = /^(.+?) Cards – Full List, Prices & Values \| Pokemon Deal Finder$/;
 
 function catalogueOnlyState(res) {
@@ -188,17 +204,29 @@ test("2b. the catalogue-only fixture is catalogue-backed AND not deal-backed", (
   assert.deepEqual(catParsed.canonicals, [`${ORIGIN}/pokemon/${CAT_SLUG}`]);
 });
 
-test("2c. the species title/H1 is STABLE - identical for deal-backed and catalogue-only", () => {
+test("2c. the species title/H1 is STABLE - a live listing never changes either, in either cohort", () => {
   // Phase 8A: a below-market listing appearing must not flip the title
   // between "... & Value" and "... & Deals" (index churn, same intent).
-  // The authored part (before " | Pokemon Deal Finder") is what matters.
-  assert.match(dealParsed.title, SPECIES_TITLE_RE);
-  assert.match(catParsed.title, SPECIES_TITLE_RE);
-  assert.match(dealParsed.h1s[0] ?? "", /^.+ Cards – Full List, Prices & Values$/);
-  assert.match(catParsed.h1s[0] ?? "", /^.+ Cards – Full List, Prices & Values$/);
-  // the H1 (no site-name suffix) does not advertise "deals"
-  assert.ok(!/deals?\b/i.test(dealParsed.h1s[0] ?? ""), `deal-backed H1 advertises deals: ${dealParsed.h1s[0]}`);
-  assert.ok(!/deals?\b/i.test(catParsed.h1s[0] ?? ""));
+  // SEO-2.3 changed WHICH title a TREATED species gets; it did not make the
+  // title depend on whether a deal happens to exist. So the rule is now
+  // per-cohort, and the H1 is outside the treatment entirely.
+  for (const [label, parsed] of [["deal-backed", dealParsed], ["catalogue-only", catParsed]]) {
+    const name = speciesNameFromTitle(parsed.title);
+    assert.ok(name, `${label}: could not read the species name from ${parsed.title}`);
+    assert.equal(
+      parsed.title,
+      `${expectedTitle(name)} | Pokemon Deal Finder`,
+      `${label} (${isTreated(name) ? "treated" : "untreated"}): ${parsed.title}`
+    );
+    assert.equal(parsed.h1s[0] ?? "", SPECIES_H1(name), `${label}: H1 ${parsed.h1s[0]}`);
+    // the H1 (no site-name suffix) does not advertise "deals"
+    assert.ok(!/deals?\b/i.test(parsed.h1s[0] ?? ""), `${label} H1 advertises deals: ${parsed.h1s[0]}`);
+  }
+  // and the two pages agree on the H1 FORMULA, deal-backed or not
+  assert.equal(
+    (dealParsed.h1s[0] ?? "").replace(speciesNameFromTitle(dealParsed.title), "<species>"),
+    (catParsed.h1s[0] ?? "").replace(speciesNameFromTitle(catParsed.title), "<species>")
+  );
 });
 
 // --- 3-6: metadata stabilization -------------------------------------
@@ -212,13 +240,45 @@ test("3. catalogue-only species metadata is stable (no counts, no ranges)", () =
   assert.ok(!/\b\d+\s*(cards|sets|listings|deals)\b/i.test(d), `description has a volatile count: ${d}`);
 });
 
-test("4. deal-backed species metadata is stable (no counts, no ranges)", () => {
+test("4. deal-backed species metadata is stable - deterministic inputs only, never prices", () => {
   assert.equal(dealRes.status, 200);
-  assert.match(dealParsed.title, /^Charizard Cards – Full List, Prices & Values \| Pokemon Deal Finder$/);
+  assert.ok(isTreated("Charizard"), "fixture assumes Charizard is in the treated cohort");
+  assert.equal(dealParsed.title, `${TREATED_TITLE("Charizard")} | Pokemon Deal Finder`);
   const d = dealParsed.metaDescription ?? "";
   assert.ok(d.length > 0, "no meta description");
+  // NO prices, in any cohort - they move with every sync and scan
   assert.ok(!/\$\d/.test(d), `description has a price: ${d}`);
-  assert.ok(!/\b\d+\s*(cards|sets|listings|deals|active)\b/i.test(d), `description has a volatile count: ${d}`);
+  // NO live-listing or deal counts, in any cohort - they move with every scan
+  assert.ok(!/\b\d+\s*(active\s+)?(listings?|deals?)\b/i.test(d), `description has a live count: ${d}`);
+  // the treated description states DETERMINISTIC coverage facts, drawn from
+  // the same eligible-card list the body renders, so page and metadata can
+  // never disagree (docs: "Counts come from speciesCoverageFacts")
+  const m = d.match(/^Browse (\d+) cards? we track for Charizard across (\d+) sets?(?:, spanning (\d+) eras?)?\./);
+  assert.ok(m, `treated description does not follow the documented formula: ${d}`);
+  assert.ok(Number(m[1]) > 0 && Number(m[2]) > 0, `non-positive counts: ${d}`);
+  assert.match(d, /Compare card prices, values and current marketplace deals where available\.$/);
+});
+
+test("4b. an UNTREATED species keeps the pre-experiment title and count-free description", async () => {
+  // the control cohort is pre-registered and must stay untreated
+  const control = SPECIES_CONTROL_SEO23[0];
+  assert.ok(!isTreated(control), `${control} is in both cohorts`);
+  const r = await get(`/pokemon/${control.toLowerCase()}`);
+  if (r.status !== 200) return;
+  const parsed = parseHtml(r.body);
+  if (/noindex/.test(parsed.robots ?? "")) return;
+  assert.equal(parsed.title, `${CONTROL_TITLE(control)} | Pokemon Deal Finder`, `control ${control} title drifted`);
+  const d = parsed.metaDescription ?? "";
+  assert.ok(d.length > 0, "no meta description");
+  assert.ok(!/\$\d/.test(d), `control description has a price: ${d}`);
+  assert.ok(!/\b\d+\s*(cards|sets|listings|deals|active)\b/i.test(d), `control description gained a count: ${d}`);
+});
+
+test("4c. the two cohorts are disjoint and neither is empty", () => {
+  const overlap = SPECIES_CONTROL_SEO23.filter((n) => SPECIES_PILOT.includes(n));
+  assert.deepEqual(overlap, [], `cohorts overlap: ${overlap.join(", ")}`);
+  assert.ok(SPECIES_PILOT.length >= 20, `treated cohort is ${SPECIES_PILOT.length}`);
+  assert.equal(SPECIES_CONTROL_SEO23.length, 20, "the pre-registered control is 20 species");
 });
 
 test("5. no volatile live-listing count anywhere in a species meta description", async () => {

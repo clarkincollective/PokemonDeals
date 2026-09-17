@@ -25,21 +25,54 @@ import { dirname, join } from "node:path";
 import { get, parseHtml } from "./lib.mjs";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const HEAVY_SPECIES = "/pokemon/pikachu";
+
+// SEO-2.3 splits the species list view by cohort (docs/seo-species-threshold-
+// experiment.md, "Experiment 2"):
+//   TREATED   -> <SpeciesChecklist>: era/set groups, heading
+//                "<Species> checklist by era and set (N cards)", set headings
+//                are real /sets/<slug> links, no <details> wrapper.
+//   otherwise -> <CatalogueLinkIndex>: heading "Full <Species> card index (N)",
+//                one outer <details> with nested per-set <details>, /cards/
+//                links only.
+// Both live in <section aria-labelledby="full-card-index"> and both carry
+// EVERY eligible card as a plain server-rendered <a>. Set pages are never
+// treated, so /sets/[slug] always renders the link index.
+const HEAVY_SPECIES = "/pokemon/pikachu"; // treated, 359 cards (over the cap)
+const CONTROL_SPECIES = "/pokemon/eevee"; // pre-registered control, 123 cards (over the cap)
 const HEAVY_SET = "/sets/skyridge";
-const SMALL_SPECIES = "/pokemon/celebi";
+const SMALL_SPECIES = "/pokemon/celebi"; // untreated, under the cap
 
 const uniq = (re, s) => new Set([...s.matchAll(re)].map((m) => m[1]));
 const richTiles = (s) => (s.match(/group flex h-full flex-col/g) || []).length;
 // Next inserts <!-- --> markers between adjacent JSX text/expression
 // nodes; drop them before matching visible-text patterns.
 const decomment = (s) => s.replace(/<!--\s*-->/g, "");
-const indexHeadingN = (body) =>
-  Number((decomment(body).match(/Full [^<]*?card index \((\d+)\)/) || [])[1]);
+// The index heading count, whichever cohort's index is rendered.
+const indexHeadingN = (body) => {
+  const b = decomment(body);
+  const plain = b.match(/Full [^<]*?card index \((\d+)\)/);
+  if (plain) return Number(plain[1]);
+  const checklist = b.match(/checklist by era and set \((\d+) cards?\)/);
+  return checklist ? Number(checklist[1]) : NaN;
+};
+// The anchors inside the index section only (not the rest of the page).
+const indexSection = (body) => {
+  // species pages label the section "full-card-index", set pages "full-set-index"
+  let from = body.indexOf('aria-labelledby="full-card-index"');
+  if (from === -1) from = body.indexOf('aria-labelledby="full-set-index"');
+  if (from === -1) return "";
+  const end = body.indexOf("</section>", from);
+  return body.slice(from, end === -1 ? undefined : end);
+};
+const indexAnchors = (body) =>
+  [...indexSection(body).matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)].map((m) => ({
+    href: (m[1].match(/href="([^"]*)"/) || [])[1] ?? null,
+    text: m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+  }));
 
-let spRes, setRes, smallRes, sp, st, sm;
+let spRes, ctrlRes, setRes, smallRes, sp, st, sm;
 before(async () => {
-  [spRes, setRes, smallRes] = await Promise.all([get(HEAVY_SPECIES), get(HEAVY_SET), get(SMALL_SPECIES)]);
+  [spRes, ctrlRes, setRes, smallRes] = await Promise.all([get(HEAVY_SPECIES), get(CONTROL_SPECIES), get(HEAVY_SET), get(SMALL_SPECIES)]);
   sp = parseHtml(spRes.body);
   st = parseHtml(setRes.body);
   sm = parseHtml(smallRes.body);
@@ -86,23 +119,31 @@ test("4. JSON-LD is valid and every ItemList is bounded (<= 30 elements)", () =>
 
 // --- 5-8: the compact index IS the crawl-safety net -------------------
 
-test("5. a server-rendered full card index is present in the initial HTML (behind the list toggle, links in <details>, not a client component)", () => {
-  for (const [name, res] of [["species", spRes], ["set", setRes]]) {
+test("5. a server-rendered full card index is present in the initial HTML (both cohorts, not a client component)", () => {
+  // every catalogue page, treated or not, ships the whole link set server-side
+  for (const [name, res] of [["treated species", spRes], ["control species", ctrlRes], ["untreated species", smallRes], ["set", setRes]]) {
     assert.match(res.body, /aria-labelledby="full-(card|set)-index"/, `${name}: index section missing`);
     const m = res.body.match(/<section aria-labelledby="full-(?:card|set)-index"[^>]*>/);
     assert.ok(m, `${name}: index section not found`);
-    // the complete link set is inside the section in the server HTML
     const idxHtml = res.body.slice(res.body.indexOf(m[0]));
-    assert.match(idxHtml, /<details/, `${name}: index sections missing`);
     assert.match(idxHtml, /<a href="\/cards\/[a-z0-9-]+"/, `${name}: no card links in the server HTML`);
   }
+  // the UNTREATED index keeps its collapsed <details> grouping
+  for (const [name, res] of [["control species", ctrlRes], ["untreated species", smallRes], ["set", setRes]]) {
+    assert.match(indexSection(res.body), /<details/, `${name}: link-index <details> grouping missing`);
+  }
+  // the TREATED page renders the era checklist instead: grouped by era and
+  // set, with the set headings as real links, and no <details> wrapper
+  const treated = indexSection(spRes.body);
+  assert.match(decomment(spRes.body), /checklist by era and set \(\d+ cards?\)/, "treated species: era checklist heading missing");
+  assert.match(treated, /<a href="\/sets\/[a-z0-9-]+"/, "treated species: era checklist has no set headings");
+  assert.ok(!/<details/.test(treated), "treated species: the era checklist should not be collapsed into <details>");
 });
 
-test("6. the index carries every catalogue card as a plain <a href=/cards/...> (count matches its heading)", () => {
-  for (const [name, res] of [["species", spRes], ["set", setRes]]) {
+test("6. the index carries every catalogue card as a plain <a href=/cards/...> (count matches its heading, both cohorts)", () => {
+  for (const [name, res] of [["treated species", spRes], ["control species", ctrlRes], ["untreated species", smallRes], ["set", setRes]]) {
     const headingN = indexHeadingN(res.body);
-    assert.ok(headingN > 0, `${name}: no "Full ... card index (N)" heading`);
-    // links inside the index section
+    assert.ok(headingN > 0, `${name}: no card-index heading with a count`);
     const from = res.body.indexOf('aria-labelledby="full-');
     const idxHtml = res.body.slice(from);
     const anchors = [...idxHtml.matchAll(/<a href="(\/cards\/[a-z0-9-]+)"/g)];
@@ -110,7 +151,6 @@ test("6. the index carries every catalogue card as a plain <a href=/cards/...> (
       anchors.length >= headingN * 0.9,
       `${name}: index heading says ${headingN} cards but only ${anchors.length} <a> links found`
     );
-    // they are plain anchors, not next/link client refs (no data-prefetch etc. is fine; assert real href)
     for (const a of anchors.slice(0, 5)) assert.match(a[1], /^\/cards\/[a-z0-9-]+$/);
   }
 });
@@ -123,7 +163,7 @@ test("7. the rich tile grid is bounded (no longer hundreds of hydrated tiles)", 
 });
 
 test("8. total permanent /cards/ link coverage >= the full index count (parity preserved)", () => {
-  for (const res of [spRes, setRes]) {
+  for (const res of [spRes, ctrlRes, smallRes, setRes]) {
     const headingN = indexHeadingN(res.body);
     const all = uniq(/href="\/cards\/([a-z0-9-]+)"/g, res.body);
     assert.ok(all.size >= headingN, `only ${all.size} unique /cards/ links vs index count ${headingN}`);
@@ -167,8 +207,15 @@ test("13. a progressive-disclosure control ('Show ...') renders server-side", ()
   }
 });
 
-test("14. large catalogues show the honest 'highest-value of N ... full index is below' cap note", () => {
-  assert.match(decomment(spRes.body), /Showing \d+ highest-value of \d+ .*?cards? .*? the full index is below/i);
+test("14. large catalogues show the honest 'N highest-value of M cards' gallery cap note", () => {
+  // wording changed with the gallery-first list toggle; the honesty
+  // requirement is unchanged - the capped gallery must say what it shows
+  // and out of how many. Applies to every capped catalogue, not one cohort.
+  for (const [name, res] of [["treated species", spRes], ["control species", ctrlRes], ["set", setRes]]) {
+    const m = decomment(res.body).match(/Gallery shows the (\d+) highest-value of (\d+) cards/i);
+    assert.ok(m, `${name}: no gallery cap note`);
+    assert.ok(Number(m[1]) < Number(m[2]), `${name}: cap note claims ${m[1]} of ${m[2]}`);
+  }
 });
 
 // --- 15-17: control (small catalogue) + accessibility + source -------
@@ -180,13 +227,24 @@ test("15. a small catalogue is NOT capped but still gets the full index", () => 
 });
 
 test("16. index anchors are real, keyboard-navigable links with non-empty href + labelled section", () => {
-  const from = spRes.body.indexOf('aria-labelledby="full-card-index"');
-  const idxHtml = spRes.body.slice(from, from + 60000);
-  const anchors = [...idxHtml.matchAll(/<a href="([^"]*)"[^>]*>([^<]+)<\/a>/g)];
-  assert.ok(anchors.length > 20);
-  for (const a of anchors.slice(0, 30)) {
-    assert.ok(a[1].startsWith("/cards/"), `bad href ${a[1]}`);
-    assert.ok(a[2].trim().length > 0, "empty link text");
+  // The treated era checklist links its SET headings as well as its cards;
+  // both are real permanent internal destinations. Nothing else may appear.
+  for (const [name, res, allowSets] of [
+    ["treated species", spRes, true],
+    ["control species", ctrlRes, false],
+    ["untreated species", smallRes, false],
+    ["set", setRes, false],
+  ]) {
+    const anchors = indexAnchors(res.body);
+    assert.ok(anchors.length > 20, `${name}: only ${anchors.length} index anchors`);
+    for (const a of anchors) {
+      assert.ok(a.href, `${name}: anchor with no href`);
+      const ok = /^\/cards\/[a-z0-9-]+$/.test(a.href) || (allowSets && /^\/sets\/[a-z0-9-]+$/.test(a.href));
+      assert.ok(ok, `${name}: bad href ${a.href}`);
+      assert.ok(a.text.length > 0, `${name}: empty link text on ${a.href}`);
+    }
+    if (allowSets) assert.ok(anchors.some((a) => a.href.startsWith("/sets/")), `${name}: expected set headings`);
+    else assert.ok(!anchors.some((a) => a.href.startsWith("/sets/")), `${name}: unexpected set link in the plain index`);
   }
 });
 

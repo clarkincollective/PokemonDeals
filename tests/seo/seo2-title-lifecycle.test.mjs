@@ -16,6 +16,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import { BASE, get, parseHtml, sitemapUrls, pathOf, normPath } from "./lib.mjs";
+import { SPECIES_PILOT } from "../../lib/speciesCoverage.js";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const ORIGIN = "https://pokemondealfinder.com";
@@ -200,16 +201,42 @@ test("12. bogus species (any case) stay 404; cards / sets case handling is uncha
 
 // --- 13-15: species title / H1 / schema / OG parity ------------------
 
-test("13. species title + H1 use the stable 'Cards – Full List, Prices & Values' formula on both templates", async () => {
-  for (const p of ["/pokemon/charizard", "/pokemon/pikachu", "/pokemon/luvdisc", "/pokemon/dunsparce"]) {
+test("13. species title follows its cohort's formula; the H1 formula is shared by both", async () => {
+  // SEO-2.3 (docs/seo-species-threshold-experiment.md) changed the TITLE for
+  // the treated cohort only. The H1 was deliberately left alone, so it stays
+  // the single stable formula on every species page, treated or not.
+  const CONTROL_TITLE = (n) => `${n} Cards – Full List, Prices & Values`;
+  const TREATED_TITLE = (n) => `${n} Cards: Prices, Values & Card List`;
+  let treatedSeen = 0;
+  let untreatedSeen = 0;
+  for (const p of [
+    "/pokemon/charizard", // treated
+    "/pokemon/pikachu", // treated
+    "/pokemon/eevee", // pre-registered control
+    "/pokemon/luvdisc", // untreated remainder
+    "/pokemon/dunsparce", // untreated remainder
+  ]) {
     const r = await get(p);
     if (r.status !== 200) continue;
     const parsed = parseHtml(r.body);
     if (/noindex/.test(parsed.robots ?? "")) continue;
-    assert.match(parsed.title, /^(.+) Cards – Full List, Prices & Values \| Pokemon Deal Finder$/, `${p}: ${parsed.title}`);
-    assert.match(parsed.h1s[0] ?? "", /^(.+) Cards – Full List, Prices & Values$/, `${p}: ${parsed.h1s[0]}`);
+    const name = (parsed.title ?? "").split(" Cards")[0].trim();
+    assert.ok(name, `${p}: could not read the species name from ${parsed.title}`);
+    const treated = SPECIES_PILOT.includes(name);
+    if (treated) treatedSeen++;
+    else untreatedSeen++;
+    assert.equal(
+      parsed.title,
+      `${(treated ? TREATED_TITLE : CONTROL_TITLE)(name)} | Pokemon Deal Finder`,
+      `${p} (${treated ? "treated" : "untreated"}): ${parsed.title}`
+    );
+    // the H1 is the same formula for everyone and never advertises deals
+    assert.equal(parsed.h1s[0] ?? "", CONTROL_TITLE(name), `${p}: H1 ${parsed.h1s[0]}`);
     assert.ok(!/for sale|deals?\b/i.test(parsed.h1s[0]), `${p}: H1 advertises sale/deals: ${parsed.h1s[0]}`);
   }
+  // the sample must actually exercise both sides of the experiment
+  assert.ok(treatedSeen > 0, "no treated species page was reachable");
+  assert.ok(untreatedSeen > 0, "no untreated species page was reachable");
 });
 
 test("14. every indexable species page carries exactly one CollectionPage and no Product / Offer", async () => {
