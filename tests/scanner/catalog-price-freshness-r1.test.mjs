@@ -224,3 +224,199 @@ test("CPF-6. re-checking the cached price against the price gate could NOT have 
     "the ranking page re-checks cached prices - that cannot detect a withdrawn price and implies it can"
   );
 });
+
+// =====================================================================
+// r2 - the two gaps the tag alone did not close.
+// =====================================================================
+
+// The route's invalidation rule, extracted to exactly the shape the handler
+// uses: expire iff rows were actually written, once, and never throw.
+function syncInvalidator() {
+  const state = { invalidated: 0, errors: [], calls: 0, throwNext: false };
+  state.expire = (rowsWritten) => {
+    if (!(rowsWritten > 0) || state.invalidated) return;
+    try {
+      state.calls++;
+      if (state.throwNext) throw new Error("revalidateTag unavailable");
+      state.invalidated = 1;
+    } catch (e) {
+      state.errors.push(e.message);
+    }
+  };
+  return state;
+}
+
+test("CPF-7. a LIMITED run writes real prices, so it invalidates", () => {
+  const src = code("app/api/sync-card-catalog/route.js");
+  // the gate is the write count, not the run's shape
+  assert.match(src, /expireCatalogPrices\(upserted \+ wotcFixed\)/, "the success path does not invalidate on rows written");
+  const at = src.indexOf("expireCatalogPrices(upserted + wotcFixed)");
+  // nothing between the previous statement and the call may mention `limit`,
+  // in ANY form - a braced block, a bare `if (!limit) expire...`, a ternary
+  // or a && guard would each silently restore the gap this closes
+  const stmt = src.slice(0, at).split(/[;}{]/).pop();
+  assert.ok(!stmt.includes("limit"), `the success-path invalidation is gated on limit: ...${stmt.trim().slice(-80)}`);
+  // a limit pass slices the records it writes - it does not skip writing
+  assert.match(src, /if \(limit\) records = records\.slice\(0, limit\)/, "limit no longer means 'write a subset'");
+
+  // behaviour: a 50-row limited run invalidates exactly once
+  const run = syncInvalidator();
+  run.expire(50 + 0);
+  assert.equal(run.invalidated, 1, "a limited run that wrote 50 rows did not invalidate");
+  assert.deepEqual(run.errors, []);
+});
+
+test("CPF-8. a run that writes SOME rows then fails still invalidates; those rows are live", () => {
+  const src = code("app/api/sync-card-catalog/route.js");
+  const at = src.indexOf('stage: "upsert"');
+  assert.ok(at > 0, "the upsert error exit is gone");
+  const exit = src.slice(Math.max(0, at - 400), at + 200);
+  assert.match(exit, /expireCatalogPrices\(upserted\)/, "the partial-failure exit does not invalidate the rows it already wrote");
+  assert.match(exit, /invalidated, invalidationErrors/, "the partial-failure response does not report the invalidation outcome");
+  // and the helper is declared before the loop, or that exit could not call it
+  assert.ok(
+    src.indexOf("const expireCatalogPrices") < src.indexOf("for (let i = 0; i < records.length"),
+    "expireCatalogPrices is declared after the upsert loop - the error exit cannot reach it"
+  );
+
+  const run = syncInvalidator();
+  run.expire(200); // two chunks landed, the third failed
+  assert.equal(run.invalidated, 1, "a partial write did not invalidate");
+});
+
+test("CPF-9. a run that writes NOTHING does not invalidate", () => {
+  for (const wrote of [0, null, undefined, NaN, -1]) {
+    const run = syncInvalidator();
+    run.expire(wrote);
+    assert.equal(run.invalidated, 0, `a run that wrote ${String(wrote)} rows invalidated anyway`);
+    assert.equal(run.calls, 0, `a run that wrote ${String(wrote)} rows still called revalidateTag`);
+  }
+  // the export-failure exit returns before any write, and before the helper
+  const src = code("app/api/sync-card-catalog/route.js");
+  const exportExit = src.indexOf('stage: "export"');
+  assert.ok(
+    exportExit < src.indexOf("const expireCatalogPrices"),
+    "the export-failure exit is now after the invalidator - it could invalidate having written nothing"
+  );
+});
+
+test("CPF-10. invalidation is once-only and can never fail the sync", () => {
+  const run = syncInvalidator();
+  run.expire(10);
+  run.expire(10); // the success path after a partial-path call
+  assert.equal(run.calls, 1, "revalidateTag was called twice for one run");
+
+  const failing = syncInvalidator();
+  failing.throwNext = true;
+  assert.doesNotThrow(() => failing.expire(10), "a failed invalidation propagated out of the sync");
+  assert.equal(failing.invalidated, 0);
+  assert.deepEqual(failing.errors, ["revalidateTag unavailable"], "the failure was swallowed without being reported");
+});
+
+// ---------------------------------------------------------------------
+// The dateline: independently refreshed ranking / composition.
+// ---------------------------------------------------------------------
+
+test("CPF-11. the ranking's date comes from the read that produced its rows", () => {
+  const deals = code("lib/deals.js");
+  // synced_at is selected in the SAME query as the prices, so the date and
+  // the rows cannot come from different reads
+  const at = deals.indexOf("fetchTopCatalogCardsUncached");
+  const fn = deals.slice(at, at + 2600);
+  assert.match(fn, /\.select\("[^"]*synced_at[^"]*"\)/, "the ranking query does not read synced_at");
+  assert.match(fn, /snapshotAt:/, "the ranking does not return its own as-of");
+  // the OLDEST row wins: the claim can never be fresher than the data
+  assert.match(fn, /syncedAt\[0\]/, "the ranking as-of is not the oldest row's timestamp");
+  assert.match(fn, /\.sort\(\)/, "the ranking as-of is not ordered before taking the oldest");
+
+  const page = code("app/market-data/most-expensive-cards/page.js");
+  assert.match(page, /snapshotAt: rankedAt/, "the page does not take the ranking's own as-of");
+  assert.ok(
+    !/composition[?.]*\.snapshotAt/.test(page),
+    "the page still reads the composition cache's date - that is the borrowed date this fixes"
+  );
+  assert.match(page, /dateModified: rankedAt/, "the JSON-LD dateModified still describes something other than the ranking");
+});
+
+test("CPF-12. when the two caches refresh independently, the date follows the ROWS", async () => {
+  const M = cache.model();
+  M.entries.clear();
+  M.pages.clear();
+  M.tagExpiredAt.clear();
+  M.now = 0;
+
+  // one source, two independently cached reads of it
+  const source = { price: 1602.99, syncedAt: "2026-09-16T02:00:00Z", pricedCards: 21979 };
+  const loadRanking = cache.unstable_cache(
+    // as the real query does: a NULL price is not ranked at all
+    async () => ({
+      cards: source.price == null ? [] : [{ name: "Kyogre Star", refPrice: source.price }],
+      snapshotAt: source.syncedAt,
+    }),
+    ["top-catalog-cards"],
+    { revalidate: 100, tags: [L.CATALOG_PRICES_TAG] }
+  );
+  // deliberately a DIFFERENT TTL, to force the drift this test is about
+  const loadComposition = cache.unstable_cache(
+    async () => ({ pricedCards: source.pricedCards, snapshotAt: source.syncedAt }),
+    ["catalog-composition"],
+    { revalidate: 10, tags: [L.CATALOG_PRICES_TAG] }
+  );
+  // the page as it now renders: the ranking's date, never the composition's
+  const render = async () => {
+    const [{ cards, snapshotAt: rankedAt }, composition] = await Promise.all([loadRanking(), loadComposition()]);
+    return { rankedAt, rows: cards.map((c) => c.refPrice), pricedCards: composition.pricedCards };
+  };
+
+  const first = await render();
+  assert.deepEqual([first.rankedAt, first.rows], ["2026-09-16T02:00:00Z", [1602.99]]);
+
+  // the sync runs: the price is withdrawn and everything gets a new as-of
+  source.price = null;
+  source.syncedAt = "2026-09-17T02:00:07Z";
+  source.pricedCards = 21978;
+
+  // only the SHORT-lived composition entry expires; the ranking is still
+  // inside its window. This is the exact drift a shared tag does not prevent.
+  M.now += 20 * 1000;
+  // the model serves a stale entry and refreshes in the background (as Next
+  // does in a request context), so the first read triggers and the second
+  // observes it - the ranking's longer window is untouched throughout
+  await render();
+  const drifted = await render();
+  assert.equal(drifted.pricedCards, 21978, "the composition did not refresh - the test is not exercising drift");
+  assert.deepEqual(drifted.rows, [1602.99], "the ranking refreshed too - the test is not exercising drift");
+  // THE PROTECTED BEHAVIOUR: the date still describes the rows on screen,
+  // NOT the newer read sitting beside them
+  assert.equal(
+    drifted.rankedAt,
+    "2026-09-16T02:00:00Z",
+    "the ranking borrowed the newer date while still showing the older rows"
+  );
+
+  // once the ranking itself refreshes, date and rows move together
+  M.now += 200 * 1000;
+  await render(); // trigger the ranking's own refresh
+  const after = await render();
+  assert.deepEqual(after.rows, [], "the withdrawn price is still ranked after the ranking refreshed");
+  assert.equal(after.rankedAt, "2026-09-17T02:00:07Z", "the date did not advance with the rows");
+});
+
+test("CPF-13. a pre-upgrade cache entry omits the date rather than back-filling one", () => {
+  // Entries written before this shipped carry no snapshotAt. The page must
+  // print no date at all in that case - falling back to the composition's
+  // date is precisely the defect, and any clock-derived value would be
+  // manufactured freshness. It self-heals on the next refresh.
+  const page = code("app/market-data/most-expensive-cards/page.js");
+  assert.match(page, /const rankedOn = formatDate\(rankedAt\)/, "the rendered date is not derived from the ranking's as-of");
+  assert.match(page, /\{rankedOn && \(/, "the date is rendered unconditionally - a missing as-of would print something");
+  // omitting the field is fine; substituting a DATE is not
+  assert.match(page, /dateModified: rankedAt \?\? undefined/, "JSON-LD dateModified does not simply omit a missing as-of");
+  assert.ok(
+    !/rankedAt \?\? (?!undefined)|Date\.now\(\)|new Date\(\)\.toISOString\(\)/.test(page),
+    "the page substitutes a fallback date when the ranking has none"
+  );
+  // the catalogue count is its own sentence, not sharing a date it cannot vouch for
+  assert.match(page, /Catalogue: \$\{pricedCards\.toLocaleString\(\)\} priced English cards tracked\./, "the catalogue count is not a separate claim");
+  assert.ok(!/Catalogue snapshot:/.test(page), "the merged 'Catalogue snapshot: <date> · N tracked' label is still there");
+});

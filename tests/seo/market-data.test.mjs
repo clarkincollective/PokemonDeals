@@ -151,11 +151,20 @@ describe("4/9/10/11: most-valuable is an honest raw cross-catalogue ranking", ()
     assert.match(body, /href="\/methodology"/);
   });
 
-  test("snapshot: a real dated catalogue snapshot, not a render-time fake", () => {
+  test("snapshot: a real dated as-of for the RANKED prices, not a render-time fake", () => {
     const body = pages[P].res.body;
-    assert.match(body, /Catalogue snapshot:/i);
-    const m = body.match(/Catalogue snapshot:.*?<time[^>]+dateTime="([^"]+)"/s);
-    assert.ok(m, "no <time dateTime> next to the snapshot label");
+    // catalog-price-freshness-r2: the ranking is dated by the read that
+    // produced its rows, not by the separately-cached catalogue composition -
+    // those are two cache entries and either can refresh without the other,
+    // which is how a fresh date came to sit over withdrawn prices. The label
+    // changed with it; every check below is unchanged.
+    assert.match(body, /Ranked prices recorded/i);
+    assert.ok(
+      !/Catalogue snapshot:\s*<time/i.test(body),
+      "the merged label is back - a date from the composition cache is again dating the ranked rows"
+    );
+    const m = body.match(/Ranked prices recorded.*?<time[^>]+dateTime="([^"]+)"/s);
+    assert.ok(m, "no <time dateTime> next to the ranked-prices as-of");
     const ts = new Date(m[1]).getTime();
     assert.ok(Number.isFinite(ts), `unparseable snapshot time ${m[1]}`);
     // The catalogue sync is daily - the snapshot must be in the past and

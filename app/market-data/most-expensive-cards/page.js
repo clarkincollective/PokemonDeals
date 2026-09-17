@@ -47,7 +47,7 @@ export const metadata = {
 };
 
 export default async function MostValuableCardsPage() {
-  const [{ cards, error }, composition, validSetSlugs, { species: catSpecies }, { species: dealSpecies }] =
+  const [{ cards, error, snapshotAt: rankedAt }, composition, validSetSlugs, { species: catSpecies }, { species: dealSpecies }] =
     await Promise.all([
       fetchTopCatalogCards({ limit: RANKING_SIZE }),
       fetchCatalogComposition(),
@@ -63,7 +63,15 @@ export default async function MostValuableCardsPage() {
     ...(catSpecies ?? []).map((s) => s.slug),
     ...(dealSpecies ?? []).map((s) => s.slug),
   ]);
-  const snapshot = formatDate(composition?.snapshotAt);
+  // catalog-price-freshness-r2: the ranking is dated by the read that
+  // produced it, never by the composition cache - those are two independent
+  // cache entries and either can refresh without the other, which is exactly
+  // how a fresh date came to sit over stale rows. The catalogue-wide count
+  // keeps its own sentence rather than sharing a date it cannot vouch for.
+  // A cache entry written before this shipped has no snapshotAt; the date is
+  // then omitted rather than back-filled from anywhere else.
+  const rankedOn = formatDate(rankedAt);
+  const pricedCards = composition?.pricedCards ?? null;
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
@@ -78,7 +86,7 @@ export default async function MostValuableCardsPage() {
             name: TITLE,
             description: DESCRIPTION,
             url: "/market-data/most-expensive-cards",
-            dateModified: composition?.snapshotAt,
+            dateModified: rankedAt ?? undefined,
           }),
           itemList(
             cards.map((c) => ({ name: `${c.name} (${c.set})`, url: `/cards/${c.catalogSlug}` }))
@@ -116,13 +124,15 @@ export default async function MostValuableCardsPage() {
               </Link>
               .
             </p>
-            {snapshot && (
+            {(rankedOn || pricedCards) && (
               <p className="mt-2 text-xs text-zinc-500">
-                Catalogue snapshot: <time dateTime={new Date(composition.snapshotAt).toISOString()}>{snapshot}</time>
-                {composition?.pricedCards
-                  ? ` · ${composition.pricedCards.toLocaleString()} priced English cards tracked`
-                  : ""}
-                .
+                {rankedOn && (
+                  <>
+                    Ranked prices recorded{" "}
+                    <time dateTime={new Date(rankedAt).toISOString()}>{rankedOn}</time>.{" "}
+                  </>
+                )}
+                {pricedCards ? `Catalogue: ${pricedCards.toLocaleString()} priced English cards tracked.` : ""}
               </p>
             )}
           </div>

@@ -132,6 +132,29 @@ export async function GET(request) {
   });
   if (limit) records = records.slice(0, limit);
 
+  // catalog-price-freshness-r2. Invalidation is tied to WRITES, not to the
+  // shape of the run. Declared before the upsert loop because the loop's
+  // error exit can return having already written earlier chunks - those
+  // rows are live, so the caches that publish them must be expired on that
+  // path too. A `limit` pass writes real prices and therefore invalidates;
+  // a run that wrote nothing (empty export, or a failure on the first
+  // chunk) must not, because there is nothing new to show.
+  //
+  // Never throws: a failed invalidation must not fail a sync whose rows are
+  // already written. Reported as invalidated/invalidationErrors so a run
+  // that silently stops invalidating is visible.
+  let invalidated = 0;
+  const invalidationErrors = [];
+  const expireCatalogPrices = (rowsWritten) => {
+    if (!(rowsWritten > 0) || invalidated) return;
+    try {
+      revalidateTag(CATALOG_PRICES_TAG, { expire: 0 });
+      invalidated = 1;
+    } catch (e) {
+      invalidationErrors.push(e?.message ?? String(e));
+    }
+  };
+
   // Per-job memo: did the provenance columns exist? (reported below)
   const provenanceState = {};
   let upserted = 0;
@@ -139,8 +162,10 @@ export async function GET(request) {
     const slice = records.slice(i, i + UPSERT_CHUNK);
     const { error } = await upsertWithProvenance(db, "card_catalog", slice, "tcgplayer_id", provenanceState);
     if (error) {
+      // whatever got in before the failure is live data
+      expireCatalogPrices(upserted);
       return Response.json(
-        { ok: false, stage: "upsert", upserted, error: error.message },
+        { ok: false, stage: "upsert", upserted, invalidated, invalidationErrors, error: error.message },
         { status: 200 }
       );
     }
@@ -211,29 +236,9 @@ export async function GET(request) {
     ? { written: 0, error: "skipped (limit pass)", provenance: null }
     : await snapshotCatalogHistory(db, language, provenanceById, provenanceState);
 
-  // catalog-price-freshness-r1. This job is the only writer of
-  // card_catalog.market_price, and it withdraws prices as well as setting
-  // them: a printing the provider stops pricing is written back as NULL.
-  // The catalogue-price surfaces (most-valuable ranking + the composition
-  // snapshot shown with it) cache that data for 6h with no tag, so without
-  // this a withdrawn price kept being published as a current ranked figure -
-  // and, because the two caches expired independently, could be stamped with
-  // a snapshot date from THIS sync. Expiring the shared tag hands the next
-  // visitor the post-sync state instead of the next cache window.
-  //
-  // Never throws: a failed invalidation must not fail a sync that has already
-  // written its rows. The outcome is reported so a run that silently stopped
-  // invalidating is visible, exactly as app/api/refresh-catalog does.
-  let invalidated = 0;
-  const invalidationErrors = [];
-  if (!limit) {
-    try {
-      revalidateTag(CATALOG_PRICES_TAG, { expire: 0 });
-      invalidated = 1;
-    } catch (e) {
-      invalidationErrors.push(e?.message ?? String(e));
-    }
-  }
+  // Both write paths converge here: the chunked upsert and the WOTC
+  // second pass, which re-derives market_price for dual-printing sets.
+  expireCatalogPrices(upserted + wotcFixed);
 
   return Response.json({
     ok: true,
