@@ -108,11 +108,11 @@ export default function Page() {
       <GP>
         The Pokemon Company&apos;s own support article on counterfeits is short, and worth reading before any
         third-party checklist. Its suggestions are about a card <em>in your hands</em>, not a photo: holding a card up
-        to a bright light, because many counterfeits are noticeably easier to see through; texture that feels wrong,
-        such as a sticky surface; and comparing the back of a questionable card directly against one you know is
-        genuine, where colour differences can show up. It also points at packaging and price &mdash; a sealed pack
-        priced dramatically below retail is treated as a near-certain warning &mdash; and suggests asking a local card
-        shop to look at anything you are unsure about. <Src id="support" />
+        to a bright light, because many counterfeits are easier to see through that way; knowing what official
+        packaging looks like, so a knock-off box does not get the benefit of the doubt; and price &mdash; a pack
+        priced dramatically below suggested retail is treated as a near-certain sign of counterfeit merchandise. It
+        also suggests asking a shop that specialises in trading cards to look at anything you are unsure about.{" "}
+        <Src id="support" />
       </GP>
       <GP>
         Notice what is missing: no font chart, no border measurement, no universal texture rule. That restraint is
@@ -127,8 +127,8 @@ export default function Page() {
       <GUL>
         <li>
           <strong>Colour.</strong> White balance, phone processing and lighting shift card colour far more than a
-          print-run difference does. The official guidance compares backs <em>physically, side by side</em> for this
-          reason &mdash; not across two photographs taken in different rooms.
+          print-run difference does. Any colour comparison worth acting on happens <em>physically</em>, with both
+          cards under the same light &mdash; not across two photographs taken in different rooms.
         </li>
         <li>
           <strong>Shine.</strong> Holo pattern and gloss depend almost entirely on the angle of the light. A flat,
@@ -193,8 +193,8 @@ export default function Page() {
           identifying &mdash; a handwritten note with their username and the date is the usual request.
         </li>
         <li>
-          <strong>The back, flat and straight on.</strong> The official guidance treats the back as informative when
-          compared against a known-genuine card, so it is worth having in good light.
+          <strong>The back, flat and straight on.</strong> It is the part most often cropped out of a listing photo,
+          and having it in good light lets you look properly once the card arrives.
         </li>
         <li>
           <strong>Both edges, at an angle.</strong> Useful for spotting a card that has been trimmed, which matters
