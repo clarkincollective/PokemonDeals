@@ -27,7 +27,7 @@ test("SL3-1 slot groups: two story slots a day, Brisbane times, 65 min lead, 48 
   assert.deepEqual(Object.keys(STORY_SLOTS.A).sort(), ["instagram", "tiktok", "x", "youtube"]);
 });
 
-test("SL3-1b a manually produced feed is planned no slot, and the rest keep their times", () => {
+test("SL3-1b a manually produced feed is planned no slot; the rest keep their times; the shipped default pauses all four", () => {
   const manual = { SOCIAL_AUTOPILOT_MANUAL_PLATFORMS: "instagram" };
   const g = planSlotGroups({ now: NOW, horizonHours: 48, env: manual });
   // same groups, same hours for everyone else - only Instagram disappears
@@ -37,9 +37,11 @@ test("SL3-1b a manually produced feed is planned no slot, and the rest keep thei
   assert.equal(brisbaneLabel(g[0].times.x), "2026-09-15 08:00 AEST");
   assert.equal(brisbaneLabel(g[0].times.tiktok), "2026-09-15 11:30 AEST");
   assert.equal(brisbaneLabel(g[1].times.youtube), "2026-09-15 20:00 AEST");
-  // the default ships with Instagram manual (owner decision, 2026-09-18)
-  assert.deepEqual(autopilotPlatforms({}), ["x", "tiktok", "youtube"]);
-  assert.ok(manualPlatforms({}).has("instagram"));
+  // SHIPPED DEFAULT, 2026-09-18: all four feeds are produced by hand, so
+  // autopilot owns nothing and plans no slot at all.
+  assert.deepEqual(autopilotPlatforms({}), []);
+  for (const p of ["x", "instagram", "tiktok", "youtube"]) assert.ok(manualPlatforms({}).has(p), `${p} must be paused`);
+  assert.equal(planSlotGroups({ now: NOW, horizonHours: 48 }).length, 0, "a fully paused site plans no slot groups");
   // and it is reversible without a deploy
   assert.deepEqual(autopilotPlatforms(ALL), ["x", "instagram", "tiktok", "youtube"]);
 });

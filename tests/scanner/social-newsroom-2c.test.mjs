@@ -245,7 +245,7 @@ test("2C-22. editorial layouts carry exactly one wordmark and at most one CTA li
 });
 
 // ---- manual-only feeds (owner decision, 2026-09-18: Instagram) ----------
-test("2C-M1. the render worker skips a manually produced feed at every stage, and X still proceeds", () => {
+test("2C-M1. the render worker skips a manually produced feed at every stage; a non-manual feed still proceeds; the shipped default seeds nothing", () => {
   const src = readFileSync(join(REPO, "scripts", "socialBacklogRender.mjs"), "utf8");
 
   // the control is the shared one, resolved once
@@ -254,8 +254,11 @@ test("2C-M1. the render worker skips a manually produced feed at every stage, an
 
   // 1. SEED: no new placement row is created for a manual feed
   assert.match(src, /const wanted = \(cardForward \? \["instagram", "x"\] : renderablePlatformsFor\(series\)\)\.filter\(\(p\) => !MANUAL_PLATFORMS\.has\(p\)\);/);
-  // behaviour of that same expression against the real default
-  assert.deepEqual(["instagram", "x"].filter((p) => !manualPlatforms({}).has(p)), ["x"]);
+  // the same expression, parameterised: the filter is per-platform, so a feed
+  // that is NOT manual still proceeds
+  assert.deepEqual(["instagram", "x"].filter((p) => !manualPlatforms({ SOCIAL_AUTOPILOT_MANUAL_PLATFORMS: "instagram" }).has(p)), ["x"]);
+  // SHIPPED DEFAULT, 2026-09-18: all four are manual, so the worker seeds nothing
+  assert.deepEqual(["instagram", "x"].filter((p) => !manualPlatforms({}).has(p)), []);
 
   // 2. RENDER: the skip precedes every Instagram-specific render, review and upload
   const skipIdx = src.indexOf("if (MANUAL_PLATFORMS.has(p.platform)) return false;");
@@ -272,7 +275,7 @@ test("2C-M1. the render worker skips a manually produced feed at every stage, an
   assert.ok(auditSkip > 0 && auditSkip < patchIdx, "the manual skip must precede the SUPERSEDED patch");
 
   // X is untouched by the control on every path
-  assert.equal(manualPlatforms({}).has("x"), false);
+  assert.equal(manualPlatforms({ SOCIAL_AUTOPILOT_MANUAL_PLATFORMS: "instagram" }).has("x"), false);
   assert.ok(renderablePlatformsFor("MARKET_SNAPSHOT").includes("x"));
   // nothing here deletes or rewrites a hosted asset - the skip only stops work
   assert.doesNotMatch(src, /storage\.remove\(|deleteAsset\(/);

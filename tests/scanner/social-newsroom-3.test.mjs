@@ -60,7 +60,7 @@ test("N3-3. planRefill: IG + X only; initial horizon caps; NOT_PLATFORM_FIT/YouT
   assert.deepEqual(INITIAL_HORIZON_DAYS.x, [2, 3]);
 });
 
-test("N3-3b. the backlog pipeline honours the manual-platform control: Instagram asks for no refill and is never curated", () => {
+test("N3-3b. the backlog pipeline honours the manual-platform control; the shipped default leaves no platform in scope and asks for no refill", () => {
   const manualEnv = { SOCIAL_AUTOPILOT_MANUAL_PLATFORMS: "instagram" };
   const cands = ["MARKET_SNAPSHOT", "EXACT_PRINTING_MATTERS"];
 
@@ -77,8 +77,12 @@ test("N3-3b. the backlog pipeline honours the manual-platform control: Instagram
   const off = planRefill({ candidateSeries: cands, placements: [], initial: true, env: ALL_FEEDS });
   assert.notEqual(off.needs.find((n) => n.platform === "instagram").state, "MANUALLY_PRODUCED");
 
-  // the shipped default holds Instagram back on this path too
-  assert.deepEqual(EDITORIAL_REFILL_PLATFORMS.filter((p) => !manualPlatforms({}).has(p)), ["x"]);
+  // SHIPPED DEFAULT, 2026-09-18: every feed is manual, so this path has no
+  // platform left in scope and can queue nothing.
+  assert.deepEqual(EDITORIAL_REFILL_PLATFORMS.filter((p) => !manualPlatforms({}).has(p)), []);
+  const paused = planRefill({ candidateSeries: cands, placements: [], initial: true });
+  assert.equal(paused.total_refill_slots, 0, "a fully paused site asks for no refill slots");
+  for (const n of paused.needs) assert.equal(n.refill, 0);
 
   // submission: refillQueueReconcile must derive its platform list from the
   // manual filter and skip a manual feed's rows BEFORE the scope check, so the
