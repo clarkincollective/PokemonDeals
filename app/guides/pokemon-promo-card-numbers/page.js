@@ -44,7 +44,7 @@ export default function Page() {
 
       <GH2>Reading the prefix</GH2>
       <GuideTable
-        head={["Era", "What the number looks like", "Example", "The full list"]}
+        head={["Era", "What the number looks like", "Example", "Browse the set"]}
         rows={ERAS.map(([era, pattern, example, setRef, note]) => [
           era,
           pattern,
@@ -55,7 +55,7 @@ export default function Page() {
           </Link>,
         ])}
         minWidth="52rem"
-        caption="Promo numbering by era, as this site's catalogue files it. Each era's promos are one set, so the prefix plus the number identifies the card - and the last column opens that set's full card list."
+        caption="Promo numbering by era, as this site's catalogue files it. Each era's promos are one set, so the prefix plus the number identifies the card - and the last column opens that set's page, which lists the cards in it this site tracks."
       />
       <Gallery
         cards={[
