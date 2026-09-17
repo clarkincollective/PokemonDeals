@@ -247,7 +247,22 @@ test("12. important public routes are crawler-accessible (200 + real content in 
 test("14. DealCard `?from=` deal links carry rel=nofollow (bare /deals/[id] links stay followed)", async () => {
   const src = readFileSync(join(REPO, "components", "DealCard.js"), "utf8");
   assert.match(src, /dealRel\s*=\s*dealHref\.includes\("\?"\)\s*\?\s*"nofollow"/);
-  assert.equal((src.match(/rel=\{dealRel\}/g) ?? []).length, 2, "both DealCard deal links must set rel={dealRel}");
+  // Count-independent. This used to require exactly two links; a third
+  // ("Details") was added later and DID set rel={dealRel}, so the policy
+  // held and only the hard-coded number was wrong. Pairing expresses the
+  // rule, counting does not: EVERY link to dealHref carries the rel.
+  const dealLinks = (src.match(/href=\{dealHref\}/g) ?? []).length;
+  assert.ok(dealLinks >= 2, `DealCard links the deal ${dealLinks} times - expected at least 2`);
+  assert.equal(
+    (src.match(/rel=\{dealRel\}/g) ?? []).length,
+    dealLinks,
+    `${dealLinks} links to dealHref but a different number set rel={dealRel}`
+  );
+  // and each href is actually adjacent to its own rel, so equal totals
+  // cannot hide one bare link plus one doubled rel
+  for (const seg of src.split(/href=\{dealHref\}/).slice(1)) {
+    assert.match(seg.slice(0, 60), /rel=\{dealRel\}/, `a href={dealHref} link does not set rel={dealRel}: ...${seg.slice(0, 60)}`);
+  }
 
   // rendered: a page that lists deals emits rel="nofollow" on the ?from= links
   const r = await get("/best-finds");
@@ -255,6 +270,21 @@ test("14. DealCard `?from=` deal links carry rel=nofollow (bare /deals/[id] link
     const links = [...r.body.matchAll(/<a[^>]+href="\/deals\/\d+\?from=[^"]*"[^>]*>/g)].map((m) => m[0]);
     assert.ok(links.length > 0, "no ?from= deal links found on /best-finds");
     for (const l of links) assert.match(l, /rel="nofollow"/, `?from= deal link without rel=nofollow: ${l.slice(0, 120)}`);
+
+    // nofollow is only half the query-variant policy and is justified by
+    // the other half: the ?from= URL must canonicalise to the BARE deal
+    // URL, so the variant is never an indexable duplicate. If that ever
+    // stopped being true, nofollowing these links would be wrong.
+    const variant = (r.body.match(/href="(\/deals\/\d+\?from=[^"]*)"/) ?? [])[1];
+    assert.ok(variant, "no ?from= deal href to follow");
+    const vr = await get(variant.replace(/&amp;/g, "&"));
+    assert.equal(vr.status, 200, `${variant} -> ${vr.status}`);
+    const bare = variant.split("?")[0];
+    assert.deepEqual(
+      parseHtml(vr.body).canonicals.map((c) => new URL(c).pathname),
+      [bare],
+      `${variant} does not canonicalise to ${bare}`
+    );
   }
 });
 

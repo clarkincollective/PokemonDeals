@@ -42,7 +42,7 @@ before(async () => {
   await Promise.all(SHARDS.map(async (s) => { shardBodies[s] = (await get(`/sitemaps/${s}.xml`)).body; }));
 });
 
-test("card: worth answer is server-rendered with the exact printing and a real USD figure (Charizard Base Set)", () => {
+test("card: worth answer is server-rendered with the exact printing and a real USD figure (Charizard Base Set)", async () => {
   const r = pages["/cards/charizard-base-set"];
   assert.equal(r.status, 200);
   const w = worthSection(r.body);
@@ -52,7 +52,39 @@ test("card: worth answer is server-rendered with the exact printing and a real U
   const unavailable = /data-worth-answer="unavailable"/.test(w);
   assert.ok(priced !== unavailable, "exactly one answer state");
   if (priced) {
-    assert.match(text(w), /has a market price of about \$[\d,.]+ USD for a raw \(ungraded\), Near Mint copy/);
+    // The wording is NOT fixed: lib/referenceCondition (price-condition
+    // provenance, 2026-09-11) makes it depend on whether the provider
+    // actually stated a condition for this reference. Demanding
+    // "raw (ungraded), Near Mint" would require the page to assert a
+    // condition it was never given - the exact overclaim that contract
+    // exists to prevent. So assert the sentence AGREES WITH the provenance
+    // the page itself declares, in whichever branch applies.
+    const t = text(w);
+    const declared = (w.match(/data-worth-condition="([^"]*)"/) ?? [])[1];
+    assert.ok(declared, "the priced answer does not declare its reference condition");
+    const { referenceConditionLabels } = await import("../../lib/referenceCondition.js");
+    const known = declared !== "unknown" && declared !== "";
+    const labels = referenceConditionLabels(known ? declared : null);
+    // a real USD figure, server-rendered, either way
+    assert.match(t, /has a .*price of about \$[\d,.]+ USD for a /, `no server-rendered USD figure: ${t.slice(0, 200)}`);
+    assert.match(
+      t,
+      new RegExp(`has a ${labels.noun} of about \\$[\\d,.]+ USD for a ${labels.worth.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} copy`),
+      `worth sentence does not match the declared provenance (${declared}): ${t.slice(0, 300)}`
+    );
+    if (known) {
+      // a stated condition is named, and the "we don't know" disclaimer
+      // must NOT appear alongside it
+      assert.ok(t.includes(declared), `declared condition ${declared} is not stated in the answer`);
+      assert.ok(!/doesn.t state which condition/i.test(t), "an unknown-condition disclaimer on a known-condition reference");
+    } else {
+      // no condition is invented, and the limitation is disclosed
+      assert.match(t, /doesn.t state which condition this reference is for/i, "unknown condition is not disclosed");
+      for (const tier of ["Near Mint", "Lightly Played", "Moderately Played", "Heavily Played", "Damaged"]) {
+        assert.ok(!t.includes(tier), `answer states "${tier}" for a reference with no provider condition`);
+      }
+    }
+    assert.match(t, /based on recent sold data from PokemonPriceTracker/, "the answer no longer names its source");
   } else {
     assert.ok(!/\$\d/.test(text(w).replace(/\$[\d,.]+ USD \(asking/g, "")), "an unavailable answer must not state a market figure");
   }
@@ -165,7 +197,26 @@ test("sitemaps: lastmod is sparse, dated, never future, and not clustered on one
   // not the whole catalogue. Still a substantial set - a collapse is a bug.
   assert.ok(urls > 1000, `card shards hold only ${urls} URLs - the sitemap has collapsed`);
   if (withLastmod === 0) return; // lastmod source unavailable: absent, never faked
-  assert.ok(withLastmod / urls < 0.6, `${withLastmod}/${urls} cards carry lastmod - the material-change rule should leave most without one`);
+  // This used to require MOST shard URLs to have no lastmod. That was true
+  // when the shards held the whole eligible catalogue; it stopped being the
+  // right denominator when the SEO-1.1 substance gate narrowed membership to
+  // "live-deal hub OR has a real lastmod OR editorially linked"
+  // (lib/cardSitemap selectSitemapCards). A high ratio is now FORCED by the
+  // gate, not evidence of faking. The catalogue-level sparsity of the
+  // material-change rule is covered offline, where it belongs:
+  // tests/scanner/sitemap-substance.test.mjs ("a catalogue card that has
+  // never provably changed is NOT advertised") and tests/scanner/
+  // card-sitemap.test.mjs.
+  //
+  // What is worth asserting HERE is that the gate is genuinely in force in
+  // production. Its documented fail-open (an absent or timed-out RPC) emits
+  // the FULL membership with no lastmods at all - caught by the early return
+  // above - so any partially-populated map means enforcement ran, and then a
+  // URL without a lastmod is the hub/editorial exception, not the rule.
+  assert.ok(
+    withLastmod / urls > 0.5,
+    `only ${withLastmod}/${urls} shard URLs carry lastmod - the substance gate admits a card without one only as a hub/editorial exception, so this suggests the gate is not being enforced`
+  );
   const top = Math.max(...days.values());
   assert.ok(top / withLastmod < 0.4, `one day holds ${top}/${withLastmod} lastmods - looks like a recording artifact`);
   assert.ok(!days.has("2026-09-02") || days.get("2026-09-02") / withLastmod < 0.1, "the 2026-09-02 recording-expansion artifact is back");

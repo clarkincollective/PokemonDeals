@@ -1,6 +1,6 @@
 import { test, describe, before } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { get, parseHtml, sitemapUrls, pathOf, sample } from "./lib.mjs";
@@ -14,7 +14,25 @@ import { get, parseHtml, sitemapUrls, pathOf, sample } from "./lib.mjs";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
 
+const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+
+// Derived from the routes that actually exist, not hand-listed. A
+// hand-listed set turns "a new market-data page shipped" into a failure,
+// which says nothing about correctness; deriving it keeps the real
+// invariant (every route is indexable, self-canonical and sitemapped, and
+// the sitemap advertises no market-data URL without a route) while a
+// legitimate addition is simply covered too.
 const PATHS = [
+  "/market-data",
+  ...readdirSync(join(REPO, "app", "market-data"), { withFileTypes: true })
+    .filter((e) => e.isDirectory() && !e.name.startsWith("[") && !e.name.startsWith("_"))
+    .filter((e) => existsSync(join(REPO, "app", "market-data", e.name, "page.js")))
+    .map((e) => `/market-data/${e.name}`),
+].sort();
+
+// The pages that front a live ranking or count, where a digit in the
+// <title> would be a figure that goes stale in the SERP.
+const COUNT_TITLE_PATHS = [
   "/market-data",
   "/market-data/most-expensive-cards",
   "/market-data/most-listed-cards",
@@ -55,21 +73,39 @@ describe("14/15/18: market-data routes are indexable and self-canonical", () => 
     });
   }
 
-  test("all three are in the pages sitemap, and no extra /market-data route exists", async () => {
+  test("every market-data route is sitemapped, and the sitemap has no market-data URL without a route", async () => {
+    assert.ok(PATHS.length >= 4, `only ${PATHS.length} market-data routes found on disk`);
     const { locs } = await sitemapUrls();
-    const md = locs.map(pathOf).filter((l) => l === "/market-data" || l.startsWith("/market-data/"));
-    assert.deepEqual([...md].sort(), [...PATHS].sort(), `market-data sitemap set drifted: ${md}`);
+    const md = [...new Set(locs.map(pathOf).filter((l) => l === "/market-data" || l.startsWith("/market-data/")))];
+    // both directions: a route missing from the sitemap, and an orphan
+    // sitemap entry with no route behind it, are each real drift
+    assert.deepEqual(
+      md.sort(),
+      [...PATHS].sort(),
+      `market-data routes on disk: ${PATHS}\n  market-data URLs in sitemap: ${md}`
+    );
   });
 });
 
 // === 2/3/16. titles stable, no volatile numbers, spelling ===============
 
 describe("3/16/17: stable titles, no keyword stuffing, Pokemon spelling", () => {
+  // The spelling rule is site-wide, so it applies to every route.
   for (const p of PATHS) {
-    test(p, () => {
-      const { parsed, res } = pages[p];
-      assert.ok(!/\d/.test(parsed.title), `${p} <title> carries a volatile number: ${parsed.title}`);
-      assert.ok(!/Pokémon/.test(res.body), `${p} rendered an accented "Pokémon"`);
+    test(`${p} spelling`, () => {
+      assert.ok(!/Pokémon/.test(pages[p].res.body), `${p} rendered an accented "Pokémon"`);
+    });
+  }
+  // "No number in the title" is the VOLATILE-number rule: these pages front
+  // a live ranking or count, so a digit in the title would be a figure that
+  // silently goes stale in search results. It is not a ban on digits as
+  // such - a research note that states its fixed sample window
+  // ("A 30-Day Sample") is naming its method, not a changing quantity - so
+  // the rule stays on the pages it was written for.
+  for (const p of COUNT_TITLE_PATHS) {
+    test(`${p} title carries no volatile number`, () => {
+      assert.ok(PATHS.includes(p), `${p} is no longer a market-data route`);
+      assert.ok(!/\d/.test(pages[p].parsed.title), `${p} <title> carries a volatile number: ${pages[p].parsed.title}`);
     });
   }
 });
@@ -442,8 +478,19 @@ describe("10B: Pokemon Card Value Distribution research note", () => {
     const body = pages[P].res.body;
     assert.ok(!/Pokémon/.test(body), "accented Pokémon");
     assert.ok(body.length < 150_000, `HTML is ${body.length} bytes (>150KB)`);
-    const links = (body.match(/href="\/[^"]*"/g) ?? []).length;
-    assert.ok(links < 60, `${links} internal links on a research note (too many)`);
+    // "No huge link list" is about the PAGE's own links. The old metric was
+    // every href="/..." OCCURRENCE, so the site header, the mobile nav and
+    // the footer each repeating /search, /cards, /sets, /pokemon counted 3-4
+    // times apiece and a nav change alone pushed it past the cap - while the
+    // note itself carries no catalogue links at all. Measure the two things
+    // actually meant: distinct destinations, and entity-link density.
+    const distinct = new Set(body.match(/href="\/[^"]*"/g) ?? []).size;
+    const entity = new Set(body.match(/href="\/(?:cards|pokemon|sets)\/[^"]+"/g) ?? []).size;
+    assert.ok(
+      entity <= 10,
+      `${entity} distinct card/species/set links - a research note must not dump a catalogue list`
+    );
+    assert.ok(distinct < 60, `${distinct} distinct internal links on a research note (too many)`);
   });
 
   test("28: existing market-data pages still self-canonical + indexable", () => {
