@@ -212,11 +212,82 @@ test("8. catalogue-only set H1 is a checklist/prices intent, no deal claim", () 
 
 // --- 9-12: checklist + Pokemon-in-set links ----------------
 
-test("9. the card checklist links to /cards/[slug]", () => {
+test("9. the card index names its set, is accessibly headed, and links to /cards/[slug]", () => {
   const t = text(catRes.body);
-  assert.match(t, new RegExp(`${esc(CAT_NAME)} card checklist`, "i"));
-  const cardLinks = catParsed.internalLinks.filter((l) => /^\/cards\/[^/]+$/.test(l));
+  // The heading intentionally changed. The crawlable inventory is
+  // components/CatalogueLinkIndex, whose summary reads
+  // "Full <set> card index (N)"; the page H1 carries the
+  // "Card List, Prices & Values" intent (test 8). The old
+  // "<set> card checklist" wording protected two things, and both are
+  // still required here: the section is identified by THIS set, and its
+  // entries are permanent /cards/[slug] routes.
+  const m = t.match(new RegExp(`Full ${esc(CAT_NAME)} card index \\(([\\d,]+)\\)`, "i"));
+  assert.ok(m, `no "Full ${CAT_NAME} card index (N)" heading in the page text`);
+  const shown = Number(m[1].replace(/,/g, ""));
+  assert.ok(shown > 0, "the card index heading reports no cards");
+
+  // accessible heading/section relationship: the labelling <section> and the
+  // <h2> that names it are wired by the same id
+  assert.match(
+    catRes.body,
+    /<section aria-labelledby="(full-[a-z-]*index)"[\s\S]{0,4000}?<h2 id="\1"/,
+    "the card index <section> and its <h2> are no longer wired by aria-labelledby/id"
+  );
+
+  const cardLinks = [...new Set(catParsed.internalLinks.filter((l) => /^\/cards\/[^/]+$/.test(l)))];
   assert.ok(cardLinks.length >= 6, `expected /cards/ links in the checklist, got ${cardLinks.length}`);
+  assert.ok(
+    cardLinks.length >= shown,
+    `index heading claims ${shown} cards but only ${cardLinks.length} distinct /cards/ links are on the page`
+  );
+});
+
+test("9b. the card index contract holds on controlled data (offline, no page request)", async () => {
+  // Pins what the heading's (N) MEANS and what the index may contain,
+  // without depending on whichever set the suite happened to sample.
+  const { loadRoute } = await import("../helpers/r3RouteHarness.mjs");
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  const { createElement } = await import("react");
+  const { route } = loadRoute("components/CatalogueLinkIndex.js", { renderComponents: "visual" });
+
+  const cards = [
+    { name: "Pikachu", cardNumber: "001/017", set: "Fixture Set", rarity: "Rare", hubSlug: "pikachu-001-fixture", tcgplayerId: "1" },
+    { name: "Charizard", cardNumber: "002/017", set: "Fixture Set", rarity: "Rare", catalogSlug: "charizard-002-fixture", tcgplayerId: "2" },
+    { name: "Squirtle", cardNumber: "003/017", set: "Fixture Set", rarity: "Common", hubSlug: "squirtle-003-fixture", tcgplayerId: "3" },
+    // no hubSlug and no catalogSlug: no permanent route, so it must not be
+    // linked AND must not be counted
+    { name: "Unroutable", cardNumber: "004/017", set: "Fixture Set", rarity: "Common", tcgplayerId: "4" },
+  ];
+  const linkable = cards.filter((c) => c.hubSlug || c.catalogSlug);
+  const html = renderToStaticMarkup(
+    createElement(route.default, { label: "Fixture Set", cards, headingId: "full-set-index" })
+  );
+
+  // set identity + a count that is the number of LINKS RENDERED, not the
+  // number of cards handed in
+  assert.match(
+    html,
+    new RegExp(`<h2 id="full-set-index"[^>]*>Full Fixture Set card index \\(${linkable.length}\\)</h2>`),
+    `heading is not "Full Fixture Set card index (${linkable.length})": ${html.slice(0, 400)}`
+  );
+  assert.match(html, /<section aria-labelledby="full-set-index"/, "index section lost its aria-labelledby");
+
+  // card-link coverage: every routable card is linked, exactly once
+  for (const c of linkable) {
+    const href = `href="/cards/${c.hubSlug ?? c.catalogSlug}"`;
+    assert.equal(
+      (html.split(href).length - 1),
+      1,
+      `${c.name} should be linked exactly once at ${href}`
+    );
+  }
+  assert.ok(!html.includes("Unroutable"), "a card with no permanent route leaked into the index");
+
+  // catalogue entries are NOT offers: the index is plain links, with no
+  // price, CTA, image or deal framing that could read as a live listing
+  for (const forbidden of [/\$\s?\d/, /View on eBay/i, /Bid on eBay/i, /below market/i, /under market/i, /Est\. total/i, /<img\b/i, /<button\b/i]) {
+    assert.ok(!forbidden.test(html), `the card index renders offer framing ${forbidden}`);
+  }
 });
 
 test("10. the Pokemon-in-set section links valid /pokemon/[slug]", async () => {

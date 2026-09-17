@@ -36,6 +36,11 @@ const NORMAL_SET = "/sets/celebrations";
 // Mirrors lib/deals.js exactly: cards are card-number sorted, then
 // non-deal cards past SET_CATALOG_MAX_BROWSE are dropped from the grid.
 const MAX_BROWSE = 600;
+// The crawlable link index has its own, much larger ceiling. Read from the
+// real source rather than imported: lib/deals.js pulls in Supabase.
+const SET_LINK_INDEX_MAX = Number(
+  (readFileSync(join(REPO, "lib", "deals.js"), "utf8").match(/SET_LINK_INDEX_MAX = (\d+)/) ?? [])[1]
+);
 function browseTrim(cards) {
   const dealCards = cards.filter((c) => c.deal);
   const browseCards = cards.filter((c) => !c.deal);
@@ -282,7 +287,32 @@ test("12. WCD interactive surfaces stay bounded - ItemList <= 100 items, HTML no
   // the checklist grid is still capped near SET_CATALOG_MAX_BROWSE, so the
   // document stays well under what ~1,900 card tiles would produce.
   assert.ok(wcdBody.length < 6_000_000, `WCD HTML is ${wcdBody.length} bytes - browse cap may have been removed`);
-  assert.match(wcdText, /card checklist \(\d[\d,]* of \d[\d,]*\)/i);
+
+  // This used to assert a "card checklist (N of M)" truncation disclosure.
+  // That wording is gone and so is the truncation it disclosed: SEO-GSC-2
+  // hands <CatalogueLinkIndex> the FULL set (up to SET_LINK_INDEX_MAX) as
+  // plain links, precisely so the cards past the 600-tile grid cap keep a
+  // stable crawl path (app/sets/[slug]/page.js, headingId="full-set-index").
+  // So the bounded thing is the INTERACTIVE surface, asserted above, while
+  // the crawlable index must NOT be grid-capped - which is the stronger
+  // statement and the one worth holding.
+  const wcdIndex = wcdText.match(/Full World Championship Decks card index \(([\d,]+)\)/i);
+  assert.ok(wcdIndex, "no CatalogueLinkIndex heading on the WCD page");
+  const wcdIndexed = Number(wcdIndex[1].replace(/,/g, ""));
+  assert.ok(
+    wcdIndexed > MAX_BROWSE,
+    `WCD card index reports ${wcdIndexed} cards - the crawlable index must not be capped at the ${MAX_BROWSE}-tile browse limit`
+  );
+  assert.ok(
+    wcdIndexed <= SET_LINK_INDEX_MAX,
+    `WCD card index reports ${wcdIndexed}, above SET_LINK_INDEX_MAX (${SET_LINK_INDEX_MAX})`
+  );
+  // every card it counts is actually linked to a permanent route
+  const wcdCardLinks = new Set([...wcdBody.matchAll(/href="(\/cards\/[a-z0-9-]+)"/g)].map((m) => m[1]));
+  assert.ok(
+    wcdCardLinks.size >= wcdIndexed,
+    `index claims ${wcdIndexed} cards but only ${wcdCardLinks.size} distinct /cards/ links are in the HTML`
+  );
 });
 
 test("13. a normal (< 600-card) set is unaffected - one coherent set of numbers", () => {
@@ -290,8 +320,25 @@ test("13. a normal (< 600-card) set is unaffected - one coherent set of numbers"
   const t = plain(normalRes.body);
   const tracked = Number((t.match(/([\d,]+)\s+cards tracked/i) || [])[1]?.replace(/,/g, "") || "0");
   assert.ok(tracked > 0 && tracked < MAX_BROWSE, `Celebrations tracked count ${tracked} looks wrong`);
-  // checklist heading with no "X of Y" truncation for a sub-cap set
-  assert.match(t, /Celebrations card checklist \(\d+\)/i);
+  // A sub-cap set is truncated nowhere. The heading is now the
+  // CatalogueLinkIndex summary "Full <set> card index (N)"; N is the number
+  // of cards it actually links, so it is bounded by the browse cap it never
+  // reaches AND by the tracked count the same page reports. No literal count
+  // is asserted - only that the page's own numbers stay coherent.
+  const celIndex = t.match(/Full Celebrations card index \(([\d,]+)\)/i);
+  assert.ok(celIndex, "no CatalogueLinkIndex heading on the Celebrations page");
+  const celIndexed = Number(celIndex[1].replace(/,/g, ""));
+  assert.ok(celIndexed > 0, "the Celebrations card index reports no cards");
+  assert.ok(celIndexed <= MAX_BROWSE, `Celebrations index ${celIndexed} exceeds the ${MAX_BROWSE} browse cap it should never reach`);
+  assert.ok(
+    celIndexed <= tracked,
+    `Celebrations index claims ${celIndexed} cards but the page reports ${tracked} tracked`
+  );
+  const celCardLinks = new Set([...normalRes.body.matchAll(/href="(\/cards\/[a-z0-9-]+)"/g)].map((m) => m[1]));
+  assert.ok(
+    celCardLinks.size >= celIndexed,
+    `index claims ${celIndexed} cards but only ${celCardLinks.size} distinct /cards/ links are in the HTML`
+  );
   assert.match(t, /card prices at a glance/i);
 });
 
