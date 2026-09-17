@@ -154,7 +154,15 @@ test("4b. no category promises a comparison it does not gate on - but evidenced 
     }
     // the conditional explanation is KEPT, not deleted - a real comparison
     // is still described where one exists
-    assert.match(block, /where available|where a recent-sold market reference exists/i, `${slug}: lost its conditional market-reference explanation`);
+    assert.match(block, /where a supported market reference is available/i, `${slug}: lost its conditional market-reference explanation`);
+    // and the remainder that says what happens to everything else
+    assert.match(block, /others are shown as ordinary listings/i, `${slug}: lost the ordinary-listing remainder`);
+    // the reference is a provider figure, not an observed sale of this card:
+    // the intro must not upgrade it into a verified recent sale
+    assert.ok(
+      !/(recent-sold|recent sold|verified|confirmed|actual|real) sale/i.test(block),
+      `${slug}: describes the market reference as a verified recent sale`
+    );
     // and the marketplace / currency meaning stays clear
     assert.match(block, /priced in (GBP|AUD|CAD|USD)|in (pounds|Australian dollars|Canadian dollars|US dollars)/i, `${slug}: lost its currency statement`);
   }
