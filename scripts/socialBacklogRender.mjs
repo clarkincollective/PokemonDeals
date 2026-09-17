@@ -44,6 +44,7 @@ import { hybridEnabled } from "../lib/newsroom/hybrid/pipeline.mjs";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 import { EDITORIAL_TARGETS } from "../lib/social/newsroom/editorialTemplates.mjs";
 import { platformCaptions } from "../lib/social/newsroom/captions.mjs";
+import { manualPlatforms } from "../lib/social/autopilot/slots.mjs";
 import { reviewRenderedCreative, reviewAvailable } from "../lib/newsroom/visualReview.mjs";
 import { resolveBacklogPosture, normaliseSchedule, brisbaneWallToUtc, feedReview as feedReviewFn, MAX_QUEUE_PER_PLATFORM_PER_RUN } from "../lib/social/newsroom/index.mjs";
 import { scheduleOne, reconcileOne, queuedContentStale, resolveProviderMode } from "../lib/newsroom/bufferBacklog.mjs";
@@ -60,6 +61,12 @@ const APPLY_AUDIT = has("--apply");
 const CANCEL_DRAFT = has("--cancel-draft") ? argVal("--cancel-draft") : null;
 const listArg = (f) => { const v = argVal(f); return v ? v.split(",").map((x) => x.trim()).filter(Boolean) : null; };
 const ONLY_PLATFORMS = listArg("--platforms");
+// A feed the owner produces by hand is out of scope for this whole worker:
+// it seeds no placement, renders nothing, spends no review or upload on it,
+// and its existing rows are never re-classified. Shared, hash-addressed
+// assets are untouched - the other platforms keep rendering and uploading
+// exactly as before. One control, shared with both queue paths.
+const MANUAL_PLATFORMS = manualPlatforms();
 const ONLY_SERIES = listArg("--series")?.map((x) => x.toUpperCase()) ?? null;
 const DO_RENDER = has("--render") || (!DO_SEED && !DO_QUEUE && !CANCEL_DRAFT && !DO_AUDIT_LEGACY);
 const NOW = Date.now();
@@ -101,7 +108,9 @@ async function seedProof() {
     if (sr.error) throw new Error(`seed story ${series}: ${sr.error}`);
     stories += sr.wrote;
     // card-forward proof -> IG + X (static post); typographic -> renderRegistry platforms
-    const wanted = cardForward ? ["instagram", "x"] : renderablePlatformsFor(series);
+    // manual feeds get no NEW placement row; rows that already exist are not
+    // in `rows` at all, so the upsert cannot touch them either
+    const wanted = (cardForward ? ["instagram", "x"] : renderablePlatformsFor(series)).filter((p) => !MANUAL_PLATFORMS.has(p));
     const basePls = cardForward
       ? wanted.map((platform) => ({
           placement_id: `plc_${createHash("sha256").update(`${story.story_id}::${platform}`).digest("hex").slice(0, 12)}`,
@@ -222,6 +231,10 @@ async function auditLegacyBufferReady({ apply = false } = {}) {
     else if (cf) cls = "SUPERSEDED"; // card-forward series but rendered with a non-card-forward layout
     else cls = "SUPERSEDED";
     const f = { placement_id: p.placement_id, story_id: p.story_id, series: st?.series ?? null, platform: p.platform, status: p.status, layout_family: lf, classification: cls, has_provider_ref: Boolean(p.buffer_provider_ref) };
+    // A manual feed's rows are still classified and reported, but never
+    // rewritten: they cannot be queued anyway, and they are the owner's
+    // records to judge.
+    if (MANUAL_PLATFORMS.has(p.platform)) { f.applied = "skipped - manually produced feed"; findings.push(f); continue; }
     if (apply && (cls === "LEGACY_WEAK_CREATIVE" || cls === "SUPERSEDED") && p.status === "BUFFER_READY" && !p.buffer_provider_ref) {
       await patchPlacement(p.placement_id, { status: "SUPERSEDED", provider_state: "SUPERSEDED_CREATIVE_BAR" });
       f.applied = "status -> SUPERSEDED";
@@ -263,6 +276,8 @@ async function renderPass() {
     const st = storyById[p.story_id];
     if (!st) return false;
     if (!renderInScope(st.series)) return false;
+    // before any Instagram-specific render, visual review or upload
+    if (MANUAL_PLATFORMS.has(p.platform)) return false;
     if (!String(st.subject_id ?? "").endsWith("-proof")) return false;
     // BUFFER_QUEUED is included so a re-render can CATCH + downgrade a
     // draft whose exact artifact no longer PASSes (SS2 - never leave

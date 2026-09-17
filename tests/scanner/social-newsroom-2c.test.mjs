@@ -16,6 +16,7 @@ import { platformCaptions } from "../../lib/social/newsroom/captions.mjs";
 import { RIGHTS_STATE } from "../../lib/social/rights.mjs";
 import { canHost } from "../../lib/social/storage/hostedAssets.mjs";
 import { preflightPlacement, scheduleOne, reconcileOne } from "../../lib/newsroom/bufferBacklog.mjs";
+import { manualPlatforms } from "../../lib/social/autopilot/slots.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..", "..");
@@ -241,4 +242,38 @@ test("2C-22. editorial layouts carry exactly one wordmark and at most one CTA li
     const wm = (html.match(/PokemonDealFinder<\/b>/g) || []).length;
     assert.equal(wm, 1, `${lf} has ${wm} wordmarks`);
   }
+});
+
+// ---- manual-only feeds (owner decision, 2026-09-18: Instagram) ----------
+test("2C-M1. the render worker skips a manually produced feed at every stage, and X still proceeds", () => {
+  const src = readFileSync(join(REPO, "scripts", "socialBacklogRender.mjs"), "utf8");
+
+  // the control is the shared one, resolved once
+  assert.match(src, /import \{ manualPlatforms \} from "\.\.\/lib\/social\/autopilot\/slots\.mjs";/);
+  assert.match(src, /const MANUAL_PLATFORMS = manualPlatforms\(\);/);
+
+  // 1. SEED: no new placement row is created for a manual feed
+  assert.match(src, /const wanted = \(cardForward \? \["instagram", "x"\] : renderablePlatformsFor\(series\)\)\.filter\(\(p\) => !MANUAL_PLATFORMS\.has\(p\)\);/);
+  // behaviour of that same expression against the real default
+  assert.deepEqual(["instagram", "x"].filter((p) => !manualPlatforms({}).has(p)), ["x"]);
+
+  // 2. RENDER: the skip precedes every Instagram-specific render, review and upload
+  const skipIdx = src.indexOf("if (MANUAL_PLATFORMS.has(p.platform)) return false;");
+  assert.ok(skipIdx > 0, "render pass must skip manual platforms");
+  for (const after of ["renderCardForwardStory(", "reviewRenderedCreative(", "storage.upload("]) {
+    const i = src.indexOf(after);
+    assert.ok(i > skipIdx, `${after} must come after the manual-platform skip`);
+  }
+
+  // 3. AUDIT: existing rows are classified and reported but never rewritten
+  assert.match(src, /f\.applied = "skipped - manually produced feed"; findings\.push\(f\); continue;/);
+  const auditSkip = src.indexOf('f.applied = "skipped - manually produced feed"');
+  const patchIdx = src.indexOf('await patchPlacement(p.placement_id, { status: "SUPERSEDED"');
+  assert.ok(auditSkip > 0 && auditSkip < patchIdx, "the manual skip must precede the SUPERSEDED patch");
+
+  // X is untouched by the control on every path
+  assert.equal(manualPlatforms({}).has("x"), false);
+  assert.ok(renderablePlatformsFor("MARKET_SNAPSHOT").includes("x"));
+  // nothing here deletes or rewrites a hosted asset - the skip only stops work
+  assert.doesNotMatch(src, /storage\.remove\(|deleteAsset\(/);
 });
