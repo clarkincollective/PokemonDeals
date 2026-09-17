@@ -109,7 +109,8 @@ export default function Page() {
       <GUL>
         <li>Compare like for like: same grading company, same grade. Prices are not interchangeable across companies.</li>
         <li>Check the certification number on the grader&apos;s website against the slab in the photos.</li>
-        <li>Be wary of unusually cheap &ldquo;PSA 10&rdquo; listings — cracked-and-reslabbed and counterfeit slabs exist.</li>
+        <li>Be wary of unusually cheap &ldquo;PSA 10&rdquo; listings — cracked-and-reslabbed and counterfeit slabs exist. If a listing itself looks off, see{" "}
+          <Link href="/guides/spotting-fake-pokemon-cards-in-listings" className={GUIDE_LINK_CLASS}>checking a listing for fakes</Link>.</li>
         <li>
           A mid-grade slab (say a CGC 7) priced low is a cheaper card, not a discounted 10. See{" "}
           <Link

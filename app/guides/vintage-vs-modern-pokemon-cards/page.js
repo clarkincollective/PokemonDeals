@@ -141,7 +141,11 @@ export default function Page() {
       <GUL>
         <li>
           <strong>Vintage:</strong> counterfeits are common and have improved. Buy high-value vintage
-          raw only from clear photos you can assess, or buy it{" "}
+          raw only from clear photos you can assess &mdash; see{" "}
+          <Link href="/guides/spotting-fake-pokemon-cards-in-listings" className={GUIDE_LINK_CLASS}>
+            checking a listing for fakes
+          </Link>{" "}
+          &mdash; or buy it{" "}
           <Link
             href="/guides/raw-vs-graded-pokemon-cards"
             className="text-red-600 hover:underline dark:text-red-500"
