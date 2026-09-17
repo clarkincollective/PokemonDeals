@@ -2,7 +2,7 @@ import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import { Gallery, GuideTable } from "@/components/guides/CardArt";
 import { guideMetadata } from "@/lib/guides";
-import { GUIDE_CARDS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
+import { GUIDE_CARDS, GUIDE_SETS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 
 const SLUG = "pokemon-promo-card-numbers";
 export const metadata = guideMetadata(SLUG);
@@ -16,17 +16,20 @@ export const metadata = guideMetadata(SLUG);
 
 const C = GUIDE_CARDS;
 
-// [era, what the number looks like, example, how the catalogue files it]
+// [era, what the number looks like, example, the SET whose page holds that
+// era's list]. The last column links: decoding a prefix tells you which set a
+// promo belongs to, and the next thing anyone wants is that set's card list.
+const S = GUIDE_SETS;
 const ERAS = [
-  ["Wizards of the Coast (1999–2003)", "A plain number with a black star, e.g. #8 — the original \"Black Star promos\"", "Mew #8", "WoTC Promo, numbered out of 53"],
-  ["Diamond & Pearl / Platinum", "DP + number", "DP45", "Diamond and Pearl Promos"],
-  ["HeartGold & SoulSilver", "HGSS + number", "HGSS03", "HGSS Promos"],
-  ["Black & White", "BW + number", "BW90", "Black and White Promos"],
-  ["XY", "XY + number", "XY110", "XY Promos"],
-  ["Sun & Moon", "SM + number", "SM124", "SM Promos"],
-  ["Sword & Shield", "SWSH + three digits", "SWSH042", "SWSH: Sword & Shield Promo Cards"],
-  ["Scarlet & Violet", "SVP + three digits (the SVP prefix is often dropped in listings)", "053", "SV: Scarlet & Violet Promo Cards"],
-  ["Mega Evolution", "Three digits", "093", "ME: Mega Evolution Promo"],
+  ["Wizards of the Coast (1999–2003)", "A plain number with a black star, e.g. #8 — the original \"Black Star promos\"", "Mew #8", S.promoWotc, "numbered out of 53"],
+  ["Diamond & Pearl / Platinum", "DP + number", "DP45", S.promoDiamondPearl, ""],
+  ["HeartGold & SoulSilver", "HGSS + number", "HGSS03", S.promoHgss, ""],
+  ["Black & White", "BW + number", "BW90", S.promoBlackWhite, ""],
+  ["XY", "XY + number", "XY110", S.promoXy, ""],
+  ["Sun & Moon", "SM + number", "SM124", S.promoSm, ""],
+  ["Sword & Shield", "SWSH + three digits", "SWSH042", S.promoSwsh, ""],
+  ["Scarlet & Violet", "SVP + three digits (the SVP prefix is often dropped in listings)", "053", S.promoSv, ""],
+  ["Mega Evolution", "Three digits", "093", S.promoMegaEvolution, ""],
 ];
 
 export default function Page() {
@@ -41,10 +44,18 @@ export default function Page() {
 
       <GH2>Reading the prefix</GH2>
       <GuideTable
-        head={["Era", "What the number looks like", "Example", "Filed on this site as"]}
-        rows={ERAS}
+        head={["Era", "What the number looks like", "Example", "The full list"]}
+        rows={ERAS.map(([era, pattern, example, setRef, note]) => [
+          era,
+          pattern,
+          example,
+          <Link key={setRef.href} href={setRef.href} className={GUIDE_LINK_CLASS}>
+            {setRef.name}
+            {note ? `, ${note}` : ""}
+          </Link>,
+        ])}
         minWidth="52rem"
-        caption="Promo numbering by era, as this site's catalogue files it. Each era's promos are one set, so the prefix plus the number identifies the card."
+        caption="Promo numbering by era, as this site's catalogue files it. Each era's promos are one set, so the prefix plus the number identifies the card - and the last column opens that set's full card list."
       />
       <Gallery
         cards={[
