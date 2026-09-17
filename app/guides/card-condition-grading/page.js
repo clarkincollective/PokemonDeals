@@ -69,9 +69,16 @@ export default function Page() {
 
       <GH2>Raw card condition</GH2>
       <GP>
-        Most marketplaces and price guides (including TCGPlayer, which underlies a lot of Pokemon
-        pricing data) use a five-step scale. Sellers assign it themselves, so treat it as a claim to
-        verify against the photos, not a fact.
+        The Near Mint-to-Damaged wording below is TCGPlayer&apos;s condition vocabulary, and it is
+        the vocabulary this site inherits, because TCGPlayer is where our reference prices come from
+        &mdash; a priced card in our catalogue carries a TCGPlayer condition label such as
+        &ldquo;Near Mint&rdquo; or &ldquo;Lightly Played&rdquo;. It is <em>not</em> a universal
+        standard. eBay describes raw cards differently, other marketplaces use their own wording, and
+        the grading companies further down this page do not use these words at all. TCGPlayer
+        publishes its own detailed criteria; the one-line descriptions below are plain-language
+        summaries of how the terms are used in practice, not a quotation of any company&apos;s
+        published standard. Whoever the wording belongs to, a raw card&apos;s condition is assigned
+        by the seller, so treat it as a claim to verify against the photos, not a fact.
       </GP>
       <GUL>
         <li>
@@ -96,6 +103,15 @@ export default function Page() {
         </li>
       </GUL>
 
+      <GP>
+        These five labels do not convert into a number. There is no defined mapping from
+        &ldquo;Near Mint&rdquo; to a PSA 9, or from &ldquo;Lightly Played&rdquo; to any particular
+        grade: the raw scale describes wear in words for a card nobody has inspected, while a numeric
+        grade is one company&apos;s verdict after inspecting that exact copy. A card sold as Near
+        Mint can come back anywhere on the numeric scale, or be rejected. Treat the two as separate
+        systems that happen to be about the same thing.
+      </GP>
+
       <GuideFigure caption="Bar length is illustrative, not a fixed ratio — the actual price drop between tiers varies by card, and is steepest for scarce vintage cards.">
         <ConditionScale />
       </GuideFigure>
@@ -103,7 +119,12 @@ export default function Page() {
       <GP>
         The gap between NM and LP prices is often large, and between NM and MP larger still, so a
         listing described as &ldquo;NM&rdquo; that shows edge wear in the photos isn&apos;t the deal
-        the price suggests. This site reads the condition wording out of a listing&apos;s own title
+        the price suggests. Condition is one of the inputs when you are working out what a particular
+        copy is worth &mdash;{" "}
+        <Link href="/guides/how-much-is-my-pokemon-card-worth" className={GUIDE_LINK_CLASS}>
+          how much is my Pokemon card worth
+        </Link>{" "}
+        sets out the rest of the method. This site reads the condition wording out of a listing&apos;s own title
         and prices the card against that condition rather than always assuming Near Mint — details on
         the{" "}
         <Link href="/methodology" className="text-red-600 hover:underline dark:text-red-500">
