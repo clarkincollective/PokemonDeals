@@ -59,6 +59,24 @@ export default function AboutPage() {
           against real market pricing — nothing is fabricated.
         </p>
 
+        {/* GEO audit 2026-09-19 - who is behind the site, stated plainly:
+            one independent operator, no store, no paid placement, a
+            published method and a public contact. No name is claimed that
+            the site does not publish elsewhere. */}
+        <h2 className="mt-10 text-lg font-bold text-black dark:text-zinc-50">Who runs this</h2>
+        <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
+          Pokemon Deal Finder is built and run by a single independent collector, not by a card shop,
+          a grading company or a marketplace. It holds no stock, sells nothing itself and takes no paid
+          placement; its only income is the eBay Partner Network and TCGPlayer affiliate commission
+          disclosed on every page. The way listings are matched, checked and priced is published on
+          the{" "}
+          <Link href="/methodology" className="text-red-600 hover:underline dark:text-red-500">methodology</Link>{" "}
+          page, and the running counts of what is shown and withheld are on the{" "}
+          <Link href="/integrity" className="text-red-600 hover:underline dark:text-red-500">listing integrity report</Link>
+          . Corrections and questions:{" "}
+          <Link href="/contact" className="text-red-600 hover:underline dark:text-red-500">contact</Link>.
+        </p>
+
         <h2 className="mt-10 text-lg font-bold text-black dark:text-zinc-50">What the site does</h2>
         <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
           <li>

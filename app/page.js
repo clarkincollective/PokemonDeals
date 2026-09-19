@@ -10,6 +10,7 @@ import {
 } from "@/lib/deals";
 import { buildHomepageLanes, rotationBucket } from "@/lib/homepageVariety";
 import { GUIDES } from "@/lib/guides";
+import { fetchIntegrityReport } from "@/lib/integrityReport";
 import { timeAgo } from "@/lib/time";
 import SiteHeader from "@/components/SiteHeader";
 import SkipToContent from "@/components/SkipToContent";
@@ -91,7 +92,7 @@ export const revalidate = 180;
 // inside).
 export const metadata = {
   title: {
-    absolute: "Pokemon Card Deals — Cards Priced Below Market on eBay | Pokemon Deal Finder",
+    absolute: "Pokemon Card Deals Below Market Price — Checked eBay Listings | Pokemon Deal Finder",
   },
   description:
     "Live Pokemon card deals updated continuously: every eBay listing priced below its real market value, checked against recent sold data. Covers the US, UK, Australia, Canada, Germany and Italy.",
@@ -120,6 +121,29 @@ const FAQ_ITEMS = [
     question: "Is the card-to-listing match always right?",
     answer:
       "Matching is automated. We filter out obviously wrong matches, but always double-check a listing's photos and description before buying.",
+  },
+  // GEO audit 2026-09-19 - the questions people put to AI assistants about
+  // a deal site. Literal answers; nothing is promised that the checks
+  // cannot deliver.
+  {
+    question: "Are the Pokemon cards listed here authentic?",
+    answer:
+      "No third-party site can guarantee that an eBay listing is authentic. Pokemon Deal Finder withholds listings that fail an image-based authenticity screen, that use replica, proxy or altered-card wording, or whose printing does not match the catalogue card, and it never labels a listing \"verified authentic\". The listing's photos, the seller's history and eBay's Money Back Guarantee remain the buyer's own checks.",
+  },
+  {
+    question: "Where does the market price come from?",
+    answer:
+      "From recent sold data for the same printing and condition, recorded by date and shown next to every listing. It is a reference, not a guaranteed sale price.",
+  },
+  {
+    question: "Do you sell cards or take a cut of the price?",
+    answer:
+      "No. The site holds no stock and runs no paid placement. Links to eBay are affiliate links; the buyer pays eBay's listed price.",
+  },
+  {
+    question: "How current is a deal?",
+    answer:
+      "Each listing shows when it was first found and when it was last checked against eBay. A page for a listing that has ended says so and links to the card's current listings. The listing integrity report shows how many listings were checked and withheld in the last 24 hours.",
   },
 ];
 
@@ -185,13 +209,14 @@ export default async function Home() {
   // churn); a new bucket rotates the visible curated inventory.
   const bucket = rotationBucket();
 
-  const [homeLanesResult, lastRefreshed, cardHubsResult, hubCounts, summary, validSetSlugs] = await Promise.all([
+  const [homeLanesResult, lastRefreshed, cardHubsResult, hubCounts, summary, validSetSlugs, integrity] = await Promise.all([
     fetchHomepageLanes({ country: null }),
     fetchLastScanTime({ table: "deals", language: "english" }),
     fetchCardHubs({ language: "english" }),
     fetchHubCounts({ language: "english" }),
     fetchMarketDataSummary(),
     fetchSetSlugs("english"),
+    fetchIntegrityReport(),
   ]);
 
   // One pass builds every curated lane with real cross-lane dedupe + the
@@ -296,6 +321,18 @@ export default async function Home() {
             <p className="mt-1.5 hidden max-w-xl text-sm text-zinc-600 lg:block dark:text-zinc-400">
               Explore Pokemon card listings on eBay, with market references where a matching
               comparison is available. Check the card, condition and shipping before you buy.
+            </p>
+            {/* GEO audit 2026-09-19 - the answer capsule: what the site is,
+                in one dated paragraph built from live counts (never a slogan).
+                Visible at every width; the sentence above stays desktop-only. */}
+            <p className="mt-2 max-w-xl text-xs leading-relaxed text-zinc-600 dark:text-zinc-400" data-answer-capsule>
+              Pokemon Deal Finder lists live eBay Pokemon card listings priced below a documented market reference for the exact card and condition, from eBay US, UK, Australia, Canada, Germany and Italy. Every listing shown has passed an exact-printing match, a seller-condition check, an availability re-check and an image-based authenticity screen, and shows the reference it was compared with.
+              {liveCount != null && integrity?.withheldActive != null && integrity?.checked24h != null && (
+                <>
+                  {" "}As of {new Date(integrity.generatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })} there are {liveCount.toLocaleString()} qualifying listings; {integrity.withheldActive.toLocaleString()} active listings are withheld for failing a check and {integrity.checked24h.toLocaleString()} were checked in the last 24 hours (
+                  <Link href="/integrity" className="underline underline-offset-2 hover:text-red-600 dark:hover:text-red-500">integrity report</Link>).
+                </>
+              )}
             </p>
           </div>
           <div className="mt-3 lg:mt-0">

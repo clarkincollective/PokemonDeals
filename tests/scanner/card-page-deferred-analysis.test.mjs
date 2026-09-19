@@ -35,7 +35,8 @@ test("CPD-2 the analysis loader keeps its cache key and window; the route valida
   assert.match(route, /"Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600", "X-Robots-Tag": "noindex"/);
   // crawlers never fetch it: /api/ is disallowed for every user agent
   const robots = read("app/robots.js");
-  assert.match(robots, /disallow: \["\/api\/"\]|disallow: "\/api\/"/);
+  // 2026-09-19: the disallow list is a named constant shared by every agent rule
+  assert.match(robots, /disallow: \["\/api\/"\]|disallow: "\/api\/"|DISALLOW = \["\/api\/"/);
 });
 
 test("CPD-3 the client panel fetches once per card after first paint and renders the same three blocks the page used to", () => {

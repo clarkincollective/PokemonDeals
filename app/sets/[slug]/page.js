@@ -354,6 +354,20 @@ export default async function SetDetailPage({ params }) {
           <p className="mt-2 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
             {hasLiveOffers ? "Compare current offers or jump straight to the card list." : "Browse the card list and recent-sold market references."}
           </p>
+          {/* GEO audit 2026-09-19 - the answer capsule: what this set page
+              holds, from the page's own counts and the catalogue's highest
+              raw reference (labelled as a reference, never a value). */}
+          {(catalogTotal > 0 || hasLiveOffers) && (
+            <p className="mt-2 max-w-2xl text-xs leading-relaxed text-zinc-600 dark:text-zinc-400" data-answer-capsule>
+              {setLabel}
+              {era ? ` (${era})` : ""} has {catalogTotal} {catalogTotal === 1 ? "card" : "cards"} in this catalogue
+              {snapshot?.pricedCount ? `, ${snapshot.pricedCount} with a raw market reference` : ""}.
+              {hasLiveOffers ? ` ${deals.length} ${deals.length === 1 ? "card has" : "cards have"} a live eBay listing shown on this page.` : " No live below-reference listing is shown for this set right now."}
+              {topValueCards?.[0]?.refPrice != null && topValueCards[0]?.name
+                ? ` The highest raw reference in the set is ${topValueCards[0].name}${topValueCards[0].cardNumber ? ` ${topValueCards[0].cardNumber}` : ""}, a recent-sold reference rather than a guaranteed value.`
+                : ""}
+            </p>
+          )}
           {/* A guide written about this set (lib/guides `sets`), linked from
               the set it is actually about. Editorial - it makes no claim
               about listings, stock or price. */}

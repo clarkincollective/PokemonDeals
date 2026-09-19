@@ -5,7 +5,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import JsonLd from "@/components/JsonLd";
 import ScrollableTable from "@/components/ScrollableTable";
-import { breadcrumbList, collectionPage } from "@/lib/jsonLd";
+import { breadcrumbList, collectionPage, dataset, FIGURES_LICENSE } from "@/lib/jsonLd";
 import { catalogImageUrl } from "@/lib/cardImage";
 import { STUDY } from "@/lib/studies/referencePriceChange30d";
 
@@ -78,6 +78,16 @@ export default function ReferencePriceChangesPage() {
             { name: "Reference-price changes" },
           ]),
           collectionPage({ name: TITLE, description: DESCRIPTION, url: PATH, dateModified: `${s.window.lateTarget}T00:00:00.000Z` }),
+          // GEO audit 2026-09-19: the study is a dated, bounded first-party dataset
+          dataset({
+            name: `${TITLE} (${s.window.earlyTarget} to ${s.window.lateTarget})`,
+            description: DESCRIPTION,
+            url: PATH,
+            dateModified: `${s.window.lateTarget}T00:00:00.000Z`,
+            temporalCoverage: `${s.window.earlyTarget}/${s.window.lateTarget}`,
+            variableMeasured: ["raw market reference (USD) at two dates", "30-day change (%)", "share of sampled products that moved (%)"],
+            license: FIGURES_LICENSE,
+          }),
         ]}
       />
       <SkipToContent />

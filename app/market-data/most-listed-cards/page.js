@@ -4,7 +4,7 @@ import { fetchMostListedCards } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import JsonLd from "@/components/JsonLd";
-import { breadcrumbList, collectionPage, itemList } from "@/lib/jsonLd";
+import { breadcrumbList, collectionPage, itemList, dataset, FIGURES_LICENSE } from "@/lib/jsonLd";
 import { formatScanTime } from "@/lib/time";
 
 export const revalidate = 21600;
@@ -40,6 +40,15 @@ export default async function MostListedCardsPage() {
             description: DESCRIPTION,
             url: "/market-data/most-listed-cards",
             dateModified: snapshotAt,
+          }),
+          // GEO audit 2026-09-19: listing counts are a dated first-party dataset
+          dataset({
+            name: `${TITLE} (Pokemon Deal Finder listing counts)`,
+            description: DESCRIPTION,
+            url: "/market-data/most-listed-cards",
+            dateModified: snapshotAt,
+            variableMeasured: ["active eBay listings per card (count)", "card identity (name, set, collector number)"],
+            license: FIGURES_LICENSE,
           }),
           itemList(top.map((c) => ({ name: `${c.name} (${c.set})`, url: `/cards/${c.slug}` }))),
         ]}

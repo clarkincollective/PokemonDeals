@@ -46,8 +46,21 @@ const organizationJsonLd = {
   url: `${SITE_URL}/`,
   logo: `${SITE_URL}/icon.svg`,
   description:
-    "Pokemon Deal Finder is a free tool that scans eBay listings for Pokemon trading cards and identifies the ones priced below their market value, using real market prices and recent sold-listing data.",
+    "Pokemon Deal Finder is a free, independent tool that lists live eBay Pokemon card listings priced below a documented market reference for the exact card and condition, after exact-printing, condition, availability and image-authenticity checks. It holds no stock and runs no paid placement.",
   sameAs: organizationSameAs(),
+  // GEO audit 2026-09-19 - entity context an AI engine can use to decide
+  // what this source is for. Topics only (no expertise claims); the
+  // methodology page is the published editorial standard; one public
+  // contact. Still no Person/founder entity - see the note above.
+  foundingDate: "2026",
+  knowsAbout: [
+    "Pokemon Trading Card Game",
+    "Pokemon card market prices",
+    "eBay Pokemon card listings",
+    "trading card condition and grading (PSA, CGC, BGS, SGC, ACE, TAG)",
+  ],
+  publishingPrinciples: `${SITE_URL}/methodology`,
+  contactPoint: { "@type": "ContactPoint", contactType: "editorial", email: "pokemondealfinder@gmail.com", url: `${SITE_URL}/contact` },
 };
 
 const websiteJsonLd = {

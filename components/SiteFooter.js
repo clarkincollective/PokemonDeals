@@ -37,6 +37,7 @@ const LINKS = [
   { href: "/about", label: "About" },
   { href: "/how-it-works", label: "How It Works" },
   { href: "/methodology", label: "Methodology" },
+  { href: "/integrity", label: "Listing Integrity Report" },
   { href: "/guides", label: "Guides" },
   { href: "/affiliate-disclosure", label: "Affiliate Disclosure" },
   { href: "/privacy", label: "Privacy" },

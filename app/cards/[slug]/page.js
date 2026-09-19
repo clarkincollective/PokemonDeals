@@ -8,6 +8,7 @@ import CardWorthAnswer from "@/components/CardWorthAnswer";
 import CardNextSteps from "@/components/CardNextSteps";
 import { catalogCardTitle, catalogCardHeading, catalogCardIdentity } from "@/lib/cardSlug";
 import { cardDisplayName, collectorNumberFromName } from "@/lib/cardName";
+import { propertyValue } from "@/lib/jsonLd";
 import { catalogImageUrl } from "@/lib/cardImage";
 import { trustedDealImageUrl } from "@/lib/listingImage";
 import { cardSpeciesLink } from "@/lib/cardLinks";
@@ -360,15 +361,60 @@ export default async function CardHubPage({ params }) {
       itemCondition: "https://schema.org/UsedCondition",
     }];
   });
+  // GEO audit 2026-09-19 - the card is an ENTITY whether or not it has
+  // live offers: set, collector number, rarity, the catalogue market
+  // reference (labelled by the condition it is really for) and the date it
+  // was recorded, as machine-readable properties; offers as an
+  // AggregateOffer when there are several. No rating, no review, nothing
+  // the page does not itself state.
+  const refUsd = isUsableUsdPrice(hubRaw) ? Number(hubRaw) : null;
+  const refCondition = catalog?.refCondition ?? null;
+  const refRecorded = catalog?.syncedAt ? new Date(catalog.syncedAt).toISOString().slice(0, 10) : null;
+  const offerUsdTotals = allOffers.map((d) => dealTotalUsd(d)).filter((v) => Number.isFinite(v) && v > 0);
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
+    "@id": `${SITE_URL}/cards/${slug}#product`,
+    // the shared display identity (card-name rule 13); number + rarity
+    // are additionalProperty entries below
     name: `${cardName} - ${hub.set}`,
+    sku: hub.tcgplayerId ? `tcgplayer:${hub.tcgplayerId}` : undefined,
+    mpn: cardCollectorNumber ?? undefined,
     image: heroImage ?? undefined,
-    description: `${cardName} (${hub.set}) - ${allOffers.length} active eBay ${allOffers.length === 1 ? "listing" : "listings"}.`,
+    description: [
+      `${cardName}${cardCollectorNumber ? ` ${cardCollectorNumber}` : ""} from ${hub.set}.`,
+      refUsd != null
+        // ISO form, not "$" - the worth answer is the page's ONE visible
+        // statement of the figure (R3 card summary); this is entity text
+        ? `Market reference ${refUsd.toFixed(2)} USD${refCondition ? ` for ${refCondition}` : ""}${refRecorded ? `, recorded ${refRecorded}` : ""}.`
+        : "No trustworthy raw market reference is currently held for this printing.",
+      `${allOffers.length} live eBay ${allOffers.length === 1 ? "listing" : "listings"} on this page.`,
+    ].join(" "),
     brand: { "@type": "Brand", name: "Pokemon" },
+    category: "Pokemon Trading Card Game > Single cards",
+    additionalProperty: [
+      propertyValue("Set", hub.set),
+      propertyValue("Collector number", cardCollectorNumber),
+      propertyValue("Rarity", cardRarity),
+      refUsd != null
+        ? propertyValue(`Market reference${refCondition ? ` (${refCondition})` : ""}`, refUsd.toFixed(2), { unitCode: "USD", description: "Recent sold data for this printing and condition; a reference, not a guaranteed sale price" })
+        : null,
+      propertyValue("Reference recorded", refRecorded),
+    ].filter(Boolean),
+    // R3 card-offer contract: `offers` is the array of PRICED live listings
+    // (an auction without a usable bid is never promoted as a priced offer),
+    // and the Product is emitted only when at least one exists - see the
+    // gate below. The offer count and USD range ride as properties instead
+    // of an AggregateOffer wrapper, so that contract stays intact.
     offers: schemaOffers,
   };
+  if (offerUsdTotals.length) {
+    productJsonLd.additionalProperty.push(
+      propertyValue("Live listings", schemaOffers.length),
+      propertyValue("Lowest live total", Math.min(...offerUsdTotals).toFixed(2), { unitCode: "USD" }),
+      propertyValue("Highest live total", Math.max(...offerUsdTotals).toFixed(2), { unitCode: "USD" })
+    );
+  }
 
   // Mirrors the visible <Breadcrumbs> below (Deals -> Cards -> set ->
   // card) so the structured trail matches what a user sees, per Google's
@@ -391,6 +437,8 @@ export default async function CardHubPage({ params }) {
 
   return (
     <div className="min-h-screen bg-paper">
+      {/* R3: a card with no PRICED live offer is not promoted as a product
+          with offers - the worth answer above is its entity statement. */}
       {schemaOffers.length > 0 && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
       )}

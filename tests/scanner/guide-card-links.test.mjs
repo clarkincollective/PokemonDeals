@@ -220,6 +220,16 @@ test("3. the contextual links landed where they explain identity, grading or val
     "spotting-fake-pokemon-cards-in-listings": 0,
     // the promo guide's cards are all gallery figures (data arrays)
     "pokemon-promo-card-numbers": 0,
+    // GEO audit 2026-09-19 buyer-intent cluster. The vintage guide links
+    // the two Base Set printings' set pages, the Base Set / Base Set 2
+    // Charizard pair (the reprint trap), one reachable holo rare and the
+    // Base Set page once more for its top-value list. The other three are
+    // about listings, boxes and eBay's own rules - no exact card is their
+    // subject.
+    "buying-pokemon-cards-on-ebay-safely": 0,
+    "how-to-read-a-pokemon-card-listing": 0,
+    "vintage-pokemon-cards-worth-buying": 6,
+    "pokemon-booster-box-prices": 0,
   });
   // The release guide's galleries: every tile is a GUIDE_CARDS identity
   // rendered as a complete card face linked to its own page (a figure
@@ -228,7 +238,7 @@ test("3. the contextual links landed where they explain identity, grading or val
   assert.ok(gallery >= 20 && gallery <= 30, `30th Celebration gallery references ${gallery} cards`);
   // the price checker is reachable from the guides that talk about looking a card up
   const withChecker = GUIDE_FILES.filter((f) => /href=\{PRICE_CHECKER_HREF\}/.test(read(f))).map((f) => f.split("/")[2]).sort();
-  assert.deepEqual(withChecker, ["base-set-shadowless-unlimited-first-edition", "card-condition-grading", "how-much-is-my-pokemon-card-worth", "how-pokemon-card-prices-work", "how-to-check-pokemon-card-condition", "pokemon-card-grading-scale", "pokemon-promo-card-numbers", "raw-vs-graded-pokemon-cards", "spotting-fake-pokemon-cards-in-listings"]);
+  assert.deepEqual(withChecker, ["base-set-shadowless-unlimited-first-edition", "buying-pokemon-cards-on-ebay-safely", "card-condition-grading", "how-much-is-my-pokemon-card-worth", "how-pokemon-card-prices-work", "how-to-check-pokemon-card-condition", "how-to-read-a-pokemon-card-listing", "pokemon-card-grading-scale", "pokemon-promo-card-numbers", "raw-vs-graded-pokemon-cards", "spotting-fake-pokemon-cards-in-listings", "vintage-pokemon-cards-worth-buying"]);
   // every new link uses the guides' existing inline style
   assert.equal(GUIDE_LINK_CLASS, "text-red-600 hover:underline dark:text-red-500");
   for (const f of GUIDE_FILES) {
@@ -279,6 +289,11 @@ test("5. routes, canonicals and indexability of the guides are untouched", () =>
     "how-much-is-my-pokemon-card-worth",
     "base-set-shadowless-unlimited-first-edition",
     "spotting-fake-pokemon-cards-in-listings",
+    // GEO audit 2026-09-19 buyer-intent cluster (registered before the promo guide)
+    "buying-pokemon-cards-on-ebay-safely",
+    "how-to-read-a-pokemon-card-listing",
+    "vintage-pokemon-cards-worth-buying",
+    "pokemon-booster-box-prices",
     "pokemon-promo-card-numbers",
   ]);
   const guidesLib = read("lib/guides.js");

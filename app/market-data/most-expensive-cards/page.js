@@ -12,7 +12,7 @@ import { speciesSlug } from "@/lib/pokemonSpecies";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import JsonLd from "@/components/JsonLd";
-import { breadcrumbList, collectionPage, itemList } from "@/lib/jsonLd";
+import { breadcrumbList, collectionPage, itemList, dataset, FIGURES_LICENSE } from "@/lib/jsonLd";
 import { formatDate } from "@/lib/time";
 import Price from "@/components/Price";
 
@@ -87,6 +87,15 @@ export default async function MostValuableCardsPage() {
             description: DESCRIPTION,
             url: "/market-data/most-expensive-cards",
             dateModified: rankedAt ?? undefined,
+          }),
+          // GEO audit 2026-09-19: the ranking is a dated first-party dataset
+          dataset({
+            name: `${TITLE} (Pokemon Deal Finder catalogue ranking)`,
+            description: DESCRIPTION,
+            url: "/market-data/most-expensive-cards",
+            dateModified: rankedAt ?? undefined,
+            variableMeasured: ["raw market reference (USD)", "card identity (name, set, collector number)"],
+            license: FIGURES_LICENSE,
           }),
           itemList(
             cards.map((c) => ({ name: `${c.name} (${c.set})`, url: `/cards/${c.catalogSlug}` }))

@@ -4,7 +4,7 @@ import { fetchCatalogComposition } from "@/lib/deals";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import JsonLd from "@/components/JsonLd";
-import { breadcrumbList, collectionPage } from "@/lib/jsonLd";
+import { breadcrumbList, collectionPage, dataset, FIGURES_LICENSE } from "@/lib/jsonLd";
 import { formatDate } from "@/lib/time";
 
 // Matches the fetchCatalogComposition cache (6h) - this page has no
@@ -106,6 +106,15 @@ export default async function ValueDistributionPage() {
             // publication date - see the report on why this is
             // CollectionPage (dateModified) rather than Article.
             dateModified: comp.snapshotAt,
+          }),
+          // GEO audit 2026-09-19: the distribution is a dated first-party dataset
+          dataset({
+            name: `${TITLE} (Pokemon Deal Finder catalogue)`,
+            description: DESCRIPTION,
+            url: PATH,
+            dateModified: comp.snapshotAt,
+            variableMeasured: ["cards per raw market-reference band (count)", "share of catalogue per band (%)"],
+            license: FIGURES_LICENSE,
           }),
         ]}
       />

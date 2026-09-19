@@ -146,6 +146,29 @@ positive result, so no instance restart is needed.
 - `TCGPLAYER_AFFILIATE_LINK` presence not verified from code (env-gated;
   link works either way).
 
+## GEO / AI-crawlability follow-up (same day)
+
+Implemented from the GEO audit (`tests/scanner/geo-audit.test.mjs` pins it):
+explicit per-agent AI crawl policy in `app/robots.js`; `llms.txt` freshness,
+quotable definitions and integrity link; `Product` entities on deal pages
+(set, number, printing, checked condition, reference + date only when the
+saving is supported and never for auctions, found/checked times) and card
+pages (identity, reference condition + recorded date, live count and USD
+range as properties; the R3 rule stands — emitted only with a priced
+live offer, `offers` stays the array);
+`Dataset` on the four market-data pages and the new `/integrity` report
+(live counts: shown, withheld by recorded reason family, checked / stopped
+in 24 h); answer capsules on home, deal, set and integrity pages; four GEO
+FAQ entries; `Organization` context (topics, editorial contact,
+publishing principles — still no Person); About "Who runs this"; title
+rewrites (home, vintage, graded, methodology); four buyer-intent guides
+(eBay safety checklist, reading a listing, vintage worth buying, booster
+box prices) plus a raw-vs-graded decision table. Deliberately NOT added:
+`shippingDetails` / `priceValidUntil` / `seller` (SEO-2.6.1 reasoning
+stands), any rating or review markup, any "verified authentic" wording.
+Species-page intros were left alone: the species indexation experiment
+cohort is active.
+
 ## Not done, and why
 
 - Saved-search alerts (server-side subscription to a filter combination):

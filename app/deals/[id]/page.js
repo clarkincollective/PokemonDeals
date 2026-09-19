@@ -9,13 +9,15 @@ import { listingAvailabilityEvidence, dealDetailTag } from "@/lib/listingAvailab
 import RelativeTime from "@/components/RelativeTime";
 import { shouldIndexDeal } from "@/lib/indexability";
 import { conditionLabel, isDisplayableDeal, listingPresentation, savingsPercentText } from "@/lib/dealQuality";
+import { referenceObservedAtMs } from "@/lib/referenceProvenance";
 import { normalizePublicText } from "@/lib/publicText";
-import { cardDisplayName } from "@/lib/cardName";
+import { cardDisplayName, collectorNumberFromName } from "@/lib/cardName";
+import { propertyValue } from "@/lib/jsonLd";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
-import { currencyForDeal, refInListingCurrency, dealTotalUsd, auctionDisplayParts, formatMoney, hasPrice } from "@/lib/money";
+import { currencyForDeal, refInListingCurrency, dealTotalUsd, auctionDisplayParts, formatMoney, hasPrice, symbolFor } from "@/lib/money";
 import { offerShipping } from "@/lib/offerPresentation";
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
@@ -545,15 +547,61 @@ export default async function DealDetailPage({ params }) {
   // whichever eBay seller has the listing and genuinely varies per listing;
   // asserting one here would mean stating something we don't actually know
   // is true for this specific sale.
+  // GEO audit 2026-09-19 - the DEAL is machine-readable, not just "a used
+  // Pokemon product": set, collector number, printing, checked condition,
+  // the market reference it was compared with (only when the saving is
+  // supported), the marketplace, recorded shipping, when it was found and
+  // last checked. Every property mirrors something the visible page says.
+  const dealCollectorNumber = collectorNumberFromName(deal.watchlist?.name ?? deal.title) ?? null;
+  const referenceRecordedMs = referenceObservedAtMs(deal);
+  const referenceRecorded = referenceRecordedMs ? new Date(referenceRecordedMs).toISOString().slice(0, 10) : null;
+  const lastChecked = deal.exact_verified_at ?? deal.last_seen_at ?? null;
+  const marketplaceLabel = `eBay ${String(deal.marketplace ?? "").replace("EBAY_", "")}`.trim();
+  const dealCapsule = [
+    `Live ${marketplaceLabel} ${isAuction ? "auction" : "listing"} of ${cardName}${dealCollectorNumber ? ` ${dealCollectorNumber}` : ""}${cardSet ? ` (${cardSet}${deal.reference_printing ? `, ${deal.reference_printing}` : ""}, ${conditionLabel(deal)})` : ` (${conditionLabel(deal)})`}.`,
+    // R3: a listing whose native price is unusable states no figure at all
+    isAuction
+      ? auctionParts
+        ? `Current bid ${symbolFor(nativeCurrency)}${Number(auctionParts.bid.native).toFixed(2)} ${nativeCurrency}; bids can rise before the auction ends.`
+        : "Current bid unavailable here; check the listing on eBay. Bids can rise before the auction ends."
+      : hasPrice(deal.total_price)
+        ? `${shipping.headline} ${symbolFor(nativeCurrency)}${total.toFixed(2)} ${nativeCurrency}${shipping.state === "confirmed" ? " incl. recorded shipping" : ` (${shipping.note.toLowerCase()} — check on eBay)`}.`
+        : "Price currently unavailable here; check the listing on eBay.",
+    showSavings && showRef && !isAuction
+      ? `Market reference $${marketUsd.toFixed(2)} USD (${conditionLabel(deal)}${referenceRecorded ? `, recorded ${referenceRecorded}` : ""}); ${pctText} below that reference.`
+      : null,
+    lastChecked ? `Listing last checked ${new Date(lastChecked).toISOString().replace("T", " ").slice(0, 16)} UTC.` : null,
+  ].filter(Boolean).join(" ");
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: `${cardName}${cardSet ? ` - ${cardSet}` : ""}`,
+    "@id": `${SITE_URL}/deals/${deal.id}#product`,
+    name: `${cardName}${dealCollectorNumber ? ` ${dealCollectorNumber}` : ""}${cardSet ? ` — ${cardSet}` : ""} (${conditionLabel(deal)})`,
+    sku: deal.card_tcgplayer_id ?? deal.watchlist?.justtcg_tcgplayer_id ? `tcgplayer:${deal.card_tcgplayer_id ?? deal.watchlist?.justtcg_tcgplayer_id}` : undefined,
+    mpn: dealCollectorNumber ?? undefined,
     // P0 deal-image-integrity: the trusted display image (seller face, or
     // canonical exact-printing art) - never a card-back seller photo.
     image: trustedDealImageUrl(deal) ?? undefined,
-    description: normalizePublicText(deal.title),
+    description: dealCapsule,
     brand: { "@type": "Brand", name: "Pokemon" },
+    category: "Pokemon Trading Card Game > Single cards",
+    ...(cardHub ? { isRelatedTo: { "@id": `${SITE_URL}/cards/${cardHub.slug}#product` } } : {}),
+    additionalProperty: [
+      propertyValue("Set", cardSet),
+      propertyValue("Collector number", dealCollectorNumber),
+      propertyValue("Printing", deal.reference_printing),
+      propertyValue("Condition (seller-stated, checked)", conditionLabel(deal)),
+      propertyValue("Listing type", isAuction ? "Auction — bids can rise" : "Buy It Now"),
+      propertyValue("Listing marketplace", marketplaceLabel),
+      propertyValue("Shipping", shipping.state === "confirmed" ? `Recorded: ${Number(deal.shipping).toFixed(2)} ${nativeCurrency}` : "Not confirmed — check on eBay"),
+      showSavings && showRef && !isAuction
+        ? propertyValue(`Market reference (${conditionLabel(deal)})`, marketUsd.toFixed(2), { unitCode: "USD", description: "Recent sold data for this printing and condition; a reference, not a guaranteed sale price" })
+        : null,
+      showSavings && showRef && !isAuction ? propertyValue("Below reference", Math.round(Number(deal.discount_pct) * 100), { unitText: "%" }) : null,
+      propertyValue("Reference recorded", referenceRecorded),
+      propertyValue("Listing first found", deal.first_seen_at ? new Date(deal.first_seen_at).toISOString() : null),
+      propertyValue("Listing last checked", lastChecked ? new Date(lastChecked).toISOString() : null),
+    ].filter(Boolean),
     offers: {
       "@type": "Offer",
       url: deal.listing_url,
@@ -631,6 +679,12 @@ export default async function DealDetailPage({ params }) {
         />
 
         <SocialLandingBadge />
+
+        {/* GEO audit 2026-09-19 - the answer capsule: the deal in one dated
+            paragraph, the same facts the Product schema carries. */}
+        <p className="mt-3 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300" data-answer-capsule>
+          {dealCapsule}
+        </p>
 
         <div className="mt-4 flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-4 sm:gap-6 sm:p-6 sm:flex-row dark:border-zinc-800 dark:bg-zinc-950">
           <div className="relative h-40 w-40 sm:h-64 sm:w-48 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-50 sm:self-auto dark:bg-zinc-900">

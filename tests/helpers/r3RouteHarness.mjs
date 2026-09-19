@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url);
 const root = resolve(import.meta.dirname,'../..');
 const pure = new Set(['dealPage','listingAvailability','indexability','dealQuality','publicText',
   'cardName','pokemonSpecies','slugify','tcgplayer','ebayLinks','money','offerPresentation',
-  'affiliateSurfaces','dealFilters','navLinks','socialProfiles','trustContent','time','recentCards','ebaySearch','returnContext','analytics/events','analytics/props','analytics/pageType','savedSearches','referenceCondition','listingImage','dealCategories','cardWorth','cardNextSteps','cardSlug','cardImage','cardLinks','marketplaceScope',
+  'affiliateSurfaces','dealFilters','navLinks','socialProfiles','trustContent','time','recentCards','ebaySearch','returnContext','analytics/events','analytics/props','analytics/pageType','savedSearches','jsonLd','integrityReasons','referenceProvenance','referenceCondition','listingImage','dealCategories','cardWorth','cardNextSteps','cardSlug','cardImage','cardLinks','marketplaceScope',
   // set/catalogue presentation helpers - pure (no supabase, fetch or env);
   // needed to render CatalogueLinkIndex offline from controlled data
   'catalogueView','setChecklist','speciesCoverage','pokemonSets']);

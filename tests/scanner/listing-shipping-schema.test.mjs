@@ -12,10 +12,19 @@ function schema(row, auction) {
   const deal = slimPoolRow({id: 'fixture', title: 'Simulated listing', price: 20,
     total_price: 25, currency: 'GBP', marketplace: 'EBAY_GB', is_active: true,
     listing_url: 'https://example.invalid/listing', ...row});
+  // 2026-09-19 (GEO audit): the Product now also carries the deal's facts
+  // as additionalProperty and a capsule description - stubbed here to the
+  // page's own inputs; this suite pins only the Offer (no shippingDetails,
+  // native currency, bid-vs-total price).
   return JSON.parse(JSON.stringify(runInNewContext('(' + expression + ')', {
     deal, offerShipping, cardName: 'Fixture', cardSet: 'Fixture set',
     nativeCurrency: 'GBP', auctionParts: auction ? {bid: {native: 20}} : null,
     trustedDealImageUrl: () => undefined, normalizePublicText: value => value,
+    SITE_URL: 'https://pokemondealfinder.com', dealCollectorNumber: null, isAuction: auction,
+    conditionLabel: () => 'Near Mint', marketplaceLabel: 'eBay GB', shipping: offerShipping(deal),
+    showSavings: false, showRef: false, marketUsd: NaN, referenceRecorded: null, lastChecked: null,
+    cardHub: null, dealCapsule: 'fixture capsule',
+    propertyValue: (name, value, extra = {}) => (value == null || value === '' ? null : {'@type': 'PropertyValue', name, value: String(value), ...extra}),
   })));
 }
 for (const auction of [false, true]) {

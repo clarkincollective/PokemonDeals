@@ -59,7 +59,13 @@ function assertOfferIntegrity(product, deal, expectedPrice) {
   assert.equal(Object.hasOwn(offer, "seller"), false);
   assert.equal(Object.hasOwn(offer, "offeredBy"), false);
   assert.equal(Object.hasOwn(offer, "hasMerchantReturnPolicy"), false);
-  assert.doesNotMatch(JSON.stringify(product), /Pokemon Deal Finder|pokemondealfinder/i, "the Product never names us as merchant");
+  // 2026-09-19 (GEO audit): the Product now carries an entity @id and an
+  // isRelatedTo link to the card entity, both site URLs. Those identify
+  // the ENTITY, not a merchant - the merchant guard is on the offer and on
+  // the naming/brand/seller fields, never on identifiers.
+  const { "@id": _id, isRelatedTo: _rel, ...merchantFacing } = product;
+  assert.doesNotMatch(JSON.stringify(merchantFacing), /Pokemon Deal Finder|pokemondealfinder/i, "the Product never names us as merchant");
+  if (product["@id"]) assert.match(product["@id"], /^https:\/\/pokemondealfinder\.com\/deals\/\d+#product$/);
 }
 
 test("1. paid shipping: the charge stays visible, the schema drops the incomplete shippingDetails", async () => {

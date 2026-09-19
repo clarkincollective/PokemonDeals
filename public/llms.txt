@@ -33,10 +33,24 @@
 - Cite a deal page (https://pokemondealfinder.com/deals/<id>) for one specific listing; the page shows the listing total, the reference it was compared with, the savings figure and the checks that were run.
 - Deals change continuously. A deal page that says "This listing is unavailable" is no longer a live offer.
 
+## Freshness
+
+- Listings are re-checked continuously; each deal page states when the listing was first found and when it was last checked against eBay.
+- Listing integrity report (rebuilt several times a day from the live database: listings checked, listings withheld and why): https://pokemondealfinder.com/integrity
+- This file was last reviewed 2026-09-19.
+
+## Quotable definitions
+
+- "Below market" on this site means: the listing's delivered price is below a market reference recorded for the same printing and condition; the reference and its recorded date are shown on the page.
+- The site never states that a listing is verified authentic. It withholds listings that fail its image-based authenticity screen, that use replica / proxy / altered-card wording, or whose printing does not match the catalogue card. A buyer's own checks (photos, seller history, eBay's Money Back Guarantee) still apply.
+- An auction is shown with its current bid, never as a saving; bids can rise before the auction ends.
+- Prices are compared in US dollars and displayed in the visitor's currency with an approximation mark when converted.
+
 ## Machine-readable
 
+- Crawl policy: https://pokemondealfinder.com/robots.txt (search engines and AI retrieval agents are allowed on every public page; /api/ and /saved are excluded).
 - Sitemap index: https://pokemondealfinder.com/sitemap.xml
-- Structured data: Product / Offer / BreadcrumbList on deal and card pages; FAQPage on the homepage; CollectionPage and ItemList on catalogue pages.
+- Structured data: Product (with set, collector number, printing, condition, market reference and recorded date as additionalProperty) + Offer on deal pages and on card pages that have a priced live listing; Dataset on the market-data and integrity pages; FAQPage on the homepage; CollectionPage and ItemList on catalogue pages; Article on guides.
 - The /api/ routes are internal and are not for automated use.
 
 ## Affiliation

@@ -123,6 +123,41 @@ export default function Page() {
         </li>
       </GUL>
 
+      <GH2>Raw or graded for the same budget: a decision table</GH2>
+      <GP>
+        The same money buys a different thing on each side. Decide what you want the card for, then
+        read the row.
+      </GP>
+      <GUL>
+        <li>
+          <strong>You want the card to keep, and you can inspect photos well.</strong> Raw, in the
+          condition the photos support, priced against a raw reference for that condition. You pay
+          for the card, not the slab.
+        </li>
+        <li>
+          <strong>You want a specific grade, or you plan to resell to graded-card buyers.</strong>{" "}
+          Graded, from the company whose grades those buyers trust, priced against the reference for
+          that company and grade. Verify the certification number.
+        </li>
+        <li>
+          <strong>You want a high-value vintage card and cannot judge condition from photos.</strong>{" "}
+          Graded, even at a lower grade — a mid-grade slab removes the two biggest risks (fake, and
+          condition worse than claimed) that a raw purchase carries.
+        </li>
+        <li>
+          <strong>You want the most copies for the budget.</strong> Raw, Lightly Played or better,
+          from listings whose condition is stated and supported.
+        </li>
+        <li>
+          <strong>Your budget is close to a grading fee.</strong> Raw — a slab on a low-value card
+          costs more than it adds.
+        </li>
+      </GUL>
+      <GP>
+        Whichever side you choose, compare within it: a raw price against a raw reference, a PSA 9
+        against a PSA 9 reference. The site never compares across the line.
+      </GP>
+
       <GH2>Keep reading</GH2>
       <GUL>
         <li>

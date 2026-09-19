@@ -64,6 +64,11 @@ const GUIDE_GROUPS = [
   { title: "Identify your card", slugs: ["how-to-find-pokemon-card-set-and-number", "base-set-shadowless-unlimited-first-edition", "pokemon-promo-card-numbers", "vintage-vs-modern-pokemon-cards"] },
   { title: "Understand its price", slugs: ["how-much-is-my-pokemon-card-worth", "how-pokemon-card-prices-work", "raw-vs-graded-pokemon-cards"] },
   { title: "Check condition and grade", slugs: ["card-condition-grading", "how-to-check-pokemon-card-condition", "pokemon-card-grading-scale"] },
+  // GEO audit 2026-09-19 - the buying step
+  {
+    title: "Buy with confidence",
+    slugs: ["buying-pokemon-cards-on-ebay-safely", "how-to-read-a-pokemon-card-listing", "spotting-fake-pokemon-cards-in-listings", "vintage-pokemon-cards-worth-buying", "pokemon-booster-box-prices"],
+  },
 ];
 
 const breadcrumbJsonLd = {
