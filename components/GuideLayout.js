@@ -3,8 +3,9 @@ import { Children, isValidElement } from "react";
 import SkipToContent from "@/components/SkipToContent";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { getGuide, GUIDES_PUBLISHED } from "@/lib/guides";
+import { getGuide, GUIDES_PUBLISHED, guideOffersSet } from "@/lib/guides";
 import RelatedReading from "@/components/RelatedReading";
+import GuideLiveOffers from "@/components/guides/GuideLiveOffers";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -34,9 +35,12 @@ function guideHeadings(children) {
 
 // Shared chrome for an editorial guide page: header, back link, H1,
 // BreadcrumbList + Article JSON-LD, footer. The page supplies the body.
-export default function GuideLayout({ slug, children }) {
+export default async function GuideLayout({ slug, children }) {
   const g = getGuide(slug);
   const headings = guideHeadings(children);
+  // the set this guide is about, when it has live listings to show
+  // (lib/guides guideOffersSet - explicit per guide, never inferred)
+  const offersSet = guideOffersSet(g);
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
@@ -97,6 +101,10 @@ export default function GuideLayout({ slug, children }) {
           </details>
         )}
         <div className="mt-6">{children}</div>
+
+        {/* live below-reference listings from the guide's own set, when
+            there are any - after the article, before related reading */}
+        {offersSet && <GuideLiveOffers setName={offersSet} />}
 
         {/* the news about this guide's release, when there is any (lib/editorialRelated) */}
         <RelatedReading kind="guide" slug={slug} />
