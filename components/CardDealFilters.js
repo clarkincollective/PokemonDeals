@@ -269,7 +269,7 @@ export default function CardDealFilters({
           </ul>
         )}
 
-        <FilterToggle defaultOpen={activeCount > 0} activeCount={activeCount}>
+        <FilterToggle defaultOpen={activeCount > 0} activeCount={activeCount} onReset={clearFacets}>
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-end gap-4">
               <div>

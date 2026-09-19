@@ -385,7 +385,15 @@ export default function FilterBar({
 
   return (
     <div className={collapsible ? "mb-6" : "mb-8 lg:rounded-xl lg:border lg:border-zinc-200 lg:bg-white lg:p-4 lg:shadow-card dark:lg:border-zinc-800 dark:lg:bg-zinc-950"}>
-      <FilterToggle defaultOpen={activeCount > 0} activeCount={activeCount} collapsible={collapsible} label={collapsible ? "More filters" : "Filters"}>
+      <FilterToggle
+        defaultOpen={activeCount > 0}
+        activeCount={activeCount}
+        collapsible={collapsible}
+        label={collapsible ? "More filters" : "Filters"}
+        // the sheet's Reset: every visitor-chosen key dropped, the page's
+        // own locked identity (category / country preset) untouched
+        resetHref={withoutParams(params, ["country", "type", "grader", "grade", "listing", "ending", "maxPrice", "minPrice", "sort", "q"], basePath)}
+      >
         <div className="flex flex-col gap-4">
           <SortRow params={params} sort={sort} basePath={basePath} defaultValue="newest" />
 

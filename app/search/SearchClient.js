@@ -807,7 +807,7 @@ function SearchFilters({
         </ul>
       )}
 
-      <FilterToggle defaultOpen={activeCount > 0} activeCount={activeCount} collapsible label="Refine deals">
+      <FilterToggle defaultOpen={activeCount > 0} activeCount={activeCount} collapsible label="Refine deals" onReset={onClear}>
         <div className="flex flex-col gap-4">
           {!scoped && (
             <p className="text-xs text-zinc-500">

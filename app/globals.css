@@ -128,6 +128,13 @@ p a {
   --color-accent: var(--color-red-600);
   --color-accent-strong: var(--color-red-700);
   --color-positive: var(--color-emerald-700);
+  /* growth brief §5 - the mobile filter sheet slides up once; the
+     reduced-motion block below collapses it to an instant appearance */
+  --animate-sheet-in: sheet-in 180ms ease-out;
+  @keyframes sheet-in {
+    from { transform: translateY(12%); opacity: 0.6; }
+    to { transform: translateY(0); opacity: 1; }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
