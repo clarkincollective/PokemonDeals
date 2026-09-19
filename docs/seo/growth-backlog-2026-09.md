@@ -63,7 +63,7 @@ Ratchet: 36 failing / 36 quarantined (pre-existing, unchanged through every batc
 - Measurement: GSC pages `/cards/charizard-base-set` and `/cards/charizard-base-set-shadowless` (impressions/position for "charizard base set" queries) from 2026-09-20; read 2026-10-04.
 
 - Commit `63e7942`; production verified 2026-09-20 on `/cards/charizard-base-set`: one printing listed (Shadowless), Base Set 2 not listed.
-- Follow-up (same day): `/cards/charizard-base-set-shadowless` stayed empty after its ISR window. Cause: the catalogue render (`CatalogCardView`, the path most card pages take when there is no live-deal hub) never passed `printings` to `RelatedCards`; only the live-hub path did. Fixed by passing the same rule over the same relations on that path (no extra query); pinned in `card-printings.test.mjs`. Re-verify on the Shadowless page after deploy.
+- Follow-up (same day): `/cards/charizard-base-set-shadowless` stayed empty after its ISR window. Cause: the catalogue render (`CatalogCardView`, the path most card pages take when there is no live-deal hub) never passed `printings` to `RelatedCards`; only the live-hub path did. Fixed by passing the same rule over the same relations on that path (no extra query); pinned in `card-printings.test.mjs`. Commit `e179425`; production verified 2026-09-20: `/cards/charizard-base-set-shadowless` lists one printing (Base Set, reference written "USD", no "$" in the block); `/cards/charizard-base-set` unchanged (Shadowless).
 - STATUS: IMPROVED. Business impact: pending measurement (2026-10-04).
 
 ### Batch 3 — 2026-09-20 — no-deal card pages: the eBay search becomes a real control
