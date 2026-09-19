@@ -198,6 +198,15 @@ test("SEO audit 2026-09-20 follow-ups: SERP-length titles/descriptions, LCP hint
   assert.match(pg, /rel=\{targetPage > CRAWLABLE_PAGES \? "nofollow" : undefined\}/);
 });
 
+test("crawl budget 2026-09-20: the sitemap index stops advertising cards-bulk; the shard, its route and the segment list are untouched", async () => {
+  const sm = read("lib/sitemap.js");
+  assert.match(sm, /export const UNADVERTISED_SEGMENTS = new Set\(\["cards-bulk"\]\);/);
+  assert.match(sm, /SITEMAP_SEGMENTS\.filter\(\(id\) => !UNADVERTISED_SEGMENTS\.has\(id\)\)\.map\(/);
+  // the segment list itself is unchanged (card-sitemap pins it too)
+  assert.match(sm, /SITEMAP_SEGMENTS = \["pages", "sets", "pokemon", \.\.\.CARD_SITEMAP_SEGMENTS, "deals", "sealed-deals"\]/);
+  assert.match(sm, /Re-read the report on 2026-10-04/);
+});
+
 test("guides: the buyer-intent cluster is registered, grouped, dated, and price-free", () => {
   for (const slug of ["buying-pokemon-cards-on-ebay-safely", "how-to-read-a-pokemon-card-listing", "vintage-pokemon-cards-worth-buying", "pokemon-booster-box-prices"]) {
     const g = GUIDES.find((x) => x.slug === slug);
