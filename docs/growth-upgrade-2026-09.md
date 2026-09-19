@@ -11,9 +11,13 @@ scanner tests, ratchet at 36 failing / 36 quarantined (pre-existing).
 Commits (in order): `c540d7e` §1 integrity gates · `37c0763` §2/§3 cards,
 CTAs, references, freshness · `ac0525a` §4/§7 Top-N, empty states, ending
 windows, AuctionEnd · `1fb0436` §5 mobile filter sheet · `a83a638` §6 saved
-view, saved searches, alert criteria · (this commit) §8–§11 labelling,
+view, saved searches, alert criteria · `92318b5` §8–§11 labelling,
 checklist offers, distribution kit, paid-test brief, affiliate_click
-dimensions, growth report. Ratchet unchanged at 36 / 36 throughout.
+dimensions, growth report · `a0a1288` production smoke-test fix: the
+ending window now reaches the category (/deals/auctions) and inventory
+loaders (verified live: 1h/6h/24h return only in-window auctions).
+Ratchet unchanged at 36 / 36 throughout. Production READY and aliased to
+pokemondealfinder.com at `a0a1288` (dpl_9NdTUzDnfxwGm8sqmXZzZ35a7N2c).
 
 **Owner action required (the one blocker):** run
 `supabase/price_alerts_criteria_migration.sql` in the Supabase SQL Editor
