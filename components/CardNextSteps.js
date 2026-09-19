@@ -84,16 +84,22 @@ export default function CardNextSteps({
       )}
 
       {ebaySearchHref && (
-        <p className="mt-4 text-sm">
+        // Growth batch 3 (2026-09-20): the catalogue render is the largest
+        // search-landing family and this link is its only route to eBay -
+        // a real control now, but a GHOST one on purpose: browsing all
+        // listings is not a verified deal, so it never wears the primary
+        // (lime) treatment, and the caveat stays beside it.
+        <div className="mt-4">
           <EbaySearchLink
             href={ebaySearchHref}
             event={{ placement: "card_no_deal", cta: "search_ebay" }}
-            className="font-medium text-red-600 hover:underline dark:text-red-400"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-900 transition-colors hover:border-zinc-400 hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
           >
             Search current eBay listings for this card
-          </EbaySearchLink>{" "}
-          <span className="text-xs text-zinc-600 dark:text-zinc-400">(all listings, not checked against market price)</span>
-        </p>
+            <span aria-hidden="true">→</span>
+          </EbaySearchLink>
+          <p className="mt-1.5 text-xs text-zinc-600 dark:text-zinc-400">Shows all listings, not checked against market price — read the photos, condition and shipping before buying.</p>
+        </div>
       )}
     </section>
   );

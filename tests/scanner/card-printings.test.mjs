@@ -37,6 +37,16 @@ test("Shadowless is a printing of Base Set Charizard; Base Set 2 and Evolutions 
   assert.deepEqual(otherPrintings(null, siblings), []);
 });
 
+test("batch 3: the no-deal card page's eBay search is a real control, ghost-styled (never the primary treatment), caveat kept, event unchanged", () => {
+  const src = read("components/CardNextSteps.js");
+  const block = src.slice(src.indexOf("{ebaySearchHref && ("), src.indexOf("</section>"));
+  assert.match(block, /event=\{\{ placement: "card_no_deal", cta: "search_ebay" \}\}/);
+  assert.match(block, /Search current eBay listings for this card/);
+  assert.match(block, /min-h-12 items-center justify-center[^"]*border border-zinc-300 bg-white/);
+  assert.doesNotMatch(block, /bg-red-600|CTA_PRIMARY_CLASS/, "browsing is not a verified deal - no primary treatment");
+  assert.match(block, /not checked against market price/);
+});
+
 test("rendered first in RelatedCards with a labelled reference, no '$' (the worth answer keeps the page's one '$' reference)", () => {
   const src = read("components/RelatedCards.js");
   assert.match(src, /Other printings of this card/);
