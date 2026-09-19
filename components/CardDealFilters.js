@@ -91,6 +91,9 @@ export default function CardDealFilters({
   validSetSlugs = [],
   featuredCount = 4,
   totalActive = null,
+  // §6: the page renders a #price-alert form when email alerts are on -
+  // the filtered empty state then offers it as the "when one appears" path
+  alertsEnabled = false,
 }) {
   const rawSearch = useSyncExternalStore(
     subscribe,
@@ -398,6 +401,7 @@ export default function CardDealFilters({
           dealFiltersActive={dealFiltersActive}
           effective={effective}
           totalActive={totalActive}
+          alertsEnabled={alertsEnabled}
           onRelax={(drop) => applyFacets(Object.fromEntries(drop.map((k) => [k, null])), { action: "remove" })}
         />
       ) : (
@@ -472,7 +476,7 @@ export default function CardDealFilters({
   );
 }
 
-function ZeroState({ dealFiltersActive, effective, totalActive, onRelax }) {
+function ZeroState({ dealFiltersActive, effective, totalActive, onRelax, alertsEnabled = false }) {
   if (!dealFiltersActive) {
     return (
       <p className="text-zinc-600 dark:text-zinc-400">
@@ -512,6 +516,15 @@ function ZeroState({ dealFiltersActive, effective, totalActive, onRelax }) {
           </button>
         ))}
       </div>
+      {alertsEnabled && (
+        <p className="mt-3 text-xs text-zinc-600 dark:text-zinc-400">
+          Or{" "}
+          <a href="#price-alert" className="font-semibold text-red-600 underline underline-offset-2 hover:text-red-700 dark:text-red-400">
+            get an email when a matching listing appears
+          </a>
+          {" "}— the alert can be narrowed to a marketplace, condition or grade.
+        </p>
+      )}
     </div>
   );
 }

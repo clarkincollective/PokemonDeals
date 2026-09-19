@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { NAV_PRIMARY, NAV_GROUPS, NAV_LEARN, NAV_SEARCH } from "@/lib/navLinks";
+import SavedNavLink from "@/components/SavedNavLink";
 
 // Mobile slide-in menu (deal-first R1; mobile UX refinement 2026-09-14).
 // First screen: Search, then the deal shortcut tiles (`menuShortcut` in
@@ -163,6 +164,11 @@ export default function NavMenu() {
                     <span className="sr-only"> cards and prices</span>
                   </span>
                 </a>
+
+                {/* §6: the device's saved cards + searches, with its count */}
+                <div className="mt-3">
+                  <SavedNavLink variant="tile" onClick={close} />
+                </div>
 
                 <p className="mt-5 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Deals</p>
                 <div className="mt-2 grid grid-cols-2 gap-2">

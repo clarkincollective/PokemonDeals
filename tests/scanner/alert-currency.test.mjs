@@ -134,10 +134,13 @@ test("FX failure at entry cannot happen - the form/API store the entered number 
   assert.match(alertsSrc, /const targetPriceUsd =/);
   assert.match(alertsSrc, /target_price_usd: targetPriceUsd/);
   assert.doesNotMatch(alertsSrc, /getUsdRates|toUsd\(|rates\[|frankfurter/i);
-  // the form asks in USD explicitly
+  // the form asks in USD explicitly (2026-09-19: USD is the default of a
+  // closed currency list; the entered number is still never converted)
   const formSrc = read("components/PriceAlertForm.js");
   assert.match(formSrc, /USD/);
-  assert.match(formSrc, /aria-label="Target price in US dollars"/);
+  assert.match(formSrc, /useState\("USD"\)/);
+  assert.match(formSrc, /Target price in US dollars/);
+  assert.doesNotMatch(formSrc, /getUsdRates|toUsd\(|rates\[|frankfurter/i);
 });
 
 test("no trustworthy USD total on the listing -> fail closed (no match) for a targeted alert", () => {
@@ -166,7 +169,9 @@ test("alert email keeps the comparison single-currency (USD/USD when targeted)",
 
 test("dedup guards are unchanged and independent of the currency change", () => {
   const src = read("app/api/check-alerts/route.js");
-  assert.match(src, /a\.last_notified_deal_id === cheapest\.id/);
+  // 2026-09-19: the guard now names the MATCHED offer (criteria may pick a
+  // non-cheapest listing); same rule, same fields
+  assert.match(src, /a\.last_notified_deal_id === offer\.id/);
   assert.match(src, /now - new Date\(a\.last_notified_at\)\.getTime\(\) < RENOTIFY_COOLDOWN_MS/);
   // the migration doesn't touch notification state
   assert.doesNotMatch(read("supabase/price_alerts_usd_migration.sql"), /last_notified|update .* set/i);

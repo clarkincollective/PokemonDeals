@@ -95,7 +95,9 @@ test("Web-Share text (card + sealed deal pages, sealed card) never labels native
 test("alert email: no bare $ on a native amount; comparison is single-currency", () => {
   const src = read("app/api/check-alerts/route.js");
   // untargeted line uses the listing's OWN symbol
-  assert.match(src, /symbolFor\(currencyForDeal\(cheapest\)\)/);
+  // 2026-09-19: the email describes the MATCHED offer (criteria may pick a
+  // non-cheapest listing) - same native-symbol rule
+  assert.match(src, /symbolFor\(currencyForDeal\(offer\)\)/);
   assert.match(src, /const nativeMoney = /);
   // targeted line is USD on BOTH sides (see alert-currency.test.mjs for full coverage)
   assert.match(src, /Current price: \$\{usdLine\} . Your target: \$\$\{targetUsd\.toFixed\(2\)\} USD/);

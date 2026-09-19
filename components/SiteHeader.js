@@ -3,6 +3,7 @@ import Logo from "@/components/Logo";
 import NavMenu from "@/components/NavMenu";
 import NavDropdown from "@/components/NavDropdown";
 import RegionControl from "@/components/RegionControl";
+import SavedNavLink from "@/components/SavedNavLink";
 import { NAV_PRIMARY, NAV_GROUPS, NAV_SEARCH, navGroupItems } from "@/lib/navLinks";
 
 // Shared sticky header (deal-first R1). Desktop (>= lg): the logo, then
@@ -44,6 +45,9 @@ export default function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* §6: "Saved (N)" - a utility beside the market control, not a
+              fourth destination; the count is this device's own list */}
+          <SavedNavLink />
           <RegionControl />
           <a
             href={NAV_SEARCH.href}

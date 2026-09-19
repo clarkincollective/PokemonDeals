@@ -1,13 +1,35 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { emailEnabled, sendEmail } from "@/lib/email";
 import { newsletterOptInStatus } from "@/lib/newsletterFlow";
+import { normalizeAlertCriteria, describeCriteria } from "@/lib/alertMatch";
 
 export const dynamic = "force-dynamic";
 
 const SITE_URL = "https://pokemondealfinder.com";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const SLUG_RE = /^[a-z0-9-]+$/;
 
-// POST /api/alerts  { email, cardSlug, cardName, targetPrice? }
+// 2026-09-19 §6 - the criteria columns (supabase/price_alerts_criteria_
+// migration.sql) may not have been applied yet. Probe once per instance;
+// a miss means: default criteria are stored exactly as before, anything
+// narrower is refused with criteria_unavailable rather than silently
+// widened to "any listing".
+let criteriaReadyCache = null;
+async function criteriaSchemaReady(db) {
+  if (criteriaReadyCache != null) return criteriaReadyCache;
+  const { error } = await db.from("price_alerts").select("digest").limit(1);
+  criteriaReadyCache = !error;
+  return criteriaReadyCache;
+}
+
+const isDefaultCriteria = (c) =>
+  !c.marketplace && !c.condition && !c.grader && c.grade == null && c.target_currency === "USD" &&
+  c.target_scope === "all_in" && c.alert_kind === "card" && c.min_discount == null && !c.digest;
+
+// POST /api/alerts
+//   { email, cardSlug, cardName, targetPrice?, newsletter?,
+//     marketplace?, condition?, grader?, grade?, targetCurrency?, targetScope?,
+//     minDiscount?, digest?, alertKind? ("card" | "set"), setSlug?, setName? }
 //   -> creates an unconfirmed alert and emails a confirmation link.
 export async function POST(request) {
   if (!emailEnabled()) {
@@ -22,29 +44,61 @@ export async function POST(request) {
   }
 
   const email = String(body.email ?? "").trim().toLowerCase();
-  const cardSlug = String(body.cardSlug ?? "").trim();
-  const cardName = String(body.cardName ?? "").trim();
   const wantsNewsletter = body.newsletter === true;
+  const criteria = normalizeAlertCriteria(body);
+
+  // Subject: a card (the historic shape) or a whole set (alert_kind=set,
+  // keyed as `set:<slug>` in card_slug so the one-alert-per-email+subject
+  // rule and the token flow are shared unchanged).
+  let cardSlug, cardName;
+  if (criteria.alert_kind === "set") {
+    const setSlug = String(body.setSlug ?? "").trim();
+    const setName = String(body.setName ?? "").trim();
+    if (!SLUG_RE.test(setSlug) || !setName || setSlug.length > 120 || setName.length > 120) {
+      return Response.json({ ok: false, reason: "invalid_set" }, { status: 400 });
+    }
+    cardSlug = `set:${setSlug}`;
+    cardName = `${setName} (any card)`;
+    criteria.criteria = { set_slug: setSlug, set_name: setName };
+    if (criteria.min_discount == null) criteria.min_discount = 0.2; // a set alert is always a discount alert
+  } else {
+    cardSlug = String(body.cardSlug ?? "").trim();
+    cardName = String(body.cardName ?? "").trim();
+    if (!cardSlug || !cardName || cardSlug.length > 200) {
+      return Response.json({ ok: false, reason: "invalid_card" }, { status: 400 });
+    }
+  }
+
   const targetRaw = body.targetPrice;
-  // The form asks for this explicitly in USD (no client-side FX, no
-  // conversion) and it is stored + compared as USD -
-  // deals.total_price_usd <= target_price_usd. See
-  // supabase/price_alerts_usd_migration.sql.
-  const targetPriceUsd =
+  // The number is stored AS ENTERED in the alert's own currency (no FX at
+  // entry) and compared at check time (lib/alertMatch). A USD alert also
+  // writes the historic target_price_usd column so every older read path
+  // sees the same USD threshold. See supabase/price_alerts_usd_migration.sql
+  // and price_alerts_criteria_migration.sql.
+  const targetAmount =
     targetRaw != null && targetRaw !== "" && Number.isFinite(Number(targetRaw)) && Number(targetRaw) > 0
       ? Number(targetRaw)
       : null;
+  const targetPriceUsd = targetAmount != null && criteria.target_currency === "USD" ? targetAmount : null;
+  // a set alert has no price target; the min-discount floor is its threshold
+  if (criteria.alert_kind === "set" && targetAmount != null) {
+    return Response.json({ ok: false, reason: "set_alert_has_no_target" }, { status: 400 });
+  }
 
   if (!EMAIL_RE.test(email) || email.length > 254) {
     return Response.json({ ok: false, reason: "invalid_email" }, { status: 400 });
   }
-  if (!cardSlug || !cardName || cardSlug.length > 200) {
-    return Response.json({ ok: false, reason: "invalid_card" }, { status: 400 });
-  }
 
   const db = supabaseAdmin();
+  const criteriaReady = await criteriaSchemaReady(db);
+  if (!criteriaReady && !isDefaultCriteria(criteria)) {
+    return Response.json({ ok: false, reason: "criteria_unavailable" }, { status: 503 });
+  }
+  if (!criteriaReady && targetAmount != null && criteria.target_currency !== "USD") {
+    return Response.json({ ok: false, reason: "criteria_unavailable" }, { status: 503 });
+  }
 
-  // One pending/active alert per email+card - re-submitting just refreshes it.
+  // One pending/active alert per email+subject - re-submitting just refreshes it.
   const { data: existing } = await db
     .from("price_alerts")
     .select("id, token, confirmed")
@@ -54,12 +108,28 @@ export async function POST(request) {
 
   const token = existing?.token ?? cryptoToken();
 
+  const criteriaColumns = criteriaReady
+    ? {
+        marketplace: criteria.marketplace,
+        condition: criteria.condition,
+        grader: criteria.grader,
+        grade: criteria.grade,
+        target_amount: targetAmount,
+        target_currency: criteria.target_currency,
+        target_scope: criteria.target_scope,
+        alert_kind: criteria.alert_kind,
+        min_discount: criteria.min_discount,
+        criteria: criteria.criteria ?? null,
+        digest: criteria.digest,
+      }
+    : {};
+
   if (existing) {
     // Clear any stale legacy `target_price` so a re-set never leaves a
     // row half-legacy (which the cron would treat as dormant).
     const { error } = await db
       .from("price_alerts")
-      .update({ card_name: cardName, target_price_usd: targetPriceUsd, target_price: null })
+      .update({ card_name: cardName, target_price_usd: targetPriceUsd, target_price: null, ...criteriaColumns })
       .eq("id", existing.id);
     if (error) return Response.json({ ok: false, reason: "db_error" }, { status: 500 });
   } else {
@@ -69,6 +139,7 @@ export async function POST(request) {
       card_name: cardName,
       target_price_usd: targetPriceUsd,
       token,
+      ...criteriaColumns,
     });
     if (error) return Response.json({ ok: false, reason: "db_error" }, { status: 500 });
   }
@@ -105,18 +176,26 @@ export async function POST(request) {
   const newsletterStatus = newsletterOptInStatus({ requested: wantsNewsletter, lookupError, existing: existingSub, insertError, updateError });
 
   if (existing?.confirmed) {
-    return Response.json({ ok: true, status: "already_confirmed", ...(wantsNewsletter ? { newsletter: newsletterStatus } : {}) });
+    return Response.json({ ok: true, status: "already_confirmed", notes: criteria.notes, ...(wantsNewsletter ? { newsletter: newsletterStatus } : {}) });
   }
 
   const confirmUrl = `${SITE_URL}/api/alerts?token=${token}&action=confirm`;
-  const targetLine = targetPriceUsd
-    ? `at or below $${targetPriceUsd.toFixed(2)} USD`
-    : `below its market price`;
+  const criteriaLine = describeCriteria({
+    ...criteriaColumns,
+    target_price_usd: targetPriceUsd,
+    target_amount: criteriaReady ? targetAmount : null,
+    min_discount: criteriaReady ? criteria.min_discount : null,
+  });
+  const targetLine = criteriaLine
+    ? `matching: ${criteriaLine}`
+    : targetPriceUsd
+      ? `at or below $${targetPriceUsd.toFixed(2)} USD`
+      : `below its market price`;
   const send = await sendEmail({
     to: email,
     subject: `Confirm your ${cardName} price alert`,
     text: `Confirm you want an email when ${cardName} is listed ${targetLine}:\n${confirmUrl}\n\nIf you didn't request this, ignore this email.`,
-    html: `<p>Confirm you want an email when <strong>${escapeHtml(cardName)}</strong> is listed ${targetLine}:</p>
+    html: `<p>Confirm you want an email when <strong>${escapeHtml(cardName)}</strong> is listed ${escapeHtml(targetLine)}:</p>
 <p><a href="${confirmUrl}">Confirm price alert</a></p>
 <p style="color:#888;font-size:12px">If you didn't request this, just ignore this email.</p>`,
   });
@@ -124,7 +203,7 @@ export async function POST(request) {
   if (!send.sent) {
     return Response.json({ ok: false, reason: send.reason ?? "send_failed" }, { status: 502 });
   }
-  return Response.json({ ok: true, status: "confirmation_sent", ...(wantsNewsletter ? { newsletter: newsletterStatus } : {}) });
+  return Response.json({ ok: true, status: "confirmation_sent", notes: criteria.notes, ...(wantsNewsletter ? { newsletter: newsletterStatus } : {}) });
 }
 
 // GET /api/alerts?token=...&action=confirm|unsubscribe
@@ -158,10 +237,11 @@ export async function GET(request) {
     .eq("email", row.email)
     .eq("confirmed", false)
     .is("unsubscribed_at", null);
+  const back = row.card_slug.startsWith("set:") ? `${SITE_URL}/sets/${row.card_slug.slice(4)}` : `${SITE_URL}/cards/${row.card_slug}`;
   return htmlResponse(
     `You're set. We'll email you when ${escapeHtml(row.card_name)} next has a matching listing.`,
     200,
-    `${SITE_URL}/cards/${row.card_slug}`
+    back
   );
 }
 

@@ -355,6 +355,32 @@ export default async function DealDetailPage({ params }) {
                 See current listings for this card →
               </Link>
             )}
+            {/* §3/§6: an unavailable listing is a save-or-alert moment - keep
+                the card on this device, or ask to be emailed when a matching
+                listing appears (the card page's anchored alert form). */}
+            {deal && (
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <SaveCardButton
+                  card={{
+                    slug: cardHub?.slug ?? null,
+                    dealId: deal.id,
+                    name: cardName,
+                    set: cardSet,
+                    image: trustedDealImageUrl(deal),
+                    price: deal.total_price,
+                    currency: currencyForDeal(deal),
+                  }}
+                />
+                {cardHub && emailEnabled() && (
+                  <Link
+                    href={`/cards/${cardHub.slug}#price-alert`}
+                    className="inline-flex min-h-11 items-center rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 hover:border-red-300 hover:text-red-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:text-red-500"
+                  >
+                    🔔 Email me when it&apos;s listed again
+                  </Link>
+                )}
+              </div>
+            )}
             <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm">
               {speciesHub && (
                 <Link href={`/pokemon/${speciesHub.slug}`} className="font-medium text-red-600 hover:underline dark:text-red-500">

@@ -7,7 +7,8 @@ import Pagination, { pageHref } from "@/components/Pagination";
 import GridSkeleton from "@/components/GridSkeleton";
 import { AppliedFilters, FilterNotes, FilteredEmptyState, EmptyGridState } from "@/components/DealFilterChips";
 import MarketplaceScopeNote from "@/components/MarketplaceScopeNote";
-import { hasActiveDealFilters, normalizeDealFilters } from "@/lib/dealFilters";
+import { hasActiveDealFilters, normalizeDealFilters, appliedFilterChips } from "@/lib/dealFilters";
+import SaveSearchButton from "@/components/SaveSearchButton";
 import { crossLanguageHref } from "@/lib/dealCategories";
 
 // The filterable, paginated deal grid for /sets/[slug] and
@@ -90,6 +91,27 @@ const NARROWED_NOUN = {
   supported_saving: { one: "listing with a supported saving", many: "listings with a supported saving" },
   live_auction: { one: "live auction", many: "live auctions" },
 };
+
+// §6: a saved search's human label - the applied-filter chips plus the
+// marketplace / sort / search term when set. Never an id, never a URL.
+function savedSearchChips(params) {
+  return appliedFilterChips({
+    type: params.cardType,
+    grader: params.grader,
+    grade: params.grade,
+    listing: params.listingType,
+    ending: params.ending,
+    minPrice: params.minPrice,
+    maxPrice: params.maxPrice,
+  });
+}
+function savedSearchLabel(params) {
+  const parts = savedSearchChips(params).map((c) => c.label);
+  if (params.q) parts.push(`"${params.q}"`);
+  if (params.country && params.country !== "all") parts.push(params.country.replace("EBAY_", "eBay "));
+  if (params.sort) parts.push(`sorted by ${params.sort.replace(/_/g, " ")}`);
+  return parts.join(" · ") || "Filtered deals";
+}
 
 // The same URL with `keys` removed and pagination reset.
 function hrefWithout(params, keys, basePath) {
@@ -499,13 +521,24 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
           scoped to the Pokemon page only). Plain nofollow <a> nav, no JS. */}
       <FilterNotes params={params.obj} />
       {filtered && (
-        <AppliedFilters
-          params={params.obj}
-          basePath={basePath}
-          resultCount={loading || exactInventory ? undefined : view.deals.length}
-          totalCount={loading || exactInventory ? undefined : view.totalCount}
-          searchQuery={searchable ? params.q : null}
-        />
+        <div className="flex flex-wrap items-start justify-between gap-x-4">
+          <AppliedFilters
+            params={params.obj}
+            basePath={basePath}
+            resultCount={loading || exactInventory ? undefined : view.deals.length}
+            totalCount={loading || exactInventory ? undefined : view.totalCount}
+            searchQuery={searchable ? params.q : null}
+          />
+          {/* §6: keep this filtered view on the device (lib/savedSearches);
+              the label is the same chip summary the row above shows */}
+          <SaveSearchButton
+            href={`${basePath}${params.raw ? `?${params.raw}` : ""}`}
+            label={savedSearchLabel(params)}
+            scope={subjectLabel ?? basePath}
+            facetCount={savedSearchChips(params).length + (searchable && params.q ? 1 : 0)}
+            className="mb-4"
+          />
+        </div>
       )}
 
       {guardColdNav ? (

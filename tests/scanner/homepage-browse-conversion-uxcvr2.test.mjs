@@ -140,7 +140,9 @@ test("UX-CVR-2-5. an empty grid offers real recovery actions, never a dead blank
 test("UX-CVR-2-6. active-filter visibility is on every grid now, not just the Pokemon page", () => {
   // the showGrading-only guard was dropped for AppliedFilters / FilterNotes
   assert.match(DEALGRID, /\n\s*<FilterNotes params=\{params\.obj\} \/>/);
-  assert.match(DEALGRID, /\{filtered && \(\s*<AppliedFilters/);
+  // 2026-09-19 §6: a wrapper row places "Save this search" beside the chips;
+  // the chips still render for EVERY filtered grid, gated on `filtered` alone
+  assert.match(DEALGRID, /\{filtered && \(\s*<div className="flex flex-wrap items-start justify-between gap-x-4">\s*<AppliedFilters/);
   assert.doesNotMatch(DEALGRID, /showGrading && filtered && \(\s*<AppliedFilters/);
 });
 

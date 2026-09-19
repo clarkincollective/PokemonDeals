@@ -38,6 +38,8 @@ import { sortCards, DEFAULT_SORT } from "@/lib/catalogueView";
 // page, outside fetchSetCatalog's cached payload (see below).
 import { isChecklistSet, checklistIdentityCheck } from "@/lib/setChecklist";
 import SiteFooter from "@/components/SiteFooter";
+import PriceAlertForm from "@/components/PriceAlertForm";
+import { emailEnabled } from "@/lib/email";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -301,6 +303,18 @@ export default async function SetDetailPage({ params }) {
         validSetSlugs={[slug]}
         compactFilters
       />
+      )}
+      {/* §6: a set-level alert - any card in this set with a supported
+          saving at or above the subscriber's floor (lib/alertMatch). */}
+      {emailEnabled() && (
+        <div id="price-alert" className="mt-6 scroll-mt-24 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            Get an email when any {setLabel} card is well below market
+          </p>
+          <div className="mt-2">
+            <PriceAlertForm kind="set" setSlug={slug} setName={resolved.set} cardSlug={`set:${slug}`} cardName={`${resolved.set} (any card)`} />
+          </div>
+        </div>
       )}
     </section>
   );

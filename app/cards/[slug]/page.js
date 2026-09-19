@@ -483,12 +483,16 @@ export default async function CardHubPage({ params }) {
                   </AffiliateLink>
                 )}
                 {emailEnabled() && (
-                  <PriceAlertForm
-                    cardSlug={slug}
-                    cardName={hub.name}
-                    // audit-r1: without a live offer, suggest 10% under the catalogue reference
-                    suggestedPrice={cheapest ? (cheapest.total_price_usd ?? cheapest.total_price) : isUsableUsdPrice(hubRaw) ? Math.round(Number(hubRaw) * 0.9 * 100) / 100 : null}
-                  />
+                  // §6: anchored so /saved, the filtered empty state and the
+                  // expired-deal page can send a visitor straight here
+                  <div id="price-alert" className="scroll-mt-24">
+                    <PriceAlertForm
+                      cardSlug={slug}
+                      cardName={hub.name}
+                      // audit-r1: without a live offer, suggest 10% under the catalogue reference
+                      suggestedPrice={cheapest ? (cheapest.total_price_usd ?? cheapest.total_price) : isUsableUsdPrice(hubRaw) ? Math.round(Number(hubRaw) * 0.9 * 100) / 100 : null}
+                    />
+                  </div>
                 )}
               </div>
             </CardWorthAnswer>
@@ -519,6 +523,7 @@ export default async function CardHubPage({ params }) {
             validSetSlugs={validSetSlugs}
             featuredCount={FEATURED_OFFER_COUNT}
             totalActive={allOffers.length}
+            alertsEnabled={emailEnabled()}
           />
         </div>
 

@@ -5,7 +5,7 @@ import SiteFooter from "@/components/SiteFooter";
 
 const SITE_URL = "https://pokemondealfinder.com";
 const CONTACT_EMAIL = "pokemondealfinder@gmail.com";
-const LAST_UPDATED = "7 September 2026";
+const LAST_UPDATED = "19 September 2026";
 
 const TITLE = "Privacy Policy";
 const DESCRIPTION =
@@ -91,7 +91,7 @@ export default function PrivacyPolicyPage() {
         </p>
         <ul className={ul}>
           <li>your currency and region / &ldquo;shipping to&rdquo; choice;</li>
-          <li>cards you have saved and cards you have recently viewed;</li>
+          <li>cards you have saved, searches you have saved (the filter combination and the page it applies to), and cards you have recently viewed — the <Link href="/saved" className="text-red-600 hover:underline dark:text-red-500">Saved</Link> page reads only this;</li>
           <li>a timestamp of your last visit, used to show a &ldquo;new since your last visit&rdquo; count.</li>
         </ul>
         <p className={p}>
@@ -119,9 +119,12 @@ export default function PrivacyPolicyPage() {
         </p>
         <ul className={ul}>
           <li>
-            <strong>Per-card price alerts</strong> — on a card page you can ask to be emailed when
-            that card next has a listing at or below a price you choose. We store your email address,
-            the card and target price, and a random unsubscribe token.
+            <strong>Per-card and per-set price alerts</strong> — on a card page you can ask to be emailed when
+            that card next has a listing at or below a price you choose; on a set page, when any card in
+            the set is well below market. We store your email address, the card or set, the target price
+            and its currency, any narrowing you chose (listing marketplace, condition or grade, whether the
+            target applies to the delivered total or the item price, and whether you asked for one bundled
+            email per check), and a random unsubscribe token.
           </li>
           <li>
             <strong>Deal alerts / the deals digest</strong> — an occasional email of standout
