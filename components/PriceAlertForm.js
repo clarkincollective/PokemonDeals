@@ -161,7 +161,7 @@ export default function PriceAlertForm({ cardSlug, cardName, suggestedPrice, kin
       >
         {status === "sending" ? "Sending…" : "Notify me"}
       </button>
-      {status === "error" && <p role="alert" className="w-full text-sm text-red-600 dark:text-red-400">{message}</p>}
+      {status === "error" && <p role="alert" className="w-full text-sm text-danger">{message}</p>}
 
       <button
         type="button"

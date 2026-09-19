@@ -192,6 +192,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
   return (
     <article
       {...analyticsAttrs}
+      data-deal-card=""
       data-offer-state={isAuction ? "auction" : showSavings ? "bin_compared" : "bin_plain"}
       data-shipping={ship.state}
       className="group grid h-full grid-cols-[7.25rem_1fr] grid-rows-[auto_auto] overflow-hidden rounded-xl border border-zinc-200 bg-white transition-shadow duration-200 hover:shadow-card-hover focus-within:shadow-card-hover sm:flex sm:flex-col dark:border-zinc-800 dark:bg-zinc-950"

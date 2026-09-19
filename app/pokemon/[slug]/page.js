@@ -341,7 +341,7 @@ export default async function PokemonSpeciesPage({ params }) {
         <RegionSuffix />
       </h2>
 
-      {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
+      {error && <p className="rounded-lg bg-danger/10 p-4 text-danger">Couldn&apos;t load deals: {error}</p>}
 
       {deals.length === 0 && !error ? (
         <p className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">

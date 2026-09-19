@@ -114,7 +114,7 @@ export default async function PokemonIndexPage() {
 
       <main id="main-content" tabIndex={-1} className="scroll-mt-6 mx-auto w-full max-w-7xl flex-1 px-6 py-6 sm:py-8">
         {error && (
-          <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deal data: {error}</p>
+          <p className="rounded-lg bg-danger/10 p-4 text-danger">Couldn&apos;t load deal data: {error}</p>
         )}
 
         <PokemonFilterList groups={groups} />

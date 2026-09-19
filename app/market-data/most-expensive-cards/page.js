@@ -149,7 +149,7 @@ export default async function MostValuableCardsPage() {
       </header>
 
       <main id="main-content" tabIndex={-1} className="scroll-mt-6 mx-auto w-full max-w-4xl flex-1 px-6 py-6 sm:py-8">
-        {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load data: {error}</p>}
+        {error && <p className="rounded-lg bg-danger/10 p-4 text-danger">Couldn&apos;t load data: {error}</p>}
 
         <ol className="divide-y divide-zinc-100 dark:divide-zinc-900">
           {cards.map((card, i) => {

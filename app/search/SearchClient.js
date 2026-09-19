@@ -515,7 +515,7 @@ export default function SearchClient({
 
       <div className="mx-auto w-full max-w-7xl px-6 py-4">
         {searchError && (
-          <p role="alert" className="rounded-lg bg-red-50 p-4 text-red-700">
+          <p role="alert" className="rounded-lg bg-danger/10 p-4 text-danger">
             Couldn&apos;t run that search right now. Please try again in a moment.
           </p>
         )}

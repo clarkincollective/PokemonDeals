@@ -639,7 +639,7 @@ export default async function CardHubPage({ params }) {
         </p>
 
         {error && (
-          <p className="mt-6 rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load listings: {error}</p>
+          <p className="mt-6 rounded-lg bg-danger/10 p-4 text-danger">Couldn&apos;t load listings: {error}</p>
         )}
 
         <RelatedCards

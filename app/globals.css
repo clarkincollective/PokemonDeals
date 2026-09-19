@@ -1,23 +1,38 @@
 @import "tailwindcss";
 
-/* Runtime CSS vars - the ones that must flip with the OS colour scheme
-   (this site follows prefers-color-scheme; there's no manual toggle). */
-:root {
-  --background: #faf9f7;
-  --foreground: #171514;
-  --sunk: #f2f0eb; /* tinted ground for alternating sections */
-  --surface: #ffffff;
-  --hairline: #e7e4dd;
-}
+/* =====================================================================
+   THEME - redesign 2026-09 (docs/design/redesign-2026-09.html)
+   ---------------------------------------------------------------------
+   One theme, dark-first: a collector's trading terminal. The `dark`
+   class on <html> (app/layout.js) selects every existing dark: variant
+   unconditionally, so the components' well-maintained dark styles ARE
+   the design; the tokens below re-point the palette they use.
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b0b0c;
-    --foreground: #ededed;
-    --sunk: #141416;
-    --surface: #141416;
-    --hairline: #26262a;
-  }
+   Palette (every colour the utilities resolve to lives here)
+     ground   zinc-950 #0B0D10   panels zinc-900 #11141A
+     cards    zinc-800 #171B22   raised zinc-700 #262C36
+     lines    zinc-700 / zinc-600
+     ink      zinc-50 #EEF1F5 · zinc-200/300 secondary · zinc-400 #A7B0BE
+              · zinc-500 #6E7887 captions (4.6:1 on ground)
+     accent   red-* -> electric lime #D5F542 (the "brand red" slot is the
+              site's one accent; every CTA, active pill and link hover
+              already uses it). Text ON a lime fill is forced to ground
+              by the unlayered rule below - no class name changed.
+     savings  emerald-* -> the same lime family: a supported saving and
+              the primary action are the only two things that glow.
+     auction  amber-* #F2B84B - a bid, never a saving
+     danger   #FF6B6B - errors only (role="alert", load-error panes)
+   Type       Sora (display) · Inter Tight (UI) · JetBrains Mono (.tnum)
+   ===================================================================== */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: dark;
+  --background: #0B0D10;
+  --foreground: #EEF1F5;
+  --sunk: #11141A; /* tinted ground for alternating sections */
+  --surface: #171B22;
+  --hairline: #262C36;
 }
 
 @theme inline {
@@ -26,54 +41,109 @@
   --color-sunk: var(--sunk);
   --color-surface: var(--surface);
   --color-hairline: var(--hairline);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter-tight);
+  --font-mono: var(--font-jetbrains-mono);
+  --font-display: var(--font-sora);
 }
 
 @theme {
-  /* Warm neutral surfaces. Small secondary text has separate contrast
-     corrections below; surface colours alone are not text guarantees. */
-  --color-zinc-50: #faf9f7;
-  --color-zinc-100: #f3f1ed;
-  --color-zinc-200: #e7e4dd;
-  --color-zinc-300: #d7d2c8;
-  --color-zinc-400: #a39b8f;
-  --color-zinc-500: #7d7568;
-  --color-zinc-600: #5c554b;
-  --color-zinc-700: #423c34;
-  --color-zinc-800: #2a251f;
-  --color-zinc-900: #1a1613;
-  --color-zinc-950: #100e0c;
+  /* Blue-black neutrals (see the header comment). Small secondary text
+     has a separate contrast correction below. */
+  --color-zinc-50: #F7F8FA;
+  --color-zinc-100: #EEF1F5;
+  --color-zinc-200: #DDE2E9;
+  --color-zinc-300: #C5CCD6;
+  --color-zinc-400: #A7B0BE;
+  --color-zinc-500: #6E7887;
+  --color-zinc-600: #343B47;
+  --color-zinc-700: #262C36;
+  --color-zinc-800: #171B22;
+  --color-zinc-900: #11141A;
+  --color-zinc-950: #0B0D10;
+  --color-white: #F7F8FA;
+  --color-black: #0B0D10;
 
-  /* Brand red - deeper, less "browser-alert" than stock red-600 */
-  --color-red-500: #e13a3a;
-  --color-red-600: #d62828;
-  --color-red-700: #b71f1f;
+  /* The accent slot: electric lime. */
+  --color-red-50: rgb(213 245 66 / 0.12);
+  --color-red-100: rgb(213 245 66 / 0.18);
+  --color-red-200: rgb(213 245 66 / 0.28);
+  --color-red-300: rgb(213 245 66 / 0.45);
+  --color-red-400: #E2FF5A;
+  --color-red-500: #E2FF5A;
+  --color-red-600: #D5F542;
+  --color-red-700: #C2E332;
+  --color-red-800: #A9C91C;
+  --color-red-900: rgb(213 245 66 / 0.3);
+  --color-red-950: rgb(213 245 66 / 0.08);
 
-  /* Deal / savings green - slightly deeper */
-  --color-emerald-500: #12934f;
-  --color-emerald-600: #0e7c46;
-  --color-emerald-700: #0a6a3c;
+  /* Supported savings: the same family, one tone quieter for text. */
+  --color-emerald-50: rgb(213 245 66 / 0.12);
+  --color-emerald-100: rgb(213 245 66 / 0.18);
+  /* 400/500 are the TEXT tones (dark: variants) - muted so a savings line
+     reads as data beside the badge, not as a second badge. 600/700 are
+     the badge fills. */
+  --color-emerald-400: #C3D94F;
+  --color-emerald-500: #B9D42E;
+  --color-emerald-600: #C2E332;
+  --color-emerald-700: #B8DB1F;
+  --color-emerald-800: rgb(213 245 66 / 0.35);
+  --color-emerald-900: rgb(213 245 66 / 0.3);
+  --color-emerald-950: rgb(213 245 66 / 0.08);
 
-  /* Amber accent: live dot, "just added" freshness */
-  --color-live: #e0982f;
+  /* Auctions and freshness: amber, readable on the ground. */
+  --color-amber-400: #F7C766;
+  --color-amber-500: #F2B84B;
+  --color-amber-600: #E0A43C;
+  --color-amber-700: #F2B84B;
+  --color-amber-50: rgb(242 184 75 / 0.12);
+  --color-amber-950: rgb(242 184 75 / 0.1);
+  --color-live: #F2B84B;
+
+  /* Errors only. */
+  --color-danger: #FF6B6B;
 
   --radius-card: 0.75rem;
-  --shadow-card: 0 1px 2px rgb(20 18 15 / 0.05);
-  --shadow-card-hover: 0 12px 32px -16px rgb(20 18 15 / 0.16);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-card-hover: 0 12px 32px rgb(0 0 0 / 0.35);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+  font-family: var(--font-inter-tight), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
     Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Prices and other figures line up column-to-column */
+/* Display headings: Sora, tight. h3+ stay in the UI face. */
+h1, h2 {
+  font-family: var(--font-sora), var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/* Prices and other figures: mono, tabular, line up column-to-column */
 .tnum {
+  font-family: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Text on a lime fill is the ground colour, whatever text-* utility the
+   component carries (the CTA, badge and pill class names are pinned by
+   tests and unchanged). Unlayered, so it beats the utilities layer. */
+.bg-red-500, .bg-red-600, .bg-red-700, .bg-red-800,
+.hover\:bg-red-600:hover, .hover\:bg-red-700:hover, .active\:bg-red-800:active,
+.bg-emerald-500, .bg-emerald-600, .bg-emerald-700,
+.dark\:hover\:bg-red-600:hover {
+  color: #0B0D10;
+}
+/* Filled dark buttons that hover to the accent (nav / grid CTAs) */
+.dark\:bg-zinc-50.dark\:hover\:bg-red-600:hover { color: #0B0D10; }
+
+/* Deal cards: a restrained lift on pointer hover, the badge with it. */
+@media (hover: hover) {
+  article[data-deal-card] { transition: transform 180ms cubic-bezier(.2,.7,.2,1), box-shadow 180ms, border-color 180ms; }
+  article[data-deal-card]:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); border-color: var(--color-zinc-600); }
 }
 
 /* /sets directory views (app/sets/page.js). The hash picks the view via
@@ -85,27 +155,21 @@ body {
 [data-sets-views]:has(#collection-checklists:target) [data-sets-pane="all"] { display: none; }
 [data-sets-views]:not(:has(#collection-checklists:target)) [data-sets-tab="all"],
 [data-sets-views]:has(#collection-checklists:target) [data-sets-tab="checklists"] {
-  background: var(--color-zinc-900);
-  color: var(--color-white);
-}
-@media (prefers-color-scheme: dark) {
-  [data-sets-views]:not(:has(#collection-checklists:target)) [data-sets-tab="all"],
-  [data-sets-views]:has(#collection-checklists:target) [data-sets-tab="checklists"] {
-    background: var(--color-zinc-100);
-    color: var(--color-zinc-950);
-  }
+  background: var(--color-zinc-100);
+  color: var(--color-zinc-950);
 }
 
-/* Secondary text must remain readable on both paper and tinted surfaces.
-   Only text utilities change: artwork, borders and surface tokens retain
-   their palette. Keep print's explicit black text rules independent. */
-@media screen and (prefers-color-scheme: light) {
-  .text-zinc-400,
-  .text-zinc-500 { color: var(--color-zinc-600); }
-}
-@media screen and (prefers-color-scheme: dark) {
+/* Secondary text must remain readable on the tinted surfaces: zinc-500
+   as a text colour lifts to zinc-400 (7.6:1). Only text utilities change;
+   borders and surface tokens keep their palette. Print rules independent. */
+@media screen {
   .text-zinc-500:not([class*="dark:text-"]),
   .dark\:text-zinc-500 { color: var(--color-zinc-400); }
+  .text-zinc-600:not([class*="dark:text-"]) { color: var(--color-zinc-300); }
+  .text-zinc-700:not([class*="dark:text-"]) { color: var(--color-zinc-200); }
+  .text-zinc-800:not([class*="dark:text-"]),
+  .text-zinc-900:not([class*="dark:text-"]),
+  .text-black:not([class*="dark:text-"]) { color: var(--color-zinc-50); }
 }
 
 /* Reading links remain distinguishable without colour or hover. */

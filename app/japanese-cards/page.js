@@ -159,7 +159,7 @@ export default async function JapaneseCardsPage({ searchParams }) {
           Japanese Card Deals{page > 1 ? ` - Page ${page}` : ""}
         </h2>
 
-        {error && <p className="rounded-lg bg-red-50 p-4 text-red-700">Couldn&apos;t load deals: {error}</p>}
+        {error && <p className="rounded-lg bg-danger/10 p-4 text-danger">Couldn&apos;t load deals: {error}</p>}
 
         {!error && <MarketplaceScopeNote params={params} basePath="/japanese-cards" thin={page === 1 && (deals?.length ?? 0) < 8} />}
 

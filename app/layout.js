@@ -1,5 +1,5 @@
 import Script from "next/script";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Sora, Inter_Tight, JetBrains_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import CurrencyProvider from "@/components/CurrencyProvider";
@@ -8,15 +8,12 @@ import AnalyticsBootstrap from "@/components/analytics/AnalyticsBootstrap";
 import { organizationSameAs } from "@/lib/socialProfiles";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Redesign 2026-09 (docs/design/redesign-2026-09.html): three faces, all
+// self-hosted through next/font - Sora for display headings, Inter Tight
+// for UI text, JetBrains Mono (tabular) for every price, %, count and time.
+const sora = Sora({ variable: "--font-sora", subsets: ["latin"], weight: ["600", "700"] });
+const interTight = Inter_Tight({ variable: "--font-inter-tight", subsets: ["latin"], weight: ["400", "500", "600", "700"] });
+const jetbrainsMono = JetBrains_Mono({ variable: "--font-jetbrains-mono", subsets: ["latin"], weight: ["500", "600"] });
 
 const SITE_URL = "https://pokemondealfinder.com";
 const SITE_TITLE = "Pokemon Deal Finder";
@@ -109,7 +106,9 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // `dark` selects every dark: variant unconditionally (globals.css
+      // @custom-variant): the site is dark-first, one theme, by design.
+      className={`dark ${sora.variable} ${interTight.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <head>
         <script

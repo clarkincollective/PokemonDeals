@@ -95,7 +95,7 @@ function FilterPill({ href, active, children, ...rest }) {
       rel="nofollow"
       className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
         active
-          ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-50 dark:bg-zinc-50 dark:text-zinc-900"
+          ? "border-red-300 bg-red-50 text-red-700 dark:border-red-300 dark:bg-red-50 dark:text-red-700"
           : "border-zinc-200 bg-white text-zinc-600 hover:border-red-300 hover:text-red-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:text-red-500"
       }`}
     >

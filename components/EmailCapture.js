@@ -193,7 +193,7 @@ export default function EmailCapture({ placement = "homepage", pageType, heading
             </button>
 
             {status === "error" && (
-              <p className="w-full text-xs text-red-400" role="alert">
+              <p className="w-full text-xs text-danger" role="alert">
                 {message}
               </p>
             )}
