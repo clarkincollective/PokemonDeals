@@ -35,7 +35,8 @@ samples; treat as directional.
 | 7 | "Every X card" intros on `/pokemon/[slug]` | 900+ species pages | Set/list intent at pos 64–80 | Medium · medium | Low | **DEFERRED**: species indexation experiment window to 2026-10-28 / 11-11 (do not change cohorts) |
 | 8 | Set-page → offers conversion (304 views, 13 clicks) | `/sets/[slug]` | Largest content family by views | Low–medium · low (most set views are catalogue-only sets with no live offers) | Low | Watch; revisit with batch-1 data |
 | 9 | `cards-low` shard (3,122 URLs) | sitemap index | Same logic as #2 | Low–medium · low | Low | Wait for #2 measurement |
-| 10 | Competitive SERP sampling | 3 target intents | Gap identification | Medium · medium | Medium | Next batch |
+| 10 | Competitive SERP sampling | 3 target intents | Gap identification | Medium · medium | Medium | **Done 2026-09-20** → produced batch 2; set template already competitive; deal SERP = clones |
+| 11 | "Other printings of this card" on card pages | `/cards/[slug]` (every card with a sibling printing) | Card-value SERPs lead with the variant breakdown | Medium · medium | Low · none | **Shipped 2026-09-20** (batch 2) |
 
 ## Safeguards honoured
 Scanner budgets, verify pipeline, quotas: untouched. Social automation:
@@ -51,6 +52,15 @@ Ratchet: 36 failing / 36 quarantined (pre-existing, unchanged through every batc
 - Finding: guides = most organic clicks, zero affiliate clicks (PostHog 28 d).
 - Action: `lib/guides.guideOffersSet` (explicit mapping, 30th cluster), `components/guides/GuideLiveOffers` (≤3 Buy It Now listings with a supported saving, same data as the set page, renders nothing when empty), one render site in `GuideLayout`; `tests/scanner/guide-live-offers.test.mjs`.
 - Measurement: PostHog `affiliate_click` with `origin_section = "guide_offers"` and `page_type = "guide"`; compare guide page views → clicks from 2026-09-20 against the 0/218 baseline. Read 2026-10-04.
+
+- Commit `e804995`; production verified 2026-09-20: module present on `/guides/pokemon-30th-celebration-guide` and the Pikachu checklist guide (4 deal cards rendered, 2 sponsored eBay affiliate links with EPN params, origin `guide_offers`, Article schema intact); absent on `/guides/how-pokemon-card-prices-work` and the Delta Reign guides (200, no module).
+- STATUS: IMPROVED. Business impact: pending measurement (2026-10-04).
+
+### Batch 2 — 2026-09-20 — "other printings of this card" on card pages
+- Finding: SERP sample (20 Sep, "charizard base set card value"): the ranking pages (PriceCharting, PokeScope, CGC) lead with a printing breakdown (Unlimited / Shadowless / 1st Edition, a figure each). Our card pages are one printing per page and the sibling printing sat unlabelled inside the same-Pokemon list.
+- Action: `lib/cardPrintings.otherPrintings` — a strict rule (same collector number, same set family after stripping the printing qualifier; "Base Set 2" excluded) over the relations the page already loads; rendered first in `RelatedCards` as "Other printings of this card" with each printing's catalogue reference (written "USD", no "$", so the worth answer stays the page's one "$" reference); the card page passes it with no extra query. `tests/scanner/card-printings.test.mjs`.
+- Other SERP findings, same sample: set price-list queries — our set template already matches the winning shape (card count, top-value list, checklist); deal queries — the top organic results are direct clones of our positioning (`pokedealfinder.uk`, Pallet, Jimmy's Deal Finder, CardVex), which is a brand-adjacency matter for the owner, not a code task. Sample: 3 queries, US results, 2026-09-20.
+- Measurement: GSC pages `/cards/charizard-base-set` and `/cards/charizard-base-set-shadowless` (impressions/position for "charizard base set" queries) from 2026-09-20; read 2026-10-04.
 
 ## Measurement calendar
 - **2026-10-04**: GSC CTR on retitled pages; Delta Reign guide impressions; Page indexing "Discovered – not indexed" after the bulk-shard change; PostHog guide_offers clicks.

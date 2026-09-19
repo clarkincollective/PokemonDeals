@@ -10,6 +10,7 @@ import { catalogCardTitle, catalogCardHeading, catalogCardIdentity } from "@/lib
 import { cardDisplayName, collectorNumberFromName } from "@/lib/cardName";
 import { propertyValue } from "@/lib/jsonLd";
 import { storedReferenceEvidence } from "@/lib/dealQuality";
+import { otherPrintings } from "@/lib/cardPrintings";
 import { catalogImageUrl } from "@/lib/cardImage";
 import { trustedDealImageUrl } from "@/lib/listingImage";
 import { cardSpeciesLink } from "@/lib/cardLinks";
@@ -644,6 +645,9 @@ export default async function CardHubPage({ params }) {
         )}
 
         <RelatedCards
+          // growth batch 2: the same card's other printings, from the
+          // relations already loaded - no extra query
+          printings={otherPrintings({ set: hub.set, cardNumber: cardCollectorNumber }, sameSpecies)}
           sameSpecies={sameSpecies}
           sameSet={sameSet}
           speciesLink={speciesLink}
