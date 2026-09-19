@@ -49,6 +49,9 @@ const GUIDE_GROUPS = [
   {
     title: "New releases",
     slugs: [
+      "pokemon-delta-reign-release-date-what-is-official",
+      "storm-emeralda-vs-delta-reign-japanese-or-english",
+      "delta-reign-preorders-and-prerelease-what-to-know",
       "pokemon-30th-celebration-guide",
       "pokemon-30th-celebration-pikachu-checklist",
       "best-pokemon-30th-celebration-pikachu-cards",

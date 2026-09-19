@@ -230,6 +230,11 @@ test("3. the contextual links landed where they explain identity, grading or val
     "how-to-read-a-pokemon-card-listing": 0,
     "vintage-pokemon-cards-worth-buying": 6,
     "pokemon-booster-box-prices": 0,
+    // Delta Reign pre-launch cluster (2026-09-20): no Delta Reign card is in
+    // the catalogue, so no exact card link exists to make
+    "pokemon-delta-reign-release-date-what-is-official": 0,
+    "storm-emeralda-vs-delta-reign-japanese-or-english": 0,
+    "delta-reign-preorders-and-prerelease-what-to-know": 0,
   });
   // The release guide's galleries: every tile is a GUIDE_CARDS identity
   // rendered as a complete card face linked to its own page (a figure
@@ -238,7 +243,7 @@ test("3. the contextual links landed where they explain identity, grading or val
   assert.ok(gallery >= 20 && gallery <= 30, `30th Celebration gallery references ${gallery} cards`);
   // the price checker is reachable from the guides that talk about looking a card up
   const withChecker = GUIDE_FILES.filter((f) => /href=\{PRICE_CHECKER_HREF\}/.test(read(f))).map((f) => f.split("/")[2]).sort();
-  assert.deepEqual(withChecker, ["base-set-shadowless-unlimited-first-edition", "buying-pokemon-cards-on-ebay-safely", "card-condition-grading", "how-much-is-my-pokemon-card-worth", "how-pokemon-card-prices-work", "how-to-check-pokemon-card-condition", "how-to-read-a-pokemon-card-listing", "pokemon-card-grading-scale", "pokemon-promo-card-numbers", "raw-vs-graded-pokemon-cards", "spotting-fake-pokemon-cards-in-listings", "vintage-pokemon-cards-worth-buying"]);
+  assert.deepEqual(withChecker, ["base-set-shadowless-unlimited-first-edition", "buying-pokemon-cards-on-ebay-safely", "card-condition-grading", "how-much-is-my-pokemon-card-worth", "how-pokemon-card-prices-work", "how-to-check-pokemon-card-condition", "how-to-read-a-pokemon-card-listing", "pokemon-card-grading-scale", "pokemon-promo-card-numbers", "raw-vs-graded-pokemon-cards", "spotting-fake-pokemon-cards-in-listings", "storm-emeralda-vs-delta-reign-japanese-or-english", "vintage-pokemon-cards-worth-buying"]);
   // every new link uses the guides' existing inline style
   assert.equal(GUIDE_LINK_CLASS, "text-red-600 hover:underline dark:text-red-500");
   for (const f of GUIDE_FILES) {
@@ -289,6 +294,10 @@ test("5. routes, canonicals and indexability of the guides are untouched", () =>
     "how-much-is-my-pokemon-card-worth",
     "base-set-shadowless-unlimited-first-edition",
     "spotting-fake-pokemon-cards-in-listings",
+    // Delta Reign pre-launch cluster (2026-09-20)
+    "pokemon-delta-reign-release-date-what-is-official",
+    "storm-emeralda-vs-delta-reign-japanese-or-english",
+    "delta-reign-preorders-and-prerelease-what-to-know",
     // GEO audit 2026-09-19 buyer-intent cluster (registered before the promo guide)
     "buying-pokemon-cards-on-ebay-safely",
     "how-to-read-a-pokemon-card-listing",

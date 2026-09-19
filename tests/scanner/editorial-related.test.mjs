@@ -71,8 +71,12 @@ test("3. resolved items carry the registry's own title and a derived href", () =
 });
 
 test("4. an article with no genuine counterpart gets no block", () => {
-  // no Delta Reign guide exists, so the story links to no guide at all
-  assert.deepEqual(relatedReading("news", "mega-evolution-delta-reign-what-is-known"), []);
+  // 2026-09-20: the Delta Reign story now HAS genuine counterparts - its
+  // three pre-launch guides - and reaches all of them, both directions
+  const delta = relatedReading("news", "mega-evolution-delta-reign-what-is-known");
+  assert.deepEqual(delta.map((i) => i.slug), ["pokemon-delta-reign-release-date-what-is-official", "storm-emeralda-vs-delta-reign-japanese-or-english", "delta-reign-preorders-and-prerelease-what-to-know"]);
+  for (const g of delta) assert.deepEqual(relatedReading("guide", g.slug).map((i) => i.slug), ["mega-evolution-delta-reign-what-is-known"]);
+  // an evergreen guide about no particular release still gets no block
   assert.deepEqual(relatedReading("guide", "how-pokemon-card-prices-work"), []);
   assert.deepEqual(relatedReading("news", "no-such-story"), []);
   const src = read("components/RelatedReading.js");
