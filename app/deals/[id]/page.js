@@ -712,13 +712,19 @@ export default async function DealDetailPage({ params }) {
                       native={{ amount: total, currency: nativeCurrency }}
                       className="tnum text-3xl font-bold text-black dark:text-zinc-50"
                     />
+                    {/* A market reference is a labelled comparison figure,
+                        never a crossed-out "was" price - nobody sold this
+                        copy at that number. */}
                     {showSavings && showRef && (
-                      <span className="text-base text-zinc-600 dark:text-zinc-400 line-through">
+                      <span className="tnum text-sm text-zinc-600 dark:text-zinc-400">
+                        <span className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Market reference </span>
                         <Price
                           usd={marketUsd}
                           native={{ amount: marketNative, currency: nativeCurrency }}
                           approxPrefix=""
+                          className="font-medium text-zinc-700 dark:text-zinc-300"
                         />
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400"> · {conditionLabel(deal)}</span>
                       </span>
                     )}
                   </div>

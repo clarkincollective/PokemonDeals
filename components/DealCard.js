@@ -243,9 +243,21 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             )}
           </div>
 
-          {savingsSupported && (
+          {savingsSupported && !isAuction && (
             <span className={`absolute right-1.5 top-1.5 rounded-md px-1.5 py-0.5 text-xs font-extrabold leading-none shadow-sm sm:right-2 sm:top-2 sm:px-2 sm:py-1 sm:text-sm ${discountBadgeClass(discountPct)}`}>
               {savingsBadgeText(deal.discount_pct)}
+            </span>
+          )}
+          {/* integrity-2026-09-19: an auction's figure is the CURRENT BID,
+              not a secured price. It never wears the green savings badge -
+              amber, "bid", and the same "can rise" caveat AuctionPrice
+              states in full below. */}
+          {savingsSupported && isAuction && (
+            <span
+              title="Current bid against the market reference - bids can raise the final price"
+              className="absolute right-1.5 top-1.5 rounded-md border border-amber-600/40 bg-amber-50 px-1.5 py-0.5 text-xs font-bold leading-none text-amber-800 shadow-sm sm:right-2 sm:top-2 sm:px-2 sm:py-1 dark:bg-amber-950/50 dark:text-amber-300"
+            >
+              Bid {savingsBadgeText(deal.discount_pct)}
             </span>
           )}
         </a>

@@ -84,7 +84,11 @@ test("P1-4. a legacy cached row WITHOUT the field is 'unknown': neutral 'Recorde
 test("R2-1. DealCard: unknown breakdown -> no badge, no 'Save', no '% below market'; reference + reason shown; analytics band = no_savings_claim", () => {
   const src = read("components/DealCard.js");
   assert.match(src, /const savingsSupported = showSavings && ship\.savingClaim !== "none";/);
-  assert.match(src, /\{savingsSupported && \(\s*<span className=\{`absolute right-1\.5 top-1\.5/, "the discount badge is gated on the supported claim");
+  // integrity-2026-09-19: the green badge is gated on the supported claim
+  // AND on the listing being Buy It Now - an auction's current bid never
+  // wears it (it gets the amber "Bid −N%" badge instead).
+  assert.match(src, /\{savingsSupported && !isAuction && \(\s*<span className=\{`absolute right-1\.5 top-1\.5/, "the discount badge is gated on the supported claim and BIN");
+  assert.match(src, /\{savingsSupported && isAuction && \(/, "auctions get their own bid badge");
   assert.match(src, /discount_band: savingsSupported \? discountBand\(discountPct\) : "no_savings_claim"/);
   assert.match(src, /\{!savingsSupported \? \([\s\S]{0,300}No saving stated: shipping breakdown not recorded/);
   // the "Save …" line is inside the supported branch only

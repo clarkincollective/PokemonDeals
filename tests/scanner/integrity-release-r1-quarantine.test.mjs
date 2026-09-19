@@ -18,7 +18,7 @@ const require = createRequire(import.meta.url);
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const { createMemoryDb } = await import(pathToFileURL(join(REPO, "tests/harness/ingestion/memoryDb.mjs")).href);
 const Q = await import(pathToFileURL(join(REPO, "scripts/remediation/integrityR1Quarantine.mjs")).href);
-const { isDisplayableDeal } = require(join(REPO, "lib/dealQuality.js"));
+const { isDisplayableDeal, disqualificationReason } = require(join(REPO, "lib/dealQuality.js"));
 const { writeDiscoverySighting } = require(join(REPO, "lib/listingAvailability.js"));
 const manifest = JSON.parse(readFileSync(join(REPO, "scripts/remediation/integrity-r1-quarantine-manifest.json"), "utf8"));
 
@@ -51,9 +51,35 @@ test("IRQ-1. manifest: 24 reviewed candidates, 23 high-confidence with guarded m
   }
 });
 
-test("IRQ-2. before quarantine every candidate is displayable under the release gate (the new guards alone do not hide them)", () => {
+test("IRQ-2. before quarantine every candidate is displayable under the release gate, OR hidden by a later identity gate for the same conflict the manifest recorded", () => {
   const db = seed();
-  for (const c of manifest.candidates) assert.equal(isDisplayableDeal(row(db, c.dealId)), true, `deal ${c.dealId}`);
+  // When this remediation shipped (2026-09-14) the r1 guards hid none of
+  // these rows - that is why they had to be quarantined by hand. The
+  // matcher has since gained read-time identity gates (integrity
+  // 2026-09-19: a title naming a different expansion, a title asserting
+  // Jumbo / World Championships / Prerelease / Staff). A candidate those
+  // gates now hide is the matcher catching what the manifest caught - the
+  // reason must be an identity/variant reason, never freshness or anything
+  // unrelated. Nothing else may hide one.
+  const caughtNow = [];
+  for (const c of manifest.candidates) {
+    const r = row(db, c.dealId);
+    if (isDisplayableDeal(r)) continue;
+    const reason = disqualificationReason(r);
+    assert.match(String(reason), /^(identity:title_names_other_set:|variant:title_asserts_)/, `deal ${c.dealId} hidden for ${reason}`);
+    caughtNow.push({ dealId: c.dealId, reason, conflictKind: c.conflictKind });
+  }
+  // Both are the manifest's "set-number-vs-promo" class - a mainline-set
+  // title stored against an XY Promos row - which the different-expansion
+  // gate now catches on its own: 37537 "Genesect EX XY - Fates Collide
+  // #64/124" and 37743 "Shaymin EX (106 Full Art) XY - Roaring Skies".
+  assert.deepEqual(
+    caughtNow.map((x) => [x.dealId, x.reason, x.conflictKind]),
+    [
+      [37537, "identity:title_names_other_set:fates_collide", "set-number-vs-promo"],
+      [37743, "identity:title_names_other_set:roaring_skies", "set-number-vs-promo"],
+    ]
+  );
 });
 
 test("IRQ-3. dry-run plan: 23 quarantine, 1 review, 0 skip; planning writes nothing", async () => {

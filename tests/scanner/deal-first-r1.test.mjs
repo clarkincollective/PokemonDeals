@@ -125,7 +125,9 @@ test("R1-5. DealCard: the comparison carries its condition context and only rend
   assert.doesNotMatch(plain, /emerald|below market|Save /);
   // the discount badge is gated the same way
   // round 2: the badge needs a trusted reference AND a known shipping breakdown
-  assert.match(src, /\{savingsSupported && \(\s*<span className=\{`absolute right-1\.5 top-1\.5/);
+  // integrity-2026-09-19: AND the listing must be Buy It Now - an auction's
+  // current bid never wears the green badge (amber "Bid −N%" instead)
+  assert.match(src, /\{savingsSupported && !isAuction && \(\s*<span className=\{`absolute right-1\.5 top-1\.5/);
   assert.match(src, /data-offer-state=\{isAuction \? "auction" : showSavings \? "bin_compared" : "bin_plain"\}/);
 });
 
