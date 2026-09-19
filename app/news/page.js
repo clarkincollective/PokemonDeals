@@ -9,9 +9,9 @@ import { newsSorted, formatNewsDate, newsImageUrl } from "@/lib/news";
 const SITE_URL = "https://pokemondealfinder.com";
 const PATH = "/news";
 
-const TITLE = "Pokemon Card News: New Sets, New Cards & Price Movements";
+const TITLE = "Pokemon Card News: Sets, Cards & Prices";
 const DESCRIPTION =
-  "Dated news on Pokemon TCG releases, new cards and card price movements - what happened, when, and what it means for buyers. Every fact carries its official source.";
+  "Dated news on Pokemon TCG releases, new cards and price movements: what happened, when, and what it means for buyers, with sources.";
 
 export const metadata = {
   title: TITLE,

@@ -121,7 +121,7 @@ test("homepage: the four GEO FAQ answers are literal; the answer capsule is visi
   assert.match(src, /question: "How current is a deal\?"/);
   assert.match(src, /data-answer-capsule/);
   assert.match(src, /fetchIntegrityReport\(\)/);
-  assert.match(src, /absolute: "Pokemon Card Deals Below Market Price — Checked eBay Listings \| Pokemon Deal Finder"/);
+  assert.match(src, /absolute: "Pokemon Card Deals Below Market Price \| Pokemon Deal Finder"/);
 });
 
 test("organization: entity context added, still no Person/founder, still no rating", () => {
@@ -165,6 +165,37 @@ test("card page: graded worth lines come from references STORED on live graded l
   assert.match(src, /references, not sale prices\./);
   assert.match(src, /propertyValue\(`Graded market reference \(\$\{g\.key\}\)`/);
   assert.doesNotMatch(src, /getFullPriceAnalysis|loadCardPriceAnalysis/, "no provider call at render");
+});
+
+test("SEO audit 2026-09-20 follow-ups: SERP-length titles/descriptions, LCP hints, sitemap lastmod for sets/pokemon, crawl-capped pagination", () => {
+  const read2 = (p) => read(p);
+  // static titles fit a mobile SERP with the 22-char brand suffix
+  for (const [f, max] of [["app/page.js", 40], ["app/deals/page.js", 48], ["app/guides/page.js", 40], ["app/integrity/page.js", 40], ["app/methodology/page.js", 45], ["app/news/page.js", 45], ["app/pokemon/page.js", 45], ["app/best-finds/page.js", 45]]) {
+    const src = read2(f);
+    const m = src.match(/const TITLE = "([^"]+)"/) || src.match(/absolute: "([^"|]+) \| Pokemon Deal Finder"/);
+    assert.ok(m, `${f} title`);
+    assert.ok(m[1].length <= max, `${f}: "${m[1]}" is ${m[1].length} chars (max ${max})`);
+  }
+  for (const f of ["app/page.js", "app/deals/page.js", "app/integrity/page.js", "app/methodology/page.js", "app/cards/page.js", "app/market-data/page.js", "app/guides/page.js", "app/news/page.js", "app/pokemon/page.js"]) {
+    const src = read2(f);
+    const m = src.match(/(?:const DESCRIPTION =|description:)\s*\n?\s*"([^"]+)"/);
+    assert.ok(m && m[1].length <= 160, `${f}: description ${m ? m[1].length : "?"} chars`);
+  }
+  // LCP: preconnect to both image hosts; the above-the-fold card image is fetchpriority high
+  const layout = read2("app/layout.js");
+  assert.match(layout, /<link rel="preconnect" href="https:\/\/i\.ebayimg\.com" \/>/);
+  assert.match(layout, /<link rel="preconnect" href="https:\/\/tcgplayer-cdn\.tcgplayer\.com" \/>/);
+  assert.match(read2("components/DealImage.js"), /fetchPriority=\{priority \? "high" : undefined\}/);
+  assert.match(read2("components/HomeFeed.js"), /priority=\{i < 2\}/);
+  // sitemaps: sets + pokemon carry the catalogue sync date, never an invented one
+  const sm = read2("lib/sitemap.js");
+  assert.match(sm, /fetchCatalogSyncedAt\(\),\s*\]\);\s*\/\/ SEO audit 2026-09-20/);
+  assert.match(sm, /const lastmod = syncedAt \? \{ lastmod: syncedAt \} : \{\};/);
+  assert.match(read2("lib/deals.js"), /export function fetchCatalogSyncedAt\(\)/);
+  // pagination: pages 6+ nofollow, 1-5 followable
+  const pg = read2("components/Pagination.js");
+  assert.match(pg, /const CRAWLABLE_PAGES = 5;/);
+  assert.match(pg, /rel=\{targetPage > CRAWLABLE_PAGES \? "nofollow" : undefined\}/);
 });
 
 test("guides: the buyer-intent cluster is registered, grouped, dated, and price-free", () => {

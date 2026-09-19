@@ -111,6 +111,11 @@ export default function RootLayout({ children }) {
       className={`dark ${sora.variable} ${interTight.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <head>
+        {/* SEO audit 2026-09-20: every card image comes from one of these two
+            hosts; opening the connections early shortens LCP on the first
+            deal card / card hero. Fonts are self-hosted (next/font). */}
+        <link rel="preconnect" href="https://i.ebayimg.com" />
+        <link rel="preconnect" href="https://tcgplayer-cdn.tcgplayer.com" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}

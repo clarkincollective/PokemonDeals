@@ -25,9 +25,9 @@ const SITE_URL = "https://pokemondealfinder.com";
 // geo-detected region into ?country=, which would turn "all marketplaces"
 // into one marketplace. The listing marketplace is a filter here, never
 // inferred from where the visitor is.
-const TITLE = "Browse All Pokemon Card Deals by Price, Grade & Marketplace";
+const TITLE = "All Pokemon Card Deals by Price, Grade & Market";
 const DESCRIPTION =
-  "Every eligible Pokemon card listing we track, English and Japanese, across six eBay marketplaces, in one list. Filter raw or graded (PSA/CGC/BGS and more), Buy It Now or auction, price and marketplace, or browse by category.";
+  "Every Pokemon card listing we track across six eBay marketplaces, in one list. Filter raw or graded, Buy It Now or auction, price and marketplace.";
 
 export const revalidate = 600;
 

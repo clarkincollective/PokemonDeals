@@ -59,6 +59,10 @@ export default function DealImage({
         sizes={sizes}
         quality={quality}
         priority={priority}
+        // SEO audit 2026-09-20: an above-the-fold card is the page's LCP
+        // candidate - say so to the browser explicitly, not only via
+        // eager loading.
+        fetchPriority={priority ? "high" : undefined}
         unoptimized={isEbayPhoto}
         className={className}
         onError={() =>

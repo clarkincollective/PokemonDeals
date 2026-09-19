@@ -176,7 +176,8 @@ export async function generateMetadata({ params }) {
   // helper strips an embedded number - tolerating leading zeroes and the
   // numerator-only form - and re-attaches it exactly once, which is the
   // same function the <title> on the line above and the H1 already use.
-  const description = `${catalogCardIdentity(hubName, hubNumber)} (${hub.set}) Pokemon card price & value — raw market reference (labelled by its real condition) and condition-by-condition prices from real recent sold data, graded (PSA/CGC/BGS) tiers where available, and live eBay listings compared cheapest first.`;
+  // SEO audit 2026-09-20: ~150 chars - identity first, then what the page holds
+  const description = `${catalogCardIdentity(hubName, hubNumber)} (${hub.set}) price & value: market reference by condition, graded tiers where recorded, and live eBay listings cheapest first.`;
 
   return {
     title,

@@ -12,9 +12,9 @@ const SITE_URL = "https://pokemondealfinder.com";
 // instead of the bare section label. The page now also carries the
 // market-data research, so the title names that too - the old title
 // described only half of what is on the page.
-const TITLE = "Pokemon Card Guides & Research: Prices, Condition & Market Data";
+const TITLE = "Pokemon Card Guides & Research";
 const DESCRIPTION =
-  "Short, factual guides to buying Pokemon cards - how prices are set, condition and grading scales, raw vs. graded, vintage vs. modern - plus our dated market-data research.";
+  "Factual guides to buying Pokemon cards: how prices are set, condition and grading, raw vs graded, vintage vs modern, buying safely on eBay.";
 
 export const metadata = {
   title: TITLE,

@@ -22,7 +22,7 @@ export const revalidate = 3600;
 // range or catalogue total (those move; visible body counts are fine).
 const TITLE = "Pokemon Card Database & Prices";
 const DESCRIPTION =
-  "Browse the Pokemon card catalogue Pokemon Deal Finder tracks - search for an exact printing to check its market-reference price, or browse every card by set and by Pokemon. Each card has a permanent price page.";
+  "Search any Pokemon card printing for its market-reference price, or browse every card by set and by Pokemon. Each card has a permanent price page.";
 
 export const metadata = {
   title: TITLE,

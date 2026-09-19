@@ -11,10 +11,10 @@ export const revalidate = 3600;
 
 // SEO-2: says what the page is - every Pokemon's cards, prices and values
 // - rather than only how it happens to be grouped.
-const TITLE = "All Pokemon Cards by Pokemon – Prices & Values";
+const TITLE = "Pokemon Cards by Pokemon: Prices & Values";
 const H1 = "All Pokemon Cards by Pokemon";
 const DESCRIPTION =
-  "Every Pokemon, grouped by generation. Each links to that species' card prices and values across all its sets and prints, plus any current below-market eBay listings.";
+  "Every Pokemon by generation, each linking to its card prices and values across all sets and prints, plus current below-market eBay listings.";
 
 const GENERATION_REGIONS = {
   1: "Kanto",

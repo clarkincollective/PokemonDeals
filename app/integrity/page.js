@@ -11,9 +11,9 @@ export const revalidate = 21600;
 
 const SITE_URL = "https://pokemondealfinder.com";
 const PATH = "/integrity";
-const TITLE = "Listing Integrity Report — What Is Shown and What Is Withheld";
+const TITLE = "Listing Integrity Report";
 const DESCRIPTION =
-  "Live counts from Pokemon Deal Finder's database: eBay Pokemon card listings currently shown, listings withheld for failing a check and why, listings checked in the last 24 hours, and listings that stopped being shown.";
+  "Live counts from our database: Pokemon card listings shown, listings withheld for failing a check and why, and listings checked in the last 24 hours.";
 
 export const metadata = {
   title: TITLE,

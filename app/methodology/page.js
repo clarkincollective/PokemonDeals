@@ -6,9 +6,9 @@ import { TRUST_CONTENT_UPDATED, TRUST_CONTENT_UPDATED_DISPLAY } from "@/lib/trus
 
 const SITE_URL = "https://pokemondealfinder.com";
 
-const TITLE = "How Pokemon Deal Finder Checks Every Listing — Methodology";
+const TITLE = "Methodology: How Every Listing Is Checked";
 const DESCRIPTION =
-  "The data sources, pricing rules, card-identity matching, non-card filtering, image-based authenticity screening, freshness handling, and known limitations behind every listing shown on Pokemon Deal Finder.";
+  "The data sources, pricing rules, card matching, authenticity screening, freshness handling and known limitations behind every listing we show.";
 
 export const metadata = {
   title: TITLE,

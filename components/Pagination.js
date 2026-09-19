@@ -13,7 +13,13 @@ function pageHref(currentParams, page, basePath) {
   return qs ? `${basePath}?${qs}` : basePath;
 }
 
-function PageLink({ href, active, disabled, children, ariaLabel }) {
+// SEO audit 2026-09-20: paginated variants are noindex,follow, and
+// Googlebot was spending its crawl on them dozens of pages deep. Links to
+// page 6+ are nofollow - the first five pages still give a crawler a real
+// path into the catalogue; deeper pages are for people.
+const CRAWLABLE_PAGES = 5;
+
+function PageLink({ href, active, disabled, children, ariaLabel, targetPage }) {
   if (disabled) {
     return (
       <span className="rounded-md border border-zinc-100 px-3 py-1.5 text-sm text-zinc-300 dark:border-zinc-900 dark:text-zinc-700">
@@ -24,6 +30,7 @@ function PageLink({ href, active, disabled, children, ariaLabel }) {
   return (
     <a
       href={href}
+      rel={targetPage > CRAWLABLE_PAGES ? "nofollow" : undefined}
       aria-label={ariaLabel}
       aria-current={active ? "page" : undefined}
       className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -51,27 +58,27 @@ export default function Pagination({ page, totalPages, params, basePath = "/" })
 
   return (
     <nav aria-label="Pagination" className="mt-10 flex flex-wrap items-center justify-center gap-1.5">
-      <PageLink href={pageHref(params, page - 1, basePath)} disabled={page <= 1} ariaLabel="Previous page">
+      <PageLink href={pageHref(params, page - 1, basePath)} disabled={page <= 1} ariaLabel="Previous page" targetPage={page - 1}>
         ← Prev
       </PageLink>
       {start > 1 && (
         <>
-          <PageLink href={pageHref(params, 1, basePath)}>1</PageLink>
+          <PageLink href={pageHref(params, 1, basePath)} targetPage={1}>1</PageLink>
           {start > 2 && <span className="px-1 text-zinc-400">…</span>}
         </>
       )}
       {pages.map((p) => (
-        <PageLink key={p} href={pageHref(params, p, basePath)} active={p === page}>
+        <PageLink key={p} href={pageHref(params, p, basePath)} active={p === page} targetPage={p}>
           {p}
         </PageLink>
       ))}
       {end < totalPages && (
         <>
           {end < totalPages - 1 && <span className="px-1 text-zinc-400">…</span>}
-          <PageLink href={pageHref(params, totalPages, basePath)}>{totalPages}</PageLink>
+          <PageLink href={pageHref(params, totalPages, basePath)} targetPage={totalPages}>{totalPages}</PageLink>
         </>
       )}
-      <PageLink href={pageHref(params, page + 1, basePath)} disabled={page >= totalPages} ariaLabel="Next page">
+      <PageLink href={pageHref(params, page + 1, basePath)} disabled={page >= totalPages} ariaLabel="Next page" targetPage={page + 1}>
         Next →
       </PageLink>
     </nav>

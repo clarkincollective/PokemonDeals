@@ -11,7 +11,7 @@ export const revalidate = 21600;
 
 const TITLE = "Pokemon Card Market Data";
 const DESCRIPTION =
-  "First-party Pokemon card market data from our own live-tracked catalogue and active eBay listings - catalogue price composition, the most valuable raw references, and the most-listed cards right now.";
+  "First-party Pokemon card market data: the most valuable raw references, the most-listed cards on eBay right now, and how card values are distributed.";
 
 export const metadata = {
   title: TITLE,

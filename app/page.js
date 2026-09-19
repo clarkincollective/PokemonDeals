@@ -92,10 +92,11 @@ export const revalidate = 180;
 // inside).
 export const metadata = {
   title: {
-    absolute: "Pokemon Card Deals Below Market Price — Checked eBay Listings | Pokemon Deal Finder",
+    // SEO audit 2026-09-20: 59 chars - fits a mobile SERP title unbroken
+    absolute: "Pokemon Card Deals Below Market Price | Pokemon Deal Finder",
   },
   description:
-    "Live Pokemon card deals updated continuously: every eBay listing priced below its real market value, checked against recent sold data. Covers the US, UK, Australia, Canada, Germany and Italy.",
+    "Live eBay Pokemon card listings priced below a recent-sold market reference for the exact card and condition, checked continuously across six marketplaces.",
   alternates: { canonical: "/" },
 };
 

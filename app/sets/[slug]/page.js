@@ -85,7 +85,8 @@ export async function generateMetadata({ params }) {
   // flip. No live deal count, no volatile price range - the visible page
   // carries the real counts.
   const title = setPageTitle(setDisplayName(resolved.set));
-  const description = `The complete ${setDisplayName(resolved.set)} Pokemon card checklist with real recent-sold market references, the set's most valuable cards, and the Pokemon in the set — plus current below-market eBay deals where available.`;
+  // SEO audit 2026-09-20: ~150 chars
+  const description = `${setDisplayName(resolved.set)} card list with recent-sold market references, the set's most valuable cards, and current below-market eBay deals where available.`;
 
   let image = setImage(resolved.set)?.logo ?? null;
   if (!catalogueOnly) {
