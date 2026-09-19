@@ -8,7 +8,38 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-import { GUIDE_CARDS, GUIDE_SETS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "../../lib/guideLinks.js";
+import { GUIDE_CARDS, GUIDE_SETS, GUIDE_PRODUCTS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "../../lib/guideLinks.js";
+
+// Sealed products a guide may picture - verified against sealed_catalog on
+// 2026-09-20 (name, set, product type, TCGplayer product id); each image
+// URL returned 200 image/jpeg from the product CDN that day. No product
+// page exists, so every entry links the sealed listings hub.
+const VERIFIED_PRODUCTS = {
+  evolvingSkiesBoosterBox: ["242436", "Evolving Skies Booster Box", "SWSH07: Evolving Skies", "Booster Box"],
+  ascendedHeroesBoosterBundle: ["668541", "Ascended Heroes Booster Bundle", "ME: Ascended Heroes", "Booster Bundle"],
+  ascendedHeroesBoosterPack: ["672434", "Ascended Heroes Booster Pack", "ME: Ascended Heroes", "Booster Pack"],
+};
+
+test("1b. every guide product is a verified sealed_catalog identity, links the sealed hub, and the booster-box guide pictures the three pack counts", () => {
+  assert.deepEqual(Object.keys(GUIDE_PRODUCTS).sort(), Object.keys(VERIFIED_PRODUCTS).sort());
+  for (const [key, [id, name, set, type]] of Object.entries(VERIFIED_PRODUCTS)) {
+    const p = GUIDE_PRODUCTS[key];
+    assert.equal(p.tcgplayerId, id, key);
+    assert.equal(p.name, name, key);
+    assert.equal(p.set, set, key);
+    assert.equal(p.productType, type, key);
+    assert.equal(p.href, "/sealed-deals", key);
+  }
+  const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "app/guides/pokemon-booster-box-prices/page.js"), "utf8");
+  assert.match(src, /<ProductGallery/);
+  for (const k of Object.keys(VERIFIED_PRODUCTS)) assert.match(src, new RegExp(`GUIDE_PRODUCTS\\.${k}`), k);
+  assert.doesNotMatch(src, /\$\s?\d/, "no price in the guide");
+  const art = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "components/guides/CardArt.js"), "utf8");
+  assert.match(art, /export function ProductTile/);
+  assert.match(art, /alt=\{`\$\{product\.label\} — \$\{product\.productType\}, product photo`\}/);
+  assert.match(art, /height=\{width\}/, "square product photo, square reserved box");
+  assert.match(art, /maxWidth: "calc\(50% - 0\.5rem\)"/, "two tiles per row on a phone");
+});
 import { catalogCardSlug } from "../../lib/cardSlug.js";
 import { slugifySet } from "../../lib/slugify.js";
 import { GUIDES, guideForSet } from "../../lib/guides.js";

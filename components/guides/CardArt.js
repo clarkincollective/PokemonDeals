@@ -72,6 +72,70 @@ export function Gallery({ cards, width, priorityCount = 0, note }) {
   );
 }
 
+// Sealed-product artwork (2026-09-20). Same source as the card scans - the
+// TCGplayer product photo the site already shows on sealed deal cards -
+// but a product photo is square, not 717:1000, so it gets its own tile
+// with a 1:1 box reserved before the lazy image loads. Callers pass a
+// lib/guideLinks GUIDE_PRODUCTS entry; every tile links the sealed
+// listings hub (there is no per-product page). Never a price.
+export function ProductTile({ product, caption, width = 168, priority = false }) {
+  return (
+    <li className="flex flex-col items-center" style={{ width, maxWidth: "calc(50% - 0.5rem)" }}>
+      <Link
+        href={product.href}
+        className="block w-full rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+      >
+        <Image
+          src={catalogImageUrl(product.tcgplayerId)}
+          alt={`${product.label} — ${product.productType}, product photo`}
+          width={width}
+          height={width}
+          sizes={`(max-width: 640px) 45vw, ${width}px`}
+          priority={priority}
+          className="h-auto w-full rounded-md bg-white shadow-sm"
+        />
+      </Link>
+      <span className="mt-2 text-center text-[11px] leading-snug text-zinc-600 dark:text-zinc-400">
+        <Link
+          href={product.href}
+          className="font-medium text-zinc-800 hover:text-red-600 hover:underline dark:text-zinc-200 dark:hover:text-red-500"
+        >
+          {product.label}
+        </Link>
+        {caption ? (
+          <>
+            <br />
+            {caption}
+          </>
+        ) : null}
+      </span>
+    </li>
+  );
+}
+
+// `products` is [{ product, caption }]; `note` is the figure caption.
+export function ProductGallery({ products, width, note }) {
+  return (
+    <figure
+      data-product-gallery={products.length}
+      className="mt-5 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="p-5">
+        <ul className="m-0 flex list-none flex-wrap justify-center gap-x-4 gap-y-6 p-0">
+          {products.map(({ product, caption }) => (
+            <ProductTile key={product.tcgplayerId} product={product} caption={caption} width={width} />
+          ))}
+        </ul>
+      </div>
+      {note && (
+        <figcaption className="border-t border-zinc-200 px-5 py-3 text-xs leading-relaxed text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+          {note}
+        </figcaption>
+      )}
+    </figure>
+  );
+}
+
 const TH = "px-3 py-2.5 font-semibold";
 const TD = "px-3 py-3 align-top leading-relaxed text-zinc-600 dark:text-zinc-400";
 

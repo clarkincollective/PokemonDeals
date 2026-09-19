@@ -10,8 +10,25 @@ import { dirname, join } from "node:path";
 import {
   CARD_VALUE_BANDS, CARD_SITEMAP_SEGMENTS, NO_REFERENCE_SHARD, cardValueBand, cardReferenceLastmod, assignCardShards,
   isCardSitemapSegment, nextDay, cardSitemapSnapshotId, sanitizeLastmodMap,
-  isMaterialChange, LASTMOD_MIN_CHANGE_USD, LASTMOD_MIN_CHANGE_PCT,
+  isMaterialChange, LASTMOD_MIN_CHANGE_USD, LASTMOD_MIN_CHANGE_PCT, selectBulkShardCards,
 } from "../../lib/cardSitemap.js";
+
+// --- bulk shard rule (2026-09-20) -----------------------------------------
+test("bulk shard rule: a bulk-band card is listed only as a live-deal hub or an article-linked card; lastmod alone is not enough; other shards untouched", () => {
+  const entries = [
+    { slug: "hub-null-ref", lastmod: null, hub: true, noReference: true },
+    { slug: "hub-cheap", lastmod: "2026-09-10", hub: true, noReference: false },
+    { slug: "guide-card", lastmod: "2026-09-10", hub: false, noReference: false },
+    { slug: "cheap-changed", lastmod: "2026-09-10", hub: false, noReference: false },
+    { slug: "cheap-unchanged", lastmod: null, hub: false, noReference: false },
+    { slug: null },
+  ];
+  const { kept, dropped } = selectBulkShardCards(entries, { editorialSlugs: new Set(["guide-card"]) });
+  assert.deepEqual(kept.map((e) => e.slug), ["hub-null-ref", "hub-cheap", "guide-card"]);
+  assert.deepEqual(dropped, ["cheap-changed", "cheap-unchanged"]);
+  assert.deepEqual(selectBulkShardCards([], {}), { kept: [], dropped: [] });
+  assert.deepEqual(selectBulkShardCards(entries).kept.map((e) => e.slug), ["hub-null-ref", "hub-cheap"], "no editorial set -> hubs only");
+});
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const TODAY = "2026-09-10";

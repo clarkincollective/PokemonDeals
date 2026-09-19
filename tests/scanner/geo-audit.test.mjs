@@ -198,10 +198,12 @@ test("SEO audit 2026-09-20 follow-ups: SERP-length titles/descriptions, LCP hint
   assert.match(pg, /rel=\{targetPage > CRAWLABLE_PAGES \? "nofollow" : undefined\}/);
 });
 
-test("crawl budget 2026-09-20: the sitemap index stops advertising cards-bulk; the shard, its route and the segment list are untouched", async () => {
+test("crawl budget 2026-09-20: cards-bulk is advertised again but lists hubs and article-linked cards only; the route and the segment list are untouched", async () => {
   const sm = read("lib/sitemap.js");
-  assert.match(sm, /export const UNADVERTISED_SEGMENTS = new Set\(\["cards-bulk"\]\);/);
+  assert.match(sm, /export const UNADVERTISED_SEGMENTS = new Set\(\[\]\);/, "the mechanism stays, empty");
   assert.match(sm, /SITEMAP_SEGMENTS\.filter\(\(id\) => !UNADVERTISED_SEGMENTS\.has\(id\)\)\.map\(/);
+  assert.match(sm, /selectBulkShardCards\(out\[NO_REFERENCE_SHARD\] \?\? \[\], \{ editorialSlugs: EDITORIAL_CARD_SLUGS \}\)/);
+  assert.match(sm, /bulk-rule on \(live-deal hubs and article-linked cards only/);
   // the segment list itself is unchanged (card-sitemap pins it too)
   assert.match(sm, /SITEMAP_SEGMENTS = \["pages", "sets", "pokemon", \.\.\.CARD_SITEMAP_SEGMENTS, "deals", "sealed-deals"\]/);
   assert.match(sm, /Re-read the report on 2026-10-04/);

@@ -34,7 +34,16 @@ const from = args.from ?? iso(new Date(today.getTime() - 27 * 86_400_000));
 const asJson = "json" in args;
 
 const lit = (s) => `'${String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
-const window = `timestamp >= toDateTime(${lit(`${from} 00:00:00`)}) AND timestamp < toDateTime(${lit(`${to} 00:00:00`)}) + INTERVAL 1 DAY`;
+// Controlled verification (2026-09-20): a wiring check is performed by
+// loading the page with ?utm_source=pdf_verification (the landing
+// attribution is carried on every event of that page-load chain) and
+// firing the control with navigation prevented. Those events are real
+// PostHog rows but not visitor activity, so they are excluded here by that
+// marker. Never applied to anything else; SUSPECTED_TEST_TRAFFIC days stay
+// a sensitivity column, not an exclusion.
+export const VERIFICATION_UTM_SOURCE = "pdf_verification";
+const notVerification = `ifNull(properties.utm_source, '') != ${lit(VERIFICATION_UTM_SOURCE)}`;
+const window = `timestamp >= toDateTime(${lit(`${from} 00:00:00`)}) AND timestamp < toDateTime(${lit(`${to} 00:00:00`)}) + INTERVAL 1 DAY AND ${notVerification}`;
 const PRE = "(pre-2026-09-19)";
 
 export const QUERIES = {

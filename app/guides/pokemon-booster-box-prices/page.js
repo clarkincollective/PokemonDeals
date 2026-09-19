@@ -1,7 +1,8 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
+import { ProductGallery } from "@/components/guides/CardArt";
 import { guideMetadata } from "@/lib/guides";
-import { GUIDE_LINK_CLASS } from "@/lib/guideLinks";
+import { GUIDE_LINK_CLASS, GUIDE_PRODUCTS } from "@/lib/guideLinks";
 
 const SLUG = "pokemon-booster-box-prices";
 export const metadata = guideMetadata(SLUG);
@@ -42,6 +43,24 @@ export default function Page() {
           marketplace than another. Our marketplace filters exist for that reason.
         </li>
       </GUL>
+      {/* Product art (2026-09-20): the three pack counts the list above
+          compares, as catalogue product photos of real products. */}
+      <ProductGallery
+        products={[
+          { product: GUIDE_PRODUCTS.evolvingSkiesBoosterBox, caption: "Booster box: 36 packs" },
+          { product: GUIDE_PRODUCTS.ascendedHeroesBoosterBundle, caption: "Booster bundle: 6 packs" },
+          { product: GUIDE_PRODUCTS.ascendedHeroesBoosterPack, caption: "Single booster pack" },
+        ]}
+        width={168}
+        note={
+          <>
+            Three products, three pack counts, priced per pack very differently. These are the catalogue&apos;s
+            product photos, shown to identify the product type &mdash; not a seller&apos;s item, and not a statement
+            about any listing&apos;s seal, contents or price. Live sealed listings, with a reference beside each
+            where one exists, are on the sealed products page.
+          </>
+        }
+      />
 
       <GH2>Why resale differs from retail</GH2>
       <GUL>
