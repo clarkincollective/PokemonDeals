@@ -133,6 +133,40 @@ test("organization: entity context added, still no Person/founder, still no rati
   assert.doesNotMatch(src, /aggregateRating/);
 });
 
+test("integrity follow-up: 'stopped showing' comes from a trigger-stamped column and is omitted (never 0) until it exists; the daily snapshot cron is guarded and idempotent", () => {
+  const mig = read("supabase/integrity_migration.sql");
+  assert.match(mig, /add column if not exists deactivated_at timestamptz/);
+  assert.match(mig, /create trigger deals_stamp_deactivated_at\s+before update of is_active on deals/);
+  assert.match(mig, /create table if not exists integrity_snapshots/);
+  assert.match(mig, /create policy integrity_snapshots_public_read/);
+  assert.doesNotMatch(mig, /drop column|drop table|delete from|update deals set/i);
+  const lib = read("lib/integrityReport.js");
+  assert.match(lib, /\.gte\("deactivated_at", since24h\)/);
+  assert.match(lib, /if \(error\) return null;/, "column missing -> null, not 0");
+  const page = read("app/integrity/page.js");
+  assert.match(page, /r\.stopped24h != null \? ` and \$\{n\(r\.stopped24h\)\} stopped being shown/);
+  assert.match(page, /history\.length > 0 && \(/);
+  const cron = read("app/api/integrity-snapshot/route.js");
+  assert.match(cron, /authorization"\) !== `Bearer \$\{process\.env\.CRON_SECRET\}`/);
+  assert.match(cron, /upsert\(row, \{ onConflict: "day" \}\)/);
+  assert.match(cron, /skipped: "table_missing"/);
+  assert.match(read("vercel.json"), /"path": "\/api\/integrity-snapshot",\s*"schedule": "40 5 \* \* \*"/);
+  // no scanner code path was touched for the stamp
+  for (const f of ["app/api/verify-deals/route.js", "app/api/sweep-stale-deals/route.js", "app/api/refresh-deals/route.js", "app/api/ingest-feed/route.js"]) {
+    assert.doesNotMatch(read(f), /deactivated_at/, `${f}: the trigger stamps it, not the scanner`);
+  }
+});
+
+test("card page: graded worth lines come from references STORED on live graded listings (no provider call), one per grader+grade, labelled as references", () => {
+  const src = read("app/cards/[slug]/page.js");
+  assert.match(src, /storedReferenceEvidence\(d\)\?\.kind === "graded"/);
+  assert.match(src, /isUsableUsdPrice\(d\.market_price\)/);
+  assert.match(src, /data-worth-graded=\{gradedRefs\.length\}/);
+  assert.match(src, /references, not sale prices\./);
+  assert.match(src, /propertyValue\(`Graded market reference \(\$\{g\.key\}\)`/);
+  assert.doesNotMatch(src, /getFullPriceAnalysis|loadCardPriceAnalysis/, "no provider call at render");
+});
+
 test("guides: the buyer-intent cluster is registered, grouped, dated, and price-free", () => {
   for (const slug of ["buying-pokemon-cards-on-ebay-safely", "how-to-read-a-pokemon-card-listing", "vintage-pokemon-cards-worth-buying", "pokemon-booster-box-prices"]) {
     const g = GUIDES.find((x) => x.slug === slug);

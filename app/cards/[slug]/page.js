@@ -9,6 +9,7 @@ import CardNextSteps from "@/components/CardNextSteps";
 import { catalogCardTitle, catalogCardHeading, catalogCardIdentity } from "@/lib/cardSlug";
 import { cardDisplayName, collectorNumberFromName } from "@/lib/cardName";
 import { propertyValue } from "@/lib/jsonLd";
+import { storedReferenceEvidence } from "@/lib/dealQuality";
 import { catalogImageUrl } from "@/lib/cardImage";
 import { trustedDealImageUrl } from "@/lib/listingImage";
 import { cardSpeciesLink } from "@/lib/cardLinks";
@@ -369,6 +370,20 @@ export default async function CardHubPage({ params }) {
   // the page does not itself state.
   const refUsd = isUsableUsdPrice(hubRaw) ? Number(hubRaw) : null;
   const refCondition = catalog?.refCondition ?? null;
+  // Graded references already STORED on this card's live graded listings
+  // (the grade-specific reference each was compared with, lib/dealQuality
+  // storedReferenceEvidence kind "graded") - no provider call. One entry
+  // per grader+grade, the most recently checked listing's figure. Answers
+  // "how much is a PSA 10 <card> worth" from data the page already loads.
+  const gradedRefs = [...allOffers]
+    .filter((d) => d.is_graded && storedReferenceEvidence(d)?.kind === "graded" && isUsableUsdPrice(d.market_price))
+    .sort((a, b) => Date.parse(b.last_seen_at ?? 0) - Date.parse(a.last_seen_at ?? 0))
+    .reduce((acc, d) => {
+      const key = `${String(d.grader).toUpperCase()} ${d.grade}`;
+      if (!acc.some((x) => x.key === key)) acc.push({ key, usd: Number(d.market_price), checkedAt: d.last_seen_at ?? null });
+      return acc;
+    }, [])
+    .sort((a, b) => Number(b.key.split(" ")[1]) - Number(a.key.split(" ")[1]));
   const refRecorded = catalog?.syncedAt ? new Date(catalog.syncedAt).toISOString().slice(0, 10) : null;
   const offerUsdTotals = allOffers.map((d) => dealTotalUsd(d)).filter((v) => Number.isFinite(v) && v > 0);
   const productJsonLd = {
@@ -400,6 +415,7 @@ export default async function CardHubPage({ params }) {
         ? propertyValue(`Market reference${refCondition ? ` (${refCondition})` : ""}`, refUsd.toFixed(2), { unitCode: "USD", description: "Recent sold data for this printing and condition; a reference, not a guaranteed sale price" })
         : null,
       propertyValue("Reference recorded", refRecorded),
+      ...gradedRefs.map((g) => propertyValue(`Graded market reference (${g.key})`, g.usd.toFixed(2), { unitCode: "USD", description: "Grade-specific reference stored on a live graded listing of this card; a reference, not a guaranteed sale price" })),
     ].filter(Boolean),
     // R3 card-offer contract: `offers` is the array of PRICED live listings
     // (an auction without a usable bid is never promoted as a priced offer),
@@ -512,6 +528,25 @@ export default async function CardHubPage({ params }) {
             )}
 
             <CardWorthAnswer answer={worth} embedded>
+              {/* Graded worth, from the grade-specific references stored on
+                  this card's live graded listings - the "how much is a PSA 10
+                  <card> worth" answer, without a provider call. Labelled as a
+                  reference; the raw figure above stays the page's one raw
+                  statement (R3). */}
+              {gradedRefs.length > 0 && (
+                <p className="mt-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300" data-worth-graded={gradedRefs.length}>
+                  Graded copies: {gradedRefs.map((g, i) => (
+                    <span key={g.key}>
+                      {i > 0 ? " · " : ""}
+                      <strong className="text-black dark:text-zinc-50">{g.key}</strong>{" "}
+                      <span className="tnum">{g.usd.toFixed(2)} USD</span>
+                    </span>
+                  ))}
+                  {" "}— grade-specific references recorded against live graded listings of this card
+                  {gradedRefs[0]?.checkedAt ? ` (last checked ${new Date(gradedRefs[0].checkedAt).toISOString().slice(0, 10)})` : ""}
+                  ; references, not sale prices.
+                </p>
+              )}
 
               <div className="mt-5 flex flex-wrap items-center gap-3">
                 {allOffers.length > 0 && (

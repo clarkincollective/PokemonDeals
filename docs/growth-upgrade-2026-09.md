@@ -169,6 +169,23 @@ stands), any rating or review markup, any "verified authentic" wording.
 Species-page intros were left alone: the species indexation experiment
 cohort is active.
 
+## "Do everything" follow-up (same day, second pass)
+
+- IndexNow: 13 new / retitled URLs submitted (HTTP 200) via `seo:indexnow`.
+- Card pages: graded worth lines ("PSA 10 … USD · PSA 9 … USD") from the
+  grade-specific references stored on the card's live graded listings —
+  no provider call; also emitted as `Product.additionalProperty`.
+- Integrity: `supabase/integrity_migration.sql` (**owner runs it**) adds a
+  trigger-stamped `deals.deactivated_at` (no scanner code touched) and an
+  `integrity_snapshots` table; `/api/integrity-snapshot` (daily cron,
+  05:40 UTC, CRON_SECRET) upserts the day's counts; `/integrity` shows the
+  30-day history when rows exist and omits "stopped showing" until the
+  column exists (it previously printed a false 0). Verify with
+  `npm run integrity:migration-check`.
+- Not done (owner-only or protected): named founder, `DIGEST_SEND_ENABLED`,
+  manual distribution posts, scanner budget / sealed inventory growth,
+  species intros (experiment cohort active).
+
 ## Not done, and why
 
 - Saved-search alerts (server-side subscription to a filter combination):

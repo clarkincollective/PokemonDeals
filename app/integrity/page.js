@@ -4,7 +4,7 @@ import SkipToContent from "@/components/SkipToContent";
 import SiteFooter from "@/components/SiteFooter";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbList, dataset, FIGURES_LICENSE } from "@/lib/jsonLd";
-import { fetchIntegrityReport } from "@/lib/integrityReport";
+import { fetchIntegrityReport, fetchIntegrityHistory } from "@/lib/integrityReport";
 import { LISTING_CHECKS } from "@/lib/trustContent";
 
 export const revalidate = 21600;
@@ -25,17 +25,29 @@ export const metadata = {
 
 const fmtDate = (iso) =>
   new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) + " UTC";
+const fmtDay = (day) => new Date(`${day}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 const n = (v) => (v == null ? "—" : Number(v).toLocaleString());
 
 // GEO audit 2026-09-19. The one page no summary can substitute for: the
 // site's own withholding numbers, from the live table, dated. Every figure
 // is a count of rows; nothing here is a claim about any single listing.
+// The "stopped being shown" figure appears only once the database stamps
+// deactivated_at (supabase/integrity_migration.sql) - never a false zero.
 export default async function IntegrityPage() {
-  const r = await fetchIntegrityReport();
+  const [r, history] = await Promise.all([fetchIntegrityReport(), fetchIntegrityHistory(30)]);
   const day = r.generatedAt.slice(0, 10);
+  const stoppedSentence = r.stopped24h != null ? ` and ${n(r.stopped24h)} stopped being shown because they ended, sold or were not re-seen` : "";
   const capsule = r.error
     ? "The integrity counts could not be read from the database on this build; the checks below still apply to every listing shown."
-    : `As of ${fmtDate(r.generatedAt)}, Pokemon Deal Finder shows ${n(r.activeShown)} live eBay Pokemon card listings and withholds ${n(r.withheldActive)} active listings that failed a check. In the last 24 hours ${n(r.checked24h)} listings were checked against eBay and ${n(r.ended24h)} stopped being shown because they ended, sold or were not re-seen. Listings come from ${r.marketplaces.length} eBay marketplaces (US, UK, Australia, Canada, Germany, Italy).`;
+    : `As of ${fmtDate(r.generatedAt)}, Pokemon Deal Finder shows ${n(r.activeShown)} live eBay Pokemon card listings and withholds ${n(r.withheldActive)} active listings that failed a check. In the last 24 hours ${n(r.checked24h)} listings were checked against eBay${stoppedSentence}. Listings come from ${r.marketplaces.length} eBay marketplaces (US, UK, Australia, Canada, Germany, Italy).`;
+  const tiles = [
+    ["Shown now", r.activeShown],
+    ["Withheld (active)", r.withheldActive],
+    ["Checked, 24 h", r.checked24h],
+    ...(r.stopped24h != null ? [["Stopped showing, 24 h", r.stopped24h]] : []),
+  ];
+  const first = history[0]?.day;
+  const last = history[history.length - 1]?.day;
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
@@ -43,11 +55,11 @@ export default async function IntegrityPage() {
         data={[
           breadcrumbList([{ name: "Deals", href: "/" }, { name: "Listing integrity" }]),
           dataset({
-            name: `Pokemon Deal Finder listing integrity counts, ${day}`,
+            name: `Pokemon Deal Finder listing integrity counts${first && last ? `, ${first} to ${day}` : `, ${day}`}`,
             description: DESCRIPTION,
             url: PATH,
             dateModified: r.generatedAt,
-            temporalCoverage: `${new Date(Date.parse(r.generatedAt) - 86_400_000).toISOString().slice(0, 10)}/${day}`,
+            temporalCoverage: `${first ?? new Date(Date.parse(r.generatedAt) - 86_400_000).toISOString().slice(0, 10)}/${day}`,
             variableMeasured: ["listings shown (count)", "listings withheld by reason family (count)", "listings checked in 24 hours (count)", "listings that stopped being shown in 24 hours (count)"],
             license: FIGURES_LICENSE,
           }),
@@ -60,7 +72,7 @@ export default async function IntegrityPage() {
           ← All deals
         </Link>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-black dark:text-zinc-50">Listing integrity report</h1>
-        <p className="mt-2 text-xs text-zinc-500">Rebuilt from the live database several times a day. Figures are row counts; the recorded reason for each withheld listing is grouped by its family.</p>
+        <p className="mt-2 text-xs text-zinc-500">Rebuilt from the live database several times a day; a daily snapshot builds the history below. Figures are row counts; the recorded reason for each withheld listing is grouped by its family.</p>
 
         <p className="mt-5 text-base leading-relaxed text-zinc-800 dark:text-zinc-200" data-answer-capsule>
           {capsule}
@@ -68,13 +80,8 @@ export default async function IntegrityPage() {
 
         {!r.error && (
           <>
-            <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {[
-                ["Shown now", r.activeShown],
-                ["Withheld (active)", r.withheldActive],
-                ["Checked, 24 h", r.checked24h],
-                ["Stopped showing, 24 h", r.ended24h],
-              ].map(([k, v]) => (
+            <dl className={`mt-6 grid grid-cols-2 gap-3 ${tiles.length === 4 ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
+              {tiles.map(([k, v]) => (
                 <div key={k} className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
                   <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">{k}</dt>
                   <dd className="tnum mt-1 text-2xl font-bold text-black dark:text-zinc-50">{n(v)}</dd>
@@ -105,6 +112,39 @@ export default async function IntegrityPage() {
                   {r.withheldByReason.length === 0 && (
                     <tr><td colSpan={2} className="px-4 py-3 text-zinc-500">No active listing is currently withheld.</td></tr>
                   )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {history.length > 0 && (
+          <>
+            <h2 className="mt-10 text-lg font-bold text-black dark:text-zinc-50">Daily history</h2>
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              One snapshot per UTC day, {fmtDay(first)} to {fmtDay(last)} ({history.length} {history.length === 1 ? "day" : "days"}). Counts, not estimates.
+            </p>
+            <div className="mt-3 overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950" data-integrity-history>
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-900">
+                  <tr>
+                    <th scope="col" className="px-4 py-2">Day</th>
+                    <th scope="col" className="px-4 py-2 text-right">Shown</th>
+                    <th scope="col" className="px-4 py-2 text-right">Withheld</th>
+                    <th scope="col" className="px-4 py-2 text-right">Checked 24 h</th>
+                    <th scope="col" className="px-4 py-2 text-right">Stopped 24 h</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((h) => (
+                    <tr key={h.day} className="border-t border-zinc-100 dark:border-zinc-900">
+                      <td className="px-4 py-2 text-zinc-800 dark:text-zinc-200"><time dateTime={h.day}>{fmtDay(h.day)}</time></td>
+                      <td className="tnum px-4 py-2 text-right">{n(h.active_shown)}</td>
+                      <td className="tnum px-4 py-2 text-right">{n(h.withheld_active)}</td>
+                      <td className="tnum px-4 py-2 text-right">{n(h.checked_24h)}</td>
+                      <td className="tnum px-4 py-2 text-right">{n(h.stopped_24h)}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
