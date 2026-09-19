@@ -14,12 +14,15 @@ const SLUG_RE = /^[a-z0-9-]+$/;
 // a miss means: default criteria are stored exactly as before, anything
 // narrower is refused with criteria_unavailable rather than silently
 // widened to "any listing".
-let criteriaReadyCache = null;
+// Only a POSITIVE probe is cached: a miss is re-checked on the next request
+// so an instance that started before the migration picks it up without a
+// restart.
+let criteriaReadyCache = false;
 async function criteriaSchemaReady(db) {
-  if (criteriaReadyCache != null) return criteriaReadyCache;
+  if (criteriaReadyCache) return true;
   const { error } = await db.from("price_alerts").select("digest").limit(1);
-  criteriaReadyCache = !error;
-  return criteriaReadyCache;
+  if (!error) criteriaReadyCache = true;
+  return !error;
 }
 
 const isDefaultCriteria = (c) =>

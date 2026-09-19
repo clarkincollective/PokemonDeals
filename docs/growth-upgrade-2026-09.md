@@ -19,13 +19,10 @@ loaders (verified live: 1h/6h/24h return only in-window auctions).
 Ratchet unchanged at 36 / 36 throughout. Production READY and aliased to
 pokemondealfinder.com at `a0a1288` (dpl_9NdTUzDnfxwGm8sqmXZzZ35a7N2c).
 
-**Owner action required (the one blocker):** run
-`supabase/price_alerts_criteria_migration.sql` in the Supabase SQL Editor
-(no `exec_sql` RPC exists, so it cannot be applied from code), then
-`npm run alerts:migration-check`. Until then `/api/alerts` stores default
-alerts exactly as before and answers `503 criteria_unavailable` for any
-narrowed alert (marketplace / condition / non-USD currency / item scope /
-digest / set alerts) — the form shows a plain message; nothing is widened.
+**Migration applied** (owner ran `supabase/price_alerts_criteria_migration.sql`
+in the SQL Editor on 2026-09-19; `npm run alerts:migration-check` reports all
+12 criteria columns). `/api/alerts` re-probes on a miss and caches only a
+positive result, so no instance restart is needed.
 
 ## 1. Deal integrity
 
@@ -88,8 +85,8 @@ digest / set alerts) — the form shows a plain message; nothing is widened.
 | Saved view with current offers | MISSING → built | `/saved` (noindex): device-local list, live offers fetched per card hub. |
 | Save vs alert distinction | IMPROVE | Copy on button and /saved. |
 | Saved searches | MISSING → built | `lib/savedSearches.js` (localStorage, same pattern), save/reopen/remove from filter bar and /saved. |
-| Alert: marketplace, condition/grade, target currency, item vs all-in | MISSING → built (**migration pending**) | Additive columns (`supabase/price_alerts_criteria_migration.sql`); `lib/alertMatch` evaluator; threshold converted at check time with server rates, never at entry; unknown/unstated shipping never satisfies an all-in threshold. |
-| Set / min-discount alerts | MISSING → built (**migration pending**) | `alert_kind=set` (`card_slug` = `set:<slug>`) over Buy It Now offers with a supported saving ≥ floor; untargeted card alerts carry their own `min_discount`. Saved-search alerts: not built — a saved search is device-local URL state with no server subject; the set alert + card alert cover the buyer-intent cases. |
+| Alert: marketplace, condition/grade, target currency, item vs all-in | MISSING → built (migration applied) | Additive columns (`supabase/price_alerts_criteria_migration.sql`); `lib/alertMatch` evaluator; threshold converted at check time with server rates, never at entry; unknown/unstated shipping never satisfies an all-in threshold. |
+| Set / min-discount alerts | MISSING → built (migration applied) | `alert_kind=set` (`card_slug` = `set:<slug>`) over Buy It Now offers with a supported saving ≥ floor; untargeted card alerts carry their own `min_discount`. Saved-search alerts: not built — a saved search is device-local URL state with no server subject; the set alert + card alert cover the buyer-intent cases. |
 | Dedupe, cooldown, freshness recheck, digest option | IMPROVE → done | Matching runs over the same displayable, cheapest-first offers the card page shows; `last_notified_deal_id` + 20 h cooldown unchanged; `digest=true` → one email per check run per subscriber. |
 | Consent | WORKING | Double opt-in preserved; general subscribers never converted. |
 | Delivery | WORKING | Resend configured in production (`resend_configured: true`). |
@@ -146,8 +143,6 @@ digest / set alerts) — the form shows a plain message; nothing is widened.
 
 ## Blockers
 
-- **`price_alerts` criteria migration** must be run by the owner in the
-  Supabase SQL Editor (see top). Code is schema-tolerant either way.
 - `TCGPLAYER_AFFILIATE_LINK` presence not verified from code (env-gated;
   link works either way).
 
