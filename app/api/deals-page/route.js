@@ -183,6 +183,7 @@ export async function GET(request) {
             grader: gradedFilters.grader,
             grade: gradedFilters.grade,
             listingType: filters.listingType,
+            ending: filters.ending,
             minPrice: filters.minPrice,
             maxPrice: filters.maxPrice,
             q: u.searchParams.get("q"),
@@ -202,7 +203,9 @@ export async function GET(request) {
         preset.sets = (allSets ?? []).map((s) => s.set).filter(isModernSet);
       }
       const userOverlay = {};
-      for (const k of ["country", "cardType", "listingType", "maxPrice", "minPrice"]) {
+      // 2026-09-19: `ending` rides along - /deals/auctions is a preset
+      // category, and its ending-window pills reach the loader only here.
+      for (const k of ["country", "cardType", "listingType", "ending", "maxPrice", "minPrice"]) {
         if (filters[k] != null) userOverlay[k] = filters[k];
       }
       // Grader/grade previously never reached fetchDealsPage for category

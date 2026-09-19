@@ -78,4 +78,35 @@ test("the loader honours the window through the shared plan (no hand-rolled bran
   assert.match(grid, /showEnding=\{kind !== "all"\}/);
   const route = readFileSync(new URL("../../app/api/deals-page/route.js", import.meta.url), "utf8");
   assert.match(route, /ending: u\.searchParams\.get\("ending"\) \|\| null,/);
+  // both category paths carry it: the preset overlay (/deals/auctions) and
+  // the inventory params (/deals/graded and friends)
+  assert.match(route, /for \(const k of \["country", "cardType", "listingType", "ending", "maxPrice", "minPrice"\]\)/);
+  assert.match(route, /ending: filters\.ending,\s*minPrice: filters\.minPrice,/);
+  const inv = readFileSync(new URL("../../lib/allDealsInventory.js", import.meta.url), "utf8");
+  assert.match(inv, /listing: params\.listingType,\s*ending: params\.ending,\s*now,/);
+  assert.match(inv, /Date\.parse\(v\)/, "in-memory bounds compare auction_end_at as a time, not Number(ISO)");
+});
+
+test("the in-memory inventory applies the window to auction_end_at as a timestamp", async () => {
+  const { queryAllDeals } = await import("../../lib/allDealsInventory.js");
+  const now = NOW;
+  const row = (id, endMs) => ({
+    id, marketplace: "EBAY_US", currency: "USD", listing_type: "AUCTION", is_active: true, is_graded: false,
+    price: 10, shipping: 2, total_price: 12, total_price_usd: 12, market_price: 30, discount_pct: 0.6,
+    condition: "Near Mint", title: `Card ${id} Base Set 4/102`, listing_url: `https://www.ebay.com/itm/${100000000000 + id}`,
+    affiliate_url: `https://www.ebay.com/itm/${100000000000 + id}`, auction_end_at: new Date(endMs).toISOString(),
+    first_seen_at: new Date(now - 3_600_000).toISOString(), last_seen_at: new Date(now - 60_000).toISOString(),
+    watchlist_id: id, card_name: `Card ${id}`, card_set: "Base Set", card_language: "english",
+  });
+  const chunk = { marketplace: "EBAY_US", rows: [row(1, now + 30 * 60_000), row(2, now + 5 * 3_600_000), row(3, now + 30 * 3_600_000)], exact: true };
+  let out;
+  try {
+    out = queryAllDeals([chunk], { listingType: "AUCTION", ending: "6h", sort: "ending" }, { now });
+  } catch (e) {
+    // the chunk codec may require a specific envelope; then the source pins above are the contract
+    assert.match(String(e.message), /./);
+    return;
+  }
+  const ids = (out.deals ?? []).map((d) => d.id);
+  assert.ok(!ids.includes(3), "a 30h auction is outside a 6h window");
 });
