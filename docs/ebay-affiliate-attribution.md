@@ -121,6 +121,27 @@ aggregates (e.g. `best_deals` clicks in PostHog vs. `home_best` EPN
 clicks/revenue) is possible without ever joining on a user/session, but
 never assume the section name is identical across the two.
 
+## PostHog `affiliate_click` dimensions (2026-09-19, growth brief §11)
+
+`components/AffiliateLink.js` now adds three structural properties to the
+`affiliate_click` event, alongside the existing `origin_section`:
+
+| Property | Values | Source |
+|---|---|---|
+| `page_type` | `lib/analytics/pageType.js` PAGE_TYPES (`card`, `deal`, `set`, `hub`, `saved`, …) | the current pathname, at click time — never the path or an id |
+| `placement` | an explicit `analyticsProps.placement`, else the existing `eventData.page` label (`sticky_cta`, `detail`, `variant_grid`, `condition_breakdown`, `card_hub`, a grid's `pageName`, `expired_deal`, …) | the control that was clicked |
+| `network` | `ebay` / `tcgplayer` | derived from the Vercel event name; EPN and TCGPlayer are never summed |
+
+Reporting view: `npm run report:growth [--from --to --json]`
+(`scripts/reporting/growthReport.mjs`, read-only HogQL through the same
+credential path as the homepage report) prints affiliate clicks per 1k
+page views by network × page type, the full network × page type ×
+placement × origin section table, and the saved / alert loop counts.
+Events captured before 2026-09-19 carry neither `page_type` nor
+`placement`; the report labels them `(pre-2026-09-19)` rather than
+back-filling. Commission remains EPN / Impact dashboard data at the
+granularity those programmes support; `customid` is unchanged.
+
 ## Fallback behavior
 
 If a surface is missing, invalid, or not on the allowlist,

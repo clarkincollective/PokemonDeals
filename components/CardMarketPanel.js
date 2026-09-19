@@ -79,7 +79,11 @@ export default function CardMarketPanel({ tcgplayerId, cardName, gridName = null
       {showGrid && (
         <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
           <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Every variant, side by side</h2>
-          <p className="text-xs text-zinc-600 dark:text-zinc-400">Raw and every graded tier with real recorded sales.</p>
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">
+            Raw and every graded tier with real recorded sales. Reference figures are USD market prices (shown ≈ in your
+            currency); the raw tile names the condition its reference is really for, and a tier on a small recent sample is
+            flagged. Live offers, where any exist, are listed above.
+          </p>
           <div className="mt-4">
             <VariantPriceGrid raw={canonRaw} graded={graded} cardName={gridName ?? cardName} surface={surface} />
           </div>

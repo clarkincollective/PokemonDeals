@@ -59,6 +59,7 @@ export default function ChecklistTable({ setName, rows, caption }) {
     getServerSnapshot
   );
   const [view, setView] = useState("all");
+  const [showOffers, setShowOffers] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [status, setStatus] = useState("");
   const [persistFailed, setPersistFailed] = useState(false);
@@ -232,6 +233,47 @@ export default function ChecklistTable({ setName, rows, caption }) {
         <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400" data-print-hide>
           Every entry in this checklist is marked owned on this device.
         </p>
+      )}
+
+      {/* 2026-09-19 §9 - the buyer-intent step out of the checklist: the
+          missing entries, each opening its card page's live-offers section
+          (which says truthfully when there are none). Device-local list,
+          nothing fetched here, nothing invented. */}
+      {view === "missing" && counts.missing > 0 && (
+        <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-card print:hidden dark:border-zinc-800 dark:bg-zinc-950" data-print-hide data-missing-offers>
+          <button
+            type="button"
+            onClick={() => setShowOffers((s) => !s)}
+            aria-expanded={showOffers}
+            aria-controls={`${panelId}-missing-offers`}
+            className="inline-flex min-h-12 items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+          >
+            Find offers for cards I&apos;m missing ({counts.missing})
+          </button>
+          <div id={`${panelId}-missing-offers`} hidden={!showOffers} className="mt-3">
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">
+              Each card opens its page at the live-offers section — current eBay listings checked against the
+              card&apos;s market reference, or a plain &ldquo;no live offers&rdquo; when there are none.
+            </p>
+            <ul className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
+              {shown.map((r) => (
+                <li key={`offers-${r.key}`} className="flex min-h-11 items-center justify-between gap-3 border-b border-zinc-100 text-sm dark:border-zinc-900">
+                  <span className="min-w-0 truncate text-zinc-800 dark:text-zinc-200">
+                    {r.number ? <span className="tnum mr-1.5 text-xs text-zinc-500">{r.number}</span> : null}
+                    {r.name}
+                  </span>
+                  {r.href ? (
+                    <a href={`${r.href}#card-offers`} className="shrink-0 font-semibold text-red-600 hover:underline dark:text-red-400">
+                      View offers →
+                    </a>
+                  ) : (
+                    <span className="shrink-0 text-xs text-zinc-500">no page yet</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       )}
     </div>
   );

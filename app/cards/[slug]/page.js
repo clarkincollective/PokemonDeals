@@ -531,8 +531,9 @@ export default async function CardHubPage({ params }) {
           <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Market price history</h2>
             <p className="text-xs text-zinc-600 dark:text-zinc-400">
-              Our first-party daily snapshots joined to reference history. Historical data availability
-              varies by card.
+              Our first-party daily snapshots joined to reference history. Reference prices are recorded in
+              USD (shown ≈ in your currency); the legend below the chart names the condition and printing
+              each verified point was recorded for. Historical data availability varies by card.
             </p>
             <div className="mt-4">
               <PriceHistoryChart points={chartPoints} />

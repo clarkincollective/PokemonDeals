@@ -8,6 +8,21 @@ per item; status is one of **WORKING** (already present, verified),
 Baseline inspected: `main` at `d153064`, production aliased to it. 238
 scanner tests, ratchet at 36 failing / 36 quarantined (pre-existing).
 
+Commits (in order): `c540d7e` §1 integrity gates · `37c0763` §2/§3 cards,
+CTAs, references, freshness · `ac0525a` §4/§7 Top-N, empty states, ending
+windows, AuctionEnd · `1fb0436` §5 mobile filter sheet · `a83a638` §6 saved
+view, saved searches, alert criteria · (this commit) §8–§11 labelling,
+checklist offers, distribution kit, paid-test brief, affiliate_click
+dimensions, growth report. Ratchet unchanged at 36 / 36 throughout.
+
+**Owner action required (the one blocker):** run
+`supabase/price_alerts_criteria_migration.sql` in the Supabase SQL Editor
+(no `exec_sql` RPC exists, so it cannot be applied from code), then
+`npm run alerts:migration-check`. Until then `/api/alerts` stores default
+alerts exactly as before and answers `503 criteria_unavailable` for any
+narrowed alert (marketplace / condition / non-USD currency / item scope /
+digest / set alerts) — the form shows a plain message; nothing is widened.
+
 ## 1. Deal integrity
 
 | Item | Status | Notes |
@@ -57,7 +72,7 @@ scanner tests, ratchet at 36 failing / 36 quarantined (pre-existing).
 |---|---|---|
 | Compact filter bar with count + sort | WORKING | `FilterToggle` badge count. |
 | Removable chips | WORKING | `AppliedFilters`. |
-| Filter sheet, reset/close, focus management | IMPROVE | Mobile panel becomes a dialog with focus return, Escape, reset and "Show results". |
+| Filter sheet, reset/close, focus management | IMPROVE → done | `FilterToggle` below `lg` is a bottom sheet: dialog role while open, focus to Close, Tab trap, Escape/backdrop/"Show results" close, focus returns to opener, Reset (href on server grids, handler on card page + search), never self-opens, rows stay in DOM. |
 | Sticky purchase control | WORKING | `StickyDealCta`; CTA label now matches deal/listing/auction. |
 | Touch targets, contrast, focus, reduced motion, alt text | WORKING / IMPROVE | `prefers-reduced-motion` rule added globally. |
 
@@ -69,9 +84,9 @@ scanner tests, ratchet at 36 failing / 36 quarantined (pre-existing).
 | Saved view with current offers | MISSING → built | `/saved` (noindex): device-local list, live offers fetched per card hub. |
 | Save vs alert distinction | IMPROVE | Copy on button and /saved. |
 | Saved searches | MISSING → built | `lib/savedSearches.js` (localStorage, same pattern), save/reopen/remove from filter bar and /saved. |
-| Alert: marketplace, condition/grade, target currency, item vs all-in | MISSING → built | Additive columns on `price_alerts`; matcher extended (`lib/alertMatch`). Unknown shipping never satisfies an all-in threshold. |
-| Set / saved-search / min-discount alerts | MISSING → built | `alert_kind` + `criteria` JSON on the same table and cron. |
-| Dedupe, cooldown, freshness recheck, digest option | IMPROVE | `check-alerts` recheck via `isDisplayableDeal`; per-alert digest flag; caps. |
+| Alert: marketplace, condition/grade, target currency, item vs all-in | MISSING → built (**migration pending**) | Additive columns (`supabase/price_alerts_criteria_migration.sql`); `lib/alertMatch` evaluator; threshold converted at check time with server rates, never at entry; unknown/unstated shipping never satisfies an all-in threshold. |
+| Set / min-discount alerts | MISSING → built (**migration pending**) | `alert_kind=set` (`card_slug` = `set:<slug>`) over Buy It Now offers with a supported saving ≥ floor; untargeted card alerts carry their own `min_discount`. Saved-search alerts: not built — a saved search is device-local URL state with no server subject; the set alert + card alert cover the buyer-intent cases. |
+| Dedupe, cooldown, freshness recheck, digest option | IMPROVE → done | Matching runs over the same displayable, cheapest-first offers the card page shows; `last_notified_deal_id` + 20 h cooldown unchanged; `digest=true` → one email per check run per subscriber. |
 | Consent | WORKING | Double opt-in preserved; general subscribers never converted. |
 | Delivery | WORKING | Resend configured in production (`resend_configured: true`). |
 
@@ -79,7 +94,7 @@ scanner tests, ratchet at 36 failing / 36 quarantined (pre-existing).
 
 | Item | Status | Notes |
 |---|---|---|
-| Ending-soon 1h / 6h / today | MISSING → built | `?ending=1h|6h|today` on `/deals/auctions`. |
+| Ending-soon 1h / 6h / today | MISSING → built | `?ending=1h|6h|24h` (hours, not a calendar day — six marketplaces, nine time zones) on every auction-capable grid via the shared filter plan; bounds the stored `auction_end_at`. |
 | Countdown beside bid + exact end time with TZ | IMPROVE | `<AuctionEnd>` shows relative + `<time>` title; detail shows absolute with zone. |
 | Bid count, freshness, bid/shipping/total separation, "bids can increase" | WORKING | `AuctionPrice`. |
 | Restrained amber, no restarting timers | WORKING / IMPROVE | Hydration-safe clock; amber under 1h. |
@@ -99,8 +114,8 @@ scanner tests, ratchet at 36 failing / 36 quarantined (pre-existing).
 | Item | Status | Notes |
 |---|---|---|
 | URLs, canonicals, sitemaps, indexability | WORKING | Preserved (SEO phases 1–26). |
-| Card page eBay link marketplace-correct + surface | IMPROVE | `buildEbaySearchLink` now receives the viewer marketplace and `card` surface. |
-| Checklist → "Find offers for cards I'm missing" | MISSING → built | `SetChecklist` missing-only view links each card to its hub/offers. |
+| Card page eBay link marketplace-correct + surface | WORKING (verified) | Server builds the crawler-visible default with the `card` surface; `EbaySearchLink` re-points it at the viewer's marketplace on the client (`localizeEbaySearchUrl`). No change needed. |
+| Checklist → "Find offers for cards I'm missing" | MISSING → built | `ChecklistTable` missing-only view: a CTA opening the missing entries, each linking to its card page's `#card-offers` section (truthful "no live offers" when none). Nothing fetched or invented. |
 | Contextual links, printing identity, comparisons | WORKING | Card/species/set/guide interlinks present. |
 | Schema | WORKING | Product+Offer only where an offer exists; no merchant-listing assumption. |
 
@@ -118,14 +133,25 @@ scanner tests, ratchet at 36 failing / 36 quarantined (pre-existing).
 
 | Item | Status | Notes |
 |---|---|---|
-| Affiliate clicks by source/page type/placement | IMPROVE | `affiliate_click` gains `page_type` + `placement` (structural only). |
+| Affiliate clicks by source/page type/placement | IMPROVE → done | `affiliate_click` gains `page_type`, `placement`, `network` (structural only; EPN and TCGPlayer never summed). Pre-2026-09-19 rows are labelled, not back-filled. |
 | Deduplicated impressions | WORKING | Once-gate on homepage lanes. |
 | Empty-state recovery, save/reopen, alerts | IMPROVE | New events: `saved_view_opened`, `saved_search_saved`, `alert_created`. |
-| Reporting view | MISSING → built | `scripts/reporting/growthReport.mjs` (PostHog HogQL + GSC), documented. |
+| Reporting view | MISSING → built | `npm run report:growth` (`scripts/reporting/growthReport.mjs`, read-only HogQL): clicks per 1k views by network × page type, placement table, saved/alert loop. Documented in `docs/ebay-affiliate-attribution.md`. |
 | EPN / TCGPlayer separate; IDs preserved | WORKING | Surface enum unchanged; documented mapping extended. |
 | Performance | WORKING | CWV good per Speed Insights; no lab-only claims. |
 
 ## Blockers
 
-- None external at time of writing. `TCGPLAYER_AFFILIATE_LINK` presence not
-  verified from code (env-gated; link works either way).
+- **`price_alerts` criteria migration** must be run by the owner in the
+  Supabase SQL Editor (see top). Code is schema-tolerant either way.
+- `TCGPLAYER_AFFILIATE_LINK` presence not verified from code (env-gated;
+  link works either way).
+
+## Not done, and why
+
+- Saved-search alerts (server-side subscription to a filter combination):
+  not built — no server-side subject exists for a device-local URL; set
+  alerts and card alerts with criteria cover the same buyer intent.
+- Live-offer check on `/saved` for a card saved from a single listing
+  without a card hub: the row links to the listing instead of claiming a
+  count.

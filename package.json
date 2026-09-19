@@ -12,6 +12,8 @@
     "test:scanner": "node --test \"tests/scanner/*.test.mjs\"",
     "seo:indexnow": "node scripts/indexnowSubmit.mjs",
     "ebay:quota-report": "node scripts/reportEbayQuota.mjs",
+    "report:growth": "node scripts/reporting/growthReport.mjs",
+    "alerts:migration-check": "node scripts/alertCriteriaMigrationCheck.mjs",
     "fetch-card": "node scripts/fetchCardPrice.js",
     "seed-watchlist": "node scripts/seedWatchlist.js",
     "outreach": "node scripts/outreach.mjs",
