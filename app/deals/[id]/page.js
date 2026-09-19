@@ -795,17 +795,21 @@ export default async function DealDetailPage({ params }) {
                   content_id: String(deal.id),
                   listing_type: deal.listing_type,
                 }}
-                className="flex min-h-12 w-full items-center justify-center rounded-lg bg-red-600 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-red-700 sm:w-auto"
+                className="flex min-h-12 w-full items-center justify-center rounded-lg bg-red-600 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-red-700 active:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 sm:w-auto"
               >
-                {isAuction ? "Bid on eBay →" : "View on eBay →"}
+                {isAuction ? "View auction on eBay" : showSavings ? "View deal on eBay" : "View listing on eBay"}
               </AffiliateLink>
+              {/* TCGPlayer lists raw singles by condition; for a slab this is a
+                  different product's price, and the label says so rather than
+                  implying a like-for-like comparison. */}
               <AffiliateLink
                 href={tcgplayerLink}
                 eventName="TCGPlayer Click"
                 eventData={{ card: cardName, page: "detail" }}
-                className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:text-zinc-300"
+                className="inline-flex min-h-12 items-center rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 transition-colors hover:border-zinc-300 hover:text-zinc-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:border-zinc-800 dark:text-zinc-300 dark:hover:text-zinc-100"
+                title={deal.is_graded ? "TCGPlayer prices raw (ungraded) copies, not this grade" : "TCGPlayer's price for this card"}
               >
-                Check on TCGPlayer
+                {deal.is_graded ? "Raw price on TCGPlayer (not this grade)" : "Check price on TCGPlayer"}
               </AffiliateLink>
               <ShareButton
                 url={`${SITE_URL}/deals/${deal.id}`}
@@ -837,6 +841,14 @@ export default async function DealDetailPage({ params }) {
                 />
               )}
             </div>
+            {/* Concise disclosure beside the purchase controls; the full
+                statement stays in the site footer and /affiliate-disclosure. */}
+            <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+              eBay and TCGPlayer links are affiliate links — we may earn a commission at no extra cost to you.{" "}
+              <Link href="/affiliate-disclosure" className="underline underline-offset-2 hover:text-zinc-700 dark:hover:text-zinc-200">
+                How this works
+              </Link>
+            </p>
           </div>
         </div>
 
@@ -990,7 +1002,7 @@ export default async function DealDetailPage({ params }) {
         priceNative={ctaPriceNative}
         priceLabel={isAuction ? (auctionParts ? "Current bid" : "Recorded auction price") : shipping.headline}
         priceNote={shipping.note ?? (isAuction && auctionParts ? "Plus shipping" : "Includes recorded shipping")}
-        ctaLabel={isAuction ? "Bid on eBay →" : "View on eBay →"}
+        ctaLabel={isAuction ? "View auction on eBay" : showSavings ? "View deal on eBay" : "View listing on eBay"}
         eventData={{ card: cardName, marketplace: deal.marketplace, discountPct: showSavings ? discountPct : null }}
       />
     </div>

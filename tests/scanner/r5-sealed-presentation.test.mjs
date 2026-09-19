@@ -31,6 +31,10 @@ for(const {state,deal} of sealedFixtures){
   if(state==='unpriced'){assert.match(html,/Price unavailable/);assert.doesNotMatch(html,/\$0\.00|You save|% below market/);}
   if(state==='shipping_unknown')assert.doesNotMatch(html,/You save|% below market/);
   if(state==='market_unavailable')assert.doesNotMatch(html,/\$0\.00|You save|% below market/);
-  assert.match(html,/sponsored/);assert.match(html,/View (listing|auction) on eBay/);
+  assert.match(html,/sponsored/);assert.match(html,/View (deal|listing|auction) on eBay/);
+  // 2026-09-19: a sealed offer with a supported saving is a qualifying deal
+  // and says so; plain / unsupported states keep the neutral "listing".
+  if(state==='compared')assert.match(html,/View deal on eBay/);
+  if(state==='shipping_unknown'||state==='market_unavailable'||state==='unpriced')assert.doesNotMatch(html,/View deal on eBay/);
  });
 }

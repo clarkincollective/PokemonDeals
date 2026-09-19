@@ -49,7 +49,7 @@ export default function StickyDealCta({ href, priceUsd, priceNative, priceLabel,
           href={href}
           eventName="eBay Click"
           eventData={{ ...eventData, page: "sticky_cta" }}
-          className="flex min-h-[44px] flex-1 basis-3/5 items-center justify-center rounded-md bg-black px-4 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+          className="flex min-h-12 flex-1 basis-3/5 items-center justify-center rounded-lg bg-red-600 px-4 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-red-700 active:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
         >
           {ctaLabel}
         </AffiliateLink>

@@ -594,7 +594,7 @@ export default async function CardHubPage({ params }) {
               }
               priceLabel={isAuc ? (parts ? "Current bid" : "Recorded auction price") : shipping.headline}
               priceNote={shipping.note ?? (isAuc && parts ? "Plus shipping" : "Includes recorded shipping")}
-              ctaLabel={isAuc ? "Bid on eBay →" : "View on eBay →"}
+              ctaLabel={isAuc ? "View auction on eBay" : "View listing on eBay"}
               eventData={{ card: hub.name, marketplace: cheapest.marketplace, page: "card_hub" }}
             />
           );

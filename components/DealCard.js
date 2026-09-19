@@ -15,8 +15,16 @@ import SaveCardButton from "@/components/SaveCardButton";
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
 import { offerShipping } from "@/lib/offerPresentation";
+import { listingAvailabilityEvidence } from "@/lib/listingAvailability";
 
 const JUST_FOUND_MS = 2 * 60 * 60 * 1000;
+
+// The primary "open on eBay" control, shared by every deal surface: brand
+// red, white semibold text, 48px tall, 8px radius, hover / pressed /
+// keyboard-focus states. One string so DealCard, SealedDealCard and the
+// sticky CTA cannot drift.
+export const CTA_PRIMARY_CLASS =
+  "flex min-h-12 w-full items-center justify-center rounded-lg bg-red-600 px-4 text-center text-sm font-semibold text-white transition-colors hover:bg-red-700 active:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600";
 
 // The discount badge is tiered by how good the deal actually is (real
 // discount_pct) so a 65%-under card doesn't look identical to a 12%-under
@@ -227,9 +235,11 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                 {rank}
               </span>
             )}
+            {/* Flag paired with the marketplace in words - a flag alone is
+                not a statement of where the listing is. */}
             {marketInfo && (
-              <span className="rounded-md bg-white/90 px-1.5 py-0.5 text-xs shadow-sm dark:bg-zinc-950/90" title={marketInfo.label}>
-                {marketInfo.flag}
+              <span className="rounded-md bg-white/90 px-1.5 py-0.5 text-xs font-medium text-zinc-700 shadow-sm dark:bg-zinc-950/90 dark:text-zinc-200" title={`Listed on eBay ${marketInfo.label}`}>
+                <span aria-hidden="true">{marketInfo.flag} </span>eBay {marketInfo.short}
               </span>
             )}
             {/* Hydration-safe window: computed on the server's clock for the
@@ -289,11 +299,18 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
               )}
             </span>
           )}
+          {/* Condition / grade as a readable pill. A raw tier and a numeric
+              grade are different systems; the wording never equates them. */}
           <span
             data-condition
-            className={`shrink-0 whitespace-nowrap ${conditionText === "Condition not verified" ? "text-amber-700 dark:text-amber-500" : "font-medium text-zinc-700 dark:text-zinc-300"}`}
+            className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-md border px-1.5 py-px text-xs font-medium leading-5 ${
+              conditionText === "Condition not verified"
+                ? "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                : deal.is_graded
+                  ? "border-zinc-300 bg-zinc-100 text-zinc-800 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                  : "border-zinc-200 bg-white text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+            }`}
           >
-            {cardSet && "· "}
             {conditionText}
           </span>
         </p>
@@ -327,7 +344,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                   incl. <Price usd={shippingUsd} native={{ amount: shippingNative, currency: nativeCurrency }} approxPrefix="" /> shipping
                 </>
               ) : (
-                ship.note
+                <>{ship.note} — check on eBay</>
               )}
             </p>
             {/* deal-first R1: a real recorded earlier price, stated plainly -
@@ -414,6 +431,14 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                   </>
                 )}
                 found <RelativeTime date={deal.first_seen_at} />
+                {/* "checked" = this exact item positively re-confirmed on
+                    eBay (exact_verified_at stamped with last_seen_at);
+                    "found" alone is the first sighting. Never render time. */}
+                {listingAvailabilityEvidence(deal)?.kind === "confirmed" && (
+                  <>
+                    {" · "}checked <RelativeTime date={deal.exact_verified_at} />
+                  </>
+                )}
               </>
             )}
           </p>
@@ -449,7 +474,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                   discount_band: savingsSupported ? discountBand(discountPct) : "no_savings_claim",
                 }
           }
-          className="flex min-h-11 w-full items-center justify-center rounded-lg bg-red-600 px-4 text-center text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+          className={CTA_PRIMARY_CLASS}
         >
           {isAuction ? "View auction on eBay" : showSavings ? "View deal on eBay" : "View listing on eBay"}
         </AffiliateLink>

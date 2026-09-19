@@ -324,7 +324,8 @@ test("CRM1-26 expired-deal capture is present", () => {
 
 test("CRM1-27 capture never renders above the primary deal CTA", () => {
   const src = read("app/deals/[id]/page.js");
-  const primaryCta = src.indexOf('{isAuction ? "Bid on eBay →" : "View on eBay →"}');
+  // 2026-09-19: the primary CTA reads deal / listing / auction, matching DealCard
+  const primaryCta = src.indexOf('{isAuction ? "View auction on eBay" : showSavings ? "View deal on eBay" : "View listing on eBay"}');
   const relatedFirst = src.indexOf("<RelatedDeals");
   const dealCapture = src.indexOf('<EmailCapture placement="deal_detail"');
   const expiredCapture = src.indexOf('<EmailCapture placement="expired_deal"');

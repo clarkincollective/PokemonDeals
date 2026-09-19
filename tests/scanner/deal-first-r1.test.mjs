@@ -80,7 +80,10 @@ test("R1-3. DealCard: the CTA names the destination and the state; no purchase c
   assert.match(src, /wrapEbayAffiliateUrl\(deal\.affiliate_url, \{ surface: surfaceForPageName\(pageName\) \}\)/);
   assert.match(src, /<AffiliateLink[\s\S]*href=\{affiliateHref\}/);
   // 44px primary action
-  assert.match(src, /<AffiliateLink[\s\S]*className="flex min-h-11 w-full/);
+  // 2026-09-19: the primary control is the shared CTA_PRIMARY_CLASS (brand
+  // red, 48px, 8px radius, hover/pressed/focus) so every surface agrees.
+  assert.match(src, /export const CTA_PRIMARY_CLASS =\s*"flex min-h-12 w-full[^"]*rounded-lg bg-red-600[^"]*active:bg-red-800[^"]*focus-visible:outline-2/);
+  assert.match(src, /<AffiliateLink[\s\S]*className=\{CTA_PRIMARY_CLASS\}/);
 });
 
 test("R1-4. DealCard: one dominant price with a clear meaning; shipping=0 is 'not confirmed', never free, and the saving is stated before shipping", () => {
@@ -90,7 +93,9 @@ test("R1-4. DealCard: one dominant price with a clear meaning; shipping=0 is 'no
   assert.match(src, /const ship = offerShipping\(deal\);/);
   assert.match(src, /const shippingConfirmed = ship\.state === "confirmed";/);
   assert.match(src, /\{ship\.headline\}/);
-  assert.match(src, /shippingConfirmed \? \([\s\S]*?incl\.[\s\S]*?shipping[\s\S]*?\) : \(\s*ship\.note/);
+  // the unconfirmed / unknown note is rendered from the contract's own
+  // wording plus a "check on eBay" pointer (2026-09-19) - never "free"
+  assert.match(src, /shippingConfirmed \? \([\s\S]*?incl\.[\s\S]*?shipping[\s\S]*?\) : \(\s*<>\{ship\.note\} — check on eBay<\/>/);
   assert.doesNotMatch(src, /Free shipping|free delivery|delivered total|no shipping charge listed/i, "a 0 shipping figure is never called free on the card");
   // the derived saving never reads as a verified delivered saving
   // graded-inventory-r1: the percentage comes from savingsPercentText ("N%" / "less than 1%")

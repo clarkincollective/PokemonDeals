@@ -57,8 +57,12 @@ test("UX-CVR-1-1. the deal-detail primary CTA names eBay for BIN and auctions, a
 
 test("UX-CVR-1-2. the sticky CTA default + the deal-page sticky both name eBay and don't say 'Buy'", () => {
   assert.match(STICKY, /ctaLabel = "View on eBay →"/);
-  assert.match(DEAL_PAGE, /ctaLabel=\{isAuction \? "Bid on eBay →" : "View on eBay →"\}/);
+  // 2026-09-19: the deal page's sticky label matches the in-page CTA rule -
+  // deal / listing / auction wording, never a bare "View on eBay" for an
+  // auction and never "deal" without a supported saving.
+  assert.match(DEAL_PAGE, /ctaLabel=\{isAuction \? "View auction on eBay" : showSavings \? "View deal on eBay" : "View listing on eBay"\}/);
   assert.doesNotMatch(STICKY, /Buy Now|Buy It Now →/i);
+  assert.doesNotMatch(DEAL_PAGE, /Bid on eBay →|Buy Now/i);
 });
 
 test("UX-CVR-1-3. auction CTAs stay auction-worded (no settled-purchase framing)", () => {

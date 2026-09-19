@@ -77,7 +77,7 @@ export default function AuctionPrice({
               incl. <Price usd={shipUsd} native={{ amount: ship.amount, currency }} approxPrefix="" /> shipping
             </>
           ) : (
-            ship.note
+            <>{ship.note} — check on eBay</>
           )}
         </p>
         {showPct ? (

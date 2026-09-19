@@ -141,7 +141,9 @@ test("R2-5. condition is required reading: only the set span truncates; a long-s
   const line = src.slice(src.indexOf('<p className="mt-0.5 flex flex-wrap'), src.indexOf("</p>", src.indexOf('<p className="mt-0.5 flex flex-wrap')));
   assert.match(line, /<span className="min-w-0 max-w-full truncate">/);
   assert.match(line, /data-condition/);
-  assert.match(line, /shrink-0 whitespace-nowrap/);
+  // the condition pill (2026-09-19) neither shrinks nor wraps - the two
+  // utilities are no longer adjacent in the class list, the rule is the same
+  assert.match(line, /shrink-0[^"]*whitespace-nowrap/);
   assert.ok(line.indexOf("truncate") < line.indexOf("data-condition"), "the truncating span is the set, before the condition");
   assert.match(line, /\{conditionText\}/);
   const fx = DEAL_STATE_FIXTURES.find((f) => f.id === "bin_plain_long_set");

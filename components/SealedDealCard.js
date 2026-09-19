@@ -6,6 +6,7 @@ import { currencyForDeal, refInListingCurrency, dealTotalUsd, hasPrice } from "@
 import RelativeTime from "@/components/RelativeTime";
 import { normalizePublicText } from "@/lib/publicText";
 import AffiliateLink from "@/components/AffiliateLink";
+import { CTA_PRIMARY_CLASS } from "@/components/DealCard";
 import DealScoreBadge from "@/components/DealScoreBadge";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import ShareButton from "@/components/ShareButton";
@@ -74,10 +75,10 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
         )}
         {marketInfo && (
           <span
-            className={`absolute left-2 ${rank != null ? "top-10" : "top-2"} rounded-md bg-white/90 px-2 py-1 text-xs shadow-sm dark:bg-zinc-950/90`}
-            title={marketInfo.label}
+            className={`absolute left-2 ${rank != null ? "top-10" : "top-2"} rounded-md bg-white/90 px-1.5 py-0.5 text-[11px] font-medium text-zinc-700 shadow-sm dark:bg-zinc-950/90 dark:text-zinc-200`}
+            title={`Listed on eBay ${marketInfo.label}`}
           >
-            {marketInfo.flag}
+            <span aria-hidden="true">{marketInfo.flag} </span>eBay {marketInfo.short}
           </span>
         )}
       </a>
@@ -122,19 +123,22 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
                   native={{ amount: total, currency: nativeCurrency }}
                   className="text-lg font-bold text-black dark:text-zinc-50"
                 />
-                {showSavings && showRef && (
-                  <span className="text-sm text-zinc-400 line-through">
-                    <Price
-                      usd={marketUsd}
-                      native={{ amount: marketNative, currency: nativeCurrency }}
-                      approxPrefix=""
-                    />
-                  </span>
-                )}
               </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                {shipping.note ?? "Includes recorded shipping"}
+                {shipping.note ? `${shipping.note} — check on eBay` : "Includes recorded shipping"}
               </p>
+              {/* a labelled reference, never a struck-through "was" price */}
+              {showSavings && showRef && (
+                <p className="tnum text-xs text-zinc-500 dark:text-zinc-400">
+                  Market reference{" "}
+                  <Price
+                    usd={marketUsd}
+                    native={{ amount: marketNative, currency: nativeCurrency }}
+                    approxPrefix=""
+                    className="font-medium text-zinc-700 dark:text-zinc-300"
+                  />
+                </p>
+              )}
               {!showSavings ? (
                 presentation.notes.map((note) => (
                   <p key={note} className="text-xs leading-snug text-zinc-500 dark:text-zinc-400">
@@ -188,9 +192,9 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
               listingType: deal.listing_type,
               page: pageName,
             }}
-            className="flex min-h-11 flex-1 items-center justify-center rounded-md bg-black px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+            className={`${CTA_PRIMARY_CLASS} flex-1`}
           >
-            {isAuction ? "View auction on eBay →" : "View listing on eBay →"}
+            {isAuction ? "View auction on eBay" : showSavings ? "View deal on eBay" : "View listing on eBay"}
           </AffiliateLink>
         </div>
         <AffiliateLink
