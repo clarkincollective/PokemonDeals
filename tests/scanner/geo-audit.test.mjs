@@ -107,7 +107,7 @@ test("integrity report: reasons group by recorded family, unknown families count
   assert.deepEqual(g.map((r) => [r.family, r.count]), [["variant", 2], ["identity", 1], ["other", 1]]);
   for (const r of g) assert.equal(r.label, REASON_LABELS[r.family]);
   const lib = read("lib/integrityReport.js");
-  assert.match(lib, /\.eq\("is_active", true\)\.is\("disqualified_reason", null\)/);
+  assert.match(lib, /countDisplayableActiveDeals\(\)/, "'shown' is the feed's own displayable count - one figure site-wide");
   assert.match(lib, /\.not\("disqualified_reason", "is", null\)/);
   assert.doesNotMatch(lib, /Math\.random|estimate|\* 1\.\d/);
 });

@@ -325,11 +325,18 @@ export default async function Home() {
             {/* GEO audit 2026-09-19 - the answer capsule: what the site is,
                 in one dated paragraph built from live counts (never a slogan).
                 Visible at every width; the sentence above stays desktop-only. */}
+            {/* On a phone the hero's job is the search box and the first
+                deal: one sentence plus the dated counts. The checks
+                sentence is `sm:` and up - it stays in the HTML for every
+                reader either way. */}
             <p className="mt-2 max-w-xl text-xs leading-relaxed text-zinc-600 dark:text-zinc-400" data-answer-capsule>
-              Pokemon Deal Finder lists live eBay Pokemon card listings priced below a documented market reference for the exact card and condition, from eBay US, UK, Australia, Canada, Germany and Italy. Every listing shown has passed an exact-printing match, a seller-condition check, an availability re-check and an image-based authenticity screen, and shows the reference it was compared with.
+              Pokemon Deal Finder lists live eBay Pokemon card listings priced below a documented market reference for the exact card and condition, from eBay US, UK, Australia, Canada, Germany and Italy.
+              <span className="hidden sm:inline">
+                {" "}Every listing shown has passed an exact-printing match, a seller-condition check, an availability re-check and an image-based authenticity screen, and shows the reference it was compared with.
+              </span>
               {liveCount != null && integrity?.withheldActive != null && integrity?.checked24h != null && (
                 <>
-                  {" "}As of {new Date(integrity.generatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })} there are {liveCount.toLocaleString()} qualifying listings; {integrity.withheldActive.toLocaleString()} active listings are withheld for failing a check and {integrity.checked24h.toLocaleString()} were checked in the last 24 hours (
+                  {" "}As of {new Date(integrity.generatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}: {liveCount.toLocaleString()} listings shown, {integrity.withheldActive.toLocaleString()} withheld for failing a check, {integrity.checked24h.toLocaleString()} checked in the last 24 hours (
                   <Link href="/integrity" className="underline underline-offset-2 hover:text-red-600 dark:hover:text-red-500">integrity report</Link>).
                 </>
               )}
