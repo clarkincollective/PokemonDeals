@@ -55,4 +55,7 @@ test("rendered first in RelatedCards with a labelled reference, no '$' (the wort
   assert.doesNotMatch(src, /\$\{?refText/);
   assert.ok(src.indexOf("{printingsBlock}") < src.indexOf("{sameSpecies.length > 0 && ("), "printings before the same-Pokemon list");
   assert.match(read("app/cards/[slug]/page.js"), /printings=\{otherPrintings\(\{ set: hub\.set, cardNumber: cardCollectorNumber \}, sameSpecies\)\}/);
+  // both render paths: the catalogue (no live hub) render is the majority
+  // of card pages and must pass the same rule over the same relations
+  assert.match(read("components/CatalogCardView.js"), /printings=\{otherPrintings\(\{ set, cardNumber \}, relations\?\.sameSpecies \?\? \[\]\)\}/);
 });

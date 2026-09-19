@@ -23,6 +23,7 @@ import CardWorthAnswer from "@/components/CardWorthAnswer";
 import CardNextSteps from "@/components/CardNextSteps";
 import { cardWorthAnswer, pageShowsGraded, isUsableUsdPrice } from "@/lib/cardWorth";
 import { cardNextSteps } from "@/lib/cardNextSteps";
+import { otherPrintings } from "@/lib/cardPrintings";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -288,6 +289,12 @@ export default function CatalogCardView({
         </p>
 
         <RelatedCards
+          // growth batch 2 follow-up (2026-09-20): the catalogue render is
+          // the majority of card pages and had no printings block - the
+          // Shadowless Charizard page listed Base Set unlabelled while the
+          // Base Set page listed Shadowless as a printing. Same rule, same
+          // relations, no extra query.
+          printings={otherPrintings({ set, cardNumber }, relations?.sameSpecies ?? [])}
           sameSpecies={relations?.sameSpecies ?? []}
           sameSet={relations?.sameSet ?? []}
           speciesLink={speciesLink}

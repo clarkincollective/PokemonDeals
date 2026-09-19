@@ -62,13 +62,17 @@ Ratchet: 36 failing / 36 quarantined (pre-existing, unchanged through every batc
 - Other SERP findings, same sample: set price-list queries — our set template already matches the winning shape (card count, top-value list, checklist); deal queries — the top organic results are direct clones of our positioning (`pokedealfinder.uk`, Pallet, Jimmy's Deal Finder, CardVex), which is a brand-adjacency matter for the owner, not a code task. Sample: 3 queries, US results, 2026-09-20.
 - Measurement: GSC pages `/cards/charizard-base-set` and `/cards/charizard-base-set-shadowless` (impressions/position for "charizard base set" queries) from 2026-09-20; read 2026-10-04.
 
-- Commit `63e7942`; production verified 2026-09-20 on `/cards/charizard-base-set`: one printing listed (Shadowless), Base Set 2 not listed. `/cards/charizard-base-set-shadowless` re-check pending its ISR window.
+- Commit `63e7942`; production verified 2026-09-20 on `/cards/charizard-base-set`: one printing listed (Shadowless), Base Set 2 not listed.
+- Follow-up (same day): `/cards/charizard-base-set-shadowless` stayed empty after its ISR window. Cause: the catalogue render (`CatalogCardView`, the path most card pages take when there is no live-deal hub) never passed `printings` to `RelatedCards`; only the live-hub path did. Fixed by passing the same rule over the same relations on that path (no extra query); pinned in `card-printings.test.mjs`. Re-verify on the Shadowless page after deploy.
 - STATUS: IMPROVED. Business impact: pending measurement (2026-10-04).
 
 ### Batch 3 — 2026-09-20 — no-deal card pages: the eBay search becomes a real control
 - Finding: card pages are the largest search-landing family (102 views / 15 affiliate clicks, 28 d). Most render the catalogue path (no live hub), whose only route to eBay was a text link inside CardNextSteps (origin `card_catalog`: 9 clicks).
 - Action: the link is a 48 px ghost control — deliberately not the primary lime treatment, because browsing all listings is not a verified deal — with the same text, same event (`card_no_deal` / `search_ebay`) and the "not checked against market price" caveat kept beside it. Pinned in `card-printings.test.mjs`.
 - Measurement: Vercel Analytics event `eBay Click` with placement `card_no_deal`, and PostHog `affiliate_click` origin `card_catalog`, from 2026-09-20 vs the 9-click baseline.
+
+- Commit `74e38db`; production verified 2026-09-20 on three catalogue-path card pages (`/cards/yveltal-ex-053-088-prize-pack-series-cards`, `/cards/imposter-oak-s-revenge-team-rocket`, `/cards/grookey-swsh070-swsh-sword-shield-promo-cards`): no-deal block present, ghost control present, caveat present, one sponsored eBay search link, no primary (lime) treatment on it.
+- STATUS: IMPROVED. Business impact: pending measurement (2026-10-04).
 
 ## Measurement calendar
 - **2026-10-04**: GSC CTR on retitled pages; Delta Reign guide impressions; Page indexing "Discovered – not indexed" after the bulk-shard change; PostHog guide_offers clicks.
