@@ -1,8 +1,9 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import { Srcs, SourceList } from "@/components/guides/Src";
+import { Gallery } from "@/components/guides/CardArt";
 import { guideMetadata } from "@/lib/guides";
-import { GUIDE_LINK_CLASS } from "@/lib/guideLinks";
+import { GUIDE_CARDS, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 
 const SLUG = "delta-reign-preorders-and-prerelease-what-to-know";
 export const metadata = guideMetadata(SLUG);
@@ -68,6 +69,22 @@ export default function Page() {
           the other.
         </li>
       </GUL>
+      {/* Card art (2026-09-20): the stamped/unstamped pair the paragraph
+          above describes, from a set that exists. */}
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.charizardEvolutions, caption: "Set card, 11/108" },
+          { card: GUIDE_CARDS.promoCharizardXyPrerelease, caption: "Prerelease stamp, same 11/108" },
+        ]}
+        width={170}
+        note={
+          <>
+            What a prerelease promo looks like next to its set card: the XY Evolutions Charizard and its
+            prerelease-stamped copy share the collector number and are two products with two references. Delta
+            Reign&apos;s prerelease cards will follow the same pattern; none exists to picture yet.
+          </>
+        }
+      />
 
       <GH2>How this site handles an unreleased set</GH2>
       <GP>

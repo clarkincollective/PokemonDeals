@@ -1,7 +1,8 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
+import { Gallery } from "@/components/guides/CardArt";
 import { guideMetadata } from "@/lib/guides";
-import { PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
+import { GUIDE_CARDS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 
 const SLUG = "buying-pokemon-cards-on-ebay-safely";
 export const metadata = guideMetadata(SLUG);
@@ -82,6 +83,21 @@ export default function Page() {
           described&rdquo;, but a change of mind is not.
         </li>
       </GUL>
+      {/* Card art (2026-09-20): the "exact printing" point, shown. */}
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.arcanineBaseSet, caption: "Base Set, Unlimited" },
+          { card: GUIDE_CARDS.arcanineShadowless, caption: "Base Set, Shadowless" },
+        ]}
+        width={170}
+        note={
+          <>
+            The same Arcanine, #023/102, in two printings that a title can confuse and a photo can settle: the
+            Shadowless card has no drop shadow to the right of the art frame. Each has its own page and its own
+            reference. Catalogue scans, not any seller&apos;s card.
+          </>
+        }
+      />
 
       <GH2>Seller signals that matter</GH2>
       <GUL>

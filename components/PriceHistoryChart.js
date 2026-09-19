@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useCurrency } from "@/components/CurrencyProvider";
 import { formatMoney, toViewerCurrency } from "@/lib/money";
+import { legendCounts, isUnlimitedPrinting } from "@/lib/priceHistoryLegend";
 
 const WIDTH = 600;
 const HEIGHT = 220;
@@ -84,8 +85,11 @@ export default function PriceHistoryChart({ points }) {
   const yTicks = [minP, (minP + maxP) / 2, maxP];
   const last = sorted[sorted.length - 1];
 
-  // Legend facts come from the points themselves.
-  const unverifiedCount = sorted.filter((p) => !p.v).length;
+  // Legend facts come from the points themselves. The dashed part is split
+  // into "no provenance recorded" and "a different reference" (2026-09-20:
+  // one number for both hid a Moderately Played reading on the Shadowless
+  // Charizard chart) - lib/priceHistoryLegend.
+  const dashed = legendCounts(sorted);
   const lastKey = keyOf(last);
   let comparableFrom = null;
   if (lastKey) {
@@ -238,16 +242,26 @@ export default function PriceHistoryChart({ points }) {
           <>
             <span className="inline-block h-0.5 w-4 translate-y-[-2px] bg-current text-red-600 dark:text-red-500" /> Verified{" "}
             {last.c}, {last.pr} reference since {formatDate(comparableFrom.t)}.{" "}
+            {isUnlimitedPrinting(last.pr) && <>&ldquo;Unlimited&rdquo; is the printing that is not 1st Edition. </>}
           </>
         ) : (
           <>No verified comparable history yet. </>
         )}
-        {unverifiedCount > 0 && (
-          <>
+        {dashed.earlier > 0 && (
+          <span data-history-dashed={dashed.earlier} data-history-unrecorded={dashed.unrecorded} data-history-other-reference={dashed.differentRef}>
             <span className="inline-block w-4 translate-y-[-2px] border-t-2 border-dashed border-current text-red-600/60 dark:text-red-500/60" />{" "}
-            {unverifiedCount} earlier {unverifiedCount === 1 ? "reading" : "readings"} didn&apos;t record which condition
-            and printing they were for (or were for a different reference) — shown dashed, not comparable.
-          </>
+            {dashed.earlier} earlier {dashed.earlier === 1 ? "reading is" : "readings are"} shown dashed, not comparable
+            {dashed.unrecorded > 0 && dashed.differentRef > 0 ? (
+              <>
+                : {dashed.unrecorded} didn&apos;t record which condition and printing {dashed.unrecorded === 1 ? "it was" : "they were"} for, and{" "}
+                {dashed.differentRef} {dashed.differentRef === 1 ? "was" : "were"} for a different reference ({dashed.differentRefs.join("; ")}).
+              </>
+            ) : dashed.differentRef > 0 ? (
+              <>: {dashed.differentRef === 1 ? "it was" : "they were"} for a different reference ({dashed.differentRefs.join("; ")}).</>
+            ) : (
+              <>: {dashed.unrecorded === 1 ? "it" : "they"} didn&apos;t record which condition and printing {dashed.unrecorded === 1 ? "it was" : "they were"} for.</>
+            )}
+          </span>
         )}
       </p>
     </div>

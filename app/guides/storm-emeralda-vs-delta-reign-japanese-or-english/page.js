@@ -1,8 +1,9 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import { Srcs, SourceList } from "@/components/guides/Src";
+import { Gallery } from "@/components/guides/CardArt";
 import { guideMetadata } from "@/lib/guides";
-import { PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
+import { GUIDE_CARDS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 
 const SLUG = "storm-emeralda-vs-delta-reign-japanese-or-english";
 export const metadata = guideMetadata(SLUG);
@@ -42,6 +43,24 @@ export default function Page() {
           price says nothing about what the English card will trade at, in either direction.
         </li>
       </GUL>
+      {/* Card art (2026-09-20): two English Rayquaza printings already in the
+          catalogue - the same one-page-one-reference rule the Japanese and
+          English Mega Rayquaza ex will get. Our catalogue holds no Japanese
+          cards, so no Storm Emeralda image is shown; nothing is borrowed. */}
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.rayquazaAscendedHeroes, caption: "Ascended Heroes, 153/217" },
+          { card: GUIDE_CARDS.c30ClassicRayquazaEx, caption: "30th Celebration Classic Collection, 85/124" },
+        ]}
+        width={170}
+        note={
+          <>
+            Two English Rayquaza cards already in our catalogue, each on its own page with its own reference. A
+            Japanese Storm Emeralda Mega Rayquaza ex and the English Delta Reign card will be kept apart the same
+            way. Neither is pictured: our catalogue holds English printings only, and we do not borrow images.
+          </>
+        }
+      />
 
       <GH2>Buy the Japanese card now if&hellip;</GH2>
       <GUL>

@@ -40,6 +40,11 @@ const VERIFIED = {
   promoPikachuMe093: ["712963", "Pikachu - 093", "ME: Mega Evolution Promo", "093", "/cards/pikachu-093-me-mega-evolution-promo"],
   promoMewWotc08: ["87394", "Mew (8)", "WoTC Promo", "08/53", "/cards/mew-8-wotc-promo"],
   rayquazaAscendedHeroes: ["675965", "Rayquaza", "ME: Ascended Heroes", "153/217", "/cards/rayquaza-me-ascended-heroes"],
+  // Delta Reign guide galleries - verified against card_catalog and
+  // resolved live (200) on 2026-09-20.
+  golurkBlackBolt: ["642578", "Golurk - 123/086", "SV: Black Bolt", "123/086", "/cards/golurk-123-086-sv-black-bolt"],
+  malamarExPhantomForces: ["94684", "Malamar EX (115 Full Art)", "XY - Phantom Forces", "115/119", "/cards/malamar-ex-115-full-art-xy-phantom-forces"],
+  golisopodExParadoxRift: ["523927", "Golisopod ex - 246/182", "SV04: Paradox Rift", "246/182", "/cards/golisopod-ex-246-182-sv04-paradox-rift"],
   arcanineBaseSet2: ["42472", "Arcanine", "Base Set 2", "033/130", "/cards/arcanine-base-set-2"],
   umbreonVmax: ["246720", "Umbreon VMAX", "SWSH07: Evolving Skies", "095/203", "/cards/umbreon-vmax-swsh07-evolving-skies"],
   umbreonVmaxSecret: ["246722", "Umbreon VMAX (Secret)", "SWSH07: Evolving Skies", "214/203", "/cards/umbreon-vmax-secret-swsh07-evolving-skies"],

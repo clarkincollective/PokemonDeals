@@ -1,7 +1,8 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
+import { Gallery } from "@/components/guides/CardArt";
 import { guideMetadata } from "@/lib/guides";
-import { PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
+import { GUIDE_CARDS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 
 const SLUG = "how-to-read-a-pokemon-card-listing";
 export const metadata = guideMetadata(SLUG);
@@ -28,6 +29,21 @@ export default function Page() {
         </Link>{" "}
         shows where. A title that says one printing over a photo of another is the listing to skip.
       </GP>
+      {/* Card art (2026-09-20): one name, three collector numbers. */}
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.umbreonVmax, caption: "095/203" },
+          { card: GUIDE_CARDS.umbreonVmaxSecret, caption: "214/203" },
+          { card: GUIDE_CARDS.umbreonVmaxAltArt, caption: "215/203" },
+        ]}
+        width={150}
+        note={
+          <>
+            Three Evolving Skies cards that all answer to &ldquo;Umbreon VMAX&rdquo;. Only the collector number on
+            the identity line tells them apart, and each has its own page and reference. Catalogue scans.
+          </>
+        }
+      />
 
       <GH2>2. The condition pill</GH2>
       <GUL>

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import { Srcs, SourceList } from "@/components/guides/Src";
+import { Gallery } from "@/components/guides/CardArt";
 import { guideMetadata } from "@/lib/guides";
-import { GUIDE_LINK_CLASS } from "@/lib/guideLinks";
+import { GUIDE_CARDS, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 
 const SLUG = "pokemon-delta-reign-release-date-what-is-official";
 export const metadata = guideMetadata(SLUG);
@@ -43,6 +44,25 @@ export default function Page() {
           <strong>Series and format:</strong> the Mega Evolution Series; Standard-legal. <Srcs ids={["drExpansion"]} />
         </li>
       </GUL>
+      {/* Card art (2026-09-20): catalogue scans of cards that exist today,
+          one per named Pokemon. No Delta Reign card image exists to show,
+          and no leaked or third-party photograph is used in its place. */}
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.rayquazaAscendedHeroes, caption: "Rayquaza today: Ascended Heroes" },
+          { card: GUIDE_CARDS.golurkBlackBolt, caption: "Golurk today: Black Bolt" },
+          { card: GUIDE_CARDS.malamarExPhantomForces, caption: "Malamar today: Phantom Forces" },
+          { card: GUIDE_CARDS.golisopodExParadoxRift, caption: "Golisopod today: Paradox Rift" },
+        ]}
+        width={150}
+        note={
+          <>
+            The four Pokemon the official pages name, shown as English cards that already exist in our catalogue,
+            each with its own page and reference. They are <strong>not</strong> Delta Reign cards: no English Delta
+            Reign card has been printed, so none is pictured here until The Pokemon Company publishes them.
+          </>
+        }
+      />
 
       <GH2>What is reported, not official</GH2>
       <GUL>

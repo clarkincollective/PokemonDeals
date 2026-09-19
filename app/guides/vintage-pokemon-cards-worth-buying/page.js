@@ -1,5 +1,6 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
+import { Gallery } from "@/components/guides/CardArt";
 import { guideMetadata } from "@/lib/guides";
 import { GUIDE_CARDS, GUIDE_SETS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 
@@ -62,6 +63,22 @@ export default function Page() {
           number and the rarity symbol, not just the name.
         </li>
       </GUL>
+      {/* Card art (2026-09-20): the three look-alikes the first two points describe. */}
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.charizardShadowless, caption: "Base Set (Shadowless), 4/102" },
+          { card: GUIDE_CARDS.charizardBaseSet, caption: "Base Set (Unlimited), 4/102" },
+          { card: GUIDE_CARDS.charizardBaseSet2, caption: "Base Set 2, 4/130" },
+        ]}
+        width={150}
+        note={
+          <>
+            Three genuine WOTC Charizards a title can blur together. The Shadowless card lacks the drop shadow to
+            the right of the art frame; Base Set 2 carries its own set symbol and a /130 number. Each has its own
+            page and reference, and none of these scans says anything about a particular seller&apos;s card.
+          </>
+        }
+      />
 
       <GH2>Condition second</GH2>
       <GP>
