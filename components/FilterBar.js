@@ -1,7 +1,7 @@
 import { MARKETPLACES } from "@/lib/ebayLinks";
 import { allMarketplacesHref, isAllMarketplaces, marketplaceName } from "@/lib/marketplaceScope";
 import FilterToggle from "@/components/FilterToggle";
-import { GRADER_CHOICES, GRADE_CHOICES } from "@/lib/dealFilters";
+import { GRADER_CHOICES, GRADE_CHOICES, ENDING_VALUES, ENDING_LABELS, endingHref } from "@/lib/dealFilters";
 
 // Builds a link that changes one filter while keeping the others intact,
 // or removes it entirely if the same value is clicked again (toggle).
@@ -18,6 +18,10 @@ export function filterHref(currentParams, key, value, basePath = "/") {
   const qs = params.toString();
   return qs ? `${basePath}?${qs}` : basePath;
 }
+
+// 2026-09-19 - the auction ending-window pill href lives in lib/dealFilters
+// (pure, unit-tested); re-exported here beside the other href helpers.
+export { endingHref };
 
 function withoutParams(currentParams, keys, basePath) {
   const params = new URLSearchParams(currentParams);
@@ -331,6 +335,10 @@ export default function FilterBar({
   grade,
   showGrading = false,
   listingType,
+  // 2026-09-19 - auction ending window (1h | 6h | 24h). Offered only where
+  // the grid's loader honours it (showEnding); never silently dropped.
+  ending = null,
+  showEnding = false,
   maxPrice,
   minPrice,
   sort,
@@ -364,6 +372,7 @@ export default function FilterBar({
     showGrading ? grader : null,
     showGrading ? grade : null,
     listingType,
+    showEnding ? ending : null,
     maxPrice,
     minPrice,
     sort,
@@ -434,6 +443,20 @@ export default function FilterBar({
               >
                 Auction
               </FilterPill>
+              {/* ending windows - restrained amber only for the active one;
+                  each is a real narrowing of live auctions by stored end
+                  time (lib/dealFilters), never a countdown gimmick */}
+              {showEnding &&
+                ENDING_VALUES.map((v) => (
+                  <FilterPill
+                    key={v}
+                    href={endingHref(params, v, basePath)}
+                    active={listingType === "AUCTION" && ending === v}
+                    aria-label={ENDING_LABELS[v]}
+                  >
+                    Ends ≤{v}
+                  </FilterPill>
+                ))}
             </ScrollRow>
           </div>
 

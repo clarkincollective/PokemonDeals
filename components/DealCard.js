@@ -14,6 +14,7 @@ import { dealImageProps } from "@/lib/listingImage";
 import SaveCardButton from "@/components/SaveCardButton";
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
+import AuctionEnd from "@/components/AuctionEnd";
 import { offerShipping } from "@/lib/offerPresentation";
 import { listingAvailabilityEvidence } from "@/lib/listingAvailability";
 
@@ -417,7 +418,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           <p className="min-w-0 truncate">
             {isAuction ? (
               <>
-                Auction · ends {deal.auction_end_at ? <RelativeTime date={deal.auction_end_at} mode="until" /> : "soon"}
+                Auction · ends <AuctionEnd date={deal.auction_end_at} />
                 {deal.bid_count != null && ` · ${deal.bid_count} bids`}
               </>
             ) : (

@@ -1,6 +1,7 @@
 import Price from "@/components/Price";
 import { auctionDisplayParts, currencyForDeal, dealTotalUsd, hasPrice } from "@/lib/money";
 import { offerShipping } from "@/lib/offerPresentation";
+import AuctionEnd from "@/components/AuctionEnd";
 
 // P0 auction-price-integrity: an auction's headline "current listing
 // price" is the CURRENT BID - never the bid + shipping landed total. This
@@ -134,6 +135,14 @@ export default function AuctionPrice({
       ) : (
         <p className="text-xs text-zinc-600 dark:text-zinc-400">
           {claim === "none" ? "No comparison stated: shipping breakdown not recorded — " : ""}bids can raise the final price
+        </p>
+      )}
+      {/* The detail panel states the end beside the bid: countdown plus the
+          exact end time in the viewer's zone (one stored timestamp, see
+          components/AuctionEnd). Cards keep the short form in their footer. */}
+      {variant === "detail" && deal.auction_end_at && (
+        <p className="tnum mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+          Ends in <AuctionEnd date={deal.auction_end_at} expanded />
         </p>
       )}
     </div>

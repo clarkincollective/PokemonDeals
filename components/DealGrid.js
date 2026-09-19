@@ -50,6 +50,8 @@ function parseSearch(search) {
     grader: get("grader"),
     grade: get("grade"),
     listingType: get("listing"),
+    // 2026-09-19 - auction ending window (1h | 6h | 24h), see lib/dealFilters
+    ending: get("ending"),
     maxPrice: num("maxPrice"),
     minPrice: num("minPrice"),
     q: get("q"),
@@ -68,6 +70,7 @@ function parseSearch(search) {
     grader: sp.get("grader"),
     grade: sp.get("grade"),
     listing: sp.get("listing"),
+    ending: sp.get("ending"),
     minPrice: sp.get("minPrice"),
     maxPrice: sp.get("maxPrice"),
   });
@@ -222,6 +225,9 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
     if (showGrading && params.grader) q.set("grader", params.grader);
     if (showGrading && params.grade) q.set("grade", params.grade);
     if (params.listingType) q.set("listing", params.listingType);
+    // the All deals inventory (kind "all") has no ending window - the pill
+    // is not offered there, so nothing is silently dropped
+    if (params.ending && kind !== "all") q.set("ending", params.ending);
     if (params.maxPrice) q.set("maxPrice", String(params.maxPrice));
     if (params.minPrice) q.set("minPrice", String(params.minPrice));
     if (searchable && params.q) q.set("q", params.q);
@@ -341,6 +347,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
       grader: params.grader,
       grade: params.grade,
       listing: params.listingType,
+      ending: params.ending,
       minPrice: params.obj.minPrice,
       maxPrice: params.obj.maxPrice,
     }) || Boolean(searchable && params.q);
@@ -475,6 +482,8 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
           grade={showGrading ? effGrade : undefined}
           showGrading={showGrading}
           listingType={params.listingType}
+          ending={params.ending}
+          showEnding={kind !== "all"}
           maxPrice={params.maxPrice}
           minPrice={params.minPrice}
           sort={params.sort}

@@ -35,6 +35,8 @@ export async function GET(request) {
     country: marketplaceFilterValue(u.searchParams.get("country")),
     cardType: u.searchParams.get("type") || null,
     listingType: u.searchParams.get("listing") || null,
+    // 2026-09-19 - auction ending window (validated in lib/dealFilters)
+    ending: u.searchParams.get("ending") || null,
     maxPrice: num("maxPrice"),
     minPrice: num("minPrice"),
     sort: u.searchParams.get("sort") || "newest",

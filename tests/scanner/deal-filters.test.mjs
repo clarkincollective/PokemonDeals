@@ -238,8 +238,10 @@ test("relaxation: PSA 10 under $50 offers price -> grade -> grader -> clear-all,
 
 test("relaxation: last step always clears everything", () => {
   const steps = relaxationSteps({ type: "raw", maxPrice: "10" });
+  // 2026-09-19: the auction ending window is a filter too, so "clear all"
+  // drops it alongside the rest
   assert.deepEqual(steps[steps.length - 1].drop.sort(), [
-    "grade", "grader", "listing", "maxPrice", "minPrice", "type",
+    "ending", "grade", "grader", "listing", "maxPrice", "minPrice", "type",
   ]);
 });
 

@@ -68,13 +68,14 @@ export function AppliedFilters({ params, basePath, resultCount, totalCount, sear
     listing: params.listing,
     minPrice: params.minPrice,
     maxPrice: params.maxPrice,
+    ending: params.ending,
   });
   if (searchQuery) chips.push({ key: "q", label: `Search: "${searchQuery}"`, clears: ["q"] });
   if (!chips.length) return null;
 
   const clearAllKeys = searchQuery
-    ? ["type", "grader", "grade", "listing", "minPrice", "maxPrice", "q"]
-    : ["type", "grader", "grade", "listing", "minPrice", "maxPrice"];
+    ? ["type", "grader", "grade", "listing", "ending", "minPrice", "maxPrice", "q"]
+    : ["type", "grader", "grade", "listing", "ending", "minPrice", "maxPrice"];
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -136,6 +137,7 @@ export function FilteredEmptyState({ params, basePath, subjectLabel, searchQuery
     listing: params.listing,
     minPrice: params.minPrice,
     maxPrice: params.maxPrice,
+    ending: params.ending,
     country: params.country,
   });
   // Explicit broadening only (13B.3 §9's own rule) - a search term is
@@ -156,6 +158,7 @@ export function FilteredEmptyState({ params, basePath, subjectLabel, searchQuery
     listing: params.listing,
     minPrice: params.minPrice,
     maxPrice: params.maxPrice,
+    ending: params.ending,
   });
   if (searchQuery) chips.push({ label: `Search: "${searchQuery}"` });
   const summary = chips.map((c) => c.label).join(" · ");

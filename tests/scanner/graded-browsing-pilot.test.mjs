@@ -42,7 +42,8 @@ test('/api/deals-page category branch: an explicit sort (including "newest") is 
 test('lib/deals.js fetchDealsPageUncached: grader/grade/q parameters exist and use the shared planDealFilters contract', () => {
   const deals = src('lib/deals.js');
   assert.match(deals, /async function fetchDealsPageUncached\(\{[\s\S]{0,200}grader,[\s\S]{0,50}grade,/);
-  assert.match(deals, /const plan = planDealFilters\(\{ type: cardType, grader, grade, listing: listingType, minPrice, maxPrice \}\);/);
+  // 2026-09-19: the auction ending window rides the same plan
+  assert.match(deals, /const plan = planDealFilters\(\{ type: cardType, grader, grade, listing: listingType, ending, minPrice, maxPrice \}\);/);
   assert.doesNotMatch(deals, /if \(cardType === "raw"\) base = base\.eq\("is_graded", false\);/, 'the old hand-rolled cardType-only block must be replaced, not left alongside the shared contract');
 });
 

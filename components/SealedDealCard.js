@@ -4,6 +4,7 @@ import { surfaceForPageName } from "@/lib/affiliateSurfaces";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { currencyForDeal, refInListingCurrency, dealTotalUsd, hasPrice } from "@/lib/money";
 import RelativeTime from "@/components/RelativeTime";
+import AuctionEnd from "@/components/AuctionEnd";
 import { normalizePublicText } from "@/lib/publicText";
 import AffiliateLink from "@/components/AffiliateLink";
 import { CTA_PRIMARY_CLASS } from "@/components/DealCard";
@@ -160,8 +161,8 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
           )}
         </div>
         {isAuction && deal.auction_end_at && (
-          <div className="-mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-            Auction ends <RelativeTime date={deal.auction_end_at} mode="until" />
+          <div className="-mt-1 text-xs font-medium text-zinc-600 dark:text-zinc-300">
+            Auction ends <AuctionEnd date={deal.auction_end_at} />
           </div>
         )}
 

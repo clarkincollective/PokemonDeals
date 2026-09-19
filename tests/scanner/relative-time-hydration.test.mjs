@@ -124,10 +124,20 @@ test("6. static: the cards render timestamps through <RelativeTime>, the layout 
     assert.doesNotMatch(src, /\b(timeAgo|timeUntil|isWithin)\(/, `${name} must not call the clock directly`);
     assert.match(src, /import RelativeTime.* from "@\/components\/RelativeTime"/, `${name} imports RelativeTime`);
     assert.match(src, /<RelativeTime date=\{deal\.first_seen_at\} \/>/, `${name}: found <RelativeTime>`);
-    assert.match(src, /<RelativeTime date=\{deal\.auction_end_at\} mode="until" \/>/, `${name}: auction end via RelativeTime`);
+    // 2026-09-19: the auction end moved to <AuctionEnd> (countdown + exact
+    // end time in the viewer's zone) - built on the SAME render clock.
+    assert.match(src, /<AuctionEnd date=\{deal\.auction_end_at\} \/>/, `${name}: auction end via AuctionEnd`);
+    assert.match(src, /import AuctionEnd from "@\/components\/AuctionEnd"/, `${name} imports AuctionEnd`);
     assert.doesNotMatch(src, /suppressHydrationWarning/, `${name}: no suppressHydrationWarning`);
   }
   assert.match(dealCard, /<WithinWindow date=\{deal\.first_seen_at\} withinMs=\{JUST_FOUND_MS\}>/, "Just-found badge on the same clock");
+
+  const ae = code("components/AuctionEnd.js");
+  assert.match(ae, /^\s*"use client"/m);
+  assert.doesNotMatch(ae, /suppressHydrationWarning/);
+  assert.match(ae, /useClockValue\(/, "AuctionEnd reads the render clock");
+  assert.doesNotMatch(ae, /typeof window/, "AuctionEnd: no typeof-window branch (hydration would disagree)");
+  assert.match(ae, /useSyncExternalStore\(noop, \(\) => true, \(\) => false\)/, "AuctionEnd: the exact end time appears only after hydration");
 
   const rt = code("components/RelativeTime.js");
   assert.match(rt, /^\s*"use client"/m);

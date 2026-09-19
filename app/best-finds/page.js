@@ -10,6 +10,20 @@ import JsonLd from "@/components/JsonLd";
 import { breadcrumbList, collectionPage, itemList } from "@/lib/jsonLd";
 import { filterHref, PriceFilterRow, CountryFilterRow } from "@/components/FilterBar";
 import MarketplaceScopeNote from "@/components/MarketplaceScopeNote";
+import { EmptyStateEscapes } from "@/components/DealFilterChips";
+
+// The same URL with both price bounds removed (the empty state's "one
+// filter relaxed" action). Keeps type / country; pagination does not exist
+// on this page.
+function withoutPriceHref(params) {
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params ?? {})) {
+    if (k === "minPrice" || k === "maxPrice" || typeof v !== "string") continue;
+    sp.set(k, v);
+  }
+  const qs = sp.toString();
+  return qs ? `/best-finds?${qs}` : "/best-finds";
+}
 
 export const revalidate = 300;
 
@@ -108,9 +122,16 @@ export default async function BestFindsPage({ searchParams }) {
           <span className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1 text-xs font-bold text-white">
             🔥 Today&apos;s Best Finds
           </span>
+          {/* Truthful count: the list is never padded with non-qualifying
+              offers, so when fewer than ten qualify the heading says so. */}
           <h1 className="mt-3 text-2xl font-bold text-black dark:text-zinc-50">
-            Top 10 {type === "graded" ? "graded" : "raw"} Buy It Now deals right now
+            {deals.length >= 10 ? "Top 10" : deals.length > 0 ? `Top ${deals.length}` : "Top"} {type === "graded" ? "graded" : "raw"} Buy It Now deals right now
           </h1>
+          {deals.length > 0 && deals.length < 10 && (
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Only {deals.length} {type} {deals.length === 1 ? "offer clears" : "offers clear"} the standout bar right now — the list is never topped up with weaker ones.
+            </p>
+          )}
           <p className="mt-2 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
             Higher-value cards you can buy now for the most below a trustworthy market reference -
             ranked on how far below market and how much you actually save. Auctions have their own{" "}
@@ -137,13 +158,32 @@ export default async function BestFindsPage({ searchParams }) {
         {!error && <MarketplaceScopeNote params={params} basePath="/best-finds" thin={deals.length < 8} />}
 
         {!error && deals.length === 0 && (
-          <p className="text-zinc-500">
-            No standout {type} deals right now - check back after the next scheduled scan, or browse{" "}
-            <Link href="/" className="underline">
-              all deals
-            </Link>
-            .
-          </p>
+          <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+              No standout {type} deals match these filters right now.
+            </p>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              {countryChoice && countryChoice !== "all" ? "Only your selected marketplace is shown. " : ""}
+              Try {type === "raw" ? "graded cards" : "raw cards"}, relax one filter, or browse other listings
+              {countryChoice && countryChoice !== "all" ? " in your selected marketplace" : ""}.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link href={filterHref(params, "type", type === "raw" ? "graded" : "raw", "/best-finds")} rel="nofollow" className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800">
+                Show {type === "raw" ? "graded" : "raw"} instead
+              </Link>
+              {(maxPrice || minPrice) && (
+                <Link href={withoutPriceHref(params)} rel="nofollow" className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800">
+                  Remove the price limit
+                </Link>
+              )}
+              {countryChoice && countryChoice !== "all" && (
+                <Link href={filterHref(params, "country", "all", "/best-finds")} rel="nofollow" data-marketplace-choice="all" className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800">
+                  Browse all marketplaces
+                </Link>
+              )}
+            </div>
+            <EmptyStateEscapes className="mt-3" />
+          </div>
         )}
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
