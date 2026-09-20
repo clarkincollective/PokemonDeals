@@ -80,7 +80,7 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
             className={`absolute left-2 ${rank != null ? "top-10" : "top-2"} rounded-md bg-white/90 px-1.5 py-0.5 text-[11px] font-medium text-zinc-700 shadow-sm dark:bg-zinc-950/90 dark:text-zinc-200`}
             title={`Listed on eBay ${marketInfo.label}`}
           >
-            <MarketplaceMark code={marketInfo.short} className="mr-1" />eBay {marketInfo.short}
+            <MarketplaceMark code={marketInfo.short} className="mr-1" /><span className="sr-only sm:not-sr-only">eBay {marketInfo.short}</span>
           </span>
         )}
       </a>

@@ -24,14 +24,6 @@
       "test": "sealed-deals/[id] meta description: same USD-only rule"
     },
     {
-      "file": "tests/scanner/deal-first-review-fixes.test.mjs",
-      "test": "AUC-2. AuctionPrice fallback + non-USD through the projection: no stored bid -> landed-total fallback (never 'Current bid'); GB auction splits in GBP"
-    },
-    {
-      "file": "tests/scanner/deal-first-review-fixes.test.mjs",
-      "test": "R2-2. AuctionPrice reads the shared contract, not the split maths: unknown -> 'Recorded total' + no comparison; 0 -> 'before shipping' on the comparison too; confirmed -> delivered"
-    },
-    {
       "file": "tests/scanner/ebay-affiliate-attribution.test.mjs",
       "test": "15b. every function that calls authHeaders() is a background scan/verify/discovery function, not a page render"
     },
@@ -46,10 +38,6 @@
     {
       "file": "tests/scanner/integrity-r1.test.mjs",
       "test": "IR-5. display: a raw row with a credible slab claim is hidden with a named reason; graded rows and 'Contender' raw rows are not"
-    },
-    {
-      "file": "tests/scanner/mobile-discovery.test.mjs",
-      "test": "DealCard distinguishes auction from BIN and never strikes the auction ref"
     },
     {
       "file": "tests/scanner/price-condition-provenance.test.mjs",

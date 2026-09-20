@@ -72,17 +72,17 @@ export default function AuctionPrice({
           native={{ amount: total, currency }}
           className={`tnum break-words ${big} text-zinc-900 dark:text-zinc-50`}
         />
-        <p className={`tnum mt-0.5 text-xs ${shippingLineClass}`}>
+        <p className={`mt-0.5 text-xs ${shippingLineClass}`}>
           {ship.state === "confirmed" ? (
             <>
-              incl. <Price usd={shipUsd} native={{ amount: ship.amount, currency }} approxPrefix="" /> shipping
+              incl. <Price usd={shipUsd} native={{ amount: ship.amount, currency }} approxPrefix="" className="tnum" /> shipping
             </>
           ) : (
             <>{ship.note} — check on eBay</>
           )}
         </p>
         {showPct ? (
-          <p className="tnum text-xs font-semibold text-amber-700 dark:text-amber-500">
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-500">
             {discountPct}% under market ref{pctQualifier} · bids can raise the final price
           </p>
         ) : (
@@ -105,25 +105,25 @@ export default function AuctionPrice({
         native={{ amount: bid.native, currency }}
         className={`tnum break-words ${big} text-zinc-900 dark:text-zinc-50`}
       />
-      <p className={`tnum mt-0.5 text-xs ${shippingLineClass}`}>
+      <p className={`mt-0.5 text-xs ${shippingLineClass}`}>
         {ship.state === "confirmed" ? (
           <>
             {"+ "}
-            <Price usd={shipping.usd} native={{ amount: shipping.native, currency }} approxPrefix="" /> shipping
+            <Price usd={shipping.usd} native={{ amount: shipping.native, currency }} approxPrefix="" className="tnum" /> shipping
           </>
         ) : (
           ship.note
         )}
       </p>
-      <p className="tnum text-xs font-semibold text-amber-700 dark:text-amber-500">
+      <p className="text-xs font-semibold text-amber-700 dark:text-amber-500">
         {ship.auctionTotalLabel}{" "}
-        <Price usd={total.usd} native={{ amount: total.native, currency }} approxPrefix="" />
+        <Price usd={total.usd} native={{ amount: total.native, currency }} approxPrefix="" className="tnum" />
         {showRef && (
           <>
             {" "}
             <span className="font-normal text-zinc-600 dark:text-zinc-400">
               vs market ref{" "}
-              <Price usd={Number(marketUsd)} native={{ amount: marketNative, currency }} approxPrefix="" />
+              <Price usd={Number(marketUsd)} native={{ amount: marketNative, currency }} approxPrefix="" className="tnum" />
             </span>
           </>
         )}
@@ -141,7 +141,7 @@ export default function AuctionPrice({
           exact end time in the viewer's zone (one stored timestamp, see
           components/AuctionEnd). Cards keep the short form in their footer. */}
       {variant === "detail" && deal.auction_end_at && (
-        <p className="tnum mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+        <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
           Ends in <AuctionEnd date={deal.auction_end_at} expanded />
         </p>
       )}

@@ -77,9 +77,21 @@ test("4. category chips use the short label with the h1 as the title", () => {
 test("5. deal-card meta lines are 13px", () => {
   const src = read("components/DealCard.js");
   assert.match(src, /gap-x-1 text-\[13px\] text-zinc-500 dark:text-zinc-400">\s*\{cardSet &&/);
-  assert.match(src, /tnum text-\[13px\] text-zinc-500 dark:text-zinc-400">\s*Market reference/);
-  assert.match(src, /tnum text-\[13px\] font-semibold text-emerald-700/);
+  assert.match(src, /<p className="text-\[13px\] text-zinc-500 dark:text-zinc-400">\s*Market reference/);
+  assert.match(src, /<p className="text-\[13px\] font-semibold text-emerald-700/);
   assert.match(src, /mt-2 flex items-center justify-between gap-2 text-\[13px\]/);
+});
+
+test("5b. phone deal card: mono on figures only, marketplace words hidden behind the mark below sm, save control anchored to the art", () => {
+  const src = read("components/DealCard.js");
+  // no sentence paragraph carries the mono face; every inline <Price> in a sentence does
+  assert.doesNotMatch(src, /<p className=\{?[`"]tnum (mt-0\.5 )?text-(xs|\[13px\])/, "a whole sentence in the mono face");
+  assert.match(src, /Save <Price [^/]*className="tnum" \/>/);
+  assert.match(src, /Market reference\{" "\}\s*<Price [^/]*className="tnum font-medium/);
+  assert.match(src, /<span className="sr-only sm:not-sr-only">eBay \{marketInfo\.short\}<\/span>/);
+  assert.match(src, /relative row-span-1 self-start sm:row-auto sm:self-auto/);
+  // the headline figure keeps the mono face
+  assert.match(src, /className="tnum block break-words text-2xl font-bold/);
 });
 
 test("6. /deals filter bar: sort row outside, other rows behind the Filters button; every row still rendered", () => {

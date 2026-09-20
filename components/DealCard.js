@@ -202,7 +202,10 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           opens the site's own detail page. Badges carry only real facts.
           4:5 box on phones, 6:5 from `sm`; object-contain, so the
           artwork keeps its own proportions and is never cropped. */}
-      <div className="relative row-span-1 sm:row-auto">
+      {/* self-start: on phones the text column is taller than the art, and
+          the save control anchors to the ART's corner, not the row's - it
+          used to float in empty space below the picture. */}
+      <div className="relative row-span-1 self-start sm:row-auto sm:self-auto">
         <div className="absolute bottom-1.5 right-1.5 z-10 sm:bottom-2 sm:right-2">
           <SaveCardButton
             compact
@@ -238,11 +241,16 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                 {rank}
               </span>
             )}
-            {/* Flag paired with the marketplace in words - a flag alone is
-                not a statement of where the listing is. */}
+            {/* The marketplace mark paired with the marketplace in words - a
+                mark alone is not a statement of where the listing is.
+                Phones: the 116px art column cannot hold "eBay US" AND the
+                discount badge side by side (they overlapped) - the mark
+                alone is shown there, the words from `sm` up, and the words
+                are always in the accessible name. */}
             {marketInfo && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-white/90 px-1.5 py-0.5 text-xs font-medium text-zinc-700 shadow-sm dark:bg-zinc-950/90 dark:text-zinc-200" title={`Listed on eBay ${marketInfo.label}`}>
-                <MarketplaceMark code={marketInfo.short} />eBay {marketInfo.short}
+              <span className="inline-flex items-center gap-1 rounded-md bg-white/90 px-1 py-0.5 text-xs font-medium text-zinc-700 shadow-sm sm:px-1.5 dark:bg-zinc-950/90 dark:text-zinc-200" title={`Listed on eBay ${marketInfo.label}`}>
+                <MarketplaceMark code={marketInfo.short} />
+                <span className="sr-only sm:not-sr-only">eBay {marketInfo.short}</span>
               </span>
             )}
             {/* Hydration-safe window: computed on the server's clock for the
@@ -341,10 +349,12 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
               native={{ amount: total, currency: nativeCurrency }}
               className="tnum block break-words text-2xl font-bold leading-tight text-zinc-900 dark:text-zinc-50"
             />
-            <p className={`tnum mt-0.5 text-xs ${shippingConfirmed ? "text-zinc-500 dark:text-zinc-400" : "text-amber-700 dark:text-amber-500"}`}>
+            {/* mono (.tnum) on the FIGURES only - a whole sentence in the
+                mono face read as a terminal dump on phones */}
+            <p className={`mt-0.5 text-xs ${shippingConfirmed ? "text-zinc-500 dark:text-zinc-400" : "text-amber-700 dark:text-amber-500"}`}>
               {shippingConfirmed ? (
                 <>
-                  incl. <Price usd={shippingUsd} native={{ amount: shippingNative, currency: nativeCurrency }} approxPrefix="" /> shipping
+                  incl. <Price usd={shippingUsd} native={{ amount: shippingNative, currency: nativeCurrency }} approxPrefix="" className="tnum" /> shipping
                 </>
               ) : (
                 <>{ship.note} — check on eBay</>
@@ -353,9 +363,9 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             {/* deal-first R1: a real recorded earlier price, stated plainly -
                 never a struck-through anchor */}
             {priceDropped && (
-              <p className="tnum mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
                 Seller reduced the item price from{" "}
-                <Price usd={prevUsd} native={{ amount: prevNative, currency: nativeCurrency }} approxPrefix="" className="font-medium text-zinc-700 dark:text-zinc-300" />
+                <Price usd={prevUsd} native={{ amount: prevNative, currency: nativeCurrency }} approxPrefix="" className="tnum font-medium text-zinc-700 dark:text-zinc-300" />
               </p>
             )}
           </div>
@@ -374,9 +384,9 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
         ) : isAuction ? null : (
           <div className="mt-1.5">
             {showRef ? (
-              <p className="tnum text-[13px] text-zinc-500 dark:text-zinc-400">
+              <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
                 Market reference{" "}
-                <Price usd={marketUsd} native={{ amount: marketNative, currency: nativeCurrency }} approxPrefix="" className="font-medium text-zinc-700 dark:text-zinc-300" />
+                <Price usd={marketUsd} native={{ amount: marketNative, currency: nativeCurrency }} approxPrefix="" className="tnum font-medium text-zinc-700 dark:text-zinc-300" />
                 {" · "}
                 {conditionText}
               </p>
@@ -387,10 +397,10 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                 No saving stated: shipping breakdown not recorded
               </p>
             ) : (
-            <p className="tnum text-[13px] font-semibold text-emerald-700 dark:text-emerald-500">
+            <p className="text-[13px] font-semibold text-emerald-700 dark:text-emerald-500">
               {showRef ? (
                 <>
-                  Save <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} />
+                  Save <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} className="tnum" />
                   {ship.savingQualifier} · {pctText} below market
                 </>
               ) : (
