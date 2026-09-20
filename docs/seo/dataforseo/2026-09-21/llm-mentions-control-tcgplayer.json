@@ -1,0 +1,287 @@
+{
+  "version": "0.1.20260917",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "1.7516 sec.",
+  "cost": 0.101,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "09202140-2576-0651-0000-72ed5d29cc54",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "1.7111 sec.",
+      "cost": 0.101,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "ai_optimization",
+        "llm_mentions",
+        "target_metrics",
+        "live"
+      ],
+      "data": {
+        "api": "ai_optimization",
+        "function": "target_metrics",
+        "language_code": "en",
+        "location_code": 2840,
+        "target": [
+          {
+            "domain": "tcgplayer.com",
+            "search_filter": "include"
+          }
+        ],
+        "internal_list_limit": 10
+      },
+      "result": [
+        {
+          "total_count": 0,
+          "offset": 0,
+          "items_count": 0,
+          "aggregated_metrics": {
+            "location": [
+              {
+                "key": 2840,
+                "mentions": 107397,
+                "ai_search_volume": 27089146
+              }
+            ],
+            "language": [
+              {
+                "key": "en",
+                "mentions": 107397,
+                "ai_search_volume": 27089146
+              }
+            ],
+            "platform": [
+              {
+                "key": "google",
+                "mentions": 98694,
+                "ai_search_volume": 26802800
+              },
+              {
+                "key": "chat_gpt",
+                "mentions": 8703,
+                "ai_search_volume": 286346
+              }
+            ],
+            "sources_domain": [
+              {
+                "key": "www.tcgplayer.com",
+                "mentions": 103595,
+                "ai_search_volume": 26971478
+              },
+              {
+                "key": "www.google.com",
+                "mentions": 43591,
+                "ai_search_volume": 10408488
+              },
+              {
+                "key": "www.youtube.com",
+                "mentions": 40132,
+                "ai_search_volume": 14288496
+              },
+              {
+                "key": "www.reddit.com",
+                "mentions": 35826,
+                "ai_search_volume": 10206394
+              },
+              {
+                "key": "www.ebay.com",
+                "mentions": 32422,
+                "ai_search_volume": 5897361
+              },
+              {
+                "key": "www.pricecharting.com",
+                "mentions": 32039,
+                "ai_search_volume": 6316093
+              },
+              {
+                "key": "scryfall.com",
+                "mentions": 12429,
+                "ai_search_volume": 3010484
+              },
+              {
+                "key": "www.facebook.com",
+                "mentions": 7583,
+                "ai_search_volume": 2381371
+              },
+              {
+                "key": "www.pokemon.com",
+                "mentions": 7391,
+                "ai_search_volume": 2623167
+              },
+              {
+                "key": "www.amazon.com",
+                "mentions": 5531,
+                "ai_search_volume": 2798656
+              }
+            ],
+            "search_results_domain": [
+              {
+                "key": "www.tcgplayer.com",
+                "mentions": 5518,
+                "ai_search_volume": 208325
+              },
+              {
+                "key": "www.pricecharting.com",
+                "mentions": 1649,
+                "ai_search_volume": 42175
+              },
+              {
+                "key": "bulbapedia.bulbagarden.net",
+                "mentions": 1174,
+                "ai_search_volume": 28398
+              },
+              {
+                "key": "www.ebay.com",
+                "mentions": 1122,
+                "ai_search_volume": 25068
+              },
+              {
+                "key": "guardiantcg.app",
+                "mentions": 1072,
+                "ai_search_volume": 35747
+              },
+              {
+                "key": "www.youtube.com",
+                "mentions": 954,
+                "ai_search_volume": 22381
+              },
+              {
+                "key": "www.reddit.com",
+                "mentions": 926,
+                "ai_search_volume": 20629
+              },
+              {
+                "key": "www.pokemonwizard.com",
+                "mentions": 869,
+                "ai_search_volume": 18137
+              },
+              {
+                "key": "www.wargamer.com",
+                "mentions": 862,
+                "ai_search_volume": 47032
+              },
+              {
+                "key": "www.pokemon.com",
+                "mentions": 682,
+                "ai_search_volume": 15656
+              }
+            ],
+            "brand_entities_title": [
+              {
+                "key": "Pokémon Trading Card Game",
+                "mentions": 64,
+                "ai_search_volume": 1397
+              },
+              {
+                "key": "Magic: The Gathering",
+                "mentions": 52,
+                "ai_search_volume": 783
+              },
+              {
+                "key": "Magic: The Gathering card",
+                "mentions": 47,
+                "ai_search_volume": 1409
+              },
+              {
+                "key": "Pokémon TCG expansion",
+                "mentions": 31,
+                "ai_search_volume": 796
+              },
+              {
+                "key": "trading card game",
+                "mentions": 27,
+                "ai_search_volume": 529
+              },
+              {
+                "key": "Yu-Gi-Oh! card",
+                "mentions": 23,
+                "ai_search_volume": 1233
+              },
+              {
+                "key": "Evolving Skies",
+                "mentions": 23,
+                "ai_search_volume": 929
+              },
+              {
+                "key": "Pokémon TCG",
+                "mentions": 22,
+                "ai_search_volume": 168
+              },
+              {
+                "key": "Pikachu Illustrator",
+                "mentions": 21,
+                "ai_search_volume": 480
+              },
+              {
+                "key": "Pokémon species",
+                "mentions": 20,
+                "ai_search_volume": 615
+              }
+            ],
+            "brand_entities_category": [
+              {
+                "key": "other",
+                "mentions": 698,
+                "ai_search_volume": 85258
+              },
+              {
+                "key": "product",
+                "mentions": 265,
+                "ai_search_volume": 4468
+              },
+              {
+                "key": "fictional_character",
+                "mentions": 260,
+                "ai_search_volume": 10971
+              },
+              {
+                "key": "artwork",
+                "mentions": 123,
+                "ai_search_volume": 2712
+              },
+              {
+                "key": "video_game",
+                "mentions": 103,
+                "ai_search_volume": 1749
+              },
+              {
+                "key": "people",
+                "mentions": 97,
+                "ai_search_volume": 10046
+              },
+              {
+                "key": "trading_card",
+                "mentions": 89,
+                "ai_search_volume": 2213
+              },
+              {
+                "key": "brand",
+                "mentions": 82,
+                "ai_search_volume": 3748
+              },
+              {
+                "key": "company",
+                "mentions": 80,
+                "ai_search_volume": 1584
+              },
+              {
+                "key": "card",
+                "mentions": 67,
+                "ai_search_volume": 1399
+              }
+            ],
+            "total": {
+              "mentions": 107397,
+              "ai_search_volume": 27089146
+            }
+          },
+          "items": []
+        }
+      ]
+    }
+  ]
+}

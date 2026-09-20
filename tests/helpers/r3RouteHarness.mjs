@@ -11,7 +11,10 @@ const pure = new Set(['dealPage','listingAvailability','indexability','dealQuali
   'affiliateSurfaces','dealFilters','navLinks','socialProfiles','trustContent','time','recentCards','ebaySearch','returnContext','analytics/events','analytics/props','analytics/pageType','savedSearches','jsonLd','integrityReasons','referenceProvenance','cardPrintings','priceHistoryLegend','referenceCondition','listingImage','dealCategories','cardWorth','cardNextSteps','cardSlug','cardImage','cardLinks','marketplaceScope',
   // set/catalogue presentation helpers - pure (no supabase, fetch or env);
   // needed to render CatalogueLinkIndex offline from controlled data
-  'catalogueView','setChecklist','speciesCoverage','pokemonSets']);
+  'catalogueView','setChecklist','speciesCoverage','pokemonSets',
+  // responsive sizing for eBay listing photos - pure string work on a URL
+  // (no fetch, no env, no supabase); DealImage reaches it on every path
+  'ebayImageSizes']);
 export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis=null,renderComponents=false,currency={viewer:null,rates:null}}={}) {
   const calls=[];
   const components=new Map();

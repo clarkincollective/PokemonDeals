@@ -328,15 +328,103 @@ Not measurable this session: DataForSEO's `llm_mentions` endpoints
 rejected three request shapes (40501/40503) — worth one more attempt
 against their docs before concluding anything about model mentions.
 
-### What could not be checked
-- **Core Web Vitals**: PSI quota still exhausted (HTTP 429 on both URLs); GSC field data still "No data" at this traffic level. No lab or field performance number exists for the site right now.
-- **Whether AI crawlers actually fetch**: needs server logs, not available here.
-- **LLM mention share**: see above.
+### What could not be checked (resolved later the same day - see below)
+- ~~**Core Web Vitals**~~: measured 2026-09-21 by running Lighthouse locally, which needs no PageSpeed quota. See "Performance, measured" below.
+- **Whether AI crawlers actually fetch**: needs server logs, still not available here.
+- ~~**LLM mention share**~~: measured 2026-09-21 once the correct endpoint was found. See "LLM citation, measured" below.
+
+## Performance, measured - 2026-09-21
+
+PSI kept returning 429 without an API key, so Lighthouse 12.8.2 was run
+locally against production instead (`npx lighthouse`, headless Chrome).
+These are lab numbers on a fast connection; field data still does not
+exist at this traffic level.
+
+| Metric | Desktop | Mobile | Verdict |
+|---|---|---|---|
+| Performance score | 69 | - | mobile score void (null TBT under the chosen preset) |
+| Largest Contentful Paint | 2.2 s | **3.4 s** | mobile fails the 2.5 s threshold |
+| First Contentful Paint | 0.6 s | 3.4 s | |
+| Cumulative Layout Shift | **0.43** | 0.167 | both above the 0.1 target; desktop is a clear fail |
+| Total Blocking Time | 0 ms | - | no main-thread problem |
+| Server response | 30 ms | | not the bottleneck |
+| Total page weight | | **8,750 KiB** | |
+
+Server timing separately confirms the origin is not at fault: warm TTFB
+on `/`, `/cards`, `/sets` and `/deals` is 0.09-0.11 s (`X-Vercel-Cache:
+HIT`). The 1.0-3.3 s first-hit figures were cold ISR regeneration.
+
+**The dominant cause was images**, 3,296 KiB of oversizing on mobile
+alone - acted on in batch 11 below. **CLS is a separate, still-open
+defect**: Lighthouse reports the score but attributes it to no named
+element in either run, so the shifting element has not been identified
+yet. Do not assume the image change fixed it; re-measure.
+
+## LLM citation, measured - 2026-09-21 (this corrects the audit above)
+
+The audit said we have "zero earned references ... so the probability of
+being quoted is near zero". **That was wrong, and the corrected figure is
+more useful than the guess.**
+
+The earlier attempts failed because the endpoint was guessed. The real
+family is `/v3/ai_optimization/llm_mentions/*` (DataForSEO AI
+Optimization API); `target_metrics/live` is the one that answers this,
+at about $0.10 a call. Two further traps, both now encoded in
+`scripts/seo/llmMentions.mjs` so they are not re-learned:
+
+- Multiple `include` targets are **ANDed** - one answer must cite them
+  all - so a four-peer call returns nothing and reads as zero. One target
+  per call.
+- `total_count: 0` is not zero mentions. The answer is in
+  `aggregated_metrics.sources_domain`.
+
+**pokemondealfinder.com: cited 6 times, AI search volume 86.** Not zero.
+Every one of those citations is on **chat_gpt; zero on google**.
+
+The domains ChatGPT cites alongside us on the same questions:
+
+| Domain | Mentions | AI search volume |
+|---|---|---|
+| **pokemondealfinder.com** | **6** | **86** |
+| www.pricecharting.com | 4 | 48 |
+| pokemoncardscanner.app | 2 | 43 |
+| www.pokemonwizard.com | 1 | 35 |
+| doubleholo.com | 1 | 35 |
+| cardtrack.com | 1 | 35 |
+| www.kardview.com | 1 | 20 |
+| packspy.com | 1 | 20 |
+
+Control run on tcgplayer.com, to show the query works and to scale ours:
+103,595 mentions, AI search volume 26,971,478 - and its split is the
+mirror of ours, **98,694 on google against 8,703 on chat_gpt**.
+
+What this changes:
+1. We are already in the ChatGPT answer set for this niche, at the
+   bottom of it, among the small tools rather than the incumbents. The
+   on-page AI-SEO work was not wasted.
+2. **Google's AI surfaces are where the volume is** (26.8 M against
+   286 k AI search volume for TCGplayer) **and they cite us zero times.**
+   That, not ChatGPT, is the gap.
+3. Google's AI answers draw on classic ranking, so this stays the same
+   fix as the classic one - the pitch pack - but the baseline is now a
+   number that can be re-read, not an assumption.
+
+Re-read with `node scripts/seo/llmMentions.mjs` after any pitch lands.
+Spend this session: $0.303 across three calls (one wasted on the ANDed
+multi-target shape, which is why it is written down).
 
 ### Batch 10 - 2026-09-21 - /cards and /sets target the two difficulty-2 list terms
 - Finding (deep audit, same day): "pokemon card list" 8,100/mo and "pokemon set list" 4,400/mo, both **difficulty 2**, both already answered by an existing page that never used the phrase.
 - Action (`24823a2`): `/cards` title and H1 -> "Pokemon Card List & Price Database"; `/sets` title -> "Pokemon Set List: Every Set & Checklist", H1 -> "Pokemon Set List: Checklists, Prices & Values". Both leads rewritten to answer what the list is and what opening an entry gives you. Each phrase appears exactly three times per page (title, H1, lead); `tests/scanner/list-terms-2026-09-21.test.mjs` fails below three or above five, and forbids hardcoded counts in the description or prices/superlatives in header copy. The homepage's head term is untouched, so no new internal competition.
 - Production verified 2026-09-21: `/cards` serves "Pokemon Card List & Price Database" in title and H1; `/sets` serves "Pokemon Set List: Every Set & Checklist" / "Pokemon Set List: Checklists, Prices & Values"; both descriptions carry the phrase and fit a SERP. STATUS: IMPROVED. Business impact: pending - read position for both terms on 2026-10-04.
+
+### Batch 11 - 2026-09-21 - deal photos served at the size they are displayed
+- Finding (Lighthouse, same day): the homepage weighed 8,750 KiB on mobile, 3,296 KiB of it images served far larger than they render. A deal card shows its listing photo at 116 CSS px; the browser was fetching eBay's 1600 px original, measured at 853 KB for one thumbnail.
+- Cause: `lib/ebayLinks.js` stores every listing photo at `s-l1600` deliberately, because the stored URL is the counterfeit-screening worker's evidence. That is correct and unchanged. The defect was in rendering: eBay photos bypass Vercel Image Optimization (VERCEL-COST-1), and `next/image` renders an unoptimized image as a bare `<img>` with no srcset, so nothing ever asked for a smaller copy.
+- Action: `lib/ebayImageSizes.js` builds a srcset across six eBay CDN widths, and `components/DealImage.js` renders eBay photos through it against the `sizes` each layout already declares. Every width was verified against the CDN first - all nine of eBay's sizes returned 200 with genuinely different payloads (s-l225 26 KB through s-l1600 853 KB) - and `tests/scanner/ebay-image-sizes-2026-09-21.test.mjs` fails if a width outside that measured set is ever requested. No API call, no stored value changed, no new host, and the catalogue-art path still goes through the optimizer exactly as before.
+- `tests/helpers/r3RouteHarness.mjs`: the new module added to the `pure` allowlist. Without it 40 R3 tests fail with "Unapproved R3 harness dependency" - the recurring gotcha whenever a component gains a lib import.
+- Ratchet after the change: 33 failing / 33 quarantined, unchanged from baseline.
+- **CLS is NOT addressed by this** and remains open at 0.43 desktop / 0.167 mobile. Lighthouse names no shifting element in either run, so it needs its own investigation.
 
 ## Measurement calendar
 - **2026-10-04**: GSC CTR on retitled pages; Delta Reign guide impressions; Page indexing "Discovered – not indexed" after the bulk-shard change; PostHog guide_offers clicks.

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import { catalogImageUrl, upgradeCatalogImage } from "@/lib/cardImage";
+import { ebayImageAt, ebaySrcSet, isEbayImage, EBAY_FALLBACK_WIDTH } from "@/lib/ebayImageSizes";
 
 // The image for a deal / listing, with a TRUTHFUL fallback chain:
 //
@@ -47,7 +48,36 @@ export default function DealImage({
   // transforms + cache writes it never recouped. The canonical TCGplayer
   // catalogue art (the `reference` stage) stays optimized: it is immutable
   // and high-reuse (~720 hubs share ~720 images forever).
-  const isEbayPhoto = /(^|\.)ebayimg\.com\//.test(current);
+  const isEbayPhoto = isEbayImage(current);
+
+  // Lighthouse 2026-09-21: because eBay photos skip the optimizer, the
+  // browser was fetching the stored 1600 px original for a card displayed
+  // at 116 px - 8.75 MB of mobile page weight, 3.3 MB of it pure
+  // oversizing. next/image renders an unoptimized image as a bare <img>
+  // with no srcset, so the responsive set has to be built here. eBay's CDN
+  // serves the same photo at each width for free (lib/ebayImageSizes).
+  // The optimized branch below is untouched: the catalogue art still goes
+  // through next/image exactly as before.
+  if (isEbayPhoto) {
+    const srcSet = ebaySrcSet(current);
+    return (
+      <img
+        key={current}
+        src={ebayImageAt(current, EBAY_FALLBACK_WIDTH) ?? current}
+        srcSet={srcSet ?? undefined}
+        sizes={srcSet ? sizes : undefined}
+        alt={alt}
+        // The parent is the aspect-ratio box; this fills it exactly as
+        // next/image's `fill` does, so nothing about the layout - or CLS -
+        // changes with this switch.
+        className={`absolute inset-0 h-full w-full ${className}`}
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : undefined}
+        decoding={priority ? "sync" : "async"}
+        onError={() => setStage((s) => (s === "listing" && reference ? "reference" : "placeholder"))}
+      />
+    );
+  }
 
   return (
     <>
@@ -63,7 +93,9 @@ export default function DealImage({
         // candidate - say so to the browser explicitly, not only via
         // eager loading.
         fetchPriority={priority ? "high" : undefined}
-        unoptimized={isEbayPhoto}
+        // Only the catalogue art reaches this branch now - every eBay photo
+        // returned above - so there is nothing left here to opt out of
+        // optimization, and `unoptimized` would be dead.
         className={className}
         onError={() =>
           setStage((s) => (s === "listing" && reference ? "reference" : "placeholder"))
