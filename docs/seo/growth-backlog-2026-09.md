@@ -389,6 +389,34 @@ separately. `unsized-images` stayed at a perfect score with zero items
 across every run, so the new `<img>` tags contributed no shift at all.
 The slow page had been hiding half the defect.
 
+## Performance verified in production - 2026-09-21
+
+Both fixes deployed and re-measured with the same local Lighthouse 12.8.2
+setup. Three runs per form factor: the starting state, after batch 11
+(images), and after the CLS fix.
+
+| | Desktop start | Desktop final | Mobile start | Mobile final |
+|---|---|---|---|---|
+| Performance score | 69 | **97** | void (null TBT) | **79** |
+| Total page weight | 12,718 KiB | **2,103 KiB** | 8,750 KiB | **1,058 KiB** |
+| Largest Contentful Paint | 2.2 s | **1.2 s** | 3.4 s | 3.4 s |
+| Cumulative Layout Shift | 0.43 | **0.009** | 0.167 | **0.001** |
+| Speed Index | 0.6 s | 0.8 s | 4.1 s | 3.5 s |
+
+CLS now passes comfortably on both (target 0.1). The remaining shifts are
+0.0065 and 0.0021 on desktop, 0.0013 on mobile - all below the noise
+floor. STATUS: IMPROVED.
+
+**The one performance item still open: mobile LCP, 3.4 s.** It is not a
+network problem and this work could not have moved it. In the final
+mobile run, TTFB is 3 % of LCP (100 ms) and **render delay is 97 %
+(3,336 ms)** - the largest element is not waiting to download, it is
+waiting for the page to render on a throttled CPU. The only
+render-blocking resource is one stylesheet at 173 ms. Total Blocking
+Time measures 0, so this is not long tasks either. Next step, when
+someone picks this up: find what the LCP element actually is on mobile
+(the audit names no node) before changing anything - do not guess at it.
+
 ## LLM citation, measured - 2026-09-21 (this corrects the audit above)
 
 The audit said we have "zero earned references ... so the probability of
