@@ -52,7 +52,7 @@ export default function ShareButton({ url, title, text, label, className }) {
       className={`flex shrink-0 items-center justify-center gap-1.5 border border-zinc-200 text-zinc-500 transition-colors hover:border-zinc-300 hover:text-zinc-700 dark:border-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 ${className}`}
     >
       {copied ? (
-        <span className="whitespace-nowrap text-[10px] font-semibold text-emerald-600 dark:text-emerald-500">
+        <span className="whitespace-nowrap text-[11px] font-semibold text-emerald-600 dark:text-emerald-500">
           Copied!
         </span>
       ) : (

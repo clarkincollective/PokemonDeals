@@ -1,6 +1,7 @@
 import { MARKETPLACES } from "@/lib/ebayLinks";
 import { allMarketplacesHref, isAllMarketplaces, marketplaceName } from "@/lib/marketplaceScope";
 import FilterToggle from "@/components/FilterToggle";
+import MarketplaceMark from "@/components/MarketplaceMark";
 import { GRADER_CHOICES, GRADE_CHOICES, ENDING_VALUES, ENDING_LABELS, endingHref } from "@/lib/dealFilters";
 
 // Builds a link that changes one filter while keeping the others intact,
@@ -93,7 +94,7 @@ function FilterPill({ href, active, children, ...rest }) {
       // no reason for Google to spend a new site's small crawl budget
       // fetching thousands of them. Pagination links stay followable.
       rel="nofollow"
-      className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+      className={`inline-flex min-h-8 shrink-0 items-center whitespace-nowrap rounded-full border px-3.5 py-1 text-[13px] font-medium transition-colors ${
         active
           ? "border-red-300 bg-red-50 text-red-700 dark:border-red-300 dark:bg-red-50 dark:text-red-700"
           : "border-zinc-200 bg-white text-zinc-600 hover:border-red-300 hover:text-red-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:text-red-500"
@@ -141,7 +142,7 @@ export function CountryFilterRow({ params, country, basePath = "/", allOption = 
       <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
         Listing marketplace
       </span>
-      <p className="mb-2 text-[11px] text-zinc-400">
+      <p className="mb-2 text-xs text-zinc-400">
         Which eBay site the listing is on - not where it ships or where the seller is. Check
         delivery to you on the eBay listing.
       </p>
@@ -155,7 +156,8 @@ export function CountryFilterRow({ params, country, basePath = "/", allOption = 
         </FilterPill>
         {Object.entries(MARKETPLACES).map(([id, info]) => (
           <FilterPill key={id} href={filterHref(params, "country", id, basePath)} active={country === id}>
-            {info.flag} {info.label}
+            <MarketplaceMark code={info.short} className="mr-1.5" />
+            {info.label}
           </FilterPill>
         ))}
       </ScrollRow>
@@ -362,6 +364,12 @@ export default function FilterBar({
   collapsible = false,
   // "All deals": offer an explicit, default-active "All marketplaces" pill.
   allMarketplaces = false,
+  // UI audit 2026-09-20 (/deals): the always-open five-row panel pushed the
+  // first listing below the fold at 1440x900. With `sortOutside` the Sort
+  // row stays visible as a slim toolbar and the other rows sit behind the
+  // "Filters" button (inline on desktop, the bottom sheet on phones) -
+  // every row stays in the DOM either way.
+  sortOutside = false,
 }) {
   const activeCount = [
     lockedCountry ? null : country,
@@ -383,19 +391,24 @@ export default function FilterBar({
   // also accepts ?listing=BIN. Treat either as the same active state.
   const binActive = listingType === "FIXED_PRICE" || listingType === "BIN";
 
-  return (
-    <div className={collapsible ? "mb-6" : "mb-8 lg:rounded-xl lg:border lg:border-zinc-200 lg:bg-white lg:p-4 lg:shadow-card dark:lg:border-zinc-800 dark:lg:bg-zinc-950"}>
+  const sortRow = <SortRow params={params} sort={sort} basePath={basePath} defaultValue="newest" />;
+  const toolbar = collapsible && sortOutside;
+  // the sort choice is visible outside the toggle in toolbar mode, so it
+  // must not count toward (or auto-open) the hidden panel
+  const panelActiveCount = toolbar && sort != null ? activeCount - 1 : activeCount;
+
+  const toggle = (
       <FilterToggle
-        defaultOpen={activeCount > 0}
-        activeCount={activeCount}
+        defaultOpen={panelActiveCount > 0}
+        activeCount={panelActiveCount}
         collapsible={collapsible}
-        label={collapsible ? "More filters" : "Filters"}
+        label={toolbar ? "Filters" : collapsible ? "More filters" : "Filters"}
         // the sheet's Reset: every visitor-chosen key dropped, the page's
         // own locked identity (category / country preset) untouched
         resetHref={withoutParams(params, ["country", "type", "grader", "grade", "listing", "ending", "maxPrice", "minPrice", "sort", "q"], basePath)}
       >
         <div className="flex flex-col gap-4">
-          <SortRow params={params} sort={sort} basePath={basePath} defaultValue="newest" />
+          {!toolbar && sortRow}
 
           {lockedCountry ? (
             <div>
@@ -483,6 +496,22 @@ export default function FilterBar({
           {searchable && <SearchWithinRow params={params} q={q} basePath={basePath} />}
         </div>
       </FilterToggle>
+  );
+
+  if (toolbar) {
+    return (
+      <div className="mb-6">
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div className="min-w-0 flex-1">{sortRow}</div>
+          <div className="shrink-0">{toggle}</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={collapsible ? "mb-6" : "mb-8 lg:rounded-xl lg:border lg:border-zinc-200 lg:bg-white lg:p-4 lg:shadow-card dark:lg:border-zinc-800 dark:lg:bg-zinc-950"}>
+      {toggle}
     </div>
   );
 }

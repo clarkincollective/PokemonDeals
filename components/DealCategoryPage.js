@@ -7,7 +7,7 @@ import {
   fetchHubCounts,
   fetchSetSlugs,
 } from "@/lib/deals";
-import { DEAL_CATEGORIES, DEAL_CATEGORY_SLUGS, categoryInventoryParams, isModernSet } from "@/lib/dealCategories";
+import { DEAL_CATEGORIES, DEAL_CATEGORY_SLUGS, categoryInventoryParams, isModernSet, categoryShortLabel } from "@/lib/dealCategories";
 import { normalizePublicText } from "@/lib/publicText";
 import SiteHeader from "@/components/SiteHeader";
 import SkipToContent from "@/components/SkipToContent";
@@ -194,8 +194,9 @@ export default async function DealCategoryPage({ slug }) {
                 key={s}
                 href={`/deals/${s}`}
                 className="rounded-full border border-zinc-300 px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:text-black dark:border-zinc-700 dark:text-zinc-200 dark:hover:text-zinc-50"
+                title={DEAL_CATEGORIES[s].h1}
               >
-                {DEAL_CATEGORIES[s].h1}
+                {categoryShortLabel(s)}
               </Link>
             ))}
             <Link

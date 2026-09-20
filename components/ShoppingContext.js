@@ -1,6 +1,7 @@
 "use client";
 
 import { useRegion, regionMeta } from "@/lib/useRegion";
+import MarketplaceMark from "@/components/MarketplaceMark";
 
 // "eBay marketplace: 🇦🇺 eBay Australia" - makes the marketplace the live CTAs use
 // visible without duplicating the header RegionControl. Renders nothing
@@ -12,7 +13,7 @@ export default function ShoppingContext({ className = "" }) {
   if (!meta) return null;
   return (
     <p className={`text-sm font-medium text-zinc-600 dark:text-zinc-300 ${className}`}>
-      eBay marketplace: <span className="font-semibold">{meta.flag} eBay {meta.label}</span>
+      eBay marketplace: <span className="font-semibold"><MarketplaceMark code={meta.short} className="mr-1.5 align-[-2px]" />eBay {meta.label}</span>
     </p>
   );
 }

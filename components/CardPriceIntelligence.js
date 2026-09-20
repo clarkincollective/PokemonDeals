@@ -126,6 +126,24 @@ export default function CardPriceIntelligence({
   const d90 = trends && trends.d90 && Number.isFinite(trends.d90.changePct) ? trends.d90 : null;
   if (detailsOnly && !anyWindow && !signal && !coverage?.label && !showDealContext) return null;
 
+  // UI audit 2026-09-20: on the catalogue render (detailsOnly) a card with
+  // no trend window yet used to get a full panel - heading, "Limited
+  // history" chip and three sentences - that said only "not yet". One
+  // quiet line carries the same facts; the full panel returns the moment a
+  // window exists. Nothing is invented for the gap.
+  if (detailsOnly && !anyWindow && !showDealContext) {
+    return (
+      <p className="mt-4 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500 dark:text-zinc-400" data-price-intelligence="limited">
+        <span className="font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">Price history</span>
+        <span>{noWindowsMessage(signal)}</span>
+        {coverage?.label && <span>{coverage.label}</span>}
+        <Link href="/methodology" className="hover:text-red-600 hover:underline dark:hover:text-red-500">
+          How we work this out
+        </Link>
+      </p>
+    );
+  }
+
   return (
     <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">Price intelligence</h2>

@@ -70,7 +70,7 @@ export default function DealImage({
         }
       />
       {stage === "reference" && (
-        <span className="pointer-events-none absolute bottom-1.5 left-1.5 z-10 rounded bg-zinc-900/75 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+        <span className="pointer-events-none absolute bottom-1.5 left-1.5 z-10 rounded bg-zinc-900/75 px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white">
           Reference image
         </span>
       )}

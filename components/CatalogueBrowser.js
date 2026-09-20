@@ -155,7 +155,7 @@ export function Tile({ card, speciesName, placement, showSet = true }) {
                   bid / shipping split lives on the deal card + detail
                   page. */}
               {isAuction && (
-                <p className="text-[10px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-500">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-500">
                   Est. total
                 </p>
               )}

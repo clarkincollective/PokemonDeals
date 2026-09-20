@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
+import MarketplaceMark from "@/components/MarketplaceMark";
 import { surfaceForPageName } from "@/lib/affiliateSurfaces";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { currencyForDeal, refInListingCurrency, dealTotalUsd, hasPrice } from "@/lib/money";
@@ -71,7 +72,7 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
         {showSavings && (
           <span className="absolute right-2 top-2 flex flex-col items-center rounded-md bg-emerald-600 px-2 py-1 leading-none text-white shadow-sm">
             <span className="text-sm font-extrabold">{discountPct}%</span>
-            <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wide">below market</span>
+            <span className="mt-0.5 text-[11px] font-bold uppercase tracking-wide">below market</span>
           </span>
         )}
         {marketInfo && (
@@ -79,7 +80,7 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
             className={`absolute left-2 ${rank != null ? "top-10" : "top-2"} rounded-md bg-white/90 px-1.5 py-0.5 text-[11px] font-medium text-zinc-700 shadow-sm dark:bg-zinc-950/90 dark:text-zinc-200`}
             title={`Listed on eBay ${marketInfo.label}`}
           >
-            <span aria-hidden="true">{marketInfo.flag} </span>eBay {marketInfo.short}
+            <MarketplaceMark code={marketInfo.short} className="mr-1" />eBay {marketInfo.short}
           </span>
         )}
       </a>

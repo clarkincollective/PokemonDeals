@@ -17,6 +17,7 @@ import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
+import MarketplaceMark from "@/components/MarketplaceMark";
 import { currencyForDeal, refInListingCurrency, dealTotalUsd, auctionDisplayParts, formatMoney, hasPrice, symbolFor } from "@/lib/money";
 import { offerShipping } from "@/lib/offerPresentation";
 import Price from "@/components/Price";
@@ -722,8 +723,8 @@ export default async function DealDetailPage({ params }) {
                 {isAuction ? "Auction" : "Buy It Now"}
               </span>
               {marketInfo && (
-                <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                  {marketInfo.flag} on eBay · {marketInfo.label}
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                  <MarketplaceMark code={marketInfo.short} />eBay {marketInfo.label}
                 </span>
               )}
             </div>

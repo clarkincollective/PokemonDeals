@@ -7,6 +7,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
+import MarketplaceMark from "@/components/MarketplaceMark";
 import { currencyForDeal, refInListingCurrency, dealTotalUsd, hasPrice, auctionDisplayParts } from "@/lib/money";
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
@@ -284,7 +285,11 @@ export default async function SealedDealDetailPage({ params }) {
               <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                 {isAuction ? "Auction" : "Buy It Now"}
               </span>
-              {marketInfo && <span title={marketInfo.label}>{marketInfo.flag}</span>}
+              {marketInfo && (
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                  <MarketplaceMark code={marketInfo.short} />eBay {marketInfo.label}
+                </span>
+              )}
             </div>
 
             {/* Real deal context folded into the H1 - see

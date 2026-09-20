@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { REGION_KEY } from "@/components/RegionControl";
 import { useCurrency } from "@/components/CurrencyProvider";
 import { MARKETPLACES } from "@/lib/ebayLinks";
+import MarketplaceMark from "@/components/MarketplaceMark";
 import { allMarketplacesHref, DELIVERY_NOT_CONFIRMED, effectiveMarketplaceScope, marketplaceName } from "@/lib/marketplaceScope";
 
 // marketplace-broaden-r1: which marketplaces these results come from, and
@@ -73,7 +74,7 @@ export default function MarketplaceScopeNote({ params, basePath, pinned = true, 
         }
       >
         <p>
-          <span aria-hidden="true">{MARKETPLACES[code].flag}</span> Showing listings on {marketplaceName(code)} only
+          <MarketplaceMark code={MARKETPLACES[code].short} className="mr-1.5 align-[-2px]" />Showing listings on {marketplaceName(code)} only
           {thin ? " - there are few here for this selection." : "."}{" "}
           <a
             href={allMarketplacesHref(params, basePath, { defaultIsAll: allByDefault })}

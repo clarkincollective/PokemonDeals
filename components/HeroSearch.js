@@ -183,7 +183,7 @@ export default function HeroSearch({ popular = [] }) {
                     <span className="block truncate text-xs text-zinc-500">{r.set}</span>
                   </span>
                   {r.hasDeal && (
-                    <span className="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                    <span className="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white">
                       deal
                     </span>
                   )}

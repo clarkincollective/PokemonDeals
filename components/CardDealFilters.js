@@ -9,6 +9,7 @@ import AffiliateLink from "@/components/AffiliateLink";
 import { capture } from "@/lib/analytics/client";
 import { EVENTS } from "@/lib/analytics/events";
 import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
+import MarketplaceMark from "@/components/MarketplaceMark";
 import { currencyForDeal } from "@/lib/money";
 import { isAllMarketplaces } from "@/lib/marketplaceScope";
 import {
@@ -288,7 +289,7 @@ export default function CardDealFilters({
                   <option value="">All marketplaces</option>
                   {Object.entries(MARKETPLACES).map(([id, info]) => (
                     <option key={id} value={id}>
-                      {info.flag} {info.label}
+                      {info.label}
                     </option>
                   ))}
                 </select>
@@ -437,7 +438,7 @@ export default function CardDealFilters({
                           {deal.title}
                         </Link>
                         <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-600 dark:text-zinc-400">
-                          {marketInfo && <span title={marketInfo.label}>{marketInfo.flag}</span>}
+                          {marketInfo && <span title={marketInfo.label} className="inline-flex items-center gap-1"><MarketplaceMark code={marketInfo.short} />eBay {marketInfo.short}</span>}
                           {deal.is_graded ? (
                             <span>
                               {deal.grader} {deal.grade}

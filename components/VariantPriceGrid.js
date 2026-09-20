@@ -32,25 +32,25 @@ function TileContents({ label, badge, currentPrice, minPrice, maxPrice, saleCoun
           {hasPrice(currentPrice) ? <Money usd={currentPrice} /> : "—"}
         </span>
         {confidence === "limited" && (
-          <span className="text-[10px] font-medium text-amber-700 dark:text-amber-400" title="Passed the graded-integrity checks but on a small recent sample - treat as a rough guide.">
+          <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400" title="Passed the graded-integrity checks but on a small recent sample - treat as a rough guide.">
             limited data
           </span>
         )}
       </div>
 
       {hasPrice(minPrice) && hasPrice(maxPrice) && (
-        <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
           <Money usd={minPrice} /> – <Money usd={maxPrice} /> range
         </p>
       )}
       {saleCount != null && (
-        <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
           {saleCount} sale{saleCount === 1 ? "" : "s"}
           {lastSaleDate && ` · last ${formatDate(lastSaleDate)}`}
         </p>
       )}
       {showBuyHint && (
-        <p className="mt-1.5 text-[10px] font-semibold text-red-600 dark:text-red-400">Find on eBay →</p>
+        <p className="mt-1.5 text-[11px] font-semibold text-red-600 dark:text-red-400">Find on eBay →</p>
       )}
     </>
   );
@@ -104,7 +104,7 @@ export default function VariantPriceGrid({ raw, graded, activeKey, cardName, sur
         label="Raw"
         // Price-condition provenance: the badge names the condition the raw
         // reference is REALLY for; "Market reference" when PPT doesn't say.
-        badge={<span className="text-[10px] text-zinc-500 dark:text-zinc-400">{referenceConditionLabels(raw?.referenceCondition).short}</span>}
+        badge={<span className="text-[11px] text-zinc-500 dark:text-zinc-400">{referenceConditionLabels(raw?.referenceCondition).short}</span>}
         isActive={activeKey === "raw"}
         searchQuery={cardName}
         eventData={{ card: cardName, page: "variant_grid", variant: "raw" }}
@@ -121,7 +121,7 @@ export default function VariantPriceGrid({ raw, graded, activeKey, cardName, sur
           label={g.label}
           badge={
             g.trend && (
-              <span className={`text-[10px] font-medium ${g.trend === "up" ? "text-emerald-600" : "text-red-500"}`}>
+              <span className={`text-[11px] font-medium ${g.trend === "up" ? "text-emerald-600" : "text-red-500"}`}>
                 {g.trend === "up" ? "▲" : "▼"}
               </span>
             )

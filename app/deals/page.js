@@ -1,7 +1,7 @@
 import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import { fetchAllDealsPage, fetchHubCounts, fetchSetSlugs } from "@/lib/deals";
-import { DEAL_CATEGORIES, DEAL_CATEGORY_SLUGS } from "@/lib/dealCategories";
+import { DEAL_CATEGORIES, DEAL_CATEGORY_SLUGS, categoryShortLabel } from "@/lib/dealCategories";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import DealGrid from "@/components/DealGrid";
@@ -109,15 +109,15 @@ export default async function AllDealsPage() {
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Or browse a category</p>
             <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap [&::-webkit-scrollbar]:hidden">
               {DEAL_CATEGORY_SLUGS.map((s) => (
-                <Link key={s} href={`/deals/${s}`} className={CATEGORY_LINK}>
-                  {DEAL_CATEGORIES[s].h1}
+                <Link key={s} href={`/deals/${s}`} className={CATEGORY_LINK} title={DEAL_CATEGORIES[s].h1}>
+                  {categoryShortLabel(s)}
                 </Link>
               ))}
-              <Link href="/japanese-cards" className={CATEGORY_LINK}>
-                Japanese Pokemon Card Deals
+              <Link href="/japanese-cards" className={CATEGORY_LINK} title="Japanese Pokemon Card Deals">
+                Japanese
               </Link>
-              <Link href="/sealed-deals" className={CATEGORY_LINK}>
-                Sealed Pokemon Product Deals
+              <Link href="/sealed-deals" className={CATEGORY_LINK} title="Sealed Pokemon Product Deals">
+                Sealed
               </Link>
             </div>
           </nav>

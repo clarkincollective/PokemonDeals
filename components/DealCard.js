@@ -12,6 +12,7 @@ import AffiliateLink from "@/components/AffiliateLink";
 import DealImage from "@/components/DealImage";
 import { dealImageProps } from "@/lib/listingImage";
 import SaveCardButton from "@/components/SaveCardButton";
+import MarketplaceMark from "@/components/MarketplaceMark";
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
 import AuctionEnd from "@/components/AuctionEnd";
@@ -240,8 +241,8 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             {/* Flag paired with the marketplace in words - a flag alone is
                 not a statement of where the listing is. */}
             {marketInfo && (
-              <span className="rounded-md bg-white/90 px-1.5 py-0.5 text-xs font-medium text-zinc-700 shadow-sm dark:bg-zinc-950/90 dark:text-zinc-200" title={`Listed on eBay ${marketInfo.label}`}>
-                <span aria-hidden="true">{marketInfo.flag} </span>eBay {marketInfo.short}
+              <span className="inline-flex items-center gap-1 rounded-md bg-white/90 px-1.5 py-0.5 text-xs font-medium text-zinc-700 shadow-sm dark:bg-zinc-950/90 dark:text-zinc-200" title={`Listed on eBay ${marketInfo.label}`}>
+                <MarketplaceMark code={marketInfo.short} />eBay {marketInfo.short}
               </span>
             )}
             {/* Hydration-safe window: computed on the server's clock for the
@@ -288,7 +289,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             reading, never fine print: it sits in its own non-shrinking span
             so a long set name truncates instead of hiding it, and at the
             narrowest widths the line wraps rather than clipping. */}
-        <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1 text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1 text-[13px] text-zinc-500 dark:text-zinc-400">
           {cardSet && (
             <span className="min-w-0 max-w-full truncate">
               {isJapanese && "🇯🇵 Japanese · "}
@@ -373,7 +374,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
         ) : isAuction ? null : (
           <div className="mt-1.5">
             {showRef ? (
-              <p className="tnum text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="tnum text-[13px] text-zinc-500 dark:text-zinc-400">
                 Market reference{" "}
                 <Price usd={marketUsd} native={{ amount: marketNative, currency: nativeCurrency }} approxPrefix="" className="font-medium text-zinc-700 dark:text-zinc-300" />
                 {" · "}
@@ -386,7 +387,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                 No saving stated: shipping breakdown not recorded
               </p>
             ) : (
-            <p className="tnum text-xs font-semibold text-emerald-700 dark:text-emerald-500">
+            <p className="tnum text-[13px] font-semibold text-emerald-700 dark:text-emerald-500">
               {showRef ? (
                 <>
                   Save <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} />
@@ -415,7 +416,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           </p>
         )}
 
-        <div className="mt-1.5 flex items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+        <div className="mt-2 flex items-center justify-between gap-2 text-[13px] text-zinc-500 dark:text-zinc-400">
           <p className="min-w-0 truncate">
             {isAuction ? (
               <>

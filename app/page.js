@@ -330,7 +330,7 @@ export default async function Home() {
                 deal: one sentence plus the dated counts. The checks
                 sentence is `sm:` and up - it stays in the HTML for every
                 reader either way. */}
-            <p className="mt-2 max-w-xl text-xs leading-relaxed text-zinc-600 dark:text-zinc-400" data-answer-capsule>
+            <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-zinc-600 dark:text-zinc-400" data-answer-capsule>
               Pokemon Deal Finder lists live eBay Pokemon card listings priced below a documented market reference for the exact card and condition, from eBay US, UK, Australia, Canada, Germany and Italy.
               <span className="hidden sm:inline">
                 {" "}Every listing shown has passed an exact-printing match, a seller-condition check, an availability re-check and an image-based authenticity screen, and shows the reference it was compared with.
@@ -421,7 +421,7 @@ export default async function Home() {
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">{c.kicker}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">{c.kicker}</p>
                   <p className="mt-1 text-sm font-semibold text-zinc-900 transition-colors group-hover:text-red-600 dark:text-zinc-50 dark:group-hover:text-red-500">
                     {c.title}
                   </p>

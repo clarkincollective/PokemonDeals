@@ -180,7 +180,7 @@ export default function FilterToggle({
         >
           {label}
           {!open && activeCount > 0 && (
-            <span className="rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{activeCount}</span>
+            <span className="rounded-full bg-red-600 px-1.5 py-0.5 text-[11px] font-bold text-white">{activeCount}</span>
           )}
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`}>
             <path d="M5 7.5 10 12.5 15 7.5" />
@@ -210,7 +210,7 @@ export default function FilterToggle({
       >
         Filters
         {!open && activeCount > 0 && (
-          <span className="rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+          <span className="rounded-full bg-red-600 px-1.5 py-0.5 text-[11px] font-bold text-white">
             {activeCount}
           </span>
         )}

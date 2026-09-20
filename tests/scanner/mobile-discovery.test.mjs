@@ -153,7 +153,8 @@ test("DealCard bounds a long name to two clamped lines; the SET truncates but th
   // card wide.
   const src = read("components/DealCard.js");
   assert.match(src, /line-clamp-2 text-base font-semibold/, "card name should clamp to two lines");
-  assert.match(src, /<p className="mt-0\.5 flex flex-wrap items-baseline gap-x-1 text-xs text-zinc-500/, "set + condition line wraps, never clips");
+  // UI audit 2026-09-20: 13px, not 12px - the wrap / truncate rule is unchanged
+  assert.match(src, /<p className="mt-0\.5 flex flex-wrap items-baseline gap-x-1 text-\[13px\] text-zinc-500/, "set + condition line wraps, never clips");
   assert.match(src, /<span className="min-w-0 max-w-full truncate">/, "the set span is the one that truncates");
   // 2026-09-19: the condition is a pill (inline-flex, bordered) - the rule
   // is unchanged: it never shrinks and never wraps, so it cannot be hidden.

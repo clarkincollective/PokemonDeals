@@ -829,7 +829,7 @@ function SearchFilters({
                 <option value="">All marketplaces</option>
                 {Object.entries(MARKETPLACES).map(([id, info]) => (
                   <option key={id} value={id}>
-                    {info.flag} {info.label}
+                    {info.label}
                   </option>
                 ))}
               </select>

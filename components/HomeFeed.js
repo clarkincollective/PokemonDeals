@@ -408,7 +408,7 @@ export default function HomeFeed({
                         ) : (
                           <CardImagePlaceholder />
                         )}
-                        <span className="absolute right-1.5 top-1.5 rounded-md bg-zinc-900/85 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                        <span className="absolute right-1.5 top-1.5 rounded-md bg-zinc-900/85 px-1.5 py-0.5 text-[11px] font-bold text-white">
                           {hub.count} {hub.count === 1 ? "listing" : "listings"}
                         </span>
                       </div>

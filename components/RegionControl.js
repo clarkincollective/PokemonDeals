@@ -1,18 +1,22 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import MarketplaceMark from "@/components/MarketplaceMark";
 
 // The countries the site scans - display data only. Source of truth for
 // the codes/labels is MARKETPLACES in lib/ebay.js; kept in sync by hand
 // (this list changes about once a year).
+// `short` is the two-letter mark rendered by components/MarketplaceMark
+// (UI audit 2026-09-20: flag emoji do not render on Windows); it matches
+// MARKETPLACES[code].short. `flag` is kept for any text-only consumer.
 export const REGIONS = [
-  { code: "", label: "All marketplaces", flag: "🌐" },
-  { code: "EBAY_US", label: "United States", flag: "🇺🇸" },
-  { code: "EBAY_GB", label: "United Kingdom", flag: "🇬🇧" },
-  { code: "EBAY_AU", label: "Australia", flag: "🇦🇺" },
-  { code: "EBAY_CA", label: "Canada", flag: "🇨🇦" },
-  { code: "EBAY_DE", label: "Germany", flag: "🇩🇪" },
-  { code: "EBAY_IT", label: "Italy", flag: "🇮🇹" },
+  { code: "", label: "All marketplaces", flag: "🌐", short: null },
+  { code: "EBAY_US", label: "United States", flag: "🇺🇸", short: "US" },
+  { code: "EBAY_GB", label: "United Kingdom", flag: "🇬🇧", short: "UK" },
+  { code: "EBAY_AU", label: "Australia", flag: "🇦🇺", short: "AU" },
+  { code: "EBAY_CA", label: "Canada", flag: "🇨🇦", short: "CA" },
+  { code: "EBAY_DE", label: "Germany", flag: "🇩🇪", short: "DE" },
+  { code: "EBAY_IT", label: "Italy", flag: "🇮🇹", short: "IT" },
 ];
 
 // localStorage value:
@@ -159,7 +163,7 @@ export default function RegionControl() {
         onClick={() => setOpen((o) => !o)}
         className="flex min-h-[44px] min-w-[44px] items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-[13px] font-medium text-zinc-600 transition-colors hover:border-red-300 hover:text-red-600 dark:border-zinc-800 dark:text-zinc-300 dark:hover:text-red-500"
       >
-        <span aria-hidden>{current.flag}</span>
+        <MarketplaceMark code={current.short ?? null} />
         <span className="hidden sm:inline">
           {region === null ? "eBay marketplace" : current.code ? `eBay ${current.label}` : "All marketplaces"}
         </span>
@@ -201,7 +205,7 @@ export default function RegionControl() {
                   : "text-zinc-600 dark:text-zinc-300"
               }`}
             >
-              <span aria-hidden>{r.flag}</span>
+              <MarketplaceMark code={r.short ?? null} />
               {r.label}
             </button>
           ))}
