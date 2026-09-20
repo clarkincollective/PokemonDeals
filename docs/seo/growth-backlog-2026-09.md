@@ -340,15 +340,20 @@ locally against production instead (`npx lighthouse`, headless Chrome).
 These are lab numbers on a fast connection; field data still does not
 exist at this traffic level.
 
+This is the STARTING state. The corrected, canonical numbers and the
+after-state are in "Performance verified in production" below; the mobile
+column here came from `--preset=perf --form-factor=mobile`, which returns
+a null Total Blocking Time and so a void score.
+
 | Metric | Desktop | Mobile | Verdict |
 |---|---|---|---|
-| Performance score | 69 | - | mobile score void (null TBT under the chosen preset) |
-| Largest Contentful Paint | 2.2 s | **3.4 s** | mobile fails the 2.5 s threshold |
+| Performance score | 69 | void | mobile score void (null TBT under the chosen preset) |
+| Largest Contentful Paint | 2.2 s | 3.4 s | |
 | First Contentful Paint | 0.6 s | 3.4 s | |
 | Cumulative Layout Shift | **0.43** | 0.167 | both above the 0.1 target; desktop is a clear fail |
-| Total Blocking Time | 0 ms | - | no main-thread problem |
+| Total Blocking Time | 0 ms | null | no main-thread problem |
 | Server response | 30 ms | | not the bottleneck |
-| Total page weight | | **8,750 KiB** | |
+| Total page weight | **12,718 KiB** | **8,750 KiB** | |
 
 Server timing separately confirms the origin is not at fault: warm TTFB
 on `/`, `/cards`, `/sets` and `/deals` is 0.09-0.11 s (`X-Vercel-Cache:
@@ -514,9 +519,12 @@ multi-target shape, which is why it is written down).
 - Action: `lib/ebayImageSizes.js` builds a srcset across six eBay CDN widths, and `components/DealImage.js` renders eBay photos through it against the `sizes` each layout already declares. Every width was verified against the CDN first - all nine of eBay's sizes returned 200 with genuinely different payloads (s-l225 26 KB through s-l1600 853 KB) - and `tests/scanner/ebay-image-sizes-2026-09-21.test.mjs` fails if a width outside that measured set is ever requested. No API call, no stored value changed, no new host, and the catalogue-art path still goes through the optimizer exactly as before.
 - `tests/helpers/r3RouteHarness.mjs`: the new module added to the `pure` allowlist. Without it 40 R3 tests fail with "Unapproved R3 harness dependency" - the recurring gotcha whenever a component gains a lib import.
 - Ratchet after the change: 33 failing / 33 quarantined, unchanged from baseline.
-- **CLS is NOT addressed by this** and remains open at 0.43 desktop / 0.167 mobile. Lighthouse names no shifting element in either run, so it needs its own investigation.
+- CLS was not addressed by this batch and was fixed separately the same day - see "CLS: cause found and fixed" above (`817a2ad`). Note that this batch appeared to make CLS worse (0.43 to 0.80 desktop) purely because the faster page put both existing shifts inside one scoring window; the shifts themselves were unchanged and `unsized-images` stayed perfect throughout.
+- Production verified 2026-09-21: the responsive set is served on the homepage grid and the deal detail hero. Desktop page weight 12,718 to 2,103 KiB, mobile 8,750 to 1,136 KiB; the two priority deal photos now transfer at 23 KB and 20 KB against roughly 800 KB each. STATUS: IMPROVED.
 
 ## Measurement calendar
+- **2026-10-04**: GSC Core Web Vitals - check whether field data has appeared now that lab CLS is 0.009/0.001 and mobile weight is down 87 %; it read "No data" on 21 Sep.
+- **2026-10-04**: position for "pokemon card list" and "pokemon set list" (batch 10).
 - **2026-10-04**: GSC CTR on retitled pages; Delta Reign guide impressions; Page indexing "Discovered – not indexed" after the bulk-shard change; PostHog guide_offers clicks.
 - **2026-10-11**: price_history provenance depth → decide #6.
 - **2026-10-28**: species experiment 6-week review → decide #7.
