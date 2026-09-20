@@ -129,6 +129,13 @@ Commit `797d9cb`; production verified 2026-09-20 (~23:55 UTC 19 Sep).
 - Component: `ProductTile` / `ProductGallery` in `components/guides/CardArt.js` — square reserved box, `alt="<label> — <type>, product photo"`, caption states these are catalogue product photos, not a seller's item or a statement about seal, contents or price.
 - Production: `data-product-gallery="3"`, three `<img>` with the expected alts and CDN sources. Mobile check (390 px frame): two tiles per row plus one centred, each 132 × 132 px, gallery 323 px wide, document scroll width 371 px < viewport 387 px (no horizontal scroll); screenshot reviewed.
 
+### Batch 7 — 2026-09-20 — homepage answers first (AI citability)
+- Finding: AI-citability audit of the homepage (page fetched live; six US SERPs via Firecrawl search; competitor pages via Firecrawl scrape). Score 58/100: the quotable answer existed (the dated capsule) but sat in 13 px type under a slogan H1; no comparison content; no byline; the site appeared in no US top 10 for "pokemon card deals", "pokemon cards below market price", "best site to find cheap pokemon cards", "how to find underpriced pokemon cards on ebay", "is pokemon deal finder legit" or "pokemon card price checker". Reddit threads, YouTube and Facebook groups win the deal intents; TCGplayer and PriceCharting the price-check intent. Volume / difficulty / CPC remain estimates until DataForSEO is verified (owner action, see below).
+- Action (`2477840`): H1 "Pokemon card deals below market price on eBay"; capsule at body size; `components/HomeHowItCompares` — five question-form H2s that open with the answer, five key takeaways, a dated five-row comparison table (each third-party tool described from its own page), a byline linking /about with a review date; Article JSON-LD dated by that review constant; FAQ reshaped to eight questions of 2–4 sentences with graded cards and the no-saving state added. `tests/scanner/home-geo-2026-09-20.test.mjs`.
+- Not done (owner): the off-page action — a first-person post in one Reddit buying-guide thread following that subreddit's rules, and the PokeBeach pitch from `docs/pitch-pack.md`. AI engines cite what Reddit, YouTube and PokeBeach cite; on-page work alone does not put the domain in their evidence set. Publication stays under the owner's hold.
+- Dashboard: https://claude.ai/artifact/BetRWH5H3yfC4W3HHmURCX
+- Production verified 2026-09-20 after `2477840`: H1 "Pokemon card deals below market price on eBay"; capsule at `text-sm`; the block renders five question-form H2s, five takeaways, the comparison table and the byline; Article JSON-LD with `dateModified` 2026-09-20 and the site entity as author; FAQPage and the visible FAQ both carry eight questions. STATUS: IMPROVED. Business impact: pending — AI-engine citation cannot be measured directly; read GSC impressions on the six audited queries and any brand-query appearance on 2026-10-04.
+
 ## Measurement calendar
 - **2026-10-04**: GSC CTR on retitled pages; Delta Reign guide impressions; Page indexing "Discovered – not indexed" after the bulk-shard change; PostHog guide_offers clicks.
 - **2026-10-11**: price_history provenance depth → decide #6.
@@ -137,6 +144,7 @@ Commit `797d9cb`; production verified 2026-09-20 (~23:55 UTC 19 Sep).
 ## Blockers
 - Search Console API token is read-only (no sitemap resubmission / removal, no indexing API); UI actions done by hand when authorised. The direct `/sitemaps/cards-bulk.xml` submission is now consistent with the index (batch 6); removing it is optional tidying, not required.
 - GSC Links report: "Processing data" on 2026-09-20 — re-read in a few days for the first referring-site count.
+- DataForSEO: credentials stored and the client + first-read script are committed (`scripts/seo/dfsFirstRead.mjs`), but the account is unverified (every call answers 40104). Owner action: complete verification at app.dataforseo.com; then the first read (backlinks, ranked keywords, volumes, live SERP) runs for under $0.50 of the $1.00 trial balance and replaces the "est." figures.
 - Vercel Web Analytics events (`eBay Click`) not readable from this session (MCP tool unavailable; dashboard domain not permitted in the browser).
 - PageSpeed Insights anonymous quota exhausted 19 Sep; CrUX has no field data (traffic too low).
 
