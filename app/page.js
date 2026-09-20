@@ -20,6 +20,7 @@ import HeroSearch from "@/components/HeroSearch";
 import MobileStickySearch from "@/components/MobileStickySearch";
 import SectionHeader from "@/components/SectionHeader";
 import HomeFeed from "@/components/HomeFeed";
+import HomeHowItCompares, { HOME_LAST_REVIEWED } from "@/components/HomeHowItCompares";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import { emailEnabled } from "@/lib/email";
 import { catalogImageUrl } from "@/lib/cardImage";
@@ -102,26 +103,30 @@ export const metadata = {
 
 // Single source of truth for the FAQ section AND its FAQPage JSON-LD -
 // Google requires the two to match.
+// GEO 2026-09-20: eight questions, each answered in two to four sentences.
+// "How often do listings update?" and "How do you know it's below market?"
+// folded into "How current is a deal?" and "Where does the market price
+// come from?"; graded cards and the no-saving state added.
 const FAQ_ITEMS = [
   {
     question: "Is this free to use?",
     answer:
-      "Yes, always. We earn a small commission if you buy through one of our links - it doesn't change the price you pay.",
-  },
-  {
-    question: "How often do listings update?",
-    answer:
-      "New listings are discovered continuously - every 15 minutes in the US and every few hours in the other countries. Existing deals are reconfirmed on a rolling schedule so a sold or ended listing drops off shortly after.",
-  },
-  {
-    question: "How do you know it's below market?",
-    answer:
-      "Each listing is compared to the card's real market price for its condition, backed by recent eBay sold listings - not a guess. The full method is on our methodology page.",
+      "Yes, always. We earn a small commission if you buy through one of our links - it doesn't change the price you pay. There is no paid placement, so a listing cannot pay to appear as a deal.",
   },
   {
     question: "Is the card-to-listing match always right?",
     answer:
-      "Matching is automated. We filter out obviously wrong matches, but always double-check a listing's photos and description before buying.",
+      "Matching is automated. We filter out obviously wrong matches, but always double-check a listing's photos and description before buying. A listing can sit under the reference because its printing or condition is mis-described.",
+  },
+  {
+    question: "Do you cover graded cards?",
+    answer:
+      "Yes. A graded listing is compared only with a reference for the same grader and grade. A raw \"Near Mint\" is never treated as equivalent to a numeric grade, and the two are never compared with each other.",
+  },
+  {
+    question: "Why do some listings show no saving?",
+    answer:
+      "Because no trustworthy reference exists for that exact printing and condition, or because the shipping breakdown was not recorded, so a delivered saving cannot be stated. The listing is still shown, plainly, with the reason.",
   },
   // GEO audit 2026-09-19 - the questions people put to AI assistants about
   // a deal site. Literal answers; nothing is promised that the checks
@@ -144,7 +149,7 @@ const FAQ_ITEMS = [
   {
     question: "How current is a deal?",
     answer:
-      "Each listing shows when it was first found and when it was last checked against eBay. A page for a listing that has ended says so and links to the card's current listings. The listing integrity report shows how many listings were checked and withheld in the last 24 hours.",
+      "New listings are discovered continuously - every 15 minutes in the US and every few hours in the other countries - and existing deals are reconfirmed on a rolling schedule. Each listing shows when it was first found and when it was last checked against eBay. A page for a listing that has ended says so and links to the card's current listings. The listing integrity report shows how many listings were checked and withheld in the last 24 hours.",
   },
 ];
 
@@ -295,10 +300,41 @@ export default async function Home() {
     ...(lastRefreshed ? { dateModified: new Date(lastRefreshed).toISOString() } : {}),
   };
 
+  // GEO 2026-09-20: the explanatory block (HomeHowItCompares) is an Article
+  // in its own right - headline, the review date of that copy as
+  // dateModified (HOME_LAST_REVIEWED, never a clock), the site entity as
+  // author and publisher, and the outside pages it draws on as citations.
+  const homeArticleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "@id": `${SITE_URL}/#how-it-compares`,
+    headline: "How Pokemon Deal Finder finds Pokemon cards below market price on eBay",
+    description:
+      "What a below-market Pokemon card deal is, how the site compares with TCGplayer, PriceCharting and deal communities, why a bid is not a price, and what to check before buying.",
+    mainEntityOfPage: `${SITE_URL}/`,
+    url: `${SITE_URL}/#how-it-compares`,
+    author: { "@id": `${SITE_URL}/#organization` },
+    publisher: { "@id": `${SITE_URL}/#organization` },
+    dateModified: HOME_LAST_REVIEWED,
+    inLanguage: "en-US",
+    about: [
+      { "@type": "Thing", name: "Pokemon Trading Card Game" },
+      { "@type": "Thing", name: "eBay" },
+    ],
+    citation: [
+      "https://www.ebay.com/help/policies/ebay-money-back-guarantee-policy/ebay-money-back-guarantee-policy?id=4210",
+      "https://www.pricecharting.com/category/pokemon-cards",
+      "https://www.tcgplayer.com/categories/trading-and-collectible-card-games/pokemon/price-guides",
+      `${SITE_URL}/methodology`,
+      `${SITE_URL}/integrity`,
+    ],
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homeCollectionJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homeArticleJsonLd) }} />
       <SkipToContent target="deals" />
       <SiteHeader />
       <MobileStickySearch />
@@ -316,8 +352,11 @@ export default async function Home() {
       <header className="border-b border-zinc-200 bg-sunk dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,40rem)] lg:items-center lg:gap-x-10">
           <div>
+            {/* GEO 2026-09-20: the heading names the thing the page is,
+                in the words people search; the capsule below it is the
+                quotable answer. No slogan. */}
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50">
-              Find your next Pokemon card deal.
+              Pokemon card deals below market price on eBay
             </h1>
             <p className="mt-1.5 hidden max-w-xl text-sm text-zinc-600 lg:block dark:text-zinc-400">
               Explore Pokemon card listings on eBay, with market references where a matching
@@ -330,7 +369,7 @@ export default async function Home() {
                 deal: one sentence plus the dated counts. The checks
                 sentence is `sm:` and up - it stays in the HTML for every
                 reader either way. */}
-            <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-zinc-600 dark:text-zinc-400" data-answer-capsule>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400" data-answer-capsule>
               Pokemon Deal Finder lists live eBay Pokemon card listings priced below a documented market reference for the exact card and condition, from eBay US, UK, Australia, Canada, Germany and Italy.
               <span className="hidden sm:inline">
                 {" "}Every listing shown has passed an exact-printing match, a seller-condition check, an availability re-check and an image-based authenticity screen, and shows the reference it was compared with.
@@ -452,7 +491,11 @@ export default async function Home() {
             </Link>
             .
           </p>
-          <div id="how-it-works" className="mt-8 grid gap-12 scroll-mt-24 lg:grid-cols-2">
+          {/* GEO 2026-09-20: the answer-first explanation, the comparison
+              table and the byline - between the lead-in prose and the
+              three steps, so the ordering the hierarchy test pins holds. */}
+          <HomeHowItCompares />
+          <div id="how-it-works" className="mt-12 grid gap-12 scroll-mt-24 lg:grid-cols-2">
             <div>
               <SectionHeader kicker="No guesswork" title="How comparisons work" actionLabel="Full methodology" actionHref="/methodology" />
               <ol className="mt-5 flex flex-col gap-5">
