@@ -33,7 +33,7 @@ export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis
   query.single=record('fixture-db.single',{data:deal});
   const realComponents = new Set(['Price','AuctionPrice','AffiliateLink','CardPriceSummary','CatalogCardView','CardWorthAnswer','SkipToContent']);
   const substitutes = new Set();
-  if (renderComponents === 'visual') for (const name of ['SiteHeader','SiteFooter','Logo','NavMenu','NavDropdown','RegionControl','DealImage','CardImagePlaceholder','Breadcrumbs','CardPriceIntelligence','CardWorthAnswer','CardNextSteps','RelatedCards','VariantPriceGrid','ListingChecks','PriceHistoryChart','CardDealFilters','DealCard','FilterToggle','RecentSales','EbaySearchLink','MiniSparkline','ShareButton','SaveCardButton','DealBackLink','RelativeTime','StickyDealCta']) realComponents.add(name);
+  if (renderComponents === 'visual') for (const name of ['SiteHeader','SiteFooter','Logo','NavMenu','NavDropdown','RegionControl','DealImage','CardImagePlaceholder','Breadcrumbs','CardPriceIntelligence','CardWorthAnswer','CardNextSteps','RelatedCards','VariantPriceGrid','ListingChecks','PriceHistoryChart','CardDealFilters','DealCard','FilterToggle','RecentSales','EbaySearchLink','MiniSparkline','ShareButton','SaveCardButton','DealBackLink','RelativeTime','StickyDealCta','SavingsBadge','MarketplaceMark']) realComponents.add(name);
   function compile(filename) {
     const {code}=swc.transformSync(readFileSync(filename,'utf8'),{
       filename,jsc:{parser:{syntax:'ecmascript',jsx:true},target:'es2022',transform:{react:{runtime:'automatic'}}},

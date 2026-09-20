@@ -86,7 +86,7 @@ test("5b. phone deal card: mono on figures only, marketplace words hidden behind
   const src = read("components/DealCard.js");
   // no sentence paragraph carries the mono face; every inline <Price> in a sentence does
   assert.doesNotMatch(src, /<p className=\{?[`"]tnum (mt-0\.5 )?text-(xs|\[13px\])/, "a whole sentence in the mono face");
-  assert.match(src, /Save <Price [^/]*className="tnum" \/>/);
+  assert.match(src, /Save <Price [^/]*className="tnum text-sm font-bold" \/>/);
   assert.match(src, /Market reference\{" "\}\s*<Price [^/]*className="tnum font-medium/);
   assert.match(src, /<span className="sr-only sm:not-sr-only">eBay \{marketInfo\.short\}<\/span>/);
   assert.match(src, /relative row-span-1 self-start sm:row-auto sm:self-auto/);
@@ -101,6 +101,22 @@ test("6. /deals filter bar: sort row outside, other rows behind the Filters butt
   assert.match(fb, /\{!toolbar && sortRow\}/);
   assert.match(fb, /label=\{toolbar \? "Filters" : collapsible \? "More filters" : "Filters"\}/);
   assert.match(read("components/DealGrid.js"), /collapsible=\{compactFilters \|\| allDeals\}\s*sortOutside=\{allDeals\}/);
+});
+
+test("8. savings badge: one tiered component for cards and sealed product; loud in proportion to the real discount; auctions stay amber and separate", () => {
+  const badge = read("components/SavingsBadge.js");
+  assert.match(badge, /if \(pct >= 40\) return "hot";\s*if \(pct >= 20\) return "strong";\s*return "modest";/);
+  assert.match(badge, /hot: "bg-red-600 px-2\.5 py-1 text-base font-black[^"]*shadow-\[/, "hot tier: solid lime, larger, glows");
+  assert.match(badge, /strong: "bg-red-600 px-2 py-1 text-sm font-extrabold/, "strong tier: solid lime, no glow");
+  assert.match(badge, /modest: "border border-zinc-200 bg-white\/95/, "modest tier stays quiet");
+  assert.match(badge, /data-savings-badge=\{tier\}/);
+  assert.match(badge, /\{savingsBadgeText\(discountPct\)\}/, "the real number, nothing else");
+  assert.doesNotMatch(badge, /only \d|left!|selling fast|hurry|limited time/i, "no invented urgency");
+  const card = read("components/DealCard.js");
+  assert.match(card, /savingsSupported && !isAuction && \(\s*<SavingsBadge discountPct=\{deal\.discount_pct\}/);
+  assert.match(card, /savingsSupported && isAuction && \(/, "auction badge remains its own amber branch");
+  assert.doesNotMatch(card, /function discountBadgeClass/);
+  assert.match(read("components/SealedDealCard.js"), /showSavings && <SavingsBadge discountPct=\{deal\.discount_pct\}/);
 });
 
 test("7. catalogue card page: the no-trend state is one quiet line, the full panel returns with a window", () => {

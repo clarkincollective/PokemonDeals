@@ -13,6 +13,7 @@ import DealImage from "@/components/DealImage";
 import { dealImageProps } from "@/lib/listingImage";
 import SaveCardButton from "@/components/SaveCardButton";
 import MarketplaceMark from "@/components/MarketplaceMark";
+import SavingsBadge from "@/components/SavingsBadge";
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
 import AuctionEnd from "@/components/AuctionEnd";
@@ -30,13 +31,8 @@ export const CTA_PRIMARY_CLASS =
 
 // The discount badge is tiered by how good the deal actually is (real
 // discount_pct) so a 65%-under card doesn't look identical to a 12%-under
-// one. Only rendered when the savings claim is TRUSTED (lib/dealQuality
-// listingPresentation) - never on a plain listing.
-function discountBadgeClass(pct) {
-  if (pct >= 40) return "bg-emerald-700 text-white";
-  if (pct >= 20) return "border border-emerald-600/40 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300";
-  return "border border-zinc-200 bg-white/95 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950/90 dark:text-zinc-300";
-}
+// one - components/SavingsBadge. Only rendered when the savings claim is
+// TRUSTED (lib/dealQuality listingPresentation) - never on a plain listing.
 
 // Deal-first R1/R2 - one offer in a grid, laid out as the deal-card
 // contract (docs: PokemonDealFinder-Deal-First-Overhaul §5):
@@ -265,9 +261,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           </div>
 
           {savingsSupported && !isAuction && (
-            <span className={`absolute right-1.5 top-1.5 rounded-md px-1.5 py-0.5 text-xs font-extrabold leading-none shadow-sm sm:right-2 sm:top-2 sm:px-2 sm:py-1 sm:text-sm ${discountBadgeClass(discountPct)}`}>
-              {savingsBadgeText(deal.discount_pct)}
-            </span>
+            <SavingsBadge discountPct={deal.discount_pct} className="absolute right-1.5 top-1.5 sm:right-2 sm:top-2" />
           )}
           {/* integrity-2026-09-19: an auction's figure is the CURRENT BID,
               not a secured price. It never wears the green savings badge -
@@ -276,7 +270,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           {savingsSupported && isAuction && (
             <span
               title="Current bid against the market reference - bids can raise the final price"
-              className="absolute right-1.5 top-1.5 rounded-md border border-amber-600/40 bg-amber-50 px-1.5 py-0.5 text-xs font-bold leading-none text-amber-800 shadow-sm sm:right-2 sm:top-2 sm:px-2 sm:py-1 dark:bg-amber-950/50 dark:text-amber-300"
+              className="absolute right-1.5 top-1.5 rounded-lg border border-amber-600/40 bg-amber-50 px-2 py-1 text-sm font-extrabold leading-none tracking-tight text-amber-800 shadow-sm sm:right-2 sm:top-2 dark:bg-amber-950/60 dark:text-amber-300"
             >
               Bid {savingsBadgeText(deal.discount_pct)}
             </span>
@@ -400,7 +394,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             <p className="text-[13px] font-semibold text-emerald-700 dark:text-emerald-500">
               {showRef ? (
                 <>
-                  Save <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} className="tnum" />
+                  Save <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} className="tnum text-sm font-bold" />
                   {ship.savingQualifier} · {pctText} below market
                 </>
               ) : (

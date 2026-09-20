@@ -132,7 +132,8 @@ test("R1-5. DealCard: the comparison carries its condition context and only rend
   // round 2: the badge needs a trusted reference AND a known shipping breakdown
   // integrity-2026-09-19: AND the listing must be Buy It Now - an auction's
   // current bid never wears the green badge (amber "Bid −N%" instead)
-  assert.match(src, /\{savingsSupported && !isAuction && \(\s*<span className=\{`absolute right-1\.5 top-1\.5/);
+  // UI audit 2026-09-20: the badge is components/SavingsBadge now - the gate is unchanged
+  assert.match(src, /\{savingsSupported && !isAuction && \(\s*<SavingsBadge discountPct=\{deal\.discount_pct\} className="absolute right-1\.5 top-1\.5/);
   assert.match(src, /data-offer-state=\{isAuction \? "auction" : showSavings \? "bin_compared" : "bin_plain"\}/);
 });
 

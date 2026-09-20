@@ -87,7 +87,8 @@ test("R2-1. DealCard: unknown breakdown -> no badge, no 'Save', no '% below mark
   // integrity-2026-09-19: the green badge is gated on the supported claim
   // AND on the listing being Buy It Now - an auction's current bid never
   // wears it (it gets the amber "Bid −N%" badge instead).
-  assert.match(src, /\{savingsSupported && !isAuction && \(\s*<span className=\{`absolute right-1\.5 top-1\.5/, "the discount badge is gated on the supported claim and BIN");
+  // UI audit 2026-09-20: the badge is components/SavingsBadge now - the gate is unchanged
+  assert.match(src, /\{savingsSupported && !isAuction && \(\s*<SavingsBadge discountPct=\{deal\.discount_pct\} className="absolute right-1\.5 top-1\.5/, "the discount badge is gated on the supported claim and BIN");
   assert.match(src, /\{savingsSupported && isAuction && \(/, "auctions get their own bid badge");
   assert.match(src, /discount_band: savingsSupported \? discountBand\(discountPct\) : "no_savings_claim"/);
   assert.match(src, /\{!savingsSupported \? \([\s\S]{0,300}No saving stated: shipping breakdown not recorded/);
