@@ -20,6 +20,13 @@ Rollback for any entry: the prior-state file named in the row
 | 2026-09-20 | 41196 (CA, active; single row) | Pikachu & Zekrom GX SM168, SM Promos | `authenticity:owner_reported` | Owner reported the listing as a fake card. Shape: market reference $215 USD, listing 63 % below it; seller trust signals not enriched (feedback count, returns and photo count all null). The visual screen returned MATCH and its own rationale reads "the entirely gold metallic finish is consistent with an official gold/metal card variant" - SM168 is a paper promo; an all-gold metallic card is the gold-metal counterfeit shape the code already names. The screener rationalised the tell away rather than flagging it. | `.local/hold-41196-prior.json` |
 | 2026-09-21 | 41914 (GB, active; single row) | Espeon & Deoxys GX SM240, SM Promos | `authenticity:owner_reported` | Owner reported the listing as a fake card. Shape: market reference $125.28 USD (Near Mint, Holofoil), listing 52 % below it, seller feedback count 147, **no returns**, 4 photos. Two tells the shipped checks do not read: the title ends **"(see description)"** — a hedge whose disclosure lives in the description body, which the scanner never fetches — and the Stage 2 vision rationale again explained away an unusual finish ("the overall rainbow sheen is consistent with a holo/reverse-holo foil pattern reflecting light, not evidence…"). | `.local/hold-41914-prior.json` |
 
+Verified 2026-09-21: `/deals/41914` serves the unavailable state with
+`noindex, follow`; the card hub `/cards/espeon-deoxys-gx-sm240-sm-promos`
+no longer references the listing once the queued tags were expired by the
+sweep. This case is also what prompted the hold script to queue cache
+invalidation (`65950e0`) — before that the hub kept showing a held
+listing until its own ISR window lapsed.
+
 ## Observation for the screening rules (not changed - rule changes are held)
 
 Second case (41196) adds a specific failure: the Stage 2 vision prompt
