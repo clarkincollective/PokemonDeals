@@ -123,6 +123,20 @@ never assume the section name is identical across the two.
 
 ## PostHog `affiliate_click` dimensions (2026-09-19, growth brief §11)
 
+**Emitters (2026-09-20).** Two components emit `affiliate_click`:
+`components/AffiliateLink.js` (every listing / TCGPlayer / grid link) and,
+since `797d9cb`, `components/EbaySearchLink.js` (the "Search current eBay
+listings" control on catalogue card pages and other eBay-search surfaces).
+The search control sends `placement` and `origin_section` from its caller's
+`event.placement` (`card_no_deal` on card pages), `network: "ebay"`,
+`page_type` from the path and `country` from the chosen marketplace; the
+Vercel `eBay Click` event it always sent is unchanged. One event per system
+per click. Note that the PostHog origin `card_catalog` is the **"Check on
+TCGPlayer"** link on the catalogue render (network `tcgplayer`), not the
+eBay search. Controlled wiring checks load the page with
+`?utm_source=pdf_verification`; `npm run report:growth` excludes that
+marker from every query.
+
 `components/AffiliateLink.js` now adds three structural properties to the
 `affiliate_click` event, alongside the existing `origin_section`:
 
