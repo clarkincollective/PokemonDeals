@@ -333,6 +333,11 @@ against their docs before concluding anything about model mentions.
 - **Whether AI crawlers actually fetch**: needs server logs, not available here.
 - **LLM mention share**: see above.
 
+### Batch 10 - 2026-09-21 - /cards and /sets target the two difficulty-2 list terms
+- Finding (deep audit, same day): "pokemon card list" 8,100/mo and "pokemon set list" 4,400/mo, both **difficulty 2**, both already answered by an existing page that never used the phrase.
+- Action (`24823a2`): `/cards` title and H1 -> "Pokemon Card List & Price Database"; `/sets` title -> "Pokemon Set List: Every Set & Checklist", H1 -> "Pokemon Set List: Checklists, Prices & Values". Both leads rewritten to answer what the list is and what opening an entry gives you. Each phrase appears exactly three times per page (title, H1, lead); `tests/scanner/list-terms-2026-09-21.test.mjs` fails below three or above five, and forbids hardcoded counts in the description or prices/superlatives in header copy. The homepage's head term is untouched, so no new internal competition.
+- Production verified 2026-09-21: `/cards` serves "Pokemon Card List & Price Database" in title and H1; `/sets` serves "Pokemon Set List: Every Set & Checklist" / "Pokemon Set List: Checklists, Prices & Values"; both descriptions carry the phrase and fit a SERP. STATUS: IMPROVED. Business impact: pending - read position for both terms on 2026-10-04.
+
 ## Measurement calendar
 - **2026-10-04**: GSC CTR on retitled pages; Delta Reign guide impressions; Page indexing "Discovered – not indexed" after the bulk-shard change; PostHog guide_offers clicks.
 - **2026-10-11**: price_history provenance depth → decide #6.
