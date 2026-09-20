@@ -1,0 +1,85 @@
+{
+  "at": "2026-09-20T19:58:18.941Z",
+  "location": "United States",
+  "rows": [
+    {
+      "keyword": "pokemon card price checker",
+      "volume": 14800,
+      "cpc": 1.19,
+      "difficulty": 19,
+      "intent": "transactional"
+    },
+    {
+      "keyword": "how much is my pokemon card worth",
+      "volume": 2400,
+      "cpc": 1.93,
+      "difficulty": 22,
+      "intent": "informational"
+    },
+    {
+      "keyword": "pokemon card deals",
+      "volume": 1600,
+      "cpc": 0.43,
+      "difficulty": 2,
+      "intent": "commercial"
+    },
+    {
+      "keyword": "pokemon booster box prices",
+      "volume": 1000,
+      "cpc": 0.6,
+      "difficulty": 0,
+      "intent": "commercial"
+    },
+    {
+      "keyword": "shadowless charizard price",
+      "volume": 480,
+      "cpc": 0.3,
+      "difficulty": 0,
+      "intent": "informational"
+    },
+    {
+      "keyword": "pokemon card grading scale",
+      "volume": 140,
+      "cpc": 0.26,
+      "difficulty": 2,
+      "intent": "informational"
+    },
+    {
+      "keyword": "cheap pokemon cards ebay",
+      "volume": 70,
+      "cpc": 0.07,
+      "difficulty": 6,
+      "intent": "transactional"
+    },
+    {
+      "keyword": "raw vs graded pokemon cards",
+      "volume": 20,
+      "cpc": null,
+      "difficulty": null,
+      "intent": "informational"
+    },
+    {
+      "keyword": "charizard base set card value",
+      "volume": 10,
+      "cpc": null,
+      "difficulty": null,
+      "intent": "informational"
+    },
+    {
+      "keyword": "is buying pokemon cards on ebay safe",
+      "volume": 10,
+      "cpc": null,
+      "difficulty": null,
+      "intent": "informational"
+    }
+  ],
+  "noData": [
+    "pokemon deal finder",
+    "pokemon cards below market price",
+    "pokemon 30th celebration card list",
+    "delta reign release date",
+    "graded pokemon card deals",
+    "vintage pokemon cards worth buying"
+  ],
+  "spentUsd": 0.0132
+}

@@ -27,6 +27,28 @@ export function ledger(budgetUsd) {
   return { budgetUsd: Number(budgetUsd), spentUsd: 0, calls: [] };
 }
 
+// 40104 ("please verify your account") keeps answering some calls for a
+// while AFTER verification is completed - observed 2026-09-21, where the
+// same endpoint alternated between 20000 and 40104 minute to minute while
+// the flag propagated across products. It is transient, so it is retried
+// with a short backoff rather than surfaced as a hard failure; every other
+// status still throws on the first response. A retried call that never
+// reached the API costs nothing.
+const VERIFY_PROPAGATION_CODE = 40104;
+export async function postWithRetry(path, tasks, { attempts = 6, delayMs = 4000, ...opts } = {}) {
+  let last;
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      return await post(path, tasks, opts);
+    } catch (e) {
+      last = e;
+      if (!String(e.message).includes(String(VERIFY_PROPAGATION_CODE))) throw e;
+      if (i < attempts) await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  throw last;
+}
+
 export async function post(path, tasks, { ledger: led, fetchImpl = fetch } = {}) {
   if (led && led.spentUsd >= led.budgetUsd) throw new BudgetExceeded(`budget ${led.budgetUsd} USD already spent (${led.spentUsd.toFixed(4)})`);
   const res = await fetchImpl(`${BASE}${path}`, {

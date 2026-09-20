@@ -1,0 +1,80 @@
+{
+  "version": "0.1.20260917",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.0162 sec.",
+  "cost": 0.024036,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "09201954-2576-0265-0000-bb77d5a38ca1",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.0080 sec.",
+      "cost": 0.024036,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "backlinks",
+        "summary",
+        "live"
+      ],
+      "data": {
+        "api": "backlinks",
+        "function": "summary",
+        "target": "pokemondealfinder.com",
+        "include_subdomains": true,
+        "exclude_internal_backlinks": true
+      },
+      "result": [
+        {
+          "target": "pokemondealfinder.com",
+          "first_seen": "2026-08-30 18:46:48 +00:00",
+          "lost_date": null,
+          "rank": 0,
+          "backlinks": 3,
+          "backlinks_spam_score": 53,
+          "crawled_pages": 0,
+          "info": {
+            "server": null,
+            "cms": null,
+            "platform_type": null,
+            "ip_address": null,
+            "country": null,
+            "is_ip": false,
+            "target_spam_score": 0
+          },
+          "internal_links_count": 0,
+          "external_links_count": 0,
+          "broken_backlinks": 0,
+          "broken_pages": 0,
+          "referring_domains": 3,
+          "referring_domains_nofollow": 0,
+          "referring_main_domains": 3,
+          "referring_main_domains_nofollow": 0,
+          "referring_ips": 3,
+          "referring_subnets": 3,
+          "referring_pages": 3,
+          "referring_pages_nofollow": 0,
+          "referring_links_tld": {
+            "com": 3
+          },
+          "referring_links_types": {
+            "image": 3
+          },
+          "referring_links_attributes": null,
+          "referring_links_platform_types": {
+            "unknown": 3
+          },
+          "referring_links_semantic_locations": {
+            "": 3
+          },
+          "referring_links_countries": {
+            "": 3
+          }
+        }
+      ]
+    }
+  ]
+}

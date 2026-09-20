@@ -1,0 +1,126 @@
+{
+  "version": "0.1.20260917",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.0180 sec.",
+  "cost": 0.024036,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "09201954-2576-0265-0000-2aa2c053f521",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.0059 sec.",
+      "cost": 0.024036,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "backlinks",
+        "summary",
+        "live"
+      ],
+      "data": {
+        "api": "backlinks",
+        "function": "summary",
+        "target": "pricecharting.com",
+        "include_subdomains": true,
+        "exclude_internal_backlinks": true
+      },
+      "result": [
+        {
+          "target": "pricecharting.com",
+          "first_seen": "2019-01-16 05:32:58 +00:00",
+          "lost_date": null,
+          "rank": 621,
+          "backlinks": 10949009,
+          "backlinks_spam_score": 0,
+          "crawled_pages": 1060476,
+          "info": {
+            "server": "cloudflare",
+            "cms": null,
+            "platform_type": [
+              "unknown"
+            ],
+            "ip_address": "172.67.73.21",
+            "country": "US",
+            "is_ip": false,
+            "target_spam_score": 1
+          },
+          "internal_links_count": 185539832,
+          "external_links_count": 33713859,
+          "broken_backlinks": 32760,
+          "broken_pages": 14692,
+          "referring_domains": 6497,
+          "referring_domains_nofollow": 3185,
+          "referring_main_domains": 5205,
+          "referring_main_domains_nofollow": 2004,
+          "referring_ips": 3691,
+          "referring_subnets": 1919,
+          "referring_pages": 9695605,
+          "referring_pages_nofollow": 56060,
+          "referring_links_tld": {
+            "com": 9646840,
+            "app": 12195,
+            "nl": 6128,
+            "xyz": 5723,
+            "cc": 4923,
+            "blogspot.com": 2888,
+            "coffee": 2759,
+            "online": 2314,
+            "azurewebsites.net": 1438,
+            "net": 1096
+          },
+          "referring_links_types": {
+            "anchor": 9656593,
+            "image": 35552,
+            "redirect": 3458,
+            "alternate": 2
+          },
+          "referring_links_attributes": {
+            "noopener": 203659,
+            "noreferrer": 170022,
+            "nofollow": 56051,
+            "sponsored": 9578,
+            "ugc": 3156,
+            "external": 136
+          },
+          "referring_links_platform_types": {
+            "unknown": 9469644,
+            "organization": 197228,
+            "blogs": 25942,
+            "cms": 23125,
+            "ecommerce": 9707,
+            "news": 3519,
+            "message-boards": 224,
+            "wikis": 110
+          },
+          "referring_links_semantic_locations": {
+            "": 9461592,
+            "footer": 138952,
+            "section": 43596,
+            "main": 26854,
+            "article": 9579,
+            "aside": 6816,
+            "figure": 5476,
+            "nav": 2163,
+            "figcaption": 229,
+            "details": 218
+          },
+          "referring_links_countries": {
+            "US": 6836389,
+            "WW": 2646207,
+            "": 195002,
+            "NL": 6387,
+            "CC": 4923,
+            "DE": 1002,
+            "FR": 556,
+            "CA": 378,
+            "BR": 368,
+            "ES": 291
+          }
+        }
+      ]
+    }
+  ]
+}

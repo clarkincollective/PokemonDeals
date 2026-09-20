@@ -1,0 +1,87 @@
+{
+  "version": "0.1.20260917",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.2706 sec.",
+  "cost": 0.024036,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "09201954-2576-0265-0000-e7d28e332821",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.1934 sec.",
+      "cost": 0.024036,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "backlinks",
+        "summary",
+        "live"
+      ],
+      "data": {
+        "api": "backlinks",
+        "function": "summary",
+        "target": "pokedealfinder.com",
+        "include_subdomains": true,
+        "exclude_internal_backlinks": true
+      },
+      "result": [
+        {
+          "target": "pokedealfinder.com",
+          "first_seen": "2026-08-02 08:11:42 +00:00",
+          "lost_date": null,
+          "rank": 0,
+          "backlinks": 11,
+          "backlinks_spam_score": 58,
+          "crawled_pages": 0,
+          "info": {
+            "server": null,
+            "cms": null,
+            "platform_type": null,
+            "ip_address": null,
+            "country": null,
+            "is_ip": false,
+            "target_spam_score": 0
+          },
+          "internal_links_count": 0,
+          "external_links_count": 0,
+          "broken_backlinks": 0,
+          "broken_pages": 0,
+          "referring_domains": 11,
+          "referring_domains_nofollow": 0,
+          "referring_main_domains": 11,
+          "referring_main_domains_nofollow": 0,
+          "referring_ips": 11,
+          "referring_subnets": 11,
+          "referring_pages": 11,
+          "referring_pages_nofollow": 0,
+          "referring_links_tld": {
+            "com": 7,
+            "link": 2,
+            "us.com": 1,
+            "info": 1
+          },
+          "referring_links_types": {
+            "anchor": 11
+          },
+          "referring_links_attributes": {
+            "noopener": 8
+          },
+          "referring_links_platform_types": {
+            "unknown": 11
+          },
+          "referring_links_semantic_locations": {
+            "": 8,
+            "details": 3
+          },
+          "referring_links_countries": {
+            "": 10,
+            "US": 1
+          }
+        }
+      ]
+    }
+  ]
+}

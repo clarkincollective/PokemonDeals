@@ -1,0 +1,28 @@
+{
+  "version": "0.1.20260917",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.0065 sec.",
+  "cost": 0,
+  "tasks_count": 1,
+  "tasks_error": 1,
+  "tasks": [
+    {
+      "id": "09201957-2576-0397-0000-dc71cf916f4f",
+      "status_code": 40402,
+      "status_message": "Invalid Path.",
+      "time": "0 sec.",
+      "cost": 0,
+      "result_count": 0,
+      "path": [
+        "v3",
+        "dataforseo_labs",
+        "google",
+        "bulk_search_volume",
+        "live"
+      ],
+      "data": null,
+      "result": null
+    }
+  ]
+}

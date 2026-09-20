@@ -1,0 +1,142 @@
+{
+  "version": "0.1.20260917",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.0746 sec.",
+  "cost": 0.01392,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "09201957-2576-0392-0000-54f96c3d4b49",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.0632 sec.",
+      "cost": 0.01392,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "dataforseo_labs",
+        "google",
+        "bulk_keyword_difficulty",
+        "live"
+      ],
+      "data": {
+        "api": "dataforseo_labs",
+        "function": "bulk_keyword_difficulty",
+        "se_type": "google",
+        "keywords": [
+          "pokemon deal finder",
+          "pokemon card deals",
+          "pokemon cards below market price",
+          "cheap pokemon cards ebay",
+          "pokemon card price checker",
+          "how much is my pokemon card worth",
+          "charizard base set card value",
+          "shadowless charizard price",
+          "pokemon 30th celebration card list",
+          "delta reign release date",
+          "pokemon booster box prices",
+          "is buying pokemon cards on ebay safe",
+          "graded pokemon card deals",
+          "vintage pokemon cards worth buying",
+          "raw vs graded pokemon cards",
+          "pokemon card grading scale"
+        ],
+        "location_code": 2840,
+        "language_code": "en"
+      },
+      "result": [
+        {
+          "se_type": "google",
+          "location_code": 2840,
+          "language_code": "en",
+          "total_count": 16,
+          "items_count": 16,
+          "items": [
+            {
+              "se_type": "google",
+              "keyword": "charizard base set card value",
+              "keyword_difficulty": null
+            },
+            {
+              "se_type": "google",
+              "keyword": "cheap pokemon cards ebay",
+              "keyword_difficulty": 6
+            },
+            {
+              "se_type": "google",
+              "keyword": "how much is my pokemon card worth",
+              "keyword_difficulty": 22
+            },
+            {
+              "se_type": "google",
+              "keyword": "is buying pokemon cards on ebay safe",
+              "keyword_difficulty": null
+            },
+            {
+              "se_type": "google",
+              "keyword": "pokemon booster box prices",
+              "keyword_difficulty": 0
+            },
+            {
+              "se_type": "google",
+              "keyword": "pokemon card deals",
+              "keyword_difficulty": 2
+            },
+            {
+              "se_type": "google",
+              "keyword": "pokemon card grading scale",
+              "keyword_difficulty": 2
+            },
+            {
+              "se_type": "google",
+              "keyword": "pokemon card price checker",
+              "keyword_difficulty": 19
+            },
+            {
+              "se_type": "google",
+              "keyword": "raw vs graded pokemon cards",
+              "keyword_difficulty": null
+            },
+            {
+              "se_type": "google",
+              "keyword": "shadowless charizard price",
+              "keyword_difficulty": 0
+            },
+            {
+              "se_type": "google",
+              "keyword": "pokemon deal finder",
+              "keyword_difficulty": null
+            },
+            {
+              "se_type": "google",
+              "keyword": "pokemon cards below market price",
+              "keyword_difficulty": null
+            },
+            {
+              "se_type": "google",
+              "keyword": "pokemon 30th celebration card list",
+              "keyword_difficulty": null
+            },
+            {
+              "se_type": "google",
+              "keyword": "delta reign release date",
+              "keyword_difficulty": null
+            },
+            {
+              "se_type": "google",
+              "keyword": "graded pokemon card deals",
+              "keyword_difficulty": null
+            },
+            {
+              "se_type": "google",
+              "keyword": "vintage pokemon cards worth buying",
+              "keyword_difficulty": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

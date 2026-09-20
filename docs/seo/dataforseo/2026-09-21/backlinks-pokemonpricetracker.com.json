@@ -1,0 +1,118 @@
+{
+  "version": "0.1.20260917",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.1507 sec.",
+  "cost": 0.024036,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "09201954-2576-0265-0000-ab7820963379",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.1452 sec.",
+      "cost": 0.024036,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "backlinks",
+        "summary",
+        "live"
+      ],
+      "data": {
+        "api": "backlinks",
+        "function": "summary",
+        "target": "pokemonpricetracker.com",
+        "include_subdomains": true,
+        "exclude_internal_backlinks": true
+      },
+      "result": [
+        {
+          "target": "pokemonpricetracker.com",
+          "first_seen": "2025-09-19 20:14:02 +00:00",
+          "lost_date": null,
+          "rank": 107,
+          "backlinks": 123,
+          "backlinks_spam_score": 25,
+          "crawled_pages": 239,
+          "info": {
+            "server": "Vercel",
+            "cms": null,
+            "platform_type": [
+              "unknown"
+            ],
+            "ip_address": "76.76.21.93",
+            "country": "US",
+            "is_ip": false,
+            "target_spam_score": 8
+          },
+          "internal_links_count": 4477,
+          "external_links_count": 282,
+          "broken_backlinks": 1,
+          "broken_pages": 9,
+          "referring_domains": 50,
+          "referring_domains_nofollow": 12,
+          "referring_main_domains": 49,
+          "referring_main_domains_nofollow": 12,
+          "referring_ips": 38,
+          "referring_subnets": 38,
+          "referring_pages": 89,
+          "referring_pages_nofollow": 15,
+          "referring_links_tld": {
+            "com": 57,
+            "io": 5,
+            "ai": 4,
+            "dev": 3,
+            "eu": 3,
+            "world": 2,
+            "in": 2,
+            "link": 2,
+            "party": 1,
+            "au": 1
+          },
+          "referring_links_types": {
+            "anchor": 79,
+            "image": 10
+          },
+          "referring_links_attributes": {
+            "noopener": 29,
+            "nofollow": 15,
+            "noreferrer": 11,
+            "external": 2,
+            "ugc": 1
+          },
+          "referring_links_platform_types": {
+            "unknown": 47,
+            "organization": 38,
+            "blogs": 25,
+            "cms": 24,
+            "news": 9,
+            "ecommerce": 1,
+            "message-boards": 1
+          },
+          "referring_links_semantic_locations": {
+            "": 32,
+            "section": 26,
+            "article": 21,
+            "main": 6,
+            "details": 3,
+            "header": 1
+          },
+          "referring_links_countries": {
+            "": 55,
+            "JP": 10,
+            "US": 7,
+            "IO": 5,
+            "AI": 4,
+            "IN": 2,
+            "GB": 1,
+            "KH": 1,
+            "HU": 1,
+            "DE": 1
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "version": "0.1.20260917",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.0715 sec.",
+  "cost": 0.024036,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "09201954-2576-0265-0000-ea553c01ae4c",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.0211 sec.",
+      "cost": 0.024036,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "backlinks",
+        "summary",
+        "live"
+      ],
+      "data": {
+        "api": "backlinks",
+        "function": "summary",
+        "target": "dexcatch.com",
+        "include_subdomains": true,
+        "exclude_internal_backlinks": true
+      },
+      "result": [
+        {
+          "target": "dexcatch.com",
+          "first_seen": "2026-08-03 14:22:35 +00:00",
+          "lost_date": null,
+          "rank": 0,
+          "backlinks": 13,
+          "backlinks_spam_score": 61,
+          "crawled_pages": 0,
+          "info": {
+            "server": null,
+            "cms": null,
+            "platform_type": null,
+            "ip_address": null,
+            "country": null,
+            "is_ip": false,
+            "target_spam_score": 0
+          },
+          "internal_links_count": 0,
+          "external_links_count": 0,
+          "broken_backlinks": 0,
+          "broken_pages": 0,
+          "referring_domains": 13,
+          "referring_domains_nofollow": 0,
+          "referring_main_domains": 13,
+          "referring_main_domains_nofollow": 0,
+          "referring_ips": 13,
+          "referring_subnets": 12,
+          "referring_pages": 13,
+          "referring_pages_nofollow": 0,
+          "referring_links_tld": {
+            "com": 11,
+            "us.com": 1,
+            "link": 1
+          },
+          "referring_links_types": {
+            "anchor": 13
+          },
+          "referring_links_attributes": {
+            "noopener": 12
+          },
+          "referring_links_platform_types": {
+            "unknown": 13
+          },
+          "referring_links_semantic_locations": {
+            "": 12,
+            "details": 1
+          },
+          "referring_links_countries": {
+            "": 12,
+            "US": 1
+          }
+        }
+      ]
+    }
+  ]
+}

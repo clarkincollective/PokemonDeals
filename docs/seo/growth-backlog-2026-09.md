@@ -10,7 +10,7 @@ Resume from here; do not restart the audit. Companion records:
 
 | Bottleneck | Verdict | Evidence (source, date) |
 |---|---|---|
-| Authority | **Hypothesis: the strongest candidate constraint, not established as the primary one** (corrected 2026-09-20; earlier versions of this table said "primary ceiling"). **Referring-domain count: UNKNOWN** until the Search Console Links report or a backlink tool provides evidence. | What "zero referring domains" actually rests on: `docs/authority-backlink-audit.md` (2026-09-07) — no backlink tool or API was available, so the figure is an **exact-domain web search that found 0 pages mentioning `pokemondealfinder.com`**, plus the absence of a GSC Links report at the time. Not a crawl of the link graph. Re-checked 2026-09-20: the GSC Links report (UI, URL-prefix property) shows "Processing data, please check again in a day or so" — no referring-site count is readable yet. Supporting signals: GSC 05–19 Sep 0 brand queries; value queries at avg position 40–78. What would establish it: the Links report once it populates; a ranking change on pages whose content did not change after a link is earned. Until then, treat authority as one of several levers (below), not the only one. |
+| Authority | **Confirmed as the binding constraint (2026-09-21), now measured.** Referring domains: **3, all worthless** — see the DataForSEO section below. | Previously UNKNOWN. What the earlier "zero referring domains" rested on: `docs/authority-backlink-audit.md` (2026-09-07) — no backlink tool or API was available, so the figure is an **exact-domain web search that found 0 pages mentioning `pokemondealfinder.com`**, plus the absence of a GSC Links report at the time. Not a crawl of the link graph. Re-checked 2026-09-20: the GSC Links report (UI, URL-prefix property) shows "Processing data, please check again in a day or so" — no referring-site count is readable yet. Supporting signals: GSC 05–19 Sep 0 brand queries; value queries at avg position 40–78. What would establish it: the Links report once it populates; a ranking change on pages whose content did not change after a link is earned. Until then, treat authority as one of several levers (below), not the only one. |
 | Crawling / discovery | Two different facts, kept apart | **Crawl activity is real and substantial** — GSC Crawl stats (UI, 26 Aug–16 Sep 2026): 89.3k crawl requests, 100 % responded 200 (404/5xx/301 each < 1 %), average response 601 ms, host status "no problems in 90 days"; by purpose 92 % refresh / 8 % discovery; by file type "other" 76 %, HTML 17 %, JS 3 %, JSON 2 %. Submitted child sitemaps were last downloaded 18–19 Sep 2026 (API `sitemaps.list`, read 20 Sep: seven on 19 Sep; `cards-bulk` and `cards-low` on 18 Sep). **"Discovered – currently not indexed" (24,952, Page indexing UI, 20 Sep) is a selection outcome**: URLs Google knows from the sitemaps but has not chosen to fetch or index, against 1,813 indexed, 238 canonical-alternates, 30 noindex. The two are not the same thing: the site is crawled ~1k requests/day, mostly refreshes of what is already known; the discovery share is small. Acted on: `cards-bulk` (6,051 URLs) left out of the sitemap index (`b2f3272`, deployed 2026-09-19 ~22:06 UTC). Caveat found 20 Sep: `/sitemaps/cards-bulk.xml` is still a **directly submitted** sitemap in Search Console (submitted 15 Sep), so Google will keep fetching it until the owner removes that submission in the UI (read-only token cannot). |
 | Indexation | Fine where crawled | URL Inspection (API, 20 Sep): home, card, set, species, guide, category all "Submitted and indexed" |
 | Intent alignment | Fine | Titles/descriptions trimmed 20 Sep; identity-first templates |
@@ -151,6 +151,98 @@ Property `https://pokemondealfinder.com/` (URL-prefix).
 - Sitemaps table, read the same moment: cards-high 638 · cards-mid 1,440 · cards-low 3,124 · cards-bulk 45 · sets 209 · pokemon 923 · deals 1,417 · sealed-deals 63 · pages 64, all Success, all last read 19–20 Sept.
 - Overview at the same read: 1,813 indexed / 25,248 not indexed; enhancements Breadcrumbs 43 valid, Data sets 1 valid; **Product snippets 0 valid / 0 invalid** — the new Offer contract had not been recrawled yet, which is exactly what these requests address. Re-read that row from 2026-10-04.
 
+## DataForSEO first read — 2026-09-21 (live data; replaces every "est." figure)
+
+Account verified by the owner 2026-09-21. Verification propagates
+unevenly for an hour or so (the same endpoint alternated 20000 / 40104),
+so `scripts/seo/dataforseo.mjs` retries that one code. Total spend for
+everything below: **$0.43** of the $1.00 trial (balance $0.57). Raw
+responses in `docs/seo/dataforseo/2026-09-21/`.
+
+### Referring domains — the UNKNOWN is resolved, and the answer is worse than "few"
+
+| Domain | Referring domains | Backlinks | Rank | First seen |
+|---|---|---|---|---|
+| **pokemondealfinder.com** | **3** | 3 | 0 | 2026-08-30 |
+| pokedealfinder.com (near-name rival) | 11 | 11 | 0 | 2026-08-02 |
+| dexcatch.com | 13 | 13 | 0 | 2026-08-03 |
+| pokemonpricetracker.com | 50 | 123 | 107 | 2025-09-19 |
+| pricecharting.com | 6,497 | 10,949,009 | 621 | 2019-01-16 |
+
+All three of our referring domains are the same auto-generated listing:
+`webmaster-philippines.com`, `gunghapcafe.com` and `pmt-ae.com`, each at
+the identical path `/list/2026-08-29-109`, no anchor text, first seen
+within days of launch. That is a scraper network that lists newly
+registered domains, not an earned reference. **Earned referring domains:
+zero.** No disavow is warranted (three auto-listings, no manual action);
+the finding is simply that the authority ledger is empty and the pitch
+pack is the only thing that changes it.
+
+### Live Google positions (2026-09-21, DataForSEO SERP, depth 30)
+
+| Query | Market | Our position | Who holds the top |
+|---|---|---|---|
+| pokemon card deals | US | **36** | Reddit, Best Buy, Giant Sports Cards |
+| pokemon deal finder | US | not in top 30 | Reddit, tcgspy, pokedealfinder.tcgsales.co.uk |
+| pokemon cards below market price | US | not in top 30 | Reddit, YouTube ×2, PriceCharting |
+| charizard base set card value | US | not in top 30 | TCGplayer, PriceCharting, Reddit |
+| shadowless charizard price | US | not in top 30 | PriceCharting, TCGplayer, Reddit |
+| how much is my pokemon card worth | US | not in top 30 | TCGplayer, PriceCharting, PokeScope |
+| pokemon card price checker | US | not in top 30 | TCGplayer, PokeData, Reddit |
+| pokemon 30th celebration card list | US | not in top 30 | tcg.pokemon.com, PokeCottage |
+| pokemon card deals | UK | not in top 30 | Amazon UK, Titan Cards, Reddit |
+| pokemon card deals | AU | not in top 30 | Reddit, tcgspy, Collectible Madness |
+
+### Real volumes for the target set (US, Labs keyword_overview)
+
+| Keyword | Volume | Difficulty | CPC | Intent |
+|---|---|---|---|---|
+| pokemon card price checker | 14,800 | 19 | $1.19 | transactional |
+| how much is my pokemon card worth | 2,400 | 22 | $1.93 | informational |
+| pokemon card deals | 1,600 | 2 | $0.43 | commercial |
+| pokemon booster box prices | 1,000 | 0 | $0.60 | commercial |
+| shadowless charizard price | 480 | 0 | $0.30 | informational |
+| pokemon card grading scale | 140 | 2 | $0.26 | informational |
+| cheap pokemon cards ebay | 70 | 6 | $0.07 | transactional |
+| raw vs graded pokemon cards | 20 | null | null | informational |
+| charizard base set card value | 10 | null | null | informational |
+| is buying pokemon cards on ebay safe | 10 | null | null | informational |
+
+No data returned (below the index's threshold): "pokemon deal finder",
+"pokemon cards below market price", "pokemon 30th celebration card list",
+"delta reign release date", "graded pokemon card deals", "vintage pokemon
+cards worth buying". **The brand query has no measurable volume** —
+consistent with GSC's 2 impressions in 28 days.
+
+### What we already rank for (Labs ranked_keywords, US, 69 keywords)
+
+Every position is 44 or worse. The highest-volume ones are card-value
+queries the catalogue already answers:
+
+| Keyword | Volume | Our position |
+|---|---|---|
+| charizard xy | 2,900 | 82 |
+| base set charizard price | 1,600 | 60 |
+| how much is riolu worth | 1,300 | 44 |
+| shadowless arcanine | 1,300 | 50 |
+| dragons exalted rayquaza | 720 | 61 |
+| charmander rc3/rc32 | 390 | 47 |
+
+### What this changes
+
+1. **Authority is no longer a hypothesis.** Three spam auto-listings and
+   nothing else, against a near-name rival on 11 and the category leader
+   on 6,497. Every ranking above is consistent with a site that has no
+   external references at all.
+2. **"pokemon card deals" is the reachable head term**: 1,600/mo,
+   difficulty 2, commercial intent, and we already sit at 36. Difficulty 2
+   means the competition is weak; what is missing is any authority signal.
+3. **"pokemon card price checker" is the prize** (14,800/mo, difficulty
+   19, transactional) and `/search` is the page for it, but it is not a
+   near-term target at zero earned links.
+4. **Stop optimising for the brand name.** It has no measurable volume,
+   and five services share it.
+
 ## Measurement calendar
 - **2026-10-04**: GSC CTR on retitled pages; Delta Reign guide impressions; Page indexing "Discovered – not indexed" after the bulk-shard change; PostHog guide_offers clicks.
 - **2026-10-11**: price_history provenance depth → decide #6.
@@ -158,8 +250,8 @@ Property `https://pokemondealfinder.com/` (URL-prefix).
 
 ## Blockers
 - Search Console API token is read-only (no sitemap resubmission / removal, no indexing API); UI actions done by hand when authorised. The direct `/sitemaps/cards-bulk.xml` submission is now consistent with the index (batch 6); removing it is optional tidying, not required.
-- GSC Links report: "Processing data" on 2026-09-20 — re-read in a few days for the first referring-site count.
-- DataForSEO: credentials stored and the client + first-read script are committed (`scripts/seo/dfsFirstRead.mjs`), but the account is unverified (every call answers 40104). Owner action: complete verification at app.dataforseo.com; then the first read (backlinks, ranked keywords, volumes, live SERP) runs for under $0.50 of the $1.00 trial balance and replaces the "est." figures.
+- GSC Links report: "Processing data" on 2026-09-20. Superseded for practical purposes by the DataForSEO backlink read (3 referring domains, all auto-generated); re-read anyway to confirm Google sees the same.
+- DataForSEO: **resolved 2026-09-21** - account verified by the owner, first read run for $0.43, results in the section above and in `docs/seo/dataforseo/2026-09-21/`. Balance $0.57. Note for the next run: `bulk_search_volume` answers "Invalid Path"; use `dataforseo_labs/google/keyword_overview/live` (volume + difficulty + intent in one cheap call).
 - Vercel Web Analytics events (`eBay Click`) not readable from this session (MCP tool unavailable; dashboard domain not permitted in the browser).
 - PageSpeed Insights anonymous quota exhausted 19 Sep; CrUX has no field data (traffic too low).
 

@@ -1,0 +1,51 @@
+{
+  "at": "2026-09-20T19:54:36.730Z",
+  "rows": [
+    {
+      "domain": "pokemondealfinder.com",
+      "err": "",
+      "referring_domains": 3,
+      "main_domains": 3,
+      "backlinks": 3,
+      "rank": 0,
+      "first_seen": "2026-08-30"
+    },
+    {
+      "domain": "pokedealfinder.com",
+      "err": "",
+      "referring_domains": 11,
+      "main_domains": 11,
+      "backlinks": 11,
+      "rank": 0,
+      "first_seen": "2026-08-02"
+    },
+    {
+      "domain": "pricecharting.com",
+      "err": "",
+      "referring_domains": 6497,
+      "main_domains": 5205,
+      "backlinks": 10949009,
+      "rank": 621,
+      "first_seen": "2019-01-16"
+    },
+    {
+      "domain": "pokemonpricetracker.com",
+      "err": "",
+      "referring_domains": 50,
+      "main_domains": 49,
+      "backlinks": 123,
+      "rank": 107,
+      "first_seen": "2025-09-19"
+    },
+    {
+      "domain": "dexcatch.com",
+      "err": "",
+      "referring_domains": 13,
+      "main_domains": 13,
+      "backlinks": 13,
+      "rank": 0,
+      "first_seen": "2026-08-03"
+    }
+  ],
+  "spentUsd": 0.12018
+}

@@ -1,0 +1,136 @@
+{
+  "at": "2026-09-20T19:56:58.544Z",
+  "out": [
+    {
+      "query": "pokemon deal finder",
+      "market": "US",
+      "ourPos": null,
+      "ourUrl": null,
+      "top5": [
+        "www.reddit.com",
+        "tcgspy.com",
+        "pokedealfinder.tcgsales.co.uk",
+        "play.google.com",
+        "www.youtube.com"
+      ]
+    },
+    {
+      "query": "pokemon card deals",
+      "market": "US",
+      "ourPos": 36,
+      "ourUrl": "https://pokemondealfinder.com/deals/usa",
+      "top5": [
+        "www.reddit.com",
+        "www.bestbuy.com",
+        "giantsportscards.com",
+        "x.com",
+        "www.target.com"
+      ]
+    },
+    {
+      "query": "pokemon cards below market price",
+      "market": "US",
+      "ourPos": null,
+      "ourUrl": null,
+      "top5": [
+        "www.reddit.com",
+        "www.youtube.com",
+        "www.youtube.com",
+        "www.pricecharting.com",
+        "www.facebook.com"
+      ]
+    },
+    {
+      "query": "charizard base set card value",
+      "market": "US",
+      "ourPos": null,
+      "ourUrl": null,
+      "top5": [
+        "www.tcgplayer.com",
+        "www.pricecharting.com",
+        "www.reddit.com",
+        "www.ebay.com",
+        "pokescope.app"
+      ]
+    },
+    {
+      "query": "shadowless charizard price",
+      "market": "US",
+      "ourPos": null,
+      "ourUrl": null,
+      "top5": [
+        "www.pricecharting.com",
+        "www.tcgplayer.com",
+        "www.reddit.com",
+        "www.ebay.com",
+        "www.cardladder.com"
+      ]
+    },
+    {
+      "query": "how much is my pokemon card worth",
+      "market": "US",
+      "ourPos": null,
+      "ourUrl": null,
+      "top5": [
+        "www.tcgplayer.com",
+        "www.pricecharting.com",
+        "pokescope.app",
+        "www.arizonatcg.com",
+        "www.reddit.com"
+      ]
+    },
+    {
+      "query": "pokemon card price checker",
+      "market": "US",
+      "ourPos": null,
+      "ourUrl": null,
+      "top5": [
+        "www.tcgplayer.com",
+        "www.pokedata.io",
+        "www.reddit.com",
+        "www.pricecharting.com",
+        "pokiframe.com"
+      ]
+    },
+    {
+      "query": "pokemon 30th celebration card list",
+      "market": "US",
+      "ourPos": null,
+      "ourUrl": null,
+      "top5": [
+        "tcg.pokemon.com",
+        "pokecottage.com",
+        "www.pricecharting.com",
+        "tcg.pokemon.com",
+        "www.reddit.com"
+      ]
+    },
+    {
+      "query": "pokemon card deals",
+      "market": "UK",
+      "ourPos": null,
+      "ourUrl": null,
+      "top5": [
+        "www.amazon.co.uk",
+        "titancards.co.uk",
+        "www.reddit.com",
+        "www.argos.co.uk",
+        "x.com"
+      ]
+    },
+    {
+      "query": "pokemon card deals",
+      "market": "AU",
+      "ourPos": null,
+      "ourUrl": null,
+      "top5": [
+        "www.reddit.com",
+        "tcgspy.com",
+        "collectiblemadness.com.au",
+        "www.mrtoys.com.au",
+        "x.com"
+      ]
+    }
+  ],
+  "spentUsd": 0.05999999999999999
+}
