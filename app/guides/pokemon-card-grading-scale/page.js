@@ -6,6 +6,7 @@ import GradeScaleTable from "@/components/guides/GradeScaleTable";
 import ConditionAxes from "@/components/guides/ConditionAxes";
 import { guideMetadata } from "@/lib/guides";
 import { GUIDE_CARDS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
+import { serializeJsonLd } from "@/lib/jsonLd";
 
 const SLUG = "pokemon-card-grading-scale";
 export const metadata = guideMetadata(SLUG);
@@ -147,7 +148,7 @@ export default function Page() {
       </GP>
 
       <GH2>Common questions</GH2>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(faqJsonLd) }} />
       <div className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
         {FAQ.map((f) => (
           <div key={f.q} className="py-4">

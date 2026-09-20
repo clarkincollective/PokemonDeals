@@ -8,7 +8,7 @@ import CardWorthAnswer from "@/components/CardWorthAnswer";
 import CardNextSteps from "@/components/CardNextSteps";
 import { catalogCardTitle, catalogCardHeading, catalogCardIdentity } from "@/lib/cardSlug";
 import { cardDisplayName, collectorNumberFromName } from "@/lib/cardName";
-import { propertyValue } from "@/lib/jsonLd";
+import { propertyValue, serializeJsonLd } from "@/lib/jsonLd";
 import { storedReferenceEvidence } from "@/lib/dealQuality";
 import { otherPrintings } from "@/lib/cardPrintings";
 import { catalogImageUrl } from "@/lib/cardImage";
@@ -350,16 +350,23 @@ export default async function CardHubPage({ params }) {
 
   // Match the price/currency shown by the offer controls. An auction without
   // a usable bid or a row without a positive price cannot support a priced Offer.
+  // Structured-data brief 2026-09-20: one Offer per live FIXED-PRICE
+  // listing (an auction's current bid is not a stable offer price), each
+  // pointing at the listing's own page on this site - never an eBay or
+  // affiliate URL - with the ITEM price excluding shipping in the listing's
+  // own currency. Listings across marketplaces carry different currencies,
+  // which is why this stays an array of Offers rather than one
+  // AggregateOffer (that needs a single priceCurrency). The item figure is
+  // visible on each row's card ("incl. … shipping · item …") and on the
+  // listing page itself.
   const schemaOffers = allOffers.flatMap((deal) => {
-    if (!hasPrice(deal.total_price)) return [];
-    const isAuction = deal.listing_type === "AUCTION";
-    const parts = isAuction ? auctionDisplayParts(deal) : null;
-    if (isAuction && !parts) return [];
+    if (deal.listing_type === "AUCTION") return [];
+    if (!hasPrice(deal.total_price) || !hasPrice(deal.price)) return [];
     return [{
       "@type": "Offer",
-      url: deal.listing_url,
+      url: `${SITE_URL}/deals/${deal.id}`,
       priceCurrency: currencyForDeal(deal),
-      price: Number(parts ? parts.bid.native : deal.total_price).toFixed(2),
+      price: Number(deal.price).toFixed(2),
       availability: "https://schema.org/InStock",
       itemCondition: "https://schema.org/UsedCondition",
     }];
@@ -458,9 +465,9 @@ export default async function CardHubPage({ params }) {
       {/* R3: a card with no PRICED live offer is not promoted as a product
           with offers - the worth answer above is its entity statement. */}
       {schemaOffers.length > 0 && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(productJsonLd) }} />
       )}
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }} />
       <RecordCardView card={cardDescriptor} />
       <DetailViewAnalytics kind="card" contentId={slug} />
       <SkipToContent />

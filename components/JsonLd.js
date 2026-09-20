@@ -1,3 +1,4 @@
+import { serializeJsonLd } from "@/lib/jsonLd";
 // Emits one or more JSON-LD blocks. Pass a single object or an array;
 // each becomes its own <script type="application/ld+json">.
 export default function JsonLd({ data }) {
@@ -8,7 +9,7 @@ export default function JsonLd({ data }) {
         <script
           key={i}
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(block) }}
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(block) }}
         />
       ))}
     </>

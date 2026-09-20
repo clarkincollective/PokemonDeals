@@ -197,7 +197,8 @@ test("16. social links come only from the verified profile list (Instagram + X);
 
 test("17. Organization.sameAs is exactly the visible footer profiles", () => {
   assert.deepEqual(organizationSameAs(), SOCIAL_PROFILES.map((p) => p.url));
-  assert.match(read("app/layout.js"), /sameAs: organizationSameAs\(\),/);
+  // brief 2026-09-20: the Organization is built on the home page from the same helper
+  assert.match(read("app/page.js"), /sameAs: organizationSameAs\(\),/);
 });
 
 test("18. social click tracking can never block navigation", () => {

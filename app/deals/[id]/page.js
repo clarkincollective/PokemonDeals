@@ -12,7 +12,7 @@ import { conditionLabel, isDisplayableDeal, listingPresentation, savingsPercentT
 import { referenceObservedAtMs } from "@/lib/referenceProvenance";
 import { normalizePublicText } from "@/lib/publicText";
 import { cardDisplayName, collectorNumberFromName } from "@/lib/cardName";
-import { propertyValue } from "@/lib/jsonLd";
+import { propertyValue, serializeJsonLd } from "@/lib/jsonLd";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
@@ -592,6 +592,10 @@ export default async function DealDetailPage({ params }) {
       propertyValue("Collector number", dealCollectorNumber),
       propertyValue("Printing", deal.reference_printing),
       propertyValue("Condition (seller-stated, checked)", conditionLabel(deal)),
+      // brief 2026-09-20: the condition or grade as a plainly named property
+      deal.is_graded && deal.grader && deal.grade != null
+        ? propertyValue("Grade", `${String(deal.grader).toUpperCase()} ${deal.grade}`)
+        : propertyValue("Card condition", conditionLabel(deal)),
       propertyValue("Listing type", isAuction ? "Auction — bids can rise" : "Buy It Now"),
       propertyValue("Listing marketplace", marketplaceLabel),
       propertyValue("Shipping", shipping.state === "confirmed" ? `Recorded: ${Number(deal.shipping).toFixed(2)} ${nativeCurrency}` : "Not confirmed — check on eBay"),
@@ -605,14 +609,16 @@ export default async function DealDetailPage({ params }) {
     ].filter(Boolean),
     offers: {
       "@type": "Offer",
-      url: deal.listing_url,
-      // The listing's OWN currency (deal.currency, falling back to the
-      // marketplace default) - not the marketplace currency, which can
-      // differ from how the listing is actually priced (e.g. a
-      // USD-denominated auction delivered to the UK). For an auction the
-      // price is the CURRENT BID, matching what the page now shows.
+      // Structured-data brief 2026-09-20: the Offer's url is THIS page's
+      // canonical URL (no eBay or affiliate URL inside JSON-LD); the price
+      // is the ITEM price excluding shipping, as a plain decimal in the
+      // listing's own currency, and that exact figure is visible on the
+      // page (the "Item price" line when shipping was recorded, the
+      // headline itself when it was not). Auctions carry no Product node
+      // (a current bid is not a stable offer price) - see the gate below.
+      url: `${SITE_URL}/deals/${deal.id}`,
       priceCurrency: nativeCurrency,
-      price: Number(auctionParts ? auctionParts.bid.native : deal.total_price).toFixed(2),
+      price: Number(deal.price).toFixed(2),
       availability: deal.is_active ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/UsedCondition",
     },
@@ -642,16 +648,18 @@ export default async function DealDetailPage({ params }) {
   return (
     <div className="min-h-screen bg-paper">
       {/* 17C.7: a plain listing makes no price/availability claim in
-          structured data either - only the breadcrumb below. */}
-      {showSavings && (!isAuction || auctionParts) && (
+          structured data either - only the breadcrumb below. Brief
+          2026-09-20: auctions carry no Product node (a bid is not a stable
+          offer price); the item price must be a usable figure. */}
+      {showSavings && !isAuction && hasPrice(deal.price) && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(productJsonLd) }}
         />
       )}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }}
       />
       <RecordCardView
         card={{
@@ -810,6 +818,21 @@ export default async function DealDetailPage({ params }) {
                     )}
                   </div>
                   <p className="text-sm text-zinc-500 dark:text-zinc-400">{shipping.note ?? "Includes recorded shipping"}</p>
+                  {/* Brief 2026-09-20: when shipping was recorded the total
+                      above is item + shipping; the item price is the figure
+                      the Offer states, so it is shown here in full. */}
+                  {shipping.state === "confirmed" && hasPrice(deal.price) && total > 0 && (
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400" data-item-price>
+                      Item price{" "}
+                      <Price
+                        usd={usdTotal * (Number(deal.price) / total)}
+                        native={{ amount: Number(deal.price), currency: nativeCurrency }}
+                        approxPrefix=""
+                        className="tnum font-medium text-zinc-700 dark:text-zinc-300"
+                      />{" "}
+                      + <Price usd={usdTotal * (shipping.amount / total)} native={{ amount: shipping.amount, currency: nativeCurrency }} approxPrefix="" className="tnum" /> shipping
+                    </p>
+                  )}
                   {!showSavings ? null : showRef ? (
                     <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
                       You save{" "}

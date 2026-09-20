@@ -7,6 +7,7 @@ import SiteFooter from "@/components/SiteFooter";
 import DealGrid from "@/components/DealGrid";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { normalizePublicText } from "@/lib/publicText";
+import { serializeJsonLd } from "@/lib/jsonLd";
 
 const SITE_URL = "https://pokemondealfinder.com";
 // "All deals": every eligible stored listing across the six eBay
@@ -83,10 +84,10 @@ export default async function AllDealsPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(collectionJsonLd) }} />
       {itemListJsonLd && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(itemListJsonLd) }} />
       )}
       <SkipToContent />
       <SiteHeader />

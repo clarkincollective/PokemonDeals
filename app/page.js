@@ -25,6 +25,12 @@ import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import { emailEnabled } from "@/lib/email";
 import { catalogImageUrl } from "@/lib/cardImage";
 import { GUIDE_CARDS } from "@/lib/guideLinks";
+import { buildHomeGraph } from "@/lib/jsonLd";
+import JsonLd from "@/components/JsonLd";
+import { HOME_TITLE, HOME_DESCRIPTION, HOME_H1 } from "@/lib/homeContent";
+import { organizationSameAs } from "@/lib/socialProfiles";
+import { cardDisplayName } from "@/lib/cardName";
+import { normalizePublicText } from "@/lib/publicText";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -91,13 +97,11 @@ export const revalidate = 180;
 // for, keeps the below-market value framing, no stuffing. `absolute`
 // bypasses the "%s | Pokemon Deal Finder" template (the brand is already
 // inside).
+// The title / description / H1 constants live in lib/homeContent (a page
+// module may only export Next's own fields); the home graph reads the same three.
 export const metadata = {
-  title: {
-    // SEO audit 2026-09-20: 59 chars - fits a mobile SERP title unbroken
-    absolute: "Pokemon Card Deals Below Market Price | Pokemon Deal Finder",
-  },
-  description:
-    "Live eBay Pokemon card listings priced below a recent-sold market reference for the exact card and condition, checked continuously across six marketplaces.",
+  title: { absolute: HOME_TITLE },
+  description: HOME_DESCRIPTION,
   alternates: { canonical: "/" },
 };
 
@@ -269,72 +273,43 @@ export default async function Home() {
     </p>
   );
 
-  const faqJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: FAQ_ITEMS.map((item) => ({
-      "@type": "Question",
-      name: item.question,
-      acceptedAnswer: { "@type": "Answer", text: item.answer },
+  // Structured data (brief 2026-09-20): ONE @graph in ONE script, built by
+  // lib/jsonLd buildHomeGraph from the same values this render uses -
+  // the title / description / H1 constants, the scan timestamp behind the
+  // "As of" line, the deals the feed renders (featured first, then the
+  // grid, in order), the live count, the visible FAQ array and the
+  // explanatory block's review date. Organization and WebSite live here
+  // and nowhere else; inner pages reference them by @id.
+  const homeGraph = buildHomeGraph({
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
+    h1: HOME_H1,
+    lastRefreshed,
+    deals: [...flagshipDeals, ...deals].map((d) => ({
+      id: d.id,
+      name: `${cardDisplayName({ name: normalizePublicText(d.watchlist?.name ?? d.title) })}${d.watchlist?.set ? ` - ${d.watchlist.set}` : ""}`,
     })),
-  };
-
-  // The site-wide Organization + WebSite entities live in the root layout
-  // (app/layout.js) and carry stable @ids. The homepage adds only a
-  // CollectionPage that names the same WebSite and, crucially, exposes the
-  // real data-freshness timestamp - the SAME `lastRefreshed` value the
-  // visible "checked X ago" line below uses (MAX(deals.last_seen_at) via
-  // fetchLastScanTime). Not new Date(), not a hardcoded date. This Server
-  // Component only ever renders the canonical promo view now (see Home
-  // above) - every query variant canonicalises to "/" (next.config.mjs).
-  const homeCollectionJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    name: "Pokemon Deal Finder - below-market Pokemon card listings",
-    description:
-      liveCount != null
-        ? `Approximately ${liveCount.toLocaleString()} active below-market Pokemon card listings from eBay's US, UK, Australia, Canada, Germany and Italy marketplaces, each compared against real market prices and recent sold-listing data.`
-        : "Active below-market Pokemon card listings from eBay's US, UK, Australia, Canada, Germany and Italy marketplaces, each compared against real market prices and recent sold-listing data.",
-    url: `${SITE_URL}/`,
-    isPartOf: { "@id": `${SITE_URL}/#website` },
-    ...(lastRefreshed ? { dateModified: new Date(lastRefreshed).toISOString() } : {}),
-  };
-
-  // GEO 2026-09-20: the explanatory block (HomeHowItCompares) is an Article
-  // in its own right - headline, the review date of that copy as
-  // dateModified (HOME_LAST_REVIEWED, never a clock), the site entity as
-  // author and publisher, and the outside pages it draws on as citations.
-  const homeArticleJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    "@id": `${SITE_URL}/#how-it-compares`,
-    headline: "How Pokemon Deal Finder finds Pokemon cards below market price on eBay",
-    description:
-      "What a below-market Pokemon card deal is, how the site compares with TCGplayer, PriceCharting and deal communities, why a bid is not a price, and what to check before buying.",
-    mainEntityOfPage: `${SITE_URL}/`,
-    url: `${SITE_URL}/#how-it-compares`,
-    author: { "@id": `${SITE_URL}/#organization` },
-    publisher: { "@id": `${SITE_URL}/#organization` },
-    dateModified: HOME_LAST_REVIEWED,
-    inLanguage: "en-US",
-    about: [
-      { "@type": "Thing", name: "Pokemon Trading Card Game" },
-      { "@type": "Thing", name: "eBay" },
-    ],
-    citation: [
-      "https://www.ebay.com/help/policies/ebay-money-back-guarantee-policy/ebay-money-back-guarantee-policy?id=4210",
-      "https://www.pricecharting.com/category/pokemon-cards",
-      "https://www.tcgplayer.com/categories/trading-and-collectible-card-games/pokemon/price-guides",
-      `${SITE_URL}/methodology`,
-      `${SITE_URL}/integrity`,
-    ],
-  };
+    liveCount,
+    faqItems: FAQ_ITEMS,
+    sameAs: organizationSameAs(),
+    article: {
+      headline: "How Pokemon Deal Finder finds Pokemon cards below market price on eBay",
+      description:
+        "What a below-market Pokemon card deal is, how the site compares with TCGplayer, PriceCharting and deal communities, why a bid is not a price, and what to check before buying.",
+      dateModified: HOME_LAST_REVIEWED,
+      citation: [
+        "https://www.ebay.com/help/policies/ebay-money-back-guarantee-policy/ebay-money-back-guarantee-policy?id=4210",
+        "https://www.pricecharting.com/category/pokemon-cards",
+        "https://www.tcgplayer.com/categories/trading-and-collectible-card-games/pokemon/price-guides",
+        `${SITE_URL}/methodology`,
+        `${SITE_URL}/integrity`,
+      ],
+    },
+  });
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homeCollectionJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homeArticleJsonLd) }} />
+      <JsonLd data={homeGraph} />
       <SkipToContent target="deals" />
       <SiteHeader />
       <MobileStickySearch />
@@ -355,9 +330,7 @@ export default async function Home() {
             {/* GEO 2026-09-20: the heading names the thing the page is,
                 in the words people search; the capsule below it is the
                 quotable answer. No slogan. */}
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50">
-              Pokemon card deals below market price on eBay
-            </h1>
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50">{HOME_H1}</h1>
             <p className="mt-1.5 hidden max-w-xl text-sm text-zinc-600 lg:block dark:text-zinc-400">
               Explore Pokemon card listings on eBay, with market references where a matching
               comparison is available. Check the card, condition and shipping before you buy.

@@ -24,6 +24,7 @@ import CardNextSteps from "@/components/CardNextSteps";
 import { cardWorthAnswer, pageShowsGraded, isUsableUsdPrice } from "@/lib/cardWorth";
 import { cardNextSteps } from "@/lib/cardNextSteps";
 import { otherPrintings } from "@/lib/cardPrintings";
+import { serializeJsonLd } from "@/lib/jsonLd";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -153,7 +154,7 @@ export default function CatalogCardView({
 
   return (
     <div className="min-h-screen bg-paper">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }} />
       <RecordCardView card={cardDescriptor} />
       <SkipToContent />
       <SiteHeader />

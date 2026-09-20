@@ -2,6 +2,7 @@ import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import { serializeJsonLd } from "@/lib/jsonLd";
 
 const SITE_URL = "https://pokemondealfinder.com";
 const CONTACT_EMAIL = "pokemondealfinder@gmail.com";
@@ -36,7 +37,7 @@ const ul = "mt-3 flex list-disc flex-col gap-2 pl-5 text-base leading-relaxed te
 export default function PrivacyPolicyPage() {
   return (
     <div className="flex min-h-screen flex-col bg-paper">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }} />
       <SkipToContent />
       <SiteHeader />
 

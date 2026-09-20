@@ -3,6 +3,7 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { TRUST_CONTENT_UPDATED, TRUST_CONTENT_UPDATED_DISPLAY } from "@/lib/trustContent";
+import { serializeJsonLd } from "@/lib/jsonLd";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -41,8 +42,8 @@ const aboutPageJsonLd = {
 export default function AboutPage() {
   return (
     <div className="flex min-h-screen flex-col bg-paper">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(aboutPageJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(aboutPageJsonLd) }} />
       <SkipToContent />
       <SiteHeader />
 

@@ -24,6 +24,7 @@ import { normalizePublicText } from "@/lib/publicText";
 import AffiliateLink from "@/components/AffiliateLink";
 import ShareButton from "@/components/ShareButton";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import { serializeJsonLd } from "@/lib/jsonLd";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -223,9 +224,11 @@ export default async function SealedDealDetailPage({ params }) {
     brand: { "@type": "Brand", name: "Pokemon" },
     offers: {
       "@type": "Offer",
-      url: deal.listing_url,
+      // brief 2026-09-20: this page's canonical URL, never an eBay URL
+      url: `${SITE_URL}/sealed-deals/${deal.id}`,
       priceCurrency: nativeCurrency,
-      price: Number(auctionParts ? auctionParts.bid.native : deal.total_price).toFixed(2),
+      // the ITEM price excluding shipping (visible on the page); auctions carry no Product
+      price: Number(deal.price).toFixed(2),
       availability: deal.is_active ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/NewCondition",
     },
@@ -250,8 +253,8 @@ export default async function SealedDealDetailPage({ params }) {
     <div className="min-h-screen bg-paper">
       {/* 17C.7: a plain listing makes no price/availability claim in
           structured data either - only the breadcrumb below. */}
-      {showSavings && (!isAuction || auctionParts) && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />}
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      {showSavings && !isAuction && hasPrice(deal.price) && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(productJsonLd) }} />}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }} />
       <SkipToContent />
       <SiteHeader />
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-5xl scroll-mt-24 px-5 py-6 sm:px-6 sm:py-8">
@@ -331,6 +334,13 @@ export default async function SealedDealDetailPage({ params }) {
                     )}
                   </div>
                   <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{shipping.note ?? "Includes recorded shipping"}</p>
+                  {shipping.state === "confirmed" && hasPrice(deal.price) && total > 0 && (
+                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400" data-item-price>
+                      Item price{" "}
+                      <Price usd={usdTotal * (Number(deal.price) / total)} native={{ amount: Number(deal.price), currency: nativeCurrency }} approxPrefix="" className="tnum font-medium text-zinc-800 dark:text-zinc-200" />{" "}
+                      + <Price usd={usdTotal * (shipping.amount / total)} native={{ amount: shipping.amount, currency: nativeCurrency }} approxPrefix="" className="tnum" /> shipping
+                    </p>
+                  )}
                   {!showSavings ? null : showRef ? (
                     <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-500">
                       You save{" "}

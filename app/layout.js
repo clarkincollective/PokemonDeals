@@ -5,7 +5,6 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import CurrencyProvider from "@/components/CurrencyProvider";
 import { RenderClockProvider } from "@/components/RenderClock";
 import AnalyticsBootstrap from "@/components/analytics/AnalyticsBootstrap";
-import { organizationSameAs } from "@/lib/socialProfiles";
 import "./globals.css";
 
 // Redesign 2026-09 (docs/design/redesign-2026-09.html): three faces, all
@@ -20,59 +19,10 @@ const SITE_TITLE = "Pokemon Deal Finder";
 const SITE_DESCRIPTION =
   "Live below-market Pokemon card listings from eBay, checked automatically against real market pricing and real sold-listing data.";
 
-// Stable fragment @ids so every page's JSON-LD (breadcrumbs, collection
-// pages, product blocks) can point at ONE organization / website entity
-// instead of re-declaring a slightly different copy per page.
-const ORG_ID = `${SITE_URL}/#organization`;
-const WEBSITE_ID = `${SITE_URL}/#website`;
+// Structured-data brief 2026-09-20: the Organization and WebSite entities
+// are emitted on the home page only, inside its single @graph
+// (lib/jsonLd buildHomeGraph). Inner pages reference them by @id.
 
-// Site-wide machine-readable identity. Rendered once here so it is present
-// on every route (previously a bare Organization/WebSite only appeared on
-// the homepage's promo view). Every field is verifiable from the site:
-// the name and URL are the site's own, the logo is the real favicon mark
-// at /icon.svg, and the description is a factual one-sentence summary of
-// what the tool does - matching the prose on /how-it-works and
-// /methodology. No Person/founder, no superlatives, no affiliation claims.
-// sameAs (Phase 17B) = exactly the verified profiles the footer shows
-// (lib/socialProfiles.js - one source for both).
-const organizationJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  "@id": ORG_ID,
-  name: SITE_TITLE,
-  url: `${SITE_URL}/`,
-  logo: `${SITE_URL}/icon.svg`,
-  description:
-    "Pokemon Deal Finder is a free, independent tool that lists live eBay Pokemon card listings priced below a documented market reference for the exact card and condition, after exact-printing, condition, availability and image-authenticity checks. It holds no stock and runs no paid placement.",
-  sameAs: organizationSameAs(),
-  // GEO audit 2026-09-19 - entity context an AI engine can use to decide
-  // what this source is for. Topics only (no expertise claims); the
-  // methodology page is the published editorial standard; one public
-  // contact. Still no Person/founder entity - see the note above.
-  foundingDate: "2026",
-  knowsAbout: [
-    "Pokemon Trading Card Game",
-    "Pokemon card market prices",
-    "eBay Pokemon card listings",
-    "trading card condition and grading (PSA, CGC, BGS, SGC, ACE, TAG)",
-  ],
-  publishingPrinciples: `${SITE_URL}/methodology`,
-  contactPoint: { "@type": "ContactPoint", contactType: "editorial", email: "pokemondealfinder@gmail.com", url: `${SITE_URL}/contact` },
-};
-
-const websiteJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "@id": WEBSITE_ID,
-  name: SITE_TITLE,
-  url: `${SITE_URL}/`,
-  publisher: { "@id": ORG_ID },
-  potentialAction: {
-    "@type": "SearchAction",
-    target: `${SITE_URL}/search?q={search_term_string}`,
-    "query-input": "required name=search_term_string",
-  },
-};
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
@@ -116,14 +66,6 @@ export default function RootLayout({ children }) {
             deal card / card hero. Fonts are self-hosted (next/font). */}
         <link rel="preconnect" href="https://i.ebayimg.com" />
         <link rel="preconnect" href="https://tcgplayer-cdn.tcgplayer.com" />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
-        />
       </head>
       <body className="min-h-full flex flex-col">
         {/* Impact.com (TCGPlayer affiliate program) universal tracking +

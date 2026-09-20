@@ -47,7 +47,8 @@ test("hero shows SEARCH (HeroSearch) before the first offer", () => {
 
 test("R2 - the hero is offer-led and compact: one heading, no CTA that only scrolls to offers already in view", () => {
   // GEO 2026-09-20: the heading names what the page is, in search words - not a slogan
-  assert.match(page, /Pokemon card deals below market price on eBay\s*<\/h1>/);
+  assert.match(page, /\{HOME_H1\}<\/h1>/);
+  assert.match(read("lib/homeContent.js"), /HOME_H1 = "Pokemon card deals below market price on eBay"/);
   const heroEnd = idx(page, "</header>");
   const hero = page.slice(idx(page, "<header"), heroEnd);
   assert.ok(!hero.includes('href="#best-deals"'), "no scroll-to-offers CTA in the hero (the first offers are already visible)");

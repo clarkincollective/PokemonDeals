@@ -6,6 +6,7 @@ import SiteFooter from "@/components/SiteFooter";
 import { NEWS, getNewsItem, newsMetadata, formatNewsDate, newsImageUrl } from "@/lib/news";
 import RelatedReading from "@/components/RelatedReading";
 import { NEWS_BODIES } from "@/components/news/NewsBodies";
+import { serializeJsonLd } from "@/lib/jsonLd";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -60,8 +61,8 @@ export default async function NewsItemPage({ params }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(articleJsonLd) }} />
       <SkipToContent />
       <SiteHeader />
 

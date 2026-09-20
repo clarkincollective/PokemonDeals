@@ -121,16 +121,21 @@ test("homepage: the four GEO FAQ answers are literal; the answer capsule is visi
   assert.match(src, /question: "How current is a deal\?"/);
   assert.match(src, /data-answer-capsule/);
   assert.match(src, /fetchIntegrityReport\(\)/);
-  assert.match(src, /absolute: "Pokemon Card Deals Below Market Price \| Pokemon Deal Finder"/);
+  // structured-data brief 2026-09-20: the title constant lives in lib/homeContent
+  assert.match(src, /title: \{ absolute: HOME_TITLE \}/);
+  assert.match(read("lib/homeContent.js"), /export const HOME_TITLE = "Pokemon Card Deals Below Market Price \| Pokemon Deal Finder"/);
 });
 
 test("organization: entity context added, still no Person/founder, still no rating", () => {
-  const src = read("app/layout.js");
+  // structured-data brief 2026-09-20: the entity moved from the root layout
+  // into lib/jsonLd (organizationNode) and is emitted on the home page only
+  const src = read("lib/jsonLd.js");
   assert.match(src, /knowsAbout: \[/);
   assert.match(src, /publishingPrinciples: `\$\{SITE_URL\}\/methodology`/);
-  assert.match(src, /contactType: "editorial"/);
+  assert.match(src, /contactType: "general enquiries"/);
   assert.doesNotMatch(src, /"@type": "Person"|founder:/);
   assert.doesNotMatch(src, /aggregateRating/);
+  assert.doesNotMatch(read("app/layout.js"), /"@type": "Organization"|"@type": "WebSite"/, "layout emits no site entities any more");
 });
 
 test("integrity follow-up: 'stopped showing' comes from a trigger-stamped column and is omitted (never 0) until it exists; the daily snapshot cron is guarded and idempotent", () => {
@@ -172,7 +177,10 @@ test("SEO audit 2026-09-20 follow-ups: SERP-length titles/descriptions, LCP hint
   // static titles fit a mobile SERP with the 22-char brand suffix
   for (const [f, max] of [["app/page.js", 40], ["app/deals/page.js", 48], ["app/guides/page.js", 40], ["app/integrity/page.js", 40], ["app/methodology/page.js", 45], ["app/news/page.js", 45], ["app/pokemon/page.js", 45], ["app/best-finds/page.js", 45]]) {
     const src = read2(f);
-    const m = src.match(/const TITLE = "([^"]+)"/) || src.match(/absolute: "([^"|]+) \| Pokemon Deal Finder"/);
+    const m =
+      src.match(/const TITLE = "([^"]+)"/) ||
+      src.match(/absolute: "([^"|]+) \| Pokemon Deal Finder"/) ||
+      (src.includes("absolute: HOME_TITLE") ? read2("lib/homeContent.js").match(/HOME_TITLE = "([^"|]+) \| Pokemon Deal Finder"/) : null);
     assert.ok(m, `${f} title`);
     assert.ok(m[1].length <= max, `${f}: "${m[1]}" is ${m[1].length} chars (max ${max})`);
   }

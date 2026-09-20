@@ -70,7 +70,11 @@ test("1. an eligible live deal renders 200, self-canonical and indexable", async
   assert.ok(robots == null || robots.index !== false, "an eligible deal is indexable");
   assert.ok(r.product, "a genuine single-item page carries Product schema");
   assert.equal(r.product.offers["@type"], "Offer");
-  assert.equal(r.product.offers.url, row.listing_url, "the Offer points at the eBay listing");
+  // structured-data brief 2026-09-20: no eBay / affiliate URL inside JSON-LD -
+  // the Offer points at this page's own canonical URL, priced at the item price
+  assert.equal(r.product.offers.url, "https://pokemondealfinder.com/deals/900001", "the Offer points at the deal page itself");
+  assert.equal(r.product.offers.price, Number(row.price).toFixed(2), "the Offer price is the item price excluding shipping");
+  assert.doesNotMatch(JSON.stringify(r.product), /ebay\.(com|co\.uk|com\.au|ca|de|it)/, "no eBay URL inside the Product");
   assert.match(r.html, /id="main-content"/);
 });
 

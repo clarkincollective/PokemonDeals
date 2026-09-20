@@ -349,6 +349,8 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
               {shippingConfirmed ? (
                 <>
                   incl. <Price usd={shippingUsd} native={{ amount: shippingNative, currency: nativeCurrency }} approxPrefix="" className="tnum" /> shipping
+                  {/* the item figure the listing's Offer states (brief 2026-09-20) */}
+                  {" · "}item <Price usd={usdTotal - shippingUsd} native={{ amount: total - shippingNative, currency: nativeCurrency }} approxPrefix="" className="tnum" />
                 </>
               ) : (
                 <>{ship.note} — check on eBay</>

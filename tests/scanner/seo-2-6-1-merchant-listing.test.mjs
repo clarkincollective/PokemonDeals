@@ -44,8 +44,9 @@ function assertOfferIntegrity(product, deal, expectedPrice) {
   assert.ok(product, "a priced, active deal still emits a Product");
   const offer = product.offers;
   assert.equal(offer["@type"], "Offer");
-  assert.equal(offer.url, deal.listing_url, "the Offer URL is still the eBay listing");
-  assert.match(offer.url, /^https:\/\/www\.ebay\.com\//);
+  // brief 2026-09-20: the Offer URL is the deal page's own canonical URL - never eBay
+  assert.equal(offer.url, `https://pokemondealfinder.com/deals/${deal.id}`, "the Offer URL is the page itself");
+  assert.doesNotMatch(JSON.stringify(product), /ebay\.com/);
   assert.equal(offer.price, expectedPrice);
   assert.equal(offer.priceCurrency, "USD");
   assert.equal(offer.availability, "https://schema.org/InStock");
@@ -63,7 +64,10 @@ function assertOfferIntegrity(product, deal, expectedPrice) {
   // isRelatedTo link to the card entity, both site URLs. Those identify
   // the ENTITY, not a merchant - the merchant guard is on the offer and on
   // the naming/brand/seller fields, never on identifiers.
-  const { "@id": _id, isRelatedTo: _rel, ...merchantFacing } = product;
+  // brief 2026-09-20: the Offer's url is this page's own canonical URL (an
+  // identifier of the page, not a merchant claim) - excluded the same way.
+  const { "@id": _id, isRelatedTo: _rel, offers: { url: _offerUrl, ...offerRest }, ...productRest } = product;
+  const merchantFacing = { ...productRest, offers: offerRest };
   assert.doesNotMatch(JSON.stringify(merchantFacing), /Pokemon Deal Finder|pokemondealfinder/i, "the Product never names us as merchant");
   if (product["@id"]) assert.match(product["@id"], /^https:\/\/pokemondealfinder\.com\/deals\/\d+#product$/);
 }
@@ -72,7 +76,7 @@ test("1. paid shipping: the charge stays visible, the schema drops the incomplet
   const deal = fixture("bin_compared"); // shipping 4.25, total 30.75
   assert.equal(Number(deal.shipping) > 0, true);
   const { html, product } = await renderDeal(deal);
-  assertOfferIntegrity(product, deal, "30.75");
+  assertOfferIntegrity(product, deal, Number(deal.price).toFixed(2));
   // the visible page still presents the charge as a delivered total
   assert.match(html, /Listing total/);
   assert.match(html, /Includes recorded shipping/);
@@ -82,30 +86,29 @@ test("1. paid shipping: the charge stays visible, the schema drops the incomplet
 test("2. free/unstated shipping remains correct", async () => {
   const deal = fixture("bin_shipping_unconfirmed"); // shipping 0
   const { html, product } = await renderDeal(deal);
-  assertOfferIntegrity(product, deal, Number(deal.total_price).toFixed(2));
+  assertOfferIntegrity(product, deal, Number(deal.price).toFixed(2));
   assert.match(html, /Shipping not confirmed/);
 });
 
-test("3. auction remains correct: price is the current bid, not bid + shipping", async () => {
+test("3. auction: no Product node (brief 2026-09-20 - a bid is not a stable offer price); the bid stays visible", async () => {
   const deal = fixture("auction"); // shipping 8, current bid in price
   const { html, product } = await renderDeal(deal);
-  assertOfferIntegrity(product, deal, Number(deal.price).toFixed(2));
-  assert.notEqual(product.offers.price, Number(deal.total_price).toFixed(2));
+  assert.equal(product, undefined);
   assert.match(html, /Current bid/);
 });
 
 test("4. graded deal remains correct", async () => {
   const deal = fixture("graded"); // PSA 9
   const { html, product } = await renderDeal(deal);
-  assertOfferIntegrity(product, deal, Number(deal.total_price).toFixed(2));
+  assertOfferIntegrity(product, deal, Number(deal.price).toFixed(2));
   assert.match(html, /PSA/);
   assert.match(html, /\b9\b/);
 });
 
-test("5. a paid-shipping auction gets the same treatment (the 38759 shape)", async () => {
+test("5. a paid-shipping auction gets the same treatment (the 38759 shape): no Product", async () => {
   const deal = { ...fixture("auction"), shipping: 31.13 };
   const { product } = await renderDeal(deal);
-  assertOfferIntegrity(product, deal, Number(deal.price).toFixed(2));
+  assert.equal(product, undefined);
 });
 
 test("6. the correction is in both deal-page generators, and nowhere else", () => {
@@ -115,7 +118,8 @@ test("6. the correction is in both deal-page generators, and nowhere else", () =
     assert.doesNotMatch(code, /OfferShippingDetails/, f);
     assert.doesNotMatch(code, /deliveryTime/, `${f} must not invent a delivery window`);
     assert.match(code, /"@type": "Offer"/, `${f} still emits the Offer`);
-    assert.match(code, /url: deal\.listing_url/, `${f} still points the Offer at eBay`);
+    assert.match(code, /url: `\$\{SITE_URL\}\/(deals|sealed-deals)\/\$\{deal\.id\}`/, `${f} points the Offer at its own page`);
+    assert.doesNotMatch(code.slice(code.indexOf("const productJsonLd"), code.indexOf("offers:") + 600), /listing_url|affiliate_url/, `${f}: no eBay URL inside the Product`);
     assert.match(code, /availability: deal\.is_active \? "https:\/\/schema\.org\/InStock"/, f);
   }
   // the visible shipping contract is untouched: same helper, same states
@@ -142,8 +146,8 @@ test("7. card-page schema is unchanged", async () => {
     .map((e) => JSON.parse(e.props.dangerouslySetInnerHTML.__html))
     .find((s) => s["@type"] === "Product");
   assert.equal(product.offers.length, 1);
-  assert.equal(product.offers[0].url, base.listing_url);
-  assert.equal(product.offers[0].price, "30.75");
+  assert.equal(product.offers[0].url, `https://pokemondealfinder.com/deals/${base.id}`);
+  assert.equal(product.offers[0].price, "26.50"); // the item price, not the 30.75 total
   assert.equal(product.offers[0].shippingDetails, undefined);
   // and the source itself never grew a shippingDetails block
   const code = read("app/cards/[slug]/page.js").replace(/^\s*\/\/.*$/gm, "");

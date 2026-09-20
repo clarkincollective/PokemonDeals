@@ -279,5 +279,8 @@ test("7. deal detail Product JSON-LD prices an auction at the current bid, in th
   const src = readFileSync(join(HERE, "..", "..", "app", "deals", "[id]", "page.js"), "utf8");
   const offer = src.slice(src.indexOf("offers: {"), src.indexOf("shippingDestination"));
   assert.match(offer, /priceCurrency: nativeCurrency/);
-  assert.match(offer, /auctionParts \? auctionParts\.bid\.native : deal\.total_price/);
+  // structured-data brief 2026-09-20: auctions carry no Product at all (a
+  // bid is not a stable offer price); a fixed-price Offer states the ITEM price
+  assert.match(offer, /price: Number\(deal\.price\)\.toFixed\(2\)/);
+  assert.match(src, /\{showSavings && !isAuction && hasPrice\(deal\.price\) && \(/);
 });

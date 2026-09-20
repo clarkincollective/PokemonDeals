@@ -33,7 +33,8 @@ for (const auction of [false, true]) {
       const result = schema({shipping}, auction);
       assert.equal(Object.hasOwn(result.offers, 'shippingDetails'), false);
       assert.equal(result.offers.priceCurrency, 'GBP');
-      assert.equal(result.offers.price, auction ? '20.00' : '25.00');
+      // brief 2026-09-20: the Offer states the ITEM price (row.price = 20) - never bid+shipping
+      assert.equal(result.offers.price, '20.00');
     });
   }
   // SEO-2.6.1: a recorded charge used to emit OfferShippingDetails with
@@ -47,7 +48,7 @@ for (const auction of [false, true]) {
       assert.equal(Object.hasOwn(result.offers, 'shippingDetails'), false);
       assert.equal(offerShipping({shipping}).state, 'confirmed', 'the charge itself is still a confirmed visible fact');
       assert.equal(result.offers.priceCurrency, 'GBP');
-      assert.equal(result.offers.price, auction ? '20.00' : '25.00');
+      assert.equal(result.offers.price, '20.00');
       // (slimPoolRow strips listing_url from this fixture; the Offer URL is
       // proven at route level in seo-2-6-1-merchant-listing.test.mjs)
     });

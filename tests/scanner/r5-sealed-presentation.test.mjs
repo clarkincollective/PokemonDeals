@@ -17,12 +17,12 @@ for(const {state,deal} of sealedFixtures){
   if(state==='native_no_usd'){assert.match(html,/C\$75\.00/);assert.doesNotMatch(html,/A\$112\.50|You save/);assert.equal(product.offers.priceCurrency,'CAD');}
   if(state==='shipping_unconfirmed'){assert.match(html,/Shipping not confirmed/);assert.match(meta.description,/before shipping/);assert.equal(product.offers.shippingDetails,undefined);}
   if(state==='shipping_unknown'){assert.match(html,/Shipping breakdown not recorded/);assert.doesNotMatch(html,/You save|% below market/);assert.equal(product,undefined);assert.equal(meta.robots.index,false);}
-  if(state==='auction'){assert.equal(product.offers.price,'45.00');assert.match(html,/Current bid/);assert.match(html,/View auction on eBay/);}
+  if(state==='auction'){assert.equal(product,undefined);/* brief 2026-09-20: no Product for an auction */assert.match(html,/Current bid/);assert.match(html,/View auction on eBay/);}
   if(state==='unpriced'){assert.match(html,/Price unavailable/);assert.doesNotMatch(html,/\$0\.00|You save|% below market/);assert.equal(product,undefined);assert.equal(meta.robots.index,false);}
   if(state==='market_unavailable'){assert.match(html,/No verified market reference/);assert.doesNotMatch(html,/\$0\.00|You save|% below market/);assert.equal(product,undefined);assert.equal(meta.robots.index,false);}
   if(state==='unavailable'){assert.match(html,/This listing is unavailable here/);assert.doesNotMatch(html,/View listing on eBay/);assert.equal(product,undefined);}
   // SEO-2.6.1: the recorded charge stays visible, but is no longer emitted as an incomplete (no deliveryTime) OfferShippingDetails
-  if(state==='compared'){assert.equal(product.offers.price,'50.00');assert.equal(product.offers.shippingDetails,undefined);assert.match(html,/Includes recorded shipping/);}
+  if(state==='compared'){assert.equal(product.offers.price,Number(deal.price).toFixed(2));assert.equal(product.offers.url,'https://pokemondealfinder.com/sealed-deals/'+deal.id);assert.equal(product.offers.shippingDetails,undefined);assert.match(html,/Includes recorded shipping/);}
  });
  if(state!=='unavailable')test('sealed tile state: '+state,()=>{
   const {route}=loadRoute('components/SealedDealCard.js',{renderComponents:true,currency:{viewer:'AUD',rates:{USD:1,AUD:1.5,CAD:1.5}}});

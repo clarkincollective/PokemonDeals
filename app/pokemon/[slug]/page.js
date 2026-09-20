@@ -2,7 +2,7 @@ import SkipToContent from "@/components/SkipToContent";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { speciesPageTitle, speciesPilotPageTitle } from "@/lib/speciesHub";
-import { collectionPage } from "@/lib/jsonLd";
+import { collectionPage, serializeJsonLd } from "@/lib/jsonLd";
 import {
   resolveSpeciesSlug,
   fetchSpeciesDealsPage,
@@ -370,10 +370,10 @@ export default async function PokemonSpeciesPage({ params }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(collectionJsonLd) }} />
       {itemListJsonLd && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(itemListJsonLd) }} />
       )}
       <SkipToContent />
       <SiteHeader />

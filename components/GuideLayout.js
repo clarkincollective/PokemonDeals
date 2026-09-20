@@ -6,6 +6,7 @@ import SiteFooter from "@/components/SiteFooter";
 import { getGuide, GUIDES_PUBLISHED, guideOffersSet } from "@/lib/guides";
 import RelatedReading from "@/components/RelatedReading";
 import GuideLiveOffers from "@/components/guides/GuideLiveOffers";
+import { serializeJsonLd } from "@/lib/jsonLd";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -73,8 +74,8 @@ export default async function GuideLayout({ slug, children }) {
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <SkipToContent />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(articleJsonLd) }} />
       <SiteHeader />
 
       <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-3xl flex-1 scroll-mt-6 px-6 py-8">
