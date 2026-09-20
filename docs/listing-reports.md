@@ -17,8 +17,17 @@ Rollback for any entry: the prior-state file named in the row
 | Date (UTC) | Deal ids (one eBay item) | Card | Reason set | Why | Prior-state file |
 |---|---|---|---|---|---|
 | 2026-09-20 | 40200 (GB, active), 39415 (AU), 40885 (CA) | Charizard GX SV49/SV94, Hidden Fates: Shiny Vault | `authenticity:owner_reported` | Owner reported the listing as a fake card. Shape: market reference $764 USD, listing 57 % below it, seller feedback count 33, no returns; the visual screen had returned MATCH (printing identity confirmed, which is what that screen tests - it does not establish physical authenticity). | `.local/hold-40200-prior.json` |
+| 2026-09-20 | 41196 (CA, active; single row) | Pikachu & Zekrom GX SM168, SM Promos | `authenticity:owner_reported` | Owner reported the listing as a fake card. Shape: market reference $215 USD, listing 63 % below it; seller trust signals not enriched (feedback count, returns and photo count all null). The visual screen returned MATCH and its own rationale reads "the entirely gold metallic finish is consistent with an official gold/metal card variant" - SM168 is a paper promo; an all-gold metallic card is the gold-metal counterfeit shape the code already names. The screener rationalised the tell away rather than flagging it. | `.local/hold-41196-prior.json` |
 
 ## Observation for the screening rules (not changed - rule changes are held)
+
+Second case (41196) adds a specific failure: the Stage 2 vision prompt
+accepted an "entirely gold metallic" finish as a plausible official
+variant for a card that has no metal printing. When screening changes are
+unheld, the vision step should treat a metallic/gold finish on a printing
+the catalogue records as paper as a counterfeit signal
+(`COUNTERFEIT_MISMATCH`), not as a variant, and the premium high-risk band
+should not clear a row whose trust signals are all null.
 
 This listing sat exactly in the premium high-risk band the code already
 names (`PREMIUM_HIGH_RISK_MARKET_USD` 100 / `PREMIUM_HIGH_RISK_DISCOUNT`
