@@ -406,7 +406,9 @@ export default async function CardHubPage({ params }) {
     mpn: cardCollectorNumber ?? undefined,
     image: heroImage ?? undefined,
     description: [
-      `${cardName}${cardCollectorNumber ? ` ${cardCollectorNumber}` : ""} from ${hub.set}.`,
+      // catalogCardIdentity: the number is added once - a stored name that
+      // already embeds it ("Galarian Meowth - 141/128") is not doubled
+      `${catalogCardIdentity(cardName, cardCollectorNumber)} from ${hub.set}.`,
       refUsd != null
         // ISO form, not "$" - the worth answer is the page's ONE visible
         // statement of the figure (R3 card summary); this is entity text
