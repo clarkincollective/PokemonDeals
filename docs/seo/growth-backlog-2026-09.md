@@ -455,6 +455,38 @@ experiences. Revisit only if field data (Search Console Core Web Vitals,
 which still reports "No data" at this traffic level) shows real users
 failing LCP.
 
+### Every template measured - 2026-09-21
+
+The homepage was one page. All six templates, Lighthouse default mobile
+config, each warmed first (see the caveat below):
+
+| Template | Score | Weight | FCP | CLS | TBT | Speed Index |
+|---|---|---|---|---|---|---|
+| `/` | 88 | 1,136 KiB | 1.4 s | 0.001 | 20 ms | 2.6 s |
+| `/deals` | 89 | 796 KiB | 1.5 s | 0 | 0 ms | 3.1 s |
+| `/cards` | 95 | 1,201 KiB | 1.5 s | 0 | 50 ms | 2.0 s |
+| `/sets` | 96 | 992 KiB | 1.3 s | 0 | 30 ms | 1.3 s |
+| `/cards/[slug]` | 89 | 693 KiB | 1.3 s | 0 | 30 ms | 2.3 s |
+| `/deals/[id]` | 95 | 784 KiB | 1.3 s | 0.006 | 20 ms | 1.5 s |
+
+**No template has a performance defect.** CLS passes everywhere with room
+to spare (worst 0.006 against a 0.1 target), Total Blocking Time is at
+most 50 ms, and first paint is 1.3-1.5 s across the board.
+
+Simulated LCP sits at 2.8-3.9 s on every one of them, and that uniformity
+is itself the evidence: it is a property of the slow-4G network model
+applied to the document plus its stylesheet, not a per-page fault.
+Observed first paint on the same runs is 0.26-1.4 s. Same conclusion as
+the homepage - do not chase it without field data.
+
+**Operational caveat, learned the hard way.** The first `/deals` run
+scored a Speed Index of 7.4 s with observed first paint at 4,926 ms. That
+was a cold ISR regeneration, not the page: warmed with a single request
+first (`curl -o /dev/null`), the same URL returns 89 with observed first
+paint at 1,274 ms and Speed Index 3.1 s. **Always warm a URL before
+measuring it**, or the regeneration cost lands inside the metric and
+reads as a rendering fault.
+
 ## LLM citation, measured - 2026-09-21 (this corrects the audit above)
 
 The audit said we have "zero earned references ... so the probability of
