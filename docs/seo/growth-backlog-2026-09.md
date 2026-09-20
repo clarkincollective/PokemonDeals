@@ -391,31 +391,64 @@ The slow page had been hiding half the defect.
 
 ## Performance verified in production - 2026-09-21
 
-Both fixes deployed and re-measured with the same local Lighthouse 12.8.2
-setup. Three runs per form factor: the starting state, after batch 11
-(images), and after the CLS fix.
+Both fixes deployed and re-measured with local Lighthouse 12.8.2.
+
+**Read the configuration note first.** The mobile "before" runs in this
+session used `--preset=perf --form-factor=mobile`, which returned a null
+Total Blocking Time and so a void score. Those runs are internally
+consistent and fine for the weight and CLS comparison, but they are NOT
+canonical mobile numbers. Lighthouse's own default (mobile emulation,
+simulated slow 4G) is, and the final mobile column below is that default.
+Do not compare the mobile score column across the two configurations.
 
 | | Desktop start | Desktop final | Mobile start | Mobile final |
 |---|---|---|---|---|
-| Performance score | 69 | **97** | void (null TBT) | **79** |
-| Total page weight | 12,718 KiB | **2,103 KiB** | 8,750 KiB | **1,058 KiB** |
-| Largest Contentful Paint | 2.2 s | **1.2 s** | 3.4 s | 3.4 s |
+| Performance score | 69 | **97** | void | **88** |
+| Total page weight | 12,718 KiB | **2,103 KiB** | 8,750 KiB | **1,136 KiB** |
+| First Contentful Paint | 0.6 s | 0.4 s | 3.4 s | 1.4 s |
+| Largest Contentful Paint | 2.2 s | **1.2 s** | 3.4 s | 3.9 s (see below) |
 | Cumulative Layout Shift | 0.43 | **0.009** | 0.167 | **0.001** |
-| Speed Index | 0.6 s | 0.8 s | 4.1 s | 3.5 s |
+| Total Blocking Time | 0 ms | 0 ms | null | 20 ms |
+| Speed Index | 0.6 s | 0.8 s | 4.1 s | 2.6 s |
 
-CLS now passes comfortably on both (target 0.1). The remaining shifts are
-0.0065 and 0.0021 on desktop, 0.0013 on mobile - all below the noise
-floor. STATUS: IMPROVED.
+STATUS: IMPROVED. CLS now passes comfortably on both (target 0.1); the
+largest remaining shift is 0.0065 on desktop, below the noise floor.
 
-**The one performance item still open: mobile LCP, 3.4 s.** It is not a
-network problem and this work could not have moved it. In the final
-mobile run, TTFB is 3 % of LCP (100 ms) and **render delay is 97 %
-(3,336 ms)** - the largest element is not waiting to download, it is
-waiting for the page to render on a throttled CPU. The only
-render-blocking resource is one stylesheet at 173 ms. Total Blocking
-Time measures 0, so this is not long tasks either. Next step, when
-someone picks this up: find what the LCP element actually is on mobile
-(the audit names no node) before changing anything - do not guess at it.
+Confirmation the image fix works end to end: in the final mobile run the
+two priority deal photos transfer at **23 KB and 20 KB** (`s-l225`),
+against roughly 800 KB each before.
+
+### Mobile LCP: not a defect, and the earlier reading was wrong
+
+An earlier note in this file said mobile LCP was "97 % render delay" and
+needed investigation. That came from the misconfigured preset above.
+The corrected picture, from the default mobile run:
+
+| | Simulated | Observed |
+|---|---|---|
+| First Contentful Paint | 1,443 ms | 1,367 ms |
+| Largest Contentful Paint | 3,870 ms | **1,367 ms** |
+| Speed Index | 2,621 ms | 1,459 ms |
+
+**Observed LCP equals observed FCP.** The LCP element - the answer-capsule
+paragraph in the homepage header, static server-rendered text - paints at
+the same instant the page first paints. There is no render delay and
+nothing is waiting on it. Its dependencies are all complete by about
+1.27 s: the document lands at 950 ms, the one render-blocking stylesheet
+(25 KB) at 1,266 ms, the three self-hosted fonts by 1,250 ms, and
+`render-blocking-resources` estimates 0 ms of available savings.
+
+The 3,870 ms is Lighthouse projecting that paint onto a simulated slow-4G
+phone, where the number is set almost entirely by the modelled time to
+fetch the HTML document and its stylesheet. The only levers on it are
+shrinking the document or inlining critical CSS.
+
+**Judged not worth doing now**: every other mobile metric passes, the
+element already paints at first paint, and inlining critical CSS is a
+real risk to a working render path for a number that no real user
+experiences. Revisit only if field data (Search Console Core Web Vitals,
+which still reports "No data" at this traffic level) shows real users
+failing LCP.
 
 ## LLM citation, measured - 2026-09-21 (this corrects the audit above)
 
