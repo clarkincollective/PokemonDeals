@@ -707,7 +707,7 @@ export default async function DealDetailPage({ params }) {
               )}
               {deal.watchlist?.language === "japanese" && (
                 <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                  🇯🇵 Japanese Print
+                  Japanese Print
                 </span>
               )}
               {deal.is_graded ? (

@@ -121,7 +121,7 @@ export default async function JapaneseCardsPage({ searchParams }) {
       <header className="border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-6 sm:py-8">
           <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-900 px-3 py-1 text-xs font-bold text-white dark:bg-white dark:text-black">
-            🇯🇵 Japanese Prints
+            Japanese Prints
           </span>
           <h1 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
             Japanese Pokemon Card Deals
