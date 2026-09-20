@@ -68,3 +68,6 @@ scripts/_*.js
 
 # session scratch probes
 .tmp-probe/
+
+# local operator files (remediation prior-state snapshots)
+.local/
