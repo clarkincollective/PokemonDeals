@@ -17,6 +17,15 @@
 // reason). Prints deal ids, marketplaces and the reason - never the
 // seller. The public integrity report counts it under the authenticity
 // family; nothing on the site names the seller or the listing as fake.
+//
+// cache-retire-r1 (added 2026-09-21, found on deal 41914): a script
+// cannot expire Next's caches itself, so after a successful write the
+// affected surfaces - the card hub that lists the offer, the deal page,
+// the deal lists, the set and species pages - are QUEUED for the
+// sweep-stale-deals cron (every 30 min) to expire, exactly as
+// unownIdentityQuarantine does. Without this the deal page clears in
+// about a minute but the card hub keeps showing the held listing until
+// its own ISR window lapses, up to an hour.
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -74,6 +83,22 @@ async function main() {
   }
   const { data: after } = await client.from("deals").select("*").in("id", ids);
   for (const r of after ?? []) console.log(JSON.stringify({ id: r.id, marketplace: r.marketplace, disqualified_reason: r.disqualified_reason, displayable_now: isDisplayableDeal(r) }));
+
+  // Queue every surface that showed this listing for the next sweep run.
+  const L = require(join(REPO, "lib", "listingAvailability.js"));
+  const plan = L.surfaceInvalidationPlan(after ?? [], { dealPages: true });
+  const cardTags = [...new Set((after ?? []).flatMap((r) => L.cardOffersTags?.({ watchlistId: r.watchlist_id, tcgplayerId: r.card_tcgplayer_id }) ?? []))];
+  const tags = [...new Set([...plan.tags, ...cardTags])];
+  const queued = await L.queueCacheInvalidation(client, tags, { source: "holdReportedListing" });
+  if (queued.error) {
+    console.log(
+      `\n  WARNING: the hold was written, but cache invalidation was NOT queued (${queued.error}).\n` +
+        "  The deal page clears within about a minute; the card hub and lists refresh only when\n" +
+        "  their own cache windows lapse, up to about an hour."
+    );
+  } else {
+    console.log(`queued ${queued.queued} cache tag(s) for the next sweep-stale-deals run (within 30 min): ${tags.join(", ")}`);
+  }
 }
 
 main().catch((e) => { console.error(`\n  x ${e.message}\n`); process.exit(1); });
