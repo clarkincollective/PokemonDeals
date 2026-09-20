@@ -243,6 +243,13 @@ queries the catalogue already answers:
 4. **Stop optimising for the brand name.** It has no measurable volume,
    and five services share it.
 
+### Batch 9 — 2026-09-21 — /deals browse guide, and a backlink watch
+- Finding (DataForSEO first read, same day): "pokemon card deals" is 1,600/mo at **difficulty 2**, the lowest-difficulty term in the set with real volume, and the only URL of ours inside the top 30 is **`/deals/usa` at 36** — not the homepage and not `/deals`. The `/deals` page itself carried an H1, two caveat lines, a chip strip and the grid, and **no H2 at all**.
+- Action (`fe371ef`): `components/DealsBrowseGuide` — five question-form H2s that open with the answer (what the list holds, how the filters work, when a saving is and is not shown, which category to browse, how often it changes) and a category table covering all twelve categories plus Japanese and sealed. Each row's description is derived from that category's own `intro` in the registry, so it cannot drift from the page it links to. Static: no data, no figures, no dates at render. Rendered **below** the grid, because listings are what the visitor came for (the homepage fold rule).
+- Scope: kept to the long tail `docs/seo-headterm-strategy.md` assigns this page; no heading repeats the head phrase the homepage owns. Pinned in `tests/scanner/deals-browse-guide.test.mjs`.
+- **Open question for the strategy, not acted on:** the August plan made `/` the primary candidate for the head term and reframed `/deals` as the browse sub-index, but Google is surfacing `/deals/usa`. Three pages now carry the phrase (`/` title + H1, `/deals` title, and the four country categories' titles). Whether to consolidate, and toward which URL, is a decision for the owner once the 2026-10-04 read shows whether yesterday's homepage changes moved it.
+- `scripts/seo/backlinkWatch.mjs`: one referring-domains call (~$0.02), diffed against `docs/seo/backlink-snapshot.json`, reporting new and lost domains and flagging the known auto-generated listing shape (`/list/<date>-<n>`, no anchor) so a run never reads as progress when it is not. Baseline recorded 2026-09-21: 3 domains, all three the scraper network. Run it weekly, or whenever a pitch has been sent.
+
 ## Measurement calendar
 - **2026-10-04**: GSC CTR on retitled pages; Delta Reign guide impressions; Page indexing "Discovered – not indexed" after the bulk-shard change; PostHog guide_offers clicks.
 - **2026-10-11**: price_history provenance depth → decide #6.
