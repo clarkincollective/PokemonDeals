@@ -20,9 +20,16 @@ export const revalidate = 3600;
 
 // Stable, broad, database/browse-oriented - no live deal count, market
 // range or catalogue total (those move; visible body counts are fine).
-const TITLE = "Pokemon Card Database & Prices";
+// 2026-09-21 audit: "pokemon card list" is 8,100/mo in the US at
+// difficulty 2 (DataForSEO keyword_overview) - the lowest-difficulty term
+// in the whole set with real volume - and this page already IS that list:
+// every tracked card, browsable by Pokemon and by set, each with a
+// permanent price page. The phrase was simply never used. It appears once
+// in the title, once in the H1 and once in the lead, all reading
+// naturally; no stuffing, and no claim the page does not already meet.
+const TITLE = "Pokemon Card List & Price Database";
 const DESCRIPTION =
-  "Search any Pokemon card printing for its market-reference price, or browse every card by set and by Pokemon. Each card has a permanent price page.";
+  "A full Pokemon card list: browse every tracked card by set or by Pokemon, each with its market-reference price on a permanent page. Search by name or number.";
 
 export const metadata = {
   title: TITLE,
@@ -92,11 +99,12 @@ export default async function CardsDirectoryPage() {
         <div className="mx-auto max-w-7xl px-6 py-6 sm:py-8">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-600 dark:text-zinc-400">Browse</p>
           <h1 className="mt-1 max-w-2xl text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl">
-            Pokemon Card Database &amp; Prices
+            Pokemon Card List &amp; Price Database
           </h1>
           <p className="mt-3 max-w-2xl text-base text-zinc-600 dark:text-zinc-400">
-            Find the exact card, check its price references and explore available offers.
-            Search by name or collector number, or start with a set or Pokemon.
+            The full Pokemon card list, two ways: by set, or by the Pokemon on the card. Every entry opens a permanent
+            page with its market-reference price, printing details and any live offers. Search by name or collector
+            number if you already know the card.
           </p>
 
           {/* Strong search interaction - submits to the existing price

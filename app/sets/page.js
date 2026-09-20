@@ -14,9 +14,13 @@ export const revalidate = 3600;
 const TAB_CLASS =
   "inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold text-zinc-700 hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-300 dark:hover:text-white";
 
-const TITLE = "Browse Pokemon Cards by Set";
+// 2026-09-21 audit: "pokemon set list" is 4,400/mo in the US at
+// difficulty 2 (DataForSEO keyword_overview), and this page already is
+// that list - every set we hold, each with its checklist. The phrase was
+// never used. Once in the title, once in the H1, once in the lead.
+const TITLE = "Pokemon Set List: Every Set & Checklist";
 const DESCRIPTION =
-  "Every Pokemon TCG set with an indexable hub on Pokemon Deal Finder — card checklists, market-reference prices, the Pokemon in each set, and any live below-market deals.";
+  "The Pokemon set list: every TCG set we hold, with its card checklist, market-reference prices, the Pokemon in it, and any live below-market deals.";
 
 export const metadata = {
   title: TITLE,
@@ -75,11 +79,12 @@ export default async function SetsIndexPage() {
         <div className="mx-auto max-w-7xl px-6 py-6 sm:py-8">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-600 dark:text-zinc-400">Browse</p>
           <h1 className="mt-1 max-w-2xl text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl">
-            Pokemon Card Sets: Checklists, Prices &amp; Values
+            Pokemon Set List: Checklists, Prices &amp; Values
           </h1>
-          <p className="mt-3 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
-            Find a set for qualifying deals, card lists and price references.
-            Use collection checklists to track the cards you need where available.
+          <p className="mt-3 max-w-2xl text-base text-zinc-600 dark:text-zinc-400">
+            The full Pokemon set list. Open a set for its card checklist, the market-reference price of each card, the
+            Pokemon that appear in it, and any listings currently below reference. Sets with a collection checklist let
+            you tick off the cards you already own.
           </p>
         </div>
       </header>
