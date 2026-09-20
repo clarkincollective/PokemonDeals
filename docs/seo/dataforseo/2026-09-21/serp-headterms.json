@@ -1,0 +1,29 @@
+{
+  "at": "2026-09-20T20:57:56.658Z",
+  "out": [
+    {
+      "query": "pokemon card value",
+      "ourPos": null,
+      "ourUrl": null,
+      "top5": "www.tcgplayer.com, www.pricecharting.com, ai.cardhedger.com, www.youtube.com, www.reddit.com"
+    },
+    {
+      "query": "pokemon card prices",
+      "ourPos": null,
+      "ourUrl": null,
+      "top5": "www.tcgplayer.com, www.pricecharting.com, ai.cardhedger.com, www.pokedata.io, rarecandy.com"
+    },
+    {
+      "query": "how much are pokemon cards worth",
+      "ourPos": null,
+      "ourUrl": null,
+      "top5": "www.pricecharting.com, www.reddit.com, www.tcgplayer.com, www.youtube.com, ai.cardhedger.com"
+    },
+    {
+      "query": "newest pokemon set",
+      "ourPos": null,
+      "ourUrl": null,
+      "top5": "www.pokemon.com, tcg.pokemon.com, www.tcgplayer.com, www.pokemoncenter.com, www.youtube.com"
+    }
+  ]
+}

@@ -251,6 +251,88 @@ queries the catalogue already answers:
 - **Open question for the strategy, not acted on:** the August plan made `/` the primary candidate for the head term and reframed `/deals` as the browse sub-index, but Google is surfacing `/deals/usa`. Three pages now carry the phrase (`/` title + H1, `/deals` title, and the four country categories' titles). Whether to consolidate, and toward which URL, is a decision for the owner once the 2026-10-04 read shows whether yesterday's homepage changes moved it.
 - `scripts/seo/backlinkWatch.mjs`: one referring-domains call (~$0.02), diffed against `docs/seo/backlink-snapshot.json`, reporting new and lost domains and flagging the known auto-generated listing shape (`/list/<date>-<n>`, no anchor) so a run never reads as progress when it is not. Baseline recorded 2026-09-21: 3 domains, all three the scraper network. Run it weekly, or whenever a pitch has been sent.
 
+## Deep SEO / AI-SEO audit — 2026-09-21 (what earlier passes missed)
+
+Run with live data (DataForSEO, Firecrawl, GSC UI) rather than assertion.
+Four findings no previous pass had.
+
+### 1. We were auditing the wrong head term
+
+The market's head term is not "pokemon card deals" (1,600/mo). It is
+**"pokemon card value" / "values" at 110,000/mo each**, difficulty 21–24,
+with "pokemon card prices" at 22,200 and "newest pokemon set" at 60,500.
+We are **not in the top 50** for any of them. TCGplayer and PriceCharting
+hold the top two on all of them.
+
+Our nearest peer by link profile, pokemonpricetracker.com (50 referring
+domains to our 3), ranks 37–69 for the 110k terms across 2,360 keywords.
+That is what ~50 earned links buys in this niche: page 4–7, not page 1.
+Useful as a calibration for what the pitch pack can realistically achieve.
+
+### 2. Two difficulty-2 terms our existing pages already answer, untargeted
+
+| Term | Volume (US) | Difficulty | The page that already answers it | Does it use the phrase? |
+|---|---|---|---|---|
+| pokemon card list | 8,100 | **2** | `/cards` — "Pokemon Card Database & Prices", 210 sets, browse by Pokemon and by set | No |
+| pokemon set list | 4,400 | **2** | `/sets` — "Pokemon Card Sets: Checklists, Prices & Values", 210 sets with checklists | No |
+
+Difficulty 2 is the same score as "pokemon card deals", where we already
+sit at 36 with no links at all. Combined 12,500/mo, informational intent,
+and the content genuinely exists — set checklists are a real asset, not a
+thin page. **This is the largest addressable gap in the audit** and the
+cheapest: heading, title and lead-copy work on two pages that already
+hold the data.
+
+### 3. The crawl change is working, and the "25k not indexed" fear was misread
+
+GSC Page indexing, read 2026-09-21 (was 24,952 not indexed on 20 Sep):
+
+| Reason | Pages | Source |
+|---|---|---|
+| Discovered – currently not indexed | 13,060 | Google systems |
+| Alternative page with proper canonical | 241 | Website |
+| Crawled – currently not indexed | **41** | Google systems |
+| Excluded by 'noindex' | 31 | Website |
+| Page with redirect | 1 | Website |
+| **Indexed** | **1,850** (was 1,813) | |
+
+Not-indexed roughly halved in a day, 25,248 → 13,400, and indexed rose.
+Crucially only **41** pages were fetched and then declined; 13,060 are
+URLs Google knows but has not spent a fetch on. That is a priority
+question, not a quality rejection — the batch 6 shard rule is doing
+exactly what it was meant to. We now advertise 8,010 URLs across nine
+sitemaps while Google knows ~15,000.
+
+### 4. Internal linking is not a problem
+
+Distinct internal links exposed per hub: `/pokemon` 1,052, `/cards` 321,
+`/sets` 237, `/` 89, `/deals` 57, `/guides` 56, `/search` 36,
+`/market-data` 31. No orphan tier; discovery is not the constraint.
+
+### AI SEO — what is in place, and the one thing that decides it
+
+In place and verified: robots names 15 retrieval/training agents
+explicitly; `llms.txt` with dated freshness and quotable definitions;
+answer-first blocks on `/` and now `/deals`; an entity graph with
+Organization, WebSite, logo, sameAs and per-page FAQPage mirroring
+visible text; Dataset markup on the first-party data pages.
+
+The gap is not technical. AI answers are assembled from sources that are
+already cited elsewhere, and in the ten SERPs sampled today **Reddit
+appears in the top five for seven of them**, YouTube for three. We have
+zero earned references and no community presence, so the probability of
+being quoted is near zero regardless of on-page quality. The AI-SEO fix
+and the classic-SEO fix are the same fix, and it is the pitch pack.
+
+Not measurable this session: DataForSEO's `llm_mentions` endpoints
+rejected three request shapes (40501/40503) — worth one more attempt
+against their docs before concluding anything about model mentions.
+
+### What could not be checked
+- **Core Web Vitals**: PSI quota still exhausted (HTTP 429 on both URLs); GSC field data still "No data" at this traffic level. No lab or field performance number exists for the site right now.
+- **Whether AI crawlers actually fetch**: needs server logs, not available here.
+- **LLM mention share**: see above.
+
 ## Measurement calendar
 - **2026-10-04**: GSC CTR on retitled pages; Delta Reign guide impressions; Page indexing "Discovered – not indexed" after the bulk-shard change; PostHog guide_offers clicks.
 - **2026-10-11**: price_history provenance depth → decide #6.

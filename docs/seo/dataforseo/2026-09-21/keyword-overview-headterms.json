@@ -1,0 +1,4283 @@
+{
+  "version": "0.1.20260917",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.0846 sec.",
+  "cost": 0.01296,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "09202057-2576-0607-0000-dffb298ecd19",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.0740 sec.",
+      "cost": 0.01296,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "dataforseo_labs",
+        "google",
+        "keyword_overview",
+        "live"
+      ],
+      "data": {
+        "api": "dataforseo_labs",
+        "function": "keyword_overview",
+        "se_type": "google",
+        "keywords": [
+          "pokemon card value",
+          "pokemon card values",
+          "pokemon card prices",
+          "pokemon card price",
+          "how much are pokemon cards worth",
+          "newest pokemon set",
+          "pokemon card list",
+          "pokemon set list"
+        ],
+        "location_code": 2840,
+        "language_code": "en"
+      },
+      "result": [
+        {
+          "se_type": "google",
+          "location_code": 2840,
+          "language_code": "en",
+          "items_count": 8,
+          "items": [
+            {
+              "se_type": "google",
+              "keyword": "how much are pokemon cards worth",
+              "location_code": 2840,
+              "language_code": "en",
+              "search_partners": false,
+              "keyword_info": {
+                "se_type": "google",
+                "last_updated_time": "2026-09-13 07:58:41 +00:00",
+                "competition": 0.36,
+                "competition_level": "MEDIUM",
+                "cpc": 1.79,
+                "search_volume": 4400,
+                "low_top_of_page_bid": 0.48,
+                "high_top_of_page_bid": 2.03,
+                "categories": [
+                  10015,
+                  10135
+                ],
+                "monthly_searches": [
+                  {
+                    "year": 2026,
+                    "month": 8,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2026,
+                    "month": 7,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2026,
+                    "month": 6,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2026,
+                    "month": 5,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2026,
+                    "month": 4,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2026,
+                    "month": 3,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2026,
+                    "month": 2,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2026,
+                    "month": 1,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2025,
+                    "month": 12,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2025,
+                    "month": 11,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 10,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 9,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 8,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 7,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 6,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 5,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 4,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 3,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 2,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2025,
+                    "month": 1,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2024,
+                    "month": 12,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2024,
+                    "month": 11,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2024,
+                    "month": 10,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 9,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2024,
+                    "month": 8,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 7,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 6,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 5,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 4,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 3,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 2,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2024,
+                    "month": 1,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 12,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 11,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 10,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 9,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 8,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2023,
+                    "month": 7,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 6,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 5,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 4,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 3,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 2,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2023,
+                    "month": 1,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 12,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 11,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2022,
+                    "month": 10,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2022,
+                    "month": 9,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 8,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 7,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2022,
+                    "month": 6,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 5,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 4,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 3,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 2,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2022,
+                    "month": 1,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 12,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 11,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 10,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 9,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 8,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 7,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 6,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2021,
+                    "month": 5,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2021,
+                    "month": 4,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 3,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2021,
+                    "month": 2,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2021,
+                    "month": 1,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2020,
+                    "month": 12,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2020,
+                    "month": 11,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2020,
+                    "month": 10,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2020,
+                    "month": 9,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2020,
+                    "month": 8,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2020,
+                    "month": 7,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2020,
+                    "month": 6,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2020,
+                    "month": 5,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2020,
+                    "month": 4,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2020,
+                    "month": 3,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2020,
+                    "month": 2,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2020,
+                    "month": 1,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2019,
+                    "month": 12,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2019,
+                    "month": 11,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2019,
+                    "month": 10,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2019,
+                    "month": 9,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2019,
+                    "month": 8,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2019,
+                    "month": 7,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2019,
+                    "month": 6,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2019,
+                    "month": 5,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2019,
+                    "month": 4,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2019,
+                    "month": 3,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2019,
+                    "month": 2,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2019,
+                    "month": 1,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2018,
+                    "month": 12,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2018,
+                    "month": 11,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2018,
+                    "month": 10,
+                    "search_volume": 2900
+                  }
+                ],
+                "search_volume_trend": {
+                  "monthly": 0,
+                  "quarterly": 0,
+                  "yearly": 50
+                }
+              },
+              "keyword_info_normalized_with_bing": null,
+              "keyword_info_normalized_with_clickstream": null,
+              "clickstream_keyword_info": null,
+              "keyword_properties": {
+                "se_type": "google",
+                "core_keyword": null,
+                "synonym_clustering_algorithm": "text_processing",
+                "keyword_difficulty": 15,
+                "detected_language": "en",
+                "is_another_language": false
+              },
+              "serp_info": null,
+              "avg_backlinks_info": {
+                "se_type": "google",
+                "backlinks": 136563.8,
+                "dofollow": 136493.8,
+                "referring_pages": 136548.4,
+                "referring_domains": 40.6,
+                "referring_main_domains": 35.8,
+                "rank": 127.9,
+                "main_domain_rank": 488.4,
+                "last_updated_time": "2026-07-30 20:13:43 +00:00"
+              },
+              "search_intent_info": {
+                "se_type": "google",
+                "main_intent": "informational",
+                "foreign_intent": null,
+                "last_updated_time": "2026-04-27 21:26:22 +00:00"
+              }
+            },
+            {
+              "se_type": "google",
+              "keyword": "newest pokemon set",
+              "location_code": 2840,
+              "language_code": "en",
+              "search_partners": false,
+              "keyword_info": {
+                "se_type": "google",
+                "last_updated_time": "2026-09-13 16:54:59 +00:00",
+                "competition": 0.92,
+                "competition_level": "HIGH",
+                "cpc": 0.39,
+                "search_volume": 60500,
+                "low_top_of_page_bid": 0.1,
+                "high_top_of_page_bid": 2.42,
+                "categories": [
+                  10015,
+                  10125
+                ],
+                "monthly_searches": [
+                  {
+                    "year": 2026,
+                    "month": 8,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2026,
+                    "month": 7,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2026,
+                    "month": 6,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2026,
+                    "month": 5,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2026,
+                    "month": 4,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2026,
+                    "month": 3,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2026,
+                    "month": 2,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2026,
+                    "month": 1,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 12,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 11,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 10,
+                    "search_volume": 27100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 9,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 8,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 7,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 6,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 5,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 4,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 3,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 2,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 1,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2024,
+                    "month": 12,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2024,
+                    "month": 11,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2024,
+                    "month": 10,
+                    "search_volume": 27100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 9,
+                    "search_volume": 27100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 8,
+                    "search_volume": 27100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 7,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 6,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2024,
+                    "month": 5,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2024,
+                    "month": 4,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 3,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2024,
+                    "month": 2,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 1,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2023,
+                    "month": 12,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2023,
+                    "month": 11,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2023,
+                    "month": 10,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 9,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2023,
+                    "month": 8,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2023,
+                    "month": 7,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2023,
+                    "month": 6,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2023,
+                    "month": 5,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2023,
+                    "month": 4,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2023,
+                    "month": 3,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2023,
+                    "month": 2,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2023,
+                    "month": 1,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2022,
+                    "month": 12,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2022,
+                    "month": 11,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 10,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 9,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 8,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 7,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 6,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2022,
+                    "month": 5,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2022,
+                    "month": 4,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2022,
+                    "month": 3,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2022,
+                    "month": 2,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 1,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2021,
+                    "month": 12,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2021,
+                    "month": 11,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2021,
+                    "month": 10,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 9,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 8,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 7,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 6,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 5,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 4,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 3,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2021,
+                    "month": 2,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 1,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2020,
+                    "month": 12,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2020,
+                    "month": 11,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2020,
+                    "month": 10,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2020,
+                    "month": 9,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2020,
+                    "month": 8,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2020,
+                    "month": 7,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2020,
+                    "month": 6,
+                    "search_volume": 1300
+                  },
+                  {
+                    "year": 2020,
+                    "month": 5,
+                    "search_volume": 1000
+                  },
+                  {
+                    "year": 2020,
+                    "month": 4,
+                    "search_volume": 1000
+                  },
+                  {
+                    "year": 2020,
+                    "month": 3,
+                    "search_volume": 720
+                  },
+                  {
+                    "year": 2020,
+                    "month": 2,
+                    "search_volume": 720
+                  },
+                  {
+                    "year": 2020,
+                    "month": 1,
+                    "search_volume": 880
+                  },
+                  {
+                    "year": 2019,
+                    "month": 12,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2019,
+                    "month": 11,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2019,
+                    "month": 10,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2019,
+                    "month": 9,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2019,
+                    "month": 8,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2019,
+                    "month": 7,
+                    "search_volume": 1600
+                  },
+                  {
+                    "year": 2019,
+                    "month": 6,
+                    "search_volume": 1300
+                  },
+                  {
+                    "year": 2019,
+                    "month": 5,
+                    "search_volume": 1300
+                  },
+                  {
+                    "year": 2019,
+                    "month": 4,
+                    "search_volume": 1000
+                  },
+                  {
+                    "year": 2019,
+                    "month": 3,
+                    "search_volume": 720
+                  },
+                  {
+                    "year": 2019,
+                    "month": 2,
+                    "search_volume": 480
+                  },
+                  {
+                    "year": 2019,
+                    "month": 1,
+                    "search_volume": 720
+                  },
+                  {
+                    "year": 2018,
+                    "month": 12,
+                    "search_volume": 880
+                  },
+                  {
+                    "year": 2018,
+                    "month": 11,
+                    "search_volume": 1000
+                  }
+                ],
+                "search_volume_trend": {
+                  "monthly": -33,
+                  "quarterly": -18,
+                  "yearly": 50
+                }
+              },
+              "keyword_info_normalized_with_bing": null,
+              "keyword_info_normalized_with_clickstream": null,
+              "clickstream_keyword_info": null,
+              "keyword_properties": {
+                "se_type": "google",
+                "core_keyword": null,
+                "synonym_clustering_algorithm": "text_processing",
+                "keyword_difficulty": 22,
+                "detected_language": "en",
+                "is_another_language": false
+              },
+              "serp_info": null,
+              "avg_backlinks_info": {
+                "se_type": "google",
+                "backlinks": 233.7,
+                "dofollow": 186.5,
+                "referring_pages": 208.7,
+                "referring_domains": 42.7,
+                "referring_main_domains": 41.8,
+                "rank": 156.3,
+                "main_domain_rank": 478.3,
+                "last_updated_time": "2026-08-03 09:54:50 +00:00"
+              },
+              "search_intent_info": {
+                "se_type": "google",
+                "main_intent": "transactional",
+                "foreign_intent": null,
+                "last_updated_time": "2026-04-29 17:46:28 +00:00"
+              }
+            },
+            {
+              "se_type": "google",
+              "keyword": "pokemon card list",
+              "location_code": 2840,
+              "language_code": "en",
+              "search_partners": false,
+              "keyword_info": {
+                "se_type": "google",
+                "last_updated_time": "2026-09-14 00:38:50 +00:00",
+                "competition": 0.06,
+                "competition_level": "LOW",
+                "cpc": 0.52,
+                "search_volume": 8100,
+                "low_top_of_page_bid": 0.06,
+                "high_top_of_page_bid": 2.16,
+                "categories": [
+                  10015,
+                  10135,
+                  10729
+                ],
+                "monthly_searches": [
+                  {
+                    "year": 2026,
+                    "month": 8,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2026,
+                    "month": 7,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2026,
+                    "month": 6,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2026,
+                    "month": 5,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2026,
+                    "month": 4,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2026,
+                    "month": 3,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2026,
+                    "month": 2,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2026,
+                    "month": 1,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 12,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 11,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 10,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 9,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 8,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 7,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 6,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 5,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 4,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2025,
+                    "month": 3,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 2,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2025,
+                    "month": 1,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 12,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 11,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 10,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 9,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2024,
+                    "month": 8,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2024,
+                    "month": 7,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 6,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 5,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 4,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 3,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 2,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 1,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2023,
+                    "month": 12,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2023,
+                    "month": 11,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2023,
+                    "month": 10,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2023,
+                    "month": 9,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2023,
+                    "month": 8,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2023,
+                    "month": 7,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2023,
+                    "month": 6,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2023,
+                    "month": 5,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2023,
+                    "month": 4,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2023,
+                    "month": 3,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2023,
+                    "month": 2,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2023,
+                    "month": 1,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2022,
+                    "month": 12,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 11,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2022,
+                    "month": 10,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 9,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2022,
+                    "month": 8,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 7,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2022,
+                    "month": 6,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 5,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 4,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 3,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 2,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 1,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 12,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 11,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2021,
+                    "month": 10,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2021,
+                    "month": 9,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 8,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 7,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 6,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 5,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 4,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 3,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2021,
+                    "month": 2,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 1,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2020,
+                    "month": 12,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2020,
+                    "month": 11,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2020,
+                    "month": 10,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2020,
+                    "month": 9,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2020,
+                    "month": 8,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2020,
+                    "month": 7,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2020,
+                    "month": 6,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2020,
+                    "month": 5,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2020,
+                    "month": 4,
+                    "search_volume": 1600
+                  },
+                  {
+                    "year": 2020,
+                    "month": 3,
+                    "search_volume": 1600
+                  },
+                  {
+                    "year": 2020,
+                    "month": 2,
+                    "search_volume": 1600
+                  },
+                  {
+                    "year": 2020,
+                    "month": 1,
+                    "search_volume": 1300
+                  },
+                  {
+                    "year": 2019,
+                    "month": 12,
+                    "search_volume": 1600
+                  },
+                  {
+                    "year": 2019,
+                    "month": 11,
+                    "search_volume": 1300
+                  },
+                  {
+                    "year": 2019,
+                    "month": 10,
+                    "search_volume": 1300
+                  },
+                  {
+                    "year": 2019,
+                    "month": 9,
+                    "search_volume": 1300
+                  },
+                  {
+                    "year": 2019,
+                    "month": 8,
+                    "search_volume": 1600
+                  },
+                  {
+                    "year": 2019,
+                    "month": 7,
+                    "search_volume": 1300
+                  },
+                  {
+                    "year": 2019,
+                    "month": 6,
+                    "search_volume": 1600
+                  },
+                  {
+                    "year": 2019,
+                    "month": 5,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2019,
+                    "month": 4,
+                    "search_volume": 1300
+                  },
+                  {
+                    "year": 2019,
+                    "month": 3,
+                    "search_volume": 1000
+                  },
+                  {
+                    "year": 2019,
+                    "month": 2,
+                    "search_volume": 1000
+                  },
+                  {
+                    "year": 2019,
+                    "month": 1,
+                    "search_volume": 1300
+                  },
+                  {
+                    "year": 2018,
+                    "month": 12,
+                    "search_volume": 1300
+                  },
+                  {
+                    "year": 2018,
+                    "month": 11,
+                    "search_volume": 1000
+                  },
+                  {
+                    "year": 2018,
+                    "month": 10,
+                    "search_volume": 1000
+                  }
+                ],
+                "search_volume_trend": {
+                  "monthly": 0,
+                  "quarterly": -18,
+                  "yearly": 23
+                }
+              },
+              "keyword_info_normalized_with_bing": null,
+              "keyword_info_normalized_with_clickstream": null,
+              "clickstream_keyword_info": null,
+              "keyword_properties": {
+                "se_type": "google",
+                "core_keyword": null,
+                "synonym_clustering_algorithm": "text_processing",
+                "keyword_difficulty": 2,
+                "detected_language": "en",
+                "is_another_language": false
+              },
+              "serp_info": null,
+              "avg_backlinks_info": {
+                "se_type": "google",
+                "backlinks": 303,
+                "dofollow": 274.6,
+                "referring_pages": 300.6,
+                "referring_domains": 25.3,
+                "referring_main_domains": 21.6,
+                "rank": 71,
+                "main_domain_rank": 460.3,
+                "last_updated_time": "2026-07-30 12:22:46 +00:00"
+              },
+              "search_intent_info": {
+                "se_type": "google",
+                "main_intent": "informational",
+                "foreign_intent": [
+                  "transactional"
+                ],
+                "last_updated_time": "2026-04-29 18:46:08 +00:00"
+              }
+            },
+            {
+              "se_type": "google",
+              "keyword": "pokemon card price",
+              "location_code": 2840,
+              "language_code": "en",
+              "search_partners": false,
+              "keyword_info": {
+                "se_type": "google",
+                "last_updated_time": "2026-09-12 14:17:46 +00:00",
+                "competition": 0.36,
+                "competition_level": "MEDIUM",
+                "cpc": 0.4,
+                "search_volume": 22200,
+                "low_top_of_page_bid": 0.05,
+                "high_top_of_page_bid": 1.33,
+                "categories": [
+                  10015,
+                  10015,
+                  10125,
+                  10135,
+                  10672,
+                  10729,
+                  11943,
+                  12998
+                ],
+                "monthly_searches": [
+                  {
+                    "year": 2026,
+                    "month": 8,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2026,
+                    "month": 7,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2026,
+                    "month": 6,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2026,
+                    "month": 5,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2026,
+                    "month": 4,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2026,
+                    "month": 3,
+                    "search_volume": 27100
+                  },
+                  {
+                    "year": 2026,
+                    "month": 2,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2026,
+                    "month": 1,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 12,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2025,
+                    "month": 11,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 10,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 9,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 8,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 7,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 6,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 5,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2025,
+                    "month": 4,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2025,
+                    "month": 3,
+                    "search_volume": 27100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 2,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 1,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2024,
+                    "month": 12,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2024,
+                    "month": 11,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2024,
+                    "month": 10,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 9,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 8,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 7,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 6,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 5,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 4,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2024,
+                    "month": 3,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 2,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2024,
+                    "month": 1,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2023,
+                    "month": 12,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2023,
+                    "month": 11,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2023,
+                    "month": 10,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2023,
+                    "month": 9,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2023,
+                    "month": 8,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2023,
+                    "month": 7,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2023,
+                    "month": 6,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2023,
+                    "month": 5,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2023,
+                    "month": 4,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2023,
+                    "month": 3,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2023,
+                    "month": 2,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2023,
+                    "month": 1,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 12,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 11,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2022,
+                    "month": 10,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2022,
+                    "month": 9,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 8,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 7,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 6,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 5,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 4,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 3,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 2,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2022,
+                    "month": 1,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2021,
+                    "month": 12,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2021,
+                    "month": 11,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2021,
+                    "month": 10,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2021,
+                    "month": 9,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2021,
+                    "month": 8,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2021,
+                    "month": 7,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2021,
+                    "month": 6,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2021,
+                    "month": 5,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2021,
+                    "month": 4,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2021,
+                    "month": 3,
+                    "search_volume": 27100
+                  },
+                  {
+                    "year": 2021,
+                    "month": 2,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2021,
+                    "month": 1,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2020,
+                    "month": 12,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 11,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 10,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 9,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2020,
+                    "month": 8,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2020,
+                    "month": 7,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2020,
+                    "month": 6,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2020,
+                    "month": 5,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2020,
+                    "month": 4,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2020,
+                    "month": 3,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2020,
+                    "month": 2,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2020,
+                    "month": 1,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2019,
+                    "month": 12,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2019,
+                    "month": 11,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2019,
+                    "month": 10,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2019,
+                    "month": 9,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2019,
+                    "month": 8,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2019,
+                    "month": 7,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2019,
+                    "month": 6,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2019,
+                    "month": 5,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2019,
+                    "month": 4,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2019,
+                    "month": 3,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2019,
+                    "month": 2,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2019,
+                    "month": 1,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2018,
+                    "month": 12,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2018,
+                    "month": 11,
+                    "search_volume": 5400
+                  }
+                ],
+                "search_volume_trend": {
+                  "monthly": 0,
+                  "quarterly": 0,
+                  "yearly": 0
+                }
+              },
+              "keyword_info_normalized_with_bing": null,
+              "keyword_info_normalized_with_clickstream": null,
+              "clickstream_keyword_info": null,
+              "keyword_properties": {
+                "se_type": "google",
+                "core_keyword": "pokemon card pricing",
+                "synonym_clustering_algorithm": "text_processing",
+                "keyword_difficulty": 21,
+                "detected_language": "en",
+                "is_another_language": false
+              },
+              "serp_info": null,
+              "avg_backlinks_info": {
+                "se_type": "google",
+                "backlinks": 136657.7,
+                "dofollow": 136559.1,
+                "referring_pages": 136638,
+                "referring_domains": 73.2,
+                "referring_main_domains": 64.4,
+                "rank": 141.2,
+                "main_domain_rank": 574.9,
+                "last_updated_time": "2026-07-30 06:41:55 +00:00"
+              },
+              "search_intent_info": {
+                "se_type": "google",
+                "main_intent": "commercial",
+                "foreign_intent": [
+                  "transactional"
+                ],
+                "last_updated_time": "2026-04-29 18:26:06 +00:00"
+              }
+            },
+            {
+              "se_type": "google",
+              "keyword": "pokemon card prices",
+              "location_code": 2840,
+              "language_code": "en",
+              "search_partners": false,
+              "keyword_info": {
+                "se_type": "google",
+                "last_updated_time": "2026-09-15 03:04:43 +00:00",
+                "competition": 0.36,
+                "competition_level": "MEDIUM",
+                "cpc": 0.4,
+                "search_volume": 22200,
+                "low_top_of_page_bid": 0.05,
+                "high_top_of_page_bid": 1.33,
+                "categories": [
+                  10015,
+                  10015,
+                  10125,
+                  10135,
+                  10672,
+                  10729,
+                  11943,
+                  12998
+                ],
+                "monthly_searches": [
+                  {
+                    "year": 2026,
+                    "month": 8,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2026,
+                    "month": 7,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2026,
+                    "month": 6,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2026,
+                    "month": 5,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2026,
+                    "month": 4,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2026,
+                    "month": 3,
+                    "search_volume": 27100
+                  },
+                  {
+                    "year": 2026,
+                    "month": 2,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2026,
+                    "month": 1,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 12,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2025,
+                    "month": 11,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 10,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 9,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 8,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 7,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 6,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 5,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2025,
+                    "month": 4,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2025,
+                    "month": 3,
+                    "search_volume": 27100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 2,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2025,
+                    "month": 1,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2024,
+                    "month": 12,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2024,
+                    "month": 11,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2024,
+                    "month": 10,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 9,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 8,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 7,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 6,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 5,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 4,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2024,
+                    "month": 3,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2024,
+                    "month": 2,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2024,
+                    "month": 1,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2023,
+                    "month": 12,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2023,
+                    "month": 11,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2023,
+                    "month": 10,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2023,
+                    "month": 9,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2023,
+                    "month": 8,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2023,
+                    "month": 7,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2023,
+                    "month": 6,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2023,
+                    "month": 5,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2023,
+                    "month": 4,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2023,
+                    "month": 3,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2023,
+                    "month": 2,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2023,
+                    "month": 1,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 12,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 11,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2022,
+                    "month": 10,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2022,
+                    "month": 9,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 8,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 7,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 6,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 5,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 4,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 3,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2022,
+                    "month": 2,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2022,
+                    "month": 1,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2021,
+                    "month": 12,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2021,
+                    "month": 11,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2021,
+                    "month": 10,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2021,
+                    "month": 9,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2021,
+                    "month": 8,
+                    "search_volume": 18100
+                  },
+                  {
+                    "year": 2021,
+                    "month": 7,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2021,
+                    "month": 6,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2021,
+                    "month": 5,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2021,
+                    "month": 4,
+                    "search_volume": 22200
+                  },
+                  {
+                    "year": 2021,
+                    "month": 3,
+                    "search_volume": 27100
+                  },
+                  {
+                    "year": 2021,
+                    "month": 2,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2021,
+                    "month": 1,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2020,
+                    "month": 12,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 11,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 10,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 9,
+                    "search_volume": 12100
+                  },
+                  {
+                    "year": 2020,
+                    "month": 8,
+                    "search_volume": 14800
+                  },
+                  {
+                    "year": 2020,
+                    "month": 7,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2020,
+                    "month": 6,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2020,
+                    "month": 5,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2020,
+                    "month": 4,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2020,
+                    "month": 3,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2020,
+                    "month": 2,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2020,
+                    "month": 1,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2019,
+                    "month": 12,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2019,
+                    "month": 11,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2019,
+                    "month": 10,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2019,
+                    "month": 9,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2019,
+                    "month": 8,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2019,
+                    "month": 7,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2019,
+                    "month": 6,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2019,
+                    "month": 5,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2019,
+                    "month": 4,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2019,
+                    "month": 3,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2019,
+                    "month": 2,
+                    "search_volume": 6600
+                  },
+                  {
+                    "year": 2019,
+                    "month": 1,
+                    "search_volume": 9900
+                  },
+                  {
+                    "year": 2018,
+                    "month": 12,
+                    "search_volume": 8100
+                  },
+                  {
+                    "year": 2018,
+                    "month": 11,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2018,
+                    "month": 10,
+                    "search_volume": 5400
+                  }
+                ],
+                "search_volume_trend": {
+                  "monthly": 0,
+                  "quarterly": 0,
+                  "yearly": 0
+                }
+              },
+              "keyword_info_normalized_with_bing": null,
+              "keyword_info_normalized_with_clickstream": null,
+              "clickstream_keyword_info": null,
+              "keyword_properties": {
+                "se_type": "google",
+                "core_keyword": "pokemon card pricing",
+                "synonym_clustering_algorithm": "text_processing",
+                "keyword_difficulty": 19,
+                "detected_language": "en",
+                "is_another_language": false
+              },
+              "serp_info": null,
+              "avg_backlinks_info": {
+                "se_type": "google",
+                "backlinks": 136657.7,
+                "dofollow": 136559.1,
+                "referring_pages": 136638,
+                "referring_domains": 73.2,
+                "referring_main_domains": 64.4,
+                "rank": 141.2,
+                "main_domain_rank": 520.2,
+                "last_updated_time": "2026-07-30 06:34:07 +00:00"
+              },
+              "search_intent_info": {
+                "se_type": "google",
+                "main_intent": "commercial",
+                "foreign_intent": null,
+                "last_updated_time": "2026-04-29 18:06:52 +00:00"
+              }
+            },
+            {
+              "se_type": "google",
+              "keyword": "pokemon card value",
+              "location_code": 2840,
+              "language_code": "en",
+              "search_partners": false,
+              "keyword_info": {
+                "se_type": "google",
+                "last_updated_time": "2026-09-16 13:31:31 +00:00",
+                "competition": 0.47,
+                "competition_level": "MEDIUM",
+                "cpc": 1.03,
+                "search_volume": 110000,
+                "low_top_of_page_bid": 0.06,
+                "high_top_of_page_bid": 1.79,
+                "categories": [
+                  10015,
+                  10135,
+                  10729
+                ],
+                "monthly_searches": [
+                  {
+                    "year": 2026,
+                    "month": 8,
+                    "search_volume": 110000
+                  },
+                  {
+                    "year": 2026,
+                    "month": 7,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2026,
+                    "month": 6,
+                    "search_volume": 135000
+                  },
+                  {
+                    "year": 2026,
+                    "month": 5,
+                    "search_volume": 135000
+                  },
+                  {
+                    "year": 2026,
+                    "month": 4,
+                    "search_volume": 135000
+                  },
+                  {
+                    "year": 2026,
+                    "month": 3,
+                    "search_volume": 135000
+                  },
+                  {
+                    "year": 2026,
+                    "month": 2,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2026,
+                    "month": 1,
+                    "search_volume": 110000
+                  },
+                  {
+                    "year": 2025,
+                    "month": 12,
+                    "search_volume": 110000
+                  },
+                  {
+                    "year": 2025,
+                    "month": 11,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 10,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 9,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 8,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 7,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 6,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 5,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 4,
+                    "search_volume": 110000
+                  },
+                  {
+                    "year": 2025,
+                    "month": 3,
+                    "search_volume": 110000
+                  },
+                  {
+                    "year": 2025,
+                    "month": 2,
+                    "search_volume": 135000
+                  },
+                  {
+                    "year": 2025,
+                    "month": 1,
+                    "search_volume": 135000
+                  },
+                  {
+                    "year": 2024,
+                    "month": 12,
+                    "search_volume": 165000
+                  },
+                  {
+                    "year": 2024,
+                    "month": 11,
+                    "search_volume": 165000
+                  },
+                  {
+                    "year": 2024,
+                    "month": 10,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2024,
+                    "month": 9,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2024,
+                    "month": 8,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2024,
+                    "month": 7,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2024,
+                    "month": 6,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2024,
+                    "month": 5,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2024,
+                    "month": 4,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2024,
+                    "month": 3,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2024,
+                    "month": 2,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2024,
+                    "month": 1,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 12,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2023,
+                    "month": 11,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 10,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 9,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 8,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 7,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 6,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2023,
+                    "month": 5,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 4,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 3,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 2,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 1,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2022,
+                    "month": 12,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2022,
+                    "month": 11,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2022,
+                    "month": 10,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2022,
+                    "month": 9,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2022,
+                    "month": 8,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2022,
+                    "month": 7,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2022,
+                    "month": 6,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2022,
+                    "month": 5,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2022,
+                    "month": 4,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2022,
+                    "month": 3,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2022,
+                    "month": 2,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2022,
+                    "month": 1,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2021,
+                    "month": 12,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2021,
+                    "month": 11,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2021,
+                    "month": 10,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2021,
+                    "month": 9,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2021,
+                    "month": 8,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2021,
+                    "month": 7,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2021,
+                    "month": 6,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2021,
+                    "month": 5,
+                    "search_volume": 110000
+                  },
+                  {
+                    "year": 2021,
+                    "month": 4,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2021,
+                    "month": 3,
+                    "search_volume": 135000
+                  },
+                  {
+                    "year": 2021,
+                    "month": 2,
+                    "search_volume": 135000
+                  },
+                  {
+                    "year": 2021,
+                    "month": 1,
+                    "search_volume": 135000
+                  },
+                  {
+                    "year": 2020,
+                    "month": 12,
+                    "search_volume": 165000
+                  },
+                  {
+                    "year": 2020,
+                    "month": 11,
+                    "search_volume": 165000
+                  },
+                  {
+                    "year": 2020,
+                    "month": 10,
+                    "search_volume": 165000
+                  },
+                  {
+                    "year": 2020,
+                    "month": 9,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 8,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 7,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 6,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 5,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 4,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 3,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 2,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 1,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2019,
+                    "month": 12,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2019,
+                    "month": 11,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2019,
+                    "month": 10,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2019,
+                    "month": 9,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2019,
+                    "month": 8,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2019,
+                    "month": 7,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2019,
+                    "month": 6,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2019,
+                    "month": 5,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2019,
+                    "month": 4,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2019,
+                    "month": 3,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2019,
+                    "month": 2,
+                    "search_volume": 27100
+                  },
+                  {
+                    "year": 2019,
+                    "month": 1,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2018,
+                    "month": 12,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2018,
+                    "month": 11,
+                    "search_volume": 33100
+                  }
+                ],
+                "search_volume_trend": {
+                  "monthly": 22,
+                  "quarterly": -19,
+                  "yearly": 22
+                }
+              },
+              "keyword_info_normalized_with_bing": null,
+              "keyword_info_normalized_with_clickstream": null,
+              "clickstream_keyword_info": null,
+              "keyword_properties": {
+                "se_type": "google",
+                "core_keyword": null,
+                "synonym_clustering_algorithm": "text_processing",
+                "keyword_difficulty": 24,
+                "detected_language": "en",
+                "is_another_language": false
+              },
+              "serp_info": null,
+              "avg_backlinks_info": {
+                "se_type": "google",
+                "backlinks": 136726.4,
+                "dofollow": 136575.4,
+                "referring_pages": 136697.8,
+                "referring_domains": 124.5,
+                "referring_main_domains": 111.3,
+                "rank": 171.2,
+                "main_domain_rank": 431.6,
+                "last_updated_time": "2026-07-30 03:58:27 +00:00"
+              },
+              "search_intent_info": {
+                "se_type": "google",
+                "main_intent": "informational",
+                "foreign_intent": null,
+                "last_updated_time": "2026-04-29 17:22:21 +00:00"
+              }
+            },
+            {
+              "se_type": "google",
+              "keyword": "pokemon card values",
+              "location_code": 2840,
+              "language_code": "en",
+              "search_partners": false,
+              "keyword_info": {
+                "se_type": "google",
+                "last_updated_time": "2026-09-15 18:03:19 +00:00",
+                "competition": 0.47,
+                "competition_level": "MEDIUM",
+                "cpc": 1.03,
+                "search_volume": 110000,
+                "low_top_of_page_bid": 0.06,
+                "high_top_of_page_bid": 1.79,
+                "categories": [
+                  10015,
+                  10135,
+                  10729
+                ],
+                "monthly_searches": [
+                  {
+                    "year": 2026,
+                    "month": 8,
+                    "search_volume": 110000
+                  },
+                  {
+                    "year": 2026,
+                    "month": 7,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2026,
+                    "month": 6,
+                    "search_volume": 135000
+                  },
+                  {
+                    "year": 2026,
+                    "month": 5,
+                    "search_volume": 135000
+                  },
+                  {
+                    "year": 2026,
+                    "month": 4,
+                    "search_volume": 135000
+                  },
+                  {
+                    "year": 2026,
+                    "month": 3,
+                    "search_volume": 135000
+                  },
+                  {
+                    "year": 2026,
+                    "month": 2,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2026,
+                    "month": 1,
+                    "search_volume": 110000
+                  },
+                  {
+                    "year": 2025,
+                    "month": 12,
+                    "search_volume": 110000
+                  },
+                  {
+                    "year": 2025,
+                    "month": 11,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 10,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 9,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 8,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 7,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 6,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 5,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2025,
+                    "month": 4,
+                    "search_volume": 110000
+                  },
+                  {
+                    "year": 2025,
+                    "month": 3,
+                    "search_volume": 110000
+                  },
+                  {
+                    "year": 2025,
+                    "month": 2,
+                    "search_volume": 135000
+                  },
+                  {
+                    "year": 2025,
+                    "month": 1,
+                    "search_volume": 135000
+                  },
+                  {
+                    "year": 2024,
+                    "month": 12,
+                    "search_volume": 165000
+                  },
+                  {
+                    "year": 2024,
+                    "month": 11,
+                    "search_volume": 165000
+                  },
+                  {
+                    "year": 2024,
+                    "month": 10,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2024,
+                    "month": 9,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2024,
+                    "month": 8,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2024,
+                    "month": 7,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2024,
+                    "month": 6,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2024,
+                    "month": 5,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2024,
+                    "month": 4,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2024,
+                    "month": 3,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2024,
+                    "month": 2,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2024,
+                    "month": 1,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 12,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2023,
+                    "month": 11,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 10,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 9,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 8,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 7,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 6,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2023,
+                    "month": 5,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 4,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 3,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 2,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2023,
+                    "month": 1,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2022,
+                    "month": 12,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2022,
+                    "month": 11,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2022,
+                    "month": 10,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2022,
+                    "month": 9,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2022,
+                    "month": 8,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2022,
+                    "month": 7,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2022,
+                    "month": 6,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2022,
+                    "month": 5,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2022,
+                    "month": 4,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2022,
+                    "month": 3,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2022,
+                    "month": 2,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2022,
+                    "month": 1,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2021,
+                    "month": 12,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2021,
+                    "month": 11,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2021,
+                    "month": 10,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2021,
+                    "month": 9,
+                    "search_volume": 60500
+                  },
+                  {
+                    "year": 2021,
+                    "month": 8,
+                    "search_volume": 74000
+                  },
+                  {
+                    "year": 2021,
+                    "month": 7,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2021,
+                    "month": 6,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2021,
+                    "month": 5,
+                    "search_volume": 110000
+                  },
+                  {
+                    "year": 2021,
+                    "month": 4,
+                    "search_volume": 90500
+                  },
+                  {
+                    "year": 2021,
+                    "month": 3,
+                    "search_volume": 135000
+                  },
+                  {
+                    "year": 2021,
+                    "month": 2,
+                    "search_volume": 135000
+                  },
+                  {
+                    "year": 2021,
+                    "month": 1,
+                    "search_volume": 135000
+                  },
+                  {
+                    "year": 2020,
+                    "month": 12,
+                    "search_volume": 165000
+                  },
+                  {
+                    "year": 2020,
+                    "month": 11,
+                    "search_volume": 165000
+                  },
+                  {
+                    "year": 2020,
+                    "month": 10,
+                    "search_volume": 165000
+                  },
+                  {
+                    "year": 2020,
+                    "month": 9,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 8,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 7,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 6,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 5,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 4,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 3,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 2,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2020,
+                    "month": 1,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2019,
+                    "month": 12,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2019,
+                    "month": 11,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2019,
+                    "month": 10,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2019,
+                    "month": 9,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2019,
+                    "month": 8,
+                    "search_volume": 49500
+                  },
+                  {
+                    "year": 2019,
+                    "month": 7,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2019,
+                    "month": 6,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2019,
+                    "month": 5,
+                    "search_volume": 40500
+                  },
+                  {
+                    "year": 2019,
+                    "month": 4,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2019,
+                    "month": 3,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2019,
+                    "month": 2,
+                    "search_volume": 27100
+                  },
+                  {
+                    "year": 2019,
+                    "month": 1,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2018,
+                    "month": 12,
+                    "search_volume": 33100
+                  },
+                  {
+                    "year": 2018,
+                    "month": 11,
+                    "search_volume": 33100
+                  }
+                ],
+                "search_volume_trend": {
+                  "monthly": 22,
+                  "quarterly": -19,
+                  "yearly": 22
+                }
+              },
+              "keyword_info_normalized_with_bing": null,
+              "keyword_info_normalized_with_clickstream": null,
+              "clickstream_keyword_info": null,
+              "keyword_properties": {
+                "se_type": "google",
+                "core_keyword": "pokemon card value",
+                "synonym_clustering_algorithm": "text_processing",
+                "keyword_difficulty": 21,
+                "detected_language": "en",
+                "is_another_language": false
+              },
+              "serp_info": null,
+              "avg_backlinks_info": {
+                "se_type": "google",
+                "backlinks": 136657.8,
+                "dofollow": 136559.4,
+                "referring_pages": 136638.3,
+                "referring_domains": 73.4,
+                "referring_main_domains": 64.7,
+                "rank": 147.7,
+                "main_domain_rank": 511.7,
+                "last_updated_time": "2026-07-30 03:58:47 +00:00"
+              },
+              "search_intent_info": {
+                "se_type": "google",
+                "main_intent": "informational",
+                "foreign_intent": null,
+                "last_updated_time": "2026-04-29 19:15:58 +00:00"
+              }
+            },
+            {
+              "se_type": "google",
+              "keyword": "pokemon set list",
+              "location_code": 2840,
+              "language_code": "en",
+              "search_partners": false,
+              "keyword_info": {
+                "se_type": "google",
+                "last_updated_time": "2026-09-12 03:27:46 +00:00",
+                "competition": 0.09,
+                "competition_level": "LOW",
+                "cpc": 0.25,
+                "search_volume": 4400,
+                "low_top_of_page_bid": 0.04,
+                "high_top_of_page_bid": 0.71,
+                "categories": [
+                  10015,
+                  10125
+                ],
+                "monthly_searches": [
+                  {
+                    "year": 2026,
+                    "month": 8,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2026,
+                    "month": 7,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2026,
+                    "month": 6,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2026,
+                    "month": 5,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2026,
+                    "month": 4,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2026,
+                    "month": 3,
+                    "search_volume": 5400
+                  },
+                  {
+                    "year": 2026,
+                    "month": 2,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2026,
+                    "month": 1,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2025,
+                    "month": 12,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 11,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 10,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2025,
+                    "month": 9,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 8,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 7,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2025,
+                    "month": 6,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 5,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 4,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2025,
+                    "month": 3,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2025,
+                    "month": 2,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2025,
+                    "month": 1,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 12,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2024,
+                    "month": 11,
+                    "search_volume": 4400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 10,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2024,
+                    "month": 9,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2024,
+                    "month": 8,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2024,
+                    "month": 7,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 6,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 5,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 4,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2024,
+                    "month": 3,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2024,
+                    "month": 2,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2024,
+                    "month": 1,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2023,
+                    "month": 12,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2023,
+                    "month": 11,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2023,
+                    "month": 10,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 9,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 8,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 7,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 6,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 5,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 4,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 3,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 2,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2023,
+                    "month": 1,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 12,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 11,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2022,
+                    "month": 10,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2022,
+                    "month": 9,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 8,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 7,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2022,
+                    "month": 6,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2022,
+                    "month": 5,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2022,
+                    "month": 4,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2022,
+                    "month": 3,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2022,
+                    "month": 2,
+                    "search_volume": 1600
+                  },
+                  {
+                    "year": 2022,
+                    "month": 1,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 12,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2021,
+                    "month": 11,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 10,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2021,
+                    "month": 9,
+                    "search_volume": 1600
+                  },
+                  {
+                    "year": 2021,
+                    "month": 8,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2021,
+                    "month": 7,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2021,
+                    "month": 6,
+                    "search_volume": 1600
+                  },
+                  {
+                    "year": 2021,
+                    "month": 5,
+                    "search_volume": 1900
+                  },
+                  {
+                    "year": 2021,
+                    "month": 4,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 3,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2021,
+                    "month": 2,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2021,
+                    "month": 1,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2020,
+                    "month": 12,
+                    "search_volume": 2900
+                  },
+                  {
+                    "year": 2020,
+                    "month": 11,
+                    "search_volume": 3600
+                  },
+                  {
+                    "year": 2020,
+                    "month": 10,
+                    "search_volume": 2400
+                  },
+                  {
+                    "year": 2020,
+                    "month": 9,
+                    "search_volume": 1600
+                  },
+                  {
+                    "year": 2020,
+                    "month": 8,
+                    "search_volume": 1300
+                  },
+                  {
+                    "year": 2020,
+                    "month": 7,
+                    "search_volume": 1300
+                  },
+                  {
+                    "year": 2020,
+                    "month": 6,
+                    "search_volume": 1000
+                  },
+                  {
+                    "year": 2020,
+                    "month": 5,
+                    "search_volume": 1000
+                  },
+                  {
+                    "year": 2020,
+                    "month": 4,
+                    "search_volume": 720
+                  },
+                  {
+                    "year": 2020,
+                    "month": 3,
+                    "search_volume": 720
+                  },
+                  {
+                    "year": 2020,
+                    "month": 2,
+                    "search_volume": 880
+                  },
+                  {
+                    "year": 2020,
+                    "month": 1,
+                    "search_volume": 720
+                  },
+                  {
+                    "year": 2019,
+                    "month": 12,
+                    "search_volume": 720
+                  },
+                  {
+                    "year": 2019,
+                    "month": 11,
+                    "search_volume": 720
+                  },
+                  {
+                    "year": 2019,
+                    "month": 10,
+                    "search_volume": 720
+                  },
+                  {
+                    "year": 2019,
+                    "month": 9,
+                    "search_volume": 720
+                  },
+                  {
+                    "year": 2019,
+                    "month": 8,
+                    "search_volume": 880
+                  },
+                  {
+                    "year": 2019,
+                    "month": 7,
+                    "search_volume": 880
+                  },
+                  {
+                    "year": 2019,
+                    "month": 6,
+                    "search_volume": 720
+                  },
+                  {
+                    "year": 2019,
+                    "month": 5,
+                    "search_volume": 880
+                  },
+                  {
+                    "year": 2019,
+                    "month": 4,
+                    "search_volume": 720
+                  },
+                  {
+                    "year": 2019,
+                    "month": 3,
+                    "search_volume": 590
+                  }
+                ],
+                "search_volume_trend": {
+                  "monthly": -18,
+                  "quarterly": -18,
+                  "yearly": 0
+                }
+              },
+              "keyword_info_normalized_with_bing": null,
+              "keyword_info_normalized_with_clickstream": null,
+              "clickstream_keyword_info": null,
+              "keyword_properties": {
+                "se_type": "google",
+                "core_keyword": null,
+                "synonym_clustering_algorithm": "text_processing",
+                "keyword_difficulty": 2,
+                "detected_language": "en",
+                "is_another_language": false
+              },
+              "serp_info": null,
+              "avg_backlinks_info": {
+                "se_type": "google",
+                "backlinks": 66,
+                "dofollow": 59.4,
+                "referring_pages": 63,
+                "referring_domains": 11.2,
+                "referring_main_domains": 10.9,
+                "rank": 73.8,
+                "main_domain_rank": 434.1,
+                "last_updated_time": "2026-07-30 19:53:20 +00:00"
+              },
+              "search_intent_info": {
+                "se_type": "google",
+                "main_intent": "informational",
+                "foreign_intent": null,
+                "last_updated_time": "2026-04-29 23:26:31 +00:00"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
