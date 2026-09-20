@@ -73,8 +73,16 @@ if (args.auction) {
 }
 if (args.ended) {
   console.log(`== ended /deals/${args.ended}`);
-  const e = await page(`/deals/${args.ended}`);
-  ok(!types(e).includes("Product"), `no Product on an ended page (status ${e.status})`);
+  // an expired deal 308s to its card page (or 404s) before any schema is
+  // emitted - do not follow the redirect, or the card page's Product would
+  // be read as the ended page's
+  const res = await fetch(`${H}/deals/${args.ended}`, { redirect: "manual", headers: { "cache-control": "no-cache", "user-agent": "pdf-jsonld-smoke" } });
+  if (res.status === 308 || res.status === 301 || res.status === 404) {
+    ok(true, `ended page answers ${res.status}${res.headers.get("location") ? " -> " + res.headers.get("location") : ""} (no schema emitted)`);
+  } else {
+    const e = await page(`/deals/${args.ended}`);
+    ok(!types(e).includes("Product"), `no Product on an ended page (status ${e.status})`);
+  }
 }
 if (args.card) {
   console.log(`== card /cards/${args.card}`);
