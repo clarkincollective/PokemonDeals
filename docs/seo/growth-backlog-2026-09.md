@@ -355,10 +355,39 @@ on `/`, `/cards`, `/sets` and `/deals` is 0.09-0.11 s (`X-Vercel-Cache:
 HIT`). The 1.0-3.3 s first-hit figures were cold ISR regeneration.
 
 **The dominant cause was images**, 3,296 KiB of oversizing on mobile
-alone - acted on in batch 11 below. **CLS is a separate, still-open
-defect**: Lighthouse reports the score but attributes it to no named
-element in either run, so the shifting element has not been identified
-yet. Do not assume the image change fixed it; re-measure.
+alone - acted on in batch 11 below.
+
+### CLS: cause found and fixed - 2026-09-21
+
+The `layout-shift-elements` audit is empty, which is what made this look
+unattributable. The attribution is in the **`layout-shifts`** audit
+instead: four shifts, two of them carrying almost all the score, both on
+the section below the feed - which is what *moved*, not the cause.
+
+The cause was in `components/HomeFeed.js`. While a variant fetch was in
+flight it rendered an **empty** feed, so the grid collapsed and then
+re-expanded: the whole page below it moved twice. It fires on an
+ordinary first visit - `components/RegionRedirect.js` applies the geo
+default once `/api/rates` resolves, which changes the params and starts
+that fetch. Lighthouse runs with empty storage, so it hit this every
+time.
+
+`components/DealGrid.js` never had the bug: it renders `<GridSkeleton />`
+while loading, which holds the height. HomeFeed now keeps the last
+rendered feed on screen instead, marked `aria-busy` and dimmed by opacity
+alone. Nothing about the outcome changes - same final content, same geo
+default, same fold order - and the stale frame is the content the visitor
+was already looking at, because it is what the server rendered. Pinned in
+`tests/scanner/home-feed-cls-2026-09-21.test.mjs`.
+
+**Why batch 11 appeared to make CLS worse.** Between the two runs the
+shifts themselves were identical (0.423 + 0.374 desktop, unchanged), but
+the total went 0.43 to 0.80. That is the session-window algorithm, not a
+regression: with the page now loading in a fraction of the time, both
+shifts fall inside one scoring window and sum instead of being counted
+separately. `unsized-images` stayed at a perfect score with zero items
+across every run, so the new `<img>` tags contributed no shift at all.
+The slow page had been hiding half the defect.
 
 ## LLM citation, measured - 2026-09-21 (this corrects the audit above)
 
