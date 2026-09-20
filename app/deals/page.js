@@ -5,6 +5,7 @@ import { DEAL_CATEGORIES, DEAL_CATEGORY_SLUGS, categoryShortLabel } from "@/lib/
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import DealGrid from "@/components/DealGrid";
+import DealsBrowseGuide from "@/components/DealsBrowseGuide";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { normalizePublicText } from "@/lib/publicText";
 import { serializeJsonLd } from "@/lib/jsonLd";
@@ -135,6 +136,11 @@ export default async function AllDealsPage() {
           validSetSlugs={validSetSlugs}
           subjectLabel="matching"
         />
+
+        {/* 2026-09-21: the browse guide sits BELOW the grid - listings are
+            what a visitor came for, and the homepage fold rule applies
+            here too. Static content; no data, no figures. */}
+        <DealsBrowseGuide />
       </main>
 
       <SiteFooter />
