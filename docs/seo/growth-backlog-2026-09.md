@@ -845,9 +845,58 @@ important fact in the set. A filter that drops four fifths of a
 population without saying so is how a confident wrong study gets
 published.
 
-**What would unblock it:** per-search scan cadence, so a listing's
-absence can be attributed to the market rather than to coverage. Until
-then this stays in the pipeline, not on the site.
+**UNBLOCKED the same day.** The cadence does not need to be logged - it
+is already in the data. Every row carries the `watchlist_id` of the
+search that found it and a `last_seen_at`, which is a time we
+demonstrably ran that search. So for a listing discovered at T on search
+W, if any row on W has a `last_seen_at` later than T, we ran that search
+again and did not find this listing. Its absence is then evidence about
+the listing, not about our coverage. Rows with no later run of their own
+search are EXCLUDED, not assumed gone. That resolves **79.3 %** of the
+seen-once rows.
+
+### Verified figures, frozen (`lib/studies/listingDisappearance.js`)
+
+Window 2026-08-26 to 2026-09-20 (25 days), built by
+`scripts/seo/buildSurvivalAggregate.mjs`.
+
+| Population | Rows |
+|---|---|
+| Considered | 31,889 |
+| Excluded - withheld by us | 7,624 |
+| Excluded - still live | 1,361 |
+| Excluded - first seen day one (unknown age) | 4,686 |
+| Excluded - search never re-run after discovery | 3,071 |
+| **Measured** | **15,147** (83.1 % of candidates) |
+
+| Finding | Value |
+|---|---|
+| Gone by the next run of their own search | **77.9 %** (11,794) |
+| Median gap to that next run | **1.2 days** |
+| Re-seen at least once | 3,353 |
+| Median observed span of those | 1.8 days |
+
+| Reference band | Records | Gone by next scan | Re-seen median |
+|---|---|---|---|
+| under $25 | 3,584 | 80.1 % | 1.1 days |
+| $25-$100 | 7,910 | 79.9 % | 1.6 days |
+| $100 or more | 3,653 | **71.3 %** | 2.2 days |
+
+**Two independent measures agree on the gradient:** dearer listings both
+disappear less often by the next scan AND persist longer when re-seen.
+Roughly four in five below-market listings are gone the next time we
+look, typically within about a day.
+
+**What it may never say:** absence is NOT a sale - a listing also leaves
+when it ends, is cancelled, is relisted, or changes price enough to fall
+outside the below-market filter. No sell-through rate, no time-to-sale,
+no market size. Resolution is "gone by the next run", never an exact
+moment.
+
+**Status: figures verified, page NOT built.** Publishing a new public
+claim about the Pokemon market is an editorial act and the owner should
+see the numbers and the limits first. Everything needed is in place and
+the reference-price study is the template.
 
 ## Measurement calendar
 - **2026-10-04**: GSC Core Web Vitals - check whether field data has appeared now that lab CLS is 0.009/0.001 and mobile weight is down 87 %; it read "No data" on 21 Sep.
