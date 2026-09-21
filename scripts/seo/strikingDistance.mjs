@@ -115,6 +115,25 @@ async function main() {
     return;
   }
 
+  // --grep=<substring>: does Search Console see this family of queries at
+  // all? A term we have optimised for and get zero impressions on is a
+  // different problem from one we rank badly for, and only this tells
+  // them apart.
+  if (args.grep) {
+    const needle = String(args.grep).toLowerCase();
+    const hits = rows.filter((r) => r.keys[0].toLowerCase().includes(needle));
+    console.log(`  QUERIES CONTAINING "${needle}": ${hits.length}`);
+    for (const r of hits.sort((a, b) => b.impressions - a.impressions).slice(0, 25)) {
+      console.log(`      pos ${r.position.toFixed(1).padStart(6)}  ${String(r.impressions).padStart(4)} impr  ${r.clicks} clicks  ${r.keys[0]}  ->  ${path(r.keys[1])}`);
+    }
+    if (hits.length === 0) {
+      console.log("      none. Google recorded no impression for this family in the window -");
+      console.log("      the pages are not being shown at all, which is a visibility problem,");
+      console.log("      not a ranking-position one.");
+    }
+    console.log("");
+  }
+
   const inBand = rows.filter(
     (r) => r.position >= BAND[0] && r.position <= BAND[1] && (r.impressions ?? 0) >= MIN_IMPRESSIONS
   );

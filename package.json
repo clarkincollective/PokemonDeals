@@ -12,6 +12,7 @@
     "test:scanner": "node --test \"tests/scanner/*.test.mjs\"",
     "seo:indexnow": "node scripts/indexnowSubmit.mjs",
     "seo:striking": "node scripts/seo/strikingDistance.mjs",
+    "seo:gaps": "node scripts/seo/lowDifficultyGaps.mjs",
     "seo:llm-mentions": "node scripts/seo/llmMentions.mjs",
     "seo:backlinks": "node scripts/seo/backlinkWatch.mjs",
     "ebay:quota-report": "node scripts/reportEbayQuota.mjs",

@@ -543,6 +543,75 @@ Three things follow, none of them requiring a change today:
    being answered by a listing page rather than the permanent hub. Worth
    watching, not worth acting on at 54 impressions.
 
+## The keyword-gap strategy is exhausted - 2026-09-21
+
+Batch 10 worked by finding terms an existing page answered but never
+named. `npm run seo:gaps` (`scripts/seo/lowDifficultyGaps.mjs`) was
+written to find more of them systematically rather than by hand: one
+`keyword_ideas` call seeded from what the site actually holds, filtered
+to difficulty <= 12 and volume >= 300, then cross-checked locally and for
+free against the routes and copy that already exist.
+
+**It found the opportunity, and then found the work was already done.**
+
+The on-domain pattern is `<set name> card list`, and it is large:
+
+| Term | Volume/mo | Difficulty | We hold the set page |
+|---|---|---|---|
+| chaos rising card list | 90,500 | 2 | yes (`me04-chaos-rising`) |
+| phantasmal flames card list | 74,000 | 2 | yes (`me02-phantasmal-flames`) |
+| ascended heroes card list | 74,000 | 1 | yes (`me-ascended-heroes`) |
+| mega evolution card list | 60,500 | 2 | yes |
+| journey together card list | 33,100 | 0 | yes (`sv09-journey-together`) |
+| surging sparks card list | 22,200 | 0 | yes (`sv08-surging-sparks`) |
+| prismatic evolutions card list | 18,100 | 0 | yes |
+| black bolt card list | 12,100 | 3 | yes |
+| paldean fates card list | 9,900 | 4 | yes |
+| obsidian flames card list | 9,900 | 0 | yes |
+| shrouded fable card list | 8,100 | 0 | yes |
+| 151 card list | 8,100 | 6 | yes |
+
+**420,500 searches a month, difficulty 0-6, and we have a page for every
+one of them.** All 210 set pages already carry the phrase: the live
+`/sets/sv08-surging-sparks` title and H1 are both "Surging Sparks Card
+List, Prices & Values", and the page uses "card list" 22 times and
+"checklist" 17 times in real copy.
+
+Then Search Console (`npm run seo:striking --grep=`):
+
+| Query family | Impressions, 28 days | Positions |
+|---|---|---|
+| anything containing "card list" | **3** | 57, 60, 75 |
+| anything containing "sparks" | **0** | - |
+| anything containing "expensive" | **0** | - |
+
+**The biggest low-difficulty opportunity on the site is already fully
+optimised and earns three impressions a month at position 57 to 75.**
+
+### What this settles
+
+There is no further on-page keyword work worth doing. The play that
+produced batch 10 has been run to its end: the remaining terms are ones
+we already target correctly. A DataForSEO difficulty of 0-2 is a
+link-based score that assumes some baseline authority; at three referring
+domains, all of them scraper-generated, the site sits below the floor
+where that score means anything. Page six is not a phrasing problem.
+
+This is the fourth independent source to reach the same conclusion, after
+the referring-domain count, the LLM citation read and the
+striking-distance report. **Do not commission more keyword research or
+more page copy against these terms.** `docs/pitch-pack.md` is the lever.
+
+### The one content gap that is real, and why it waits
+
+"most expensive pokemon card" is 110,000/mo at difficulty 0 and we have
+no page for it - zero impressions in the window. `/cards` carries a
+"Highest market references we track" section, which is the raw material,
+and the honest version of that page is one we could build from held data
+without inventing a figure. **Recommended, but not now**: on today's
+authority it would land beside the set pages on page six. Revisit when a
+pitch has landed and something has moved.
+
 ## LLM citation, measured - 2026-09-21 (this corrects the audit above)
 
 The audit said we have "zero earned references ... so the probability of
