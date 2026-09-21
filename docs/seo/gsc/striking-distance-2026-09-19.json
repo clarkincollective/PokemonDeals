@@ -1,0 +1,108 @@
+{
+  "site": "https://pokemondealfinder.com/",
+  "startDate": "2026-08-22",
+  "endDate": "2026-09-19",
+  "band": [
+    8,
+    25
+  ],
+  "minImpressions": 3,
+  "pages": [
+    {
+      "page": "/deals/uk",
+      "queries": [
+        {
+          "query": "pokemon deals uk",
+          "impressions": 13,
+          "clicks": 0,
+          "position": 11.846153846153847
+        }
+      ],
+      "impressions": 13
+    },
+    {
+      "page": "/",
+      "queries": [
+        {
+          "query": "pokemon card deal finder",
+          "impressions": 7,
+          "clicks": 0,
+          "position": 8
+        }
+      ],
+      "impressions": 7
+    },
+    {
+      "page": "/guides/pokemon-30th-celebration-mew-mewtwo",
+      "queries": [
+        {
+          "query": "mewtwo futuristic rare",
+          "impressions": 6,
+          "clicks": 0,
+          "position": 15.5
+        }
+      ],
+      "impressions": 6
+    },
+    {
+      "page": "/deals/21270",
+      "queries": [
+        {
+          "query": "arcanine shadowless",
+          "impressions": 5,
+          "clicks": 0,
+          "position": 13
+        }
+      ],
+      "impressions": 5
+    },
+    {
+      "page": "/deals/8269",
+      "queries": [
+        {
+          "query": "lickitung aquapolis",
+          "impressions": 4,
+          "clicks": 0,
+          "position": 9.5
+        }
+      ],
+      "impressions": 4
+    },
+    {
+      "page": "/news/rgb-mew-30th-celebration-unconfirmed",
+      "queries": [
+        {
+          "query": "rgb pokemon meaning",
+          "impressions": 4,
+          "clicks": 0,
+          "position": 8.75
+        }
+      ],
+      "impressions": 4
+    },
+    {
+      "page": "/cards/glaceon-171-cosmos-holo-sv-scarlet-violet-promo-cards",
+      "queries": [
+        {
+          "query": "glaceon 171 promo",
+          "impressions": 3,
+          "clicks": 0,
+          "position": 10
+        }
+      ],
+      "impressions": 3
+    },
+    {
+      "page": "/deals/canada",
+      "queries": [
+        {
+          "query": "pokemon canada deals",
+          "impressions": 3,
+          "clicks": 0,
+          "position": 12
+        }
+      ],
+      "impressions": 3
+    }
+  ]
+}

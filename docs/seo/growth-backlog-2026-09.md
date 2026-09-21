@@ -487,6 +487,62 @@ paint at 1,274 ms and Speed Index 3.1 s. **Always warm a URL before
 measuring it**, or the regeneration cost lands inside the metric and
 reads as a rendering fault.
 
+## Search Console query data, read directly - 2026-09-21
+
+`npm run seo:striking` (new, `scripts/seo/strikingDistance.mjs`): one
+read-only Search Analytics call, free, no Search Console change. It was
+written to find "striking distance" queries - the ones sitting just off
+page one, where a small move is worth the most.
+
+**It found that there is no striking-distance work worth doing, and the
+denominator is why.** Window 2026-08-22 to 2026-09-19:
+
+| | |
+|---|---|
+| Impressions | 428 |
+| Clicks | 3 |
+| Distinct queries | 311 |
+| Best single query | 13 impressions |
+| In the 8-25 band with 3+ impressions | 8 rows, 45 impressions |
+
+The top ten queries by impressions produced **zero clicks between them**.
+An average query brings 1.4 impressions in four weeks. Nothing here can
+be optimised into traffic, because there is no traffic to move: at
+positions 8 to 31 with 4 to 13 impressions, a two-position gain is worth
+a fraction of one click. This is the authority diagnosis showing up in a
+third independent source, and the report prints the whole-window totals
+above the opportunity list precisely so it can never be read as "here are
+eight easy wins".
+
+**The useful output was the template breakdown**, which is a real
+baseline for where earned visibility actually lives:
+
+| Template | Impressions | Clicks | Share |
+|---|---|---|---|
+| `/cards/[slug]` | 118 | 0 | 28 % |
+| `/guides/*` | 89 | 1 | 21 % |
+| `/deals/[id]` (ephemeral) | 54 | 0 | 13 % |
+| `/pokemon/[slug]` | 48 | 0 | 11 % |
+| `/news/*` | 36 | 1 | 8 % |
+| `/deals/[country or category]` | 36 | 1 | 8 % |
+| `/sets/[slug]` | 15 | 0 | 4 % |
+| `/` (home) | 11 | 0 | 3 % |
+
+Three things follow, none of them requiring a change today:
+1. **The permanent card pages are the workhorse.** They earn more
+   impressions than any other template, which validates the card-page and
+   printings investment rather than the deal grid.
+2. **The homepage earns 3 % of impressions.** The August strategy
+   designated `/` as the head-term page; Search Console says it is the
+   eighth-largest earner of the ten templates. That is evidence for the
+   open cannibalisation question recorded under batch 9, and the
+   2026-10-04 read should settle it.
+3. **13 % of impressions land on `/deals/[id]`, which are ephemeral.**
+   Those URLs 308 to the card page when the listing ends, so equity is
+   not lost, but card-identity queries like "arcanine shadowless" are
+   being answered by a listing page rather than the permanent hub. Worth
+   watching, not worth acting on at 54 impressions.
+
 ## LLM citation, measured - 2026-09-21 (this corrects the audit above)
 
 The audit said we have "zero earned references ... so the probability of
