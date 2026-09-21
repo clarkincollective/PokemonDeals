@@ -8,7 +8,7 @@ import { dealPageTitle, dealCatalogSlugCandidate, expiredDealDestination } from 
 import { listingAvailabilityEvidence, dealDetailTag } from "@/lib/listingAvailability";
 import RelativeTime from "@/components/RelativeTime";
 import { shouldIndexDeal } from "@/lib/indexability";
-import { conditionLabel, isDisplayableDeal, listingPresentation, savingsPercentText } from "@/lib/dealQuality";
+import { conditionLabel, isDisplayableDeal, listingPresentation, savingsPercentText, referenceIsUnevidencedParallelPrinting } from "@/lib/dealQuality";
 import { referenceObservedAtMs } from "@/lib/referenceProvenance";
 import { normalizePublicText } from "@/lib/publicText";
 import { cardDisplayName, collectorNumberFromName } from "@/lib/cardName";
@@ -490,6 +490,11 @@ export default async function DealDetailPage({ params }) {
   // 17C.7: savings claims (badge, H1 suffix, strikethrough, "you save",
   // Product structured data, share text) need an evidenced reference.
   const presentation = listingPresentation(deal);
+  // True when the stored reference is for a parallel printing (reverse
+  // holo / 1st edition) that this listing does not evidence. Used to
+  // label the history chart so it cannot read as the basis for a
+  // saving the page is (correctly) not claiming.
+  const parallelPrintingMismatch = referenceIsUnevidencedParallelPrinting(deal);
   const shipping = offerShipping(deal);
   const showSavings = hasPrice(deal.total_price) && presentation.savings === "trusted" && shipping.savingClaim !== "none";
   const isAuction = deal.listing_type === "AUCTION";
@@ -960,9 +965,27 @@ export default async function DealDetailPage({ params }) {
           <h2 className="text-sm font-semibold text-black dark:text-zinc-50">
             {deal.is_graded ? `${deal.grader} ${deal.grade} price history` : "Market price history"}
           </h2>
-          <p className="text-xs text-zinc-600 dark:text-zinc-400">
-            {deal.is_graded ? "Recorded graded sales and reference history." : "Recorded market reference history."} Updates are cached; dates below describe the available observations.
-          </p>
+          {/* LABEL THE BASIS (deal 42127). This chart plots the card's
+              own recorded history. When the stored reference is for a
+              parallel printing the listing does not evidence, that
+              history and the reference are two different things - which
+              is exactly what the reported contradiction looked like: a
+              chart near $37 under a headline claiming 60% off $173.
+              The chart is not deleted (it is legitimate history for this
+              card) and not quietly hidden; it is labelled, so the two
+              figures stop appearing to describe one comparison. */}
+          {parallelPrintingMismatch ? (
+            <p className="text-xs text-amber-700 dark:text-amber-500">
+              This is the recorded history for this card. It is <strong>not</strong> the basis for a
+              saving on this listing: our stored reference is the{" "}
+              {String(deal.reference_printing).toLowerCase()} printing, which this listing does not
+              state. Shown for context only.
+            </p>
+          ) : (
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">
+              {deal.is_graded ? "Recorded graded sales and reference history." : "Recorded market reference history."} Updates are cached; dates below describe the available observations.
+            </p>
+          )}
           {primaryHistory.length >= 2 ? (
             <div className="mt-4">
               <PriceHistoryChart points={primaryHistory} />

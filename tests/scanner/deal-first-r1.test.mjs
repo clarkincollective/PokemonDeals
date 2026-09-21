@@ -95,7 +95,7 @@ test("R1-4. DealCard: one dominant price with a clear meaning; shipping=0 is 'no
   assert.match(src, /\{ship\.headline\}/);
   // the unconfirmed / unknown note is rendered from the contract's own
   // wording plus a "check on eBay" pointer (2026-09-19) - never "free"
-  assert.match(src, /shippingConfirmed \? \([\s\S]*?incl\.[\s\S]*?shipping[\s\S]*?\) : \(\s*<>\{ship\.note\} — check on eBay<\/>/);
+  assert.match(src, /shippingConfirmed \? \([\s\S]*?incl\. shipping[\s\S]*?\) : \(\s*<>\{ship\.note\} — check on eBay<\/>/);
   assert.doesNotMatch(src, /Free shipping|free delivery|delivered total|no shipping charge listed/i, "a 0 shipping figure is never called free on the card");
   // the derived saving never reads as a verified delivered saving
   // graded-inventory-r1: the percentage comes from savingsPercentText ("N%" / "less than 1%")
@@ -138,7 +138,11 @@ test("R1-4b. DealCard shape: one vertical card at every width, artwork in a rese
 test("R1-5. DealCard: the comparison carries its condition context and only renders on a trusted claim", () => {
   const src = read("components/DealCard.js");
   assert.match(src, /const showSavings = presentation\.savings === "trusted";/);
-  assert.match(src, /Market reference for \{conditionText\}/, "reference line names the condition it is for");
+  // 2026-09-22: the reference's condition moved into the tile's Price
+  // details disclosure - still in the server HTML, still keyboard-
+  // reachable, just no longer the third restatement of the same
+  // comparison on the face of the card.
+  assert.match(src, /<dt>Reference is for<\/dt>[\s\S]{0,200}\{conditionText\}/, "reference names the condition it is for");
   // the plain state renders the reasons and nothing green
   const plain = src.slice(src.indexOf("{!showSavings ? ("), src.indexOf(") : isAuction ? null : ("));
   assert.match(plain, /presentation\.notes\.map/);

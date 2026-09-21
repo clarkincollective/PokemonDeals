@@ -173,7 +173,7 @@ test("R2 - the flagship row stays the first commercial content and keeps the sha
   assert.equal(laneLimit("flagship"), 4, "flagship homepage lane must be 4 tiles");
   assert.equal(laneLimit("grid"), 9, "All Deals unfiltered page-1 renders a 9-card preview");
   assert.match(page, /flagshipDeals = lanes\.flagship/);
-  assert.match(page, /deals = lanes\.grid/);
+  assert.match(page, /deals = \[\.\.\.lanes\.grid\]\.sort/);
   assert.match(page, /const HOME_PREVIEW_SIZE = 9;/);
   assert.match(page, /<section id="best-deals" data-analytics-section="best_deals"[^>]*scroll-mt-/, "flagship row owns the #best-deals anchor");
   assert.match(page, /data-analytics-section="best_deals"[\s\S]{0,400}lg:grid-cols-4/, "flagship renders a 4-up row");

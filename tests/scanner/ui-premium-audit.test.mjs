@@ -77,7 +77,8 @@ test("4. category chips use the short label with the h1 as the title", () => {
 test("5. deal-card meta lines are 13px", () => {
   const src = read("components/DealCard.js");
   assert.match(src, /gap-x-1 text-\[13px\] text-zinc-500 dark:text-zinc-400">\s*\{cardSet &&/);
-  assert.match(src, /<p className="text-\[13px\] text-zinc-500 dark:text-zinc-400">\s*Market reference/);
+  // moved into the Price details disclosure - see deal-first-r1 R1-5
+  assert.match(src, /<dt>Market reference<\/dt>/);
   // 2026-09-22: the savings line is the headline of the redesigned card,
   // so it stepped up from 13px/semibold to sm/bold. It is still the ONE
   // green line and still only rendered on a trusted claim.

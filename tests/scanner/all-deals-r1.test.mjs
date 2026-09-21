@@ -280,7 +280,7 @@ test("AD-14. loader, API and grid wiring", () => {
   assert.match(bar, /withoutParams\(params, \["country"\], basePath\)/);
   const card = read("components/DealCard.js");
   assert.match(card, /Array\.isArray\(deal\.also_on\)/);
-  assert.match(card, /"Price shown from" : "Listed on"/);
+  assert.match(card, /Price shown from eBay/);
   // homepage stays curated: it does not use the all-deals inventory
   assert.doesNotMatch(read("app/page.js"), /fetchAllDeals|allDealsInventory/);
   // the pure module does no I/O
@@ -340,7 +340,7 @@ test("AD-17. selecting a marketplace includes every listing stored there, shown 
   assert.equal(allPages().deals.find((d) => d.listing_id === "v1|3200000002|0").id, 971012);
   assert.equal(allPages({ country: "EBAY_AU" }).deals.find((d) => d.listing_id === "v1|3200000002|0").id, 971011);
   // label: DealCard names the copy shown ("Listed on eBay Australia" when no other copy is in scope)
-  assert.match(read("components/DealCard.js"), /"Price shown from" : "Listed on"\} eBay \{marketInfo\.label\}/);
+  assert.match(read("components/DealCard.js"), /Price shown from eBay \{marketInfo\.label\}/);
 });
 
 test("AD-18. an incomplete inventory is reported on every result built from it, including small, empty and out-of-range results", () => {

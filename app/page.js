@@ -39,6 +39,8 @@ import { HOME_TITLE, HOME_DESCRIPTION, HOME_H1 } from "@/lib/homeContent";
 import { organizationSameAs } from "@/lib/socialProfiles";
 import { cardDisplayName } from "@/lib/cardName";
 import { normalizePublicText } from "@/lib/publicText";
+import { savingsClaimTrusted } from "@/lib/dealQuality";
+import { offerShipping } from "@/lib/offerPresentation";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -263,7 +265,31 @@ export default async function Home() {
   // fix P3). Same pools, same gates, same selector, same rotation.
   const lanes = buildHomepageLanes(homeLanesResult?.pools ?? {}, { bucket, lanes: ["flagship", "grid"] });
   const flagshipDeals = lanes.flagship;
-  const deals = lanes.grid;
+
+  // PRESENTATION-LAYER ORDERING for the default feed (2026-09-22).
+  //
+  // The flagship row was already Buy It Now only, with a $75 reference
+  // floor and a 65% discount cap. The grid under it was not, so the
+  // homepage's default view could open with a fixed-price card saving
+  // $0.53 sitting beside a 60%-off one, and with auctions mixed in even
+  // though auctions have their own tab.
+  //
+  // This REORDERS; it does not filter. Nothing is dropped, nothing
+  // becomes unreachable, scanner eligibility is untouched and every
+  // listing here already passed every quality gate. A listing simply has
+  // to earn the top of the first screen:
+  //   1. Buy It Now with a trusted saving worth stating and a known
+  //      delivered cost - the offers the page exists to surface.
+  //   2. everything else eligible, in the selector's own order.
+  // Sorting is stable within each group, so the deterministic rotation
+  // and cross-lane dedupe above are preserved exactly.
+  const FEED_MEANINGFUL_SAVING = 0.1; // the site's own DEAL_DISCOUNT_THRESHOLD
+  const leads = (d) =>
+    d?.listing_type !== "AUCTION" &&
+    savingsClaimTrusted(d) &&
+    Number(d?.discount_pct) >= FEED_MEANINGFUL_SAVING &&
+    offerShipping(d).state === "confirmed";
+  const deals = [...lanes.grid].sort((a, b) => Number(leads(b)) - Number(leads(a)));
 
   // the six most-listed card hubs render ONCE, in the explore section
   // (fold revision: the hero's duplicate "Most listed" row is gone)

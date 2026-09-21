@@ -430,27 +430,34 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                 </span>
               )}
             </span>
-            {/* mono (.tnum) on the FIGURES only - a whole sentence in the
-                mono face read as a terminal dump on phones */}
+            {/* SHORT shipping label only. The qualification a buyer must
+                see stays visible at all times - "incl. shipping" or, when
+                the breakdown was never recorded, the explicit warning -
+                but the arithmetic behind it moved into the Price details
+                disclosure below, where it is still one tap away and still
+                in the DOM for a crawler and a screen reader. */}
+            {/* SHORT label, but the ITEM figure stays VISIBLE. The Offer
+                node in this page's JSON-LD carries the item price
+                excluding shipping, and Merchant Listing requires the
+                figure it advertises to be visible on the page - a value
+                that only exists inside a collapsed <details> does not
+                reliably satisfy that. So the arithmetic ("$45.84 +
+                $22.92") moved into Price details, and the one figure the
+                schema depends on did not. */}
             <p className={`mt-0.5 text-xs ${shippingConfirmed ? "text-zinc-500 dark:text-zinc-400" : "text-amber-700 dark:text-amber-500"}`}>
               {shippingConfirmed ? (
                 <>
-                  incl. <Price usd={shippingUsd} native={{ amount: shippingNative, currency: nativeCurrency }} approxPrefix="" className="tnum" /> shipping
-                  {/* the item figure the listing's Offer states (brief 2026-09-20) */}
+                  incl. shipping
                   {" · "}item <Price usd={usdTotal - shippingUsd} native={{ amount: total - shippingNative, currency: nativeCurrency }} approxPrefix="" className="tnum" />
                 </>
               ) : (
                 <>{ship.note} — check on eBay</>
               )}
             </p>
-            {/* deal-first R1: a real recorded earlier price, stated plainly -
-                never a struck-through anchor */}
-            {priceDropped && (
-              <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                Seller reduced the item price from{" "}
-                <Price usd={prevUsd} native={{ amount: prevNative, currency: nativeCurrency }} approxPrefix="" className="tnum font-medium text-zinc-700 dark:text-zinc-300" />
-              </p>
-            )}
+            {/* The recorded earlier price moved into Price details - it
+                is a real fact, stated plainly and never as a struck-
+                through anchor, but it is not one of the three things a
+                shopper needs at a glance. */}
           </div>
         )}
 
@@ -471,14 +478,11 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           </div>
         ) : isAuction ? null : (
           <div className="mt-1.5">
-            {/* The reference figure itself now sits beside the price
-                above; this line carries what it was FOR, which is the
-                part that makes the comparison checkable. */}
-            {showRef ? (
-              <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
-                Market reference for {conditionText}
-              </p>
-            ) : null}
+            {/* "Market reference for <condition>" moved into the Price
+                details disclosure: the tile already prints the condition
+                in its identity line and the reference figure beside the
+                price, so repeating both here was the third statement of
+                the same comparison. */}
             {!savingsSupported ? (
               // unknown breakdown: the reference stands, the saving does not
               <p className="text-xs leading-snug text-amber-700 dark:text-amber-500">
@@ -506,11 +510,16 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             and shipping statement are shown, and where else the same
             listing was found - the listing marketplace, never a claim about
             where it ships. */}
-        {Array.isArray(deal.also_on) && marketInfo && (
+        {/* The marketplace is already stated on the artwork overlay and in
+            the title link's accessible name, so the bare "Listed on eBay
+            X" repetition is gone. This line now renders ONLY when it has
+            something the overlay cannot say: that the same listing was
+            also found on other marketplaces, and which copy's price is
+            the one shown. */}
+        {Array.isArray(deal.also_on) && deal.also_on.length > 0 && marketInfo && (
           <p data-listing-marketplace className="mt-1.5 text-xs leading-snug text-zinc-500 dark:text-zinc-400">
-            {deal.also_on.length > 0 ? "Price shown from" : "Listed on"} eBay {marketInfo.label}
-            {deal.also_on.length > 0 &&
-              ` · also on ${deal.also_on.map((m) => `eBay ${MARKETPLACES[m]?.label ?? m}`).join(", ")}`}
+            Price shown from eBay {marketInfo.label}
+            {` · also on ${deal.also_on.map((m) => `eBay ${MARKETPLACES[m]?.label ?? m}`).join(", ")}`}
           </p>
         )}
 
@@ -521,6 +530,66 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             used. Nothing new is asserted here: the shipping row only
             appears when a charge was actually recorded, and "Auction"
             never appears on a Buy It Now. */}
+        {/* PRICE DETAILS - the arithmetic, the reference's identity and
+            the provenance, behind one disclosure. A native <details>, so
+            it works with no JavaScript, is keyboard-operable for free,
+            announces its own expanded state, and keeps every figure in
+            the server HTML rather than hiding it from a crawler.
+            Everything a buyer MUST see to read the price correctly stays
+            outside it. */}
+        {!isAuction && (showRef || shippingConfirmed) && (
+          <details className="group/details mt-2 text-[13px]">
+            <summary className="inline-flex min-h-8 cursor-pointer list-none items-center gap-1 text-zinc-600 underline-offset-2 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-400 dark:hover:text-red-500 [&::-webkit-details-marker]:hidden">
+              <svg aria-hidden viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3 transition-transform group-open/details:rotate-180">
+                <path d="M3 4.5 6 7.5 9 4.5" />
+              </svg>
+              Price details
+            </summary>
+            <dl className="mt-1.5 space-y-0.5 text-zinc-600 dark:text-zinc-400">
+              {shippingConfirmed && (
+                <div className="flex justify-between gap-3">
+                  <dt>Item + shipping</dt>
+                  <dd className="tnum">
+                    <Price usd={usdTotal - shippingUsd} native={{ amount: total - shippingNative, currency: nativeCurrency }} approxPrefix="" />
+                    {" + "}
+                    <Price usd={shippingUsd} native={{ amount: shippingNative, currency: nativeCurrency }} approxPrefix="" />
+                  </dd>
+                </div>
+              )}
+              {showRef && (
+                <div className="flex justify-between gap-3">
+                  <dt>Market reference</dt>
+                  <dd className="tnum">
+                    <Price usd={marketUsd} native={{ amount: marketNative, currency: nativeCurrency }} approxPrefix="" />
+                  </dd>
+                </div>
+              )}
+              {showRef && (
+                <div className="flex justify-between gap-3">
+                  <dt>Reference is for</dt>
+                  <dd className="text-right">
+                    {conditionText}
+                    {deal.reference_printing ? ` · ${deal.reference_printing}` : ""}
+                  </dd>
+                </div>
+              )}
+              {priceDropped && (
+                <div className="flex justify-between gap-3">
+                  <dt>Seller reduced from</dt>
+                  <dd className="tnum">
+                    <Price usd={prevUsd} native={{ amount: prevNative, currency: nativeCurrency }} approxPrefix="" />
+                  </dd>
+                </div>
+              )}
+              <div className="pt-1">
+                <Link href="/methodology" className="font-medium text-zinc-600 underline underline-offset-2 hover:text-red-600 dark:text-zinc-300 dark:hover:text-red-500">
+                  How we compare →
+                </Link>
+              </div>
+            </dl>
+          </details>
+        )}
+
         {/* NO shipping row here. The price block above already states it,
             and states it more precisely - "incl. $22.92 shipping · item
             $45.84". That item figure is not decoration: the Offer node in
