@@ -380,3 +380,50 @@ confident wrong answers: the first audit swallowed a failed
 seen in one; and the number comparison compared "33/181" against "33",
 reporting every shared number as unique to the vintage printing - the
 exact opposite of the finding.
+
+## Is the anniversary case the whole problem? - 2026-09-21
+
+The 30th and Celebrations families were found by hand from one report, so
+the catalogue was asked the general question:
+`scripts/seo/reprintCollisionScan.mjs` groups every card by normalised
+name + number and reports which SET PAIRS print the same card at the same
+number.
+
+**70 set pairs share 3 or more cards**, several with price gaps far worse
+than the anniversary sets:
+
+| Shared | Pair | Worst gap |
+|---|---|---|
+| 4 | League & Championship Cards / SM Cosmic Eclipse | **266x** (Cosmog 99/236, $0.30 vs $80) |
+| 6 | Prize Pack Series / SWSH Promos | **98x** (Glaceon VSTAR SWSH197, $3.69 vs $362.50) |
+| 20 | Jumbo Cards / Prize Pack Series | 70x |
+| 3 | Base Set (Shadowless) / Celebrations: Classic Collection | 59x (Blastoise 2/102, $896.06 vs $15.18) |
+| 47 | Deck Exclusives / Prize Pack Series | 32x |
+| **100** | **Base Set / Base Set (Shadowless)** | 12x |
+
+So the mechanism is much wider than anniversary reprints. A shared number
+is only a problem if a live listing is actually priced against one of the
+two, so `scripts/seo/ambiguousPricingExposure.mjs` measures that.
+
+**The reassuring result.** Of 1,254 displayable listings carrying a
+savings claim, 28 (2.2 %) have a name+number that also exists in another
+set at 3x or more. Of those 28, the number **priced as the expensive side
+with no set name in the title is ZERO.**
+
+Every one either names its set explicitly - "Luxray GL Lv.X 109/111
+Platinum Rising Rivals", "Charizard Base Set 4/102 Holo Shadowless WOTC
+1999" - or is priced conservatively as the cheaper printing, where the
+discount can only ever be understated. Deal 42209 is the clearest: a
+Blastoise 2/102 priced as Celebrations at $15.03 when the Shadowless
+Blastoise is $896.06, and the title says Celebrations.
+
+**Why the anniversary sets were the exception.** The matcher requires the
+title to evidence the set, and that is what protects all 70 pairs. The
+30th and Celebrations reprints defeat it because the reprint carries the
+ORIGINAL set's name - "Metagross Delta Species 11/113" is a true
+description of the reprint - so set evidence and number evidence both
+point at the wrong card at once. No other pair in the catalogue has that
+property.
+
+**No further rule added.** Both scripts are kept as detectors: re-run
+them when a reprint set is added, or if another mispricing is reported.
