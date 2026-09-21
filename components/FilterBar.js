@@ -96,7 +96,11 @@ function FilterPill({ href, active, children, ...rest }) {
       rel="nofollow"
       className={`inline-flex min-h-8 shrink-0 items-center whitespace-nowrap rounded-full border px-3.5 py-1 text-[13px] font-medium transition-colors ${
         active
-          ? "border-red-300 bg-red-50 text-red-700 dark:border-red-300 dark:bg-red-50 dark:text-red-700"
+          // The active pill is an accent TINT over the dark ground, so its
+          // label needs the BRIGHT brand tone, not the dark button fill.
+          // text-red-700 (#B60D2A) read 2.71:1 on the wash after the
+          // 2026-09-22 re-brand - it only worked when that slot held lime.
+          ? "border-red-400 bg-red-50 text-red-400 dark:border-red-400 dark:bg-red-50 dark:text-red-400"
           : "border-zinc-200 bg-white text-zinc-600 hover:border-red-300 hover:text-red-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:text-red-500"
       }`}
     >

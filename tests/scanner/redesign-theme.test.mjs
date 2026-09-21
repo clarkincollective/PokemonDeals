@@ -86,8 +86,13 @@ test("motion: card lift is pointer-only and the global reduced-motion rule still
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]{0,300}transition-duration: 0\.01ms !important/);
 });
 
-test("filter pills: the active state is the accent tint, not an inverted fill", () => {
-  assert.match(read("components/FilterBar.js"), /\? "border-red-300 bg-red-50 text-red-700 dark:border-red-300 dark:bg-red-50 dark:text-red-700"/);
+test("filter pills: the active state is the accent tint, and its label is readable on it", () => {
+  // The label must be the BRIGHT brand tone. The dark button fill
+  // (red-700) measured 2.71:1 on the tint once the slot held real red -
+  // it only ever passed because that slot used to hold lime.
+  const bar = read("components/FilterBar.js");
+  assert.match(bar, /\? "border-red-400 bg-red-50 text-red-400 dark:border-red-400 dark:bg-red-50 dark:text-red-400"/);
+  assert.doesNotMatch(bar, /bg-red-50 text-red-700/, "dark fill tone on a dark tint is unreadable");
 });
 
 // The lime family means ONE thing: an evidenced below-market figure. A
