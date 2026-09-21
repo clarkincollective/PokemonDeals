@@ -6,6 +6,61 @@ Resume from here; do not restart the audit. Companion records:
 `docs/gsc-indexation-audit.md`, `docs/seo/gsc-weekly-2026-09-15.md`,
 `docs/pitch-pack.md`, `docs/distribution-kit.md`.
 
+## STATE OF PLAY - read this first (2026-09-21)
+
+This file grew long. Start here.
+
+**The constraint is authority, and it is now proven rather than assumed.**
+Four independent measurements agree:
+
+| Source | Reading |
+|---|---|
+| DataForSEO referring domains | 3, all one scraper network. Earned: **0** |
+| Search Console, 28 days to 19 Sep | 428 impressions, **3 clicks**, 311 queries |
+| Set "card list" terms | 420,500/mo at difficulty 0-6, pages already correct, **positions 57-75** |
+| LLM citation | ChatGPT 6, **Google AI surfaces 0** |
+
+**Every lever I can pull is closed.** Do not reopen them without new
+evidence:
+- *On-page keywords* - exhausted. The remaining terms are already
+  targeted correctly; see "The keyword-gap strategy is exhausted".
+- *Striking distance* - nothing actionable at 428 impressions.
+- *Performance* - all six templates 88-96 with layout shift at or below
+  0.006; see "Every template measured".
+- *Structured data* - smoke passes on home, deal and card pages.
+- *"Most expensive pokemon card"* - decided NOT to build; we lack the
+  data to answer it honestly.
+- *Vision-rationale gating* - measured and rejected; no text rule is
+  viable (`docs/listing-reports.md`).
+
+**The only open lever is `docs/pitch-pack.md`, and only the owner can
+pull it.** It was revised 21 Sep: routes re-verified (two were dead), the
+stale live figure removed, framing updated to the measured position.
+
+**Open, owner-only:**
+1. Send the five drafts.
+2. Deal 33673 - a $4,500 reference at 73 % off whose own vision rationale
+   says "consistent with a novelty gold-plated" while returning MATCH.
+   Not displayed, no action taken. Same shape as the three reported
+   fakes, found in our own data.
+
+**Shipped 21 Sep, watch these:** batch 11 (deal photos at display size),
+the homepage CLS fix, batch 10 (`/cards` and `/sets` list terms), and
+screening rule B - which hides 22 listings, 1.6 % of displayed inventory,
+and writes no `disqualified_reason`, so reverting the gate restores them.
+
+**Next reads:** 2026-10-04 (click-through, field Core Web Vitals, the two
+list-term positions, and whether the homepage/`/deals/usa`
+cannibalisation resolved), 2026-10-11 (price movers), 2026-10-28
+(species experiment).
+
+**Tools added 21 Sep:** `npm run seo:striking` (free, Search Console),
+`seo:gaps`, `seo:llm-mentions`, `seo:backlinks`,
+`scripts/seo/screeningRuleImpact.mjs`,
+`scripts/seo/visionRationaleAudit.mjs`. Measure with local
+`npx lighthouse@12` and **warm the URL first** - a cold regeneration
+lands inside the metric.
+
 ## Diagnosis (evidence, 2026-09-20)
 
 | Bottleneck | Verdict | Evidence (source, date) |
