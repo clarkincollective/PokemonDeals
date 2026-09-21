@@ -795,6 +795,60 @@ retries while the previous good sitemap is served stale in the meantime.
 One self-healing timeout in 25 days against a working, fast data path is
 not a reason to touch it. Revisit if it clusters.
 
+## Research pipeline: listing survival probed, NOT publishable yet - 2026-09-21
+
+The GEO audit ranked "how long does an underpriced Pokemon card stay
+listed?" as the most distinctive question the site could answer: it falls
+out of running the scanner and nobody without one can reproduce it.
+`scripts/seo/survivalFeasibility.mjs` asked whether the stored data can
+support it honestly. **It cannot yet, and the reason is worth keeping.**
+
+What the data does support (32,002 rows, window 2026-08-26 to
+2026-09-20, 25 days):
+
+| | |
+|---|---|
+| Rows with both `first_seen_at` and `last_seen_at` | 32,002 (100 %) |
+| Ended (`is_active = false`) | 30,590 (95.6 %) |
+| Still active (right-censored, lifetime unknown) | 1,412 (4.4 %) |
+| Removed by US, not the market (held) - must be excluded | 7,628 (23.8 %) |
+| First seen on day one (left-censored, age unknown) | 7,896 (24.7 %) |
+| **Measurable: ended, not held, not day-one** | **18,315** |
+
+**The blocker: 14,923 of those 18,315 (81.5 %) were seen exactly once.**
+Their `first_seen_at` and `last_seen_at` differ by milliseconds - the two
+stamps are written in the same scan pass, sometimes a fraction apart in
+the wrong order.
+
+"Not re-seen" only means "gone" if we actually looked again, and that
+depends on the scanner re-running the SAME search while the listing was
+still up. **Without per-search cadence we cannot separate seen-once from
+not-re-searched**, so no survival figure is publishable. Any "listings
+last N days" headline built on this would be measuring our own scan
+coverage, not the market.
+
+The re-seen minority (3,392 rows) shows a gradient that is interesting
+but rests on 18.5 % of the population, so it is recorded and NOT
+published:
+
+| Reference band | n | Seen once | Re-seen median span |
+|---|---|---|---|
+| under $25 | 4,685 | 84.3 % | 1.0 days |
+| $25-$100 | 9,370 | 82.9 % | 1.5 days |
+| $100+ | 4,260 | 75.3 % | 2.2 days |
+
+**A mistake worth recording.** The probe's first version filtered spans
+with `d >= 0`, which silently discarded all 14,502 millisecond-negative
+rows - i.e. it threw away the majority of the data and reported a tidy
+"median 1.1 days" on the surviving 21 %. The discarded rows were the most
+important fact in the set. A filter that drops four fifths of a
+population without saying so is how a confident wrong study gets
+published.
+
+**What would unblock it:** per-search scan cadence, so a listing's
+absence can be attributed to the market rather than to coverage. Until
+then this stays in the pipeline, not on the site.
+
 ## Measurement calendar
 - **2026-10-04**: GSC Core Web Vitals - check whether field data has appeared now that lab CLS is 0.009/0.001 and mobile weight is down 87 %; it read "No data" on 21 Sep.
 - **2026-10-04**: position for "pokemon card list" and "pokemon set list" (batch 10).
