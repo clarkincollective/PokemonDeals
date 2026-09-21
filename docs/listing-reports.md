@@ -20,6 +20,16 @@ Rollback for any entry: the prior-state file named in the row
 | 2026-09-20 | 41196 (CA, active; single row) | Pikachu & Zekrom GX SM168, SM Promos | `authenticity:owner_reported` | Owner reported the listing as a fake card. Shape: market reference $215 USD, listing 63 % below it; seller trust signals not enriched (feedback count, returns and photo count all null). The visual screen returned MATCH and its own rationale reads "the entirely gold metallic finish is consistent with an official gold/metal card variant" - SM168 is a paper promo; an all-gold metallic card is the gold-metal counterfeit shape the code already names. The screener rationalised the tell away rather than flagging it. | `.local/hold-41196-prior.json` |
 | 2026-09-21 | 41914 (GB, active; single row) | Espeon & Deoxys GX SM240, SM Promos | `authenticity:owner_reported` | Owner reported the listing as a fake card. Shape: market reference $125.28 USD (Near Mint, Holofoil), listing 52 % below it, seller feedback count 147, **no returns**, 4 photos. Two tells the shipped checks do not read: the title ends **"(see description)"** — a hedge whose disclosure lives in the description body, which the scanner never fetches — and the Stage 2 vision rationale again explained away an unusual finish ("the overall rainbow sheen is consistent with a holo/reverse-holo foil pattern reflecting light, not evidence…"). | `.local/hold-41914-prior.json` |
 
+Re-verified 2026-09-21 (after five production deploys that day): every
+row of all three reports still holds. `/deals/40200` and its sibling rows
+`39415` (AU) and `40885` (CA) all serve the unavailable state, as does
+`/deals/41914`. `/deals/41196` now 308s to
+`/cards/pikachu-zekrom-gx-sm-promos`, and that hub links only deals
+`38636` and `38751` - the held listing appears nowhere on it. The
+unavailable copy still reads "doesn't currently pass our listing checks"
+and "This does not confirm whether it has sold or ended on eBay", which
+makes no claim about the seller.
+
 Verified 2026-09-21: `/deals/41914` serves the unavailable state with
 `noindex, follow`; the card hub `/cards/espeon-deoxys-gx-sm240-sm-promos`
 no longer references the listing once the queued tags were expired by the

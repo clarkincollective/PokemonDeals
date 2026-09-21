@@ -89,7 +89,19 @@ if (args.card) {
   const c = await page(`/cards/${args.card}`);
   ok(c.status === 200, `status ${c.status}`);
   const product = c.nodes.find((n) => n["@type"] === "Product");
-  ok(Boolean(product), "Product present");
+  // A card hub only earns a Product node when it has something to put in
+  // it: a live qualifying offer, or a market reference. A card with
+  // neither ("No live eBay deals right now" and no held reference) must
+  // NOT emit one - a Product with no offer and no price is thin markup,
+  // and asserting Product unconditionally here fails on every no-deal
+  // card, which teaches the reader to ignore the failure. So check both
+  // directions against what the page actually says.
+  const hasOffers = !/no live ebay deals right now/i.test(c.text);
+  if (hasOffers) {
+    ok(Boolean(product), "Product present (page has live offers)");
+  } else {
+    ok(!product, "no Product on a card with no live offers (correct: nothing to price)");
+  }
   if (product) {
     const offers = Array.isArray(product.offers) ? product.offers : [product.offers];
     ok(offers.length > 0, `${offers.length} Offer(s)`);
