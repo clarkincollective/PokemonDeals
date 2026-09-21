@@ -147,4 +147,56 @@ Three things this changes, none of them applied:
    of displayed inventory, and it catches two of the three reported
    listings. Adding A covers the third and doubles the cost to 3.0 %.
 
-Still held. This is the evidence for the decision, not the decision.
+### Decision taken 2026-09-21: rule B shipped, A and C not
+
+Owner authorised acting on this. **Rule B is live**; A and C are not.
+
+`premiumBandLacksSellerTrust` in `lib/dealQuality.js`: inside the premium
+high-risk band, an **explicit** returns refusal AND a **present** seller
+feedback score below 200 hides the listing. It runs in `displayGate`
+before the graded early-return - a slab from a low-feedback seller
+refusing returns at a steep discount is the counterfeit-slab shape, not a
+reason to relax - and `disqualificationReason` mirrors the same placement
+so the two can never disagree, naming it
+`trust:premium_band_seller_unproven`.
+
+Why it is a separate rule rather than a tweak to the existing scorer:
+`isHighRiskBelowMarket` needs discount >= 0.55 **and** a composite score.
+41914 sat at 52 % and never reached the floor. This is two explicit
+adverse signals, no scoring, covering the 40-55 % range the scorer leaves
+open.
+
+**Rule A not adopted.** It withholds on the *absence* of a feedback
+score, which 21 % of band rows have - that is a gap in our enrichment,
+not evidence about the seller, and punishing a listing for it is not
+defensible. It is the only rule that would have caught 41196, and that
+case stays uncaught by design.
+
+**Rule C not adopted.** No displayable listing carries "(see
+description)" today, so it would gate nothing; it stays recorded as a
+condition to combine if the phrase ever appears in band.
+
+Verified against production data after the change:
+
+| | Before | After |
+|---|---|---|
+| Displayable listings | 1,342 | **1,320** |
+| In the premium high-risk band | 91 | **70** |
+| Rule B still matching in band | 21 | **0** |
+
+22 listings withheld against 21 predicted; the one-row difference is
+freshness moving on a live set between runs. Rule B now matches nothing
+because the rows it targets are already gone, which is the confirmation
+that it fires on exactly the predicted set. The `< 500` variant still
+shows 4, the 200-499 band deliberately left in.
+
+`tests/scanner/premium-trust-gate-2026-09-21.test.mjs` pins both
+directions, including that a missing score never fires it, that returns
+must be explicitly refused rather than unknown, that the band bounds are
+inclusive, and that an established seller's listing still displays. Suite
+after the change: 3,916 tests, 33 failing - the unchanged baseline, all
+quarantined. The two display-gate tests among them fail identically with
+the change stashed, so they are pre-existing.
+
+**This hides listings; it disqualifies nothing.** No row's
+`disqualified_reason` was written, so reverting the gate restores them.
