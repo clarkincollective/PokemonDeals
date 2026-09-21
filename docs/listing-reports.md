@@ -279,3 +279,66 @@ ephemeral and the segment caches for 300 s, so churn dominates. The gate
 can remove at most the 22 rows it hides, and did; the rest is ordinary
 listing turnover. Do not read a falling deals-sitemap count as a
 regression without comparing two readings taken minutes apart.
+
+## Reprint sets that reuse the original's card number - 2026-09-21
+
+**Owner report:** "A lot of the 30th anniversary cards are being tagged
+on their pre-existing sets ... which then will affect the price / price
+comparison." Confirmed, and the mechanism is worse than a miscategorised
+listing.
+
+**A reprint set can carry the original card's number.** From our own
+catalogue:
+
+| Reprint | Number | Same number in | Reprint worth |
+|---|---|---|---|
+| ME: 30th Celebration Classic Collection - Metagross | 11/113 | EX Delta Species (2005) | original $107.27 |
+| ME: 30th Celebration Classic Collection - Pikachu & Zekrom GX | 33/181 | SM Team Up | |
+| Celebrations: Classic Collection - Blastoise | 2/102 | **Base Set** | **$15.18** |
+| Celebrations: Classic Collection - Mewtwo EX | 54/99 | Next Destinies | $12.30 |
+| Celebrations: Classic Collection - Umbreon Star | 17/17 | POP Series 5 | $91.29 |
+
+The collector number is normally the strongest identity signal we hold,
+and for these cards it cannot separate the original from the reprint.
+`expansionIdentityConflict` passes them because the reprint carries the
+original set's NAME too, so "Delta Species 11/113" is genuinely in the
+title of a reprint listing.
+
+**Measured before the fix**, on displayable listings: 8 with a 30th token
+and a non-30th matched set, and 3 with a Celebrations/25th token and a
+non-Celebrations match. **All 11 were claiming savings against the
+vintage reference.** The worst 30th case was 74 % off a $107 reference.
+The clearest Celebrations case was deal 41861, "Mewtwo-EX 54/99 Next
+Destinies Holo Rare English **Celebrations**" - its own title names the
+reprint set while it was priced against Next Destinies at 51 % off, with
+an asking price close to the reprint's $12.30 value.
+
+**The rule** (`titleClaimsAnniversaryReprint`, gating
+`savingsClaimTrusted`): when a title carries a reprint-family marker and
+the matched set is not that family, the savings claim is withdrawn. The
+listing still shows, as a plain listing that states why it carries no
+claim - displayable count unchanged at 1,314.
+
+Decided from the title alone, with no catalogue lookup, because
+`lib/dealQuality.js` is pure, client-safe and runs on every render. The
+cost: a genuine vintage card with a reprint marker stuffed into its title
+for search traffic also loses its badge - 3 of the 8 in the 30th family
+on the day it shipped, including the owner's own example (deal 41596,
+Lugia 9/111 Neo Genesis; the 30th Lugias are 121/128 and 149/147, so that
+one is vintage with "30th!!!" added). Losing a badge on a real deal is a
+smaller harm than advertising a discount that may be fiction.
+
+**Adding a family** requires the catalogue rows that prove the number is
+shared. The rule rests on that, not on a set merely being a reprint.
+
+Verified in production 2026-09-21: deals 41596, 41719, 42205, 41520,
+41861, 38588 and 40686 all serve "No savings claimed for this listing".
+Both families now report zero listings claiming savings against a vintage
+reference (`node scripts/seo/anniversaryMismatchAudit.mjs`).
+
+**Two errors made while investigating**, recorded because both produced
+confident wrong answers: the first audit swallowed a failed
+`card_catalog` query and reported "not in a 30th set" for a card already
+seen in one; and the number comparison compared "33/181" against "33",
+reporting every shared number as unique to the vintage printing - the
+exact opposite of the finding.
