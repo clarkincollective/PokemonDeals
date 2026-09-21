@@ -1,6 +1,6 @@
 # Pitch pack — earning the first referring domains
 
-**Status (revised 2026-09-20):** a pack for the owner to send by hand. Nothing
+**Status (revised 2026-09-21):** a pack for the owner to send by hand. Nothing
 here is automated, nothing has been sent from this pack, and this pack does
 not touch the outreach worker. The execution rules stand: no cold-outreach
 automation, no paid placement, no link buying, one message per outlet.
@@ -12,18 +12,71 @@ Cardrake and one Medium author. Delightful TCG appears below with a
 *different* asset and angle; if the earlier DRAFT is ever sent, send only
 one of the two.
 
-## Why this matters (and what it is not)
+## Why this matters (revised 2026-09-21: it is now proven, not a candidate)
 
-The 20 September live audit: every sampled page type indexed and clean,
-`llms.txt` and entity schema in place — and **13 clicks / 820 impressions in
-14 days**, value queries at average position 40–78, 0 brand queries.
-Authority is the strongest *candidate* constraint. It is not proven: the
-"zero referring domains" figure is an exact-domain web search from
-7 September that found no page mentioning the site (no backlink tool was
-available), and Search Console's Links report still said "Processing data"
-on 20 September. Earned references are one lever among several
-(`docs/seo/growth-backlog-2026-09.md` lists the others); they are the one
-that only the owner can pull.
+The 20 September version of this section said authority was "the strongest
+*candidate* constraint" and "not proven", because no backlink tool was
+available. That caveat is gone. Four independent measurements on
+21 September say the same thing:
+
+1. **Referring domains: 3, all worthless.** Measured via DataForSEO, not
+   inferred. All three are one scraper network publishing the same
+   auto-generated path on unrelated hosts. Earned references: zero.
+   Re-read with `npm run seo:backlinks`.
+2. **Search Console, 28 days to 19 September: 428 impressions, 3 clicks,
+   311 distinct queries.** The best single query drew 13 impressions. The
+   top ten queries produced no clicks at all.
+3. **The on-page work is done and earns nothing.** Twelve "*set name* card
+   list" terms carry 420,500 searches a month at difficulty 0–6; we hold a
+   correctly-titled page for every one. Search Console shows three
+   impressions for that entire family, at positions 57, 60 and 75.
+4. **LLM citation: ChatGPT names the site 6 times; Google's AI surfaces,
+   zero.** Google's AI answers draw on classic ranking, so they are gated
+   by the same constraint.
+
+Two things follow. Earned references are no longer *one lever among
+several* — the others have been run to their end and are recorded as
+closed in `docs/seo/growth-backlog-2026-09.md`. And this is still the one
+lever only the owner can pull.
+
+Useful context when writing: the site is measurably fast (Lighthouse 97
+desktop / 88 mobile, layout shift 0.001–0.009), and the permanent card
+pages earn 28 % of impressions — more than any other template. Neither
+belongs in a pitch, but both mean a referrer is sending readers somewhere
+that works.
+
+## Route check, 2026-09-21
+
+Every contact route and asset in this pack was re-fetched on 21 September.
+Results, so no time is wasted on a dead link:
+
+| Route | Status |
+|---|---|
+| `pokebeach.com/contact` | **200** — unchanged, use `wpm@pokebeach.com`, keep the word "Pokemon" in the body |
+| `delightfultcg.com/pages/contact` | **200** — form still live |
+| Delightful TCG article (the one the pitch answers) | **200** — still published |
+| `wargamer.com/contact` | **404** — corrected below, use `/meet-the-team` |
+| `dexerto.com/contact/` | **404** — corrected below, use `dexerto.media/contact` |
+| All six of our own assets (`/integrity`, `/methodology`, the study, three guides) | **200** |
+
+Kotaku's route was not re-checked here; verify John Walker's public profile
+or Kotaku's tips route before sending #5.
+
+## Before sending: refresh the live figures
+
+Two kinds of number appear below and they age differently.
+
+- **Dated studies keep.** The reference-price study states its window
+  (12 Aug–11 Sep 2026, 150 products, 1,147 variants, +1.7 %, 22.1 %,
+  4.7 %). Re-verified against the live page on 21 September; still exact.
+  Quote freely.
+- **Live counts go stale in days.** `/integrity` reports a rolling
+  snapshot. The 19 September figure originally quoted in draft 1
+  (1,486 shown / 31 withheld) was already wrong two days later
+  (1,385 shown / 39 withheld). **Open https://pokemondealfinder.com/integrity
+  and read its own dated line immediately before sending**, or use the
+  wording in draft 1, which points at the page instead of fixing a number
+  in the email.
 
 ## What we have that is worth a reference (checked 2026-09-20)
 
@@ -31,7 +84,7 @@ Pitch the asset, not the site. Each claim below was re-read on the live page.
 
 | Asset | URL | What it is, exactly |
 |---|---|---|
-| Listing integrity report | `/integrity` | Live, dated counts of eBay Pokemon card listings shown and withheld, grouped by reason family (title/identity mismatch; different product form or printing — jumbo, World Championship, prerelease, staff; unverifiable or played condition; replica/proxy wording; image screen; language; not a single card; no trustworthy reference; not re-seen recently). Dataset schema, CC BY 4.0. Daily snapshots since 20 September 2026 (`integrity_snapshots`); the history section fills in from there. On 19 Sep 22:48 UTC: 1,486 shown, 31 withheld. |
+| Listing integrity report | `/integrity` | Live, dated counts of eBay Pokemon card listings shown and withheld, grouped by reason family (title/identity mismatch; different product form or printing — jumbo, World Championship, prerelease, staff; unverifiable or played condition; replica/proxy wording; image screen; language; not a single card; no trustworthy reference; not re-seen recently). Dataset schema, CC BY 4.0. Daily snapshots since 20 September 2026 (`integrity_snapshots`); the history section fills in from there. Rolling count — read the page for the current figure (19 Sep 22:48 UTC: 1,486 shown / 31 withheld; 21 Sep 00:50 UTC: 1,385 shown / 39 withheld). |
 | Reference-price changes study | `/market-data/pokemon-reference-price-changes` | 12 Aug–11 Sep 2026, 150 product records / 1,147 condition-and-printing variants. Median +1.7 % by product record, +1.4 % by variant; 4.7 % of product medians fell against 22.1 % of variants. Method, sample and limits stated on the page; example (Cubone, Jungle) shows why a product summary hides what variants did. |
 | eBay buyer's checklist | `/guides/buying-pokemon-cards-on-ebay-safely` | What eBay's Money Back Guarantee covers and does not, the listing checklist in reading order, what this site's checks do and cannot do. No price, no seller named, no authenticity promise. Now illustrated (Arcanine Unlimited vs Shadowless). |
 | Methodology | `/methodology` | How references, conditions and savings are computed and what is withheld. |
@@ -58,7 +111,7 @@ profile. Nothing here has been sent.
   >
   > Hi — I run pokemondealfinder.com (disclosure: my site; it uses eBay Partner Network links). Your 24 August report on eBay removing early 30th Celebration listings is cited by name in our Delta Reign pre-launch guides.
   >
-  > Since this month the site publishes a listing-integrity report: how many live eBay Pokemon card listings pass its checks, how many are withheld and for which reason (title/identity mismatch, a different product form or printing, unverifiable condition, replica wording, image screen), with a daily history from 20 September and the figures licensed CC BY so they can be quoted. On 19 September: 1,486 shown, 31 withheld. Unreleased-set listings are held until eBay confirms them active, and the guide explains that rule.
+  > Since this month the site publishes a listing-integrity report: how many live eBay Pokemon card listings pass its checks, how many are withheld and for which reason (title/identity mismatch, a different product form or printing, unverifiable condition, replica wording, image screen), with a daily history from 20 September and the figures licensed CC BY so they can be quoted. The page states its own count and the time it was taken, so it is current whenever you open it. Unreleased-set listings are held until eBay confirms them active, and the guide explains that rule.
   >
   > If a number like that is useful the next time early listings come up, the page is https://pokemondealfinder.com/integrity and the method is at /methodology. Happy to answer questions; no ask beyond that.
 
@@ -66,7 +119,7 @@ profile. Nothing here has been sent.
 - **Verified:** "YouTuber opens unreleased $180 Pokemon box then promotes $2,262 affiliate listing", dexerto.com, 8 September 2026, by Zackerie Fairfax; covers affiliate disclosure, a listing at more than 12× retail, and eBay's earlier removals.
 - **Why they might reference it:** the article is about affiliate links steering readers to overpriced listings. Our stance is the opposite and checkable: a browsing link is never shown as a deal, a saving is shown only against a stated reference for the exact printing and condition, and the withheld counts are public.
 - **Asset:** `/integrity`, `/guides/buying-pokemon-cards-on-ebay-safely`, `/guides/how-to-read-a-pokemon-card-listing`.
-- **Route:** Dexerto's published tips/contact route or the author's public profile (not in this repo; owner looks it up).
+- **Route (re-verified 2026-09-21):** `dexerto.com/contact/` is **404** — do not use it. The live route is **https://www.dexerto.media/contact** (200), and their About page publishes **press@dexerto.com**. Author profiles are listed at `dexerto.com/dexerto-editorial-staff/`.
 - **Draft:**
   > Subject: Re your 8 Sept piece on affiliate-promoted Pokemon listings — a data point
   >
@@ -80,7 +133,7 @@ profile. Nothing here has been sent.
 - **Verified:** "eBay clamps down on stolen Pokémon card sales for the 30th Celebration", wargamer.com, 25 August 2026, by Matt Bassil; Wargamer also published a day-one 30th Celebration pull-rate analysis piece (September 2026).
 - **Why they might reference it:** their TCG desk covers both the listing enforcement and the price fall-out; the reference-price study's product-vs-variant finding is a citable way to say "a headline price hides what condition variants did", and the integrity counts follow their August story.
 - **Asset:** `/market-data/pokemon-reference-price-changes`, `/integrity`.
-- **Route:** Wargamer's published editorial contact (the article page carries no tips address; owner uses the site's contact page).
+- **Route (re-verified 2026-09-21):** Wargamer has **no `/contact` page — it is 404**. Use **https://www.wargamer.com/meet-the-team**, which lists Matt Bassil (Staff Writer) with a per-writer address. The addresses are obfuscated in the HTML by Cloudflare email protection, so **open that page in a browser** to read his; it cannot be lifted from the source. `wargamer.com/editorial-policy` is their published standards page if the pitch needs to reference it.
 - **Draft:**
   > Subject: Pokemon TCG price data you can quote — product vs variant, 30-day sample
   >
