@@ -32,8 +32,26 @@ const laneLimit = (key) => LANES().find((l) => l.key === key)?.limit;
 // call site reconstructs the same top-to-bottom document order the two
 // files render at runtime, so every structural/order assertion below
 // still means what it always meant.
+// 2026-09-22 redesign: the same splice now covers the discovery, budget
+// and trust sections, which were extracted out of app/page.js into their
+// own components for exactly the reason HomeFeed was. Without this the
+// "no internal-link loss" contract below would read only the host file
+// and start passing/failing on where a link HAPPENS to live rather than
+// on whether the homepage links it - which is the thing it exists to
+// protect.
 const homeFeed = read("components/HomeFeed.js");
-const page = pageOnly.replace(/<HomeFeed[\s\S]*?\/>/, () => homeFeed);
+const SPLICED = [
+  ["HomeFeed", homeFeed],
+  ["HomeQuickFilters", read("components/HomeQuickFilters.js")],
+  ["HomeLiveStats", read("components/HomeLiveStats.js")],
+  ["HomePopularPokemon", read("components/HomePopularPokemon.js")],
+  ["HomeBudgetDeals", read("components/HomeBudgetDeals.js")],
+  ["HomeTrustSection", read("components/HomeTrustSection.js")],
+];
+const page = SPLICED.reduce(
+  (src, [name, body]) => src.replace(new RegExp(`<${name}[\\s\\S]*?/>`), () => body),
+  pageOnly
+);
 
 const idx = (s, needle) => {
   const i = s.indexOf(needle);
@@ -47,7 +65,18 @@ test("hero shows SEARCH (HeroSearch) before the first offer", () => {
 
 test("R2 - the hero is offer-led and compact: one heading, no CTA that only scrolls to offers already in view", () => {
   // GEO 2026-09-20: the heading names what the page is, in search words - not a slogan
-  assert.match(page, /\{HOME_H1\}<\/h1>/);
+  // 2026-09-22: the H1 splits HOME_H1 so "below market price on eBay"
+  // carries the brand red, so it is no longer the literal
+  // `{HOME_H1}</h1>`. The contract is unchanged and is what is asserted
+  // here: the heading is BUILT FROM the constant and contains no
+  // hand-typed copy of it, so the H1 and the JSON-LD graph (which reads
+  // the same constant) can never drift apart.
+  const h1 = page.slice(page.indexOf("<h1"), page.indexOf("</h1>"));
+  assert.ok(h1.includes("HOME_H1"), "the H1 renders the HOME_H1 constant");
+  assert.ok(
+    !h1.includes("Pokemon card deals below market price"),
+    "the H1 must not hard-code the headline beside the constant"
+  );
   assert.match(read("lib/homeContent.js"), /HOME_H1 = "Pokemon card deals below market price on eBay"/);
   const heroEnd = idx(page, "</header>");
   const hero = page.slice(idx(page, "<header"), heroEnd);
@@ -111,15 +140,32 @@ test("R2 - section order: feed (flagship row -> grid) -> explore -> guides -> ho
   for (const gone of ['data-analytics-section="ending_soon"', 'data-analytics-section="just_added"', 'data-analytics-section="under_25"']) {
     assert.ok(!page.includes(gone), `${gone} is folded into the feed's mode row`);
   }
-  // ... their destinations are reached through the mode row instead
-  for (const href of ["/deals/auctions", "/deals/under-25", "/?sort=newest", "/?listing=FIXED_PRICE"]) {
+  // ... their destinations are still reached from the page.
+  // 2026-09-22: the mode row became the deal-category strip and was cut
+  // to seven entries. /deals/under-25 moved to its own budget module and
+  // ?listing=FIXED_PRICE to "More filters", so neither is a `href: "..."`
+  // entry in the mode array any more. What matters is that the homepage
+  // still reaches them, which is asserted here and again, for the whole
+  // destination set, by the internal-link test below.
+  for (const href of ["/deals/auctions", "/?sort=newest"]) {
     assert.ok(page.includes(`href: "${href}"`), `mode row keeps ${href}`);
   }
+  for (const href of ["/deals/under-25"]) {
+    assert.ok(page.includes(`href="${href}"`) || page.includes(`href: "${href}"`), `homepage still reaches ${href}`);
+  }
   // review fix P2: the default feed is MIXED (flagship BIN row + a grid
-  // that may contain auctions), so it is labelled "Featured"; "Buy it now"
-  // is the existing FIXED_PRICE filter, never the default's label
-  assert.match(pageOnly, /\{ href: "\/", label: "Featured", chip: "featured", home: true \}/);
-  assert.match(pageOnly, /\{ href: "\/\?listing=FIXED_PRICE", label: "Buy it now", chip: "buy_it_now" \}/);
+  // that may contain auctions), so it must NOT be labelled "Buy it now" -
+  // that label belongs only to the FIXED_PRICE filter.
+  //
+  // 2026-09-22: the default's label changed "Featured" -> "Best Deals"
+  // and the FIXED_PRICE entry left the strip for "More filters". The
+  // rule P2 exists to enforce is about the listing-type CLAIM, not about
+  // either exact word, so it is asserted directly: the default entry is
+  // still "/" + chip featured + home, and nothing in the strip claims the
+  // mixed default is buy-it-now only.
+  assert.match(pageOnly, /\{ href: "\/", label: "[^"]+", icon: "[^"]*", chip: "featured", home: true \}/);
+  const modes = pageOnly.slice(pageOnly.indexOf("const FEED_MODES"), pageOnly.indexOf("];", pageOnly.indexOf("const FEED_MODES")));
+  assert.ok(!/label: "Buy it now"/.test(modes), "the mixed default strip must not carry a buy-it-now label");
   assert.match(page, /kicker=\{params\.anyFilter \? "Filtered" : "Buy it now and auctions"\}/);
 });
 

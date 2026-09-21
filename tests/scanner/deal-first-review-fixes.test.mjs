@@ -269,8 +269,13 @@ test("P3-1. buildHomepageLanes({ lanes }) selects only the rendered lanes; unlis
 
 test("P2-1. default feed labelled Featured; 'Buy it now' is the existing FIXED_PRICE filter", () => {
   const page = read("app/page.js");
-  assert.match(page, /label: "Featured", chip: "featured", home: true/);
-  assert.match(page, /href: "\/\?listing=FIXED_PRICE", label: "Buy it now"/);
+  // 2026-09-22: the default is labelled "Best Deals" and the FIXED_PRICE
+  // entry moved out of the strip into "More filters". P2's actual rule -
+  // never describe the MIXED default as buy-it-now-only - is asserted
+  // instead of the two old literals.
+  assert.match(page, /\{ href: "\/", label: "[^"]+", icon: "[^"]*", chip: "featured", home: true \}/);
+  const modes = page.slice(page.indexOf("const FEED_MODES"), page.indexOf("];", page.indexOf("const FEED_MODES")));
+  assert.ok(!/label: "Buy it now"/.test(modes), "the mixed default strip must not carry a buy-it-now label");
   // Homepage-caching r1 moved the feed's kicker into components/HomeFeed.js
   const homeFeed = read("components/HomeFeed.js");
   assert.match(homeFeed, /"Buy it now and auctions"/);

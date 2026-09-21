@@ -17,7 +17,14 @@ test("H1, title and description come from lib/homeContent; the capsule is body-s
   const content = read("lib/homeContent.js");
   assert.match(content, /export const HOME_H1 = "Pokemon card deals below market price on eBay";/);
   assert.match(content, /export const HOME_TITLE = "Pokemon Card Deals Below Market Price \| Pokemon Deal Finder";/);
-  assert.match(page, /<h1[^>]*>\{HOME_H1\}<\/h1>/);
+  // 2026-09-22: the H1 splits HOME_H1 to colour "below market price on
+  // eBay" in the brand red, so it is no longer the literal
+  // `<h1>{HOME_H1}</h1>`. What this test protects - that the visible H1
+  // and the `h1:` fed to buildHomeGraph (asserted below) are the SAME
+  // constant - is unchanged, so it is asserted directly instead.
+  const h1 = page.slice(page.indexOf("<h1"), page.indexOf("</h1>"));
+  assert.ok(h1.includes("HOME_H1"), "the H1 is rendered from the HOME_H1 constant");
+  assert.ok(!h1.includes("Pokemon card deals below"), "and not hand-typed alongside it");
   assert.match(page, /title: \{ absolute: HOME_TITLE \}/);
   assert.match(page, /description: HOME_DESCRIPTION,/);
   // The capsule must stay BODY-SIZE and readable - that is what makes it

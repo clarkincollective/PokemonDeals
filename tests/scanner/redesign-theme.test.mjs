@@ -13,47 +13,67 @@ const read = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), "utf8")
 const css = read("app/globals.css");
 const layout = read("app/layout.js");
 
-test("dark-first: the dark variant is class-driven and <html> carries it; one theme, colour-scheme dark", () => {
-  assert.match(css, /@custom-variant dark \(&:where\(\.dark, \.dark \*\)\);/);
-  assert.match(layout, /className=\{`dark \$\{sora\.variable\}/);
-  assert.match(css, /color-scheme: dark;/);
-  assert.doesNotMatch(css, /@media \(prefers-color-scheme: dark\)/, "no OS-dependent palette flip remains");
+// 2026-09-22 rev 2: the site is LIGHT. Until this revision <html> carried
+// a permanent `dark` class and every component's dark: variant WAS the
+// design. That class is gone, so each component's base utilities render.
+// The dark: variants are deliberately left in the markup as the seam for
+// a real user-selectable dark mode; they simply never match today, which
+// is why this file no longer asserts anything about them.
+test("light: <html> carries NO dark class, one theme, colour-scheme light", () => {
+  assert.match(css, /@custom-variant dark \(&:where\(\.dark, \.dark \*\)\);/, "the variant stays defined for a future toggle");
+  assert.doesNotMatch(layout, /className=\{`dark \$/, "no forced dark class on <html>");
+  assert.match(layout, /className=\{`\$\{sora\.variable\}/);
+  assert.match(css, /color-scheme: light;/);
+  assert.doesNotMatch(css, /@media \(prefers-color-scheme: dark\)/, "no OS-dependent palette flip");
 });
 
 // 2026-09-22 re-brand: the accent slot holds BRAND RED; lime moved to
 // the savings-only slot. The slot mechanism is unchanged - that is what
 // let the re-brand happen without renaming a single component class.
-test("tokens: near-black neutrals, BRAND RED in the red-* slot, lime reserved for savings, amber for bids, danger for errors", () => {
-  assert.match(css, /--color-zinc-950: #090A10;/, "near-black ground");
-  assert.match(css, /--color-zinc-900: #0F1119;/);
-  assert.match(css, /--color-zinc-800: #171A24;/, "charcoal surface");
-  assert.match(css, /--color-zinc-400: #9AA0B2;/);
-  assert.match(css, /--color-red-500: #FF2942;/, "brand red tone");
+test("tokens: light ground, BRAND RED in the red-* slot, green reserved for savings, amber for bids, danger for errors", () => {
+  // The ramp runs light -> dark in the conventional direction again, so
+  // text-zinc-900 means a dark heading and bg-zinc-50 a light tint.
+  assert.match(css, /--background: #F7F7FA;/, "light ground");
+  assert.match(css, /--foreground: #090A10;/, "near-black ink");
+  assert.match(css, /--color-zinc-50: #F7F8FA;/);
+  assert.match(css, /--color-zinc-900: #171C28;/);
+  assert.match(css, /--color-zinc-950: #090A10;/);
+  assert.match(css, /--color-white: #FFFFFF;/);
+  assert.match(css, /--color-red-500: #FF2942;/, "brand red tone, unchanged by the inversion");
   assert.match(css, /--color-red-600: #D61133;/, "button fill steps darker for white-text contrast");
-  assert.match(css, /--color-emerald-600: #B7FF36;/, "savings lime");
-  assert.match(css, /--color-amber-500: #F2B84B;/);
-  assert.match(css, /--color-danger: #FF6B6B;/);
+  // Lime was a dark-ground choice and is illegible on white; the slot
+  // now holds a green that carries white text AND reads as text on the
+  // ground, both at 5.6:1.
+  assert.match(css, /--color-emerald-600: #047857;/, "savings green");
+  assert.doesNotMatch(css, /#B7FF36/, "the neon lime is gone - it cannot be read on white");
+  assert.match(css, /--color-amber-600: #B45309;/, "amber TEXT tone is dark enough for white");
+  assert.match(css, /--color-danger: #DC2626;/);
   // the existing accent alias (pinned by deal-first-r1) still resolves through the slot
   assert.match(css, /--color-accent: var\(--color-red-600\);/);
 });
 
-test("lime fills take dark text; red fills take white text", () => {
-  // Only the savings family is forced dark. A red CTA must keep its own
-  // text-white - forcing it dark (the pre-rebrand rule) would have made
-  // every primary button unreadable.
-  assert.match(css, /\.bg-emerald-500, \.bg-emerald-600, \.bg-emerald-700 \{\s*color: #090A10;/);
-  assert.doesNotMatch(css, /\.bg-red-600[^{]*\{\s*color: #090A10/, "red fills must not be forced to dark text");
+test("green fills and red fills BOTH take white text on the light theme", () => {
+  // INVERTED at the light re-theme. On the near-black ground the savings
+  // fill was neon lime and took the ground colour as ink. On white the
+  // fill is a dark green and takes white - a badge that kept the old
+  // rule would have printed #090A10 on #047857, which is 2.2:1.
+  assert.match(css, /\.bg-emerald-500, \.bg-emerald-600, \.bg-emerald-700 \{\s*color: #FFFFFF;/);
+  assert.doesNotMatch(css, /\.bg-emerald-[567]00[^{]*\{\s*color: #090A10/, "the dark-ground ink rule must not survive");
   // The CSS class contains a LITERAL backslash (.hover\:bg-red-600), so
   // the regex needs \\: - a single \: is just an escaped colon and never
   // matches.
-  assert.match(css, /\.hover\\:bg-red-600:hover[\s\S]{0,200}color: #F7F7FA;/, "hover-to-accent flips the label white");
+  assert.match(css, /\.hover\\:bg-red-600:hover[\s\S]{0,200}color: #FFFFFF;/, "hover-to-accent keeps a white label");
   assert.match(read("components/DealCard.js"), /export const CTA_PRIMARY_CLASS =\s*"flex min-h-12 w-full[^"]*bg-red-600[^"]*text-white/, "CTA class string unchanged");
+  // The dark theme needed a rule that LIFTED every dark text utility to
+  // a light one. On white that rule blanks the page, so its removal is
+  // pinned rather than left to chance.
+  assert.doesNotMatch(css, /\.text-zinc-900:not\(\[class\*="dark:text-"\]\)/, "the dark-theme text-contrast override must stay deleted");
 });
 
-test("the savings badge uses the lime slot, never the accent slot", () => {
+test("the savings badge uses the green slot, never the accent slot", () => {
   const badge = read("components/SavingsBadge.js");
-  assert.match(badge, /hot: "bg-emerald-600/, "hot tier is lime");
-  assert.match(badge, /strong: "bg-emerald-600/, "strong tier is lime");
+  assert.match(badge, /hot: "bg-emerald-600/, "hot tier is green");
+  assert.match(badge, /strong: "bg-emerald-600/, "strong tier is green");
   assert.doesNotMatch(badge, /bg-red-/, "savings must not wear the CTA colour");
 });
 
@@ -104,7 +124,7 @@ test("filter pills: the active state is the accent tint, and its label is readab
 // appear on many surfaces. Every entry below is a place that shows a
 // saving or a below-market indicator. A NEW file using lime fails this
 // test until someone justifies adding it here.
-const LIME_ALLOWED = new Set([
+const GREEN_ALLOWED = new Set([
   "components/SavingsBadge.js",        // the badge itself
   "components/DealCard.js",            // the savings line under the price
   "components/SealedDealCard.js",      // same, sealed product
@@ -115,13 +135,16 @@ const LIME_ALLOWED = new Set([
   "components/SealedProductBrowser.js",
   "components/VariantPriceGrid.js",
   "components/HeroSearch.js",          // the "deal" flag on a search result
+  "components/DealQualityBadge.js",    // the score IS an evidenced below-market signal
+                                       // (gated on savingsClaimTrusted +
+                                       // storedReferenceEvidence - see lib/dealQualityScore)
   "app/deals/[id]/page.js",            // the saving on a deal page
   "app/sealed-deals/[id]/page.js",
   "app/sealed-deals/page.js",
   "app/search/SearchClient.js",        // below-market indicator in results
 ]);
 
-test("lime is RESERVED for savings - a new surface may not borrow it", () => {
+test("green is RESERVED for savings - a new surface may not borrow it", () => {
   const offenders = [];
   const walk = (dir) => {
     for (const name of readdirSync(dir)) {
@@ -129,12 +152,12 @@ test("lime is RESERVED for savings - a new surface may not borrow it", () => {
       if (statSync(p).isDirectory()) walk(p);
       else if (/\.jsx?$/.test(name)) {
         const rel = relative(root, p).split(sep).join("/");
-        if (LIME_ALLOWED.has(rel)) continue;
+        if (GREEN_ALLOWED.has(rel)) continue;
         const src = readFileSync(p, "utf8")
           .replace(new RegExp("\\/\\/[^\\n]*", "g"), "")
           .replace(new RegExp("\\/\\*[\\s\\S]*?\\*\\/", "g"), "");
-        const LIME = new RegExp("\\b(?:text|bg|border|fill|stroke|from|to|via)-emerald-\\d{2,3}\\b", "g");
-        for (const m of src.matchAll(LIME)) {
+        const GREEN = new RegExp("\\b(?:text|bg|border|fill|stroke|from|to|via)-emerald-\\d{2,3}\\b", "g");
+        for (const m of src.matchAll(GREEN)) {
           offenders.push(`${rel}: ${m[0]}`);
         }
       }
@@ -144,11 +167,11 @@ test("lime is RESERVED for savings - a new surface may not borrow it", () => {
   assert.deepEqual(
     offenders,
     [],
-    "lime means below market and nothing else. These borrowed it: " + offenders.join(", ")
+    "green means below market and nothing else. These borrowed it: " + offenders.join(", ")
   );
 });
 
-test("the things that borrowed lime before the re-brand no longer do", () => {
+test("the things that borrowed the savings colour before the re-brand no longer do", () => {
   // Named explicitly so a revert is loud rather than silent.
   const cases = [
     ["components/MiniSparkline.js", "a price trend is not a saving"],

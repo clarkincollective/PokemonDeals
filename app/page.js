@@ -7,6 +7,7 @@ import {
   fetchHubCounts,
   fetchMarketDataSummary,
   fetchSetSlugs,
+  fetchSpeciesHubs,
 } from "@/lib/deals";
 import { buildHomepageLanes, rotationBucket } from "@/lib/homepageVariety";
 import { GUIDES } from "@/lib/guides";
@@ -21,6 +22,11 @@ import MobileStickySearch from "@/components/MobileStickySearch";
 import SectionHeader from "@/components/SectionHeader";
 import HomeFeed from "@/components/HomeFeed";
 import HomeHowItCompares, { HOME_LAST_REVIEWED } from "@/components/HomeHowItCompares";
+import HomeLiveStats from "@/components/HomeLiveStats";
+import HomeQuickFilters from "@/components/HomeQuickFilters";
+import HomePopularPokemon from "@/components/HomePopularPokemon";
+import HomeBudgetDeals from "@/components/HomeBudgetDeals";
+import HomeTrustSection from "@/components/HomeTrustSection";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import { emailEnabled } from "@/lib/email";
 import { catalogImageUrl } from "@/lib/cardImage";
@@ -173,16 +179,25 @@ function isRecentlyRefreshed(dateString) {
 // FIXED_PRICE filter. Analytics markers are the ones these chips already
 // carried (start_here_clicked with the chip id; the graded chip keeps its
 // graded_entry flag). Filter-style URLs are nofollow'd.
+// 2026-09-22 redesign: reordered and given icons to become the deal-
+// discovery strip the redesign calls for. Every entry is still an
+// EXISTING destination - no new URL tree, no decorative tab. Two notes:
+//   - "PSA 10" in the reference design is "Graded" here, because
+//     /deals/graded covers PSA, CGC, BGS and SGC at every grade.
+//   - "Biggest savings" is /best-finds, which already ranks by real
+//     discount; it is not a new sort parameter.
+// Buy it now / Under $25 / Under $50 left this row: the price bands now
+// have their own discovery modules further down the page, and the
+// listing-type filter lives in "More filters", so nothing became
+// unreachable.
 const FEED_MODES = [
-  { href: "/", label: "Featured", chip: "featured", home: true },
-  { href: "/?listing=FIXED_PRICE", label: "Buy it now", chip: "buy_it_now" },
-  { href: "/deals/auctions", label: "Auctions", chip: "auctions" },
-  { href: "/deals/graded", label: "Graded", chip: "graded", graded: true },
-  { href: "/deals/under-25", label: "Under $25", chip: "under_25" },
-  { href: "/deals/under-50", label: "Under $50", chip: "under_50" },
-  { href: "/sealed-deals", label: "Sealed", chip: "sealed" },
-  { href: "/japanese-cards", label: "Japanese", chip: "japanese" },
-  { href: "/?sort=newest", label: "Newest", chip: "newest" },
+  { href: "/", label: "Best Deals", icon: "🔥", chip: "featured", home: true },
+  { href: "/?sort=newest", label: "Just Found", icon: "⚡", chip: "newest" },
+  { href: "/deals/auctions", label: "Ending Soon", icon: "⏰", chip: "auctions" },
+  { href: "/deals/graded", label: "Graded", icon: "💎", chip: "graded", graded: true },
+  { href: "/japanese-cards", label: "Japanese", icon: "🇯🇵", chip: "japanese" },
+  { href: "/sealed-deals", label: "Sealed", icon: "📦", chip: "sealed" },
+  { href: "/best-finds", label: "Biggest Savings", icon: "📉", chip: "biggest_savings" },
 ];
 
 // 13C.1 - concrete example queries under the hero search. These teach the
@@ -219,15 +234,21 @@ export default async function Home() {
   // churn); a new bucket rotates the visible curated inventory.
   const bucket = rotationBucket();
 
-  const [homeLanesResult, lastRefreshed, cardHubsResult, hubCounts, summary, validSetSlugs, integrity] = await Promise.all([
-    fetchHomepageLanes({ country: null }),
-    fetchLastScanTime({ table: "deals", language: "english" }),
-    fetchCardHubs({ language: "english" }),
-    fetchHubCounts({ language: "english" }),
-    fetchMarketDataSummary(),
-    fetchSetSlugs("english"),
-    fetchIntegrityReport(),
-  ]);
+  const [homeLanesResult, lastRefreshed, cardHubsResult, hubCounts, summary, validSetSlugs, integrity, speciesResult] =
+    await Promise.all([
+      fetchHomepageLanes({ country: null }),
+      fetchLastScanTime({ table: "deals", language: "english" }),
+      fetchCardHubs({ language: "english" }),
+      fetchHubCounts({ language: "english" }),
+      fetchMarketDataSummary(),
+      fetchSetSlugs("english"),
+      fetchIntegrityReport(),
+      // Ordered by live listing count (lib/catalogAggregates), which is
+      // what lets the pill row and the discovery row below be labelled
+      // "most listed" rather than "trending" - see HomeQuickFilters.
+      fetchSpeciesHubs({ language: "english" }),
+    ]);
+  const speciesHubs = speciesResult?.species ?? [];
 
   // One pass builds every curated lane with real cross-lane dedupe + the
   // deterministic diversity selector + 3-hour rotation. Deal-first R2
@@ -246,6 +267,32 @@ export default async function Home() {
   // (fold revision: the hero's duplicate "Most listed" row is gone)
   const topHubs = cardHubsResult.hubs.slice(0, 6);
   const liveCount = summary?.activeDeals ?? null;
+
+  // Budget-module previews. Taken from the pools this render ALREADY
+  // loaded - no extra query - and banded on the same USD total the
+  // /deals/under-N categories filter on, so a tile previews listings the
+  // destination would actually contain. Anything without an image is
+  // dropped rather than shown as an empty frame.
+  const budgetPool = Object.values(homeLanesResult?.pools ?? {}).flat();
+  const budgetPreviews = {};
+  for (const [href, ceiling] of [
+    ["/deals/under-25", 25],
+    ["/deals/under-50", 50],
+    ["/deals/under-100", 100],
+  ]) {
+    const seen = new Set();
+    budgetPreviews[href] = budgetPool
+      .filter((d) => {
+        const usd = Number(d?.total_price_usd ?? d?.total_price);
+        if (!Number.isFinite(usd) || usd <= 0 || usd > ceiling) return false;
+        const key = d.watchlist_id ?? d.id;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return Boolean(d.image_url);
+      })
+      .slice(0, 3)
+      .map((d) => ({ id: d.id, image: d.image_url }));
+  }
 
   // Live count + slim trust line - the disclosure sits next to the offers,
   // not only in the footer; the methodology link is the crawlable "how we
@@ -325,15 +372,35 @@ export default async function Home() {
           the live-count line moved beside the feed's trust line. No CTA
           that only scrolls a few pixels - the first offers are in view. */}
       <header className="border-b border-zinc-200 bg-sunk dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,40rem)] lg:items-center lg:gap-x-10">
-          <div>
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
+          <div className="max-w-3xl">
             {/* GEO 2026-09-20: the heading names the thing the page is,
                 in the words people search; the capsule below it is the
-                quotable answer. No slogan. */}
-            <h1 className="text-balance text-[1.75rem] font-bold leading-[1.12] tracking-[-0.025em] text-zinc-900 sm:text-4xl lg:text-[2.75rem] dark:text-zinc-50">{HOME_H1}</h1>
-            <p className="mt-3 hidden max-w-[58ch] text-[0.9375rem] leading-relaxed text-zinc-400 lg:block dark:text-zinc-400">
-              Explore Pokemon card listings on eBay, with market references where a matching
-              comparison is available. Check the card, condition and shipping before you buy.
+                quotable answer. No slogan.
+                2026-09-22: "below market price." carries the brand red -
+                it is the proposition, and it is the half of the sentence
+                a scanning visitor needs. HOME_H1 stays the single source
+                of the string (the home JSON-LD graph reads the same
+                constant), so the emphasis is applied by splitting it
+                rather than by retyping it here and letting the two
+                drift. */}
+            <h1 className="text-balance text-[2rem] font-extrabold leading-[1.08] tracking-[-0.03em] text-zinc-900 sm:text-5xl lg:text-[3.25rem] dark:text-zinc-50">
+              {(() => {
+                const marker = "below market";
+                const at = HOME_H1.toLowerCase().indexOf(marker);
+                if (at < 0) return HOME_H1;
+                return (
+                  <>
+                    {HOME_H1.slice(0, at)}
+                    <span className="text-red-600 dark:text-red-500">{HOME_H1.slice(at)}</span>
+                  </>
+                );
+              })()}
+            </h1>
+            <p className="mt-4 max-w-[60ch] text-base leading-relaxed text-zinc-600 sm:text-[1.0625rem] dark:text-zinc-300">
+              We scan eBay continuously and compare listings against recent sold prices for the
+              same printing and condition, so you can find real deals rather than just cheap
+              listings.
             </p>
             {/* GEO audit 2026-09-19 - the answer capsule: what the site is,
                 in one dated paragraph built from live counts (never a slogan).
@@ -342,7 +409,7 @@ export default async function Home() {
                 deal: one sentence plus the dated counts. The checks
                 sentence is `sm:` and up - it stays in the HTML for every
                 reader either way. */}
-            <p className="mt-3 max-w-[62ch] text-sm leading-relaxed text-zinc-400 dark:text-zinc-400" data-answer-capsule>
+            <p className="mt-3 max-w-[62ch] text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400" data-answer-capsule>
               Pokemon Deal Finder lists live eBay Pokemon card listings priced below a documented market reference for the exact card and condition, from eBay US, UK, Australia, Canada, Germany and Italy.
               <span className="hidden sm:inline">
                 {" "}Every listing shown has passed an exact-printing match, a seller-condition check, an availability re-check and an image-based authenticity screen, and shows the reference it was compared with.
@@ -355,7 +422,11 @@ export default async function Home() {
               )}
             </p>
           </div>
-          <div className="mt-3 lg:mt-0">
+
+          {/* SEARCH - the most prominent control on the page, full width
+              up to a readable maximum rather than a narrow box in a
+              right-hand column. */}
+          <div className="mt-6 max-w-2xl">
             <HeroSearch />
             <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-zinc-500 dark:text-zinc-400">
               {/* the example queries stay in the DOM (real /search deep
@@ -391,6 +462,26 @@ export default async function Home() {
               </Link>
             </p>
           </div>
+
+          {/* Most-listed species + category destinations. Ordered by real
+              listing counts, so the row is labelled for what it is. */}
+          <HomeQuickFilters
+            species={speciesHubs.slice(0, 5).map((s) => ({ slug: s.slug, name: s.name, count: s.count }))}
+            categories={[
+              { href: "/deals/graded", label: "Graded" },
+              { href: "/japanese-cards", label: "Japanese" },
+              { href: "/sealed-deals", label: "Sealed" },
+            ]}
+          />
+
+          {/* Live platform figures, from production reads. A stat that is
+              unavailable is omitted rather than defaulted - see the
+              component. */}
+          <HomeLiveStats
+            liveCount={liveCount}
+            checked24h={integrity?.checked24h ?? null}
+            marketplaceCount={Array.isArray(integrity?.marketplaces) && integrity.marketplaces.length > 0 ? integrity.marketplaces.length : null}
+          />
         </div>
       </header>
 
@@ -409,6 +500,17 @@ export default async function Home() {
         trustLine={trustLine}
         topHubs={topHubs}
       />
+
+      {/* DISCOVERY - the two visual browse rows, between the feed (what to
+          buy now) and the editorial section (how the market works).
+          Both render from live data and both return null rather than an
+          empty shell when that data is thin. */}
+      <HomePopularPokemon species={speciesHubs} />
+      <HomeBudgetDeals previewsByBand={budgetPreviews} />
+
+      {/* TRUST - the methodology work as conversion support. Every claim
+          links to where it is substantiated; no invented social proof. */}
+      <HomeTrustSection />
 
       {/* GUIDES & RESEARCH - three editorial cards (section id pinned by
           homepage-hierarchy.test). Artwork only where the card is the

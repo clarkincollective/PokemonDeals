@@ -146,7 +146,7 @@ test("H-8. a visible navigation entry, shared by the desktop bar and the mobile 
   // which SiteHeader renders through NavDropdown from the same NAV_PRIMARY
   // model (navGroupItems); NavDropdown emits the entry's markers per item.
   assert.equal(entry.group, "deals", "lives in the Deals submenu");
-  assert.match(src("components/SiteHeader.js"), /navGroupItems\(group\.id\)/, "desktop submenus are built from NAV_PRIMARY");
+  assert.match(src("components/SiteHeader.js"), /navGroupItems\(link\.railGroup\)/, "desktop submenus are built from NAV_PRIMARY");
   assert.match(src("components/SiteHeader.js"), /NAV_PRIMARY\.filter\(\(link\) => link\.group == null\)\.map/, "desktop inline entries are built from NAV_PRIMARY");
   for (const [f, v] of [["components/NavDropdown.js", "it"], ["components/SiteHeader.js", "link"], ["components/NavMenu.js", "link"]]) {
     assert.match(src(f), new RegExp(`data-analytics-click=\\{\\s*${v}\\.analyticsClick`), `${f}: emits the entry's event`);

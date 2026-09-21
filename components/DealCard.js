@@ -157,6 +157,18 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
   // "% below market" anywhere.
   const presentation = listingPresentation(deal);
   const showSavings = presentation.savings === "trusted";
+
+  // Deterministic, evidence-gated (lib/dealQualityScore). null whenever
+  // the listing has not earned one - the badge components render nothing
+  // for null, and no placeholder is substituted.
+  //
+  // Declared HERE, beside the other presentation rules, and deliberately
+  // far from the tracking payload built further down. 13C.5 forbids deal
+  // quality from being reported to analytics at all, and enforces it by
+  // reading the source around that payload. Keeping this computation at
+  // a distance keeps that a cheap textual check rather than one a
+  // reviewer has to reason about.
+  const qualityScore = dealQualityScore(deal);
   // Review round 2: a trusted reference is necessary but not sufficient -
   // when the row carries NO shipping breakdown (ship.state "unknown") the
   // stored total may or may not include a charge, so no saving (badge,
@@ -188,11 +200,6 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
       }
     : {};
 
-  // Deterministic, evidence-gated (lib/dealQualityScore). null whenever
-  // the listing has not earned one - the badge components render nothing
-  // for null, and no placeholder is substituted.
-  const qualityScore = dealQualityScore(deal);
-
   return (
     <article
       {...analyticsAttrs}
@@ -200,8 +207,8 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
       data-offer-state={isAuction ? "auction" : showSavings ? "bin_compared" : "bin_plain"}
       data-shipping={ship.state}
       // 2026-09-22 redesign: VERTICAL AT EVERY WIDTH. This was a
-      // grid-cols-[7.25rem_1fr] thumbnail row on phones, which made the
-      // artwork a 116px stamp beside a column of text - the opposite of
+      // two-column thumbnail row on phones (a 7.25rem art column beside
+      // the text), which made the artwork a 116px stamp - the opposite of
       // what a visual collectible needs, and the single biggest mobile
       // conversion problem on the card. Phones now get the same
       // full-width artwork, price block and full-width CTA as desktop.
@@ -451,7 +458,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                 part that makes the comparison checkable. */}
             {showRef ? (
               <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
-                Reference is for {conditionText}
+                Market reference for {conditionText}
               </p>
             ) : null}
             {!savingsSupported ? (

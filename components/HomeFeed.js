@@ -217,6 +217,10 @@ export default function HomeFeed({
               data-analytics-props={JSON.stringify({ section: "feed_modes", chip: m.chip, ...(m.graded ? { graded_entry: true, source: "start_here" } : {}) })}
               className={chip(m.home && params.showPromo)}
             >
+              {/* The icon is decorative: the label beside it already
+                  names the destination, so it is hidden from assistive
+                  tech rather than read out as "fire Best Deals". */}
+              {m.icon && <span aria-hidden="true" className="mr-1.5 text-base leading-none">{m.icon}</span>}
               {m.label}
             </a>
           ))}

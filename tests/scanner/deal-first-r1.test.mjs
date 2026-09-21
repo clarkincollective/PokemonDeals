@@ -51,7 +51,7 @@ test("R1-2. header, mobile menu and footer all render from the one model; dropdo
   const menu = read("components/NavMenu.js");
   const footer = read("components/SiteFooter.js");
   const dropdown = read("components/NavDropdown.js");
-  assert.match(header, /NAV_GROUPS\.map\(\(group\) => \(\s*<NavDropdown/);
+  assert.match(header, /NAV_RAIL\.map\(\(link\) =>/);
   assert.match(menu, /NAV_GROUPS\.map/);
   assert.match(footer, /NAV_PRIMARY\.filter\(\(l\) => l\.group === "deals"\)/);
   assert.match(footer, /NAV_PRIMARY\.filter\(\(l\) => l\.group === "catalogue"\)/);
@@ -99,7 +99,11 @@ test("R1-4. DealCard: one dominant price with a clear meaning; shipping=0 is 'no
   assert.doesNotMatch(src, /Free shipping|free delivery|delivered total|no shipping charge listed/i, "a 0 shipping figure is never called free on the card");
   // the derived saving never reads as a verified delivered saving
   // graded-inventory-r1: the percentage comes from savingsPercentText ("N%" / "less than 1%")
-  assert.match(src, /\{ship\.savingQualifier\} · \{pctText\} below market/);
+  // 2026-09-22: the saving reads "You save <amount> (<pct>)" with the
+  // shipping qualifier appended, instead of "<qualifier> · <pct> below
+  // market". The qualifier itself is the thing this pins - a saving
+  // computed before shipping must SAY so - and it is still there.
+  assert.match(src, /You save <Price[\s\S]{0,200}\{ship\.savingQualifier\}/);
   assert.match(src, /data-shipping=\{ship\.state\}/);
   assert.equal(offerShipping({ shipping: 0 }).headline, "Listing price");
   assert.equal(offerShipping({ shipping: 0 }).note, "Shipping not confirmed");
@@ -112,18 +116,29 @@ test("R1-4. DealCard: one dominant price with a clear meaning; shipping=0 is 'no
   assert.doesNotMatch(ap, /"Free shipping"/);
 });
 
-test("R1-4b. DealCard mobile shape: artwork beside identity/offer, the eBay button spanning the card; stacked from sm", () => {
+test("R1-4b. DealCard shape: one vertical card at every width, artwork in a reserved box, full-width CTA", () => {
   const src = read("components/DealCard.js");
-  assert.match(src, /grid-cols-\[7\.25rem_1fr\][^"]*sm:flex sm:flex-col/, "two-column grid below sm, column from sm");
-  assert.match(src, /aspect-\[4\/5\] w-full/, "4:5 artwork box, object-contain (never cropped)");
-  assert.match(src, /className="object-contain p-2 sm:p-3"/);
-  assert.match(src, /<div className="col-span-2 px-3 pb-3 sm:col-auto sm:mt-auto/, "CTA row spans both columns on phones");
+  // CONTRACT CHANGED 2026-09-22, deliberately. R1 made the phone card a
+  // 7.25rem thumbnail beside a text column. The redesign brief requires
+  // large vertical cards with prominent artwork on phones - a Pokemon
+  // card is a visual collectible and a 116px stamp is the wrong primitive
+  // for one. The card is now a single flex column at every width.
+  //
+  // What R1-4b actually guarded survives intact and is still asserted:
+  // a RESERVED aspect box (no layout shift when the image lands),
+  // object-contain (artwork is never cropped, because a cropped
+  // collectible is a misrepresented one), and a CTA spanning the card.
+  assert.match(src, /flex h-full flex-col overflow-hidden rounded-xl/, "one vertical card at every width");
+  assert.doesNotMatch(src, /grid-cols-\[7\.25rem_1fr\]/, "the phone thumbnail layout is gone");
+  assert.match(src, /aspect-\[6\/5\] w-full/, "reserved artwork box - fixed ratio, so no CLS");
+  assert.match(src, /className="object-contain p-3 sm:p-4"/, "artwork never cropped");
+  assert.match(src, /w-full items-center justify-center rounded-lg bg-red-600/, "CTA spans the card");
 });
 
 test("R1-5. DealCard: the comparison carries its condition context and only renders on a trusted claim", () => {
   const src = read("components/DealCard.js");
   assert.match(src, /const showSavings = presentation\.savings === "trusted";/);
-  assert.match(src, /Market reference\{" "\}[\s\S]{0,400}\{conditionText\}/, "reference line names the condition it is for");
+  assert.match(src, /Market reference for \{conditionText\}/, "reference line names the condition it is for");
   // the plain state renders the reasons and nothing green
   const plain = src.slice(src.indexOf("{!showSavings ? ("), src.indexOf(") : isAuction ? null : ("));
   assert.match(plain, /presentation\.notes\.map/);
@@ -133,7 +148,12 @@ test("R1-5. DealCard: the comparison carries its condition context and only rend
   // integrity-2026-09-19: AND the listing must be Buy It Now - an auction's
   // current bid never wears the green badge (amber "Bid −N%" instead)
   // UI audit 2026-09-20: the badge is components/SavingsBadge now - the gate is unchanged
-  assert.match(src, /\{savingsSupported && !isAuction && \(\s*<SavingsBadge discountPct=\{deal\.discount_pct\} className="absolute right-1\.5 top-1\.5/);
+  // 2026-09-22: an evidenced listing now shows the deal-quality score
+  // in that corner and SavingsBadge is the fallback for a supported
+  // saving we could not score. The gate this pins - the badge appears
+  // only on a supported claim, and never on an auction, where a bid is
+  // not a saving - is unchanged.
+  assert.match(src, /!qualityScore && savingsSupported && !isAuction && \(\s*<SavingsBadge discountPct=\{deal\.discount_pct\}/);
   assert.match(src, /data-offer-state=\{isAuction \? "auction" : showSavings \? "bin_compared" : "bin_plain"\}/);
 });
 
