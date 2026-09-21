@@ -602,15 +602,42 @@ the referring-domain count, the LLM citation read and the
 striking-distance report. **Do not commission more keyword research or
 more page copy against these terms.** `docs/pitch-pack.md` is the lever.
 
-### The one content gap that is real, and why it waits
+### "Most expensive pokemon card": the gap is real, the page is not writable
 
-"most expensive pokemon card" is 110,000/mo at difficulty 0 and we have
-no page for it - zero impressions in the window. `/cards` carries a
-"Highest market references we track" section, which is the raw material,
-and the honest version of that page is one we could build from held data
-without inventing a figure. **Recommended, but not now**: on today's
-authority it would land beside the set pages on page six. Revisit when a
-pitch has landed and something has moved.
+110,000/mo at difficulty 0, no page of ours, zero impressions in the
+28-day window. It looks like the single biggest opportunity left.
+
+**We cannot write it honestly, and that is a stronger reason to leave it
+than authority.** An earlier note here deferred it on the grounds that it
+would land on page six anyway. That reasoning implies we could publish it
+today and are choosing not to. We could not.
+
+Checked on the live `/cards` index, 2026-09-21: the highest market
+references the catalogue holds are
+
+| Card | Reference |
+|---|---|
+| Umbreon (H30), Skyridge | $4,999.99 |
+| Latias & Latios GX alt art, Team Up | $3,910.42 |
+| Mew Star, EX Dragon Frontiers | ~$3,500 |
+
+The query is not asking about those. It is asking about Pikachu
+Illustrator, trophy cards and graded Base Set Charizards - cards that
+have never passed through our data and whose prices come from auction
+records we do not hold, three orders of magnitude above our ceiling. A
+page answering it from our catalogue would either be thin or would imply
+a $5,000 card is the most expensive Pokemon card, which is false.
+
+The `/cards` section that holds this data already says so in as many
+words: "The highest market-reference prices currently in our catalogue -
+not an all-time ranking or an investment call." That caveat is the
+correct position, and it is incompatible with targeting this term.
+
+**Decision: do not build it.** Not "wait for authority" - the data does
+not exist on our side, and buying or scraping auction records to
+manufacture it is out of scope and would break the no-invented-figures
+rule. Revisit only if the site ever holds first-party evidence about
+cards in that class.
 
 ## LLM citation, measured - 2026-09-21 (this corrects the audit above)
 
