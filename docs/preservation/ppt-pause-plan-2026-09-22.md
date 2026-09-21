@@ -216,7 +216,48 @@ of cancellation*, and prohibit resale or redistribution permanently. Copying
 our own database stays on the permitted side of that line; this script
 could not cross it if we wanted it to.
 
+Fourteen tables, 2,029,862 rows. The first draft of the script covered
+eight; the other six were found by grepping every `.from("…")` in the
+codebase rather than trusting the first list, and each one turned out to
+hold something the eight could not reconstruct:
+
+- **`catalog_snapshot`** (37,386) — the derived aggregates several pages
+  render from (`cardHubs`, `catalogSets`, `setVocabulary`), the
+  browse-budget ledger, and the `ppt_requests:*` telemetry. That telemetry
+  is the only record of what we actually retrieved and when — the baseline
+  any pause decision is measured against — and `lib/pptTelemetry.js:211`
+  sweeps it after **35 days**. It was going to delete itself.
+- **`listing_observations`** (34,848) — per-observation pricing *with*
+  `reference_*` provenance: the audit trail behind every stored comparison.
+- **`discovery_events`** (28,010), **`scan_target_state`** (7,429),
+  **`ebay_job_runs`** (2,818), **`scan_allocation_runs`** (86).
+
+Deliberately excluded, recorded in the script so the omission cannot be
+mistaken for an oversight: `newsletter_subscribers` and `price_alerts`
+(email addresses — not pricing data, not needed to survive a pause, and
+copying subscriber emails onto a laptop is a privacy cost with no
+preservation benefit), the `social_*` tables (publishing records,
+regenerable), and `cards` (one legacy row).
+
 Row counts, digests and verification results: see the handover.
+
+### Two defects the first run exposed
+
+Worth recording, because both would have produced a backup that looked fine.
+
+**A sort column that did not exist voided the whole run.** `integrity_snapshots`
+is keyed on `day`, not `id`. The script threw on it — the last of eight
+tables — and exited before writing the manifest, discarding eighteen
+minutes of `price_history` streaming and leaving eight good files that
+nothing could verify. Per-table failures are now recorded in the manifest
+and stepped over, and `--resume=<dir>` adopts a file already on disk
+(digesting and counting it from the bytes) instead of re-fetching it.
+
+**Offset paging over a non-unique sort can silently skip or duplicate
+rows.** `scan_target_state` is keyed on `(card_tcgplayer_id, marketplace)`
+and neither column is unique alone. A single-column sort would have
+produced a file that passed every digest check while being a perfect copy
+of the wrong thing. `orderBy` is now a column *list*.
 
 ---
 
