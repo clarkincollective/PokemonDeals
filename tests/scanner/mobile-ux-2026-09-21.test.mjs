@@ -64,17 +64,29 @@ test("no form control renders under 16px on a phone (iOS zoom trap)", () => {
   );
 });
 
-test("the deal-card image link's accessible name carries its visible text", () => {
+test("the deal-card image link is decorative, and nothing is lost by hiding it", () => {
   const src = readFileSync(join(root, "components/DealCard.js"), "utf8");
-  const label = src.slice(src.indexOf("aria-label={["), src.indexOf('"details",'));
-  assert.ok(label.includes("cardName"), "the card name");
-  assert.match(label, /eBay \$\{marketInfo\.short\}/, "the marketplace, which is visible in the link");
-  assert.match(label, /savingsBadgeText\(deal\.discount_pct\)/, "the savings figure, which is visible in the link");
-  // The overlay strings must join with a space so the visible text reads
-  // as one contiguous run inside the accessible name; a separator between
-  // them fails the check even with both strings present.
-  assert.match(label, /\.join\(" "\)/, "overlay text joined by spaces, not a separator");
-  // Decorative chrome must be hidden rather than added to the name.
+  // The image link duplicates the title link's destination, so it is
+  // hidden and taken out of the tab order rather than named. Naming it is
+  // what failed twice: the rule compares every text node inside the
+  // element, including the rank chip and the marketplace mark.
+  // Anchor on <DealImage and read backwards to the <a that wraps it,
+  // rather than matching the opening tag's exact indentation.
+  const imgAt = src.indexOf("<DealImage");
+  assert.ok(imgAt > 0, "DealImage is rendered");
+  const imageLink = src.slice(src.lastIndexOf("<a", imgAt), imgAt);
+  assert.match(imageLink, /aria-hidden="true"/, "image link hidden from assistive tech");
+  assert.match(imageLink, /tabIndex=\{-1\}/, "image link out of the tab order");
+  assert.doesNotMatch(imageLink, /aria-label/, "it must not be named; the title link is the named one");
+
+  // The title link keeps its own visible text as its name.
+  assert.match(src, /className="line-clamp-2[^"]*"\s*>\s*\n\s*\{cardName\}/, "title link named by its text");
+
+  // The marketplace lived only inside the now-hidden overlay, so it must
+  // be restated somewhere assistive tech can reach.
+  assert.match(src, /className="sr-only">Listed on eBay \{marketInfo\.label\}/, "marketplace restated for assistive tech");
+
+  // Decorative chrome stays hidden regardless.
   assert.match(src, /aria-hidden="true"[\s\S]{0,180}\{rank\}/, "the rank chip is decorative");
   assert.match(src, /aria-hidden="true"[\s\S]{0,180}Just found/, "the 'Just found' pill is decorative");
 });

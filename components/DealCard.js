@@ -219,35 +219,22 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
         <a
           href={dealHref}
           rel={dealRel}
-          // WCAG 2.5.3 "Label in Name", flagged by Lighthouse 2026-09-21
-          // on 14 cards: an aria-label REPLACES the inner content as the
-          // accessible name, so the visible "eBay UK" and "−63%" inside
-          // this link were absent from it - and the sr-only marketplace
-          // span a few lines below never reached assistive tech at all,
-          // contrary to what its comment claimed. The label now carries
-          // both, in the order they are read. Purely decorative overlays
-          // (the rank chip, the "Just found" pill) are aria-hidden instead,
-          // since rank is conveyed by DOM order and neither is a fact about
-          // the listing.
-          // The overlay text is joined by SPACES, not the " - " used around
-          // it: the check wants the element's visible text as one
-          // contiguous run inside the accessible name, and a separator
-          // dropped between "eBay UK" and "−63%" breaks that even though
-          // both strings are present.
-          aria-label={[
-            cardName,
-            [
-              marketInfo ? `eBay ${marketInfo.short}` : null,
-              savingsSupported
-                ? `${isAuction ? "Bid " : ""}${savingsBadgeText(deal.discount_pct)}`
-                : null,
-            ]
-              .filter(Boolean)
-              .join(" "),
-            "details",
-          ]
-            .filter(Boolean)
-            .join(" - ")}
+          // WCAG 2.5.3 Label in Name, 2026-09-21. Two attempts at naming
+          // this link failed because the rule compares EVERY text node
+          // inside the element against the accessible name - here that is
+          // the rank chip, the two-letter marketplace mark, "eBay AU" and
+          // "−64%" - and no sensible name contains "1 AU eBay AU −64%".
+          //
+          // The honest reading is that this is not a second link at all.
+          // It goes to the same place as the card title below it, which is
+          // already correctly named by its own text. So it is decorative:
+          // hidden from assistive tech and removed from the tab order,
+          // which also drops a duplicate stop for keyboard and
+          // switch-control users on every card. Nothing visual changes.
+          // The marketplace, the one fact that lived only in this overlay,
+          // is restated for assistive tech in the card body below.
+          aria-hidden="true"
+          tabIndex={-1}
           className="relative block aspect-[4/5] w-full bg-zinc-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-red-600 sm:aspect-[6/5] dark:bg-zinc-900"
         >
           <DealImage
@@ -315,6 +302,12 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
         >
           {cardName}
         </a>
+        {/* The marketplace is shown visually only as an overlay on the
+            image, and that overlay now sits inside an aria-hidden link.
+            This restates it for assistive tech, next to the card's real
+            title link, so "which eBay site is this on" is still answered
+            without changing anything on screen. */}
+        {marketInfo && <span className="sr-only">Listed on eBay {marketInfo.label}</span>}
         {/* Set · condition. The condition (or grader + grade) is REQUIRED
             reading, never fine print: it sits in its own non-shrinking span
             so a long set name truncates instead of hiding it, and at the
