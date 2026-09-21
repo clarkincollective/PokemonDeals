@@ -113,6 +113,16 @@ test("footer social links are named by the text they show", () => {
   );
 });
 
+test("a disabled pagination control stays perceivable", () => {
+  const src = readFileSync(join(root, "components/Pagination.js"), "utf8");
+  const disabled = src.slice(src.indexOf("if (disabled)"), src.indexOf("{children}"));
+  // zinc-300/zinc-700 measured 1.38:1 in dark mode - invisible, so page 1
+  // looked like it had no Prev control rather than a disabled one.
+  assert.doesNotMatch(disabled, /text-zinc-300\b/, "light disabled text too faint");
+  assert.doesNotMatch(disabled, /dark:text-zinc-700\b/, "dark disabled text too faint");
+  assert.match(disabled, /aria-disabled="true"/, "state is announced, not left to colour");
+});
+
 test("the viewport stays zoomable", () => {
   // Blocking pinch-zoom is an accessibility failure; this is currently
   // correct and is pinned so it stays that way.

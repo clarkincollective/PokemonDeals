@@ -22,7 +22,17 @@ const CRAWLABLE_PAGES = 5;
 function PageLink({ href, active, disabled, children, ariaLabel, targetPage }) {
   if (disabled) {
     return (
-      <span className="rounded-md border border-zinc-100 px-3 py-1.5 text-sm text-zinc-300 dark:border-zinc-900 dark:text-zinc-700">
+      // Contrast, 2026-09-21: this read zinc-300 on white and zinc-700 on
+      // near-black, measured at 1.38:1 in dark mode - the control was
+      // effectively invisible, so on page 1 there appeared to be no Prev
+      // at all rather than a disabled one. Muted one step less on each
+      // side (about 2.6:1 light, 4.0:1 dark): still plainly inactive
+      // beside a live page link, but perceivable. aria-disabled says so
+      // rather than leaving it to the colour.
+      <span
+        aria-disabled="true"
+        className="rounded-md border border-zinc-200 px-3 py-1.5 text-sm text-zinc-400 dark:border-zinc-800 dark:text-zinc-500"
+      >
         {children}
       </span>
     );
