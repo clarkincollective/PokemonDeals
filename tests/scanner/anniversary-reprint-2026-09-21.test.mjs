@@ -70,6 +70,28 @@ test("a listing matched TO a 30th set is not ambiguous", () => {
   }
 });
 
+// The 25th family, confirmed the same way: Celebrations: Classic
+// Collection carries Blastoise at 2/102 (the BASE SET number, reprint
+// $15.18), Mewtwo EX at 54/99 (Next Destinies, $12.30) and Umbreon Star
+// at 17/17 (POP Series 5, $91.29).
+test("the Celebrations / 25th family is covered too", () => {
+  const mewtwo = priced({
+    title: "Pokémon TCG Mewtwo-EX 54/99 Next Destinies Holo Rare English Celebrations",
+    card_name: "Mewtwo EX",
+    card_set: "Next Destinies",
+  });
+  assert.equal(titleClaimsAnniversaryReprint(mewtwo), true, "title says Celebrations, match is Next Destinies");
+  assert.equal(savingsClaimTrusted(mewtwo), false, "no claim against the vintage reference");
+
+  // Matched TO Celebrations: title and match agree, claim stands.
+  assert.equal(
+    titleClaimsAnniversaryReprint(priced({ title: "Mewtwo EX 54/99 Celebrations", card_set: "Celebrations: Classic Collection" })),
+    false
+  );
+  // And a vintage listing that never mentions either family is untouched.
+  assert.equal(titleClaimsAnniversaryReprint(priced({ title: "Mewtwo EX 54/99 Next Destinies Holo" })), false);
+});
+
 test("it never fires without a matched set to disagree with", () => {
   assert.equal(titleClaimsAnniversaryReprint(priced({ title: "30th Anniversary lot", card_set: "" })), false);
   assert.equal(titleClaimsAnniversaryReprint(priced({ title: "30th Anniversary lot", card_set: null })), false);

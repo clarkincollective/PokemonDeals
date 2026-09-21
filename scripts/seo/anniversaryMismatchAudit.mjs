@@ -25,8 +25,20 @@ const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABA
   auth: { persistSession: false },
 });
 
-// What a seller writes for the 30th set, in the forms actually seen.
-const ANNIVERSARY = /\b(30th|thirtieth)\b[\s-]*(anniversary|celebration)?|\bcelebration[s]?\s*30\b/i;
+// Reprint sets that REUSE the original card's number, which is what makes
+// them indistinguishable from the original by number alone. Confirmed in
+// our own catalogue:
+//   Celebrations: Classic Collection  Blastoise 2/102   $15.18
+//     ... the Base Set number, against a Base Set holo worth hundreds
+//   ME: 30th Celebration Classic Collection  Metagross 11/113
+//     ... the EX Delta Species number, against a $107 original
+// Each entry is the marker a seller writes in a title, and the catalogue
+// set name that marker refers to.
+const REPRINT_FAMILIES = [
+  { key: "30th", title: /\b(30th|thirtieth)\b/i, set: /\b30th\b/i },
+  { key: "25th / Celebrations", title: /\b(25th|celebrations)\b/i, set: /\bcelebrations\b/i },
+];
+const ANNIVERSARY = REPRINT_FAMILIES[0].title;
 // A catalogue set that IS a 30th set. NOT a bare /celebration/ - that also
 // matches "Celebrations", the 2021 TWENTY-fifth anniversary set, which is
 // a different release entirely. Conflating them made the first run of this
@@ -127,6 +139,19 @@ async function main() {
               : "unique to the vintage printing; the 30th set has no card at this number"
         }`
       );
+    }
+  }
+
+  // Every reprint family, not just the 30th: the same trap exists
+  // wherever a set reprints classics under their original numbers.
+  console.log("\n  --- all reprint families ---");
+  for (const fam of REPRINT_FAMILIES) {
+    const hits = shown.filter((r) => fam.title.test(String(r.title ?? "")) && !fam.set.test(String(r.card_set ?? "")));
+    const claiming = hits.filter((r) => savingsClaimTrusted(r));
+    console.log(`  ${fam.key.padEnd(20)} title says it, matched set does not: ${String(hits.length).padStart(3)}  still claiming savings: ${claiming.length}`);
+    for (const r of claiming.slice(0, 6)) {
+      console.log(`      deal ${String(r.id).padEnd(6)} ${String(r.card_set).slice(0, 28).padEnd(30)} $${String(r.market_price).padEnd(9)} ${(Number(r.discount_pct) * 100).toFixed(0)} % off`);
+      console.log(`          ${String(r.title).slice(0, 94)}`);
     }
   }
 
