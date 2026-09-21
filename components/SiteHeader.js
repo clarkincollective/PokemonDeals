@@ -4,14 +4,17 @@ import NavMenu from "@/components/NavMenu";
 import NavDropdown from "@/components/NavDropdown";
 import RegionControl from "@/components/RegionControl";
 import SavedNavLink from "@/components/SavedNavLink";
-import { NAV_PRIMARY, NAV_GROUPS, NAV_SEARCH, navGroupItems } from "@/lib/navLinks";
+import { NAV_RAIL, NAV_SEARCH, navGroupItems } from "@/lib/navLinks";
 
-// Shared sticky header (deal-first R1). Desktop (>= lg): the logo, then
-// three destinations - "Deals ▾", "Cards & Sets ▾" (every current route
-// inside a labelled submenu) and "Guides & Research" - with the
-// market/currency control and a search icon as utilities on the right.
-// Mobile: the slide-in NavMenu. Every renderer reads the same nav model
-// from lib/navLinks.js.
+// Shared sticky header. Desktop (>= lg): the logo, then the flat rail of
+// seven named destinations (Deals, Pokemon, Sets, Graded, Sealed,
+// Research, Guides), with Saved, the market/currency control and a search
+// icon as utilities on the right. Mobile: the slide-in NavMenu. Every
+// renderer reads the same nav model from lib/navLinks.js.
+//
+// There is deliberately NO account or sign-in control: the site has no
+// accounts. "Saved" is this device's own list (localStorage), which is
+// why it is a utility rather than a signed-in surface.
 export default function SiteHeader() {
   return (
     <div className="sticky top-0 z-30 border-b border-zinc-200 bg-paper/90 backdrop-blur-xl dark:border-zinc-700/70 dark:bg-black/80">
@@ -22,26 +25,29 @@ export default function SiteHeader() {
           <Logo size="small" />
         </Link>
 
-        <nav aria-label="Primary" className="hidden flex-1 items-center gap-0.5 lg:flex xl:gap-1.5">
-          {NAV_GROUPS.map((group) => (
-            <NavDropdown key={group.id} label={group.label} items={navGroupItems(group.id)} />
-          ))}
-          {/* inline top-level entries - today only Guides & Research. Every
-              entry's event (incl. the graded entry event on /deals/graded,
-              which lives inside Deals ▾ and is emitted by NavDropdown) comes
-              from the shared model, so no renderer special-cases a route. */}
-          {NAV_PRIMARY.filter((link) => link.group == null).map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              rel={link.href.includes("?") ? "nofollow" : undefined}
-              data-analytics-click={link.analyticsClick ?? undefined}
-              data-analytics-props={link.analyticsClick ? JSON.stringify(link.analyticsProps ?? {}) : undefined}
-              className="flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-red-950 dark:hover:text-red-400"
-            >
-              {link.label}
-            </a>
-          ))}
+        {/* The flat seven-destination rail (lib/navLinks NAV_RAIL). Deals
+            and Sets keep their submenu on a chevron beside the label, so
+            every destination the grouped header used to carry is still
+            one hover away and still in the server HTML. */}
+        <nav aria-label="Primary" className="hidden flex-1 items-center justify-center gap-0.5 lg:flex xl:gap-1">
+          {NAV_RAIL.map((link) =>
+            link.railGroup ? (
+              <NavDropdown
+                key={link.href}
+                href={link.href}
+                label={link.label}
+                items={navGroupItems(link.railGroup)}
+              />
+            ) : (
+              <a
+                key={link.href}
+                href={link.href}
+                className="flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-red-950 dark:hover:text-red-400"
+              >
+                {link.label}
+              </a>
+            )
+          )}
         </nav>
 
         <div className="flex items-center gap-2">

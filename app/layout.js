@@ -56,9 +56,13 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      // `dark` selects every dark: variant unconditionally (globals.css
-      // @custom-variant): the site is dark-first, one theme, by design.
-      className={`dark ${sora.variable} ${interTight.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      // No `dark` class: the site is LIGHT, one theme, by design (see the
+      // palette block in globals.css). The dark: variants still present
+      // throughout the components simply never match, which is what makes
+      // each component's base utility - text-zinc-900, bg-white - the
+      // thing that renders. They are left in place as the seam for a real
+      // user-selectable dark mode rather than stripped in a mass edit.
+      className={`${sora.variable} ${interTight.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <head>
         {/* SEO audit 2026-09-20: every card image comes from one of these two

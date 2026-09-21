@@ -14,6 +14,8 @@ import { dealImageProps } from "@/lib/listingImage";
 import SaveCardButton from "@/components/SaveCardButton";
 import MarketplaceMark from "@/components/MarketplaceMark";
 import SavingsBadge from "@/components/SavingsBadge";
+import { DealQualityLabel, DealQualityScore } from "@/components/DealQualityBadge";
+import { dealQualityScore } from "@/lib/dealQualityScore";
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
 import AuctionEnd from "@/components/AuctionEnd";
@@ -186,13 +188,24 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
       }
     : {};
 
+  // Deterministic, evidence-gated (lib/dealQualityScore). null whenever
+  // the listing has not earned one - the badge components render nothing
+  // for null, and no placeholder is substituted.
+  const qualityScore = dealQualityScore(deal);
+
   return (
     <article
       {...analyticsAttrs}
       data-deal-card=""
       data-offer-state={isAuction ? "auction" : showSavings ? "bin_compared" : "bin_plain"}
       data-shipping={ship.state}
-      className="group grid h-full grid-cols-[7.25rem_1fr] grid-rows-[auto_auto] overflow-hidden rounded-xl border border-zinc-200 bg-white transition-shadow duration-200 hover:shadow-card-hover focus-within:shadow-card-hover sm:flex sm:flex-col dark:border-zinc-800 dark:bg-zinc-950"
+      // 2026-09-22 redesign: VERTICAL AT EVERY WIDTH. This was a
+      // grid-cols-[7.25rem_1fr] thumbnail row on phones, which made the
+      // artwork a 116px stamp beside a column of text - the opposite of
+      // what a visual collectible needs, and the single biggest mobile
+      // conversion problem on the card. Phones now get the same
+      // full-width artwork, price block and full-width CTA as desktop.
+      className="group flex h-full flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-card transition-shadow duration-200 hover:shadow-card-hover focus-within:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950"
     >
       {/* ARTWORK - the seller's photo (or, labelled, the catalogue art);
           opens the site's own detail page. Badges carry only real facts.
@@ -201,21 +214,11 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
       {/* self-start: on phones the text column is taller than the art, and
           the save control anchors to the ART's corner, not the row's - it
           used to float in empty space below the picture. */}
-      <div className="relative row-span-1 self-start sm:row-auto sm:self-auto">
-        <div className="absolute bottom-1.5 right-1.5 z-10 sm:bottom-2 sm:right-2">
-          <SaveCardButton
-            compact
-            card={{
-              slug: hub?.slug ?? null,
-              dealId: deal.id,
-              name: cardName,
-              set: cardSet,
-              image: deal.image_url,
-              price: deal.total_price,
-              currency: currencyForDeal(deal),
-            }}
-          />
-        </div>
+      {/* The save control used to float over the artwork's bottom-right
+          corner. It now sits in the action row at the foot of the card
+          beside Compare, where the redesign groups the secondary actions -
+          one Watch control per card, not two. */}
+      <div className="relative">
         <a
           href={dealHref}
           rel={dealRel}
@@ -235,18 +238,29 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           // is restated for assistive tech in the card body below.
           aria-hidden="true"
           tabIndex={-1}
-          className="relative block aspect-[4/5] w-full bg-zinc-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-red-600 sm:aspect-[6/5] dark:bg-zinc-900"
+          // One aspect at every width now the card is vertical throughout.
+          // 6:5 holds a portrait card at a readable size without the box
+          // becoming so tall that the price and CTA leave the viewport on
+          // a phone. object-contain, so artwork keeps its proportions and
+          // is never cropped - a cropped collectible is a misrepresented
+          // one. The fixed ratio also reserves the space, so nothing
+          // shifts when the image arrives (CLS).
+          className="relative block aspect-[6/5] w-full bg-zinc-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-red-600 dark:bg-zinc-900"
         >
           <DealImage
             {...dealImageProps(deal)}
             alt={normalizePublicText(deal.title)}
-            sizes="(max-width: 640px) 116px, (max-width: 1024px) 46vw, 24vw"
+            // Phones now render the artwork full-bleed rather than at
+            // 116px, so the old 116px hint would have served a badly
+            // undersized file to exactly the viewport that needs it most.
+            sizes="(max-width: 640px) 92vw, (max-width: 1024px) 46vw, 24vw"
             quality={85}
             priority={priority}
-            className="object-contain p-2 sm:p-3"
+            className="object-contain p-3 sm:p-4"
           />
 
           <div className="absolute left-1.5 top-1.5 flex flex-col items-start gap-1 sm:left-2 sm:top-2">
+            {qualityScore && !isAuction && <DealQualityLabel result={qualityScore} />}
             {rank != null && (
               <span aria-hidden="true" className="flex h-6 min-w-6 items-center justify-center rounded-md bg-zinc-900/85 px-1.5 text-xs font-bold text-white">
                 {rank}
@@ -275,7 +289,19 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             )}
           </div>
 
-          {savingsSupported && !isAuction && (
+          {/* 2026-09-22 redesign: the corner chip is the deal-quality
+              SCORE, and the saving moved into the body as a full "You
+              save X (Y%)" line, which is what a shopper actually reads.
+              The score is null for any listing without a trusted,
+              evidenced reference, and nothing is substituted when it is -
+              those cards simply carry no corner chip. */}
+          {qualityScore && !isAuction && (
+            <DealQualityScore result={qualityScore} className="absolute right-1.5 top-1.5 sm:right-2 sm:top-2" />
+          )}
+          {/* Fallback for a supported saving we could not score (no
+              evidenced reference): the factual discount badge, as before.
+              Never a fabricated score. */}
+          {!qualityScore && savingsSupported && !isAuction && (
             <SavingsBadge discountPct={deal.discount_pct} className="absolute right-1.5 top-1.5 sm:right-2 sm:top-2" />
           )}
           {/* integrity-2026-09-19: an auction's figure is the CURRENT BID,
@@ -294,7 +320,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
       </div>
 
       {/* IDENTITY · OFFER · COMPARISON · STATUS */}
-      <div className="flex min-w-0 flex-col p-3 sm:flex-1 sm:p-3.5">
+      <div className="flex min-w-0 flex-1 flex-col p-3.5 sm:p-4">
         <a
           href={dealHref}
           rel={dealRel}
@@ -359,11 +385,26 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               {ship.headline}
             </p>
-            <Price
-              usd={usdTotal}
-              native={{ amount: total, currency: nativeCurrency }}
-              className="tnum block break-words text-2xl font-bold leading-tight text-zinc-900 dark:text-zinc-50"
-            />
+            {/* The price is the loudest thing in the card body, in brand
+                red, with the reference beside it as "Typical <x>".
+                NOT struck through: a market reference is what comparable
+                copies sell for, not a former price of THIS listing, and
+                striking it through would state a markdown that never
+                happened. That distinction is the same one the
+                "Seller reduced the item price" line below exists to keep. */}
+            <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <Price
+                usd={usdTotal}
+                native={{ amount: total, currency: nativeCurrency }}
+                className="tnum block break-words text-[1.75rem] font-extrabold leading-tight tracking-tight text-red-600 dark:text-red-500"
+              />
+              {showSavings && showRef && (
+                <span className="text-[13px] text-zinc-500 dark:text-zinc-400">
+                  Typical{" "}
+                  <Price usd={marketUsd} native={{ amount: marketNative, currency: nativeCurrency }} approxPrefix="" className="tnum font-medium" />
+                </span>
+              )}
+            </span>
             {/* mono (.tnum) on the FIGURES only - a whole sentence in the
                 mono face read as a terminal dump on phones */}
             <p className={`mt-0.5 text-xs ${shippingConfirmed ? "text-zinc-500 dark:text-zinc-400" : "text-amber-700 dark:text-amber-500"}`}>
@@ -389,7 +430,12 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
         )}
 
         {/* COMPARISON - only a trusted reference earns the green line; a
-            plain listing states why it carries no claim. */}
+            plain listing states why it carries no claim.
+            The "You save X (Y%)" line below is the single line the
+            redesign is built around: larger and greener than it was,
+            because it answers the only question that makes a deal site
+            worth visiting. The shipping qualifier is never dropped - a
+            saving computed before shipping says so. */}
         {!showSavings ? (
           <div className="mt-1.5 flex flex-col gap-1">
             {presentation.notes.map((note) => (
@@ -400,12 +446,12 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           </div>
         ) : isAuction ? null : (
           <div className="mt-1.5">
+            {/* The reference figure itself now sits beside the price
+                above; this line carries what it was FOR, which is the
+                part that makes the comparison checkable. */}
             {showRef ? (
               <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
-                Market reference{" "}
-                <Price usd={marketUsd} native={{ amount: marketNative, currency: nativeCurrency }} approxPrefix="" className="tnum font-medium text-zinc-700 dark:text-zinc-300" />
-                {" · "}
-                {conditionText}
+                Reference is for {conditionText}
               </p>
             ) : null}
             {!savingsSupported ? (
@@ -414,11 +460,11 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                 No saving stated: shipping breakdown not recorded
               </p>
             ) : (
-            <p className="text-[13px] font-semibold text-emerald-700 dark:text-emerald-500">
+            <p className="mt-0.5 text-sm font-bold text-emerald-700 dark:text-emerald-500">
               {showRef ? (
                 <>
-                  Save <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} className="tnum text-sm font-bold" />
-                  {ship.savingQualifier} · {pctText} below market
+                  You save <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} className="tnum text-base font-extrabold" />
+                  {" "}({pctText}){ship.savingQualifier}
                 </>
               ) : (
                 <>
@@ -481,7 +527,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
       {/* PRIMARY ACTION - the existing wrapper, tracking and surface
           attribution; opens the exact listing on eBay in a new tab. Spans
           the whole card below `sm`; sits at the foot of the column above. */}
-      <div className="col-span-2 px-3 pb-3 sm:col-auto sm:mt-auto sm:px-3.5 sm:pb-3.5">
+      <div className="mt-auto px-3.5 pb-3.5 sm:px-4 sm:pb-4">
         <AffiliateLink
           href={affiliateHref}
           eventName="eBay Click"
@@ -508,6 +554,46 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
         >
           {isAuction ? "View auction on eBay" : showSavings ? "View deal on eBay" : "View listing on eBay"}
         </AffiliateLink>
+
+        {/* SECONDARY ACTIONS - Watch and Compare, beneath the primary.
+            Compare appears ONLY when this card genuinely has other live
+            listings to compare against (hub.count >= 2, the same count
+            the "N listings" link uses); a listing with nothing to compare
+            shows no control rather than a "Compare (1)" that leads
+            nowhere. Watch is this device's own list - there is no account
+            system and this does not pretend otherwise. */}
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <SaveCardButton
+            card={{
+              slug: hub?.slug ?? null,
+              dealId: deal.id,
+              name: cardName,
+              set: cardSet,
+              image: deal.image_url,
+              price: deal.total_price,
+              currency: currencyForDeal(deal),
+            }}
+          />
+          {hub?.slug && hub.count >= 2 && (
+            <Link
+              href={`/cards/${hub.slug}`}
+              data-analytics-click="compare_clicked"
+              data-analytics-props={JSON.stringify({
+                surface: pageName,
+                card_slug: hub.slug,
+                content_id: hub.slug,
+                deal_id: deal.id,
+                listing_count: hub.count,
+              })}
+              className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold text-zinc-600 transition-colors hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-300 dark:hover:text-red-500"
+            >
+              <svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className="h-4 w-4">
+                <path d="M2 5h6M2 11h12M11 2 8 5l3 3M5 8l-3 3 3 3" />
+              </svg>
+              Compare ({hub.count})
+            </Link>
+          )}
+        </div>
       </div>
     </article>
   );

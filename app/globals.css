@@ -1,45 +1,50 @@
 @import "tailwindcss";
 
 /* =====================================================================
-   THEME - premium collector, red + white (2026-09-22)
+   THEME - premium collector, red on white (light, 2026-09-22 rev 2)
    ---------------------------------------------------------------------
-   One theme, dark-first. The `dark` class on <html> (app/layout.js)
-   selects every dark: variant unconditionally, so the components' dark
-   styles ARE the design; the tokens below re-point the palette they use.
+   One theme, LIGHT. Until this revision the site forced a `dark` class on
+   <html> and every component's dark: variant WAS the design. That class
+   is gone, so the base (un-prefixed) utilities each component already
+   carried - text-zinc-900, bg-white, border-zinc-200 - are what render.
+   The dark: variants stay in the markup and simply never match; they are
+   not dead weight worth a mass edit, and they are the seam if a real
+   user-selectable dark mode is ever added.
 
-   WHAT CHANGED, and why nothing downstream had to: the accent slot is
-   Tailwind's red-* scale, which the components already use for every CTA,
-   active pill and link hover. Until now that slot held LIME. It now holds
-   the actual brand red, so the whole site re-brands from the token layer
-   without touching a class name.
+   The accent slot is still Tailwind's red-* scale, which every CTA,
+   active pill and link hover already uses, so the brand re-points from
+   the token layer without touching a class name.
 
    Palette
-     ground    #090A10   near-black
-     panels    #0F1119   sunk / alternating sections
-     surfaces  #171A24   charcoal cards
-     lines     #242938 hairline - #343A4A raised
-     ink       #F7F7FA headings - #BCC1CF secondary - #9AA0B2 muted
-               - #7E8599 captions (4.6:1 on ground)
-     BRAND RED red-*  #FF2942 is the brand tone, used for text, icons and
-               borders ON DARK (5.1:1 on ground). Button FILLS step darker
-               (#D61133 / #B60D2A / #94081F) so white button text clears
-               4.5:1 - a fill of #FF2942 with white text would not.
-     SAVINGS   emerald-* #B7FF36 neon lime, RESERVED for a genuine,
-               evidenced below-market figure. Dark text on it (15.9:1).
-               Nothing else in the UI may use this family.
-     auction   amber-* #F2B84B - a bid, never a saving
-     danger    #FF6B6B - errors only
+     ground    #F7F7FA   page
+     surfaces  #FFFFFF   cards, panels
+     lines     #E6E8EF hairline - #D7DAE3 raised
+     ink       #090A10 headings - #3F4657 body - #5B6376 muted
+               - #6B7280 captions (4.8:1 on ground)
+     BRAND RED red-*  #FF2942 is the brand tone. It is a FILL and
+               large-text tone only: #FF2942 under white text is 3.6:1,
+               so button fills step darker (#D61133 = 6.4:1 white-on-red)
+               exactly as they did on dark. Red as small TEXT on white
+               uses 600/700, never 500.
+     SAVINGS   emerald-* a real green, RESERVED for a genuine, evidenced
+               below-market figure. #047857 carries white text at 5.6:1
+               and reads 5.6:1 as text on white. Nothing else in the UI
+               may use this family. (The previous neon lime #B7FF36 was
+               chosen for a near-black ground and is illegible on white -
+               it could not survive this inversion.)
+     auction   amber-* #B45309 text / #F59E0B fill - a bid, never a saving
+     danger    #DC2626 - errors only
    Type        Sora (display) - Inter Tight (UI) - JetBrains Mono (.tnum)
    ===================================================================== */
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  color-scheme: dark;
-  --background: #090A10;
-  --foreground: #F7F7FA;
-  --sunk: #0F1119; /* tinted ground for alternating sections */
-  --surface: #171A24; /* charcoal card */
-  --hairline: #242938;
+  color-scheme: light;
+  --background: #F7F7FA;
+  --foreground: #090A10;
+  --sunk: #FFFFFF; /* raised panel on the tinted ground */
+  --surface: #FFFFFF; /* card */
+  --hairline: #E6E8EF;
 }
 
 @theme inline {
@@ -54,20 +59,25 @@
 }
 
 @theme {
-  /* Blue-black neutrals (see the header comment). Small secondary text
-     has a separate contrast correction below. */
-  --color-zinc-50: #F7F7FA;
-  --color-zinc-100: #EAECF2;
-  --color-zinc-200: #D7DAE3;
-  --color-zinc-300: #BCC1CF;
-  --color-zinc-400: #9AA0B2;
-  --color-zinc-500: #7E8599;
-  --color-zinc-600: #343A4A;
-  --color-zinc-700: #242938;
-  --color-zinc-800: #171A24;
-  --color-zinc-900: #0F1119;
+  /* Blue-tinted neutrals, running LIGHT -> DARK in the conventional
+     direction. This is the inversion: the components' base utilities
+     (text-zinc-900 for a heading, bg-zinc-50 for a tint, border-zinc-200
+     for a hairline) mean what they normally mean again. The hue bias is
+     kept so the greys sit with the brand red rather than looking washed.
+     500 and 600 are the two secondary-text tones and both clear 4.5:1 on
+     the #F7F7FA ground, so no contrast-correction override is needed. */
+  --color-zinc-50: #F7F8FA;
+  --color-zinc-100: #EEF0F4;
+  --color-zinc-200: #E2E5EC; /* hairline / card border */
+  --color-zinc-300: #CBD0DB;
+  --color-zinc-400: #9AA1B2;
+  --color-zinc-500: #6B7280; /* 4.8:1 on ground - captions */
+  --color-zinc-600: #4B5364; /* 7.4:1 - secondary body */
+  --color-zinc-700: #3F4657; /* 8.8:1 - body */
+  --color-zinc-800: #2A3040;
+  --color-zinc-900: #171C28;
   --color-zinc-950: #090A10;
-  --color-white: #F7F7FA;
+  --color-white: #FFFFFF;
   --color-black: #090A10;
 
   /* The accent slot: BRAND RED. 400/500 are the bright brand tone, for
@@ -86,37 +96,40 @@
   --color-red-900: rgb(255 41 66 / 0.28);
   --color-red-950: rgb(255 41 66 / 0.08);
 
-  /* SAVINGS ONLY: neon lime. Reserved for an evidenced below-market
-     figure - the badge fill and the savings line beside it. Dark text on
-     the fill reads 15.9:1. Nothing else in the UI may use this family, so
-     lime on the page always means "this is genuinely below market". */
-  --color-emerald-50: rgb(183 255 54 / 0.10);
-  --color-emerald-100: rgb(183 255 54 / 0.16);
-  /* 400/500 are the TEXT tones - a savings line reads as data beside the
-     badge, not as a second badge. 600/700 are the badge fills. */
-  --color-emerald-400: #A3E62E;
-  --color-emerald-500: #98D827;
-  --color-emerald-600: #B7FF36;
-  --color-emerald-700: #A8F029;
-  --color-emerald-800: rgb(183 255 54 / 0.32);
-  --color-emerald-900: rgb(183 255 54 / 0.28);
-  --color-emerald-950: rgb(183 255 54 / 0.08);
+  /* SAVINGS ONLY: a real green. Reserved for an evidenced below-market
+     figure - the badge fill and the savings line beside it. Nothing else
+     in the UI may use this family, so green on the page always means
+     "this is genuinely below market".
+     600 is the badge FILL: white text on #047857 is 5.6:1.
+     700 is the TEXT tone on white: #047857 reads 5.6:1.
+     Both are the same value deliberately - one accessible green, used as
+     ink or as fill, rather than two that drift apart. */
+  --color-emerald-50: #ECFDF5;
+  --color-emerald-100: #D1FAE5;
+  --color-emerald-400: #10B981;
+  --color-emerald-500: #059669;
+  --color-emerald-600: #047857;
+  --color-emerald-700: #047857;
+  --color-emerald-800: #065F46;
+  --color-emerald-900: #064E3B;
+  --color-emerald-950: #ECFDF5;
 
-  /* Auctions and freshness: amber, readable on the ground. */
-  --color-amber-400: #F7C766;
-  --color-amber-500: #F2B84B;
-  --color-amber-600: #E0A43C;
-  --color-amber-700: #F2B84B;
-  --color-amber-50: rgb(242 184 75 / 0.12);
-  --color-amber-950: rgb(242 184 75 / 0.1);
-  --color-live: #F2B84B;
+  /* Auctions and freshness: amber. On white the TEXT tone must be dark
+     (#B45309 = 4.6:1); the bright tone is a fill/icon only. */
+  --color-amber-400: #F59E0B;
+  --color-amber-500: #D97706;
+  --color-amber-600: #B45309;
+  --color-amber-700: #B45309;
+  --color-amber-50: #FFFBEB;
+  --color-amber-950: #FFFBEB;
+  --color-live: #047857;
 
   /* Errors only. */
-  --color-danger: #FF6B6B;
+  --color-danger: #DC2626;
 
   --radius-card: 0.75rem;
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
-  --shadow-card-hover: 0 12px 32px rgb(0 0 0 / 0.35);
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.05), 0 1px 3px rgb(16 24 40 / 0.06);
+  --shadow-card-hover: 0 12px 28px rgb(16 24 40 / 0.10), 0 2px 6px rgb(16 24 40 / 0.06);
 }
 
 body {
@@ -140,20 +153,19 @@ h1, h2 {
   letter-spacing: -0.01em;
 }
 
-/* Text on a LIME (savings) fill is the ground colour - 15.9:1. Unlayered
-   so it beats the utilities layer, whatever text-* utility the badge
-   carries. Red fills are NOT in this list any more: a red button takes
-   white text (the CTA class already says text-white, and the 600/700/800
-   fills were chosen so that clears 4.5:1). */
+/* Text on a GREEN (savings) fill is white - 5.6:1. Unlayered so it beats
+   the utilities layer, whatever text-* utility the badge carries.
+   INVERTED at the light re-theme: on the old near-black ground the
+   savings fill was neon lime and took the ground colour as ink. On white
+   the fill is a dark green and takes white. A badge that kept the old
+   rule would have printed #090A10 on #047857 - 2.2:1, unreadable. */
 .bg-emerald-500, .bg-emerald-600, .bg-emerald-700 {
-  color: #090A10;
+  color: #FFFFFF;
 }
-/* Filled dark buttons that hover to the accent (nav / grid CTAs): the
-   accent is red now, so the label must flip to white on hover, not to
-   the ground colour. */
-.dark\:bg-zinc-50.dark\:hover\:bg-red-600:hover,
+/* Buttons that hover to the accent (nav / grid CTAs) keep a white label
+   on the red fill. */
 .hover\:bg-red-600:hover, .hover\:bg-red-700:hover, .active\:bg-red-800:active {
-  color: #F7F7FA;
+  color: #FFFFFF;
 }
 
 /* Deal cards: a restrained lift on pointer hover, the badge with it. */
@@ -175,18 +187,13 @@ h1, h2 {
   color: var(--color-zinc-950);
 }
 
-/* Secondary text must remain readable on the tinted surfaces: zinc-500
-   as a text colour lifts to zinc-400 (7.6:1). Only text utilities change;
-   borders and surface tokens keep their palette. Print rules independent. */
-@media screen {
-  .text-zinc-500:not([class*="dark:text-"]),
-  .dark\:text-zinc-500 { color: var(--color-zinc-400); }
-  .text-zinc-600:not([class*="dark:text-"]) { color: var(--color-zinc-300); }
-  .text-zinc-700:not([class*="dark:text-"]) { color: var(--color-zinc-200); }
-  .text-zinc-800:not([class*="dark:text-"]),
-  .text-zinc-900:not([class*="dark:text-"]),
-  .text-black:not([class*="dark:text-"]) { color: var(--color-zinc-50); }
-}
+/* The dark theme needed a contrast correction here that LIFTED every
+   dark text utility to a light one (text-zinc-900 -> zinc-50). On white
+   that rule is exactly backwards - it would paint every heading and body
+   line near-white on a near-white ground and blank the site. It is
+   deleted rather than inverted: the light ramp above is already ordered
+   conventionally, so text-zinc-500 (4.8:1), -600 (7.4:1), -700 (8.8:1)
+   and -900 all clear AA on #F7F7FA with no override at all. */
 
 /* Reading links remain distinguishable without colour or hover. */
 p a {

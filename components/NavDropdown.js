@@ -20,7 +20,8 @@ import { useEffect, useId, useRef, useState } from "react";
 // `analyticsClick` / `analyticsProps` is emitted here exactly as the
 // inline and mobile renderers emit it, so a destination is measurable
 // wherever it is shown. Filter-style hrefs ("?") are nofollow'd.
-export default function NavDropdown({ label, items }) {
+export default function NavDropdown({ label, items, href = null }) {
+  const chevronOnly = Boolean(href);
   const [open, setOpen] = useState(false);
   const pinnedRef = useRef(false);
   const closeTimer = useRef(null);
@@ -81,28 +82,60 @@ export default function NavDropdown({ label, items }) {
         }
       }}
     >
-      <button
-        ref={triggerRef}
-        type="button"
-        aria-expanded={open}
-        aria-controls={id}
-        onClick={toggle}
-        className="flex min-h-11 items-center gap-1 rounded-lg px-3 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-red-500"
-      >
-        {label}
-        <svg
-          aria-hidden
-          viewBox="0 0 12 12"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`}
+      {/* `href` makes the label itself a destination (the flat header rail:
+          "Deals" navigates to /deals) with the submenu on a separate
+          chevron control. Without it the label IS the menu trigger, which
+          is how the grouped header used it. Two elements rather than one
+          because a control cannot honestly be both a link and a
+          disclosure button - a keyboard user needs to be able to reach
+          the section without opening a menu, and to open the menu without
+          leaving the page. */}
+      {chevronOnly ? (
+        <span className="flex items-stretch">
+          <a
+            href={href}
+            className="flex min-h-11 items-center rounded-l-lg pl-3 pr-1.5 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-red-500"
+          >
+            {label}
+          </a>
+          <button
+            ref={triggerRef}
+            type="button"
+            aria-expanded={open}
+            aria-controls={id}
+            aria-label={`${label} menu`}
+            onClick={toggle}
+            className="flex min-h-11 items-center rounded-r-lg pl-0.5 pr-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-red-500"
+          >
+            <svg aria-hidden viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`}>
+              <path d="M3 4.5 6 7.5 9 4.5" />
+            </svg>
+          </button>
+        </span>
+      ) : (
+        <button
+          ref={triggerRef}
+          type="button"
+          aria-expanded={open}
+          aria-controls={id}
+          onClick={toggle}
+          className="flex min-h-11 items-center gap-1 rounded-lg px-3 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-red-500"
         >
-          <path d="M3 4.5 6 7.5 9 4.5" />
-        </svg>
-      </button>
+          {label}
+          <svg
+            aria-hidden
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`}
+          >
+            <path d="M3 4.5 6 7.5 9 4.5" />
+          </svg>
+        </button>
+      )}
 
       {/* Always rendered so the links are in the server HTML (crawlable);
           `hidden` (display:none) when closed also drops them from tab
