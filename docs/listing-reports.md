@@ -89,3 +89,62 @@ candidate rule for the owner to consider when screening changes are
 unheld: in that band, require either a returns policy or a seller
 feedback count above a floor before a listing is shown, otherwise hold it
 as `authenticity:visual_unverified` pending review. Not implemented here.
+
+
+### What the candidate rules would actually cost - measured 2026-09-21
+
+The rule changes stayed held because nobody had the one number the
+decision turns on: how many GOOD listings each would withhold.
+`node scripts/seo/screeningRuleImpact.mjs` answers that. It is READ-ONLY:
+no screening, no eBay call, no write to `disqualified_reason`.
+
+It uses the site's own `isDisplayableDeal` gate, not an approximation.
+That matters - 24,374 rows are "not disqualified", but only **1,342 are
+actually displayable** (the site's own integrity page reported 1,385 a
+few hours earlier). Measuring against the larger number overstates the
+shown set roughly seventeenfold and made rule A look catastrophic when
+it is not.
+
+Premium high-risk band (market >= $100 USD and discount >= 40 %):
+**91 of 1,342 displayable listings, 6.8 %.**
+
+| Candidate | Withholds, in band | Share of band | Share of all displayed |
+|---|---|---|---|
+| A - no trust signals at all (feedback null) | 19 | 20.9 % | **1.4 %** |
+| B - feedback < 50 and returns refused | 13 | 14.3 % | 1.0 % |
+| B - feedback < 100 and returns refused | 16 | 17.6 % | 1.2 % |
+| B - feedback < 200 and returns refused | 21 | 23.1 % | **1.6 %** |
+| B - feedback < 500 and returns refused | 25 | 27.5 % | 1.9 % |
+| C - title carries "(see description)" | 0 | 0 % | 0 % |
+| **A or B (< 200) combined** | **40** | **44.0 %** | **3.0 %** |
+
+Against the five held rows (three reported listings; 40200 carries
+sibling AU and CA rows for the same eBay listing):
+
+| Row | In band | A catches | B (<200) catches | C catches |
+|---|---|---|---|---|
+| 40200 / 39415 / 40885 | yes | no | **yes** | no |
+| 41196 | yes | **yes** | no | no |
+| 41914 | yes | no | **yes** | **yes** |
+
+A and B are disjoint by construction - A needs a null feedback score, B
+needs a non-null one - so the combination is the sum, and **A or B
+covers all three reported listings at a cost of 3.0 % of displayed
+inventory.**
+
+Three things this changes, none of them applied:
+
+1. **The recorded observation "trust signals are present and unused" is
+   wrong as a general statement.** Among displayable band rows, 19 of 91
+   (21 %) have no feedback score at all. They are usually present, not
+   always, and a rule has to say what it does when they are missing.
+2. **Rule C costs nothing today and catches nothing today.** No
+   displayable listing currently carries "(see description)"; 41914 did,
+   and is held. It is worth adding as a combined condition precisely
+   because it is rare - but it can never gate on its own, and on this
+   evidence it should not be counted on to catch anything by itself.
+3. **The cheapest defensible option is B alone at feedback < 200**: 1.6 %
+   of displayed inventory, and it catches two of the three reported
+   listings. Adding A covers the third and doubles the cost to 3.0 %.
+
+Still held. This is the evidence for the decision, not the decision.
