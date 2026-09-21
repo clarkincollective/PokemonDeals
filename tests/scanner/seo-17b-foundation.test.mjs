@@ -188,7 +188,12 @@ test("16. social links come only from the verified profile list (Instagram + X);
   const footer = read("components/SiteFooter.js");
   assert.match(footer, /SOCIAL_PROFILES\.map\(/);
   assert.match(footer, /rel="me noopener noreferrer"/);
-  assert.match(footer, /aria-label=\{`Pokemon Deal Finder on \$\{s\.label\} \(opens in a new tab\)`\}/);
+  // 2026-09-21: the name was "Pokemon Deal Finder on ${s.label} (opens in
+  // a new tab)", which failed WCAG 2.5.3 Label in Name - the visible text
+  // is "<platform> @<handle>" and the name did not contain it. It now
+  // opens with the visible text. Both the new-tab warning and the site
+  // name are still required here, so this stays as strong as it was.
+  assert.match(footer, /aria-label=\{`\$\{s\.label\} @\$\{s\.handle\} - Pokemon Deal Finder \(opens in a new tab\)`\}/);
   for (const f of ["components/SiteFooter.js", "app/layout.js", "lib/socialProfiles.js"]) {
     const body = read(f).replace(/\/\/[^\n]*/g, "");
     assert.ok(!/tiktok\.com|youtube\.com|youtu\.be/i.test(body), `${f} carries an unverified TikTok/YouTube URL`);

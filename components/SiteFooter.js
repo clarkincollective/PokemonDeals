@@ -120,7 +120,12 @@ export default function SiteFooter({ note }) {
                     href={s.url}
                     target="_blank"
                     rel="me noopener noreferrer"
-                    aria-label={`Pokemon Deal Finder on ${s.label} (opens in a new tab)`}
+                    // WCAG 2.5.3 Label in Name: the visible text is
+                    // "Instagram @pokemondealfinder", so the accessible
+                    // name has to open with exactly that rather than with
+                    // the site name - otherwise a voice-control user
+                    // saying what they can see does not match anything.
+                    aria-label={`${s.label} @${s.handle} - Pokemon Deal Finder (opens in a new tab)`}
                     data-analytics-click="social_follow_clicked"
                     data-analytics-props={JSON.stringify({ platform: s.platform, placement: "footer", page_type: "auto" })}
                     className="inline-flex w-fit items-center gap-1 text-zinc-600 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500"

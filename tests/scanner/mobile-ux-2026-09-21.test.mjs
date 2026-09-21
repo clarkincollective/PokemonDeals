@@ -102,6 +102,17 @@ test("footer navigation links meet the 24px minimum tap target", () => {
   assert.match(browse, /inline-flex min-h-7 items-center/, "catalogue row links");
 });
 
+test("footer social links are named by the text they show", () => {
+  const src = readFileSync(join(root, "components/SiteFooter.js"), "utf8");
+  // Visible text is "<platform> @<handle>"; the accessible name must open
+  // with exactly that, so voice control matches what a user can read.
+  assert.match(
+    src,
+    /aria-label=\{`\$\{s\.label\} @\$\{s\.handle\}/,
+    "social link name must start with the visible platform and handle"
+  );
+});
+
 test("the viewport stays zoomable", () => {
   // Blocking pinch-zoom is an accessibility failure; this is currently
   // correct and is pinned so it stays that way.
