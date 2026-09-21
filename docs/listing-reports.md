@@ -319,14 +319,52 @@ the matched set is not that family, the savings claim is withdrawn. The
 listing still shows, as a plain listing that states why it carries no
 claim - displayable count unchanged at 1,314.
 
-Decided from the title alone, with no catalogue lookup, because
-`lib/dealQuality.js` is pure, client-safe and runs on every render. The
-cost: a genuine vintage card with a reprint marker stuffed into its title
-for search traffic also loses its badge - 3 of the 8 in the 30th family
-on the day it shipped, including the owner's own example (deal 41596,
-Lugia 9/111 Neo Genesis; the 30th Lugias are 121/128 and 149/147, so that
-one is vintage with "30th!!!" added). Losing a badge on a real deal is a
-smaller harm than advertising a discount that may be fiction.
+**Refined the same day, because the first version was too blunt.** It
+withdrew the claim from any listing whose title carried a reprint marker.
+Sellers stuff "30th Anniversary" into listings for genuine vintage cards
+to catch the hype - 3 of the first 8 were exactly that, including the
+owner's own example (deal 41596, Neo Genesis Lugia 9/111; the 30th Lugias
+are 121/128 and 149/147).
+
+`lib/reprintPrintings.js`, generated from `card_catalog` by
+`scripts/seo/generateReprintPrintings.mjs`, records which cards each
+family prints and at which number: 195 cards over 191 numbers for the
+30th, 64 over 51 for Celebrations. The claim is withdrawn only when the
+family actually prints **this card at this number**. Two indexing details
+that each caused a wrong answer first time:
+
+- **Number alone is not enough.** The 30th set has a card at 18/132 and
+  so does Gym Heroes.
+- **Exact name equality is too strict.** A deal row says "Metagross"
+  where the catalogue says "Metagross Delta Species", so the index maps
+  number -> names and compares by prefix in either direction.
+
+Live effect: 9 ambiguous listings carry no claim; 2 genuine vintage
+listings keep theirs, including deal 41596 at its correct $518.99 Neo
+Genesis reference.
+
+### Why the deals were not simply re-pointed to the reprint's price
+
+The obvious next step is to re-match each ambiguous listing to the
+reprint card and show a real discount against that. Measured with
+`scripts/seo/reprintRematchAudit.mjs`, it does not give that:
+
+**Of 19 re-matchable active listings, 18 stop being deals at the correct
+reference.** A Metagross asking $21.23 was showing 74 % off a $107.27
+reference; the reprint's reference is $15.50, so the listing is *above*
+market. Deal 41861's Mewtwo EX asks $21.90 against a $12.30 reprint.
+Exactly one survives: deal 41520, $38.19 against $38.24.
+
+They were only ever deals because of the mispricing. And re-matching
+would assert the listing IS the reprint, which we cannot prove from a
+title - the same unprovability, pointed the other way. Withdrawing the
+claim leaves the listing visible and asserts nothing we cannot stand
+behind.
+
+**Historical scope** (`--all`, 32,002 rows): 198 listings have ever
+carried this ambiguity - 139 re-matchable to a priced reprint card, 56
+keyword stuffing on cards the reprint sets do not contain, 3 pointing at
+a reprint card we hold no price for.
 
 **Adding a family** requires the catalogue rows that prove the number is
 shared. The rule rests on that, not on a set merely being a reprint.
