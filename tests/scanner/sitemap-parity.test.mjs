@@ -124,6 +124,23 @@ const CASES = [
     { discount_pct: 0.78, seller_feedback_score: 10, image_count: 1, returns_accepted: false },
     false,
   ],
+  // 2026-09-21 screening rule B. It reads seller_feedback_score and
+  // returns_accepted, both already in the sitemap cols for the older
+  // high-risk scorer - but that is a coincidence of history, so pin it
+  // here too. Below the 0.55 floor the old scorer needs, so this case
+  // isolates the new rule rather than re-testing the scorer.
+  [
+    "premium band, returns refused, low-but-present feedback (rule B)",
+    { market_price: 764.12, discount_pct: 0.5, seller_feedback_score: 33, returns_accepted: false, image_count: 6 },
+    false,
+  ],
+  // The mirror: identical row, established seller. Proves the rule is not
+  // just hiding everything in the band, in the projected row as well.
+  [
+    "premium band, established seller, still displayable",
+    { market_price: 764.12, discount_pct: 0.5, seller_feedback_score: 5000, returns_accepted: true, image_count: 6 },
+    true,
+  ],
 ];
 
 test("deals sitemap column subset preserves every isDisplayableDeal outcome (page/sitemap parity)", () => {

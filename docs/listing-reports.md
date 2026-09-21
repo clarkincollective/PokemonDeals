@@ -252,3 +252,30 @@ taken. It is recorded because it is the same shape as the three reported
 listings, found in our own stored data rather than reported, and because
 it is the evidence that the prompt fix is worth doing when it can be
 validated.
+
+### Page/sitemap parity for rule B - checked 2026-09-21
+
+`lib/sitemap.js` warns that the deals sitemap must select **every column
+the display gate reads**, or a row that renders `noindex` on its own page
+can still be advertised in the sitemap. Rule B reads
+`seller_feedback_score` and `returns_accepted`, so it could have
+introduced exactly that split.
+
+It did not: both columns were already selected for the older high-risk
+scorer. That is a coincidence of history rather than a guarantee, so
+`tests/scanner/sitemap-parity.test.mjs` now carries two rule-B cases - a
+premium-band row with a returns refusal and low-but-present feedback
+(expected hidden), and the same row with an established seller (expected
+displayable). Both are asserted on the full row *and* on the row
+projected to sitemap columns only, so dropping either column from the
+select fails the test. The deliberately chosen 50 % discount sits below
+the 0.55 floor the old scorer needs, so the case isolates the new rule
+instead of re-testing the old one.
+
+**On the sitemap URL count**, which looked alarming at first: the deals
+sitemap read 1,395 before the change, 1,302 shortly after, and 1,277
+twenty minutes later **with no code change in between**. Deal rows are
+ephemeral and the segment caches for 300 s, so churn dominates. The gate
+can remove at most the 22 rows it hides, and did; the rest is ordinary
+listing turnover. Do not read a falling deals-sitemap count as a
+regression without comparing two readings taken minutes apart.
