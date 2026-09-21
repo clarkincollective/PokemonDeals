@@ -706,6 +706,40 @@ multi-target shape, which is why it is written down).
 - CLS was not addressed by this batch and was fixed separately the same day - see "CLS: cause found and fixed" above (`817a2ad`). Note that this batch appeared to make CLS worse (0.43 to 0.80 desktop) purely because the faster page put both existing shifts inside one scoring window; the shifts themselves were unchanged and `unsized-images` stayed perfect throughout.
 - Production verified 2026-09-21: the responsive set is served on the homepage grid and the deal detail hero. Desktop page weight 12,718 to 2,103 KiB, mobile 8,750 to 1,136 KiB; the two priority deal photos now transfer at 23 KB and 20 KB against roughly 800 KB each. STATUS: IMPROVED.
 
+## Production error review - 2026-09-21 (after five deploys)
+
+Vercel runtime errors, 24-hour window. Two groups, neither from the
+day's changes, and neither needing code.
+
+**1. PokemonPriceTracker 429, three occurrences, `/deals/[id]`.** Not a
+render-time provider call in the sense the project rule forbids: it goes
+through `withPptConsumer` for quota accounting and sits behind
+`unstable_cache` at 300 s, keyed on card identity rather than deal id, so
+every listing of the same card shares one entry. On failure it is caught
+and returns null and the page renders without the analysis panel. First
+seen 2026-08-27, so it long predates this work. Left alone.
+
+**2. `card_reference_lastmod` statement timeout, one occurrence,
+`/sitemaps/[segment]`, 2026-09-20 18:57 UTC.** The keyset-paginated RPC
+behind sitemap `lastmod` hit a Postgres statement timeout during a cache
+revalidation.
+
+Checked before deciding: all nine sitemaps serve 200 in 0.32-1.24 s,
+8,012 URLs in total (pages 67, sets 210, pokemon 919, cards-high 644,
+cards-mid 1,486, cards-low 3,174, cards-bulk 51, deals 1,395,
+sealed-deals 66). The card families total about 5,355 URLs, so at
+`LASTMOD_PAGE_CARDS` 2,500 the loop needs roughly three of its forty
+pages - it was nowhere near exhausting its budget. This was a slow
+statement under load, not a pagination problem, so shrinking the page
+size would be aimed at the wrong thing.
+
+**No change made, deliberately.** `lib/sitemap.js` already handles this
+correctly: it *throws* rather than returning or caching a partial map,
+and `unstable_cache` never stores a thrown result, so the next request
+retries while the previous good sitemap is served stale in the meantime.
+One self-healing timeout in 25 days against a working, fast data path is
+not a reason to touch it. Revisit if it clusters.
+
 ## Measurement calendar
 - **2026-10-04**: GSC Core Web Vitals - check whether field data has appeared now that lab CLS is 0.009/0.001 and mobile weight is down 87 %; it read "No data" on 21 Sep.
 - **2026-10-04**: position for "pokemon card list" and "pokemon set list" (batch 10).
