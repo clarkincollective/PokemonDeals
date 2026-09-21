@@ -4,7 +4,10 @@
 // pins changed, no route, schema or behaviour changed.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, resolve, relative, sep } from "node:path";
+
+const root = resolve(import.meta.dirname, "../..");
 
 const read = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), "utf8");
 const css = read("app/globals.css");
@@ -85,4 +88,76 @@ test("motion: card lift is pointer-only and the global reduced-motion rule still
 
 test("filter pills: the active state is the accent tint, not an inverted fill", () => {
   assert.match(read("components/FilterBar.js"), /\? "border-red-300 bg-red-50 text-red-700 dark:border-red-300 dark:bg-red-50 dark:text-red-700"/);
+});
+
+// The lime family means ONE thing: an evidenced below-market figure. A
+// success toast, a listing COUNT, a trend line or a guide diagram wearing
+// it quietly destroys that meaning, and four of them did before the
+// 2026-09-22 re-brand.
+//
+// An allowlist rather than a blanket ban, because savings figures legitimately
+// appear on many surfaces. Every entry below is a place that shows a
+// saving or a below-market indicator. A NEW file using lime fails this
+// test until someone justifies adding it here.
+const LIME_ALLOWED = new Set([
+  "components/SavingsBadge.js",        // the badge itself
+  "components/DealCard.js",            // the savings line under the price
+  "components/SealedDealCard.js",      // same, sealed product
+  "components/CardPriceIntelligence.js", // below-market panel on a card hub
+  "components/CatalogueBrowser.js",    // below-market markers in the grid
+  "components/SpeciesCard.js",         // per-print savings
+  "components/SpeciesCardList.js",
+  "components/SealedProductBrowser.js",
+  "components/VariantPriceGrid.js",
+  "components/HeroSearch.js",          // the "deal" flag on a search result
+  "app/deals/[id]/page.js",            // the saving on a deal page
+  "app/sealed-deals/[id]/page.js",
+  "app/sealed-deals/page.js",
+  "app/search/SearchClient.js",        // below-market indicator in results
+]);
+
+test("lime is RESERVED for savings - a new surface may not borrow it", () => {
+  const offenders = [];
+  const walk = (dir) => {
+    for (const name of readdirSync(dir)) {
+      const p = join(dir, name);
+      if (statSync(p).isDirectory()) walk(p);
+      else if (/\.jsx?$/.test(name)) {
+        const rel = relative(root, p).split(sep).join("/");
+        if (LIME_ALLOWED.has(rel)) continue;
+        const src = readFileSync(p, "utf8")
+          .replace(new RegExp("\\/\\/[^\\n]*", "g"), "")
+          .replace(new RegExp("\\/\\*[\\s\\S]*?\\*\\/", "g"), "");
+        const LIME = new RegExp("\\b(?:text|bg|border|fill|stroke|from|to|via)-emerald-\\d{2,3}\\b", "g");
+        for (const m of src.matchAll(LIME)) {
+          offenders.push(`${rel}: ${m[0]}`);
+        }
+      }
+    }
+  };
+  for (const d of ["components", "app"]) walk(join(root, d));
+  assert.deepEqual(
+    offenders,
+    [],
+    "lime means below market and nothing else. These borrowed it: " + offenders.join(", ")
+  );
+});
+
+test("the things that borrowed lime before the re-brand no longer do", () => {
+  // Named explicitly so a revert is loud rather than silent.
+  const cases = [
+    ["components/MiniSparkline.js", "a price trend is not a saving"],
+    ["components/ShareButton.js", "a copied-link toast is not a saving"],
+    ["components/EmailCapture.js", "a signup confirmation is not a saving"],
+    ["components/PriceAlertForm.js", "an alert confirmation is not a saving"],
+    ["components/PokemonFilterList.js", "a listing COUNT is not a saving"],
+    ["components/SetsFilterList.js", "a listing COUNT is not a saving"],
+    ["components/guides/ConditionScale.js", "a condition diagram is not a saving"],
+    ["components/guides/EraTimeline.js", "a timeline band is not a saving"],
+  ];
+  for (const [file, why] of cases) {
+    assert.doesNotMatch(read(file), /-emerald-\d/, `${file}: ${why}`);
+  }
+  // And the sparkline must not use the BRAND colour for a down trend.
+  assert.doesNotMatch(read("components/MiniSparkline.js"), /text-red-\d/, "a falling price is not branding");
 });

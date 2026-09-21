@@ -22,7 +22,7 @@ const BANDS = [
     title: "Modern",
     years: "2017–now",
     notes: ["alt-art chase cards", "sealed still printing"],
-    cls: "fill-emerald-500/15",
+    cls: "fill-zinc-400/15",
   },
 ];
 

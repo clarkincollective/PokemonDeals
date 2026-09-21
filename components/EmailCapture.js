@@ -156,7 +156,7 @@ export default function EmailCapture({ placement = "homepage", pageType, heading
         </p>
 
         {status === "done" ? (
-          <p className="mt-4 text-sm font-medium text-emerald-400" role="status">
+          <p className="mt-4 text-sm font-medium text-zinc-100" role="status">
             {message}
           </p>
         ) : (

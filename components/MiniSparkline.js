@@ -43,7 +43,11 @@ export default function MiniSparkline({ points, className = "" }) {
     <svg
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       preserveAspectRatio="none"
-      className={`h-8 w-full ${trendingUp ? "text-emerald-600 dark:text-emerald-500" : "text-red-500"} ${className}`}
+      // 2026-09-22: neither lime nor red. Lime is reserved for an
+      // evidenced saving and red is the brand, so a price trend may use
+      // neither without saying something it does not mean. The line's
+      // own shape carries the direction; a rise is simply brighter.
+      className={`h-8 w-full ${trendingUp ? "text-zinc-300" : "text-zinc-500"} ${className}`}
     >
       {dashedPath && (
         <path d={dashedPath} data-history="unverified" fill="none" stroke="currentColor" strokeOpacity={0.45} strokeWidth={2} strokeDasharray="3 3" strokeLinecap="round" strokeLinejoin="round" />

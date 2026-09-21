@@ -86,7 +86,7 @@ export default function SetsFilterList({ sets, checklistSlugs = [], filter = tru
                 // SEO-4: the count is every offer we hold for the set, not
                 // only the ones that can evidence a discount - so it says
                 // "listings". See lib/catalogAggregates.js computeAggregates.
-                <span className="shrink-0 rounded-md bg-emerald-700 px-2 py-0.5 text-xs font-semibold text-white">
+                <span className="shrink-0 rounded-md bg-zinc-700 px-2 py-0.5 text-xs font-semibold text-zinc-100">
                   {s.count} {s.count === 1 ? "listing" : "listings"}
                 </span>
               )}

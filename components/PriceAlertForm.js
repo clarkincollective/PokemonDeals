@@ -118,7 +118,7 @@ export default function PriceAlertForm({ cardSlug, cardName, suggestedPrice, kin
   }
 
   if (status === "sent") {
-    return <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">{message}</p>;
+    return <p role="status" className="text-sm text-zinc-100">{message}</p>;
   }
 
   const sym = CCY_SYMBOL[currency] ?? "";

@@ -167,7 +167,7 @@ export default function PokemonFilterList({ groups }) {
                           </span>
                         </span>
                         {s.hasDeal && (
-                        <span className="shrink-0 rounded-md bg-emerald-700 px-1.5 py-0.5 text-xs font-semibold text-white">
+                        <span className="shrink-0 rounded-md bg-zinc-700 px-1.5 py-0.5 text-xs font-semibold text-zinc-100">
                           {s.count}
                         </span>
                       )}

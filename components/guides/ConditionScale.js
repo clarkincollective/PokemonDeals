@@ -2,8 +2,9 @@
 // "how much of Near Mint value it typically holds" (no real numbers -
 // the gap varies by card).
 const TIERS = [
-  { key: "NM", label: "Near Mint", w: 300, cls: "fill-emerald-500/80" },
-  { key: "LP", label: "Lightly Played", w: 232, cls: "fill-emerald-500/55" },
+  // Neutral tones at the top of the scale: lime would read as "saving".
+  { key: "NM", label: "Near Mint", w: 300, cls: "fill-zinc-300/85" },
+  { key: "LP", label: "Lightly Played", w: 232, cls: "fill-zinc-400/70" },
   { key: "MP", label: "Moderately Played", w: 168, cls: "fill-amber-500/60" },
   { key: "HP", label: "Heavily Played", w: 110, cls: "fill-orange-500/60" },
   { key: "DMG", label: "Damaged", w: 64, cls: "fill-red-500/55" },
