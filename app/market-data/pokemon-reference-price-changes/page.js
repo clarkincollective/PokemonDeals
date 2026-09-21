@@ -5,7 +5,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import JsonLd from "@/components/JsonLd";
 import ScrollableTable from "@/components/ScrollableTable";
-import { breadcrumbList, collectionPage, dataset, FIGURES_LICENSE, publisherNode } from "@/lib/jsonLd";
+import { breadcrumbList, collectionPage, dataset, FIGURES_LICENSE, publisherNode, dataDownload } from "@/lib/jsonLd";
 import { organizationSameAs } from "@/lib/socialProfiles";
 import { catalogImageUrl } from "@/lib/cardImage";
 import { STUDY } from "@/lib/studies/referencePriceChange30d";
@@ -20,6 +20,8 @@ export const revalidate = 21600;
 
 const SITE_URL = "https://pokemondealfinder.com";
 const PATH = "/market-data/pokemon-reference-price-changes";
+// The machine-readable copy of the figures below (Dataset.distribution).
+const CSV_PATH = "/market-data/pokemon-reference-price-changes.csv";
 
 const TITLE = "Pokemon Reference-Price Changes: A 30-Day Sample";
 const DESCRIPTION =
@@ -92,6 +94,13 @@ export default function ReferencePriceChangesPage() {
             temporalCoverage: `${s.window.earlyTarget}/${s.window.lateTarget}`,
             variableMeasured: ["raw market reference (USD) at two dates", "30-day change (%)", "share of sampled products that moved (%)"],
             license: FIGURES_LICENSE,
+            // A real file, not an advertised one: CSV_PATH is served from
+            // the same frozen aggregate this page renders.
+            distribution: dataDownload({
+              contentUrl: CSV_PATH,
+              encodingFormat: "text/csv",
+              name: `${TITLE} (CSV)`,
+            }),
           }),
         ]}
       />
@@ -514,6 +523,22 @@ export default function ReferencePriceChangesPage() {
           </p>
           <p className="mt-3 rounded-lg border border-zinc-200 bg-white p-3 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
             {citation}
+          </p>
+          {/* The Dataset schema advertises a distribution; this is the
+              visible link that backs it. Schema must never claim a
+              resource the page does not offer. */}
+          <p className="mt-3 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+            Every figure on this page is also available as a{" "}
+            <a
+              href={CSV_PATH}
+              className="font-semibold text-red-600 hover:underline dark:text-red-500"
+              data-analytics-click="study_csv_downloaded"
+              data-analytics-props={JSON.stringify({ study: s.id, version: s.version })}
+            >
+              CSV file
+            </a>{" "}
+            — the same fixed aggregate, nothing per-listing and nothing about any seller. Free to
+            reuse with attribution (CC BY 4.0).
           </p>
           <p className="mt-2 text-xs text-zinc-400">
             Study version {s.version}. Full site methodology:{" "}
