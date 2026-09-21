@@ -5,7 +5,7 @@ import { catalogImageUrl } from "@/lib/cardImage";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { GUIDES } from "@/lib/guides";
-import { serializeJsonLd } from "@/lib/jsonLd";
+import { serializeJsonLd, collectionPage } from "@/lib/jsonLd";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -101,6 +101,11 @@ export default function GuidesIndexPage() {
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }} />
+      {/* Every other index on the site (deals, cards, sets, pokemon,
+          market-data) types itself as a CollectionPage; these two carried
+          only the ItemList, so the PAGE itself had no type. Accurate -
+          this is a collection of editorial items (2026-09-21 audit). */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(collectionPage({ name: TITLE, description: DESCRIPTION, url: "/guides" })) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(itemListJsonLd) }} />
       <SkipToContent />
       <SiteHeader />
