@@ -229,11 +229,21 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           // (the rank chip, the "Just found" pill) are aria-hidden instead,
           // since rank is conveyed by DOM order and neither is a fact about
           // the listing.
+          // The overlay text is joined by SPACES, not the " - " used around
+          // it: the check wants the element's visible text as one
+          // contiguous run inside the accessible name, and a separator
+          // dropped between "eBay UK" and "−63%" breaks that even though
+          // both strings are present.
           aria-label={[
             cardName,
-            marketInfo ? `eBay ${marketInfo.short}` : null,
-            savingsSupported && !isAuction ? savingsBadgeText(deal.discount_pct) : null,
-            savingsSupported && isAuction ? `Bid ${savingsBadgeText(deal.discount_pct)}` : null,
+            [
+              marketInfo ? `eBay ${marketInfo.short}` : null,
+              savingsSupported
+                ? `${isAuction ? "Bid " : ""}${savingsBadgeText(deal.discount_pct)}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" "),
             "details",
           ]
             .filter(Boolean)

@@ -66,10 +66,14 @@ test("no form control renders under 16px on a phone (iOS zoom trap)", () => {
 
 test("the deal-card image link's accessible name carries its visible text", () => {
   const src = readFileSync(join(root, "components/DealCard.js"), "utf8");
-  const label = src.slice(src.indexOf("aria-label={["), src.indexOf("].filter(Boolean)"));
+  const label = src.slice(src.indexOf("aria-label={["), src.indexOf('"details",'));
   assert.ok(label.includes("cardName"), "the card name");
   assert.match(label, /eBay \$\{marketInfo\.short\}/, "the marketplace, which is visible in the link");
   assert.match(label, /savingsBadgeText\(deal\.discount_pct\)/, "the savings figure, which is visible in the link");
+  // The overlay strings must join with a space so the visible text reads
+  // as one contiguous run inside the accessible name; a separator between
+  // them fails the check even with both strings present.
+  assert.match(label, /\.join\(" "\)/, "overlay text joined by spaces, not a separator");
   // Decorative chrome must be hidden rather than added to the name.
   assert.match(src, /aria-hidden="true"[\s\S]{0,180}\{rank\}/, "the rank chip is decorative");
   assert.match(src, /aria-hidden="true"[\s\S]{0,180}Just found/, "the 'Just found' pill is decorative");
