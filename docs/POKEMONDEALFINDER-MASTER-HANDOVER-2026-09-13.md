@@ -80,6 +80,88 @@ search placeholder shortened to "Search cards…" because the long form
 truncated mid-word at 412px. The accessible name is unchanged and still
 carries name, set and collector number.
 
+### Data preservation ahead of a possible provider pause - 22 September 2026
+
+**The API is still active. Nothing here pauses it, changes billing, or
+turns on a saved-data mode.** No provider request was made during this
+work; every finding came from reading our own repository and our own
+database. No customer-facing change was made.
+
+Seven points.
+
+**1. What we hold.** Fourteen tables, 2,029,866 rows, backed up and
+verified. The irreplaceable part is `price_history`: 1,845,238 rows,
+27 Jan 2025 → 21 Sep 2026. Alongside it, `card_catalog` (29,503 rows;
+83.6 % priced, and 98.8 % of those labelled with both condition and
+printing, which is what makes a stored figure usable as a reference) and
+`deals` (32,476 rows carrying their own stored reference provenance).
+
+**2. Where it is.** `.local/backups/2026-09-21T20-56-14-157Z/` — one
+gzipped NDJSON file per table plus `manifest.json` with row counts,
+column lists and SHA-256 digests. Git-ignored, outside `public/`, in no
+storage bucket, and containing no credential. Cutoff recorded in the
+manifest. Reproduce with `node scripts/preservation/backup.mjs --write`.
+
+**3. It verifies.** `--verify` re-reads every file, re-parses every line
+and compares digest, row count and column set: **14/14 tables pass.**
+`scripts/preservation/restoreDrill.mjs` goes further and runs the real
+code over restored rows — `isDisplayableDeal`, `savingsClaimTrusted`,
+`storedReferenceEvidence`, and the full merge/coverage/trend/signal
+pipeline — with no database connection and no provider client. All
+checks pass. Limitations are stated in the drill's own output: it
+exercises shape and logic, not a database restore, so constraints,
+indexes, RLS and the `card_reference_lastmod()` function are not covered,
+and rendering is not exercised.
+
+**4. Six tables were nearly missed.** The first pass covered eight.
+Grepping every `.from("…")` rather than trusting that list found six
+more, the important one being `catalog_snapshot`: derived aggregates
+several pages render from, the browse-budget ledger, and the
+`ppt_requests` telemetry that is the only record of what we retrieved and
+when. That telemetry is swept after 35 days — it was going to delete
+itself. `newsletter_subscribers` and `price_alerts` are deliberately
+excluded (email addresses, not pricing data) and the reason is recorded
+in the script so the omission cannot be mistaken for an oversight.
+
+**5. Nothing can be destroyed by a pause, but discovery would stop.**
+Traced call site by call site: `expireCatalogPrices` only invalidates a
+cache tag, there is no delete path in any sync route, and
+`/api/sync-card-catalog` returns at stage `export` *before*
+`snapshotCatalogHistory` — so a dead provider cannot write a day of
+history copied from frozen values. Every render path already swallows a
+provider failure and falls back to stored data. But `loadCardMarketData`
+returns `null` on a failed reference lookup and the scanner then
+publishes nothing, so **with the subscription paused and no code change
+the site would not break, it would slowly empty.** Sourcing the reference
+from `card_catalog` instead would keep discovery alive; that is a pricing
+change, so it is specified in the plan and deliberately **not built**.
+
+**6. The pause plan.** `docs/preservation/ppt-pause-plan-2026-09-22.md`.
+It names the three outbound doors (not two — `downloadPrintingsExport`
+has its own inline `fetch` for the gzipped CSV, the largest request we
+make and the one a naive flag would have left running), the smallest
+reversible saved-data mode, what degrades and what does not, and the
+order to do it in. Merchant Listing schema and sitemap indexability are
+both unaffected: the `Offer` node is entirely eBay-sourced, and the
+sitemap's proof-of-change evidence has no lower bound, so banked price
+changes do not expire. `tests/scanner/pause-safety-2026-09-22.test.mjs`
+pins all of it — that test's door-count assertion is what corrected the
+plan.
+
+**7. One unrelated finding, recorded not acted on.** The customer-facing
+market signal is currently dark across the catalogue. On a broad
+unbiased sample (every card whose id % 97 = 0, full series, 253 cards
+with a usable series) **zero** produced a signal: 219 had no 30-day
+window at all — the median card has only 19 days of history — 33 were
+`provenance-unknown` from backfilled points that carry no
+condition/printing, and 1 was `source-disagreement`. Production behaves
+identically on this data, so the restore is faithful; this is a history
+*coverage* gap, not a backup defect. Worth a look, but it touches price
+presentation and was out of scope here.
+
+Commits: `ef2880c` (plan, tooling, invariant tests), `c7c6ca7` (backup
+completed to 14 tables, verified, restore drill).
+
 ### The immediate sequence
 
 1. Recover the current repository, deployments, worktree ownership, reviews and approvals. Do not reset the dirty main checkout or select a base from this PDF alone.
