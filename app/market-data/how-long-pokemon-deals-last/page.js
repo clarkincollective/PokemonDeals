@@ -4,7 +4,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import JsonLd from "@/components/JsonLd";
 import ScrollableTable from "@/components/ScrollableTable";
-import { breadcrumbList, collectionPage, dataset, FIGURES_LICENSE, publisherNode } from "@/lib/jsonLd";
+import { breadcrumbList, collectionPage, dataset, FIGURES_LICENSE, publisherNode, dataDownload } from "@/lib/jsonLd";
 import { organizationSameAs } from "@/lib/socialProfiles";
 import { LISTING_DISAPPEARANCE as D } from "@/lib/studies/listingDisappearance";
 
@@ -17,6 +17,8 @@ export const revalidate = 21600;
 
 const SITE_URL = "https://pokemondealfinder.com";
 const PATH = "/market-data/how-long-pokemon-deals-last";
+// The machine-readable copy of the figures below (Dataset.distribution).
+const CSV_PATH = "/market-data/how-long-pokemon-deals-last.csv";
 
 const TITLE = "How Long Does a Below-Market Pokemon Listing Last?";
 const DESCRIPTION =
@@ -51,8 +53,8 @@ export default function Page() {
             { name: "How long deals last" },
           ]),
           collectionPage({ name: TITLE, description: DESCRIPTION, url: PATH, dateModified: `${D.window.end}T00:00:00.000Z` }),
-          // A bounded, dated first-party observation set. No distribution
-          // is advertised because no file is published for it yet.
+          // A bounded, dated first-party observation set, with a real
+          // downloadable copy of the same frozen figures.
           dataset({
             name: `${TITLE} (${D.window.start} to ${D.window.end})`,
             description: DESCRIPTION,
@@ -66,6 +68,11 @@ export default function Page() {
               "observed span of re-seen listings (days)",
             ],
             license: FIGURES_LICENSE,
+            distribution: dataDownload({
+              contentUrl: CSV_PATH,
+              encodingFormat: "text/csv",
+              name: `${TITLE} (CSV)`,
+            }),
           }),
         ]}
       />
@@ -194,6 +201,18 @@ export default function Page() {
         </p>
         <p className="mt-3 rounded-lg border border-zinc-200 bg-white p-3 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
           {citation}
+        </p>
+        <p className="mt-3 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+          Every figure on this page, including the exclusion ledger, is also available as a{" "}
+          <a
+            href={CSV_PATH}
+            className="font-semibold text-red-600 hover:underline dark:text-red-500"
+            data-analytics-click="study_csv_downloaded"
+            data-analytics-props={JSON.stringify({ study: D.id, version: D.version })}
+          >
+            CSV file
+          </a>{" "}
+          — aggregates only, nothing per-listing and nothing about any seller.
         </p>
         <p className="mt-2 text-xs text-zinc-400">
           Version {D.version}. How we decide a listing is below market:{" "}
