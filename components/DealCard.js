@@ -219,7 +219,25 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
         <a
           href={dealHref}
           rel={dealRel}
-          aria-label={`${cardName} - details`}
+          // WCAG 2.5.3 "Label in Name", flagged by Lighthouse 2026-09-21
+          // on 14 cards: an aria-label REPLACES the inner content as the
+          // accessible name, so the visible "eBay UK" and "−63%" inside
+          // this link were absent from it - and the sr-only marketplace
+          // span a few lines below never reached assistive tech at all,
+          // contrary to what its comment claimed. The label now carries
+          // both, in the order they are read. Purely decorative overlays
+          // (the rank chip, the "Just found" pill) are aria-hidden instead,
+          // since rank is conveyed by DOM order and neither is a fact about
+          // the listing.
+          aria-label={[
+            cardName,
+            marketInfo ? `eBay ${marketInfo.short}` : null,
+            savingsSupported && !isAuction ? savingsBadgeText(deal.discount_pct) : null,
+            savingsSupported && isAuction ? `Bid ${savingsBadgeText(deal.discount_pct)}` : null,
+            "details",
+          ]
+            .filter(Boolean)
+            .join(" - ")}
           className="relative block aspect-[4/5] w-full bg-zinc-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-red-600 sm:aspect-[6/5] dark:bg-zinc-900"
         >
           <DealImage
@@ -233,7 +251,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
 
           <div className="absolute left-1.5 top-1.5 flex flex-col items-start gap-1 sm:left-2 sm:top-2">
             {rank != null && (
-              <span className="flex h-6 min-w-6 items-center justify-center rounded-md bg-zinc-900/85 px-1.5 text-xs font-bold text-white">
+              <span aria-hidden="true" className="flex h-6 min-w-6 items-center justify-center rounded-md bg-zinc-900/85 px-1.5 text-xs font-bold text-white">
                 {rank}
               </span>
             )}
@@ -253,7 +271,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                 HTML + first paint, the viewer's clock after hydration. */}
             {!isAuction && (
               <WithinWindow date={deal.first_seen_at} withinMs={JUST_FOUND_MS}>
-                <span className="rounded-md bg-live/95 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-zinc-900 shadow-sm">
+                <span aria-hidden="true" className="rounded-md bg-live/95 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-zinc-900 shadow-sm">
                   Just found
                 </span>
               </WithinWindow>

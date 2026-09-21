@@ -182,7 +182,12 @@ export default function EmailCapture({ placement = "homepage", pageType, heading
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@email.com"
               aria-label="Email address"
-              className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-red-500"
+              // text-base on phones, not text-sm: iOS Safari force-zooms
+              // the whole page when a field with a computed font-size
+              // under 16px receives focus, and leaves it zoomed. From `sm`
+              // up the original 14px is kept, so the desktop design is
+              // unchanged. Same reason on every field across the site.
+              className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-base text-white outline-none placeholder:text-zinc-500 focus:border-red-500 sm:text-sm"
             />
             <button
               type="submit"

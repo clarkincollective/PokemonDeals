@@ -285,7 +285,7 @@ export function SearchWithinRow({ params, q, basePath = "/" }) {
             name="q"
             defaultValue={q ?? ""}
             placeholder="Card or set name…"
-            className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
           />
           <button
             type="submit"

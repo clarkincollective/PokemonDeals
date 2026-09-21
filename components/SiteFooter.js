@@ -46,7 +46,10 @@ const LINKS = [
 
 const col = "flex flex-col gap-1.5 text-sm";
 const colTitle = "mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-600 dark:text-zinc-400";
-const link = "w-fit text-zinc-600 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500";
+// Same 24px-minimum tap target as the catalogue row below; these columns
+// sit in a gap-1.5 flex column and had the identical 23px pitch.
+const link =
+  "inline-flex min-h-7 w-fit items-center text-zinc-600 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500";
 
 // `note` is an optional page-specific caveat sentence appended after the
 // standard disclosure - pass the wording that page already used (e.g. the
@@ -68,7 +71,12 @@ export default function SiteFooter({ note }) {
             {/* the always-visible catalogue hub row (see SEO-GSC-2 above) */}
             <nav aria-label="Browse the catalogue" className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] font-medium">
               {BROWSE_LINKS.map((l) => (
-                <Link key={l.href} href={l.href} className="text-zinc-600 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500">
+                // Lighthouse target-size, 2026-09-21: these were 17px tall
+                // with a 6px gap, a 23px pitch - under the 24px minimum, and
+                // the hardest links on the site to hit on a phone. min-h-7
+                // (28px) clears it without stretching the footer the way a
+                // full 44px row would.
+                <Link key={l.href} href={l.href} className="inline-flex min-h-7 items-center text-zinc-600 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500">
                   {l.label}
                 </Link>
               ))}

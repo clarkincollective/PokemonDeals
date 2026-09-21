@@ -132,7 +132,7 @@ export default function PriceAlertForm({ cardSlug, cardName, suggestedPrice, kin
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder="you@email.com"
-        className="min-h-11 min-w-0 flex-1 basis-48 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+        className="min-h-11 min-w-0 flex-1 basis-48 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base outline-none focus:border-red-500 sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
       />
       {/* Target is entered and stored in the chosen currency (USD by
           default) with NO conversion at entry - the cron converts the
@@ -149,7 +149,7 @@ export default function PriceAlertForm({ cardSlug, cardName, suggestedPrice, kin
             onChange={(e) => setTarget(e.target.value)}
             placeholder={suggestedPrice && currency === "USD" ? Number(suggestedPrice).toFixed(0) : "target"}
             aria-label={currency === "USD" ? "Target price in US dollars" : `Target price in ${currency}`}
-            className="min-h-11 w-full rounded-lg border border-zinc-300 bg-white py-2 pl-7 pr-11 text-sm outline-none focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            className="min-h-11 w-full rounded-lg border border-zinc-300 bg-white py-2 pl-7 pr-11 text-base outline-none focus:border-red-500 sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
           <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-zinc-600 dark:text-zinc-400">{currency}</span>
         </div>
