@@ -3,7 +3,8 @@ import SiteHeader from "@/components/SiteHeader";
 import SkipToContent from "@/components/SkipToContent";
 import SiteFooter from "@/components/SiteFooter";
 import JsonLd from "@/components/JsonLd";
-import { breadcrumbList, dataset, FIGURES_LICENSE } from "@/lib/jsonLd";
+import { breadcrumbList, dataset, FIGURES_LICENSE, publisherNode } from "@/lib/jsonLd";
+import { organizationSameAs } from "@/lib/socialProfiles";
 import { fetchIntegrityReport, fetchIntegrityHistory } from "@/lib/integrityReport";
 import { LISTING_CHECKS } from "@/lib/trustContent";
 
@@ -53,6 +54,10 @@ export default async function IntegrityPage() {
     <div className="flex min-h-screen flex-col bg-paper">
       <JsonLd
         data={[
+          // The Dataset below names this Organization as creator AND
+          // publisher by @id; without the node the attribution on our own
+          // research resolved to nothing (2026-09-21 audit).
+          publisherNode(organizationSameAs()),
           breadcrumbList([{ name: "Deals", href: "/" }, { name: "Listing integrity" }]),
           dataset({
             name: `Pokemon Deal Finder listing integrity counts${first && last ? `, ${first} to ${day}` : `, ${day}`}`,

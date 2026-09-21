@@ -3,7 +3,8 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { TRUST_CONTENT_UPDATED, TRUST_CONTENT_UPDATED_DISPLAY } from "@/lib/trustContent";
-import { serializeJsonLd } from "@/lib/jsonLd";
+import { serializeJsonLd, publisherNode } from "@/lib/jsonLd";
+import { organizationSameAs } from "@/lib/socialProfiles";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -52,6 +53,10 @@ const ul = "mt-3 flex list-disc flex-col gap-2 pl-5 text-base leading-relaxed te
 export default function MethodologyPage() {
   return (
     <div className="flex min-h-screen flex-col bg-paper">
+      {/* The Organization this page names as its publisher. Without it
+          the publisher @id below resolves to nothing - see
+          lib/jsonLd publisherNode (2026-09-21 audit). */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(publisherNode(organizationSameAs())) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(webPageJsonLd) }} />
       <SkipToContent />

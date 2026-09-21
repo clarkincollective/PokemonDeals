@@ -5,7 +5,8 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import JsonLd from "@/components/JsonLd";
 import ScrollableTable from "@/components/ScrollableTable";
-import { breadcrumbList, collectionPage, dataset, FIGURES_LICENSE } from "@/lib/jsonLd";
+import { breadcrumbList, collectionPage, dataset, FIGURES_LICENSE, publisherNode } from "@/lib/jsonLd";
+import { organizationSameAs } from "@/lib/socialProfiles";
 import { catalogImageUrl } from "@/lib/cardImage";
 import { STUDY } from "@/lib/studies/referencePriceChange30d";
 
@@ -72,6 +73,10 @@ export default function ReferencePriceChangesPage() {
     <div className="flex min-h-screen flex-col bg-paper">
       <JsonLd
         data={[
+          // The Dataset below names this Organization as creator AND
+          // publisher by @id; without the node the attribution on our own
+          // research resolved to nothing (2026-09-21 audit).
+          publisherNode(organizationSameAs()),
           breadcrumbList([
             { name: "Deals", href: "/" },
             { name: "Market data", href: "/market-data" },

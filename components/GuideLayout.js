@@ -6,7 +6,8 @@ import SiteFooter from "@/components/SiteFooter";
 import { getGuide, GUIDES_PUBLISHED, guideOffersSet } from "@/lib/guides";
 import RelatedReading from "@/components/RelatedReading";
 import GuideLiveOffers from "@/components/guides/GuideLiveOffers";
-import { serializeJsonLd } from "@/lib/jsonLd";
+import { serializeJsonLd, publisherNode } from "@/lib/jsonLd";
+import { organizationSameAs } from "@/lib/socialProfiles";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -74,6 +75,11 @@ export default async function GuideLayout({ slug, children }) {
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <SkipToContent />
+      {/* The Article below names this Organization as its author AND its
+          publisher by @id. Until 2026-09-21 no guide defined that node,
+          so on every guide the byline resolved to nothing - the exact
+          pages whose value is attributable authorship. */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(publisherNode(organizationSameAs())) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(articleJsonLd) }} />
       <SiteHeader />

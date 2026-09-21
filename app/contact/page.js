@@ -1,7 +1,8 @@
 import SkipToContent from "@/components/SkipToContent";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { serializeJsonLd } from "@/lib/jsonLd";
+import { serializeJsonLd, publisherNode } from "@/lib/jsonLd";
+import { organizationSameAs } from "@/lib/socialProfiles";
 
 const SITE_URL = "https://pokemondealfinder.com";
 const CONTACT_EMAIL = "pokemondealfinder@gmail.com";
@@ -38,6 +39,10 @@ const contactPageJsonLd = {
 export default function ContactPage() {
   return (
     <div className="flex min-h-screen flex-col bg-paper">
+      {/* The Organization this page names as its publisher. Without it
+          the publisher @id below resolves to nothing - see
+          lib/jsonLd publisherNode (2026-09-21 audit). */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(publisherNode(organizationSameAs())) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(contactPageJsonLd) }} />
       <SkipToContent />
