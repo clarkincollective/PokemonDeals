@@ -44,16 +44,18 @@ const priced = (over = {}) => ({
   ...over,
 });
 
-test("a 30th token with a non-30th matched set is ambiguous", () => {
+test("a 30th token with a non-30th matched set, on a card the family prints", () => {
   assert.equal(titleClaimsAnniversaryReprint(priced()), false, "no 30th token: not ambiguous");
   assert.equal(
     titleClaimsAnniversaryReprint(priced({ title: "Metagross Delta Species 11/113 30th Anniversary" })),
     true
   );
+  // A bare "30th" counts as the marker - sellers abbreviate - but the
+  // marker alone no longer decides. The Lugia case below covers that.
   assert.equal(
-    titleClaimsAnniversaryReprint(priced({ title: "Lugia 9/111 Neo Genesis Holo 30th!!!", card_set: "Neo Genesis" })),
+    titleClaimsAnniversaryReprint(priced({ title: "Metagross Delta Species 11/113 30th!!!" })),
     true,
-    "a bare '30th' counts - sellers abbreviate"
+    "a bare '30th' is still the marker"
   );
 });
 
@@ -96,6 +98,37 @@ test("it never fires without a matched set to disagree with", () => {
   assert.equal(titleClaimsAnniversaryReprint(priced({ title: "30th Anniversary lot", card_set: "" })), false);
   assert.equal(titleClaimsAnniversaryReprint(priced({ title: "30th Anniversary lot", card_set: null })), false);
   for (const bad of [null, undefined, {}]) assert.equal(titleClaimsAnniversaryReprint(bad), false);
+});
+
+// The refinement that matters: a marker in the title is not evidence on
+// its own. Sellers stuff "30th Anniversary" into listings for genuine
+// vintage cards to catch the hype. The ambiguity is real only when the
+// reprint family actually prints THIS card at THIS number.
+test("a reprint marker on a card the family does not print keeps its claim", () => {
+  // The owner's own example: Neo Genesis Lugia 9/111. The 30th Lugias are
+  // 121/128 and 149/147, so 9/111 is vintage-only and "30th!!!" is bait.
+  const lugia = priced({
+    title: "Pokemon TCG Lugia 9/111 Neo Genesis Holo Rare Unlimited 80 HP English 30th!!!",
+    card_name: "Lugia",
+    card_set: "Neo Genesis",
+  });
+  assert.equal(titleClaimsAnniversaryReprint(lugia), false, "9/111 is not a 30th printing");
+  assert.equal(savingsClaimTrusted(lugia), true, "a genuine vintage deal keeps its claim");
+});
+
+test("a reprint marker on a card the family DOES print withdraws the claim", () => {
+  // Metagross is 11/113 in both EX Delta Species and the 30th Classic
+  // Collection, so the number cannot decide.
+  const metagross = priced({ title: "Metagross Delta Species Holo Rare 11/113 English 30th Anniversary" });
+  assert.equal(titleClaimsAnniversaryReprint(metagross), true);
+  assert.equal(savingsClaimTrusted(metagross), false);
+});
+
+test("no number in the title stays conservative", () => {
+  // Nothing to check the family against, so the claim is withdrawn rather
+  // than guessed at.
+  const noNumber = priced({ title: "Metagross Delta Species Holo Rare 30th Anniversary" });
+  assert.equal(titleClaimsAnniversaryReprint(noNumber), true);
 });
 
 test('"30th" must be a whole word, not a fragment', () => {
