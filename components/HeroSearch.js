@@ -144,8 +144,14 @@ export default function HeroSearch({ popular = [] }) {
               if (queryLongEnough && results.length > 0) setOpen(true);
             }}
             autoComplete="off"
+            // The full description lives in the accessible name, which is
+            // what a screen reader announces. The placeholder is the
+            // visible hint only, and the long form truncated mid-word at
+            // phone width ('Search a card, a set, or "boos'), so it is
+            // short enough to survive 412px. Nothing is lost: aria-label
+            // still carries name, set and collector number.
             aria-label="Search Pokemon cards by name, set or collector number"
-            placeholder="Search a card, a set, or &quot;booster box&quot;…"
+            placeholder="Search cards…"
             className="w-full rounded-xl border border-zinc-300 bg-white py-3.5 pl-11 pr-4 text-base text-zinc-900 shadow-card outline-none transition-colors focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
         </div>

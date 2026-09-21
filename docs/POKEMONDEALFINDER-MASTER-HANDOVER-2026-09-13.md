@@ -34,6 +34,52 @@ The outstanding challenge is to make these systems feel like one excellent produ
 | SEO review | GSC recheck suggested for 19 September 2026 | Backlog note only; no automation was created by that note. |
 | Research | An original reference-price study exists; further original research remains queued | Extend the existing research programme; do not claim it has never started. |
 
+### Release checkpoint: red/white UX update - 22 September 2026
+
+**Status: SHIPPED and live.** Verified against Vercel and production, not
+inferred from a build log.
+
+| | |
+|---|---|
+| Release commits | `6b2e012` re-brand -> `adacfc4` lime reserved for savings -> `e6cd268` active-pill contrast fix |
+| Production deployment | `dpl_7YaxNS3S9Lhio7UAb9F4VbDizKsE`, target production, state **READY** |
+| Deployed commit | `e6cd268d6411e05edfba121e979d97714b5395de` |
+| Inspector | https://vercel.com/clarkin-collective/pokemon-deals/7YaxNS3S9Lhio7UAb9F4VbDizKsE |
+| Preceding READY deployments | `dpl_52ymgNkWw8HMpPZrgUuZQqchMNTR` (`adacfc4`), `dpl_FT7YV68uyRmxRZ9sbEdtiGXcrQA7` (`6b2e012`) |
+| Rollback | All three are rollback candidates; `e6cd268` is the one to keep |
+
+**What the release established, and must be preserved by later work:**
+
+- **Palette.** Ground `#090A10`, panels `#0F1119`, charcoal surfaces
+  `#171A24`, hairline `#242938`, headings `#F7F7FA`, muted `#9AA0B2`,
+  captions `#7E8599`.
+- **Brand red is split by role.** `#FF2942` is the brand tone for text,
+  icons and borders on dark. Button FILLS step darker (`#D61133` /
+  `#B60D2A` / `#94081F`) because `#FF2942` under white text is 3.6:1 and
+  fails as a fill. Do not "simplify" these to one value.
+- **Lime `#B7FF36` is reserved for evidenced below-market figures** and
+  nothing else, enforced by an allowlist in
+  `tests/scanner/redesign-theme.test.mjs`. A listing COUNT, a success
+  toast, a trend line and a guide diagram each borrowed it before the
+  release and were moved off.
+- **Savings-badge hierarchy** (hot >= 40 %, strong >= 20 %, modest below)
+  is unchanged and still driven by real listing data. Auctions stay
+  amber; a bid is never shown as a saving.
+- **Logo.** Existing magnifying glass and wordmark. Glass red, "Deal"
+  red, "Pokemon" and "Finder" white.
+- **Header.** Deals, Cards & Sets, News & Guides, Saved, the eBay
+  marketplace selector and search are all preserved with their contents,
+  destinations and behaviour.
+
+**Verification at release:** colour-contrast and target-size both pass
+with zero failures on home and `/deals`, at mobile and desktop. Ratchet
+held at 33 failing / 33 quarantined throughout.
+
+**Approved cosmetic follow-up, applied after the release:** the hero
+search placeholder shortened to "Search cards…" because the long form
+truncated mid-word at 412px. The accessible name is unchanged and still
+carries name, set and collector number.
+
 ### The immediate sequence
 
 1. Recover the current repository, deployments, worktree ownership, reviews and approvals. Do not reset the dirty main checkout or select a base from this PDF alone.
