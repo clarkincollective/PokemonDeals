@@ -6,7 +6,8 @@ import SiteFooter from "@/components/SiteFooter";
 import { NEWS, getNewsItem, newsMetadata, formatNewsDate, newsImageUrl } from "@/lib/news";
 import RelatedReading from "@/components/RelatedReading";
 import { NEWS_BODIES } from "@/components/news/NewsBodies";
-import { serializeJsonLd } from "@/lib/jsonLd";
+import { serializeJsonLd, publisherNode } from "@/lib/jsonLd";
+import { organizationSameAs } from "@/lib/socialProfiles";
 
 const SITE_URL = "https://pokemondealfinder.com";
 
@@ -55,12 +56,17 @@ export default async function NewsItemPage({ params }) {
     dateModified: updated,
     mainEntityOfPage: `${SITE_URL}/news/${slug}`,
     ...(image ? { image: [image] } : {}),
-    author: { "@type": "Organization", name: "Pokemon Deal Finder", url: SITE_URL },
-    publisher: { "@type": "Organization", name: "Pokemon Deal Finder", url: SITE_URL },
+    // Reference the ONE Organization by @id rather than inlining a second,
+    // anonymous copy. The inline version had no @id, so a machine reading
+    // this page saw a different entity from the one every other page names
+    // as publisher - two identities for the same site (2026-09-21 audit).
+    author: { "@id": `${SITE_URL}/#organization` },
+    publisher: { "@id": `${SITE_URL}/#organization` },
   };
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(publisherNode(organizationSameAs())) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(articleJsonLd) }} />
       <SkipToContent />
