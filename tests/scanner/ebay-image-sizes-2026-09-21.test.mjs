@@ -63,6 +63,34 @@ test("only widths verified against the CDN are ever requested", () => {
   assert.ok(Math.max(...EBAY_WIDTHS) === 1600, "the largest candidate stays the stored original");
 });
 
+// The w descriptor is the browser's only input for choosing, so it must
+// equal the width the CDN actually returns for that suffix. Confirmed
+// against the live CDN on 2026-09-21 by reading each JPEG's SOF header;
+// pinned here as the contract the lib promises.
+test("each candidate's w descriptor equals the width its suffix delivers", () => {
+  const parts = ebaySrcSet(SAMPLE).split(", ");
+  for (const p of parts) {
+    const [url, desc] = p.split(" ");
+    const suffix = Number(url.match(/\/s-l(\d+)\./)[1]);
+    assert.equal(`${suffix}w`, desc, `s-l${suffix} must be declared as ${suffix}w, not ${desc}`);
+  }
+});
+
+// Every surface that renders an eBay photo must declare `sizes`, or the
+// browser assumes 100vw and downloads the largest candidate - which would
+// silently undo the whole change.
+test("every DealImage call site declares sizes", () => {
+  for (const f of ["components/DealCard.js", "app/deals/[id]/page.js"]) {
+    const src = read(f);
+    const calls = src.split("<DealImage").slice(1);
+    assert.ok(calls.length > 0, `${f} renders DealImage`);
+    for (const c of calls) {
+      const props = c.slice(0, c.indexOf("/>"));
+      assert.match(props, /sizes=/, `${f}: a DealImage without sizes defaults to 100vw`);
+    }
+  }
+});
+
 test("the smallest candidate is a real saving over the stored original", () => {
   // 116 CSS px cards at 2x want ~232 px, so the set must reach well below
   // 1600 or the fix does nothing on the surface that needed it.
