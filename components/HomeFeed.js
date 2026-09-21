@@ -170,11 +170,17 @@ export default function HomeFeed({
     if (placeholder) placeholder.hidden = true;
   }, []);
 
+  // 2026-09-22 redesign: TABS, not pills. The strip is the page's deal
+  // navigation, and a row of seven outlined pills competes with the red
+  // CTAs below it for the same attention. A tab row with the current
+  // entry underlined in brand red reads as navigation, leaves red
+  // meaning "act" everywhere else, and is what the reference design
+  // shows. min-h-11 keeps every entry a 44px touch target.
   const chip = (active) =>
-    `inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-lg border px-3.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 ${
+    `inline-flex min-h-11 shrink-0 items-center whitespace-nowrap border-b-2 px-3 text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-red-600 ${
       active
-        ? "border-red-600 bg-red-600 text-white"
-        : "border-zinc-300 bg-white text-zinc-800 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+        ? "border-red-600 font-bold text-zinc-900 dark:text-zinc-50"
+        : "border-transparent font-medium text-zinc-600 hover:border-zinc-300 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-50"
     }`;
 
   return (
@@ -205,7 +211,10 @@ export default function HomeFeed({
         />
         <nav
           aria-label="Deal modes"
-          className="-mx-6 flex basis-full items-center gap-2 overflow-x-auto px-6 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:min-w-0 lg:flex-1 lg:basis-0 lg:flex-wrap lg:overflow-visible lg:px-0 lg:pb-0"
+          // Scrolls horizontally at every width now it is a tab row: a
+          // wrapping second line of tabs reads as two rows of navigation
+          // rather than one, and the underline no longer lines up.
+          className="-mx-6 flex basis-full items-center gap-1 overflow-x-auto border-b border-zinc-200 px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:min-w-0 lg:flex-1 lg:basis-0 lg:px-0 dark:border-zinc-800"
         >
           {feedModes.map((m) => (
             <a

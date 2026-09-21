@@ -24,6 +24,24 @@ import { listingAvailabilityEvidence } from "@/lib/listingAvailability";
 
 const JUST_FOUND_MS = 2 * 60 * 60 * 1000;
 
+// The small mark beside each fact row. Decorative only - every row
+// states its fact in words beside the icon, so these are aria-hidden and
+// never the sole carrier of meaning.
+const FACT_PATHS = {
+  ship: "M2 7h9v6H2zM11 9h3.2l2.3 2.6V13H11zM5 15.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM14 15.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z",
+  cart: "M2.5 3h2l1.6 7.6h7.3l1.6-5.1H5.4M7.5 15a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm6 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z",
+  clock: "M9 3.5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11ZM9 6v3.2l2.1 1.3",
+  gavel: "M4 14h7M6.5 3.5l4 4M8.5 1.5l5 5-2 2-5-5zM7 7l4 4-2.5 2.5-4-4z",
+  warn: "M9 3.2 16 15H2zM9 7.5v3M9 12.6v.01",
+};
+function FactIcon({ kind }) {
+  return (
+    <svg aria-hidden viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0 opacity-70">
+      <path d={FACT_PATHS[kind]} />
+    </svg>
+  );
+}
+
 // The primary "open on eBay" control, shared by every deal surface: brand
 // red, white semibold text, 48px tall, 8px radius, hover / pressed /
 // keyboard-focus states. One string so DealCard, SealedDealCard and the
@@ -496,12 +514,55 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           </p>
         )}
 
+        {/* FACT ROWS - shipping, listing type, freshness, each on its own
+            line behind its own icon, the way the reference design shows
+            them. The icon is decorative (aria-hidden); the words carry
+            the meaning, and the words are the same ones the card already
+            used. Nothing new is asserted here: the shipping row only
+            appears when a charge was actually recorded, and "Auction"
+            never appears on a Buy It Now. */}
+        {/* NO shipping row here. The price block above already states it,
+            and states it more precisely - "incl. $22.92 shipping · item
+            $45.84". That item figure is not decoration: the Offer node in
+            the page's JSON-LD carries the ITEM price excluding shipping,
+            and Merchant Listing requires the figure it advertises to be
+            visible on the page. A second, vaguer shipping line here said
+            the same thing twice and made the unconfirmed case shout
+            twice. */}
+        <ul className="mt-2.5 space-y-1 text-[13px] text-zinc-600 dark:text-zinc-400">
+          <li className="flex items-center gap-1.5">
+            <FactIcon kind={isAuction ? "gavel" : "cart"} />
+            <span>
+              {isAuction ? (
+                <>
+                  Auction · ends <AuctionEnd date={deal.auction_end_at} />
+                  {deal.bid_count != null && ` · ${deal.bid_count} bids`}
+                </>
+              ) : (
+                "Buy It Now"
+              )}
+            </span>
+          </li>
+          {listingAvailabilityEvidence(deal)?.kind === "confirmed" && (
+            <li className="flex items-center gap-1.5">
+              <FactIcon kind="clock" />
+              <span>
+                Checked <RelativeTime date={deal.exact_verified_at} />
+              </span>
+            </li>
+          )}
+        </ul>
+
+        {/* Provenance line. Freshness and listing type moved up into the
+            fact rows, so this carries what is left: how many other live
+            listings exist for the card, when it was first found, and the
+            link to the full detail page. */}
         <div className="mt-2 flex items-center justify-between gap-2 text-[13px] text-zinc-500 dark:text-zinc-400">
           <p className="min-w-0 truncate">
             {isAuction ? (
               <>
-                Auction · ends <AuctionEnd date={deal.auction_end_at} />
-                {deal.bid_count != null && ` · ${deal.bid_count} bids`}
+                {deal.bid_count != null ? `${deal.bid_count} bids · ` : ""}
+                found <RelativeTime date={deal.first_seen_at} />
               </>
             ) : (
               <>
@@ -514,14 +575,6 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                   </>
                 )}
                 found <RelativeTime date={deal.first_seen_at} />
-                {/* "checked" = this exact item positively re-confirmed on
-                    eBay (exact_verified_at stamped with last_seen_at);
-                    "found" alone is the first sighting. Never render time. */}
-                {listingAvailabilityEvidence(deal)?.kind === "confirmed" && (
-                  <>
-                    {" · "}checked <RelativeTime date={deal.exact_verified_at} />
-                  </>
-                )}
               </>
             )}
           </p>

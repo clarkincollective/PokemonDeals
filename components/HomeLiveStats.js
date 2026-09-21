@@ -20,7 +20,7 @@ function Stat({ icon, value, label, href }) {
       <span aria-hidden="true" className="text-zinc-400">{icon}</span>
       <span className="min-w-0">
         <span className="block text-sm font-bold leading-tight text-zinc-900 dark:text-zinc-50">{value}</span>
-        <span className="block text-xs leading-tight text-zinc-500 dark:text-zinc-400">{label}</span>
+        <span className="block whitespace-nowrap text-[11px] leading-tight text-zinc-500 dark:text-zinc-400">{label}</span>
       </span>
     </>
   );
@@ -81,7 +81,7 @@ export default function HomeLiveStats({ liveCount, checked24h, marketplaceCount 
       data-live-stats
       // Wraps rather than scrolls: four short cells fit two-up at 320px,
       // and a stats row that scrolls sideways hides half its own content.
-      className="mt-5 flex flex-wrap gap-x-6 gap-y-3 sm:gap-x-9"
+      className="mt-5 flex flex-wrap gap-x-5 gap-y-3 sm:gap-x-7"
     >
       {stats.map((s) => (
         <div key={s.key}>

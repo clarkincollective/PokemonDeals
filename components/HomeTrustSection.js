@@ -78,14 +78,15 @@ const ITEMS = [
   },
 ];
 
-export default function HomeTrustSection() {
+export default function HomeTrustSection({ emailCapture = null }) {
   return (
     <section aria-labelledby="why-trust" className="border-y border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+      <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6">
         <h2 id="why-trust" className="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl dark:text-zinc-50">
           Why collectors use Pokemon Deal Finder
         </h2>
-        <ul className="mt-5 grid gap-x-6 gap-y-6 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mt-5 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-8">
+        <ul className="grid gap-x-6 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
           {ITEMS.map((it) => (
             <li key={it.title}>
               <Link
@@ -108,6 +109,27 @@ export default function HomeTrustSection() {
             </li>
           ))}
         </ul>
+
+        {/* The email panel the reference design puts here. Its heading in
+            the mockup is "Join 10,000+ collectors", which we do not
+            publish: there is no measured subscriber figure to stand
+            behind, and inventing one on the trust section would be the
+            worst possible place to do it. The panel says what the email
+            actually is instead, and only renders at all when email is
+            configured (emailEnabled) - a signup box that cannot send is
+            worse than no box. */}
+        {emailCapture ? (
+          <div className="mt-8 rounded-xl border border-zinc-200 bg-zinc-50 p-5 lg:mt-0 dark:border-zinc-800 dark:bg-zinc-900">
+            <h3 className="text-base font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+              Don&apos;t miss the next deal
+            </h3>
+            <p className="mt-1 text-[13px] leading-snug text-zinc-600 dark:text-zinc-400">
+              A weekly email of the best below-market finds. One click to unsubscribe.
+            </p>
+            <div className="mt-3">{emailCapture}</div>
+          </div>
+        ) : null}
+        </div>
       </div>
     </section>
   );

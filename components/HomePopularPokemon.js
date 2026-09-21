@@ -21,7 +21,7 @@ export default function HomePopularPokemon({ species = [] }) {
   if (tiles.length < 4) return null; // a short row reads as broken, not curated
 
   return (
-    <section aria-labelledby="popular-pokemon" className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+    <section aria-labelledby="popular-pokemon" className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6">
       <div className="flex items-baseline justify-between gap-4">
         <h2 id="popular-pokemon" className="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl dark:text-zinc-50">
           Most listed Pokemon

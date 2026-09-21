@@ -3,13 +3,12 @@ import Image from "next/image";
 
 // "Deals under your budget" - the price-banded discovery modules.
 //
-// THREE, NOT FOUR. The reference design shows Under 25 / 50 / 100 / 250.
-// lib/dealCategories defines under-25, under-50 and under-100; there is
-// no under-250 route. Rather than invent a fourth indexable price band
-// to match a picture - which would mean new copy, new sitemap entries
-// and a new crawlable surface for the sake of symmetry - this renders
-// the three that exist. The grid is built for three and does not look
-// like it is missing one.
+// FOUR BANDS. Three existed (under-25/50/100); under-250 was added to
+// lib/dealCategories as a real category with its own filter, copy and
+// landing page, because stopping at $100 left out the band most chase
+// cards and graded slabs actually sit in. It is a real route, not a
+// tile added to match a picture - if it could not have been a real
+// route, there would still be three here.
 //
 // CURRENCY. The thresholds are the categories' own USD bands and the
 // labels say so. They are NOT converted into the viewer's currency,
@@ -25,6 +24,7 @@ const BANDS = [
   { href: "/deals/under-25", label: "Under $25", blurb: "Great finds for every collector", tint: "bg-zinc-50" },
   { href: "/deals/under-50", label: "Under $50", blurb: "Hidden gems", tint: "bg-red-50" },
   { href: "/deals/under-100", label: "Under $100", blurb: "Bigger deals", tint: "bg-amber-50" },
+  { href: "/deals/under-250", label: "Under $250", blurb: "Chase cards for less", tint: "bg-red-50/60" },
 ];
 
 export default function HomeBudgetDeals({ previewsByBand = {} }) {
@@ -32,11 +32,11 @@ export default function HomeBudgetDeals({ previewsByBand = {} }) {
   if (bands.every((b) => b.previews.length === 0)) return null;
 
   return (
-    <section aria-labelledby="budget-deals" className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+    <section aria-labelledby="budget-deals" className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6">
       <h2 id="budget-deals" className="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl dark:text-zinc-50">
         Deals under your budget
       </h2>
-      <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {bands.map((b, i) => (
           <li key={b.href}>
             <Link

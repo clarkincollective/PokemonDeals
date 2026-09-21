@@ -54,7 +54,7 @@ test("search / card / filter form controls are >= 16px on mobile (no iOS auto-zo
     assert.match(src, /text-base sm:text-(sm|xs)|text-base font-medium sm:text-xs/, `${f}: expected the mobile-16 control class`);
   }
   // the homepage hero is the reference - already 16px
-  assert.match(read("components/HeroSearch.js"), /py-3\.5 pl-11 pr-4 text-base/);
+  assert.match(read("components/HeroSearch.js"), /py-4 pl-12 pr-3 text-base/);
 });
 
 // ===== horizontal-overflow patterns =============================

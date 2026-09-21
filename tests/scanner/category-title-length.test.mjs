@@ -187,7 +187,11 @@ test("5. H1s, descriptions and intros are untouched by the title change", () => 
 
 test("6. shortening a title never removed a field - every category still has all four", () => {
   const count = (re) => (SRC.match(re) ?? []).length;
-  assert.equal(titles.length, 12, `expected 12 category titles, found ${titles.length}`);
+  // 13 since 2026-09-22: under-250 was added as a real fourth price
+  // band (lib/dealCategories) so the homepage budget modules cover the
+  // range chase cards sit in. It carries all four fields like its
+  // siblings, which is what this test actually checks.
+  assert.equal(titles.length, 13, `expected 13 category titles, found ${titles.length}`);
   assert.equal(count(/^ {4}description:/gm), titles.length, "a category lost its description");
   assert.equal(count(/^ {4}intro:/gm), titles.length, "a category lost its intro");
   assert.equal(count(/^ {4}h1: "/gm), titles.length, "a category lost its H1");

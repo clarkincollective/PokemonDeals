@@ -135,6 +135,8 @@ const GREEN_ALLOWED = new Set([
   "components/SealedProductBrowser.js",
   "components/VariantPriceGrid.js",
   "components/HeroSearch.js",          // the "deal" flag on a search result
+  "components/HomeHeroArt.js",         // the hero fan's "N% off" chip is that deal's
+                                       // real discount_pct - a savings figure
   "components/DealQualityBadge.js",    // the score IS an evidenced below-market signal
                                        // (gated on savingsClaimTrusted +
                                        // storedReferenceEvidence - see lib/dealQualityScore)

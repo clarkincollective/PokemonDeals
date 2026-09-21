@@ -27,6 +27,8 @@ import HomeQuickFilters from "@/components/HomeQuickFilters";
 import HomePopularPokemon from "@/components/HomePopularPokemon";
 import HomeBudgetDeals from "@/components/HomeBudgetDeals";
 import HomeTrustSection from "@/components/HomeTrustSection";
+import HomeHeroArt from "@/components/HomeHeroArt";
+import EmailCapture from "@/components/EmailCapture";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import { emailEnabled } from "@/lib/email";
 import { catalogImageUrl } from "@/lib/cardImage";
@@ -279,6 +281,7 @@ export default async function Home() {
     ["/deals/under-25", 25],
     ["/deals/under-50", 50],
     ["/deals/under-100", 100],
+    ["/deals/under-250", 250],
   ]) {
     const seen = new Set();
     budgetPreviews[href] = budgetPool
@@ -371,8 +374,12 @@ export default async function Home() {
           the "Cards with the most active listings" row below the feed) and
           the live-count line moved beside the feed's trust line. No CTA
           that only scrolls a few pixels - the first offers are in view. */}
-      <header className="border-b border-zinc-200 bg-sunk dark:border-zinc-800">
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
+      {/* HERO. A soft tinted ground rather than flat white - the section
+          reads as a distinct band above the feed without a heavy fill,
+          and the tint is derived from the brand red at very low alpha so
+          it belongs to the palette rather than being a new colour. */}
+      <header className="border-b border-zinc-200 bg-gradient-to-b from-red-50/70 via-sunk to-sunk dark:border-zinc-800">
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:grid lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-center lg:gap-x-8 xl:grid-cols-[minmax(0,1fr)_25rem]">
           <div className="max-w-3xl">
             {/* GEO 2026-09-20: the heading names the thing the page is,
                 in the words people search; the capsule below it is the
@@ -384,7 +391,7 @@ export default async function Home() {
                 constant), so the emphasis is applied by splitting it
                 rather than by retyping it here and letting the two
                 drift. */}
-            <h1 className="text-balance text-[2rem] font-extrabold leading-[1.08] tracking-[-0.03em] text-zinc-900 sm:text-5xl lg:text-[3.25rem] dark:text-zinc-50">
+            <h1 className="text-balance text-[2rem] font-extrabold leading-[1.08] tracking-[-0.03em] text-zinc-900 sm:text-[2.75rem] lg:text-[2.75rem] xl:text-[3.25rem] dark:text-zinc-50">
               {(() => {
                 const marker = "below market";
                 const at = HOME_H1.toLowerCase().indexOf(marker);
@@ -412,7 +419,7 @@ export default async function Home() {
             {/* Stays text-sm (body size), never text-xs/13px: the GEO
                 answer capsule is quotable prose, and home-geo pins its
                 size for that reason. */}
-            <p className="mt-3 max-w-[62ch] text-sm leading-relaxed text-zinc-500 dark:text-zinc-400" data-answer-capsule>
+            <p className="mt-3 max-w-[58ch] text-sm leading-relaxed text-zinc-500 dark:text-zinc-400" data-answer-capsule>
               Pokemon Deal Finder lists live eBay Pokemon card listings priced below a documented market reference for the exact card and condition, from eBay US, UK, Australia, Canada, Germany and Italy.
               <span className="hidden sm:inline">
                 {" "}Every listing shown has passed an exact-printing match, a seller-condition check, an availability re-check and an image-based authenticity screen, and shows the reference it was compared with.
@@ -424,7 +431,6 @@ export default async function Home() {
                 </>
               )}
             </p>
-          </div>
 
           {/* SEARCH - the most prominent control on the page, full width
               up to a readable maximum rather than a narrow box in a
@@ -485,6 +491,13 @@ export default async function Home() {
             checked24h={integrity?.checked24h ?? null}
             marketplaceCount={Array.isArray(integrity?.marketplaces) && integrity.marketplaces.length > 0 ? integrity.marketplaces.length : null}
           />
+          </div>
+
+          {/* The visual half: three real cards from the flagship row,
+              each linking to its own deal. Desktop only - see the
+              component for why, and for why this is card photography
+              rather than the reference design's character art. */}
+          <HomeHeroArt deals={flagshipDeals} />
         </div>
       </header>
 
@@ -513,7 +526,13 @@ export default async function Home() {
 
       {/* TRUST - the methodology work as conversion support. Every claim
           links to where it is substantiated; no invented social proof. */}
-      <HomeTrustSection />
+      <HomeTrustSection
+        emailCapture={
+          emailEnabled() ? (
+            <EmailCapture placement="homepage" pageType="home" heading="" body="" />
+          ) : null
+        }
+      />
 
       {/* GUIDES & RESEARCH - three editorial cards (section id pinned by
           homepage-hierarchy.test). Artwork only where the card is the

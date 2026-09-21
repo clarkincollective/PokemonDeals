@@ -115,7 +115,11 @@ export default function HeroSearch({ popular = [] }) {
           e.preventDefault();
           go(q);
         }}
-        className="flex gap-2"
+        // 2026-09-22 redesign: one bordered control with the action
+        // fused to its right edge, rather than a field and a detached
+        // button. The whole thing is the search affordance, which is what
+        // makes it read as the most important control on the page.
+        className="flex items-stretch gap-0 overflow-hidden rounded-xl border border-zinc-300 bg-white shadow-card focus-within:border-red-500 dark:border-zinc-700 dark:bg-zinc-900"
       >
         <div className="relative flex-1">
           <svg
@@ -151,15 +155,22 @@ export default function HeroSearch({ popular = [] }) {
             // short enough to survive 412px. Nothing is lost: aria-label
             // still carries name, set and collector number.
             aria-label="Search Pokemon cards by name, set or collector number"
-            placeholder="Search cards…"
-            className="w-full rounded-xl border border-zinc-300 bg-white py-3.5 pl-11 pr-4 text-base text-zinc-900 shadow-card outline-none transition-colors focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            placeholder="Search Pikachu, Charizard, PSA 10, Evolving Skies…"
+            // text-base (16px) is deliberate: anything smaller makes iOS
+            // zoom the page on focus. truncate keeps the long placeholder
+            // from overflowing the control at 320px.
+            className="w-full truncate border-0 bg-transparent py-4 pl-12 pr-3 text-base text-zinc-900 outline-none dark:text-zinc-50"
           />
         </div>
         <button
           type="submit"
-          className="shrink-0 whitespace-nowrap rounded-xl bg-red-600 px-6 py-3.5 text-sm font-semibold text-white shadow-card transition-colors hover:bg-red-700"
+          aria-label="Search"
+          className="flex w-14 shrink-0 items-center justify-center bg-red-600 text-white transition-colors hover:bg-red-700 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white sm:w-16"
         >
-          Search
+          <svg aria-hidden viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="h-5 w-5">
+            <circle cx="8.5" cy="8.5" r="5.5" />
+            <line x1="16" y1="16" x2="12.5" y2="12.5" />
+          </svg>
         </button>
       </form>
 
