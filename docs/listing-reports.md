@@ -200,3 +200,55 @@ the change stashed, so they are pre-existing.
 
 **This hides listings; it disqualifies nothing.** No row's
 `disqualified_reason` was written, so reverting the gate restores them.
+
+## The vision-rationale rule: measured, and NOT viable - 2026-09-21
+
+The other half of the 41196 observation proposed treating a metallic
+finish on a paper printing as `COUNTERFEIT_MISMATCH`. Before writing that,
+`node scripts/seo/visionRationaleAudit.mjs` (READ-ONLY, no model call)
+measured whether the stored rationales support any text rule. **They do
+not.** Recording this so it is not attempted again from scratch.
+
+2,236 rows carry a stored vision rationale: 1,699 MATCH, 417
+IDENTITY_MISMATCH, 80 COUNTERFEIT_MISMATCH, 40 UNKNOWN.
+
+| Attempted signal | Hits | Why it fails |
+|---|---|---|
+| rationale mentions metal / metallic | 65 | Dominated by legitimate uses: the Pokemon **Melmetal** and its "Metal Eater" ability, "metallic sheen typical of promo foil", and "entombed in metallic gold slab case" - the grading slab, not the card |
+| rationale mentions gold decoration | 66 | Gold Secret Rares and Gold Stars are ordinary paper rarities; gating them would hide genuine cards |
+| verdict MATCH while rationale names a counterfeit tell | 66 | Almost all are **negated**: "not counterfeit construction", "no counterfeit construction evidence", "not evidence of counterfeit" |
+
+A regex tight enough to separate "consistent with a novelty gold-plated"
+from "not evidence of counterfeit" would be tuned to two examples and
+would not generalise. **The fix belongs in the vision prompt**, which is
+what the original observation said: a model that describes a novelty or
+gold-plated construction must return `COUNTERFEIT_MISMATCH` rather than
+reconciling the tell with MATCH. That change cannot be validated here
+without paid model calls against listing images, and an unvalidated
+prompt change to a safety-critical screener is not worth shipping blind.
+
+### One concrete case found, for the owner
+
+The audit did surface a second instance of the 41196 failure mode.
+
+**Deal 33673** - market reference **$4,500.00, 73 % below it**. Title:
+"Pokémon 30th Anniversary Lugia 149/147 Aquapolis Secret Rare Holo Gold
+just Won". Vision verdict **MATCH**, `disqualified_reason` null. Its own
+stored rationale reads:
+
+> vision: Same Lugia Aquapolis card (149/147, same text/attacks/HP), gold
+> overlay is entire card is gold-foiled but text, layout, and Pikachu
+> stamp are consistent with a novelty gold-plated
+
+The screener named the tell - a novelty gold-plated card - and returned
+MATCH anyway. Two further incoherences the checks do not read: an
+Aquapolis card is from 2003 and cannot be "30th Anniversary", and a
+**Lugia** card does not carry a **Pikachu** stamp.
+
+**Not currently displayed** - `/deals/33673` redirects to
+`/cards/lugia-aquapolis`, so it fails another gate (it reads as ended:
+the title says "just Won"). There is no live exposure and no action was
+taken. It is recorded because it is the same shape as the three reported
+listings, found in our own stored data rather than reported, and because
+it is the evidence that the prompt fix is worth doing when it can be
+validated.

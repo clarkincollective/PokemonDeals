@@ -113,6 +113,28 @@ async function main() {
   if (c.length) for (const r of c.slice(0, 5)) console.log(`        ${r.id}  ${String(r.title).slice(0, 78)}`);
   console.log("");
 
+  // --list: name the rows a rule currently matches, so a shipped gate can
+  // be checked against the live site rather than inferred from a count.
+  if (process.argv.includes("--list")) {
+    // Against the pre-gate candidate set, not `shown`: rule B is live, so
+    // the rows it targets are no longer displayable and listing only
+    // `shown` would always print nothing.
+    const ruleB = (r) =>
+      Number(r.market_price) >= BAND_MARKET_USD &&
+      Number(r.discount_pct) >= BAND_DISCOUNT &&
+      !noSignals(r) &&
+      Number(r.seller_feedback_score) < 200 &&
+      refusesReturns(r);
+    const hit = candidates.filter(ruleB);
+    console.log(`  RULE B matches ${hit.length} non-disqualified row(s) - these are the ones the live gate hides`);
+    for (const r of hit.slice(0, 10)) {
+      console.log(
+        `      ${r.id}  $${Number(r.market_price).toFixed(2)}  ${(Number(r.discount_pct) * 100).toFixed(0)} % off  feedback ${r.seller_feedback_score}  returns ${r.returns_accepted}`
+      );
+    }
+    console.log("");
+  }
+
   // A and B are disjoint by construction - A requires a null feedback
   // score, B requires a non-null one - so "either" is the sum, and it is
   // the combination that covers all three reported cases.
