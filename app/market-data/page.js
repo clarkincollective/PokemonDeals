@@ -44,12 +44,6 @@ export default async function MarketDataPage() {
         "A dated study of 150 sampled product records: how many moved, and why a product summary differs from its individual condition and printing variants.",
     },
     {
-      href: "/market-data/how-long-pokemon-deals-last",
-      title: "How Long a Below-Market Listing Lasts",
-      description:
-        "15,147 below-market listings watched over 25 days: how many were gone by the next check, and why dearer cards lasted longer.",
-    },
-    {
       href: "/market-data/most-listed-cards",
       title: "Most-Listed Cards",
       description: "Cards with the most active eBay listings we're tracking right now.",

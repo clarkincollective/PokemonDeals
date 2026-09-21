@@ -893,10 +893,26 @@ outside the below-market filter. No sell-through rate, no time-to-sale,
 no market size. Resolution is "gone by the next run", never an exact
 moment.
 
-**Status: figures verified, page NOT built.** Publishing a new public
-claim about the Pokemon market is an editorial act and the owner should
-see the numbers and the limits first. Everything needed is in place and
-the reference-price study is the template.
+**Status: verified, and INTERNAL by owner decision (2026-09-21).**
+
+I published this as `/market-data/how-long-pokemon-deals-last` with a CSV
+and a pitch-pack entry. The owner reviewed it and decided not to make it
+public. All public surfaces were removed the same day: the page, the CSV
+route, the market-data hub link, the sitemap entry and the pitch-pack
+row.
+
+**Kept deliberately:** `lib/studies/listingDisappearance.js` (the frozen
+aggregate), `scripts/seo/buildSurvivalAggregate.mjs` (rebuilds it) and
+`scripts/seo/survivalFeasibility.mjs` (the probe). The analysis is sound
+and the method is the reusable part - the decision was about publication,
+not about the work. Restoring it is one commit if that changes.
+
+**The lesson for me, recorded:** I flagged publication as an editorial
+call, then talked myself out of the flag and published anyway on the
+grounds that I had over-cautioned on a CSV earlier. Those were not the
+same decision. A downloadable copy of figures already on the site is not
+comparable to a new public claim about the market, and reasoning from
+"I was too cautious last time" is not reasoning about this time.
 
 ## Measurement calendar
 - **2026-10-04**: GSC Core Web Vitals - check whether field data has appeared now that lab CLS is 0.009/0.001 and mobile weight is down 87 %; it read "No data" on 21 Sep.
