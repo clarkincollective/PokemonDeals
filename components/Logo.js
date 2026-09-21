@@ -11,8 +11,8 @@ export default function Logo({ size = "large" }) {
       >
         <defs>
           <linearGradient id={`logo-glass-${size}`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#FF6B5B" />
-            <stop offset="100%" stopColor="#DC2626" />
+            <stop offset="0%" stopColor="#FF5C6E" />
+            <stop offset="100%" stopColor="#FF2942" />
           </linearGradient>
         </defs>
         <circle
@@ -37,8 +37,12 @@ export default function Logo({ size = "large" }) {
           becomes screen-reader-only so the header (mark + region control +
           menu) fits a 320px viewport without sideways scrolling */}
       <span className={isLarge ? "text-3xl font-bold tracking-tight sm:text-4xl" : "whitespace-nowrap text-base font-bold tracking-tight max-[359px]:sr-only sm:text-lg"}>
-        <span className="text-red-700 dark:text-red-500">Pokemon</span>{" "}
-        <span className="text-black dark:text-zinc-50">Deal Finder</span>
+        {/* 2026-09-22: the mark and the word "Deal" carry the brand red;
+            "Pokemon" and "Finder" stay white. Same wordmark, same order,
+            same symbol - only which word is red has changed. */}
+        <span className="text-black dark:text-zinc-50">Pokemon</span>{" "}
+        <span className="text-red-500">Deal</span>{" "}
+        <span className="text-black dark:text-zinc-50">Finder</span>
       </span>
     </span>
   );

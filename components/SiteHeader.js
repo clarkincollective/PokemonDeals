@@ -14,15 +14,15 @@ import { NAV_PRIMARY, NAV_GROUPS, NAV_SEARCH, navGroupItems } from "@/lib/navLin
 // from lib/navLinks.js.
 export default function SiteHeader() {
   return (
-    <div className="sticky top-0 z-30 border-b border-zinc-200 bg-paper/90 backdrop-blur-md dark:border-zinc-800 dark:bg-black/85">
+    <div className="sticky top-0 z-30 border-b border-zinc-200 bg-paper/90 backdrop-blur-xl dark:border-zinc-700/70 dark:bg-black/80">
       {/* px-4 below sm: the wordmark + region control + menu button must
           fit a 320px viewport without the page scrolling sideways */}
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3.5 sm:gap-6 sm:px-6 sm:py-4">
         <Link href="/" className="shrink-0 rounded-md transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600">
           <Logo size="small" />
         </Link>
 
-        <nav aria-label="Primary" className="hidden flex-1 items-center gap-1 lg:flex">
+        <nav aria-label="Primary" className="hidden flex-1 items-center gap-0.5 lg:flex xl:gap-1.5">
           {NAV_GROUPS.map((group) => (
             <NavDropdown key={group.id} label={group.label} items={navGroupItems(group.id)} />
           ))}
@@ -37,7 +37,7 @@ export default function SiteHeader() {
               rel={link.href.includes("?") ? "nofollow" : undefined}
               data-analytics-click={link.analyticsClick ?? undefined}
               data-analytics-props={link.analyticsClick ? JSON.stringify(link.analyticsProps ?? {}) : undefined}
-              className="flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-red-500"
+              className="flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-red-950 dark:hover:text-red-400"
             >
               {link.label}
             </a>
@@ -52,7 +52,7 @@ export default function SiteHeader() {
           <a
             href={NAV_SEARCH.href}
             aria-label="Search cards and sets"
-            className="hidden h-11 w-11 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 lg:inline-flex dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-red-500"
+            className="hidden h-11 w-11 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 lg:inline-flex dark:text-zinc-300 dark:hover:bg-red-950 dark:hover:text-red-400"
           >
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="h-5 w-5">
               <circle cx="8.5" cy="8.5" r="5.5" />

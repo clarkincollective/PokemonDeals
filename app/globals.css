@@ -1,38 +1,45 @@
 @import "tailwindcss";
 
 /* =====================================================================
-   THEME - redesign 2026-09 (docs/design/redesign-2026-09.html)
+   THEME - premium collector, red + white (2026-09-22)
    ---------------------------------------------------------------------
-   One theme, dark-first: a collector's trading terminal. The `dark`
-   class on <html> (app/layout.js) selects every existing dark: variant
-   unconditionally, so the components' well-maintained dark styles ARE
-   the design; the tokens below re-point the palette they use.
+   One theme, dark-first. The `dark` class on <html> (app/layout.js)
+   selects every dark: variant unconditionally, so the components' dark
+   styles ARE the design; the tokens below re-point the palette they use.
 
-   Palette (every colour the utilities resolve to lives here)
-     ground   zinc-950 #0B0D10   panels zinc-900 #11141A
-     cards    zinc-800 #171B22   raised zinc-700 #262C36
-     lines    zinc-700 / zinc-600
-     ink      zinc-50 #EEF1F5 · zinc-200/300 secondary · zinc-400 #A7B0BE
-              · zinc-500 #6E7887 captions (4.6:1 on ground)
-     accent   red-* -> electric lime #D5F542 (the "brand red" slot is the
-              site's one accent; every CTA, active pill and link hover
-              already uses it). Text ON a lime fill is forced to ground
-              by the unlayered rule below - no class name changed.
-     savings  emerald-* -> the same lime family: a supported saving and
-              the primary action are the only two things that glow.
-     auction  amber-* #F2B84B - a bid, never a saving
-     danger   #FF6B6B - errors only (role="alert", load-error panes)
-   Type       Sora (display) · Inter Tight (UI) · JetBrains Mono (.tnum)
+   WHAT CHANGED, and why nothing downstream had to: the accent slot is
+   Tailwind's red-* scale, which the components already use for every CTA,
+   active pill and link hover. Until now that slot held LIME. It now holds
+   the actual brand red, so the whole site re-brands from the token layer
+   without touching a class name.
+
+   Palette
+     ground    #090A10   near-black
+     panels    #0F1119   sunk / alternating sections
+     surfaces  #171A24   charcoal cards
+     lines     #242938 hairline - #343A4A raised
+     ink       #F7F7FA headings - #BCC1CF secondary - #9AA0B2 muted
+               - #7E8599 captions (4.6:1 on ground)
+     BRAND RED red-*  #FF2942 is the brand tone, used for text, icons and
+               borders ON DARK (5.1:1 on ground). Button FILLS step darker
+               (#D61133 / #B60D2A / #94081F) so white button text clears
+               4.5:1 - a fill of #FF2942 with white text would not.
+     SAVINGS   emerald-* #B7FF36 neon lime, RESERVED for a genuine,
+               evidenced below-market figure. Dark text on it (15.9:1).
+               Nothing else in the UI may use this family.
+     auction   amber-* #F2B84B - a bid, never a saving
+     danger    #FF6B6B - errors only
+   Type        Sora (display) - Inter Tight (UI) - JetBrains Mono (.tnum)
    ===================================================================== */
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   color-scheme: dark;
-  --background: #0B0D10;
-  --foreground: #EEF1F5;
-  --sunk: #11141A; /* tinted ground for alternating sections */
-  --surface: #171B22;
-  --hairline: #262C36;
+  --background: #090A10;
+  --foreground: #F7F7FA;
+  --sunk: #0F1119; /* tinted ground for alternating sections */
+  --surface: #171A24; /* charcoal card */
+  --hairline: #242938;
 }
 
 @theme inline {
@@ -49,46 +56,51 @@
 @theme {
   /* Blue-black neutrals (see the header comment). Small secondary text
      has a separate contrast correction below. */
-  --color-zinc-50: #F7F8FA;
-  --color-zinc-100: #EEF1F5;
-  --color-zinc-200: #DDE2E9;
-  --color-zinc-300: #C5CCD6;
-  --color-zinc-400: #A7B0BE;
-  --color-zinc-500: #6E7887;
-  --color-zinc-600: #343B47;
-  --color-zinc-700: #262C36;
-  --color-zinc-800: #171B22;
-  --color-zinc-900: #11141A;
-  --color-zinc-950: #0B0D10;
-  --color-white: #F7F8FA;
-  --color-black: #0B0D10;
+  --color-zinc-50: #F7F7FA;
+  --color-zinc-100: #EAECF2;
+  --color-zinc-200: #D7DAE3;
+  --color-zinc-300: #BCC1CF;
+  --color-zinc-400: #9AA0B2;
+  --color-zinc-500: #7E8599;
+  --color-zinc-600: #343A4A;
+  --color-zinc-700: #242938;
+  --color-zinc-800: #171A24;
+  --color-zinc-900: #0F1119;
+  --color-zinc-950: #090A10;
+  --color-white: #F7F7FA;
+  --color-black: #090A10;
 
-  /* The accent slot: electric lime. */
-  --color-red-50: rgb(213 245 66 / 0.12);
-  --color-red-100: rgb(213 245 66 / 0.18);
-  --color-red-200: rgb(213 245 66 / 0.28);
-  --color-red-300: rgb(213 245 66 / 0.45);
-  --color-red-400: #E2FF5A;
-  --color-red-500: #E2FF5A;
-  --color-red-600: #D5F542;
-  --color-red-700: #C2E332;
-  --color-red-800: #A9C91C;
-  --color-red-900: rgb(213 245 66 / 0.3);
-  --color-red-950: rgb(213 245 66 / 0.08);
+  /* The accent slot: BRAND RED. 400/500 are the bright brand tone, for
+     text, icons and borders on dark. 600/700/800 are BUTTON FILLS and
+     step darker so white button text clears 4.5:1 - #FF2942 with white
+     text is only 3.6:1 and would fail as a fill. */
+  --color-red-50: rgb(255 41 66 / 0.10);
+  --color-red-100: rgb(255 41 66 / 0.16);
+  --color-red-200: rgb(255 41 66 / 0.26);
+  --color-red-300: rgb(255 41 66 / 0.42);
+  --color-red-400: #FF5C6E;
+  --color-red-500: #FF2942;
+  --color-red-600: #D61133;
+  --color-red-700: #B60D2A;
+  --color-red-800: #94081F;
+  --color-red-900: rgb(255 41 66 / 0.28);
+  --color-red-950: rgb(255 41 66 / 0.08);
 
-  /* Supported savings: the same family, one tone quieter for text. */
-  --color-emerald-50: rgb(213 245 66 / 0.12);
-  --color-emerald-100: rgb(213 245 66 / 0.18);
-  /* 400/500 are the TEXT tones (dark: variants) - muted so a savings line
-     reads as data beside the badge, not as a second badge. 600/700 are
-     the badge fills. */
-  --color-emerald-400: #C3D94F;
-  --color-emerald-500: #B9D42E;
-  --color-emerald-600: #C2E332;
-  --color-emerald-700: #B8DB1F;
-  --color-emerald-800: rgb(213 245 66 / 0.35);
-  --color-emerald-900: rgb(213 245 66 / 0.3);
-  --color-emerald-950: rgb(213 245 66 / 0.08);
+  /* SAVINGS ONLY: neon lime. Reserved for an evidenced below-market
+     figure - the badge fill and the savings line beside it. Dark text on
+     the fill reads 15.9:1. Nothing else in the UI may use this family, so
+     lime on the page always means "this is genuinely below market". */
+  --color-emerald-50: rgb(183 255 54 / 0.10);
+  --color-emerald-100: rgb(183 255 54 / 0.16);
+  /* 400/500 are the TEXT tones - a savings line reads as data beside the
+     badge, not as a second badge. 600/700 are the badge fills. */
+  --color-emerald-400: #A3E62E;
+  --color-emerald-500: #98D827;
+  --color-emerald-600: #B7FF36;
+  --color-emerald-700: #A8F029;
+  --color-emerald-800: rgb(183 255 54 / 0.32);
+  --color-emerald-900: rgb(183 255 54 / 0.28);
+  --color-emerald-950: rgb(183 255 54 / 0.08);
 
   /* Auctions and freshness: amber, readable on the ground. */
   --color-amber-400: #F7C766;
@@ -128,17 +140,21 @@ h1, h2 {
   letter-spacing: -0.01em;
 }
 
-/* Text on a lime fill is the ground colour, whatever text-* utility the
-   component carries (the CTA, badge and pill class names are pinned by
-   tests and unchanged). Unlayered, so it beats the utilities layer. */
-.bg-red-500, .bg-red-600, .bg-red-700, .bg-red-800,
-.hover\:bg-red-600:hover, .hover\:bg-red-700:hover, .active\:bg-red-800:active,
-.bg-emerald-500, .bg-emerald-600, .bg-emerald-700,
-.dark\:hover\:bg-red-600:hover {
-  color: #0B0D10;
+/* Text on a LIME (savings) fill is the ground colour - 15.9:1. Unlayered
+   so it beats the utilities layer, whatever text-* utility the badge
+   carries. Red fills are NOT in this list any more: a red button takes
+   white text (the CTA class already says text-white, and the 600/700/800
+   fills were chosen so that clears 4.5:1). */
+.bg-emerald-500, .bg-emerald-600, .bg-emerald-700 {
+  color: #090A10;
 }
-/* Filled dark buttons that hover to the accent (nav / grid CTAs) */
-.dark\:bg-zinc-50.dark\:hover\:bg-red-600:hover { color: #0B0D10; }
+/* Filled dark buttons that hover to the accent (nav / grid CTAs): the
+   accent is red now, so the label must flip to white on hover, not to
+   the ground colour. */
+.dark\:bg-zinc-50.dark\:hover\:bg-red-600:hover,
+.hover\:bg-red-600:hover, .hover\:bg-red-700:hover, .active\:bg-red-800:active {
+  color: #F7F7FA;
+}
 
 /* Deal cards: a restrained lift on pointer hover, the badge with it. */
 @media (hover: hover) {

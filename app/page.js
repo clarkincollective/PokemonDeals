@@ -330,8 +330,8 @@ export default async function Home() {
             {/* GEO 2026-09-20: the heading names the thing the page is,
                 in the words people search; the capsule below it is the
                 quotable answer. No slogan. */}
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50">{HOME_H1}</h1>
-            <p className="mt-1.5 hidden max-w-xl text-sm text-zinc-600 lg:block dark:text-zinc-400">
+            <h1 className="text-balance text-[1.75rem] font-bold leading-[1.12] tracking-[-0.025em] text-zinc-900 sm:text-4xl lg:text-[2.75rem] dark:text-zinc-50">{HOME_H1}</h1>
+            <p className="mt-3 hidden max-w-[58ch] text-[0.9375rem] leading-relaxed text-zinc-400 lg:block dark:text-zinc-400">
               Explore Pokemon card listings on eBay, with market references where a matching
               comparison is available. Check the card, condition and shipping before you buy.
             </p>
@@ -342,7 +342,7 @@ export default async function Home() {
                 deal: one sentence plus the dated counts. The checks
                 sentence is `sm:` and up - it stays in the HTML for every
                 reader either way. */}
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400" data-answer-capsule>
+            <p className="mt-3 max-w-[62ch] text-sm leading-relaxed text-zinc-400 dark:text-zinc-400" data-answer-capsule>
               Pokemon Deal Finder lists live eBay Pokemon card listings priced below a documented market reference for the exact card and condition, from eBay US, UK, Australia, Canada, Germany and Italy.
               <span className="hidden sm:inline">
                 {" "}Every listing shown has passed an exact-printing match, a seller-condition check, an availability re-check and an image-based authenticity screen, and shows the reference it was compared with.

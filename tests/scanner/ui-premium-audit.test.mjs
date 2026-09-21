@@ -106,8 +106,8 @@ test("6. /deals filter bar: sort row outside, other rows behind the Filters butt
 test("8. savings badge: one tiered component for cards and sealed product; loud in proportion to the real discount; auctions stay amber and separate", () => {
   const badge = read("components/SavingsBadge.js");
   assert.match(badge, /if \(pct >= 40\) return "hot";\s*if \(pct >= 20\) return "strong";\s*return "modest";/);
-  assert.match(badge, /hot: "bg-red-600 px-2\.5 py-1 text-base font-black[^"]*shadow-\[/, "hot tier: solid lime, larger, glows");
-  assert.match(badge, /strong: "bg-red-600 px-2 py-1 text-sm font-extrabold/, "strong tier: solid lime, no glow");
+  assert.match(badge, /hot: "bg-emerald-600 px-2\.5 py-1 text-base font-black[^"]*shadow-\[/, "hot tier: solid lime, larger, minimal glow");
+  assert.match(badge, /strong: "bg-emerald-600 px-2 py-1 text-sm font-extrabold/, "strong tier: solid lime, no glow");
   assert.match(badge, /modest: "border border-zinc-200 bg-white\/95/, "modest tier stays quiet");
   assert.match(badge, /data-savings-badge=\{tier\}/);
   assert.match(badge, /\{savingsBadgeText\(discountPct\)\}/, "the real number, nothing else");

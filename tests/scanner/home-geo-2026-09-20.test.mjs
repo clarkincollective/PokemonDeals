@@ -20,7 +20,15 @@ test("H1, title and description come from lib/homeContent; the capsule is body-s
   assert.match(page, /<h1[^>]*>\{HOME_H1\}<\/h1>/);
   assert.match(page, /title: \{ absolute: HOME_TITLE \}/);
   assert.match(page, /description: HOME_DESCRIPTION,/);
-  assert.match(page, /className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400" data-answer-capsule/);
+  // The capsule must stay BODY-SIZE and readable - that is what makes it
+  // quotable rather than fine print. Asserted on those properties rather
+  // than on an exact class string, so the 2026-09-22 re-brand could
+  // retune colour and measure without weakening the rule.
+  const capsule = page.match(/className="([^"]*)" data-answer-capsule/);
+  assert.ok(capsule, "the answer capsule is present");
+  assert.match(capsule[1], /\btext-sm\b/, "body-size, never text-xs");
+  assert.match(capsule[1], /\bleading-relaxed\b/, "readable line height");
+  assert.doesNotMatch(capsule[1], /\btext-xs\b|\bsr-only\b/, "never fine print or hidden");
   assert.doesNotMatch(page, /Find your next Pokemon card deal/);
 });
 
