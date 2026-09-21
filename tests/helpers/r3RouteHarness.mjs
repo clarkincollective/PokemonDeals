@@ -14,7 +14,12 @@ const pure = new Set(['dealPage','listingAvailability','indexability','dealQuali
   'catalogueView','setChecklist','speciesCoverage','pokemonSets',
   // responsive sizing for eBay listing photos - pure string work on a URL
   // (no fetch, no env, no supabase); DealImage reaches it on every path
-  'ebayImageSizes']);
+  'ebayImageSizes',
+  // the deterministic deal-quality score (2026-09-22). Pure arithmetic
+  // over columns already on the row, gated by dealQuality's own
+  // predicates - no fetch, no env, no supabase, no clock except the
+  // injectable `now`. DealCard reaches it on every render.
+  'dealQualityScore']);
 export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis=null,renderComponents=false,currency={viewer:null,rates:null}}={}) {
   const calls=[];
   const components=new Map();
@@ -90,7 +95,11 @@ export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis
         FixtureChild.displayName=name;
         // a module's named component exports substitute the same way (swc's CJS
         // interop copies enumerable keys, so they must be real properties)
-        const named={'@/components/CardMarketPanel':['CardMarketSummary']}[name]??[];
+        const named={
+          '@/components/CardMarketPanel':['CardMarketSummary'],
+          // 2026-09-22: DealCard imports both of these by name.
+          '@/components/DealQualityBadge':['DealQualityLabel','DealQualityScore'],
+        }[name]??[];
         for (const n of named) FixtureChild[n]=FixtureChild;
         components.set(name,FixtureChild);
       }

@@ -42,6 +42,11 @@ export default function SiteHeader() {
               <a
                 key={link.href}
                 href={link.href}
+                // Carried from the shared model, so a rail destination is
+                // measured exactly as the same destination is in the
+                // mobile menu and the footer - see NAV_RAIL/fromPrimary.
+                data-analytics-click={link.analyticsClick ?? undefined}
+                data-analytics-props={link.analyticsClick ? JSON.stringify(link.analyticsProps ?? {}) : undefined}
                 className="flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-red-950 dark:hover:text-red-400"
               >
                 {link.label}

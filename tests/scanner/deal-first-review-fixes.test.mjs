@@ -88,12 +88,16 @@ test("R2-1. DealCard: unknown breakdown -> no badge, no 'Save', no '% below mark
   // AND on the listing being Buy It Now - an auction's current bid never
   // wears it (it gets the amber "Bid −N%" badge instead).
   // UI audit 2026-09-20: the badge is components/SavingsBadge now - the gate is unchanged
-  assert.match(src, /\{savingsSupported && !isAuction && \(\s*<SavingsBadge discountPct=\{deal\.discount_pct\} className="absolute right-1\.5 top-1\.5/, "the discount badge is gated on the supported claim and BIN");
+  // 2026-09-22: an evidenced listing shows the deal-quality score in
+  // that corner; SavingsBadge is the fallback for a supported saving we
+  // could not score. The gate itself - supported claim, never an
+  // auction, where a bid is not a saving - is unchanged.
+  assert.match(src, /!qualityScore && savingsSupported && !isAuction && \(\s*<SavingsBadge discountPct=\{deal\.discount_pct\}/, "the discount badge is gated on the supported claim and BIN");
   assert.match(src, /\{savingsSupported && isAuction && \(/, "auctions get their own bid badge");
   assert.match(src, /discount_band: savingsSupported \? discountBand\(discountPct\) : "no_savings_claim"/);
   assert.match(src, /\{!savingsSupported \? \([\s\S]{0,300}No saving stated: shipping breakdown not recorded/);
   // the "Save …" line is inside the supported branch only
-  const saveIdx = src.indexOf("Save <Price usd={savedUsd}");
+  const saveIdx = src.indexOf("You save <Price usd={savedUsd}");
   const gateIdx = src.indexOf("{!savingsSupported ? (");
   assert.ok(gateIdx > 0 && saveIdx > gateIdx, "Save line follows the gate");
 });
@@ -307,10 +311,13 @@ test("P4-1. graded_clicked is declared on the nav model and emitted by every ren
 test("P5-2. the measurement doc's mode count and new nav populations match the page and the model", () => {
   const page = read("app/page.js");
   const chips = [...page.matchAll(/chip: "([a-z_0-9]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(chips, ["featured", "buy_it_now", "auctions", "graded", "under_25", "under_50", "sealed", "japanese", "newest"]);
+  // 2026-09-22: the mode row became the seven-entry deal-category strip.
+  // under_25 / under_50 moved to their own budget modules and
+  // buy_it_now to "More filters"; biggest_savings (/best-finds) joined.
+  assert.deepEqual(chips, ["featured", "newest", "auctions", "graded", "japanese", "sealed", "biggest_savings"]);
   const doc = read("docs/deal-first-measurement.md");
-  assert.match(doc, /nine chips \(featured, buy_it_now, auctions, graded, under_25, under_50, sealed, japanese, newest\)/);
-  assert.doesNotMatch(doc, /eight chips/);
+  assert.match(doc, /seven chips \(featured, newest, auctions, graded, japanese, sealed, biggest_savings\)/);
+  assert.doesNotMatch(doc, /eight chips|nine chips/);
   for (const ev of ["graded_clicked", "latest_releases_clicked"]) assert.ok(doc.includes(`\`${ev}\``), `${ev} documented`);
   assert.match(doc, /source: "footer"/);
 });

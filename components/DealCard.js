@@ -471,7 +471,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
               {showRef ? (
                 <>
                   You save <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} className="tnum text-base font-extrabold" />
-                  {" "}({pctText}){ship.savingQualifier}
+                  {" "}({pctText} below market){ship.savingQualifier}
                 </>
               ) : (
                 <>

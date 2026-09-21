@@ -409,7 +409,10 @@ export default async function Home() {
                 deal: one sentence plus the dated counts. The checks
                 sentence is `sm:` and up - it stays in the HTML for every
                 reader either way. */}
-            <p className="mt-3 max-w-[62ch] text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400" data-answer-capsule>
+            {/* Stays text-sm (body size), never text-xs/13px: the GEO
+                answer capsule is quotable prose, and home-geo pins its
+                size for that reason. */}
+            <p className="mt-3 max-w-[62ch] text-sm leading-relaxed text-zinc-500 dark:text-zinc-400" data-answer-capsule>
               Pokemon Deal Finder lists live eBay Pokemon card listings priced below a documented market reference for the exact card and condition, from eBay US, UK, Australia, Canada, Germany and Italy.
               <span className="hidden sm:inline">
                 {" "}Every listing shown has passed an exact-printing match, a seller-condition check, an availability re-check and an image-based authenticity screen, and shows the reference it was compared with.

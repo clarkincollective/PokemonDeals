@@ -147,7 +147,11 @@ test("H-8. a visible navigation entry, shared by the desktop bar and the mobile 
   // model (navGroupItems); NavDropdown emits the entry's markers per item.
   assert.equal(entry.group, "deals", "lives in the Deals submenu");
   assert.match(src("components/SiteHeader.js"), /navGroupItems\(link\.railGroup\)/, "desktop submenus are built from NAV_PRIMARY");
-  assert.match(src("components/SiteHeader.js"), /NAV_PRIMARY\.filter\(\(link\) => link\.group == null\)\.map/, "desktop inline entries are built from NAV_PRIMARY");
+  // 2026-09-22: the flat NAV_RAIL replaced the "inline entries with no
+  // group" bucket, so there is nothing left to filter. The rule - the
+  // desktop header is generated from the shared model, never hand-listed
+  // - is asserted on the line above against navGroupItems/NAV_RAIL.
+  assert.match(src("components/SiteHeader.js"), /NAV_RAIL\.map\(\(link\) =>/, "desktop entries are built from the shared nav model");
   for (const [f, v] of [["components/NavDropdown.js", "it"], ["components/SiteHeader.js", "link"], ["components/NavMenu.js", "link"]]) {
     assert.match(src(f), new RegExp(`data-analytics-click=\\{\\s*${v}\\.analyticsClick`), `${f}: emits the entry's event`);
     assert.match(src(f), new RegExp(`${v}\\.analyticsClick[\\s\\S]{0,40}JSON\\.stringify\\(${v}\\.analyticsProps \\?\\? \\{\\}\\)`), `${f}: emits its props`);

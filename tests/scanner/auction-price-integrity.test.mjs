@@ -141,7 +141,7 @@ test("2c. fixed-price (BIN) rendering: the landed total is the ONE dominant pric
   assert.match(binBranch, /\{ship\.headline\}/);
   assert.equal(offerShipping({ shipping: 4.25 }).headline, "Listing total");
   assert.match(binBranch, /Market reference/);
-  assert.match(src, /Save <Price usd=\{savedUsd\}/);
+  assert.match(src, /You save <Price usd=\{savedUsd\}/);
   assert.doesNotMatch(binBranch, /line-through/, "no struck-through 'was' anchor on a fixed-price listing");
 });
 

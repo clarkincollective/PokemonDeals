@@ -78,7 +78,10 @@ test("5. deal-card meta lines are 13px", () => {
   const src = read("components/DealCard.js");
   assert.match(src, /gap-x-1 text-\[13px\] text-zinc-500 dark:text-zinc-400">\s*\{cardSet &&/);
   assert.match(src, /<p className="text-\[13px\] text-zinc-500 dark:text-zinc-400">\s*Market reference/);
-  assert.match(src, /<p className="text-\[13px\] font-semibold text-emerald-700/);
+  // 2026-09-22: the savings line is the headline of the redesigned card,
+  // so it stepped up from 13px/semibold to sm/bold. It is still the ONE
+  // green line and still only rendered on a trusted claim.
+  assert.match(src, /<p className="mt-0\.5 text-sm font-bold text-emerald-700/);
   assert.match(src, /mt-2 flex items-center justify-between gap-2 text-\[13px\]/);
 });
 
@@ -86,12 +89,20 @@ test("5b. phone deal card: mono on figures only, marketplace words hidden behind
   const src = read("components/DealCard.js");
   // no sentence paragraph carries the mono face; every inline <Price> in a sentence does
   assert.doesNotMatch(src, /<p className=\{?[`"]tnum (mt-0\.5 )?text-(xs|\[13px\])/, "a whole sentence in the mono face");
-  assert.match(src, /Save <Price [^/]*className="tnum text-sm font-bold" \/>/);
-  assert.match(src, /Market reference\{" "\}\s*<Price [^/]*className="tnum font-medium/);
+  assert.match(src, /You save <Price [^/]*className="tnum text-base font-extrabold" \/>/);
+  // 2026-09-22: the reference FIGURE sits beside the price as "Typical
+  // <x>" and the line below names what it is for. Both are still mono
+  // on the figure only, which is what this pins.
+  assert.match(src, /Typical\{" "\}\s*<Price [^/]*className="tnum font-medium/);
   assert.match(src, /<span className="sr-only sm:not-sr-only">eBay \{marketInfo\.short\}<\/span>/);
-  assert.match(src, /relative row-span-1 self-start sm:row-auto sm:self-auto/);
+  // 2026-09-22: the save control is no longer anchored to the artwork.
+  // It sits in the action row at the foot of the card beside Compare,
+  // where the redesign groups the secondary actions - one Watch control
+  // per card rather than one floating over the picture and one below.
+  assert.match(src, /<SaveCardButton\s+card=\{\{/, "the card still carries exactly one save control");
+  assert.equal((src.match(/<SaveCardButton/g) ?? []).length, 1, "and only one");
   // the headline figure keeps the mono face
-  assert.match(src, /className="tnum block break-words text-2xl font-bold/);
+  assert.match(src, /className="tnum block break-words text-\[1\.75rem\] font-extrabold/);
 });
 
 test("6. /deals filter bar: sort row outside, other rows behind the Filters button; every row still rendered", () => {
@@ -108,7 +119,10 @@ test("8. savings badge: one tiered component for cards and sealed product; loud 
   assert.match(badge, /if \(pct >= 40\) return "hot";\s*if \(pct >= 20\) return "strong";\s*return "modest";/);
   assert.match(badge, /hot: "bg-emerald-600 px-2\.5 py-1 text-base font-black[^"]*shadow-\[/, "hot tier: solid lime, larger, minimal glow");
   assert.match(badge, /strong: "bg-emerald-600 px-2 py-1 text-sm font-extrabold/, "strong tier: solid lime, no glow");
-  assert.match(badge, /modest: "border border-zinc-200 bg-white\/95/, "modest tier stays quiet");
+  // On white the quiet tier is a faint green outline rather than a grey
+  // card on a dark card. Still an OUTLINE, still the quietest of the
+  // three - a 12% saving must not shout.
+  assert.match(badge, /modest: "border border-emerald-600\/35 bg-emerald-50/, "modest tier stays quiet");
   assert.match(badge, /data-savings-badge=\{tier\}/);
   assert.match(badge, /\{savingsBadgeText\(discountPct\)\}/, "the real number, nothing else");
   assert.doesNotMatch(badge, /only \d|left!|selling fast|hurry|limited time/i, "no invented urgency");

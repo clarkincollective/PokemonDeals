@@ -173,7 +173,9 @@ test("DealCard distinguishes auction from BIN and never strikes the auction ref"
   assert.doesNotMatch(auctionPrice, /line-through/, "an auction price block never strikes a figure");
   // the fixed-price branch headlines the landed total and labels the
   // reference beside it (deal-first R1: no struck-through anchor either).
-  const binOnly = src.slice(src.indexOf(") : (\n          <div className=\"mt-2\">"));
+  // Anchored on the BIN branch's own first line rather than on the exact
+  // whitespace of the ternary, which the redesign reflowed.
+  const binOnly = src.slice(src.indexOf("text-xs font-medium uppercase tracking-wide"));
   assert.match(binOnly, /\{ship\.headline\}/, "BIN headlines the listing total, or the listing price when shipping is not confirmed (lib/offerPresentation)");
   assert.match(binOnly, /Market reference/, "BIN labels its reference");
   assert.doesNotMatch(src, /line-through/, "no struck-through figure anywhere on the card");
@@ -181,7 +183,9 @@ test("DealCard distinguishes auction from BIN and never strikes the auction ref"
 
 test("DealCard image reserves space (no CLS)", () => {
   const src = read("components/DealCard.js");
-  // deal-first R2 revision: a 4:5 box (object-contain, never cropped)
-  // instead of a square - still a reserved aspect box, so no CLS
-  assert.match(src, /aspect-\[4\/5\] w-full/, "deal image needs a reserved aspect box");
+  // 2026-09-22: the card is vertical at every width, so the phone box is
+  // the same 6:5 as desktop (object-contain, never cropped). A RESERVED
+  // box - a fixed ratio so nothing shifts when the image lands - is what
+  // this test guards, and that is unchanged.
+  assert.match(src, /aspect-\[6\/5\] w-full/, "deal image needs a reserved aspect box");
 });
