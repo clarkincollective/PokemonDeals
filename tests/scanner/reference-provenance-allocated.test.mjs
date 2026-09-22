@@ -60,9 +60,15 @@ const raw = {
 // The real referenceFor arrow, lifted from the route and evaluated with the
 // same dependencies the route gives it. No route import, no I/O.
 const REFERENCE_FOR_SRC = ROUTE.match(/const referenceFor = \(core\) => \{[\s\S]*?\n  \};/)[0].replace(/^const referenceFor = /, "");
+// 2026-09-22 (deal 42127): referenceFor now reads `listingMarket` - the
+// card-level marketData narrowed to the ONE printing the listing
+// evidences - instead of the card-wide `marketData`. The provenance
+// contract this suite protects is unchanged; only the name of the object
+// it reads changed, so the same fixture is bound to the new name.
 function referenceFor(core, marketData, row = { justtcg_tcgplayer_id: "113764" }) {
   const fn = runInNewContext("(" + REFERENCE_FOR_SRC.replace(/;$/, "") + ")", {
-    row, marketData, selectConditionReference, buildCardReference, clearedReference, CARD_REFERENCE_COLUMNS,
+    row, marketData, listingMarket: marketData,
+    selectConditionReference, buildCardReference, clearedReference, CARD_REFERENCE_COLUMNS,
   });
   return fn(core);
 }

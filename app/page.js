@@ -448,7 +448,15 @@ export default async function Home() {
             <p className="mt-3 max-w-[58ch] text-sm leading-relaxed text-zinc-500 dark:text-zinc-400" data-answer-capsule>
               Pokemon Deal Finder lists live eBay Pokemon card listings priced below a documented market reference for the exact card and condition, from eBay US, UK, Australia, Canada, Germany and Italy.
               <span className="hidden sm:inline">
-                {" "}Every listing shown has passed an exact-printing match, a seller-condition check, an availability re-check and an image-based authenticity screen, and shows the reference it was compared with.
+                {/* 2026-09-22: this used to say every listing shown had
+                    passed "an exact-printing match". It had not, and
+                    cannot: a listing is SHOWN once its card identity,
+                    condition and availability check out, but a SAVING is
+                    only claimed when the printing and condition are
+                    matched to a reference we can evidence. Deal 42127
+                    was exactly that gap. The sentence now draws the line
+                    where the implementation draws it. */}
+                {" "}Every listing shown has passed a card-identity match, a seller-condition check, an availability re-check and an image-based authenticity screen. A saving is only claimed where the printing and condition are matched to a market reference we can evidence — otherwise the listing is shown plainly, with the reason.
               </span>
               {liveCount != null && integrity?.withheldActive != null && integrity?.checked24h != null && (
                 <>

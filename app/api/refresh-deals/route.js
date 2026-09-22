@@ -14,6 +14,7 @@ import { logDiscoveryEvent } from "@/lib/discoveryLog";
 import { writeDiscoverySighting, insertNewSighting, finalisePilotInsert, abandonedPilotPendingRows, PILOT_PENDING_REASON, DEAL_LISTS_TAG, takeObservationTally } from "@/lib/listingAvailability";
 // 17C.10 - reference provenance for the comparison this scanner stores.
 import { selectConditionReference } from "@/lib/dealMatching";
+import { selectReferencePrinting } from "@/lib/printingMatch";
 import { CARD_REFERENCE_COLUMNS, buildCardReference, clearedReference } from "@/lib/referenceProvenance";
 import { probeReferenceColumns, writesReferenceColumns } from "@/lib/referenceProvenanceDb";
 
@@ -149,16 +150,73 @@ async function attachCatalogNumbers(rows, db) {
   for (let i = 0; i < ids.length; i += 500) {
     const { data, error } = await db
       .from("card_catalog")
-      .select("tcgplayer_id, card_number")
+      .select("tcgplayer_id, card_number, market_printing")
       .in("tcgplayer_id", ids.slice(i, i + 500));
     if (error) break; // pre-migration / transient - matcher just skips the number check
-    for (const c of data ?? []) if (c.card_number != null) byId.set(String(c.tcgplayer_id), c.card_number);
+    for (const c of data ?? []) byId.set(String(c.tcgplayer_id), c);
   }
   for (const r of rows ?? []) {
-    const n = byId.get(String(r.justtcg_tcgplayer_id));
-    if (n != null) r.card_number = n;
+    const c = byId.get(String(r.justtcg_tcgplayer_id));
+    if (c?.card_number != null) r.card_number = c.card_number;
+    // deal 42127: the catalogue's own printing for this product, used as
+    // the defensible default when a listing does not evidence a parallel
+    // finish (lib/printingMatch). Undefined for a row with no catalogue
+    // match; the selector then falls back to the non-parallel default.
+    if (c?.market_printing != null) r.catalog_printing = c.market_printing;
   }
   return rows;
+}
+
+// PRINTING-RESTRICTED MARKET DATA (deal 42127).
+//
+// `marketData` is fetched and cached PER CARD - one provider call serves
+// every listing of that card - but the printing a reference may describe
+// is a property of the LISTING. So the card-level data is narrowed here,
+// once per listing, before any tier is selected. Every existing
+// selectConditionPrice / selectConditionReference call then operates on a
+// view containing only the chosen printing, and needs no change.
+//
+// Returns null when no printing is defensible (a multi-printing card
+// whose listing evidences nothing and whose only priced variants are
+// parallels). The caller then skips the listing rather than pricing it
+// against a premium parallel - which is exactly the bug: Expedition
+// Bulbasaur's Lightly Played tier was filled by Reverse Holofoil at
+// $173.49 because the Normal printing had no LP entry.
+function marketDataForListing(marketData, { listing, row }) {
+  if (!marketData) return null;
+  const matrix = marketData.byPrintingCondition;
+  // No matrix (a cached entry written before this shipped, or a shape the
+  // provider did not give): fall through unchanged. The display-time gate
+  // in lib/dealQuality still refuses an unevidenced parallel claim, so
+  // this degrades to the pre-existing behaviour, never to something worse.
+  if (!matrix || Object.keys(matrix).length === 0) return marketData;
+
+  const choice = selectReferencePrinting({
+    variantNames: Object.keys(matrix),
+    evidenceText: `${listing?.title ?? ""} ${listing?.condition ?? ""}`,
+    catalogPrinting: row?.catalog_printing ?? null,
+  });
+  if (!choice.printing) return null;
+
+  const tiers = matrix[choice.printing] ?? {};
+  const byCondition = {};
+  const byConditionReference = {};
+  for (const [tier, price] of Object.entries(tiers)) {
+    byCondition[tier] = price;
+    byConditionReference[tier] = { price, condition: tier, printing: choice.printing };
+  }
+  // The aggregate fallback is only safe when the card has ONE printing.
+  // On a multi-printing card it may blend them, which is the same class
+  // of error this function exists to stop.
+  const singlePrinting = Object.keys(matrix).length === 1;
+  return {
+    ...marketData,
+    byCondition,
+    byConditionReference,
+    fallbackPrice: singlePrinting ? marketData.fallbackPrice : null,
+    fallbackReference: singlePrinting ? marketData.fallbackReference : null,
+    printingChoice: choice,
+  };
 }
 
 function chunkOf(row, totalChunks) {
@@ -501,6 +559,13 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
   //   * observedAt is the PROVIDER's prices.lastUpdated, never our sync time
   // A row we cannot evidence gets the CLEARED set, so a stale reference can
   // never outlive the comparison it described.
+  // Set at the top of each listing iteration below, and read by
+  // referenceFor() within that same iteration. Declared here because
+  // referenceFor is a closure created before the loop; the printing
+  // choice is per LISTING, so the reference this builds must come from
+  // the narrowed view, never the card-wide one.
+  let listingMarket = null;
+
   const referenceFor = (core) => {
     const productId = row.justtcg_tcgplayer_id ?? null;
     if (productId == null || core.market_price == null) return clearedReference(CARD_REFERENCE_COLUMNS);
@@ -517,7 +582,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
       });
     }
     const tier = core.condition === "Unknown" || !core.condition ? "Near Mint" : core.condition;
-    const ref = selectConditionReference(marketData?.byConditionReference, tier, marketData?.fallbackReference);
+    const ref = selectConditionReference(listingMarket?.byConditionReference, tier, listingMarket?.fallbackReference);
     // the reference must be the one that produced the stored figure
     if (!ref || ref.price == null || Math.abs(Number(ref.price) - Number(core.market_price)) > 0.01) {
       return clearedReference(CARD_REFERENCE_COLUMNS);
@@ -637,7 +702,12 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     // "Unknown" / "Near Mint" fall through to structured verification.
     if (condition !== "Unknown" && !conditionAllowsPromotion(condition)) continue;
     const priceForTier = condition === "Unknown" ? "Near Mint" : condition;
-    let marketPrice = selectConditionPrice(marketData.byCondition, priceForTier, marketData.fallbackPrice);
+    // deal 42127: narrow the card-level reference data to the ONE printing
+    // this listing evidences (or the catalogue default). null = nothing
+    // defensible, so this listing is not priced at all.
+    listingMarket = marketDataForListing(marketData, { listing, row });
+    if (!listingMarket) continue;
+    let marketPrice = selectConditionPrice(listingMarket.byCondition, priceForTier, listingMarket.fallbackPrice);
     if (marketPrice == null) continue;
 
     let priced = pricedListing(listing, marketPrice, rates);
@@ -658,7 +728,10 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
       titleCondition: condition,
       provisionalDiscountPct: priced.discountPct,
       listingUsd: priced.totalUsd,
-      lpPrice: marketData.byCondition?.["Lightly Played"] ?? null,
+      // deal 42127: the LP figure for THIS listing's printing, not the
+      // card-wide one - resolveRawCondition compares the listing price
+      // against it, and a reverse-holo LP price would skew that too.
+      lpPrice: listingMarket.byCondition?.["Lightly Played"] ?? null,
       budget: rawCondBudget,
       highValueVintage,
     });
@@ -686,7 +759,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
 
     if (resolved.condition !== condition) {
       condition = resolved.condition;
-      marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
+      marketPrice = selectConditionPrice(listingMarket.byCondition, condition, listingMarket.fallbackPrice);
       if (marketPrice == null) continue;
       priced = pricedListing(listing, marketPrice, rates);
       if (priced.discountPct < discountThreshold) continue;
@@ -1081,7 +1154,10 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
       });
       if (condition !== "Unknown" && !conditionAllowsPromotion(condition)) continue;
       const priceForTier = condition === "Unknown" ? "Near Mint" : condition;
-      let marketPrice = selectConditionPrice(marketData.byCondition, priceForTier, marketData.fallbackPrice);
+      // deal 42127 - same per-listing printing narrowing as the sweep path.
+      const listingMarket = marketDataForListing(marketData, { listing, row });
+      if (!listingMarket) continue;
+      let marketPrice = selectConditionPrice(listingMarket.byCondition, priceForTier, listingMarket.fallbackPrice);
       if (marketPrice == null) continue;
 
       let priced = pricedListing(listing, marketPrice, rates);
@@ -1096,7 +1172,10 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
         titleCondition: condition,
         provisionalDiscountPct: priced.discountPct,
         listingUsd: priced.totalUsd,
-        lpPrice: marketData.byCondition?.["Lightly Played"] ?? null,
+        // deal 42127: the LP figure for THIS listing's printing, not the
+      // card-wide one - resolveRawCondition compares the listing price
+      // against it, and a reverse-holo LP price would skew that too.
+      lpPrice: listingMarket.byCondition?.["Lightly Played"] ?? null,
         budget: rawCondBudget,
         cache: rawCondCache,
         highValueVintage: isHighValueVintage({ set: row.set, marketPrice }),
@@ -1108,7 +1187,7 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
       if (!conditionAllowsPromotion(resolved.condition)) continue;
       if (resolved.condition !== condition) {
         condition = resolved.condition;
-        marketPrice = selectConditionPrice(marketData.byCondition, condition, marketData.fallbackPrice);
+        marketPrice = selectConditionPrice(listingMarket.byCondition, condition, listingMarket.fallbackPrice);
         if (marketPrice == null) continue;
         priced = pricedListing(listing, marketPrice, rates);
         if (priced.discountPct < discountThreshold) continue;
@@ -1120,9 +1199,9 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
       // is not evidence for this comparison, so the cleared set goes in
       // instead - never a reference that merely shares an amount.
       const sweepRef = selectConditionReference(
-        marketData.byConditionReference,
+        listingMarket.byConditionReference,
         condition === "Unknown" ? "Near Mint" : condition,
-        marketData.fallbackReference
+        listingMarket.fallbackReference
       );
       const sweepReference =
         sweepRef?.price != null && Math.abs(Number(sweepRef.price) - Number(marketPrice)) <= 0.01
