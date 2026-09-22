@@ -51,6 +51,20 @@ const DOCUMENTED = {
 const POOL = 8430;
 const RUNS_PER_DAY = 2; // two tier=allocated crons per country in vercel.json
 
+// A corrected comment normally QUOTES the wording it withdrew, in order to
+// say it was wrong. So "the claim is gone" cannot be tested with a bare
+// doesNotMatch - that fires on the correction's own explanatory prose.
+// What must not come back is the claim ASSERTED: the phrase appearing
+// outside quotation marks. (This exact trap has now caught me twice in
+// this file alone, and several times elsewhere in the suite.)
+function assertedOutsideQuotes(src, phrase) {
+  for (const m of src.matchAll(new RegExp(phrase, "g"))) {
+    const before = src.slice(Math.max(0, m.index - 260), m.index);
+    if ((before.match(/"/g) ?? []).length % 2 === 0) return true;
+  }
+  return false;
+}
+
 test("1. each marketplace's per-run budget still matches the documented table", () => {
   for (const [mkt, doc] of Object.entries(DOCUMENTED)) {
     assert.equal(budgetForRun({ marketplace: mkt }), doc.budget, `${mkt}: budget changed - update the table beside MARKETPLACE_WEIGHT`);
@@ -106,20 +120,6 @@ test("5. the corrected prose is present and the withdrawn claims have not come b
   // the measured table, not an asserted cadence
   assert.match(alloc, /MEASURED 2026-09-23 rather than asserted/, "the measured-cadence note is gone");
   assert.match(alloc, /34-59 days/, "the measured range is gone from the allocator comment");
-  // The corrected comments QUOTE the withdrawn wording in order to say it
-  // was wrong, so a bare doesNotMatch fires on the quotation itself. What
-  // must not come back is the claim ASSERTED - i.e. the phrase appearing
-  // outside quotation marks. (Learned the hard way: this exact assertion
-  // shape has tripped on its own explanatory prose before.)
-  const assertedOutsideQuotes = (src, phrase) => {
-    const re = new RegExp(phrase, "g");
-    for (const m of src.matchAll(re)) {
-      const before = src.slice(Math.max(0, m.index - 220), m.index);
-      const quotesBefore = (before.match(/"/g) ?? []).length;
-      if (quotesBefore % 2 === 0) return true; // not inside a quotation
-    }
-    return false;
-  };
   assert.equal(
     assertedOutsideQuotes(alloc, "well inside the CURRENT ~30-day cadence"),
     false,
@@ -133,4 +133,38 @@ test("5. the corrected prose is present and the withdrawn claims have not come b
   // but the correction must still explain what it replaced
   assert.match(alloc, /was wrong on/, "the allocator comment no longer says the old wording was wrong");
   assert.match(route, /There are NO\s*\n\/\/ tier=extended cron entries/, "the correction in refresh-deals is gone");
+});
+
+test("6. the documented cron-parameter claims match vercel.json", () => {
+  // Same defect class as the cadence comments: prose asserting what the
+  // schedule does, with nothing checking it. The minDiscount comment in
+  // refresh-deals claimed the parameter was "never used by the scheduled
+  // cron calls" while the US sweep cron passed minDiscount=0 - which is
+  // why EBAY_US carries 206 sub-threshold deals and every other
+  // marketplace carries none.
+  const vercel = JSON.parse(read("vercel.json"));
+  const crons = vercel.crons ?? [];
+  const route = read(ROUTE);
+
+  const withMinDiscount = crons.filter((c) => c.path.includes("minDiscount="));
+  if (withMinDiscount.length > 0) {
+    // The comment must not ASSERT that the crons never pass it. The
+    // correction quotes the withdrawn sentence, so this has to be
+    // quotation-aware like test 5.
+    assert.equal(
+      assertedOutsideQuotes(route, "Never used by the scheduled"),
+      false,
+      "a cron passes minDiscount but the comment still ASSERTS the crons never do"
+    );
+    // and the correction must name the marketplaces that actually get it
+    for (const c of withMinDiscount) {
+      const country = (c.path.match(/country=([A-Z_]+)/) ?? [])[1];
+      if (country) {
+        assert.ok(
+          route.includes(country),
+          `${country} runs with a minDiscount override but is not named in the correction`
+        );
+      }
+    }
+  }
 });

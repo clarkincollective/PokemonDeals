@@ -96,10 +96,13 @@ const DISCOUNT_THRESHOLD = 0.1;
 // (see git history) and evidently isn't enough margin anymore - 6 roughly
 // halves this tier's single biggest daily spike (~2,843 -> ~1,422 calls
 // in the one country-chunk that runs each day), at the cost of a slower
-// full-rotation cadence (~30 days instead of ~15 - see vercel.json's
-// now-30 extended cron entries, one per country-chunk-day). Hash-based
-// on watchlist id rather than a stored column - deterministic and needs
-// no migration; a card's chunk only changes if its id changes.
+// full-rotation cadence (~30 days instead of ~15). Hash-based on
+// watchlist id rather than a stored column - deterministic and needs no
+// migration; a card's chunk only changes if its id changes.
+//
+// (The "see vercel.json's now-30 extended cron entries, one per
+// country-chunk-day" that used to close this sentence was removed on
+// 2026-09-23: those entries do not exist. See the correction below.)
 //
 // Reduced 6 -> 5 on 2026-08-31 when EBAY_IT was added as the 6th
 // marketplace. 6 marketplaces x 5 chunks = 30 slots. Each daily chunk is
@@ -1278,8 +1281,28 @@ export async function GET(request) {
 
   // ?minDiscount=0.03 overrides the real 10% threshold for a one-off test
   // scan (e.g. to see real UI with real listings without waiting for a
-  // genuine 10%+ deal). Never used by the scheduled cron calls, so
-  // production behavior is unaffected unless this is passed explicitly.
+  // genuine 10%+ deal).
+  //
+  // CORRECTED 2026-09-23. This used to end "Never used by the scheduled
+  // cron calls, so production behavior is unaffected unless this is
+  // passed explicitly." That is FALSE, and has been for as long as the
+  // current schedule has existed: vercel.json's US sweep is
+  //
+  //     /api/refresh-deals?mode=sweep&country=EBAY_US&pages=5&minDiscount=0
+  //     */15 * * * *
+  //
+  // so EBAY_US runs every 15 minutes with the threshold at ZERO while
+  // every other marketplace uses DISCOUNT_THRESHOLD. Measured on the live
+  // table 2026-09-23: of 718 active EBAY_US deals, 206 (28.7%) sit below
+  // 10%, including 5 at ~0% and 115 under 5%. Across all five other
+  // marketplaces the count below 10% is 0. Of those 206, 202 pass the
+  // display gate and show a green saving.
+  //
+  // Whether that is wanted is a product decision, not a code one - the
+  // parameter is in the cron path deliberately, and sweep mode is the
+  // fast-discovery lane. It is documented here rather than changed,
+  // because changing it would change which listings the site advertises.
+  // Do not "fix" it without deciding that question first.
   const minDiscountParam = url.searchParams.get("minDiscount");
   const discountThreshold = minDiscountParam != null ? Number(minDiscountParam) : DISCOUNT_THRESHOLD;
 
@@ -1392,9 +1415,16 @@ export async function GET(request) {
   }
 
   // ?chunk=1..2 - only meaningful for tier=extended (see EXTENDED_CHUNKS
-  // above). vercel.json runs each chunk/country combination on its own
-  // days so the full tier gets covered in every country roughly every 10
-  // days.
+  // above).
+  //
+  // CORRECTED 2026-09-23. This used to say "vercel.json runs each
+  // chunk/country combination on its own days so the full tier gets
+  // covered in every country roughly every 10 days". It does not: there
+  // are no tier=extended cron entries at all, so nothing passes ?chunk
+  // on a schedule and no 10-day coverage happens. The parameter is
+  // reachable only by a manual call. Extended cards are covered by the
+  // scan allocator instead, at a measured 34-59 days by marketplace -
+  // see lib/scanAllocator beside MARKETPLACE_WEIGHT.
   const chunk = url.searchParams.get("chunk");
   // ?country=EBAY_GB - a single marketplace, used by tier=extended, sweep
   // mode above, AND tier=allocated (which requires it).
