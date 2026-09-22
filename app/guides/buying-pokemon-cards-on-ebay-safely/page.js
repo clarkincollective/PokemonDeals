@@ -132,7 +132,7 @@ export default function Page() {
 
       <GH2>What this site checks for you, and what it cannot</GH2>
       <GP>
-        Every listing shown on Pokemon Deal Finder has passed an exact-printing match against the
+        Every listing shown on Pokemon Deal Finder has passed a card-identity match against the
         catalogue, a read of the seller&apos;s stated condition from eBay&apos;s item record, an
         availability re-check, and an image-based authenticity screen; listings that fail are
         withheld and the running counts are on the{" "}

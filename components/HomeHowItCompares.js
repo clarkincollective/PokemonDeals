@@ -39,9 +39,10 @@ export default function HomeHowItCompares() {
       <h2 className={H2}>How does Pokemon Deal Finder find Pokemon cards below market price?</h2>
       <p className={P} data-direct-answer>
         It compares every live eBay listing it tracks with a dated market reference for that exact printing and
-        condition, and shows only the listings whose delivered total sits below it. Each one passes an exact-printing
-        match, a seller-condition check, an availability re-check and an image-based authenticity screen before it
-        appears, and the reference it was compared with is shown beside it.
+        condition. Each listing passes a card-identity match, a seller-condition check, an availability re-check and
+        an image-based authenticity screen before it appears. A saving is only claimed where the printing and
+        condition are matched to a reference we can evidence, and that reference is shown beside it; where they are
+        not, the listing is shown plainly with the reason.
       </p>
 
       <h3 className="mt-6 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Key takeaways</h3>
