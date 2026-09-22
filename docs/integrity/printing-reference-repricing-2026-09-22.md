@@ -61,19 +61,37 @@ Out of scope for this record, and still open as owner decisions in their
 own right: the `$100` / 40% image-screening threshold, and the Japanese
 lane (3,466 active targets with no catalogue row).
 
-## Monitoring caveat — read this before trusting a "0"
+## Monitoring
 
-`scripts/integrity/printingRepairProgress.mjs` now reports **0 refused
-by the containment gate**, and that zero does **not** mean the backlog is
-clear. The monitor keys on `referenceIsUnevidencedParallelPrinting`,
-which reads `reference_printing` — the column invalidation set to NULL.
-It was written to measure the *pre-invalidation* cohort and that cohort
-is genuinely empty now, so the 207 rows are invisible to it.
+`scripts/integrity/printingRepairProgress.mjs` reports this backlog
+directly. Read-only, one pass, no provider call:
 
-To measure the real backlog, count active rows from the snapshot ids
-whose `reference_product_id` and `reference_amount` are both still NULL.
-Until the monitor is taught about the post-invalidation shape, its output
-answers a question that has already been resolved.
+```
+node scripts/integrity/printingRepairProgress.mjs
+```
+
+Cohort membership is the **stable deal ids** in the invalidation
+snapshots, so no mutable field can remove a row from the tracked set.
+The four states are mutually exclusive and reconcile to the original
+cohort total; the script exits non-zero if they do not. An id it cannot
+read is reported as *Missing or unassessable*, never dropped — a partial
+read must not look like progress. With no snapshot present it refuses to
+report at all rather than print a zero.
+
+"Resolved" means a reference supported under the identity and provenance
+rules (`savingsClaimTrusted`). A residual `market_price` is not proof of
+repair, and a positive discount is not required.
+
+**The earlier version of this monitor was misleading and has been
+rewritten.** It identified its cohort by querying the live table for rows
+still carrying an unevidenced parallel reference — i.e. by reading
+`reference_printing`, the column invalidation NULLs. Its population
+therefore emptied the moment the repair ran, and it printed "0 refused by
+the containment gate" while all 207 references were still unresolved.
+
+The containment-gate figure is still printed, in its own section, because
+it catches *new* bad references arriving from the pipeline. It is not the
+backlog, and the script now says so on the same line as the number.
 
 ## Definition of done
 
