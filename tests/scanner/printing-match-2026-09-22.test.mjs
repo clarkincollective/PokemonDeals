@@ -9,11 +9,14 @@
 // to Normal, or to nothing - never to the parallel.
 //
 // The second thing these fixtures protect is the OPPOSITE error, which
-// is the expensive one: an SIR / Full Art / ex exists only as a holo, so
-// a single-variant card must pass through untouched. The rule that keeps
-// both true is structural rather than lexical - one variant means the
-// identity implies the finish; more than one means a real choice that
-// has to be evidenced.
+// is the expensive one: an SIR / Full Art / ex exists only as a holo and
+// must not be refused for never saying "holo". What keeps both true is
+// that Holofoil is not a PARALLEL family, so it survives to the default
+// step - not a rarity-label check, and not the variant count.
+//
+// The 2026-09-22 closeout removed an earlier "single variant -> use it"
+// shortcut that bypassed contradictory evidence; the CONTRADICTION
+// BEATS THE SINGLETON cases below are the regression guard for it.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -106,9 +109,12 @@ test("1st Edition: evidenced permits it, Unlimited excludes it, silence defaults
   assert.equal(silent.parallel, false);
 });
 
-test("SINGLE VARIANT: an inherently holo-only card passes through untouched", () => {
+test("a lone HOLOFOIL variant still serves the inherently-holo rarities", () => {
   // The expensive mistake in the other direction. These titles never say
-  // "holo" and must never be refused for it.
+  // "holo" and must never be refused for it. Note what makes this work:
+  // NOT a rarity-label check (SIR / Full Art / ex are never read as
+  // proof), and NOT the variant count - simply that Holofoil is not a
+  // parallel family, so it survives to the default step.
   for (const title of [
     "Mega Gengar ex 284/217 Ascended Heroes SIR",
     "Rayquaza V (Alternate Full Art) 194/203 Evolving Skies",
@@ -116,8 +122,88 @@ test("SINGLE VARIANT: an inherently holo-only card passes through untouched", ()
   ]) {
     const choice = selectReferencePrinting({ variantNames: ["Holofoil"], evidenceText: title });
     assert.equal(choice.printing, "Holofoil", title);
-    assert.equal(choice.reason, "single_variant");
+    assert.equal(choice.confidence, "default", "a valuation, not a matched claim");
   }
+});
+
+// ===================================================================
+// CLOSEOUT 2026-09-22: the singleton shortcut bypassed contradictory
+// evidence. Probed on the real implementation, these three returned the
+// PARALLEL - the original defect class by another route.
+// ===================================================================
+
+test("CONTRADICTION BEATS THE SINGLETON: explicit Non-Holo vs a response containing only Reverse Holofoil", () => {
+  const choice = selectReferencePrinting({
+    variantNames: ["Reverse Holofoil"],
+    evidenceText: "Psyduck 104/147 Aquapolis NON HOLO LP",
+  });
+  assert.equal(choice.printing, null, "must refuse, not fall back to the only variant present");
+  assert.equal(choice.reason, "contradicted");
+  assert.equal(choice.confidence, null);
+});
+
+test("CONTRADICTION BEATS THE SINGLETON: explicit Unlimited vs a response containing only 1st Edition", () => {
+  const choice = selectReferencePrinting({
+    variantNames: ["1st Edition Holofoil"],
+    evidenceText: "Dark Houndoom 7/105 Neo Destiny Unlimited Holo Lightly Played",
+  });
+  assert.equal(choice.printing, null);
+  assert.equal(choice.reason, "contradicted");
+});
+
+test("CONTRADICTION BEATS THE SINGLETON: explicit Regular vs only Reverse Holofoil", () => {
+  assert.equal(
+    selectReferencePrinting({ variantNames: ["Reverse Holofoil"], evidenceText: "Psyduck 74/102 Regular Common LP" }).printing,
+    null
+  );
+});
+
+test("a SPARSE response for a known multi-printing card refuses rather than guesses", () => {
+  // Base Set Charizard certainly has more than one printing; the response
+  // happening to price only the reverse does not make the listing one.
+  // "one printing left after filtering unpriced conditions" is NOT proof
+  // of an inherently single-printing identity.
+  const choice = selectReferencePrinting({
+    variantNames: ["Reverse Holofoil"],
+    evidenceText: "Charizard 4/102 Base Set Holo Rare",
+  });
+  assert.equal(choice.printing, null);
+  assert.equal(choice.reason, "ambiguous_parallel_only");
+});
+
+test("the catalogue default informs selection but never manufactures listing evidence", () => {
+  // The catalogue says this product IS the reverse holo, and the listing
+  // says NON HOLO. The contradiction wins - the catalogue cannot vouch
+  // for a finish the seller denies.
+  const choice = selectReferencePrinting({
+    variantNames: ["Reverse Holofoil"],
+    evidenceText: "some promo NON-HOLO",
+    catalogPrinting: "Reverse Holofoil",
+  });
+  assert.equal(choice.printing, null);
+  assert.equal(choice.reason, "contradicted");
+});
+
+test("a catalogue identity that legitimately IS a parallel is matched, not defaulted", () => {
+  // Best-of-Game promos are catalogued as Reverse Holofoil. That is the
+  // product's identity, so it is a MATCHED selection - but only because
+  // nothing in the listing contradicts it.
+  const choice = selectReferencePrinting({
+    variantNames: ["Reverse Holofoil"],
+    evidenceText: "Hitmonchan #2 Best of Game 2002 Promo",
+    catalogPrinting: "Reverse Holofoil",
+  });
+  assert.equal(choice.printing, "Reverse Holofoil");
+  assert.equal(choice.confidence, "catalogue");
+  assert.equal(choice.parallel, true);
+});
+
+test("confidence separates a conservative valuation from a matched claim", () => {
+  const matched = selectReferencePrinting({ variantNames: ["Normal", "Reverse Holofoil"], evidenceText: "card reverse holo" });
+  const valuation = selectReferencePrinting({ variantNames: ["Normal", "Reverse Holofoil"], evidenceText: "card, no finish stated" });
+  assert.equal(matched.confidence, "evidenced");
+  assert.equal(valuation.confidence, "default");
+  assert.equal(valuation.printing, "Normal", "the valuation is the plain printing, never the parallel");
 });
 
 test("Holofoil is only a CHOICE when a non-holo sibling exists", () => {
@@ -162,4 +248,54 @@ test("negative evidence is read before positive, so 'non-holo' wins", () => {
 test("no variants at all yields no reference", () => {
   assert.equal(selectReferencePrinting({ variantNames: [], evidenceText: "anything" }).printing, null);
   assert.equal(selectReferencePrinting({}).printing, null);
+});
+
+// ===================================================================
+// CACHE SAFETY. getConditionPrices is cached PER CARD; the printing
+// choice is per LISTING. So the narrowing step must not mutate the
+// shared provider object, or one listing's finish would leak into the
+// next listing of the same card.
+// ===================================================================
+
+test("narrowing is pure: the shared provider object is never mutated", () => {
+  const shared = Object.freeze({
+    byPrintingCondition: Object.freeze({
+      Normal: Object.freeze({ "Near Mint": 42.86 }),
+      "Reverse Holofoil": Object.freeze({ "Lightly Played": 173.49 }),
+    }),
+  });
+  const before = JSON.stringify(shared);
+  // A frozen input would throw on any write attempt.
+  for (const text of ["card reverse holo", "card NON HOLO", "card"]) {
+    selectReferencePrinting({ variantNames: Object.keys(shared.byPrintingCondition), evidenceText: text });
+  }
+  assert.equal(JSON.stringify(shared), before, "the provider object is unchanged");
+});
+
+test("no cross-listing leakage: two finishes, one cached card response", () => {
+  // The exact scenario the per-card cache creates. Same variant list,
+  // two different listings - each must resolve independently.
+  const variants = ["Normal", "Reverse Holofoil"];
+  const revListing = selectReferencePrinting({ variantNames: variants, evidenceText: "Bulbasaur 94/165 REVERSE HOLO" });
+  const plainListing = selectReferencePrinting({ variantNames: variants, evidenceText: "Bulbasaur 94/165 NM/LP" });
+  const revAgain = selectReferencePrinting({ variantNames: variants, evidenceText: "Bulbasaur 94/165 REVERSE HOLO" });
+  assert.equal(revListing.printing, "Reverse Holofoil");
+  assert.equal(plainListing.printing, "Normal", "the reverse listing must not bleed into the plain one");
+  assert.deepEqual(revAgain, revListing, "and order must not matter");
+});
+
+test("a missing correct-condition price does not borrow another printing's", () => {
+  // The original defect in one assertion. Normal has only Near Mint;
+  // the listing is Lightly Played; Reverse Holofoil has an LP price.
+  // Resolution picks Normal, and the LP tier is then simply absent -
+  // the caller must not be handed the reverse holo's LP figure.
+  const matrix = { Normal: { "Near Mint": 42.86 }, "Reverse Holofoil": { "Lightly Played": 173.49 } };
+  const choice = selectReferencePrinting({
+    variantNames: Object.keys(matrix),
+    evidenceText: "BULBASAUR 94/165 EXPEDITION NM/LP",
+    catalogPrinting: "Normal",
+  });
+  assert.equal(choice.printing, "Normal");
+  assert.equal(matrix[choice.printing]["Lightly Played"], undefined, "no LP price for the resolved printing");
+  assert.equal(matrix[choice.printing]["Near Mint"], 42.86);
 });
