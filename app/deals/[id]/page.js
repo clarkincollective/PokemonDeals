@@ -161,7 +161,15 @@ export async function generateMetadata({ params }) {
     const plainName = `${cardName}${cardSet ? ` (${cardSet})` : ""}`;
     return noindexListingMetadata({
       title: `${plainName} - eBay ${metadataIsAuction ? "auction" : "listing"}`,
-      description: `${plainName} ${metadataIsAuction ? "offered at auction on eBay. Final price may rise." : "listed on eBay."} Shown without a savings claim: we have no verified market reference for this exact product and condition yet.`,
+      // The REASON has to be the true one. A parallel-printing refusal is
+      // not "no reference yet" - we hold one, for a different printing -
+      // and this string is the social link preview, so it is read by
+      // people even though the page is noindex.
+      description: `${plainName} ${metadataIsAuction ? "offered at auction on eBay. Final price may rise." : "listed on eBay."} Shown without a savings claim: ${
+        referenceIsUnevidencedParallelPrinting(deal)
+          ? `our market reference for this card is the ${String(deal.reference_printing).toLowerCase()} printing, and this listing does not state that finish.`
+          : "we have no verified market reference for this exact product and condition yet."
+      }`,
       alternates: { canonical: `/deals/${id}` },
       robots: { index: false, follow: true },
     }, trustedDealImageUrl(deal));
