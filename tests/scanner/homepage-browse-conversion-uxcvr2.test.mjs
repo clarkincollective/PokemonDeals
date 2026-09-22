@@ -80,11 +80,13 @@ test("UX-CVR-2-2. every deal CTA names eBay; BIN = 'View (deal) on eBay', auctio
   // unchanged - an auction never says "buy" (you cannot buy it), and a
   // listing with no trusted saving never says "deal". The marketplace
   // moved to the button's second line, so every CTA still names eBay.
-  assert.match(
-    DEALCARD,
-    /isAuction \? "View auction" : savingsSupported \? "Buy this deal" : "View listing"/,
-    "DealCard CTA is not the unified contract (auction / trusted deal / plain listing)"
-  );
+  // 2026-09-22: the three-way rule moved to lib/dealCta so the card, the
+  // deal-page purchase panel and the sticky bar share one source.
+  // Guarantees unchanged, now asserted on the rule itself.
+  assert.match(DEALCARD, /ctaLabelFor\(\{ isAuction, savingsSupported \}\)/, "DealCard reads the shared CTA rule");
+  const CTA_RULE = readFileSync(join(ROOT, "lib/dealCta.js"), "utf8");
+  assert.match(CTA_RULE, /if \(isAuction\) return "View auction";/);
+  assert.match(CTA_RULE, /return savingsSupported \? "Buy this deal" : "View listing";/);
   assert.match(DEALCARD, /on eBay\{marketInfo \? ` \$\{marketInfo\.short\}` : ""\}/, "the DealCard CTA still names eBay");
   for (const [name, src] of [["SpeciesCard", SPECIESCARD], ["CatalogueBrowser", CATALOGUE]]) {
     assert.match(src, /isAuction \? "(Bid on eBay|View auction on eBay)(?: →)?" : "View (deal )?on eBay(?: →)?"/, `${name} CTA is not the unified contract`);

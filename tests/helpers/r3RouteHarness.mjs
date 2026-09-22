@@ -19,7 +19,11 @@ const pure = new Set(['dealPage','listingAvailability','indexability','dealQuali
   // over columns already on the row, gated by dealQuality's own
   // predicates - no fetch, no env, no supabase, no clock except the
   // injectable `now`. DealCard reaches it on every render.
-  'dealQualityScore']);
+  'dealQualityScore',
+  // the shared purchase CTA wording + treatment - pure strings, no IO,
+  // no env; the grid card and the deal page's purchase panel and sticky
+  // bar all read it so the three cannot drift
+  'dealCta']);
 export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis=null,renderComponents=false,currency={viewer:null,rates:null}}={}) {
   const calls=[];
   const components=new Map();

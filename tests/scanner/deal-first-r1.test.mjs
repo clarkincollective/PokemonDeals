@@ -76,7 +76,12 @@ test("R1-3. DealCard: the CTA names the destination and the state; no purchase c
   // CRO 2026-09-22 (§17): transactional copy where the visitor can
   // transact. The three-way split is unchanged - an auction never says
   // "buy", and a listing with no supported saving never says "deal".
-  assert.match(src, /\{isAuction \? "View auction" : savingsSupported \? "Buy this deal" : "View listing"\}/);
+  // 2026-09-22: the three-way wording moved to the shared lib/dealCta
+  // rule so the card, the deal-page panel and the sticky bar cannot
+  // drift. The guarantees are unchanged and are asserted on the rule.
+  assert.match(src, /ctaLabelFor\(\{ isAuction, savingsSupported \}\)/);
+  assert.match(read("lib/dealCta.js"), /if \(isAuction\) return "View auction";/);
+  assert.match(read("lib/dealCta.js"), /return savingsSupported \? "Buy this deal" : "View listing";/);
   assert.doesNotMatch(src, /Buy now|Buy it now →|Bid now|Purchase/i);
   assert.doesNotMatch(src, /line-through/);
   // the existing wrapper + surface attribution are untouched
@@ -90,7 +95,7 @@ test("R1-3. DealCard: the CTA names the destination and the state; no purchase c
   // radius / hover / pressed / focus contract, laid out as two lines and
   // 56px tall. CTA_PRIMARY_CLASS is unchanged and still shared by
   // SealedDealCard and StickyDealCta, which is why it is asserted above.
-  assert.match(src, /const CTA_CARD_CLASS =\s*"flex min-h-14 w-full[^"]*rounded-lg bg-red-600[^"]*active:bg-red-800[^"]*focus-visible:outline-2/);
+  assert.match(read("lib/dealCta.js"), /const CTA_CARD_CLASS =\s*"flex min-h-14 w-full[^"]*rounded-lg bg-red-600[^"]*active:bg-red-800[^"]*focus-visible:outline-2/);
   assert.match(src, /<AffiliateLink[\s\S]*className=\{CTA_CARD_CLASS\}/);
 });
 

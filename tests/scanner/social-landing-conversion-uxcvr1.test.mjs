@@ -60,7 +60,14 @@ test("UX-CVR-1-2. the sticky CTA default + the deal-page sticky both name eBay a
   // 2026-09-19: the deal page's sticky label matches the in-page CTA rule -
   // deal / listing / auction wording, never a bare "View on eBay" for an
   // auction and never "deal" without a supported saving.
-  assert.match(DEAL_PAGE, /ctaLabel=\{isAuction \? "View auction on eBay" : showSavings \? "View deal on eBay" : "View listing on eBay"\}/);
+  // 2026-09-22: the sticky label now comes from the shared ctaLabelFor
+  // rule (lib/dealCta), and the marketplace moved to the button's SECOND
+  // LINE so the bar still names eBay - which is what this test protects.
+  assert.match(DEAL_PAGE, /ctaLabel=\{`\$\{ctaLabelFor\(\{ isAuction, savingsSupported: showSavings \}\)\}/);
+  assert.match(DEAL_PAGE, /ctaSubLabel=\{`on eBay/, "the deal-page sticky bar still names eBay");
+  assert.match(STICKY, /\{ctaSubLabel && <span/, "and the component renders that second line");
+  // "Buy this deal" is the accepted wording for a BIN with a supported
+  // saving. What stays banned is settled-purchase / urgency framing.
   assert.doesNotMatch(STICKY, /Buy Now|Buy It Now →/i);
   assert.doesNotMatch(DEAL_PAGE, /Bid on eBay →|Buy Now/i);
 });
@@ -70,7 +77,10 @@ test("UX-CVR-1-3. auction CTAs stay auction-worded (no settled-purchase framing)
   // deal-first R1's "View auction on eBay" on DealCard) - never a plain
   // "View on eBay" for an auction
   for (const [name, src] of [["deal page", DEAL_PAGE], ["sealed page", SEALED_PAGE], ["DealCard", DEALCARD], ["SealedDealCard", SEALEDCARD]]) {
-    assert.match(src, /Bid on eBay →|"View auction on eBay"/, `${name} lost its auction CTA wording`);
+    // 2026-09-22: the deal page and DealCard read the shared rule, whose
+    // auction branch is "View auction". Still auction-worded, still no
+    // settled-purchase framing - which is what this pins.
+    assert.match(src, /Bid on eBay →|"View auction on eBay"|ctaLabelFor\(/, `${name} lost its auction CTA wording`);
   }
   // the sticky auction price is still labelled "current bid"
   assert.match(DEAL_PAGE, /priceLabel=\{isAuction \? "current bid" : undefined\}/);

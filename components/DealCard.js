@@ -14,6 +14,7 @@ import { dealImageProps } from "@/lib/listingImage";
 import SaveCardButton from "@/components/SaveCardButton";
 import MarketplaceMark from "@/components/MarketplaceMark";
 import { dealQualityScore } from "@/lib/dealQualityScore";
+import { CTA_CARD_CLASS, ctaLabelFor } from "@/lib/dealCta";
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
 import AuctionEnd from "@/components/AuctionEnd";
@@ -55,8 +56,12 @@ export const CTA_PRIMARY_CLASS =
 // conversion action and nothing else should read as its equal.
 // CTA_PRIMARY_CLASS itself is unchanged - SealedDealCard and
 // StickyDealCta still use it.
-const CTA_CARD_CLASS =
-  "flex min-h-14 w-full flex-col items-center justify-center gap-1 rounded-lg bg-red-600 px-4 text-center text-white transition-colors hover:bg-red-700 active:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600";
+// The card's CTA treatment and the accepted CTA wording both live in
+// lib/dealCta - the deal page's buying panel and its mobile sticky bar
+// read the same two, so the three surfaces cannot drift. A
+// component-to-component import of them broke the route harness, which
+// stubs "@/components/*" with a default export only (the page rendered
+// with ctaLabelFor undefined).
 
 // CRO 2026-09-22: the discount is now the card's DOMINANT badge - a
 // full-width bar over the artwork reading "N% below market" - and the
@@ -843,7 +848,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
               href, tracking, rel and surface attribution are the
               existing wrapper's - untouched. */}
           <span className="text-[15px] font-bold leading-none">
-            {isAuction ? "View auction" : savingsSupported ? "Buy this deal" : "View listing"}
+            {ctaLabelFor({ isAuction, savingsSupported })}
             <span aria-hidden="true"> →</span>
           </span>
           <span className="text-xs font-medium leading-none opacity-80">

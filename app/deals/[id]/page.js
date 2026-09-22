@@ -31,6 +31,7 @@ import SkipToContent from "@/components/SkipToContent";
 import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import StickyDealCta from "@/components/StickyDealCta";
+import { CTA_CARD_CLASS, ctaLabelFor } from "@/lib/dealCta";
 import RecordCardView from "@/components/RecordCardView";
 import DetailViewAnalytics from "@/components/analytics/DetailViewAnalytics";
 import ListingChecks from "@/components/ListingChecks";
@@ -840,30 +841,35 @@ export default async function DealDetailPage({ params }) {
                 />
               ) : (
                 <>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">{shipping.headline}</p>
-                  <div className="flex items-baseline gap-3">
-                    <Price
-                      usd={usdTotal}
-                      native={{ amount: total, currency: nativeCurrency }}
-                      className="tnum text-3xl font-bold text-black dark:text-zinc-50"
-                    />
-                    {/* A market reference is a labelled comparison figure,
-                        never a crossed-out "was" price - nobody sold this
-                        copy at that number. */}
-                    {showSavings && showRef && (
-                      <span className="tnum text-sm text-zinc-600 dark:text-zinc-400">
-                        <span className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Market reference </span>
-                        <Price
-                          usd={marketUsd}
-                          native={{ amount: marketNative, currency: nativeCurrency }}
-                          approxPrefix=""
-                          className="font-medium text-zinc-700 dark:text-zinc-300"
-                        />
-                        <span className="text-xs text-zinc-500 dark:text-zinc-400"> · {conditionLabel(deal)}</span>
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">{shipping.note ?? "Includes recorded shipping"}</p>
+                  {/* PANEL ALIGNMENT 2026-09-22: the same order the
+                      accepted deal card uses - price, then the labelled
+                      reference on its OWN line, then the shipping
+                      qualification, then the saving as a panel. The
+                      reference used to sit on the price's baseline in
+                      mono uppercase, where it read as a second price. */}
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{shipping.headline}</p>
+                  <Price
+                    usd={usdTotal}
+                    native={{ amount: total, currency: nativeCurrency }}
+                    className="tnum mt-0.5 block break-words text-[2.5rem] font-black leading-none tracking-tight text-zinc-900 dark:text-zinc-50"
+                  />
+                  {/* A market reference is a labelled comparison figure,
+                      never a crossed-out "was" price - nobody sold this
+                      copy at that number. Secondary by size and colour;
+                      gated on the trusted claim exactly as before. */}
+                  {showSavings && showRef && (
+                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                      Market{" "}
+                      <Price
+                        usd={marketUsd}
+                        native={{ amount: marketNative, currency: nativeCurrency }}
+                        approxPrefix=""
+                        className="tnum font-medium"
+                      />
+                      <span> · {conditionLabel(deal)}</span>
+                    </p>
+                  )}
+                  <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{shipping.note ?? "Includes recorded shipping"}</p>
                   {/* Brief 2026-09-20: when shipping was recorded the total
                       above is item + shipping; the item price is the figure
                       the Offer states, so it is shown here in full. */}
@@ -879,16 +885,44 @@ export default async function DealDetailPage({ params }) {
                       + <Price usd={usdTotal * (shipping.amount / total)} native={{ amount: shipping.amount, currency: nativeCurrency }} approxPrefix="" className="tnum" /> shipping
                     </p>
                   )}
-                  {!showSavings ? null : showRef ? (
-                    <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                      You save{" "}
-                      <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} /> ·{" "}
-                      {pctText} below market{shipping.savingQualifier}
-                    </p>
-                  ) : (
-                    <p className="text-sm font-medium text-emerald-600 dark:text-emerald-500">
-                      {pctText} below market{shipping.savingQualifier}
-                    </p>
+                  {/* THE SAVING AS A PANEL, matching the accepted card:
+                      the money is the second-largest figure here, the
+                      percentage sits beside it, and the shipping
+                      qualifier is never dropped - it is what stops a
+                      before-shipping saving reading as a delivered one.
+                      Green is confined to this block so it keeps meaning
+                      "value" rather than becoming the panel's colour.
+                      Gating is untouched: showSavings is the shared
+                      listingPresentation + offerShipping rule. */}
+                  {!showSavings ? null : (
+                    <div className="mt-3 rounded-lg bg-emerald-50 px-3 py-2.5 dark:bg-emerald-950/40">
+                      {showRef ? (
+                        <>
+                          <p className="text-xs font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-400">
+                            You save
+                          </p>
+                          <p className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                            <Price
+                              usd={savedUsd}
+                              native={{ amount: savedNative, currency: nativeCurrency }}
+                              className="tnum text-2xl font-black leading-none tracking-tight text-emerald-700 dark:text-emerald-400"
+                            />
+                            <span className="text-sm font-bold text-emerald-800 dark:text-emerald-400">
+                              {pctText} below market
+                            </span>
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-base font-black text-emerald-700 dark:text-emerald-400">
+                          {pctText} below market
+                        </p>
+                      )}
+                      {shipping.savingQualifier ? (
+                        <p className="mt-0.5 text-xs font-semibold text-emerald-800/80 dark:text-emerald-400/80">
+                          {shipping.savingQualifier.trim()}
+                        </p>
+                      ) : null}
+                    </div>
                   )}
                 </>
               )}
@@ -927,7 +961,15 @@ export default async function DealDetailPage({ params }) {
               </p>
             )}
 
-            <div className="mt-5 flex flex-wrap gap-3">
+            {/* PRIMARY ACTION, then the secondary row beneath it.
+                These were four controls of similar weight in one wrapped
+                row - the purchase action, TCGPlayer, Share and Save all
+                reading as equals. The primary now spans the panel and
+                uses the accepted card CTA treatment (CTA_CARD_CLASS:
+                brand red, 56px, two lines saying what happens and
+                where); the rest sit below it as quieter controls.
+                They are all preserved - none was removed. */}
+            <div className="mt-5">
               <AffiliateLink
                 href={wrapEbayAffiliateUrl(deal.affiliate_url, { surface: "deal_page" })}
                 eventName="eBay Click"
@@ -945,10 +987,17 @@ export default async function DealDetailPage({ params }) {
                   content_id: String(deal.id),
                   listing_type: deal.listing_type,
                 }}
-                className="flex min-h-12 w-full items-center justify-center rounded-lg bg-red-600 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-red-700 active:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 sm:w-auto"
+                className={CTA_CARD_CLASS}
               >
-                {isAuction ? "View auction on eBay" : showSavings ? "View deal on eBay" : "View listing on eBay"}
+                <span className="text-base font-bold leading-none">
+                  {ctaLabelFor({ isAuction, savingsSupported: showSavings })}
+                  <span aria-hidden="true"> →</span>
+                </span>
+                <span className="text-xs font-medium leading-none opacity-80">
+                  on eBay{marketInfo ? ` ${marketInfo.short}` : ""}
+                </span>
               </AffiliateLink>
+              <div className="mt-3 flex flex-wrap gap-2">
               {/* TCGPlayer lists raw singles by condition; for a slab this is a
                   different product's price, and the label says so rather than
                   implying a like-for-like comparison. */}
@@ -990,6 +1039,7 @@ export default async function DealDetailPage({ params }) {
                   suggestedPrice={deal.total_price_usd ?? deal.total_price}
                 />
               )}
+              </div>
             </div>
             {/* Concise disclosure beside the purchase controls; the full
                 statement stays in the site footer and /affiliate-disclosure. */}
@@ -1200,7 +1250,8 @@ export default async function DealDetailPage({ params }) {
         priceNative={ctaPriceNative}
         priceLabel={isAuction ? (auctionParts ? "Current bid" : "Recorded auction price") : shipping.headline}
         priceNote={shipping.note ?? (isAuction && auctionParts ? "Plus shipping" : "Includes recorded shipping")}
-        ctaLabel={isAuction ? "View auction on eBay" : showSavings ? "View deal on eBay" : "View listing on eBay"}
+        ctaLabel={`${ctaLabelFor({ isAuction, savingsSupported: showSavings })} →`}
+        ctaSubLabel={`on eBay${marketInfo ? ` ${marketInfo.short}` : ""}`}
         eventData={{ card: cardName, marketplace: deal.marketplace, discountPct: showSavings ? discountPct : null }}
       />
     </div>

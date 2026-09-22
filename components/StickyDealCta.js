@@ -11,7 +11,12 @@ import Price from "@/components/Price";
 // and only on narrower viewports where the in-page button is off-screen.
 // Pass priceUsd + priceNative ({ amount, currency }) so the price
 // localises to the viewer's currency after hydration like everywhere else.
-export default function StickyDealCta({ href, priceUsd, priceNative, priceLabel, priceNote, ctaLabel = "View on eBay →", eventData }) {
+// `ctaSubLabel` (2026-09-22) is the second line - the marketplace, as on
+// the accepted deal card ("Buy this deal →" / "on eBay UK"). It keeps
+// the bar naming eBay now that the first line carries the accepted
+// action wording rather than "View on eBay". Omitted -> single line, so
+// the default below is unchanged for any other caller.
+export default function StickyDealCta({ href, priceUsd, priceNative, priceLabel, priceNote, ctaLabel = "View on eBay →", ctaSubLabel = null, eventData }) {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -49,9 +54,10 @@ export default function StickyDealCta({ href, priceUsd, priceNative, priceLabel,
           href={href}
           eventName="eBay Click"
           eventData={{ ...eventData, page: "sticky_cta" }}
-          className="flex min-h-12 flex-1 basis-3/5 items-center justify-center rounded-lg bg-red-600 px-4 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-red-700 active:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+          className="flex min-h-12 flex-1 basis-3/5 flex-col items-center justify-center gap-0.5 rounded-lg bg-red-600 px-4 py-2 text-center text-white transition-colors hover:bg-red-700 active:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
         >
-          {ctaLabel}
+          <span className="text-sm font-bold leading-none">{ctaLabel}</span>
+          {ctaSubLabel && <span className="text-[11px] font-medium leading-none opacity-80">{ctaSubLabel}</span>}
         </AffiliateLink>
       </div>
     </div>

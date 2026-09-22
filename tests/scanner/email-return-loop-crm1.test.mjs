@@ -325,7 +325,10 @@ test("CRM1-26 expired-deal capture is present", () => {
 test("CRM1-27 capture never renders above the primary deal CTA", () => {
   const src = read("app/deals/[id]/page.js");
   // 2026-09-19: the primary CTA reads deal / listing / auction, matching DealCard
-  const primaryCta = src.indexOf('{isAuction ? "View auction on eBay" : showSavings ? "View deal on eBay" : "View listing on eBay"}');
+  // 2026-09-22: the panel's primary CTA uses the shared ctaLabelFor rule
+  // (lib/dealCta). The ORDERING guarantee this test exists for is
+  // unchanged - capture must sit below the purchase action.
+  const primaryCta = src.indexOf("ctaLabelFor({ isAuction, savingsSupported: showSavings })");
   const relatedFirst = src.indexOf("<RelatedDeals");
   const dealCapture = src.indexOf('<EmailCapture placement="deal_detail"');
   const expiredCapture = src.indexOf('<EmailCapture placement="expired_deal"');
