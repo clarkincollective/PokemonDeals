@@ -240,8 +240,13 @@ export default function NewsIndexPage() {
               </li>
             ))}
           </ul>
-          <p className="mt-5 text-sm">
-            <Link href="/guides" className="font-semibold text-red-600 hover:underline dark:text-red-500">
+          {/* A real tap target, not an 18px inline link: this is the
+              route out of the news hub into the guides section. */}
+          <p className="mt-4">
+            <Link
+              href="/guides"
+              className="inline-flex min-h-11 items-center rounded-lg border border-zinc-200 px-4 text-sm font-semibold text-red-600 transition-colors hover:border-red-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:border-zinc-800 dark:text-red-500"
+            >
               All buying &amp; collecting guides →
             </Link>
           </p>
