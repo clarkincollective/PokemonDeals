@@ -984,20 +984,27 @@ export default async function DealDetailPage({ params }) {
             {deal.is_graded ? `${deal.grader} ${deal.grade} price history` : "Market price history"}
           </h2>
           {/* LABEL THE BASIS (deal 42127). This chart plots the card's
-              own recorded history. When the stored reference is for a
-              parallel printing the listing does not evidence, that
-              history and the reference are two different things - which
-              is exactly what the reported contradiction looked like: a
-              chart near $37 under a headline claiming 60% off $173.
+              own recorded history. Whenever the page makes NO savings
+              claim, that history is not the basis for one - which is
+              exactly what the reported contradiction looked like: a
+              chart near $43 under a headline claiming 60% off $173.
+              Gated on !showSavings rather than on the parallel-printing
+              case alone, because once a bad reference is INVALIDATED the
+              printing is null and the narrower condition stopped firing,
+              leaving the chart labelled as a reference on a page that
+              claims none. The specific parallel reason is still given
+              when it is known.
               The chart is not deleted (it is legitimate history for this
               card) and not quietly hidden; it is labelled, so the two
               figures stop appearing to describe one comparison. */}
-          {parallelPrintingMismatch ? (
+          {!showSavings ? (
             <p className="text-xs text-amber-700 dark:text-amber-500">
               This is the recorded history for this card. It is <strong>not</strong> the basis for a
-              saving on this listing: our stored reference is the{" "}
-              {String(deal.reference_printing).toLowerCase()} printing, which this listing does not
-              state. Shown for context only.
+              saving on this listing
+              {parallelPrintingMismatch
+                ? `: our stored reference is the ${String(deal.reference_printing).toLowerCase()} printing, which this listing does not state.`
+                : " - this listing has no supported market comparison."}{" "}
+              Shown for context only.
             </p>
           ) : (
             <p className="text-xs text-zinc-600 dark:text-zinc-400">
