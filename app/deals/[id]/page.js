@@ -767,7 +767,21 @@ export default async function DealDetailPage({ params }) {
                 already target but the page's own primary heading didn't. */}
             <h1 className="mt-3 text-xl font-bold text-black dark:text-zinc-50">
               {cardName}
-              {showSavings && <span className="font-medium text-zinc-500 dark:text-zinc-400"> - {pctText} Below Market{shipping.savingQualifier}</span>}
+              {/* An auction's percentage is true of the CURRENT BID and
+                  will decay as bids come in, so it never stands here
+                  unqualified. Every other surface already says so
+                  (AuctionPrice's "bids can raise the final price", the
+                  "Auction - bids can rise" property, the card's tooltip);
+                  the H1 was the one place a percentage read as a settled
+                  fact about the listing. The claim itself is legitimate
+                  and is kept - only its subject is named. */}
+              {showSavings && (
+                <span className="font-medium text-zinc-500 dark:text-zinc-400">
+                  {" "}
+                  - {pctText} Below Market{shipping.savingQualifier}
+                  {isAuction ? " on the current bid" : ""}
+                </span>
+              )}
             </h1>
             {cardSet && (
               setSlug ? (
