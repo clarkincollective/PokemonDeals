@@ -71,3 +71,6 @@ scripts/_*.js
 
 # local operator files (remediation prior-state snapshots)
 .local/
+
+# transient baseline worktree for release-check diffing (never committed)
+.wt-pre/
