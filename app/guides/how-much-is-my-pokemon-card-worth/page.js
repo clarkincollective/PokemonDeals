@@ -115,6 +115,67 @@ export default function Page() {
         </li>
       </GUL>
 
+      {/* Audit batch 2026-09-22 (item 9). The existing section above says
+          what the reference IS. The genuine gap was the comparison a
+          reader actually makes next: checking that figure against sold
+          listings they can see for themselves, and the three ways that
+          comparison goes wrong. Expanded here rather than given a second
+          URL - it is the same question. */}
+      <GH2>Checking a reference against completed sales yourself</GH2>
+      <GP>
+        A reference is only as good as the sales behind it, and you can sanity-check it in a few
+        minutes. The trick is to compare like with like — which is harder than it sounds, because a
+        search for a card&apos;s name returns several different products.
+      </GP>
+      <GUL>
+        <li>
+          <strong>Filter to completed, sold listings.</strong> Active listings are asking prices.
+          They tell you what sellers hope for, which is not the same information and is usually
+          higher.
+        </li>
+        <li>
+          <strong>Match the printing before anything else.</strong> A reverse holo, a pattern
+          printing or a 1st Edition is a different card from the plain one, even at the same
+          collector number — see{" "}
+          <Link href="/guides/holo-vs-reverse-holo-pokemon-cards" className={GUIDE_LINK_CLASS}>
+            holo vs reverse holo
+          </Link>
+          . Mixing printings is the single most common reason a card &ldquo;should&rdquo; be worth
+          more than it is.
+        </li>
+        <li>
+          <strong>Match the language.</strong> Japanese copies sell in a different market —{" "}
+          <Link href="/guides/japanese-vs-english-pokemon-cards" className={GUIDE_LINK_CLASS}>
+            Japanese vs English
+          </Link>
+          .
+        </li>
+        <li>
+          <strong>Match the grade, and the grading company with it.</strong> A 9 from one company is
+          not a 9 from another for pricing purposes.
+        </li>
+        <li>
+          <strong>Read what the price included.</strong> A sold price with free delivery and one with
+          postage on top are different amounts of money. We keep that distinction in our own
+          comparisons, which is why a listing with no recorded shipping breakdown shows no saving
+          rather than a flattering one.
+        </li>
+      </GUL>
+      <GP>
+        Three things that look like evidence and are not: a single high sale (one buyer, one day), a
+        listing that ended without selling (no buyer at that price), and a &ldquo;best offer
+        accepted&rdquo; sale where the accepted figure is hidden. A handful of ordinary sales for the
+        exact printing beats one dramatic outlier.
+      </GP>
+      <GP>
+        If your check and our figure disagree, the usual cause is that one of you is looking at a
+        different printing, condition or language — not that one of the numbers is wrong. Our{" "}
+        <Link href="/methodology" className={GUIDE_LINK_CLASS}>
+          methodology
+        </Link>{" "}
+        sets out exactly what our reference is matched on.
+      </GP>
+
       <GH2>Common ways this goes wrong</GH2>
       <GUL>
         <li>

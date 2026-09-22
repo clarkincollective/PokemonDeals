@@ -110,9 +110,62 @@ export default function Page() {
         </li>
       </GUL>
 
+      {/* Audit batch 2026-09-22 (item 10). The checklist below existed but
+          was four bullets; the genuine gap was WHAT A PHOTOGRAPH CAN AND
+          CANNOT ESTABLISH about a seal, and which product a listing is
+          actually for. Expanded in place rather than given a second URL.
+          Deliberately no list of universal "counterfeit tells": we cannot
+          verify one, and a checklist of them would promise authentication
+          by appearance, which no photograph supports. */}
+      <GH2>What a photograph of a seal can and cannot tell you</GH2>
+      <GP>
+        Ask for images of every face of the box, taken by the seller rather than lifted from a
+        product page. What those images can support is limited, and it is worth being precise about
+        the limit: a photograph can show you that a seal is <em>present</em>, that it is intact in
+        the frame shown, and whether the packaging is damaged. It cannot establish that the wrap is
+        the original factory wrap, and it cannot establish what is inside.
+      </GP>
+      <GUL>
+        <li>
+          <strong>Stock photography is a stop sign on sealed product.</strong> If the images are the
+          manufacturer&apos;s, you have seen a product, not the item.
+        </li>
+        <li>
+          <strong>Look at the wrap as an object</strong> — how it folds at the corners, whether it
+          is taut, whether seams sit where they sit on the other faces. You are looking for
+          inconsistency between faces, not for a specific tell.
+        </li>
+        <li>
+          <strong>Weight and dimensions are checkable facts</strong> a seller can state. A refusal to
+          state them is informative.
+        </li>
+        <li>
+          <strong>Nothing here is authentication.</strong> A resealed box can photograph well. Buy on
+          the seller&apos;s protections and returns as much as on the pictures, and see{" "}
+          <Link href="/guides/buying-pokemon-cards-on-ebay-safely" className={GUIDE_LINK_CLASS}>
+            buying safely
+          </Link>
+          .
+        </li>
+      </GUL>
+
+      <GH2>Check you are comparing the same product</GH2>
+      <GP>
+        Before comparing two prices, confirm they are for the same product. Sets routinely ship a
+        standard edition alongside retailer-exclusive and Pokemon Center editions, and those are
+        separate products with separate contents. Our sealed catalogue holds{" "}
+        <strong>three different Elite Trainer Boxes</strong> for Prismatic Evolutions alone. Match
+        the full product name in the title, and check it against the photograph of the box —{" "}
+        <Link href="/guides/booster-box-vs-etb-vs-booster-bundle" className={GUIDE_LINK_CLASS}>
+          the format comparison
+        </Link>{" "}
+        has the detail.
+      </GP>
+
       <GH2>How to check a sealed listing before you pay</GH2>
       <GUL>
         <li>Photos of the seal, all six sides, in the seller&apos;s own images.</li>
+        <li>The exact product name, matched against the box in the photograph.</li>
         <li>The listing&apos;s delivered total, including shipping — boxes are heavier than cards.</li>
         <li>Returns policy and the seller&apos;s recent feedback on sealed product specifically.</li>
         <li>

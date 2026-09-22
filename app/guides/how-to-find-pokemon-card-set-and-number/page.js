@@ -147,6 +147,17 @@ export default function Page() {
         </div>
       </GuideFigure>
 
+      <GP>
+        A different shape of the same problem: some releases run a <strong>subset</strong> on its own
+        numbering scheme entirely. Crown Zenith numbers its main set on /159 and its Galarian Gallery
+        on GG01/GG70 through GG70/GG70, so &ldquo;number 12 of Crown Zenith&rdquo; is two different
+        cards until you say which &mdash;{" "}
+        <Link href="/guides/crown-zenith-galarian-gallery-guide" className={GUIDE_LINK_CLASS}>
+          the Galarian Gallery guide
+        </Link>{" "}
+        works through it.
+      </GP>
+
       <GH2>Leading zeros don&apos;t change the card</GH2>
       <GP>
         Your card may print 4/102 while catalogues &mdash; including ours &mdash; write it 004/102.
@@ -172,6 +183,15 @@ export default function Page() {
         under the attack text &mdash; the position has moved between eras, so check both bottom
         corners.
       </GP>
+      <GP>
+        This also happens <em>inside</em> a single set. Surging Sparks holds four separate Pikachu ex
+        cards at four different numbers, which is why &ldquo;the Surging Sparks Pikachu&rdquo; names
+        none of them &mdash; see{" "}
+        <Link href="/guides/surging-sparks-which-pikachu" className={GUIDE_LINK_CLASS}>
+          which Surging Sparks Pikachu is which
+        </Link>
+        .
+      </GP>
 
       <GuideFigure caption="Three Charizards. The name is identical; the set and number separate them. On the Base Set card the number sits bottom right, rather than bottom left as on the modern cards above.">
         <div className="flex flex-wrap justify-center gap-4">
@@ -190,7 +210,11 @@ export default function Page() {
         <li>
           <strong>Foil treatment.</strong> Where a card exists as both a holo and a non-holo, or has a
           reverse-holo version, those printings can share a collector number. Not every product has
-          every foil treatment, so which ones exist depends on the card and the set.
+          every foil treatment, so which ones exist depends on the card and the set &mdash;{" "}
+          <Link href="/guides/holo-vs-reverse-holo-pokemon-cards" className={GUIDE_LINK_CLASS}>
+            holo vs reverse holo
+          </Link>{" "}
+          covers what that means for pricing.
         </li>
         <li>
           <strong>Edition and print markings.</strong> Some releases carry stamps or markings that
@@ -198,7 +222,12 @@ export default function Page() {
         </li>
         <li>
           <strong>Language.</strong> The same card exists in other languages, and numbering can differ
-          across language releases rather than matching the English card.
+          across language releases rather than matching the English card. A Japanese card is priced
+          against other Japanese copies, not against the English one &mdash; see{" "}
+          <Link href="/guides/japanese-vs-english-pokemon-cards" className={GUIDE_LINK_CLASS}>
+            Japanese vs English
+          </Link>
+          .
         </li>
       </GUL>
       <GP>

@@ -18,6 +18,17 @@ const VERIFIED_PRODUCTS = {
   evolvingSkiesBoosterBox: ["242436", "Evolving Skies Booster Box", "SWSH07: Evolving Skies", "Booster Box"],
   ascendedHeroesBoosterBundle: ["668541", "Ascended Heroes Booster Bundle", "ME: Ascended Heroes", "Booster Bundle"],
   ascendedHeroesBoosterPack: ["672434", "Ascended Heroes Booster Pack", "ME: Ascended Heroes", "Booster Pack"],
+  // Content-audit batch - re-read from sealed_catalog on 2026-09-22
+  // (tcgplayer_id, name, set, product_type). The THREE separate 151 boxes
+  // and the two Prismatic ETBs are the point of the format guide: a
+  // listing title saying "151 ETB" has not yet said which product it is.
+  s151EliteTrainerBox: ["503313", "151 Elite Trainer Box", "SV: Scarlet & Violet 151", "Elite Trainer Box"],
+  s151PokemonCenterEtb: ["501999", "151 Pokemon Center Elite Trainer Box (Exclusive)", "SV: Scarlet & Violet 151", "Elite Trainer Box"],
+  s151UltraPremium: ["502005", "151 Ultra-Premium Collection", "SV: Scarlet & Violet 151", "Collection Box"],
+  prismaticEliteTrainerBox: ["593355", "Prismatic Evolutions Elite Trainer Box", "SV: Prismatic Evolutions", "Elite Trainer Box"],
+  prismaticPokemonCenterEtb: ["593324", "Prismatic Evolutions Pokemon Center Elite Trainer Box (Exclusive)", "SV: Prismatic Evolutions", "Elite Trainer Box"],
+  prismaticBoosterBundle: ["600518", "Prismatic Evolutions Booster Bundle", "SV: Prismatic Evolutions", "Booster Bundle"],
+  crownZenithEliteTrainerBox: ["453470", "Crown Zenith Elite Trainer Box", "SWSH: Crown Zenith", "Elite Trainer Box"],
 };
 
 test("1b. every guide product is a verified sealed_catalog identity, links the sealed hub, and the booster-box guide pictures the three pack counts", () => {
@@ -32,8 +43,18 @@ test("1b. every guide product is a verified sealed_catalog identity, links the s
   }
   const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "app/guides/pokemon-booster-box-prices/page.js"), "utf8");
   assert.match(src, /<ProductGallery/);
-  for (const k of Object.keys(VERIFIED_PRODUCTS)) assert.match(src, new RegExp(`GUIDE_PRODUCTS\\.${k}`), k);
+  // The pack-count comparison this guide is built on. Named explicitly, so
+  // registering a product for a DIFFERENT guide can never satisfy it.
+  for (const k of ["evolvingSkiesBoosterBox", "ascendedHeroesBoosterBundle", "ascendedHeroesBoosterPack"]) {
+    assert.match(src, new RegExp(`GUIDE_PRODUCTS\\.${k}`), k);
+  }
   assert.doesNotMatch(src, /\$\s?\d/, "no price in the guide");
+  // and no verified product is registered without being used: an unused
+  // entry is an unverifiable claim sitting in the registry
+  const allGuides = GUIDE_FILES.map(read).join("\n");
+  for (const k of Object.keys(VERIFIED_PRODUCTS)) {
+    assert.match(allGuides, new RegExp(`GUIDE_PRODUCTS\\.${k}\\b`), `${k}: verified but pictured by no guide`);
+  }
   const art = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "components/guides/CardArt.js"), "utf8");
   assert.match(art, /export function ProductTile/);
   assert.match(art, /alt=\{`\$\{product\.label\} — \$\{product\.productType\}, product photo`\}/);
@@ -183,6 +204,38 @@ const VERIFIED = {
   c30CcZacianV138202: ["716209", "Zacian V", "ME: 30th Celebration Classic Collection", "138/202", "/cards/zacian-v-me-30th-celebration-classic-collection"],
   c30ClassicLugia: ["714386", "Lugia", "ME: 30th Celebration Classic Collection", "149/147", "/cards/lugia-me-30th-celebration-classic-collection"],
   c30ClassicMagikarp: ["716210", "Magikarp", "ME: 30th Celebration Classic Collection", "203/193", "/cards/magikarp-me-30th-celebration-classic-collection"],
+  // Content-audit batch - re-read from card_catalog on 2026-09-22
+  // (tcgplayer_id, name, set, card_number), each href re-derived from the
+  // row's own stored name and set.
+  //
+  // Prismatic: three separate catalogue rows share the collector number
+  // 059/131, which is why the number alone never identifies an Umbreon.
+  prismaticUmbreon059: ["610414", "Umbreon", "SV: Prismatic Evolutions", "059/131", "/cards/umbreon-sv-prismatic-evolutions"],
+  prismaticUmbreon059PokeBall: ["610578", "Umbreon (Poke Ball Pattern)", "SV: Prismatic Evolutions", "059/131", "/cards/umbreon-poke-ball-pattern-sv-prismatic-evolutions"],
+  prismaticUmbreon059MasterBall: ["610679", "Umbreon (Master Ball Pattern)", "SV: Prismatic Evolutions", "059/131", "/cards/umbreon-master-ball-pattern-sv-prismatic-evolutions"],
+  prismaticUmbreonEx060: ["610415", "Umbreon ex - 060/131", "SV: Prismatic Evolutions", "060/131", "/cards/umbreon-ex-060-131-sv-prismatic-evolutions"],
+  prismaticUmbreonEx161: ["610516", "Umbreon ex - 161/131", "SV: Prismatic Evolutions", "161/131", "/cards/umbreon-ex-161-131-sv-prismatic-evolutions"],
+  prismaticEspeon033: ["610388", "Espeon", "SV: Prismatic Evolutions", "033/131", "/cards/espeon-sv-prismatic-evolutions"],
+  prismaticEspeon033PokeBall: ["610557", "Espeon (Poke Ball Pattern)", "SV: Prismatic Evolutions", "033/131", "/cards/espeon-poke-ball-pattern-sv-prismatic-evolutions"],
+  // Surging Sparks: one name, four numbers, four rarities.
+  surgingSparksPikachuEx057: ["590025", "Pikachu ex - 057/191", "SV08: Surging Sparks", "057/191", "/cards/pikachu-ex-057-191-sv08-surging-sparks"],
+  surgingSparksPikachuEx219: ["590026", "Pikachu ex - 219/191", "SV08: Surging Sparks", "219/191", "/cards/pikachu-ex-219-191-sv08-surging-sparks"],
+  surgingSparksPikachuEx238: ["590027", "Pikachu ex - 238/191", "SV08: Surging Sparks", "238/191", "/cards/pikachu-ex-238-191-sv08-surging-sparks"],
+  surgingSparksPikachuEx247: ["593169", "Pikachu ex - 247/191", "SV08: Surging Sparks", "247/191", "/cards/pikachu-ex-247-191-sv08-surging-sparks"],
+  // A catalogue row whose foil PATTERN is part of its stored identity.
+  ascendedHeroesPawniardQuickBall: ["676966", "Pawniard (Quick Ball)", "ME: Ascended Heroes", "146/217", "/cards/pawniard-quick-ball-me-ascended-heroes"],
+  // 151: the same shape again, with two of the three numbers sitting above
+  // the printed set total of 165.
+  s151CharizardEx006: ["502558", "Charizard ex - 006/165", "SV: Scarlet & Violet 151", "006/165", "/cards/charizard-ex-006-165-sv-scarlet-violet-151"],
+  s151CharizardEx183: ["517017", "Charizard ex - 183/165", "SV: Scarlet & Violet 151", "183/165", "/cards/charizard-ex-183-165-sv-scarlet-violet-151"],
+  s151CharizardEx199: ["517045", "Charizard ex - 199/165", "SV: Scarlet & Violet 151", "199/165", "/cards/charizard-ex-199-165-sv-scarlet-violet-151"],
+  s151VenusaurEx198: ["517044", "Venusaur ex - 198/165", "SV: Scarlet & Violet 151", "198/165", "/cards/venusaur-ex-198-165-sv-scarlet-violet-151"],
+  // Crown Zenith: two rows from the main /159 run and two from the
+  // GG##/GG70 subset, which the catalogue files as its own set.
+  crownZenithCharizardVstar: ["478094", "Charizard VSTAR", "SWSH: Crown Zenith", "019/159", "/cards/charizard-vstar-swsh-crown-zenith"],
+  crownZenithRadiantCharizard: ["478098", "Radiant Charizard", "SWSH: Crown Zenith", "020/159", "/cards/radiant-charizard-swsh-crown-zenith"],
+  crownZenithGgMew: ["478027", "Mew", "SWSH: Crown Zenith: Galarian Gallery", "GG10/GG70", "/cards/mew-swsh-crown-zenith-galarian-gallery"],
+  crownZenithGgMewtwoVstar: ["477057", "Mewtwo VSTAR", "SWSH: Crown Zenith: Galarian Gallery", "GG44/GG70", "/cards/mewtwo-vstar-swsh-crown-zenith-galarian-gallery"],
 };
 
 test("1. every guide card is a verified catalogue identity whose href is DERIVED by the route's own slug function", () => {
@@ -196,7 +249,7 @@ test("1. every guide card is a verified catalogue identity whose href is DERIVED
     assert.equal(c.href, href, `${key}: canonical URL`);
     assert.equal(c.href, `/cards/${catalogCardSlug(name, set)}`, `${key}: derived, not typed`);
   }
-  const sets = { baseSet: "/sets/base-set", baseSetShadowless: "/sets/base-set-shadowless", baseSet2: "/sets/base-set-2", xyEvolutions: "/sets/xy-evolutions", evolvingSkies: "/sets/swsh07-evolving-skies", thirtiethCelebration: "/sets/me-30th-celebration", celebrations2021: "/sets/celebrations" };
+  const sets = { baseSet: "/sets/base-set", baseSetShadowless: "/sets/base-set-shadowless", baseSet2: "/sets/base-set-2", xyEvolutions: "/sets/xy-evolutions", evolvingSkies: "/sets/swsh07-evolving-skies", thirtiethCelebration: "/sets/me-30th-celebration", celebrations2021: "/sets/celebrations", scarletViolet151: "/sets/sv-scarlet-violet-151", prismaticEvolutions: "/sets/sv-prismatic-evolutions", crownZenith: "/sets/swsh-crown-zenith", crownZenithGalarianGallery: "/sets/swsh-crown-zenith-galarian-gallery", surgingSparks: "/sets/sv08-surging-sparks" };
   for (const [k, href] of Object.entries(sets)) {
     assert.equal(GUIDE_SETS[k].href, href);
     assert.equal(GUIDE_SETS[k].href, `/sets/${slugifySet(GUIDE_SETS[k].name)}`);
@@ -271,6 +324,25 @@ test("3. the contextual links landed where they explain identity, grading or val
     "pokemon-delta-reign-release-date-what-is-official": 0,
     "storm-emeralda-vs-delta-reign-japanese-or-english": 0,
     "delta-reign-preorders-and-prerelease-what-to-know": 0,
+    // Content-audit batch (2026-09-22). These guides are about buying
+    // ROUTES and identity rules, not about individual cards, so their card
+    // art is gallery data (not counted here) and the inline exact links are
+    // the set pages they send readers on to. The bound above still applies.
+    "pokemon-151-buying-guide": 1,
+    "prismatic-evolutions-buying-guide": 1,
+    "surging-sparks-which-pikachu": 1,
+    // the main set and the Galarian Gallery subset - the two set records
+    // the whole guide is about distinguishing
+    "crown-zenith-galarian-gallery-guide": 2,
+    // one worked example (a set page) for scoping a set project
+    "complete-set-vs-master-set": 1,
+    // the reverse-holo guide points at one set page as its worked example
+    "holo-vs-reverse-holo-pokemon-cards": 1,
+    // format comparison, certificate lookup and language comparison: no
+    // exact card is the subject of any of them
+    "booster-box-vs-etb-vs-booster-bundle": 0,
+    "check-graded-pokemon-card-certificate": 0,
+    "japanese-vs-english-pokemon-cards": 0,
   });
   // The release guide's galleries: every tile is a GUIDE_CARDS identity
   // rendered as a complete card face linked to its own page (a figure
@@ -279,7 +351,7 @@ test("3. the contextual links landed where they explain identity, grading or val
   assert.ok(gallery >= 20 && gallery <= 30, `30th Celebration gallery references ${gallery} cards`);
   // the price checker is reachable from the guides that talk about looking a card up
   const withChecker = GUIDE_FILES.filter((f) => /href=\{PRICE_CHECKER_HREF\}/.test(read(f))).map((f) => f.split("/")[2]).sort();
-  assert.deepEqual(withChecker, ["base-set-shadowless-unlimited-first-edition", "buying-pokemon-cards-on-ebay-safely", "card-condition-grading", "how-much-is-my-pokemon-card-worth", "how-pokemon-card-prices-work", "how-to-check-pokemon-card-condition", "how-to-read-a-pokemon-card-listing", "pokemon-card-grading-scale", "pokemon-promo-card-numbers", "raw-vs-graded-pokemon-cards", "spotting-fake-pokemon-cards-in-listings", "storm-emeralda-vs-delta-reign-japanese-or-english", "vintage-pokemon-cards-worth-buying"]);
+  assert.deepEqual(withChecker, ["base-set-shadowless-unlimited-first-edition", "buying-pokemon-cards-on-ebay-safely", "card-condition-grading", "holo-vs-reverse-holo-pokemon-cards", "how-much-is-my-pokemon-card-worth", "how-pokemon-card-prices-work", "how-to-check-pokemon-card-condition", "how-to-read-a-pokemon-card-listing", "pokemon-151-buying-guide", "pokemon-card-grading-scale", "pokemon-promo-card-numbers", "raw-vs-graded-pokemon-cards", "spotting-fake-pokemon-cards-in-listings", "storm-emeralda-vs-delta-reign-japanese-or-english", "surging-sparks-which-pikachu", "vintage-pokemon-cards-worth-buying"]);
   // every new link uses the guides' existing inline style
   assert.equal(GUIDE_LINK_CLASS, "text-red-600 hover:underline dark:text-red-500");
   for (const f of GUIDE_FILES) {
@@ -340,6 +412,18 @@ test("5. routes, canonicals and indexability of the guides are untouched", () =>
     "vintage-pokemon-cards-worth-buying",
     "pokemon-booster-box-prices",
     "pokemon-promo-card-numbers",
+    // Content-audit batch (2026-09-22), appended in registration order.
+    // Route shape, canonical rule and indexability are unchanged - the
+    // assertions below still run over every file in this list.
+    "pokemon-151-buying-guide",
+    "booster-box-vs-etb-vs-booster-bundle",
+    "check-graded-pokemon-card-certificate",
+    "japanese-vs-english-pokemon-cards",
+    "prismatic-evolutions-buying-guide",
+    "holo-vs-reverse-holo-pokemon-cards",
+    "crown-zenith-galarian-gallery-guide",
+    "surging-sparks-which-pikachu",
+    "complete-set-vs-master-set",
   ]);
   const guidesLib = read("lib/guides.js");
   assert.match(guidesLib, /alternates: \{ canonical: `\/guides\/\$\{slug\}` \}/);

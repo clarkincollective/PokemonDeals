@@ -73,6 +73,13 @@ export default async function MarketDataPage() {
       blurb: "Bounded, dated analyses. Each is a fixed snapshot of the window it names - not a description of today's market.",
       pages: [
         {
+          href: "/market-data/pokemon-shipping-cost-study",
+          title: "How Much Shipping Adds to a Listing",
+          description:
+            "A dated snapshot of 440 retained fixed-price listings with a recorded shipping charge: what shipping adds as a share of item price per marketplace, and how often the cheapest item price is not the cheapest delivered.",
+          meta: "Observed 22 September 2026 · figures fixed at publication",
+        },
+        {
           href: "/market-data/pokemon-reference-price-changes",
           title: "30-Day Reference-Price Changes",
           description:

@@ -114,6 +114,19 @@ export default function Page() {
           .
         </li>
         <li>
+          <strong>Rarity tier, in modern sets.</strong> The split is not a vintage-only phenomenon.
+          A single modern set routinely prints one Pokemon several times over at different collector
+          numbers and different rarities, each its own card with its own reference &mdash; the{" "}
+          <Link href="/guides/pokemon-151-buying-guide" className={GUIDE_LINK_CLASS}>
+            151
+          </Link>{" "}
+          and{" "}
+          <Link href="/guides/prismatic-evolutions-buying-guide" className={GUIDE_LINK_CLASS}>
+            Prismatic Evolutions
+          </Link>{" "}
+          guides work through what that means when you are buying one.
+        </li>
+        <li>
           <strong>Edition and stamp.</strong> For vintage cards, 1st Edition and Shadowless printings
           trade well above the standard Unlimited version. See the{" "}
           <Link

@@ -51,6 +51,11 @@ const GUIDE_GROUPS = [
       "base-set-shadowless-unlimited-first-edition",
       "pokemon-promo-card-numbers",
       "vintage-vs-modern-pokemon-cards",
+      // Its principal job is telling a Classic Collection reprint from the
+      // original card it reprints - an identification question, not a
+      // sealed-product one. URL, content and canonical unchanged.
+      "pokemon-30th-celebration-classic-collection",
+      "holo-vs-reverse-holo-pokemon-cards",
     ],
   },
   {
@@ -73,6 +78,7 @@ const GUIDE_GROUPS = [
       "how-to-read-a-pokemon-card-listing",
       "spotting-fake-pokemon-cards-in-listings",
       "vintage-pokemon-cards-worth-buying",
+      "check-graded-pokemon-card-certificate",
     ],
   },
   {
@@ -80,8 +86,8 @@ const GUIDE_GROUPS = [
     blurb: "Boxes and sealed sets: how they are priced, and what to check before paying.",
     slugs: [
       "pokemon-booster-box-prices",
+      "booster-box-vs-etb-vs-booster-bundle",
       "pokemon-30th-celebration-elite-trainer-box",
-      "pokemon-30th-celebration-classic-collection",
     ],
   },
   {
@@ -99,6 +105,12 @@ const GUIDE_GROUPS = [
       "pokemon-delta-reign-release-date-what-is-official",
       "storm-emeralda-vs-delta-reign-japanese-or-english",
       "delta-reign-preorders-and-prerelease-what-to-know",
+      "pokemon-151-buying-guide",
+      "prismatic-evolutions-buying-guide",
+      "crown-zenith-galarian-gallery-guide",
+      "surging-sparks-which-pikachu",
+      "japanese-vs-english-pokemon-cards",
+      "complete-set-vs-master-set",
     ],
   },
 ];

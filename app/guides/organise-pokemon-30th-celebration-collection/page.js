@@ -95,7 +95,11 @@ export default function Page() {
       </GUL>
       <GP>
         Pick one and write it down. The common failure is not choosing: people buy towards an undefined target and
-        then cannot tell whether they are finished.
+        then cannot tell whether they are finished. The same decision applies to any set you collect &mdash;{" "}
+        <Link href="/guides/complete-set-vs-master-set" className={GUIDE_LINK_CLASS}>
+          complete set vs master set
+        </Link>{" "}
+        is the general version of it.
       </GP>
 
       <GH2>A sensible order to collect in</GH2>
