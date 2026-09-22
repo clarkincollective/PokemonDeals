@@ -974,6 +974,14 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
             // is the PROVIDER's own as-of - never our sync time.
             byConditionReference: raw.byConditionReference,
             fallbackReference: raw.fallbackReference,
+            // deal 42127 completion (2026-09-23). Both marketData builders
+            // copy a FIELD WHITELIST out of `raw`, and both omitted this
+            // one - so marketDataForListing() found no matrix, returned
+            // early, and the printing restriction it exists to apply never
+            // ran on any path. The producer has supplied the field since
+            // the printing work shipped (lib/pokemonPriceTracker
+            // getConditionPrices); only the carrying was missing.
+            byPrintingCondition: raw.byPrintingCondition,
             observedAt: raw.lastUpdated ?? null,
           };
         }
@@ -1643,6 +1651,11 @@ export async function GET(request) {
         priceChange24hr: null,
         byConditionReference: raw.byConditionReference,
         fallbackReference: raw.fallbackReference,
+        // deal 42127 completion (2026-09-23) - see the sweep builder
+        // above. Same omission, same consequence: without this field
+        // marketDataForListing() cannot restrict a card-level reference
+        // to the printing the LISTING evidences.
+        byPrintingCondition: raw.byPrintingCondition,
         observedAt: raw.lastUpdated ?? null,
       };
     } catch (err) {
