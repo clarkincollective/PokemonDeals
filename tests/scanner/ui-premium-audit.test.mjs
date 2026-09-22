@@ -79,10 +79,19 @@ test("5. deal-card meta lines are 13px", () => {
   assert.match(src, /gap-x-1 text-\[13px\] text-zinc-500 dark:text-zinc-400">\s*\{cardSet &&/);
   // moved into the Price details disclosure - see deal-first-r1 R1-5
   assert.match(src, /<dt>Market reference<\/dt>/);
-  // 2026-09-22: the savings line is the headline of the redesigned card,
-  // so it stepped up from 13px/semibold to sm/bold. It is still the ONE
-  // green line and still only rendered on a trusted claim.
-  assert.match(src, /<p className="mt-0\.5 text-sm font-bold text-emerald-700/);
+  // 2026-09-22 rev 2: the savings line is the headline of the redesigned
+  // card. The saved AMOUNT is now the largest thing on it and the
+  // percentage becomes a solid chip in the top two tiers, so the line is
+  // a flex row rather than a sentence. It is still the ONE green line
+  // and still only rendered on a trusted claim.
+  assert.match(src, /<p className="mt-1 flex flex-wrap items-baseline gap-x-1\.5 gap-y-0\.5 text-sm font-bold text-emerald-700/);
+  // The shipping qualifier survives the restyle in BOTH branches - it is
+  // what stops a before-shipping saving reading as delivered.
+  assert.equal(
+    (src.match(/\{ship\.savingQualifier \? \(/g) ?? []).length,
+    2,
+    "both savings branches still print the shipping qualifier"
+  );
   assert.match(src, /mt-2 flex items-center justify-between gap-2 text-\[13px\]/);
 });
 
@@ -90,7 +99,11 @@ test("5b. phone deal card: mono on figures only, marketplace words hidden behind
   const src = read("components/DealCard.js");
   // no sentence paragraph carries the mono face; every inline <Price> in a sentence does
   assert.doesNotMatch(src, /<p className=\{?[`"]tnum (mt-0\.5 )?text-(xs|\[13px\])/, "a whole sentence in the mono face");
-  assert.match(src, /You save <Price [^/]*className="tnum text-base font-extrabold" \/>/);
+  // rev 2: "You save" is its own small uppercase label and the figure
+  // beside it is the card's second-largest number, so the two are no
+  // longer one inline sentence. Still mono, still on the figure only.
+  assert.match(src, /<span className="text-xs font-extrabold uppercase tracking-wide">You save<\/span>/);
+  assert.match(src, /className="tnum text-xl font-black tracking-tight"/);
   // 2026-09-22: the reference FIGURE sits beside the price as "Typical
   // <x>" and the line below names what it is for. Both are still mono
   // on the figure only, which is what this pins.
@@ -117,9 +130,39 @@ test("6. /deals filter bar: sort row outside, other rows behind the Filters butt
 
 test("8. savings badge: one tiered component for cards and sealed product; loud in proportion to the real discount; auctions stay amber and separate", () => {
   const badge = read("components/SavingsBadge.js");
-  assert.match(badge, /if \(pct >= 40\) return "hot";\s*if \(pct >= 20\) return "strong";\s*return "modest";/);
-  assert.match(badge, /hot: "bg-emerald-600 px-2\.5 py-1 text-base font-black[^"]*shadow-\[/, "hot tier: solid lime, larger, minimal glow");
-  assert.match(badge, /strong: "bg-emerald-600 px-2 py-1 text-sm font-extrabold/, "strong tier: solid lime, no glow");
+  // rev 3: a fourth, louder top tier at >= 60%. The LADDER is the
+  // honesty - each step up in loudness must be a real step up in the
+  // discount, which is why `modest` below is pinned unchanged.
+  //
+  // It lives in lib/dealQuality, not in the component: the card's "You
+  // save" chip grades itself with the same function, and a
+  // component-to-component import of it broke the render harness, which
+  // stubs components with a default export only.
+  assert.match(
+    read("lib/dealQuality.js"),
+    /if \(pct >= 60\) return "blowout";\s*if \(pct >= 40\) return "hot";\s*if \(pct >= 20\) return "strong";\s*return "modest";/
+  );
+  assert.match(badge, /export \{ savingsTier \};/, "the badge re-exports it rather than owning it");
+  assert.match(
+    read("components/DealCard.js"),
+    /isLoudSaving/,
+    "and the card grades its chip with the same ladder, not a private copy"
+  );
+  assert.match(badge, /blowout:\s*"animate-savings-halo bg-gradient-to-br from-emerald-600 to-emerald-900[^"]*text-white/, "blowout tier: the loudest, and the only animated one");
+  assert.match(badge, /hot: "bg-emerald-600 [^"]*text-base font-black[^"]*shadow-\[/, "hot tier: solid green, larger, a halo");
+  assert.match(badge, /strong: "bg-emerald-600 [^"]*text-sm font-extrabold/, "strong tier: solid green");
+  // Every loud tier keeps WHITE ink on an emerald fill. The amplification
+  // is size, ring, shadow and motion - never a lighter fill, which would
+  // lose the 5.6:1 this audit measured.
+  for (const tier of ["blowout", "hot", "strong"]) {
+    assert.match(badge, new RegExp(`${tier}:\\s*"[^"]*text-white`), `${tier} keeps white ink`);
+  }
+  // The halo is defined once, in the token layer, where the global
+  // prefers-reduced-motion block reduces it.
+  const css = read("app/globals.css");
+  assert.match(css, /@keyframes savings-halo/);
+  assert.match(css, /\.animate-savings-halo \{ animation: savings-halo/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   // On white the quiet tier is a faint green outline rather than a grey
   // card on a dark card. Still an OUTLINE, still the quietest of the
   // three - a 12% saving must not shout.

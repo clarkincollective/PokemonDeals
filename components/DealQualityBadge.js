@@ -19,12 +19,31 @@ import { scoreBreakdown } from "@/lib/dealQualityScore";
 // red quality chip beside a red button reads as a second action. Green is
 // already the savings language, so a green-leaning quality mark says the
 // same thing the savings line says.
+//
+// rev 2 (2026-09-22): the two top labels were near-identical pale tints,
+// so "Exceptional Deal" and "Strong Deal" looked the same while scanning
+// - which wastes the one signal the label exists to give. Exceptional is
+// now a SOLID emerald fill with white ink (the same 5.6:1 the savings
+// badge uses), Strong keeps the tint, and the two lower labels stay
+// neutral. The ladder does the work: only the genuinely top band is
+// allowed to read as loud, for the same reason SavingsBadge keeps its
+// `modest` tier quiet.
 const LABEL_CLASS = {
-  "Exceptional Deal": "border-emerald-600/30 bg-emerald-50 text-emerald-700",
-  "Strong Deal": "border-emerald-600/25 bg-emerald-50/70 text-emerald-700",
+  "Exceptional Deal":
+    "border-emerald-700 bg-emerald-600 text-white shadow-[0_3px_10px_rgb(4_120_87/0.3)]",
+  "Strong Deal": "border-emerald-600/40 bg-emerald-50 text-emerald-700",
   "Great Deal": "border-zinc-200 bg-white/95 text-zinc-700",
   "Good Deal": "border-zinc-200 bg-white/95 text-zinc-600",
 };
+
+// The number, sized by band. A 93 and a 62 were rendering in the same
+// chip, so the number had to be read rather than seen; now the top band
+// is bigger and ringed, the middle band solid, the rest as before.
+function scoreClass(score) {
+  if (score >= 85) return "h-9 min-w-9 px-2 text-base ring-2 ring-white/80 shadow-[0_6px_18px_rgb(4_120_87/0.4)] dark:ring-white/40";
+  if (score >= 70) return "h-8 min-w-8 px-1.5 text-sm shadow-[0_3px_10px_rgb(4_120_87/0.28)]";
+  return "h-7 min-w-7 px-1.5 text-sm shadow-sm";
+}
 
 export function DealQualityLabel({ result, className = "" }) {
   if (!result) return null;
@@ -51,7 +70,9 @@ export function DealQualityScore({ result, className = "" }) {
       // say 94 of what.
       aria-label={`Deal quality ${result.score} out of 99 - ${result.label}`}
       title={scoreBreakdown(result)}
-      className={`tnum inline-flex h-7 min-w-7 items-center justify-center rounded-md bg-emerald-600 px-1.5 text-sm font-black leading-none text-white shadow-sm ${className}`}
+      className={`tnum inline-flex items-center justify-center rounded-md bg-emerald-600 font-black leading-none text-white ${scoreClass(
+        result.score
+      )} ${className}`}
     >
       <span aria-hidden="true">{result.score}</span>
     </span>

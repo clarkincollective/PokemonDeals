@@ -4,7 +4,7 @@ import { surfaceForPageName } from "@/lib/affiliateSurfaces";
 import { slugifySet } from "@/lib/slugify";
 import { currencyForDeal, refInListingCurrency } from "@/lib/money";
 import RelativeTime, { WithinWindow } from "@/components/RelativeTime";
-import { conditionLabel, listingPresentation, savingsBadgeText, savingsPercentText } from "@/lib/dealQuality";
+import { conditionLabel, listingPresentation, savingsBadgeText, savingsPercentText, isLoudSaving } from "@/lib/dealQuality";
 import { normalizePublicText } from "@/lib/publicText";
 import { cardDisplayName } from "@/lib/cardName";
 import { priceBandUsd, discountBand, listingTypeProp, rawVsGraded } from "@/lib/analytics/props";
@@ -48,6 +48,13 @@ function FactIcon({ kind }) {
 // sticky CTA cannot drift.
 export const CTA_PRIMARY_CLASS =
   "flex min-h-12 w-full items-center justify-center rounded-lg bg-red-600 px-4 text-center text-sm font-semibold text-white transition-colors hover:bg-red-700 active:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600";
+
+// The percentage chip on the "You save" line, used only for the top two
+// savings tiers. Solid emerald with white ink, matching SavingsBadge -
+// globals.css's unlayered `.bg-emerald-600 { color: #FFFFFF }` rule keeps
+// the ink white whatever utility order Tailwind emits.
+const SAVING_PCT_CHIP =
+  "rounded-md bg-emerald-600 px-1.5 py-0.5 text-xs font-black uppercase tracking-wide text-white";
 
 // The discount badge is tiered by how good the deal actually is (real
 // discount_pct) so a 65%-under card doesn't look identical to a 12%-under
@@ -118,6 +125,11 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
   const dealRel = dealHref.includes("?") ? "nofollow" : undefined;
   const cardSet = deal.watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
+  // Is this saving big enough to be allowed to shout? Same ladder as the
+  // corner badge (components/SavingsBadge), so the chip on the "You
+  // save" line and the badge over the artwork can never disagree about
+  // how good the deal is.
+  const loudSaving = isLoudSaving(deal.discount_pct);
   // "N%" / "less than 1%" - a positive saving never renders as 0%
   const pctText = savingsPercentText(deal.discount_pct);
   // Rendered in the listing's own currency on the server; <Price> swaps
@@ -489,15 +501,35 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                 No saving stated: shipping breakdown not recorded
               </p>
             ) : (
-            <p className="mt-0.5 text-sm font-bold text-emerald-700 dark:text-emerald-500">
+            // 2026-09-22: the saved AMOUNT is the headline of this line,
+            // not a word in a sentence - it is set large and black, and
+            // the percentage sits beside it as a solid chip once the
+            // saving is in the top two tiers (>= 40%). Below that the
+            // percentage stays plain text, for the same reason
+            // SavingsBadge keeps `modest` quiet: a 12% saving that shouts
+            // is an overclaim made in CSS. The shipping qualifier is
+            // never dropped and never shrunk out of readability - it is
+            // what stops a before-shipping saving reading as delivered.
+            <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-sm font-bold text-emerald-700 dark:text-emerald-500">
               {showRef ? (
                 <>
-                  You save <Price usd={savedUsd} native={{ amount: savedNative, currency: nativeCurrency }} className="tnum text-base font-extrabold" />
-                  {" "}({pctText} below market){ship.savingQualifier}
+                  <span className="text-xs font-extrabold uppercase tracking-wide">You save</span>
+                  <Price
+                    usd={savedUsd}
+                    native={{ amount: savedNative, currency: nativeCurrency }}
+                    className="tnum text-xl font-black tracking-tight"
+                  />
+                  <span className={loudSaving ? SAVING_PCT_CHIP : "font-bold"}>{pctText} below market</span>
+                  {ship.savingQualifier ? (
+                    <span className="text-xs font-semibold opacity-80">{ship.savingQualifier.trim()}</span>
+                  ) : null}
                 </>
               ) : (
                 <>
-                  {pctText} below market{ship.savingQualifier ? ` (${ship.savingQualifier.trim()})` : ""}
+                  <span className={loudSaving ? SAVING_PCT_CHIP : "font-bold"}>{pctText} below market</span>
+                  {ship.savingQualifier ? (
+                    <span className="text-xs font-semibold opacity-80">{ship.savingQualifier.trim()}</span>
+                  ) : null}
                 </>
               )}
             </p>

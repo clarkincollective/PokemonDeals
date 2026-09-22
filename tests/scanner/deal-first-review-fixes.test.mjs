@@ -96,9 +96,14 @@ test("R2-1. DealCard: unknown breakdown -> no badge, no 'Save', no '% below mark
   assert.match(src, /\{savingsSupported && isAuction && \(/, "auctions get their own bid badge");
   assert.match(src, /discount_band: savingsSupported \? discountBand\(discountPct\) : "no_savings_claim"/);
   assert.match(src, /\{!savingsSupported \? \([\s\S]{0,300}No saving stated: shipping breakdown not recorded/);
-  // the "Save …" line is inside the supported branch only
-  const saveIdx = src.indexOf("You save <Price usd={savedUsd}");
+  // the "You save …" line is inside the supported branch only.
+  // Re-anchored 2026-09-22: the label and the figure are separate
+  // elements now that the amount is the headline of the line, so this
+  // keys on the label element rather than the old inline sentence. What
+  // it asserts is unchanged - the line must sit AFTER the gate.
+  const saveIdx = src.indexOf(">You save</span>");
   const gateIdx = src.indexOf("{!savingsSupported ? (");
+  assert.ok(saveIdx > 0, "the You save label is still rendered");
   assert.ok(gateIdx > 0 && saveIdx > gateIdx, "Save line follows the gate");
 });
 
@@ -194,7 +199,12 @@ test("P1-6. DealCard reads the shared contract - no private shipping rule", () =
   assert.match(src, /import \{ offerShipping \} from "@\/lib\/offerPresentation"/);
   assert.match(src, /const ship = offerShipping\(deal\);/);
   assert.match(src, /\{ship\.headline\}/);
-  assert.match(src, /\{ship\.savingQualifier\}/);
+  // Re-anchored 2026-09-22: the qualifier is rendered as its own element
+  // (`{ship.savingQualifier.trim()}`) now that the savings line is a flex
+  // row rather than a sentence, so this asserts the CONTRACT FIELD is
+  // still what the card reads, not one particular interpolation of it.
+  assert.match(src, /ship\.savingQualifier/);
+  assert.doesNotMatch(src, /before shipping"/, "the qualifier text is never hardcoded in the card");
   assert.match(src, /data-shipping=\{ship\.state\}/);
   assert.doesNotMatch(src, /"Free shipping"|no shipping charge listed/);
 });

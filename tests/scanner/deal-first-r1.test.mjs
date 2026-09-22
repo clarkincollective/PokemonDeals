@@ -99,11 +99,18 @@ test("R1-4. DealCard: one dominant price with a clear meaning; shipping=0 is 'no
   assert.doesNotMatch(src, /Free shipping|free delivery|delivered total|no shipping charge listed/i, "a 0 shipping figure is never called free on the card");
   // the derived saving never reads as a verified delivered saving
   // graded-inventory-r1: the percentage comes from savingsPercentText ("N%" / "less than 1%")
-  // 2026-09-22: the saving reads "You save <amount> (<pct>)" with the
-  // shipping qualifier appended, instead of "<qualifier> · <pct> below
-  // market". The qualifier itself is the thing this pins - a saving
-  // computed before shipping must SAY so - and it is still there.
-  assert.match(src, /You save <Price[\s\S]{0,200}\{ship\.savingQualifier\}/);
+  // 2026-09-22 rev 2: the saving is a flex row - a "You save" label, the
+  // amount as the line's headline figure, the percentage (a solid chip
+  // in the top two tiers), then the shipping qualifier. The QUALIFIER is
+  // the thing this pins - a saving computed before shipping must SAY so -
+  // and it survives the restyle in both branches of the line.
+  assert.match(src, />You save<\/span>/, "the savings line still names what the figure is");
+  assert.match(src, /<Price\s+usd=\{savedUsd\}/, "and still shows the saved amount");
+  assert.equal(
+    (src.match(/\{ship\.savingQualifier\.trim\(\)\}/g) ?? []).length,
+    2,
+    "both branches of the savings line state the qualifier"
+  );
   assert.match(src, /data-shipping=\{ship\.state\}/);
   assert.equal(offerShipping({ shipping: 0 }).headline, "Listing price");
   assert.equal(offerShipping({ shipping: 0 }).note, "Shipping not confirmed");

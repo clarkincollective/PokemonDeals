@@ -168,6 +168,19 @@ h1, h2 {
   color: #FFFFFF;
 }
 
+/* The top savings tier (>= 60% below reference) gets a slow halo so it
+   reads as exceptional across a grid. Deliberately scoped to that tier
+   only - it is 3% of claim-bearing cards, and a grid where everything
+   pulses says nothing. The badge's own fill, ink and size never change,
+   so the number stays legible at every point in the cycle and contrast
+   is unaffected; only the ring around it breathes. The global
+   prefers-reduced-motion block below reduces this to a static ring. */
+@keyframes savings-halo {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(4 120 87 / 0.45), 0 8px 24px rgb(4 120 87 / 0.45); }
+  50%      { box-shadow: 0 0 0 7px rgb(4 120 87 / 0), 0 8px 24px rgb(4 120 87 / 0.45); }
+}
+.animate-savings-halo { animation: savings-halo 2.4s cubic-bezier(.4,0,.6,1) infinite; }
+
 /* Deal cards: a restrained lift on pointer hover, the badge with it. */
 @media (hover: hover) {
   article[data-deal-card] { transition: transform 180ms cubic-bezier(.2,.7,.2,1), box-shadow 180ms, border-color 180ms; }
