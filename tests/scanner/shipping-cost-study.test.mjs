@@ -22,6 +22,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
 const PAGE = "app/market-data/pokemon-shipping-cost-study/page.js";
 const GEN = "scripts/studies/buildShippingCostStudy.mjs";
+const FREEZE = "scripts/studies/freezeShippingCostInput.mjs";
+// The grouping and reversal rules moved into pure modules in revision 3 so
+// the behavioural tests can drive them directly
+// (tests/scanner/shipping-printing-identity.test.mjs). The assertions below
+// follow them there rather than being dropped.
+const COMPARE = "lib/studies/shippingComparison.js";
 
 const close = (a, b, tol = 0.051) => Math.abs(a - b) <= tol;
 
@@ -73,7 +79,20 @@ test("3. the reversal figure is internally consistent and bounded by its groups"
     g.tiesNotCountedAsReversals <= g.groupsWithItemPriceTie,
     "a tie excused from the reversal count must itself be a tied group"
   );
-  assert.equal(g.eligibleRows + g.droppedForMissingIdentity, STUDY.population.usable, "group stage must account for every usable row");
+  assert.equal(
+    g.eligibleRows + g.droppedForMissingIdentity + g.droppedForUnresolvedPrinting,
+    STUDY.population.usable,
+    "group stage must account for every usable row"
+  );
+  // printing resolution must reconcile with the group stage too
+  const p = STUDY.printingIdentity;
+  assert.equal(p.resolvedListings + p.unresolvedListings, STUDY.population.usable, "printing resolution must cover every usable row");
+  assert.equal(p.unresolvedListings, g.droppedForUnresolvedPrinting, "every unresolved printing must be a listing the group stage dropped");
+  assert.equal(
+    Object.values(p.byResolution).reduce((a, b) => a + b, 0),
+    STUDY.population.usable,
+    "the resolution breakdown must sum to the usable sample"
+  );
 });
 
 test("4. comparable groups match on card identity, language, grading, marketplace and delivery basis", () => {
@@ -81,16 +100,27 @@ test("4. comparable groups match on card identity, language, grading, marketplac
   for (const f of ["card_tcgplayer_id", "card_language", "marketplace", "condition", "is_graded", "grader", "grade", "is_local"]) {
     assert.ok(fields.includes(f), `comparable groups do not key on ${f}`);
   }
-  const gen = read(GEN);
+  const cmp = read(COMPARE);
   // the tie-safe rule, not "sort and take the first"
-  assert.match(gen, /tiedOnItem\.some\(\(r\) => Number\(r\.total_price\) === minDelivered\)/, "reversal rule is not tie-safe");
-  assert.doesNotMatch(
-    gen,
-    /cheapestItem\.id !== cheapestDelivered\.id/,
-    "the arbitrary-tie-break reversal rule is back"
-  );
-  assert.match(gen, /methodRevision: 2/, "method revision not recorded");
-  assert.equal(STUDY.methodRevision, 2, "artifact predates the corrected method");
+  assert.match(cmp, /tiedOnItem\.some\(\(r\) => r\.total === minDelivered\)/, "reversal rule is not tie-safe");
+  for (const src of [cmp, read(GEN)]) {
+    assert.doesNotMatch(src, /cheapestItem\.id !== cheapestDelivered\.id/, "the arbitrary-tie-break reversal rule is back");
+  }
+  // printing is resolved per listing, and unresolved listings are dropped
+  assert.match(cmp, /isResolved\(printing\.get\(r\.key\)\)/, "unresolved printings are no longer excluded from grouping");
+  const gen = read(GEN);
+  assert.match(gen, /methodRevision: 3/, "method revision not recorded");
+  assert.equal(STUDY.methodRevision, 3, "artifact predates the printing-identity correction");
+
+  // step 2 must be OFFLINE: no database client, no network, in the compute
+  // step or anything it pulls in. This is the property that makes the
+  // snapshot reproducible rather than merely frozen.
+  for (const f of [GEN, COMPARE, "lib/studies/printingIdentity.js", "lib/offerPresentation.js"]) {
+    assert.doesNotMatch(read(f), /supabase|createClient|fetch\(|https?:\/\//, `${f}: the offline compute path reaches the network`);
+  }
+  // and the inputs are frozen by a SEPARATE step that runs before it
+  assert.match(read(FREEZE), /createHash\("sha256"\)/, "the freeze step does not digest its output");
+  assert.equal(STUDY.reproducibility.inputsFrozenBeforeCalculation, true);
 });
 
 test("5. every marketplace row is self-consistent and reported in one currency", () => {

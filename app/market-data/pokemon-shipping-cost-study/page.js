@@ -75,12 +75,15 @@ export default function Page() {
               here rather than left to a changelog nobody opens. */}
           <p className="mt-3 rounded-lg border border-zinc-200 bg-white p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
             <strong className="text-black dark:text-zinc-50">Corrected 22 September 2026.</strong>{" "}
-            The first version of this page compared listings that were not comparable (it did not
-            separate graded from raw, or a domestic offer from a cross-border one) and counted a
-            ranking reversal whenever an arbitrary tie-break put a different listing first. Both are
-            fixed below, the whole study was recomputed under the corrected rules, and an arithmetic
-            error in the exclusion paragraph is corrected. Every figure on this page comes from that
-            recomputation (method revision {s.methodRevision}); none is carried over.
+            Earlier versions of this page compared listings that were not comparable. They did not
+            separate graded from raw, or a domestic offer from a cross-border one; they counted a
+            ranking reversal whenever an arbitrary tie-break put a different listing first; they
+            reported an exclusion share as though it were a growth figure; and — the substantive one
+            — they assumed a catalogue product id fixed a card&apos;s <em>printing</em>, which it
+            does not. All four are fixed below. The study was re-run from scratch at a new
+            observation, under method revision {s.methodRevision}, with its inputs frozen before any
+            figure was calculated. Every number on this page comes from that run; none is carried
+            over from an earlier one.
           </p>
         </div>
       </header>
@@ -112,14 +115,16 @@ export default function Page() {
           <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
             The consequence for a buyer shows up when two listings can actually be compared. Among
             the <strong>{s.comparableGroups.groups}</strong> groups in this sample that matched on
-            every identity field below — and held two or more listings — the cheapest item price was{" "}
-            <strong>not</strong> the cheapest delivered total in{" "}
+            every identity field below — and held two or more listings — the listing with the
+            cheapest item price was <strong>not</strong> the one with the cheapest recorded
+            delivered total in{" "}
             <strong>
               {s.comparableGroups.rankFlips} of them ({s.comparableGroups.rankFlipPct}%)
             </strong>
             . That is a result about these {s.comparableGroups.groups} groups, at this observation
-            cutoff. It is not a rate for Pokemon listings in general, and we do not publish it as
-            one.
+            cutoff, and about the totals those listings recorded. It is not a rate for Pokemon
+            listings in general, and it is not a claim about what any particular reader would pay at
+            checkout.
           </p>
         </section>
 
@@ -235,21 +240,25 @@ export default function Page() {
               <tbody>
                 {[
                   [
-                    "Exact card and printing",
-                    "By the catalogue product id alone. Separate printings of one collector number hold separate ids — the three Prismatic Umbreon cards numbered 059/131 are three ids, not one.",
+                    "Exact card",
+                    "By the catalogue product id. Some printings do hold separate ids — the three Prismatic Umbreon cards numbered 059/131 are three ids, not one — but that is a fact about those cards, not a property of the identifier.",
+                  ],
+                  [
+                    "Physical printing",
+                    "Resolved per listing from the seller's own words, and excluded where it cannot be. The product id does NOT settle this, which is the correction at the centre of this revision — see below.",
                   ],
                   [
                     "Language",
-                    "Also by that id: our card catalogue holds one language per record, and the listing's own language field is carried in the key so the property is enforced rather than assumed.",
+                    "By that id: our card catalogue holds one language per record, and the listing's own language field is carried in the key so the property is enforced rather than assumed.",
                   ],
                   [
                     "Raw condition, or grading company and grade",
-                    "Added explicitly. A raw Near Mint copy and a slabbed copy are separate offers; the first version of this study keyed on condition alone and could group them together.",
+                    "Added explicitly. A raw Near Mint copy and a slabbed copy are separate offers; an earlier version keyed on condition alone and could group them together.",
                   ],
                   ["Marketplace and currency", "By marketplace, which fixes the currency. No group ever spans two currencies."],
                   [
                     "Recorded delivery basis",
-                    "Added explicitly, as a domestic / cross-border split. It is a coarse proxy: we record where the item is, not a normalised destination.",
+                    "Added explicitly, as a domestic / cross-border split. It is a coarse proxy and nothing more: we record where the item is, not where it is going, so a group is listings on a consistent recorded basis — never listings shipping to the same address.",
                   ],
                 ].map(([k, v]) => (
                   <tr key={k} className="border-b border-zinc-200 align-top dark:border-zinc-800">
@@ -268,6 +277,38 @@ export default function Page() {
           </p>
 
           <h3 className="mt-8 text-base font-bold text-black dark:text-zinc-50">
+            Why a product id does not settle the printing
+          </h3>
+          <p className="mt-2 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
+            Earlier versions of this page said the catalogue product id settled the exact card{" "}
+            <em>and its printing</em> on its own. Our own retained listings disprove that. At this
+            observation, <strong>{s.printingIdentity.productIdsCoveringMultipleFinishes}</strong>{" "}
+            product ids in the sample were shown by their own listings to cover more than one
+            finish. The clearest case carried nine listings under a single id: one titled
+            &ldquo;Non Holo&rdquo;, one &ldquo;Reverse Holo&rdquo;, and the rest simply
+            &ldquo;Holo&rdquo;. The catalogue records one printing per id — the printing its market
+            price is quoted for — and that is not a promise about what every listing under it is
+            selling.
+          </p>
+          <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
+            That matters here because a reverse holo and a plain copy of the same card are different
+            products at different prices. Comparing them and calling the gap a shipping effect would
+            be measuring the wrong thing.
+          </p>
+          <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
+            So each listing&apos;s printing is now resolved individually, using the same rules the
+            rest of the site uses to decide whether a reference may price a listing at all. Only the
+            seller&apos;s own words count as evidence: the catalogue entry cannot settle it, because
+            the catalogue entry is the thing in doubt. Where the printing cannot be established —
+            because the listing is silent on an id already shown to carry several finishes, because
+            it rules out the only printing we hold, or because its title claims two at once — the
+            listing is <strong>excluded</strong> rather than assigned a likely answer. That removed{" "}
+            <strong>{s.comparableGroups.droppedForUnresolvedPrinting}</strong> of{" "}
+            {s.population.usable} listings ({s.printingIdentity.unresolvedSharePct}%) before any
+            group was formed.
+          </p>
+
+          <h3 className="mt-8 text-base font-bold text-black dark:text-zinc-50">
             How a ranking reversal is counted
           </h3>
           <p className="mt-2 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
@@ -280,12 +321,56 @@ export default function Page() {
             first&rdquo; would have recorded a reversal that is only an artefact of which tied row
             happened to sort first.
           </p>
+        </section>
+
+        <section aria-labelledby="repro" className="mt-10">
+          <h2 id="repro" className="text-xl font-bold text-black dark:text-zinc-50">
+            How this snapshot can be re-checked
+          </h2>
+          <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
+            A figure is only reproducible if the rows behind it still exist. Freezing the totals is
+            not the same thing — it just fixes a number nobody can re-derive. Earlier versions of
+            this study computed from live listing records, which are overwritten as prices move, so
+            their inputs were gone the moment the run finished and the published result could not be
+            re-checked by anyone, us included.
+          </p>
+          <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
+            This revision runs in two steps. The rows are captured and hashed{" "}
+            <strong>before any figure is calculated</strong>, and the calculation then reads only
+            that captured file — no database, no provider, no network. Re-running it on the same
+            input reproduces this page&apos;s artifact byte for byte.
+          </p>
+          <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {[
+              ["Observation cutoff", observed],
+              ["Method revision", String(s.methodRevision)],
+              ["Listings captured", String(s.reproducibility.inputCount)],
+              ["Input digest (SHA-256)", s.reproducibility.inputDigest],
+            ].map(([k, v]) => (
+              <div key={k} className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                <dt className="text-xs text-zinc-500">{k}</dt>
+                <dd className="tnum mt-0.5 break-all text-sm font-semibold text-black dark:text-zinc-50">{v}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
+            The captured rows are kept as private project evidence and are not published here. They
+            carry only what the calculation needs — prices, shipping, marketplace, condition,
+            grading, delivery basis and the listing title the printing rules read — and no seller
+            identity, no listing or affiliate links and no raw listing ids. Publishing the digest
+            rather than the rows is what lets a figure be tied to a specific input set without
+            republishing other people&apos;s listings.
+          </p>
           <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-            The calculation is reproducible from{" "}
+            The two steps are{" "}
+            <code className="rounded bg-zinc-100 px-1 py-0.5 text-[13px] dark:bg-zinc-900">
+              scripts/studies/freezeShippingCostInput.mjs
+            </code>{" "}
+            and{" "}
             <code className="rounded bg-zinc-100 px-1 py-0.5 text-[13px] dark:bg-zinc-900">
               scripts/studies/buildShippingCostStudy.mjs
             </code>
-            , which reads retained records only and writes the frozen figures this page renders.
+            .
           </p>
         </section>
 
@@ -308,8 +393,20 @@ export default function Page() {
             </li>
             <li>
               <strong>Delivery destination is not normalised.</strong> Each listing&apos;s shipping
-              figure is whatever that listing recorded for its own offer. This is not a
+              figure is whatever that listing recorded for its own offer. The domestic /
+              cross-border split keeps a group on a consistent recorded basis; it does{" "}
+              <em>not</em> establish that two listings ship to the same place, and it is not a
               like-for-like international comparison.
+            </li>
+            <li>
+              <strong>These are recorded totals, not checkout prices.</strong> What you would
+              actually pay depends on where you are, which delivery option you choose, and any tax
+              or import charge that applies to you. Nothing here models that.
+            </li>
+            <li>
+              <strong>Listings whose printing could not be established are excluded</strong>, so the
+              comparison covers the subset we could show to be genuinely like-for-like — not every
+              listing in the sample.
             </li>
             <li>
               <strong>Currencies are never combined.</strong> No conversion happens anywhere in the

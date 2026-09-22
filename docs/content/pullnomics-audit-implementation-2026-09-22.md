@@ -243,3 +243,139 @@ be read by dragging sideways one line at a time. The caption is now a
 paragraph outside the scroll container, wrapping to the screen (measured: 325px
 wide, 5 lines, right edge 349 of 390) and tied to the table with
 `aria-describedby`.
+
+---
+
+# Second correction pass (2026-09-22, after 0556efa)
+
+## 1. Printing identity - the product id does not settle the finish
+
+Revision 2 published the claim that the catalogue product id settled the exact
+card **and its printing**. Our own retained listings disprove it.
+
+**Product id 84571** (Dark Celebi, EX Hidden Legends) carried nine retained
+listings at one observation: one titled "Non Holo", one "Reverse Holo", and the
+rest plain "Holo". Three physical finishes, one id. `card_catalog` holds a
+**single** `market_printing` per id - the printing its market price is quoted
+for - which cannot describe all three. `deals.reference_printing` is no better
+as an identity: one listing titled only "Holo" carried `Reverse Holofoil`.
+
+The Prismatic example (three Umbreon cards at 059/131 holding three ids) is a
+fact about those cards, not a property of the identifier.
+
+**Resolution rule** (`lib/studies/printingIdentity.js`), built on
+`lib/printingMatch`'s own exported primitives so it applies the site's existing
+doctrine rather than a second one - only the seller's words settle a finish:
+
+| Situation | Outcome |
+|---|---|
+| Listing asserts exactly one family | **Evidenced** |
+| Listing rules families out, catalogue printing survives | **Catalogue after exclusion** |
+| Listing silent, catalogue printing not a parallel, id uncontested | **Catalogue uncontested** |
+| Id shown to carry more than one distinct family (asserted union catalogue) | **Unresolved** |
+| Listing rules out the only printing we hold | **Unresolved** |
+| Catalogue printing is a parallel the listing never claimed | **Unresolved** |
+| Title asserts two families at once | **Unresolved** |
+
+Unresolved listings are **excluded** from the comparison, never defaulted.
+
+### Resulting counts (revision 3)
+
+| | Revision 2 | Revision 3 |
+|---|---|---|
+| Usable listings | 434 | 429 |
+| Excluded - unresolved printing | not assessed | **43 (10.0%)** |
+| Product ids proven to cover several finishes | not assessed | **5** |
+| Eligible rows at the group stage | 434 | 386 |
+| Comparable groups | 50 | **44** |
+| Ranking reversals | 7 | **6** |
+| Reversal share | 14% | **14%** |
+
+Both numerator and denominator changed. Resolution breakdown: 314 catalogue
+uncontested, 48 catalogue after exclusion, 24 evidenced; 18 unresolved because
+the id covers multiple finishes, 23 with no catalogue printing, 1 contradicted,
+1 unevidenced parallel.
+
+The published methodology now states the actual guarantee: the id fixes the
+catalogue record (and, our catalogue being single-language, the language), and
+the **printing is resolved separately per listing**. The delivery-basis proxy is
+stated as consistent recorded basis only - not identical destinations - and the
+result is scoped to recorded totals, not checkout prices.
+
+## 2. Reproducibility
+
+**Revision 2 retained aggregates only.** Its generator queried live `deals`
+rows; prices are overwritten in place and `is_active` changes, so its inputs
+were gone when the run finished. Revision 2's figures could not be re-derived
+and have been **replaced**, not reconstructed.
+
+Revision 3 runs in two steps:
+
+1. `scripts/studies/freezeShippingCostInput.mjs` - captures the rows, sanitises
+   them, sorts for order-independence, writes JSONL plus a manifest carrying the
+   cutoff, row count and SHA-256 digest. Runs **before** any figure is computed.
+2. `scripts/studies/buildShippingCostStudy.mjs` - re-checks the digest, then
+   computes from that file alone.
+
+**Offline proof.** The compute step's entire dependency closure is `node:fs`,
+`node:crypto`, `node:module` and three pure repo modules (`offerPresentation`,
+`printingIdentity`, `shippingComparison`) - no database client, no `fetch`, no
+URL. Asserted by test 4 in `tests/scanner/shipping-cost-study.test.mjs`.
+
+**Reproduction result.** Independent reruns against the frozen input produced
+byte-identical output, matching the published artifact.
+
+| Field | Value |
+|---|---|
+| Evidence location | `.local/studies/shipping-cost-2026-09-22T12-17-36-259Z.rows.jsonl` (plus `.manifest.json`) |
+| Gitignored | Yes - `.gitignore:73` (`.local/`), confirmed with `git check-ignore` |
+| Observation cutoff | 2026-09-22T12:17:36.259Z |
+| Method revision | 3 |
+| Input count | 1,390 |
+| Input digest | `647777d6f6f3a4f7994da0abf2eed91d3cbbae010827db5b159cf0fdca098f55` |
+
+Sanitised fields only: prices, shipping, totals, marketplace, currency, card id,
+language, condition, grading, delivery basis, catalogue printing, and the public
+listing title the printing rules read. **Excluded:** seller usernames and
+feedback, listing and affiliate URLs, image URLs, internal row ids, raw listing
+ids (reduced to a per-snapshot salted digest). Not committed, not served, not in
+a public bucket. The page publishes the digest, not the rows.
+
+## 3. Behavioural checks
+
+`tests/scanner/shipping-printing-identity.test.mjs` - seven tests driving the
+real functions with constructed listings, not field-name assertions:
+
+- Two finishes under one id are never compared; silent siblings drop out.
+- A plain catalogue printing plus one "Reverse Holo" listing splits the same way.
+- Four unevidenced shapes each resolve to nothing and never form a group.
+- A valid same-printing group survives and is compared.
+- Grading, grader, condition, marketplace, delivery basis and language each
+  separate two listings **one at a time**, with an identical-listing control.
+- Tie handling, including permutation: a reachable tie is never a reversal in
+  any order; an unreachable tie is.
+- The artifact carries a frozen-input digest and dropped listings for
+  unresolved printing.
+
+One test caught a real gap mid-implementation: the first `contestedIds` rule
+counted assertions only against each other, so an id whose catalogue printing
+was "Normal" and which had one "Reverse Holo" listing left its silent listings
+defaulting to Normal - the original defect one level down. The rule now counts
+distinct families across assertions **and** the catalogue printing.
+
+## 4. Copy cleanup
+
+Internal editing commentary removed from customer-facing text; the editorial
+history stays in this document.
+
+| Guide | Removed from the page | Kept |
+|---|---|---|
+| Holo / printing | "What this guide will not do" section - failed research attempts, the decision not to draw a diagram, the removal log | One line beside the gallery: flat scans show which record, not how a foil behaves |
+| Japanese vs English | "A note on scope" paragraph, the deliberately-removed-rows note, the not-claimed inventory, "stated rather than papered over" | The English-only limitation beside the advice it affects; sources unchanged |
+| Surging Sparks | The "we are not going to guess" / "invention dressed as advice" passage | "We hold no data on which of the four is most sold, so we do not name a default" |
+| Prismatic, format, Crown Zenith | "Listed here because it exists in our catalogue", "Included to show that...", "have not guessed at one" | Contents left unstated where no official page exists |
+
+**Holo guide retitled** to "Holo or Reverse Holo? Check the Listing's Printing"
+with matching blurb and short title, and rewritten to lead with a four-point
+check. URL, canonical, verified examples and links unchanged; `updated` not
+advanced.

@@ -8,38 +8,23 @@ import { GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 const SLUG = "japanese-vs-english-pokemon-cards";
 export const metadata = guideMetadata(SLUG);
 
-// Audit batch 2026-09-22, corrected the same day.
+// Audit batch 2026-09-22.
 //
-// WHAT WAS REMOVED AND WHY. The first version carried a "structural
-// comparison" table asserting that Japanese sets are smaller, release
-// more often, come first, and that Japanese sealed products are smaller.
-// Those are claims about two entire product lines across three decades.
-// We hold no evidence for any of them - our own card catalogue is
-// English-only - so they are gone rather than hedged into "usually".
+// SCOPE. Two things are in bounds: the published Play! Pokemon rule on
+// card language (TCG Tournament Handbook, English version, last revision
+// 1 September 2026, read 2026-09-22) and first-party statements about our
+// own data. Our card catalogue is English-only, so this guide must not
+// make comparative claims about the two product lines - release order,
+// relative set sizes, relative product ranges, cross-language prices.
 //
-// WHAT REPLACED THEM. The one part of the comparison that IS decided by a
-// published rule: which card languages are legal at Play! Pokemon events.
-// That is in the TCG Tournament Handbook, which was downloaded and read on
-// 2026-09-22 (English version, last revision 1 September 2026). Its rating
-// zone table and its statement that Japanese card backs differ - and are
-// therefore treated as marked - are quoted with section numbers so a
-// reader can check them. Everything else here is either first-party (how
-// our own comparison gates work) or a statement about a single listing.
+// Editorial history: docs/content/pullnomics-audit-implementation-2026-09-22.md.
 export default function Page() {
   return (
     <GuideLayout slug={SLUG}>
       <GP>
-        Japanese and English Pokemon cards are two separate product lines, not two editions of one.
-        A Japanese card is not a cheaper version of the English card — it is a different card, with
-        its own number, its own market and, if you play, its own rules about where it is legal. This
-        guide covers the parts of that we can actually show you.
-      </GP>
-      <GP>
-        A note on scope, because it changes how you should read what follows. We do not publish a
-        structural comparison of the two lines — which releases first, which has larger sets, which
-        products exist in each. Those are claims about two product lines across decades, and we hold
-        no evidence for them: our own card catalogue is <strong>English-only</strong>. What is below
-        is either a published rule, cited, or a statement about our own data, labelled as such.
+        A Japanese card is not a cheaper version of the English one. It is a different card, with
+        its own collector number, its own market, and — if you play — its own rules about where it
+        is legal. Treat the two as separate purchases and most of the confusion disappears.
       </GP>
 
       <GH2>Where a Japanese card is legal to play</GH2>
@@ -71,7 +56,7 @@ export default function Page() {
         sleeving or condition fixes.
       </GP>
       <GP>
-        Two caveats the handbook itself makes, which we are not going to leave out. At the World
+        Two caveats the handbook itself makes. At the World
         Championships, International Championships, Regional and Special Championships and their side
         events, competitors are always permitted English cards plus any language legal in their home
         country. And in exceptional circumstances the Head Judge or Organizer of any tournament may
@@ -87,16 +72,10 @@ export default function Page() {
         between them, and one being cheaper is not a discount on the other.
       </GP>
       <GP>
-        This is not a theoretical concern for us. It is why our comparisons keep language as part of
-        a card&apos;s identity, and why a listing we cannot match to a reference for{" "}
-        <em>that exact card, in that language and printing</em> is shown with no savings claim at
-        all. A confident-looking percentage derived from the wrong language is worse than no
-        percentage.
-      </GP>
-      <GP>
-        We do not publish a cross-language price table here, because we do not hold a reference we
-        would stand behind for that comparison. That is a limitation of our data, stated rather than
-        papered over.
+        It is why our comparisons keep language as part of a card&apos;s identity: a listing we
+        cannot match to a reference for <em>that exact card, in that language and printing</em>
+        {" "}shows no savings claim at all. We hold no cross-language reference, so we publish no
+        table converting one market into the other.
       </GP>
 
       <GH2>Which should you buy?</GH2>
@@ -119,7 +98,7 @@ export default function Page() {
             "The same illustration can exist in both lines at different numbers, so identify the card before choosing the line.",
           ],
         ]}
-        caption="Only rows we can support. We have deliberately removed rows about which line releases first, which has smaller sets and which offers smaller sealed products: those are claims about both product lines that we hold no evidence for."
+        caption="Our card catalogue holds English records only, so this guide does not compare the two lines on release order, set size or product range."
       />
 
       <GH2>Reading a cross-language listing</GH2>
@@ -178,9 +157,8 @@ export default function Page() {
           authority, not this page, and your event&apos;s organiser is the authority on the day.
         </li>
         <li>
-          Not sourced, and therefore not claimed: which line releases first, relative set sizes,
-          relative sealed-product sizes, and any cross-language price relationship. Our card
-          catalogue holds English records only.
+          Our card catalogue holds English records only, so we publish no cross-language price
+          comparison and no comparison of the two lines' release schedules or set sizes.
         </li>
       </SourceList>
     </GuideLayout>

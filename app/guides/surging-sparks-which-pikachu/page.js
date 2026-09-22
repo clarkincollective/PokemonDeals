@@ -7,20 +7,15 @@ import { GUIDE_CARDS, GUIDE_LINK_CLASS, GUIDE_SETS, PRICE_CHECKER_HREF } from "@
 const SLUG = "surging-sparks-which-pikachu";
 export const metadata = guideMetadata(SLUG);
 
-// Audit batch 2026-09-22, corrected the same day. One question, answered
-// properly: "the Surging Sparks Pikachu" is four different cards in our
-// catalogue. Verified identities, no prices, no pull rates.
+// Audit batch 2026-09-22. One question, answered properly: "the Surging
+// Sparks Pikachu" is four different cards in our catalogue.
 //
-// NO OFFICIAL SOURCE, AND THEREFORE NO OFFICIAL-VERIFICATION DATE. Every
-// factual claim here is a statement about our own catalogue records; the
-// registry entry deliberately carries `published` and no `updated`.
+// SCOPE. Every factual claim here is a statement about our own catalogue
+// records, so the registry entry carries `published` and no `updated`.
+// We hold no popularity data and no listing-error rates: do not add a
+// "most people mean" or "usually a mislabelled listing" claim.
 //
-// REMOVED on correction: "usually 238/191 - the Special Illustration Rare
-// is the one that circulates in photographs" (we hold no popularity data
-// of any kind), and "a Hyper Rare priced like a Double Rare is more often
-// a mislabelled listing than a bargain" (a frequency claim about listing
-// errors that we have no way to measure). Neither was replaced with a
-// hedged version of itself.
+// Editorial history: docs/content/pullnomics-audit-implementation-2026-09-22.md.
 export default function Page() {
   return (
     <GuideLayout slug={SLUG}>
@@ -59,11 +54,10 @@ export default function Page() {
 
       <GH2>Which one does a listing mean?</GH2>
       <GP>
-        We cannot tell you which of the four a given seller has in mind, and we are not going to
-        guess: we hold no data on which of them is searched for, photographed or sold most, so any
-        answer here would be invention dressed as advice. What we can tell you is that the question
-        has four answers and the listing has to pick one. If a title says only &ldquo;Pikachu ex
-        Surging Sparks&rdquo;, the collector number is the thing to ask for before anything else.
+        The question has four answers, and the listing has to pick one. If a title says only
+        &ldquo;Pikachu ex Surging Sparks&rdquo;, the collector number is the thing to ask for before
+        anything else. We hold no data on which of the four is most searched for or most sold, so we
+        do not name a default.
       </GP>
 
       <GH2>Reading a listing</GH2>
@@ -74,9 +68,8 @@ export default function Page() {
         </li>
         <li>
           <strong>A price that does not fit the number is a reason to check the number.</strong> It
-          may be a genuine underpricing and it may be the wrong card in the title; we hold no data
-          on how often each happens, so treat it as a prompt to confirm the collector number from
-          the photograph rather than as a signal either way. Our own comparisons are made against a
+          may be genuine underpricing or the wrong card in the title, so confirm the collector
+          number from the photograph before deciding which. Our own comparisons are made against a
           reference for that exact card, which is why a card with no supported reference shows no
           saving at all rather than a flattering one.
         </li>
@@ -101,8 +94,7 @@ export default function Page() {
       <GP>
         If one of these four is the goal, buy that card. Packs are a purchase of the opening, and no
         pack is more likely to contain a specific card because you want it more. We publish no pull
-        rates and no expected-value figures, because we hold no data that would make either of them
-        true rather than plausible.
+        rates and no expected-value figures.
       </GP>
 
       <GH2>Where to go next</GH2>
@@ -121,7 +113,7 @@ export default function Page() {
         </li>
         <li>
           <Link href="/guides/holo-vs-reverse-holo-pokemon-cards" className={GUIDE_LINK_CLASS}>
-            Holo vs reverse holo
+            Check a listing&apos;s printing
           </Link>{" "}
           — the other way one name covers several cards.
         </li>

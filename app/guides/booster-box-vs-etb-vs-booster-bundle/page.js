@@ -75,7 +75,7 @@ export default function Page() {
             "10",
             "1 etched foil Lucario VSTAR",
             "65 sleeves, 45 Energy, player's guide, 6 damage-counter dice, 1 coin-flip die, 2 acrylic condition markers, 1 acrylic VSTAR marker, collector's box with 4 dividers, code card",
-            "Included to show that 'an ETB' has no fixed pack count — this one is 10",
+            "A player who wants the accessories and the VSTAR marker; also the only sealed route into this set",
           ],
           [
             <>
@@ -125,8 +125,8 @@ export default function Page() {
         Elite Trainer Boxes: a standard edition, a <strong>Pokemon Center exclusive</strong>, and a{" "}
         <strong>Dollar General exclusive</strong>. Three product records, each of which somebody
         calls &ldquo;the Prismatic ETB&rdquo;. Two of them publish different contents, as the table
-        above shows; for the Dollar General edition we found no official contents page, so we do not
-        state its contents at all.
+        above shows; the Dollar General edition has no official contents page we could find, so its
+        contents are left unstated.
       </GP>
       <ProductGallery
         products={[

@@ -137,11 +137,11 @@ export default function Page() {
             "Not published on an official product page we could read",
             "Not published",
             "Not published",
-            "Listed here because it exists as a separate product in our sealed catalogue and shows up in listing titles",
+            "Anyone comparing a listing that names this edition — check the full product name before comparing prices",
           ],
         ]}
         minWidth="56rem"
-        caption="Contents from each product's own official page, read 22 September 2026. The Dollar General edition is a real record in our sealed catalogue, but we found no official contents page for it and have not guessed at one — that row states what is missing rather than filling it in."
+        caption="Contents from each product's own official page, read 22 September 2026. The Dollar General edition is a separate product in our sealed catalogue with no official contents page we could find, so its contents are left unstated."
       />
       <ProductGallery
         products={[

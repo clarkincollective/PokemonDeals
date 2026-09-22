@@ -1,94 +1,87 @@
 #!/usr/bin/env node
-// SHIPPING-COST STUDY - generator. READ-ONLY against retained records.
+// SHIPPING-COST STUDY - step 2 of 2: COMPUTE, OFFLINE.
 //
-//   node scripts/studies/buildShippingCostStudy.mjs > lib/studies/shippingCost202609.js
+//   node scripts/studies/buildShippingCostStudy.mjs <manifest.json> \
+//     > lib/studies/shippingCost202609.js
 //
-// Produces the FROZEN artifact the study page renders. Nothing on the
-// published route reads the database, so the figures cannot drift from
-// the analysis they were computed from - the same contract the 30-day
-// reference-price study uses.
+// Reads the frozen snapshot named by the manifest and NOTHING ELSE. There
+// is no database client in this file and no network call of any kind, so
+// re-running it on the same snapshot must produce a byte-identical
+// artifact. That is the property that makes the published figures
+// reproducible; freezing the aggregates alone never did.
 //
-// POPULATION, fixed before any figure was calculated:
-//   * retained `deals` rows, is_active = true, read at the cutoff below;
+// The manifest's SHA-256 digest is re-checked against the rows file
+// before anything is computed, and the run aborts if it does not match.
+//
+// POPULATION, fixed before any figure is calculated:
+//   * retained `deals` rows active at the snapshot cutoff;
 //   * FIXED_PRICE only - an auction's figure is a current bid, not a
 //     price, so including them would mix two different things;
-//   * deduplicated by listing_id, so one listing counts once however
-//     many rows reference it;
+//   * deduplicated by listing key, so one listing counts once;
 //   * shipping state "confirmed" only (lib/offerPresentation), i.e. a
-//     POSITIVE charge was actually recorded. UNKNOWN AND UNCONFIRMED
-//     SHIPPING ARE EXCLUDED, NOT TREATED AS ZERO - that is the whole
-//     point of the study and assuming zero would manufacture the
-//     finding. Note what this makes the population: shippingState()
-//     returns "confirmed" only for shipping > 0, so every usable row
-//     CHARGES for shipping. The figures describe listings that charge,
-//     not listings in general, and the page says so;
+//     POSITIVE charge was recorded. UNKNOWN AND UNCONFIRMED SHIPPING ARE
+//     EXCLUDED, NOT TREATED AS ZERO - assuming zero would manufacture the
+//     finding. Note what this makes the population: every usable row
+//     CHARGES for shipping, so the figures describe listings that charge;
 //   * item price > 0 and delivered total > 0.
 //
-// COMPARABLE GROUPS - what "genuinely comparable" is made to mean.
-// Two listings are in the same group only when every field below
-// matches. Some of these are guaranteed by one identifier and some are
-// not, and the difference matters:
+// COMPARABLE GROUPS. Two listings are comparable only when every field
+// below matches, and some of these had to be added explicitly because a
+// single identifier does NOT settle them:
 //
-//   * card_tcgplayer_id - a canonical per-record catalogue identifier.
-//     Distinct printings of one collector number hold DISTINCT ids
-//     (Prismatic Umbreon 059/131 base / Poke Ball / Master Ball are
-//     three ids), and card_catalog holds one language per id, so exact
-//     card AND printing AND language are already settled by this field
-//     alone. card_language is still carried in the key so the property
-//     is enforced rather than assumed.
-//   * marketplace - which also fixes the currency, so no group ever
-//     compares amounts in two currencies.
+//   * PHYSICAL PRINTING - resolved per listing by
+//     lib/studies/printingIdentity, which applies lib/printingMatch's own
+//     rules. This is the correction at the centre of revision 3. The
+//     product id does NOT fix the finish: product 84571 carried nine
+//     retained listings at one observation, one titled "Non Holo", one
+//     "Reverse Holo" and the rest "Holo". Listings whose printing cannot
+//     be evidenced are EXCLUDED from this stage rather than defaulted
+//     into a group.
+//   * card product id - fixes the catalogue record, and with it the card
+//     and (our catalogue being single-language) the language. The listing
+//     language is carried in the key anyway so the property is enforced
+//     rather than assumed.
 //   * condition, is_graded, grader, grade - a raw Near Mint copy and a
-//     slabbed PSA 10 of the same card are not the same offer. The
-//     earlier version of this study keyed on condition alone, which
-//     could place a graded and a raw listing in one group.
-//   * is_local - the recorded delivery basis. A domestic offer and a
-//     cross-border offer on the same marketplace are not a like-for-like
-//     delivered comparison. This is a coarse proxy: we record where the
-//     item is, not a normalised destination, so the group is "consistent
-//     recorded basis", not "identical delivery".
-//
-// Rows with no card identifier or no recorded condition cannot be shown
-// to be comparable to anything and are excluded from the group stage
-// (they remain in the marketplace figures, which need no pairing).
+//     slabbed PSA 10 are not the same offer.
+//   * marketplace - which also fixes the currency, so no group compares
+//     two currencies.
+//   * recorded delivery basis (domestic / cross-border). A coarse proxy:
+//     we record where the item is, NOT a normalised destination, so a
+//     group is "consistent recorded basis", never "identical delivery".
 //
 // TIES. Sorting and taking the first element makes an arbitrary choice
-// among listings that tie for the lowest item price, and that arbitrary
-// choice can manufacture a ranking reversal. A reversal is counted only
-// when NO listing tied for the lowest item price also achieves the
-// lowest delivered total - i.e. when buying on item price cannot get you
-// the cheapest delivered total however the tie is broken.
-//
-// WHAT THIS IS NOT. These are LISTINGS retained at one moment, not
-// completed sales, and not a sample of the market. Marketplaces are
-// reported separately in their own currency and never pooled: adding a
-// GBP figure to an AUD figure would be arithmetic on incompatible units.
-// Delivery destination is whatever each listing offered; we do not
-// normalise to one destination and do not claim worldwide coverage.
-import { existsSync } from "node:fs";
+// among listings tied for the lowest item price, and that choice can
+// manufacture a ranking reversal. A reversal is counted only when NO
+// listing tied for the lowest item price also achieves the lowest
+// delivered total.
+import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
-import { config as loadDotenv } from "dotenv";
-import { createClient } from "@supabase/supabase-js";
 
-if (existsSync(".env.local")) loadDotenv({ path: ".env.local", quiet: true });
-const req = createRequire(import.meta.url);
-const { shippingState } = req("../../lib/offerPresentation.js");
+const require_ = createRequire(import.meta.url);
+const { shippingState } = require_("../../lib/offerPresentation.js");
+const { RESOLUTION } = await import("../../lib/studies/printingIdentity.js");
+const { formGroups, countReversals } = await import("../../lib/studies/shippingComparison.js");
 
-const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { persistSession: false },
-});
+const manifestPath = process.argv[2];
+if (!manifestPath) {
+  process.stderr.write("usage: buildShippingCostStudy.mjs <manifest.json>\n");
+  process.exit(2);
+}
+const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+const body = readFileSync(manifest.rowsFile, "utf8");
+const digest = createHash("sha256").update(body).digest("hex");
+if (digest !== manifest.inputDigest) {
+  process.stderr.write(`input digest mismatch\n  manifest: ${manifest.inputDigest}\n  rows:     ${digest}\n`);
+  process.exit(1);
+}
+const input = body.split("\n").filter(Boolean).map((l) => JSON.parse(l));
+if (input.length !== manifest.inputCount) {
+  process.stderr.write(`input count mismatch: manifest ${manifest.inputCount}, rows ${input.length}\n`);
+  process.exit(1);
+}
 
-// Marketplace -> the currency its prices are recorded in. Used for
-// labelling only; no conversion happens anywhere in this study.
-const CURRENCY = {
-  EBAY_US: "USD",
-  EBAY_GB: "GBP",
-  EBAY_DE: "EUR",
-  EBAY_CA: "CAD",
-  EBAY_AU: "AUD",
-  EBAY_IT: "EUR",
-};
-// Below this a marketplace is reported but explicitly not characterised.
+const CURRENCY = { EBAY_US: "USD", EBAY_GB: "GBP", EBAY_DE: "EUR", EBAY_CA: "CAD", EBAY_AU: "AUD", EBAY_IT: "EUR" };
 const MIN_N = 20;
 
 const median = (a) => {
@@ -97,54 +90,34 @@ const median = (a) => {
   return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
 };
 
-const cutoff = new Date().toISOString();
-
-const rows = [];
-for (let from = 0; ; from += 1000) {
-  const { data, error } = await db
-    .from("deals")
-    .select(
-      "id,listing_id,listing_type,marketplace,price,shipping,total_price,card_tcgplayer_id,card_language,condition,is_graded,grader,grade,is_local"
-    )
-    .eq("is_active", true)
-    .range(from, from + 999);
-  if (error) throw new Error(error.message);
-  if (!data?.length) break;
-  rows.push(...data);
-  if (data.length < 1000) break;
-}
-
-const active = rows.length;
-const fixedPrice = rows.filter((r) => r.listing_type === "FIXED_PRICE");
+const active = input.length;
+const fixedPrice = input.filter((r) => r.type === "FIXED_PRICE");
 const seen = new Set();
 const deduped = [];
 for (const r of fixedPrice) {
-  const key = r.listing_id || `id:${r.id}`;
-  if (seen.has(key)) continue;
-  seen.add(key);
+  if (seen.has(r.k)) continue;
+  seen.add(r.k);
   deduped.push(r);
 }
 const byState = {};
 for (const r of deduped) {
-  const s = shippingState(r);
+  const s = shippingState({ shipping: r.s });
   byState[s] = (byState[s] ?? 0) + 1;
 }
-const usable = deduped.filter(
-  (r) => shippingState(r) === "confirmed" && Number(r.price) > 0 && Number(r.total_price) > 0
-);
+const usable = deduped.filter((r) => shippingState({ shipping: r.s }) === "confirmed" && r.p > 0 && r.t > 0);
 
 const marketplaces = [];
 for (const [mkt, currency] of Object.entries(CURRENCY)) {
-  const g = usable.filter((r) => r.marketplace === mkt);
+  const g = usable.filter((r) => r.mk === mkt);
   if (!g.length) continue;
-  const pct = g.map((r) => (Number(r.shipping) / Number(r.price)) * 100);
+  const pct = g.map((r) => (r.s / r.p) * 100);
   marketplaces.push({
     marketplace: mkt,
     label: mkt.replace("EBAY_", ""),
     currency,
     n: g.length,
-    medianItem: Number(median(g.map((r) => Number(r.price))).toFixed(2)),
-    medianShipping: Number(median(g.map((r) => Number(r.shipping))).toFixed(2)),
+    medianItem: Number(median(g.map((r) => r.p)).toFixed(2)),
+    medianShipping: Number(median(g.map((r) => r.s)).toFixed(2)),
     medianShippingPctOfItem: Number(median(pct).toFixed(1)),
     shareAtLeast20Pct: Number(((100 * pct.filter((p) => p >= 20).length) / g.length).toFixed(0)),
     characterised: g.length >= MIN_N,
@@ -152,61 +125,50 @@ for (const [mkt, currency] of Object.entries(CURRENCY)) {
 }
 marketplaces.sort((a, b) => b.n - a.n);
 
-// The buyer-facing question: within a set of listings that are genuinely
-// comparable on every identity field above, is the cheapest ITEM price
-// also the cheapest DELIVERED total?
-//
-// Rows that cannot be shown comparable to anything are dropped before
-// grouping rather than grouped on a blank.
-const identified = usable.filter(
-  (r) => r.card_tcgplayer_id != null && String(r.card_tcgplayer_id) !== "" && r.condition != null && r.condition !== ""
-);
-const groupUnidentified = usable.length - identified.length;
-
-const groups = {};
-for (const r of identified) {
-  const key = [
-    r.card_tcgplayer_id,
-    r.card_language ?? "",
-    r.marketplace,
-    r.condition,
-    r.is_graded ? "graded" : "raw",
-    r.grader ?? "",
-    r.grade ?? "",
-    r.is_local ? "local" : "cross_border",
-  ].join("|");
-  (groups[key] = groups[key] ?? []).push(r);
+// --- printing resolution, then grouping ---------------------------------
+// Both steps live in lib/studies/* as pure functions, so the behavioural
+// tests exercise the same code this generator runs.
+const shaped = usable.map((r) => ({
+  key: r.k,
+  cardId: r.cid ?? "",
+  title: r.title ?? "",
+  condition: r.cond ?? "",
+  catalogPrinting: r.cp ?? null,
+  language: r.lang ?? "",
+  marketplace: r.mk,
+  graded: r.graded,
+  grader: r.grader,
+  grade: r.grade,
+  local: r.local,
+  price: r.p,
+  total: r.t,
+}));
+const formed = formGroups(shaped);
+const printing = formed.printing;
+const byResolution = {};
+for (const r of shaped) {
+  const res = printing.get(r.key).resolution;
+  byResolution[res] = (byResolution[res] ?? 0) + 1;
 }
-const comparable = Object.values(groups).filter((g) => g.length >= 2);
-
-let rankFlips = 0;
-let groupsWithItemPriceTie = 0;
-let tiesThatWouldHaveFlippedNaively = 0;
-for (const g of comparable) {
-  const minItem = Math.min(...g.map((r) => Number(r.price)));
-  const minDelivered = Math.min(...g.map((r) => Number(r.total_price)));
-  const tiedOnItem = g.filter((r) => Number(r.price) === minItem);
-  if (tiedOnItem.length > 1) groupsWithItemPriceTie += 1;
-  // A reversal only when buying on item price CANNOT reach the cheapest
-  // delivered total, however a tie for cheapest item price is broken.
-  const reachable = tiedOnItem.some((r) => Number(r.total_price) === minDelivered);
-  if (!reachable) rankFlips += 1;
-  else if (tiedOnItem.length > 1 && tiedOnItem.some((r) => Number(r.total_price) !== minDelivered)) {
-    // a naive "sort and take the first" would have called this a
-    // reversal purely because of which tied row happened to sort first
-    tiesThatWouldHaveFlippedNaively += 1;
-  }
-}
+const droppedNoIdentity = formed.droppedForMissingIdentity;
+const droppedUnresolvedPrinting = formed.droppedForUnresolvedPrinting;
+const comparable = formed.comparable;
+const { rankFlips, groupsWithItemPriceTie, tiesNotCountedAsReversals } = countReversals(comparable);
 
 const study = {
-  generatedAt: cutoff,
-  observationCutoff: cutoff,
-  // Bumped whenever the eligibility rules or the reversal definition
-  // change, so a page can never render figures from one method while
-  // describing another. Revision 2 (2026-09-22): stricter comparable-
-  // group identity (language, graded/grader/grade, delivery basis) and
-  // the tie-safe reversal rule.
-  methodRevision: 2,
+  generatedAt: manifest.observationCutoff,
+  observationCutoff: manifest.observationCutoff,
+  // Revision 3 (2026-09-22): inputs frozen BEFORE calculation and the
+  // study computed offline from them; physical printing resolved per
+  // listing instead of assumed from the product id.
+  methodRevision: 3,
+  reproducibility: {
+    inputsFrozenBeforeCalculation: true,
+    inputCount: manifest.inputCount,
+    inputDigest: manifest.inputDigest,
+    digestAlgorithm: manifest.digestAlgorithm,
+    computedOffline: true,
+  },
   minimumNForCharacterisation: MIN_N,
   population: {
     activeRows: active,
@@ -216,9 +178,6 @@ const study = {
     usable: usable.length,
     // Two DIFFERENT ratios, both stated, because conflating them is how
     // the first published version of this page got its arithmetic wrong.
-    // `excludedShareOfDeduplicated` is the excluded rows as a share of
-    // the deduplicated population; `sampleGrowthIfIncludedPct` is how
-    // much larger the ANALYSED sample would be if they were folded in.
     excludedNotConfirmed: deduped.length - usable.length,
     excludedShareOfDeduplicatedPct: deduped.length
       ? Number(((100 * (deduped.length - usable.length)) / deduped.length).toFixed(1))
@@ -228,19 +187,27 @@ const study = {
       : null,
   },
   marketplaces,
+  printingIdentity: {
+    byResolution,
+    resolvedListings: formed.eligible.length,
+    unresolvedListings: droppedUnresolvedPrinting,
+    unresolvedSharePct: usable.length ? Number(((100 * droppedUnresolvedPrinting) / usable.length).toFixed(1)) : null,
+    productIdsCoveringMultipleFinishes: new Set(
+      shaped.filter((r) => printing.get(r.key).resolution === RESOLUTION.UNRESOLVED_ID_COVERS_MULTIPLE_FINISHES).map((r) => r.cardId)
+    ).size,
+  },
   comparableGroups: {
-    // rows that reached the group stage at all
-    eligibleRows: identified.length,
-    droppedForMissingIdentity: groupUnidentified,
+    eligibleRows: formed.eligible.length,
+    droppedForMissingIdentity: droppedNoIdentity,
+    droppedForUnresolvedPrinting: droppedUnresolvedPrinting,
     groups: comparable.length,
     rankFlips,
     rankFlipPct: comparable.length ? Number(((100 * rankFlips) / comparable.length).toFixed(0)) : null,
-    // tie diagnostics: published so the reversal count can be read as a
-    // real result rather than an artefact of sort order
-    groupsWithItemPriceTie: groupsWithItemPriceTie,
-    tiesNotCountedAsReversals: tiesThatWouldHaveFlippedNaively,
+    groupsWithItemPriceTie,
+    tiesNotCountedAsReversals,
     identityFields: [
       "card_tcgplayer_id",
+      "printing_family",
       "card_language",
       "marketplace",
       "condition",
@@ -254,9 +221,9 @@ const study = {
 
 process.stdout.write(
   "// GENERATED - do not edit by hand.\n" +
-    "// Source: scripts/studies/buildShippingCostStudy.mjs (read-only over\n" +
-    "// retained `deals` records). Frozen so the published figures cannot\n" +
-    "// drift from the analysis. Re-running produces a NEW study with a new\n" +
-    "// cutoff; it does not update this one in place.\n" +
+    "// Source: scripts/studies/buildShippingCostStudy.mjs, computed OFFLINE\n" +
+    "// from the frozen snapshot named in `reproducibility` below. Re-running\n" +
+    "// step 2 against that snapshot reproduces this file byte for byte; the\n" +
+    "// snapshot itself is private project evidence and is not published.\n" +
     `export const STUDY = ${JSON.stringify(study, null, 2)};\n`
 );

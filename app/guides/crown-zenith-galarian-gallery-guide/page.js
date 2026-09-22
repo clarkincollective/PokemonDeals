@@ -132,7 +132,7 @@ export default function Page() {
           ],
         ]}
         minWidth="46rem"
-        caption="Contents from the product's own official page, read 22 September 2026. Our sealed catalogue also holds a separate Pokemon Center Elite Trainer Box Plus for this set; we found no official contents page for it and have not guessed at one."
+        caption="Contents from the product's own official page, read 22 September 2026. Our sealed catalogue also holds a separate Pokemon Center Elite Trainer Box Plus for this set, whose contents are not published on an official page we could find."
       />
       <ProductGallery
         products={[{ product: GUIDE_PRODUCTS.crownZenithEliteTrainerBox, caption: "Crown Zenith Elite Trainer Box" }]}
