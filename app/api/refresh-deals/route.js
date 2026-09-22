@@ -102,15 +102,31 @@ const DISCOUNT_THRESHOLD = 0.1;
 // no migration; a card's chunk only changes if its id changes.
 //
 // Reduced 6 -> 5 on 2026-08-31 when EBAY_IT was added as the 6th
-// marketplace. The extended tier runs one country-chunk per day and the
-// full rotation is packed into 30 daily cron slots (days 1-30). 6
-// marketplaces x 5 chunks = 30 slots keeps the whole rotation inside one
-// month exactly as 5 x 6 did; the per-country full-rotation cadence
-// (~30 days) is unchanged. Each daily chunk is ~20% larger (~4,900
-// English extended rows / 5 instead of / 6 ≈ ~980 vs ~815 cards) - still
-// well inside the pre-flight guard's 1,500 extended floor. `chunkOf` is
-// pure hash-of-id % totalChunks, so re-chunking just reshuffles which
-// day a card is confirmed on - no migration, no stored column to update.
+// marketplace. 6 marketplaces x 5 chunks = 30 slots. Each daily chunk is
+// ~20% larger (~4,900 English extended rows / 5 instead of / 6 ≈ ~980 vs
+// ~815 cards) - still well inside the pre-flight guard's 1,500 extended
+// floor. `chunkOf` is pure hash-of-id % totalChunks, so re-chunking just
+// reshuffles which day a card is confirmed on - no migration, no stored
+// column to update.
+//
+// READ THIS BEFORE TRUSTING THE PARAGRAPH ABOVE (corrected 2026-09-23).
+// It used to say the rotation "is packed into 30 daily cron slots (days
+// 1-30)" and give a "~30 day" per-country cadence. There are NO
+// tier=extended cron entries in vercel.json - only 6 sweep and 6
+// tier=allocated - so nothing schedules this chunked rotation at all. It
+// is the FALLBACK path below, reached only when scan_target_state is
+// unavailable or SCAN_ALLOCATOR=off.
+//
+// The live path for extended cards is the scan allocator
+// (lib/scanAllocator), whose explore lane guarantees the long tail is
+// reached by pure least-recently-searched order. Its MEASURED
+// full-rotation cadence is 34-59 days by marketplace, not ~30 - the
+// figures are tabulated beside MARKETPLACE_WEIGHT in that file and
+// pinned by tests/scanner/scan-allocator-cadence.test.mjs.
+//
+// This matters operationally: 99.7% of the watchlist (8,430 of 8,456
+// active entries) is extended tier, so "how long until a given card is
+// re-scanned" is answered by the allocator, never by EXTENDED_CHUNKS.
 const EXTENDED_CHUNKS = 5;
 
 // Supabase/PostgREST silently caps any single request at 1,000 rows
