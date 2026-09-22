@@ -24,6 +24,11 @@ function schema(row, auction) {
     conditionLabel: () => 'Near Mint', marketplaceLabel: 'eBay GB', shipping: offerShipping(deal),
     showSavings: false, showRef: false, marketUsd: NaN, referenceRecorded: null, lastChecked: null,
     cardHub: null, dealCapsule: 'fixture capsule',
+    // 2026-09-22: the Product states a printing ONLY when the listing
+    // evidences it (deal 42127 - reference_printing describes the
+    // reference, not the item). The fixture row carries no
+    // reference_printing, so null is what the page would compute here.
+    statedPrinting: null,
     propertyValue: (name, value, extra = {}) => (value == null || value === '' ? null : {'@type': 'PropertyValue', name, value: String(value), ...extra}),
   })));
 }

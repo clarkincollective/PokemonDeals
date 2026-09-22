@@ -602,9 +602,13 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           <li className="flex items-center gap-1.5">
             <FactIcon kind={isAuction ? "gavel" : "cart"} />
             <span>
+              {/* AuctionEnd renders "ended" on its own for a finished
+                  auction, so prefixing "ends" produced "ends ended".
+                  The component already says everything; this row just
+                  labels it. */}
               {isAuction ? (
                 <>
-                  Auction · ends <AuctionEnd date={deal.auction_end_at} />
+                  Auction · <AuctionEnd date={deal.auction_end_at} />
                   {deal.bid_count != null && ` · ${deal.bid_count} bids`}
                 </>
               ) : (

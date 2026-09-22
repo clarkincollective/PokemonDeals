@@ -495,6 +495,12 @@ export default async function DealDetailPage({ params }) {
   // label the history chart so it cannot read as the basis for a
   // saving the page is (correctly) not claiming.
   const parallelPrintingMismatch = referenceIsUnevidencedParallelPrinting(deal);
+  // The printing this page may STATE as the listing's own. When the
+  // stored reference is a parallel printing the listing does not
+  // evidence, we hold no printing for the listing itself, so the
+  // summary line and the Product node say nothing rather than repeat
+  // the reference's finish as though it were the item's.
+  const statedPrinting = parallelPrintingMismatch ? null : deal.reference_printing;
   const shipping = offerShipping(deal);
   const showSavings = hasPrice(deal.total_price) && presentation.savings === "trusted" && shipping.savingClaim !== "none";
   const isAuction = deal.listing_type === "AUCTION";
@@ -564,7 +570,7 @@ export default async function DealDetailPage({ params }) {
   const lastChecked = deal.exact_verified_at ?? deal.last_seen_at ?? null;
   const marketplaceLabel = `eBay ${String(deal.marketplace ?? "").replace("EBAY_", "")}`.trim();
   const dealCapsule = [
-    `Live ${marketplaceLabel} ${isAuction ? "auction" : "listing"} of ${cardName}${dealCollectorNumber ? ` ${dealCollectorNumber}` : ""}${cardSet ? ` (${cardSet}${deal.reference_printing ? `, ${deal.reference_printing}` : ""}, ${conditionLabel(deal)})` : ` (${conditionLabel(deal)})`}.`,
+    `Live ${marketplaceLabel} ${isAuction ? "auction" : "listing"} of ${cardName}${dealCollectorNumber ? ` ${dealCollectorNumber}` : ""}${cardSet ? ` (${cardSet}${statedPrinting ? `, ${statedPrinting}` : ""}, ${conditionLabel(deal)})` : ` (${conditionLabel(deal)})`}.`,
     // R3: a listing whose native price is unusable states no figure at all
     isAuction
       ? auctionParts
@@ -595,7 +601,11 @@ export default async function DealDetailPage({ params }) {
     additionalProperty: [
       propertyValue("Set", cardSet),
       propertyValue("Collector number", dealCollectorNumber),
-      propertyValue("Printing", deal.reference_printing),
+      // The printing is stated ONLY when the listing evidences it.
+      // reference_printing describes the REFERENCE we hold, not the
+      // listing, and printing it here asserted the listing was a
+      // reverse holo purely because our reference was (deal 42127).
+      propertyValue("Printing", statedPrinting),
       propertyValue("Condition (seller-stated, checked)", conditionLabel(deal)),
       // brief 2026-09-20: the condition or grade as a plainly named property
       deal.is_graded && deal.grader && deal.grade != null

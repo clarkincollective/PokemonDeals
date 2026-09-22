@@ -57,7 +57,11 @@ test("deal page: Product carries the deal's facts as PropertyValues, the referen
   assert.match(src, /"@id": `\$\{SITE_URL\}\/deals\/\$\{deal\.id\}#product`/);
   assert.match(src, /propertyValue\("Set", cardSet\)/);
   assert.match(src, /propertyValue\("Collector number", dealCollectorNumber\)/);
-  assert.match(src, /propertyValue\("Printing", deal\.reference_printing\)/);
+  // 2026-09-22 (deal 42127): the Product states a printing only when
+  // the LISTING evidences it. reference_printing describes the
+  // reference we hold, and emitting it here asserted the item was a
+  // reverse holo purely because our reference was.
+  assert.match(src, /propertyValue\("Printing", statedPrinting\)/);
   assert.match(src, /propertyValue\("Condition \(seller-stated, checked\)", conditionLabel\(deal\)\)/);
   assert.match(src, /showSavings && showRef && !isAuction\s*\? propertyValue\(`Market reference/);
   assert.match(src, /showSavings && showRef && !isAuction \? propertyValue\("Below reference"/);
