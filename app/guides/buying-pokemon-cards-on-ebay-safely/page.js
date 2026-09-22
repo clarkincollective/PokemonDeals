@@ -133,9 +133,10 @@ export default function Page() {
       <GH2>What this site checks for you, and what it cannot</GH2>
       <GP>
         Every listing shown on Pokemon Deal Finder has passed a card-identity match against the
-        catalogue, a read of the seller&apos;s stated condition from eBay&apos;s item record, an
-        availability re-check, and an image-based authenticity screen; listings that fail are
-        withheld and the running counts are on the{" "}
+        catalogue, a read of the seller&apos;s stated condition from eBay&apos;s item record, and an
+        availability re-check. Selected higher-risk listings additionally receive an image-based
+        screen; that check does not run on every listing, so treat its absence as unknown rather
+        than as a pass. Listings that fail any check are withheld and the running counts are on the{" "}
         <Link href="/integrity" className={GUIDE_LINK_CLASS}>
           listing integrity report
         </Link>

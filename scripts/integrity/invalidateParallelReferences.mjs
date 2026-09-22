@@ -15,10 +15,23 @@
 // same as "corrected", and silent stale-reference retention is the thing
 // this closeout is meant to eliminate.
 //
-// WHAT IT CHANGES, and nothing else. Only the comparison columns:
-// market_price, discount_pct and the reference_* provenance set, via
-// updateWithProvenance - the repository's existing column-scoped, safe
-// update. It does NOT touch:
+// WHAT IT CHANGES, and nothing else. Only the reference_* provenance
+// set, via updateWithProvenance - the repository's existing
+// column-scoped, safe update, and the same `clearedReference` shape
+// tryUpsert already writes when a scan cannot evidence a comparison.
+//
+// It does NOT null market_price or discount_pct. The canary proved why:
+// both are NOT NULL on `deals`, so the write is refused at the database.
+// That is fine, because clearing the provenance is what actually
+// invalidates the reference - storedReferenceEvidence requires
+// reference_product_id AND a reference_amount that reproduces
+// market_price, so with the set cleared no gate can ever trust the row
+// again, whatever its title says. The residual figures are inert:
+// discount ranking and the exported discountPct both gate on
+// savingsClaimTrusted (lib/deals.js:598, :1818, :2117), so an orphaned
+// 70% cannot rank, display or be exported.
+//
+// It does NOT touch:
 //   * first_seen_at / last_seen_at / exact_verified_at - a reference
 //     check is not an availability observation, and moving those would
 //     make a listing look freshly verified when it was not;
@@ -54,10 +67,10 @@ const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABA
 
 // The exact fields this script may write. Listed explicitly so a reader
 // can confirm at a glance that no availability or history column is here.
-const MUTABLE = ["market_price", "discount_pct", ...CARD_REFERENCE_COLUMNS];
+const MUTABLE = [...CARD_REFERENCE_COLUMNS];
 
 function invalidationValues() {
-  return { market_price: null, discount_pct: null, ...clearedReference(CARD_REFERENCE_COLUMNS) };
+  return clearedReference(CARD_REFERENCE_COLUMNS);
 }
 
 // ---------------------------------------------------------- rollback
@@ -123,7 +136,8 @@ console.log(`  by reference_printing: ${Object.entries(byPrinting).map(([k, v]) 
 if (!APPLY && !CANARY) {
   console.log("\n  (dry run - pass --canary=N to write a few, then --apply for the rest)");
   console.log(`  would clear: ${MUTABLE.join(", ")}`);
-  console.log("  would NOT touch: first_seen_at, last_seen_at, exact_verified_at, price_history, listing_observations, is_active");
+  console.log("  would NOT touch: market_price/discount_pct (NOT NULL; inert without provenance),");
+  console.log("                   first_seen_at, last_seen_at, exact_verified_at, price_history, listing_observations, is_active");
   process.exit(0);
 }
 

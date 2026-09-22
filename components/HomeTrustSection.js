@@ -57,7 +57,7 @@ const ITEMS = [
   {
     href: "/integrity",
     title: "Image screening",
-    copy: "An image-based screen withholds listings that fail an authenticity or match check. We never label a listing verified authentic.",
+    copy: "Selected higher-risk listings get an image-based screen, which withholds those that fail an authenticity or match check. It does not run on every listing, and we never label a listing verified authentic.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
         <rect x="3" y="5" width="18" height="14" rx="2" />

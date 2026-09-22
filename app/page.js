@@ -456,7 +456,7 @@ export default async function Home() {
                     matched to a reference we can evidence. Deal 42127
                     was exactly that gap. The sentence now draws the line
                     where the implementation draws it. */}
-                {" "}Every listing shown has passed a card-identity match, a seller-condition check, an availability re-check and an image-based authenticity screen. A saving is only claimed where the printing and condition are matched to a market reference we can evidence — otherwise the listing is shown plainly, with the reason.
+                {" "}Every listing shown has passed a card-identity match, a seller-condition check and an availability re-check. Selected higher-risk listings also get an image-based screen — not all of them. A saving is only claimed where the printing and condition are matched to a market reference we can evidence; otherwise the listing is shown plainly, with the reason.
               </span>
               {liveCount != null && integrity?.withheldActive != null && integrity?.checked24h != null && (
                 <>
