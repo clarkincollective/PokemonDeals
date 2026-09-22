@@ -1,25 +1,29 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import { GuideTable } from "@/components/guides/CardArt";
+import { Src, SourceList } from "@/components/guides/Src";
 import { guideMetadata } from "@/lib/guides";
 import { GUIDE_LINK_CLASS } from "@/lib/guideLinks";
+import { GUIDE_SOURCES } from "@/lib/guideSources";
 
 const SLUG = "check-graded-pokemon-card-certificate";
 export const metadata = guideMetadata(SLUG);
 
-// Audit batch 2026-09-22. Distinct from raw-vs-graded (a value decision)
-// and from the grading-scale guide (what a number means). This is the
-// procedure you run against a specific listing before paying.
+// Audit batch 2026-09-22, corrected the same day. Distinct from
+// raw-vs-graded (a value decision) and from the grading-scale guide (what
+// a number means). This is the procedure you run against a listing.
 //
-// SOURCING NOTE. PSA's and CGC's own lookup pages both returned HTTP 403
-// to automated retrieval on 2026-09-22, so nothing here is presented as a
-// quotation from, or a claim about, a grader's published wording. What is
-// stated instead is the MECHANISM (a number resolves to a record) and the
-// logical limit of that mechanism (a record describes a slab; it cannot
-// witness which physical object is in a photograph). Both hold regardless
-// of how any grader words its page. We deliberately do not describe label
-// security features, cert-number formats or downtime notices we could not
-// read at source.
+// SOURCING. PSA's own cert-verification page WAS read on 2026-09-22 (in a
+// browser: the host refuses automated retrieval) and its buyer guidance is
+// now cited where it is used - that verifying a number does not eliminate
+// risk, that counterfeiters copy real certification numbers, and that PSA
+// does not view items listed online or warrant them. Those statements are
+// attributed to PSA and scoped to PSA. NO OTHER GRADER'S POLICY IS
+// INFERRED FROM THEM: where this guide has to speak about graders in
+// general it speaks about the mechanism (a number resolves to a record)
+// and the logical limit of that mechanism, which hold regardless of
+// wording. We still do not describe label security features or
+// cert-number formats, which we have not verified for any grader.
 export default function Page() {
   return (
     <GuideLayout slug={SLUG}>
@@ -40,16 +44,26 @@ export default function Page() {
         <li>
           <strong>Go to the grading company&apos;s own lookup, typed in yourself.</strong> Use the
           grader named on the label — their site, reached directly. Do not use a link supplied in
-          the listing, and do not rely on a screenshot of a result.
+          the listing, and do not rely on a screenshot of a result. For PSA that lookup is{" "}
+          <a
+            href={GUIDE_SOURCES.psaCert.href}
+            rel="noopener noreferrer"
+            target="_blank"
+            className={GUIDE_LINK_CLASS}
+          >
+            PSA Cert Verification
+          </a>
+          . For any other grader, find their equivalent page on their own site rather than through a
+          search result or a seller&apos;s link.
         </li>
         <li>
           <strong>Match the returned record to the card in the pictures, field by field</strong> —
           not just the grade. The table below is what to compare.
         </li>
         <li>
-          <strong>Compare the grader&apos;s own images where they publish them.</strong> Some
-          graders show the card they slabbed. Where those images exist they are the strongest single
-          check available to you. Where they do not, say so to yourself rather than assuming.
+          <strong>Use the grader&apos;s own images if that grader publishes any.</strong> Whether a
+          given company shows the card it slabbed varies, and we have not verified which do; look at
+          what the lookup actually returns rather than assuming an image will be there.
         </li>
         <li>
           <strong>Ask for what is missing</strong> before bidding, not after.
@@ -93,9 +107,30 @@ export default function Page() {
         The lookup cannot separate those two cases, and no amount of reading the result more
         carefully will make it able to.
       </GP>
+
+      <GH2>PSA says this itself, on the lookup page</GH2>
       <GP>
-        This is why the grader&apos;s own images matter so much when they exist, and why the
-        sensible next question is about the physical item rather than the number.
+        This is not our inference. PSA&apos;s own cert-verification page carries a notice stating
+        that verifying a certification number on its database{" "}
+        <strong>does not eliminate risk</strong>, because — though it describes this as uncommon —
+        criminals do attempt to counterfeit PSA grading inserts using real certification numbers
+        taken from public sources. The same notice states that PSA does not view items listed on the
+        web and does not warrant or guarantee that any such item is genuinely PSA-authenticated, and
+        it recommends buying PSA-verified collectibles from trustworthy sources. <Src id="psaCert" />
+      </GP>
+      <GP>
+        Two things follow, and it is worth separating them. First, a clean lookup is necessary and
+        not sufficient — the number matching is the floor, not the finish. Second, and this is the
+        part people miss: <strong>the failure mode runs in the direction you would not expect.</strong>{" "}
+        A copied number returns a <em>real</em> record for a <em>real</em> card. The result looks
+        perfect precisely because the number is genuine. So &ldquo;it checked out&rdquo; is not
+        evidence against this particular problem.
+      </GP>
+      <GP>
+        <strong>This paragraph is about PSA and only about PSA.</strong> It is PSA&apos;s published
+        guidance on PSA&apos;s own page. We have not read an equivalent statement from any other
+        grading company and do not extend it to one; if you are checking a slab from a different
+        company, read that company&apos;s own guidance rather than assuming this applies.
       </GP>
 
       <GH2>What to ask the seller for</GH2>
@@ -122,6 +157,11 @@ export default function Page() {
         <li>Every field in the table above matches the card in the pictures.</li>
         <li>Where the grader publishes images, they match too.</li>
         <li>You are comparing the price against the same company at the same grade.</li>
+        <li>
+          You have thought about where you are buying, not only what. PSA&apos;s own guidance is to
+          buy verified collectibles from trustworthy sources, and it names marketplaces it does not
+          recommend. <Src id="psaCert" />
+        </li>
       </GUL>
       <GP>
         That last point is easy to get wrong. A grade from one company is not interchangeable with
@@ -159,6 +199,14 @@ export default function Page() {
         check identity, availability and the comparison we publish; the object itself is between you
         and the seller.
       </GP>
+
+      <SourceList ids={["psaCert"]}>
+        <li>
+          Read 22 September 2026. PSA&apos;s guidance above is cited for PSA only. We have not
+          verified an equivalent published statement from any other grading company, and none is
+          implied.
+        </li>
+      </SourceList>
     </GuideLayout>
   );
 }

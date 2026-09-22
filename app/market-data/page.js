@@ -76,8 +76,8 @@ export default async function MarketDataPage() {
           href: "/market-data/pokemon-shipping-cost-study",
           title: "How Much Shipping Adds to a Listing",
           description:
-            "A dated snapshot of 440 retained fixed-price listings with a recorded shipping charge: what shipping adds as a share of item price per marketplace, and how often the cheapest item price is not the cheapest delivered.",
-          meta: "Observed 22 September 2026 · figures fixed at publication",
+            "A dated snapshot of retained fixed-price listings that charge for shipping: what the charge adds as a share of item price per marketplace, and how often the cheapest item price was not the cheapest delivered total in the groups assessed.",
+          meta: "Observed 22 September 2026 · method revision 2 · figures fixed at publication",
         },
         {
           href: "/market-data/pokemon-reference-price-changes",

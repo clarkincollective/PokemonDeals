@@ -92,11 +92,17 @@ export default async function GuideLayout({ slug, children }) {
           ← All guides
         </Link>
         <h1 className="mt-4 text-3xl font-bold tracking-tight text-black dark:text-zinc-50">{g.title}</h1>
-        {g.updated && (
-          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-            Published {formatGuideDate(published)} · Last checked against the official sources {formatGuideDate(updated)}
-          </p>
-        )}
+        {/* The publication date is always shown. The official-source
+            check is a SEPARATE, stronger claim and is shown only where
+            `updated` is set - i.e. only where the guide actually cites
+            primary sources and those sources were read on that date.
+            Before 2026-09-22 a guide with no `updated` rendered no date
+            line at all, which hid a genuine publication date to avoid
+            making a claim it was never required to make. */}
+        <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+          Published {formatGuideDate(published)}
+          {g.updated ? ` · Last checked against the official sources ${formatGuideDate(updated)}` : null}
+        </p>
         {headings.length > 1 && (
           <details className="mt-5 rounded-xl border border-zinc-200 bg-white px-4 dark:border-zinc-800 dark:bg-zinc-950">
             <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-zinc-800 dark:text-zinc-200">In this guide</summary>

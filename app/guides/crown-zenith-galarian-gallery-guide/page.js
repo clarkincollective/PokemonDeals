@@ -1,6 +1,7 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import { Gallery, ProductGallery, GuideTable } from "@/components/guides/CardArt";
+import { Src, SourceList } from "@/components/guides/Src";
 import { guideMetadata } from "@/lib/guides";
 import { GUIDE_CARDS, GUIDE_LINK_CLASS, GUIDE_PRODUCTS, GUIDE_SETS } from "@/lib/guideLinks";
 
@@ -39,9 +40,18 @@ export default function Page() {
         caption="Figures are our own catalogue records for the two sets, read on 22 September 2026. They describe what we track, not an official checklist."
       />
       <GP>
-        The rarity column is the part worth sitting with. The Gallery has essentially no filler: of
-        the 70 records we hold, 66 are Ultra Rare and the remaining four are Secret Rare. That is not
-        a coincidence of what we track — it is what the subset is for.
+        The rarity column is the part worth sitting with. Of the 70 Galarian Gallery records we hold,
+        <strong> 66 carry the rarity Ultra Rare</strong> and the remaining four Secret Rare — no
+        commons, uncommons or ordinary rares at all. The main set is the opposite shape: commons and
+        uncommons are its two largest rarity groups.
+      </GP>
+      <GP>
+        Be careful what you read into that. A rarity label is a printing classification; it is not a
+        price, and it does not establish what any of these cards costs or that none of them is
+        cheap. What it does tell you is that the Gallery contains no tier of ordinary cards to work
+        through — every slot in it is a premium-rarity slot, so a 70-card Gallery run is 70 premium
+        cards and not 60 filler cards plus ten chase ones. Check the live listings for what that
+        actually costs today.
       </GP>
 
       <Gallery
@@ -67,8 +77,9 @@ export default function Page() {
           is about exactly that.
         </li>
         <li>
-          <strong>The Gallery has no cheap tier.</strong> A run of commons to pad out progress does
-          not exist there. Every card is a premium card.
+          <strong>The Gallery has no ordinary-rarity tier.</strong> Every record we hold for it is
+          classified Ultra Rare or Secret Rare, so there is no run of commons to make early progress
+          through.
         </li>
         <li>
           <strong>A seller saying &ldquo;GG&rdquo; is telling you something specific.</strong> Treat
@@ -84,11 +95,12 @@ export default function Page() {
         </li>
         <li>
           <strong>Watch for the same Pokemon in both.</strong> A character can appear in the main set
-          and again in the Gallery as different cards at different values. The name is not enough.
+          and again in the Gallery as separate catalogue records. The name is not enough to say
+          which you are looking at.
         </li>
         <li>
-          <strong>Check the language.</strong> The Japanese line that the Gallery cards draw on is a
-          separate market — see{" "}
+          <strong>Check the language.</strong> Japanese copies are a separate market we do not
+          price — see{" "}
           <Link href="/guides/japanese-vs-english-pokemon-cards" className={GUIDE_LINK_CLASS}>
             Japanese vs English
           </Link>
@@ -96,15 +108,36 @@ export default function Page() {
         </li>
       </GUL>
 
-      <GH2>Buying sealed</GH2>
+      <GH2>Buying sealed: there is no Crown Zenith booster box</GH2>
       <GP>
-        Crown Zenith was sold through Elite Trainer Boxes, tins and collection boxes rather than a
-        standard booster box, which is itself worth knowing before you go looking for one.
+        If you go looking for a Crown Zenith booster box you will not find one, and the reason is
+        stated on the product page itself. The official Elite Trainer Box page says that booster
+        packs are not sold separately for this expansion, and presents the ten packs inside the box
+        as the way to collect from it.{" "}
+        <Src id="crownZenithEtb" /> Our own sealed catalogue matches: it holds 41 Crown Zenith
+        products — Elite Trainer Boxes, tins, collection boxes, pin collections — and no booster box
+        or display box among them.
       </GP>
+      <GuideTable
+        head={["Product", "Region / language", "Packs", "Promo cards", "Accessories"]}
+        rows={[
+          [
+            <>
+              <Src id="crownZenithEtb">Crown Zenith Elite Trainer Box</Src>
+            </>,
+            "US listing, English",
+            "10",
+            "1 etched foil Lucario VSTAR",
+            "65 Lucario sleeves, 45 Energy, player's guide, 6 damage-counter dice, 1 competition-legal coin-flip die, 2 acrylic condition markers, 1 acrylic VSTAR marker, collector's box with 4 dividers, code card",
+          ],
+        ]}
+        minWidth="46rem"
+        caption="Contents from the product's own official page, read 22 September 2026. Our sealed catalogue also holds a separate Pokemon Center Elite Trainer Box Plus for this set; we found no official contents page for it and have not guessed at one."
+      />
       <ProductGallery
         products={[{ product: GUIDE_PRODUCTS.crownZenithEliteTrainerBox, caption: "Crown Zenith Elite Trainer Box" }]}
         width={168}
-        note="One verified product from our sealed catalogue. Which sealed format suits you is covered in the format comparison."
+        note="The product in the table above, as a catalogue product photograph. Which sealed format suits you is covered in the format comparison."
       />
       <GP>
         As always: if it is one Gallery card you want, packs are the expensive route to it. See{" "}
@@ -135,6 +168,14 @@ export default function Page() {
           — if the number on the card is not where you expect.
         </li>
       </GUL>
+
+      <SourceList ids={["crownZenithEtb"]}>
+        <li>
+          Read 22 September 2026. Record counts, numbering schemes and rarity classifications are
+          our own catalogue records for the two sets, read the same day; they describe what we
+          track, not an official checklist, and a rarity label is not a price.
+        </li>
+      </SourceList>
     </GuideLayout>
   );
 }

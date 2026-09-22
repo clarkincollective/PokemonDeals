@@ -7,9 +7,20 @@ import { GUIDE_CARDS, GUIDE_LINK_CLASS, GUIDE_SETS, PRICE_CHECKER_HREF } from "@
 const SLUG = "surging-sparks-which-pikachu";
 export const metadata = guideMetadata(SLUG);
 
-// Audit batch 2026-09-22. One question, answered properly: "the Surging
-// Sparks Pikachu" is four different cards in our catalogue. Verified
-// identities, no prices, no pull rates.
+// Audit batch 2026-09-22, corrected the same day. One question, answered
+// properly: "the Surging Sparks Pikachu" is four different cards in our
+// catalogue. Verified identities, no prices, no pull rates.
+//
+// NO OFFICIAL SOURCE, AND THEREFORE NO OFFICIAL-VERIFICATION DATE. Every
+// factual claim here is a statement about our own catalogue records; the
+// registry entry deliberately carries `published` and no `updated`.
+//
+// REMOVED on correction: "usually 238/191 - the Special Illustration Rare
+// is the one that circulates in photographs" (we hold no popularity data
+// of any kind), and "a Hyper Rare priced like a Double Rare is more often
+// a mislabelled listing than a bargain" (a frequency claim about listing
+// errors that we have no way to measure). Neither was replaced with a
+// hedged version of itself.
 export default function Page() {
   return (
     <GuideLayout slug={SLUG}>
@@ -41,17 +52,18 @@ export default function Page() {
         note="Four separate catalogue records. Each links to its own page and its own listings."
       />
       <GP>
-        Numbers above 191 are not errors. Modern sets place their premium cards past the printed set
-        total, so 219, 238 and 247 all sit &ldquo;outside&rdquo; a 191-card set and are still part of
-        it.
+        Numbers above 191 are not errors. This set holds records numbered past the end of its own
+        printed run, so 219, 238 and 247 all sit &ldquo;outside&rdquo; a 191-card set and are still
+        part of it — a pattern we also track in several other recent sets.
       </GP>
 
-      <GH2>Which one do people usually mean?</GH2>
+      <GH2>Which one does a listing mean?</GH2>
       <GP>
-        Usually <strong>238/191</strong> — the Special Illustration Rare is the one that circulates
-        in photographs. But &ldquo;usually&rdquo; is not a good basis for spending money, and the
-        four are far apart in value. If a listing says only &ldquo;Pikachu ex Surging Sparks&rdquo;,
-        the collector number is the question to ask before anything else.
+        We cannot tell you which of the four a given seller has in mind, and we are not going to
+        guess: we hold no data on which of them is searched for, photographed or sold most, so any
+        answer here would be invention dressed as advice. What we can tell you is that the question
+        has four answers and the listing has to pick one. If a title says only &ldquo;Pikachu ex
+        Surging Sparks&rdquo;, the collector number is the thing to ask for before anything else.
       </GP>
 
       <GH2>Reading a listing</GH2>
@@ -61,10 +73,12 @@ export default function Page() {
           routinely carry the wrong one, sometimes honestly.
         </li>
         <li>
-          <strong>Be wary of a price that does not fit the number.</strong> A Hyper Rare priced like
-          a Double Rare is more often a mislabelled listing than a bargain. Our comparisons are made
-          against a reference for that exact card, which is why a card with no supported reference
-          shows no saving rather than a flattering one.
+          <strong>A price that does not fit the number is a reason to check the number.</strong> It
+          may be a genuine underpricing and it may be the wrong card in the title; we hold no data
+          on how often each happens, so treat it as a prompt to confirm the collector number from
+          the photograph rather than as a signal either way. Our own comparisons are made against a
+          reference for that exact card, which is why a card with no supported reference shows no
+          saving at all rather than a flattering one.
         </li>
         <li>
           <strong>Check the language.</strong> The Japanese equivalent set is a separate market —{" "}

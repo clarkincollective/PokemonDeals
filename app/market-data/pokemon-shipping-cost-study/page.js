@@ -22,7 +22,7 @@ const PATH = "/market-data/pokemon-shipping-cost-study";
 
 const TITLE = "How Much Shipping Adds to a Pokemon Card Listing";
 const DESCRIPTION =
-  "A dated study of 440 retained fixed-price Pokemon card listings with a recorded shipping charge: what shipping adds as a share of the item price, reported separately per marketplace and currency, and how often the cheapest item price is not the cheapest delivered.";
+  "A dated study of retained fixed-price Pokemon card listings that charge for shipping: what the charge adds as a share of the item price, reported separately per marketplace and currency, and how often the cheapest item price was not the cheapest delivered total within the groups assessed.";
 
 export const metadata = {
   title: TITLE,
@@ -67,8 +67,20 @@ export default function Page() {
           </h1>
           <p className="mt-3 text-base text-zinc-600 dark:text-zinc-400">
             A snapshot of <strong>{s.population.usable}</strong> retained fixed-price listings that
-            carried a recorded shipping charge, observed on <strong>{observed}</strong>. Figures are
-            fixed at publication and are not updated.
+            carried a recorded shipping charge above zero, observed on <strong>{observed}</strong>.
+            Figures are fixed at publication and are not updated.
+          </p>
+          {/* A reader who saw the first version of this page is entitled
+              to know the numbers moved and why. The correction is stated
+              here rather than left to a changelog nobody opens. */}
+          <p className="mt-3 rounded-lg border border-zinc-200 bg-white p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+            <strong className="text-black dark:text-zinc-50">Corrected 22 September 2026.</strong>{" "}
+            The first version of this page compared listings that were not comparable (it did not
+            separate graded from raw, or a domestic offer from a cross-border one) and counted a
+            ranking reversal whenever an arbitrary tie-break put a different listing first. Both are
+            fixed below, the whole study was recomputed under the corrected rules, and an arithmetic
+            error in the exclusion paragraph is corrected. Every figure on this page comes from that
+            recomputation (method revision {s.methodRevision}); none is carried over.
           </p>
         </div>
       </header>
@@ -79,9 +91,8 @@ export default function Page() {
             The finding
           </h2>
           <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
-            Shipping is not a rounding error on a card listing, and how much it matters depends
-            almost entirely on which marketplace the listing is on. On the two largest groups in this
-            sample the median shipping charge was{" "}
+            Where a Pokemon card listing charges for shipping, the charge is not a rounding error.
+            Among the listings in this sample the median charge was{" "}
             <strong>
               {characterised[0]?.medianShippingPctOfItem}% of the item price on{" "}
               {characterised[0]?.label}
@@ -90,17 +101,25 @@ export default function Page() {
             <strong>
               {characterised[1]?.medianShippingPctOfItem}% on {characterised[1]?.label}
             </strong>
-            .
+            , and the per-marketplace figures below differ widely from one another.
           </p>
           <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
-            The consequence for a buyer is direct. Among{" "}
-            <strong>{s.comparableGroups.groups}</strong> groups of genuinely comparable listings —
-            same card, same marketplace, same recorded condition, two or more listings — the cheapest
-            item price was <strong>not</strong> the cheapest delivered total in{" "}
+            Those rows are grouped by marketplace, so they describe the listings we retained on each
+            marketplace. They do not establish that the marketplace <em>causes</em> the difference:
+            item mix, seller mix, typical parcel weight and how far a parcel travels all vary between
+            them too, and nothing here separates those.
+          </p>
+          <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
+            The consequence for a buyer shows up when two listings can actually be compared. Among
+            the <strong>{s.comparableGroups.groups}</strong> groups in this sample that matched on
+            every identity field below — and held two or more listings — the cheapest item price was{" "}
+            <strong>not</strong> the cheapest delivered total in{" "}
             <strong>
               {s.comparableGroups.rankFlips} of them ({s.comparableGroups.rankFlipPct}%)
             </strong>
-            . Sorting by item price picks the wrong listing about a quarter of the time.
+            . That is a result about these {s.comparableGroups.groups} groups, at this observation
+            cutoff. It is not a rate for Pokemon listings in general, and we do not publish it as
+            one.
           </p>
         </section>
 
@@ -176,16 +195,90 @@ export default function Page() {
               listing counts once.
             </li>
             <li>
-              A <strong>recorded shipping charge</strong> only:{" "}
+              A <strong>recorded shipping charge above zero</strong> only:{" "}
               <strong>{s.population.usable}</strong> usable.{" "}
-              {s.population.byShippingState.unconfirmed} listings recorded shipping as unconfirmed
-              and were <strong>excluded, not counted as zero</strong>.
+              {s.population.excludedNotConfirmed} listings did not record one and were{" "}
+              <strong>excluded, not counted as zero</strong>.
             </li>
           </ol>
           <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
-            That last exclusion is the most important one. Treating an unknown shipping charge as
-            free would have inflated the sample by roughly 60% and pulled every figure below toward
-            zero — it would have manufactured the opposite of the finding.
+            That last exclusion is the most important one, and it cuts two ways. The excluded
+            listings are <strong>{s.population.excludedShareOfDeduplicatedPct}%</strong> of the{" "}
+            {s.population.afterDeduplication} deduplicated listings. Folding them in as free
+            shipping would have taken the analysed sample from {s.population.usable} to{" "}
+            {s.population.afterDeduplication} listings — an increase of{" "}
+            <strong>{s.population.sampleGrowthIfIncludedPct}%</strong> — and pulled every figure
+            below toward zero.
+          </p>
+          <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
+            The cost of excluding them is a real limit on what this page can say. Every listing
+            counted here <em>charges</em> for shipping, so these figures describe listings that
+            charge. They are not an average over all listings, and they say nothing about how common
+            free or included shipping is.
+          </p>
+
+          <h3 className="mt-8 text-base font-bold text-black dark:text-zinc-50">
+            What &ldquo;comparable&rdquo; was made to mean
+          </h3>
+          <p className="mt-2 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
+            Two listings sit in the same group only when every field below matches. Some of these
+            are settled by a single identifier and some had to be added explicitly.
+          </p>
+          <ScrollableTable>
+            <table className="mt-4 w-full min-w-[34rem] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-zinc-300 text-left dark:border-zinc-700">
+                  <th className="py-2 pr-4 font-semibold">Identity</th>
+                  <th className="py-2 font-semibold">How it is guaranteed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  [
+                    "Exact card and printing",
+                    "By the catalogue product id alone. Separate printings of one collector number hold separate ids — the three Prismatic Umbreon cards numbered 059/131 are three ids, not one.",
+                  ],
+                  [
+                    "Language",
+                    "Also by that id: our card catalogue holds one language per record, and the listing's own language field is carried in the key so the property is enforced rather than assumed.",
+                  ],
+                  [
+                    "Raw condition, or grading company and grade",
+                    "Added explicitly. A raw Near Mint copy and a slabbed copy are separate offers; the first version of this study keyed on condition alone and could group them together.",
+                  ],
+                  ["Marketplace and currency", "By marketplace, which fixes the currency. No group ever spans two currencies."],
+                  [
+                    "Recorded delivery basis",
+                    "Added explicitly, as a domestic / cross-border split. It is a coarse proxy: we record where the item is, not a normalised destination.",
+                  ],
+                ].map(([k, v]) => (
+                  <tr key={k} className="border-b border-zinc-200 align-top dark:border-zinc-800">
+                    <td className="py-2 pr-4 font-medium">{k}</td>
+                    <td className="py-2 leading-relaxed">{v}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </ScrollableTable>
+          <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+            Every usable listing carried a card id and a recorded condition, so{" "}
+            {s.comparableGroups.droppedForMissingIdentity} were dropped from this stage for missing
+            identity. Deduplication is by listing id, which on eBay carries the variation, so two
+            variations of one listing count as the two separate offers they are.
+          </p>
+
+          <h3 className="mt-8 text-base font-bold text-black dark:text-zinc-50">
+            How a ranking reversal is counted
+          </h3>
+          <p className="mt-2 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
+            A group counts as reversed only when <em>no</em> listing tied for the lowest item price
+            also achieves the lowest delivered total — that is, when choosing on item price cannot
+            reach the cheapest delivered total however the tie is broken. This matters:{" "}
+            {s.comparableGroups.groupsWithItemPriceTie} of the {s.comparableGroups.groups} groups
+            contain a tie at the lowest item price, and in{" "}
+            {s.comparableGroups.tiesNotCountedAsReversals} of them a naive &ldquo;sort and take the
+            first&rdquo; would have recorded a reversal that is only an artefact of which tied row
+            happened to sort first.
           </p>
           <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
             The calculation is reproducible from{" "}
@@ -222,6 +315,19 @@ export default function Page() {
               <strong>Currencies are never combined.</strong> No conversion happens anywhere in the
               study.
             </li>
+            <li>
+              <strong>Only listings that charge for shipping are counted.</strong> A listing with no
+              separate charge recorded is excluded throughout, so nothing here is an average over
+              all listings.
+            </li>
+            <li>
+              <strong>The reversal figure is about {s.comparableGroups.groups} groups</strong>, not
+              about listings in general. It is not a rate, and it should not be read as one.
+            </li>
+            <li>
+              <strong>The marketplace rows are descriptive.</strong> Nothing here isolates a cause,
+              so no row explains <em>why</em> one marketplace&apos;s charges sit where they do.
+            </li>
           </ul>
         </section>
 
@@ -230,10 +336,11 @@ export default function Page() {
             Why we compare delivered totals
           </h2>
           <p className="mt-3 text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
-            The 26% figure above is the reason our listings are compared on the delivered total
-            rather than the item price, and the reason a listing whose shipping breakdown was never
-            recorded shows no savings claim at all rather than a flattering one computed from an
-            assumed zero.
+            A reversal that happens even once in a group a buyer could plausibly be looking at is
+            reason enough to compare on the delivered total rather than the item price, which is
+            what we do. It is also why a listing whose shipping breakdown was never recorded shows
+            no savings claim at all, rather than a flattering one computed from an assumed zero.
+            Neither rule depends on how often the reversal turns out to happen.
           </p>
           <ul className="mt-4 space-y-2 text-base">
             <li>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import { Gallery, ProductGallery, GuideTable } from "@/components/guides/CardArt";
+import { Src, SourceList } from "@/components/guides/Src";
 import { guideMetadata } from "@/lib/guides";
 import { GUIDE_CARDS, GUIDE_LINK_CLASS, GUIDE_PRODUCTS, GUIDE_SETS } from "@/lib/guideLinks";
 
@@ -15,10 +16,11 @@ export default function Page() {
   return (
     <GuideLayout slug={SLUG}>
       <GP>
-        Prismatic Evolutions is an Eeveelution set, which means demand concentrates on a handful of
-        cards — and those cards have more printings than almost anything else in modern Pokemon. If
-        you buy one by collector number alone, there is a real chance you will not get the card you
-        pictured. This guide is about saying exactly which one you want.
+        Prismatic Evolutions is built around Eevee and its evolutions, and a collector number is a
+        poor way to buy from it. Here is the first-party reason: of the 181 distinct collector
+        numbers we hold for the set, <strong>101 of them</strong> resolve to more than one catalogue
+        record. Pick a number at random from this set and the odds are against it identifying a
+        single card. This guide is about saying exactly which one you want.
       </GP>
 
       <GH2>Three different cards are numbered 059/131</GH2>
@@ -40,9 +42,10 @@ export default function Page() {
         note="All three of these are 059/131. The pattern is part of the card's identity, not a finish applied afterwards — which is why a listing that says only '059/131' has not yet told you which card is for sale."
       />
       <GP>
-        The same structure applies to the other Eeveelutions: Espeon at <strong>033/131</strong> has
-        a base card and a Poke Ball Pattern printing, and Sylveon at <strong>040/131</strong> works
-        the same way. Assume the pattern exists and ask which one you are looking at.
+        The same structure applies to the other Eeveelutions, and to the same depth: Espeon at{" "}
+        <strong>033/131</strong> and Sylveon at <strong>040/131</strong> each resolve to three
+        catalogue records as well — a base card, a Poke Ball Pattern printing and a Master Ball
+        Pattern printing. Ask which one a listing is for, every time.
       </GP>
 
       <GH2>How to say which Umbreon you want</GH2>
@@ -58,9 +61,9 @@ export default function Page() {
         caption="Five different purchases. The number alone distinguishes only two of them."
       />
       <GP>
-        Note the last row: <strong>161/131</strong> is numbered above the printed set total, which is
-        normal for modern sets — the premium cards sit past the end of the numbered run rather than
-        inside it.
+        Note the last row: <strong>161/131</strong> is numbered above the printed set total. That is
+        not an error in the listing — this set, like several other recent ones we track, holds
+        records numbered past the end of its own numbered run.
       </GP>
 
       <GH2>Checking a listing before you pay</GH2>
@@ -86,12 +89,60 @@ export default function Page() {
 
       <GH2>The sealed side: three different Elite Trainer Boxes</GH2>
       <GP>
-        Prismatic has the clearest example on the site of a problem that affects every modern set. We
-        hold three separate Elite Trainer Boxes for it: a standard edition, a{" "}
-        <strong>Pokemon Center exclusive</strong> and a <strong>Dollar General exclusive</strong>.
-        They are different products. Comparing a price for one against a price for another is not a
+        Our sealed catalogue holds three separate Elite Trainer Boxes for this one set: a standard
+        edition, a <strong>Pokemon Center exclusive</strong> and a{" "}
+        <strong>Dollar General exclusive</strong>. They are three product records, not one product
+        with three stickers, so comparing a price for one against a price for another is not a
         comparison.
       </GP>
+      <GP>
+        The first two publish their contents, and the difference is concrete rather than cosmetic.
+      </GP>
+      <GuideTable
+        head={["Product", "Region / language", "Packs", "Promo cards", "Accessories", "Suits"]}
+        rows={[
+          [
+            <>
+              <Src id="prismaticEtb">Prismatic Evolutions Elite Trainer Box</Src>
+            </>,
+            "US listing, English",
+            "9",
+            "1 full-art foil Eevee",
+            "65 Eevee sleeves, 45 Energy, player's guide, 6 damage-counter dice, 1 competition-legal coin-flip die, 2 condition markers, collector's box with 4 dividers, TCG Live code card",
+            "A gift, or a player who wants the accessories",
+          ],
+          [
+            <>
+              <Src id="prismaticPcEtb">Prismatic Evolutions Pokemon Center Elite Trainer Box</Src>
+            </>,
+            "US listing, English. Sold only at Pokemon Center",
+            "11",
+            "2: a full-art foil Eevee with a Pokemon Center logo, and a full-art foil Eevee",
+            "Same accessory list as the standard box",
+            "Someone who wants the exclusive promo and two extra packs",
+          ],
+          [
+            <>
+              <Src id="prismaticBundle">Prismatic Evolutions Booster Bundle</Src>
+            </>,
+            "US listing, English",
+            "6",
+            "None",
+            "None — packs only",
+            "Opening some of the set without the accessories",
+          ],
+          [
+            "Prismatic Evolutions Elite Trainer Box (Dollar General Exclusive)",
+            "US retailer exclusive",
+            "Not published on an official product page we could read",
+            "Not published",
+            "Not published",
+            "Listed here because it exists as a separate product in our sealed catalogue and shows up in listing titles",
+          ],
+        ]}
+        minWidth="56rem"
+        caption="Contents from each product's own official page, read 22 September 2026. The Dollar General edition is a real record in our sealed catalogue, but we found no official contents page for it and have not guessed at one — that row states what is missing rather than filling it in."
+      />
       <ProductGallery
         products={[
           { product: GUIDE_PRODUCTS.prismaticEliteTrainerBox, caption: "Standard Elite Trainer Box" },
@@ -131,6 +182,14 @@ export default function Page() {
           — the general version of the one-number-many-cards problem.
         </li>
       </GUL>
+
+      <SourceList ids={["prismaticEtb", "prismaticPcEtb", "prismaticBundle", "prismaticExpansion"]}>
+        <li>
+          Product contents read from each product&apos;s own official page on 22 September 2026.
+          Collector numbers, printings and the 101-of-181 figure are our own catalogue records for
+          the set, read the same day; they describe what we track, not an official checklist.
+        </li>
+      </SourceList>
     </GuideLayout>
   );
 }

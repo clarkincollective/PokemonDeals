@@ -23,34 +23,42 @@ export default function Page() {
       </GP>
 
       <GH2>The two starting points</GH2>
+      <GP>
+        Because there is no official definition, the table below is not a report of what collectors
+        do — we have no survey and would not invent one. It is the list of decisions the two terms
+        leave open, with the narrow reading and the broad reading of each. Your inclusion list is
+        whichever cell you pick in each row.
+      </GP>
       <GuideTable
-        head={["", "Complete set", "Master set"]}
+        head={["The decision", "Narrow reading", "Broad reading"]}
         rows={[
-          ["Usually means", "One of each card in the numbered run", "Everything associated with the set"],
-          ["Parallels and reverse holos", "Usually excluded", "Usually included"],
-          ["Cards numbered past the set total", "Sometimes", "Usually"],
-          ["Subsets with their own numbering", "Often excluded", "Usually included"],
-          ["Promos tied to the set", "Rarely", "Sometimes — this is the most disputed row"],
-          ["Rough scale", "The printed set total", "Often several times that"],
+          ["What counts at all", "One of each card in the numbered run", "Everything associated with the set"],
+          ["Parallels and reverse foils", "Excluded", "Included — one slot per printing"],
+          ["Cards numbered past the printed set total", "Excluded", "Included"],
+          ["Subsets with their own numbering", "Excluded", "Included"],
+          ["Promos tied to the set", "Excluded", "Included — and this is the row people argue about"],
+          ["How large the list ends up", "The printed set total", "Larger, by however many the rows above add"],
         ]}
-        caption="How the terms are commonly used. Treat every row as a decision you are making, not a rule you are following."
+        caption="Neither column is the correct answer, and nothing here says which one anyone else means. Pick a cell per row and write the result down."
       />
 
       <GH2>Four questions that settle most of it</GH2>
       <GUL>
         <li>
-          <strong>Do parallels count as separate cards?</strong> If a reverse holo of a card you
-          already own is a card you still need, your set is roughly twice the size. This is the
-          single biggest decision. See{" "}
+          <strong>Do parallels count as separate cards?</strong> If a printing you already own in
+          one form is a card you still need in another, the list grows by however many printings the
+          set has. In Prismatic Evolutions that is not a rounding: 101 of the 181 collector numbers
+          we hold for it resolve to more than one record. See{" "}
           <Link href="/guides/holo-vs-reverse-holo-pokemon-cards" className={GUIDE_LINK_CLASS}>
             holo vs reverse holo
           </Link>{" "}
           for why they are separate records in the first place.
         </li>
         <li>
-          <strong>Are the cards numbered past the set total in?</strong> Modern sets put their
-          premium cards above the printed total — 161/131, 238/191, 174/165. Excluding them makes a
-          set far cheaper and, to some collectors, incomplete.
+          <strong>Are the cards numbered past the set total in?</strong> Several sets we track hold
+          records numbered above their own printed total — 161/131 in Prismatic Evolutions, 238/191
+          in Surging Sparks, 199/165 in 151. Excluding them changes both the size of the list and
+          what other collectors will take your claim to mean.
         </li>
         <li>
           <strong>Do subsets count?</strong> Crown Zenith is the clean example: we hold it as two set
@@ -86,8 +94,9 @@ export default function Page() {
         <Link href="/guides/how-much-is-my-pokemon-card-worth" className={GUIDE_LINK_CLASS}>
           card-value guide
         </Link>{" "}
-        covers reading a reference for one card; a set is that exercise repeated, and the long tail
-        of commons usually costs less than people fear while the parallels cost more.
+        covers reading a reference for one card; a set is that exercise repeated, one line at a
+        time. We do not publish a rule of thumb for what a run costs: references differ per card and
+        move, and a guess here would be worth less than the five minutes of looking.
       </GP>
 
       <GH2>One thing to watch when you are buying a run</GH2>

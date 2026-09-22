@@ -139,42 +139,62 @@ export function ProductGallery({ products, width, note }) {
 const TH = "px-3 py-2.5 font-semibold";
 const TD = "px-3 py-3 align-top leading-relaxed text-zinc-600 dark:text-zinc-400";
 
+let guideTableSeq = 0;
+
 // A comparison table. Wide tables scroll inside their own container so the
 // page body never scrolls sideways on a phone.
+//
+// THE CAPTION SITS OUTSIDE THE SCROLLER (fixed 2026-09-22, found in a real
+// 390px viewport). As a <caption> it was a child of the table, so it
+// inherited the table's `min-width` and was clipped by the scroller: on a
+// phone the caption on a 56rem table could only be read by dragging it
+// sideways, one line at a time. Captions are prose and must wrap to the
+// screen. It is now a paragraph below the scroll container, tied to the
+// table with aria-describedby so it is still announced as the table's
+// description rather than as loose text after it.
 export function GuideTable({ head, rows, minWidth = "36rem", caption }) {
+  const captionId = caption ? `guide-table-caption-${(guideTableSeq += 1)}` : undefined;
   return (
-    <div className="mt-4 overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
-      <table className="w-full border-collapse text-left text-sm" style={{ minWidth }}>
-        {caption && (
-          <caption className="px-3 py-2 text-left text-xs text-zinc-500 dark:text-zinc-400">{caption}</caption>
-        )}
-        <thead>
-          <tr className="border-b border-zinc-200 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-            {head.map((h) => (
-              <th key={h} scope="col" className={TH}>
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900">
-          {rows.map((r, i) => (
-            <tr key={i}>
-              {r.map((cell, j) =>
-                j === 0 ? (
-                  <th key={j} scope="row" className="px-3 py-3 align-top font-semibold text-black dark:text-zinc-50">
-                    {cell}
-                  </th>
-                ) : (
-                  <td key={j} className={TD}>
-                    {cell}
-                  </td>
-                )
-              )}
+    <div className="mt-4">
+      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <table
+          className="w-full border-collapse text-left text-sm"
+          style={{ minWidth }}
+          aria-describedby={captionId}
+        >
+          <thead>
+            <tr className="border-b border-zinc-200 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+              {head.map((h) => (
+                <th key={h} scope="col" className={TH}>
+                  {h}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900">
+            {rows.map((r, i) => (
+              <tr key={i}>
+                {r.map((cell, j) =>
+                  j === 0 ? (
+                    <th key={j} scope="row" className="px-3 py-3 align-top font-semibold text-black dark:text-zinc-50">
+                      {cell}
+                    </th>
+                  ) : (
+                    <td key={j} className={TD}>
+                      {cell}
+                    </td>
+                  )
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {caption && (
+        <p id={captionId} className="mt-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+          {caption}
+        </p>
+      )}
     </div>
   );
 }

@@ -1,45 +1,83 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import { GuideTable } from "@/components/guides/CardArt";
+import { Src, SourceList } from "@/components/guides/Src";
 import { guideMetadata } from "@/lib/guides";
 import { GUIDE_LINK_CLASS } from "@/lib/guideLinks";
 
 const SLUG = "japanese-vs-english-pokemon-cards";
 export const metadata = guideMetadata(SLUG);
 
-// Audit batch 2026-09-22. Evergreen and deliberately structural: the
-// release-specific comparisons (Storm Emeralda vs Delta Reign) already
-// exist, so this one is about how the two LINES differ and what that does
-// to a listing. No price comparison table: we do not hold a cross-language
-// reference we would stand behind, and the guide says so plainly.
+// Audit batch 2026-09-22, corrected the same day.
+//
+// WHAT WAS REMOVED AND WHY. The first version carried a "structural
+// comparison" table asserting that Japanese sets are smaller, release
+// more often, come first, and that Japanese sealed products are smaller.
+// Those are claims about two entire product lines across three decades.
+// We hold no evidence for any of them - our own card catalogue is
+// English-only - so they are gone rather than hedged into "usually".
+//
+// WHAT REPLACED THEM. The one part of the comparison that IS decided by a
+// published rule: which card languages are legal at Play! Pokemon events.
+// That is in the TCG Tournament Handbook, which was downloaded and read on
+// 2026-09-22 (English version, last revision 1 September 2026). Its rating
+// zone table and its statement that Japanese card backs differ - and are
+// therefore treated as marked - are quoted with section numbers so a
+// reader can check them. Everything else here is either first-party (how
+// our own comparison gates work) or a statement about a single listing.
 export default function Page() {
   return (
     <GuideLayout slug={SLUG}>
       <GP>
         Japanese and English Pokemon cards are two separate product lines, not two editions of one.
-        They release on different schedules, in different set shapes, in different products, and they
-        sell in different markets. Once that is clear, most of the confusion in cross-language buying
-        goes away.
+        A Japanese card is not a cheaper version of the English card — it is a different card, with
+        its own number, its own market and, if you play, its own rules about where it is legal. This
+        guide covers the parts of that we can actually show you.
+      </GP>
+      <GP>
+        A note on scope, because it changes how you should read what follows. We do not publish a
+        structural comparison of the two lines — which releases first, which has larger sets, which
+        products exist in each. Those are claims about two product lines across decades, and we hold
+        no evidence for them: our own card catalogue is <strong>English-only</strong>. What is below
+        is either a published rule, cited, or a statement about our own data, labelled as such.
       </GP>
 
-      <GH2>The differences that affect a purchase</GH2>
+      <GH2>Where a Japanese card is legal to play</GH2>
+      <GP>
+        This one is decided by a published rule rather than by opinion, so it is worth getting
+        exactly right. Play! Pokemon limits which card languages are legal at Championship Series
+        events according to the <strong>rating zone</strong> the event is held in, and requires that
+        cards be in the correct language for the region of the tournament. Mixed-language decks are
+        allowed so long as the card backs are consistent. <Src id="tcgTournamentHandbook" />
+      </GP>
       <GuideTable
-        head={["", "Japanese line", "English line"]}
+        head={["Rating zone", "Legal card languages at Championship Series events"]}
         rows={[
-          ["Set size", "Smaller sets, released more often", "Larger sets, released less often"],
-          ["Relationship", "Released first", "Often draws on more than one Japanese set"],
-          ["Numbering", "Its own scheme per set", "Its own scheme per set — the two do not align"],
-          ["Products", "Its own formats and exclusives", "Boxes, ETBs, bundles, collections"],
-          ["Market", "Priced among Japanese copies", "Priced among English copies"],
+          ["US and Canada", "English (French additionally in Canada)"],
+          ["Latin America", "English, Spanish (Portuguese additionally in several countries)"],
+          ["Europe", "English, French, German, Italian, Portuguese, Spanish"],
+          ["Oceania", "English"],
+          ["Russia", "English, Russian"],
+          ["Middle East and South Africa", "English"],
         ]}
-        caption="A structural comparison. Specific sets vary, and each pairing should be checked individually rather than assumed."
+        caption="Play! Pokemon TCG Tournament Handbook, sections 2.3.1 and 2.3.2, English version, last revision 1 September 2026. For tournaments and League sessions outside the Championship Series, the handbook leaves the decision to the Organizer or League staff."
       />
       <GP>
-        The second row is the one that breaks expectations. An English expansion is frequently built
-        from the contents of several Japanese sets, so there is often <strong>no</strong> clean
-        one-to-one mapping between a Japanese set and an English one. A card&apos;s Japanese
-        counterpart may exist under a different number, in a set with a different name, released
-        months earlier.
+        Japanese is not among the legal languages for any of those zones, and the handbook gives a
+        second, separate reason it does not travel: it states that Japanese cards are considered{" "}
+        <strong>marked</strong> for the purposes of its disallowed-cards section, because their card
+        backs differ from the backs of all other Pokemon trading cards.{" "}
+        <Src id="tcgTournamentHandbook" /> That is about the back of the card, so it is not something
+        sleeving or condition fixes.
+      </GP>
+      <GP>
+        Two caveats the handbook itself makes, which we are not going to leave out. At the World
+        Championships, International Championships, Regional and Special Championships and their side
+        events, competitors are always permitted English cards plus any language legal in their home
+        country. And in exceptional circumstances the Head Judge or Organizer of any tournament may
+        make an exception on language at their own discretion. If you are buying to play, check the
+        current handbook and ask your organiser — do not take a guide page, including this one, as
+        the authority on the day.
       </GP>
 
       <GH2>The mistake that costs money</GH2>
@@ -63,15 +101,25 @@ export default function Page() {
 
       <GH2>Which should you buy?</GH2>
       <GuideTable
-        head={["If you want", "Lean toward", "Why"]}
+        head={["If you want", "Buy", "Why"]}
         rows={[
-          ["To play in an English event", "English", "Tournament legality follows the language you play in."],
-          ["A specific artwork you have seen", "Check both", "Artwork frequently appears in both lines — at different numbers."],
-          ["A card earlier than its English release", "Japanese", "The Japanese line is generally first."],
-          ["To complete an English set", "English", "A Japanese copy does not fill an English slot."],
-          ["Smaller, more frequent sealed purchases", "Japanese", "Set and product sizes tend to be smaller."],
+          [
+            "To play at a Championship Series event",
+            "A card in a language legal for that rating zone",
+            "Set by the table above, not by preference. Japanese is not among them, and Japanese backs are treated as marked.",
+          ],
+          [
+            "To complete an English set",
+            "English",
+            "A Japanese copy does not fill an English slot, whatever the artwork matches.",
+          ],
+          [
+            "A specific artwork you have seen in a photograph",
+            "Whichever line that card is from — check which",
+            "The same illustration can exist in both lines at different numbers, so identify the card before choosing the line.",
+          ],
         ]}
-        caption="Preferences, not rules. Collector definitions differ and so do goals."
+        caption="Only rows we can support. We have deliberately removed rows about which line releases first, which has smaller sets and which offers smaller sealed products: those are claims about both product lines that we hold no evidence for."
       />
 
       <GH2>Reading a cross-language listing</GH2>
@@ -86,7 +134,8 @@ export default function Page() {
         </li>
         <li>
           <strong>Treat the number as set-specific.</strong> A Japanese number tells you nothing
-          about where the card sits in an English set.
+          about where the card sits in an English set. Our catalogue holds English records only, so
+          if you search here by a Japanese number you are searching the wrong list.
         </li>
         <li>
           <strong>Factor in where it ships from.</strong> Delivery cost and time are part of the
@@ -119,9 +168,21 @@ export default function Page() {
           <Link href="/guides/pokemon-151-buying-guide" className={GUIDE_LINK_CLASS}>
             The 151 buying guide
           </Link>{" "}
-          — where English 151 and Japanese SV2a get mixed up most often.
+          — one set where English and Japanese listings are easy to confuse.
         </li>
       </GUL>
+
+      <SourceList ids={["tcgTournamentHandbook", "playPokemonRules"]}>
+        <li>
+          Downloaded and read 22 September 2026. Tournament rules change: the handbook above is the
+          authority, not this page, and your event&apos;s organiser is the authority on the day.
+        </li>
+        <li>
+          Not sourced, and therefore not claimed: which line releases first, relative set sizes,
+          relative sealed-product sizes, and any cross-language price relationship. Our card
+          catalogue holds English records only.
+        </li>
+      </SourceList>
     </GuideLayout>
   );
 }

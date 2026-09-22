@@ -1,4 +1,16 @@
 import { T30_SOURCES } from "@/lib/thirtiethSources";
+import { GUIDE_SOURCES } from "@/lib/guideSources";
+
+// One lookup over both registries, so a guide cites a source by id
+// without needing to know which file it lives in. A miss throws rather
+// than rendering an empty citation: a link that silently disappears is
+// worse than a build that stops.
+const SOURCES = { ...T30_SOURCES, ...GUIDE_SOURCES };
+function lookup(id) {
+  const s = SOURCES[id];
+  if (!s) throw new Error(`unknown source id "${id}" - add it to lib/guideSources.js`);
+  return s;
+}
 
 const SRC_LINK =
   "text-zinc-500 underline decoration-zinc-300 underline-offset-2 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-500";
@@ -8,7 +20,7 @@ const SRC_LINK =
 // "(source: expansion page)", so two citations in a row never collapse
 // into an unreadable "source source".
 export function Src({ id, children }) {
-  const s = T30_SOURCES[id];
+  const s = lookup(id);
   const link = (
     <a href={s.href} rel="noopener noreferrer" target="_blank" className={SRC_LINK}>
       {children ?? s.short}
@@ -25,8 +37,8 @@ export function Srcs({ ids }) {
       {ids.map((id, i) => (
         <span key={id}>
           {i > 0 ? ", " : ""}
-          <a href={T30_SOURCES[id].href} rel="noopener noreferrer" target="_blank" className={SRC_LINK}>
-            {T30_SOURCES[id].short}
+          <a href={lookup(id).href} rel="noopener noreferrer" target="_blank" className={SRC_LINK}>
+            {lookup(id).short}
           </a>
         </span>
       ))}
@@ -46,12 +58,12 @@ export function SourceList({ ids, children }) {
         {ids.map((id) => (
           <li key={id}>
             <a
-              href={T30_SOURCES[id].href}
+              href={lookup(id).href}
               rel="noopener noreferrer"
               target="_blank"
               className="text-red-600 hover:underline dark:text-red-500"
             >
-              {T30_SOURCES[id].label}
+              {lookup(id).label}
             </a>
           </li>
         ))}

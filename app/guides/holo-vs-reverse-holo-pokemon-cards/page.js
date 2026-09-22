@@ -1,47 +1,79 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
-import { Gallery, GuideTable } from "@/components/guides/CardArt";
+import { Gallery } from "@/components/guides/CardArt";
+import { Src, SourceList } from "@/components/guides/Src";
 import { guideMetadata } from "@/lib/guides";
 import { GUIDE_CARDS, GUIDE_LINK_CLASS, PRICE_CHECKER_HREF } from "@/lib/guideLinks";
 
 const SLUG = "holo-vs-reverse-holo-pokemon-cards";
 export const metadata = guideMetadata(SLUG);
 
-// Audit batch 2026-09-22.
+// Audit batch 2026-09-22, corrected the same day.
 //
-// IMAGERY LIMITATION, stated in the page as well as here. Catalogue scans
-// are flat images; they cannot demonstrate how foil behaves under light,
-// and we will not fake a finish to illustrate one. So this guide is built
-// on the part we CAN evidence first-party and that actually costs buyers
-// money: that the printing is part of a card's IDENTITY, with its own
-// catalogue record and its own price, even when the collector number is
-// shared. The visual description is written as description, and labelled
-// as such - no diagram is presented as a photograph.
+// WHAT WAS REMOVED AND WHY. The first version opened with a "Where the
+// foil sits" table (holo = the artwork panel shines; reverse holo =
+// everything except the artwork panel) and a "quick check in a
+// photograph" instruction built on it. That is a real pattern for some
+// cards and not for others, we have no source for it holding generally,
+// and our own evidence cannot show it at all - so as written it was a
+// universal identification rule resting on nothing. It is gone. It has
+// NOT been replaced with the same rule hedged into "usually".
+//
+// THE IMAGERY LIMITATION IS REAL AND UNRESOLVED. Our card images are flat
+// catalogue scans. A flat scan cannot demonstrate how foil behaves under
+// a moving light, no permitted photography that could demonstrate it was
+// available to us, and we will not draw a diagram of a finish and let it
+// sit where a reader expects a photograph. So the article's promise is
+// narrowed to match: it no longer teaches you to identify a printing by
+// eye. It teaches the part we CAN evidence first-party and that actually
+// costs buyers money - that the printing is part of a card's IDENTITY,
+// with its own catalogue record and its own price, even when the
+// collector number is shared - and then tells you to make the seller
+// answer the question.
 export default function Page() {
   return (
     <GuideLayout slug={SLUG}>
       <GP>
         Two cards can share a name, a set and a collector number and still be different cards at
-        different prices. The usual reason is foil: one is the normal printing, the other is a
-        reverse holo. This guide is about telling them apart in a listing, and about why the
-        collector number will not do it for you.
+        different prices, because a foil treatment is part of what the card <em>is</em>. This guide
+        is about why the collector number will not settle which one a listing is selling — and about
+        the honest limits of working it out from a photograph.
       </GP>
 
-      <GH2>Where the foil sits</GH2>
-      <GuideTable
-        head={["", "Holo", "Reverse holo"]}
-        rows={[
-          ["Shiny area", "The artwork panel", "Everything except the artwork panel"],
-          ["Artwork itself", "Foiled", "Usually flat"],
-          ["Which cards get it", "Typically the higher rarities", "Can apply across much of a set, including commons"],
-          ["Effect on identity", "Often its own catalogue record", "Often its own catalogue record"],
-        ]}
-        caption="A description of the two layouts, not a claim about any individual card — sets vary, and some cards exist in only one of the two."
-      />
+      <GH2>What this guide will not do</GH2>
       <GP>
-        The quick check in a photograph: look at where the shine <em>stops</em>. If the picture is
-        glossy and the border is plain, that is a holo. If the border and text box catch the light
-        while the picture looks matte, that is a reverse holo.
+        It will not teach you to identify a foil treatment by eye from a listing photograph. That is
+        a deliberate decision rather than an omission, and the reason is worth stating plainly:
+      </GP>
+      <GUL>
+        <li>
+          <strong>Our own images cannot show it.</strong> Every card image on this site is a flat
+          catalogue scan. A flat scan is exactly the thing that cannot demonstrate how a foil behaves
+          when the light moves across it, which is the whole of the visual difference.
+        </li>
+        <li>
+          <strong>We could not obtain photography that does show it.</strong> Not under a licence we
+          can publish under, and not from our own catalogue.
+        </li>
+        <li>
+          <strong>We will not substitute a drawing.</strong> A diagram of a finish is an
+          illustration of what we believe, not evidence, and putting one where a reader expects a
+          photograph would be worse than admitting the gap.
+        </li>
+        <li>
+          <strong>And the simple rule is not universally true.</strong> The familiar description —
+          the foil sits on the artwork for one and everywhere else for the other — does describe many
+          cards. We have no source establishing that it holds across eras, sets and treatments, and
+          modern pattern printings plainly do not fit it. Published as a rule for identifying any
+          card, it would be wrong often enough to cost somebody money.
+        </li>
+      </GUL>
+      <GP>
+        What we can tell you is the officially published part: a Pokemon booster pack contains ten
+        game cards, of which three are foils with at least one rare or higher, and sets before
+        Scarlet &amp; Violet guarantee at least one <strong>reverse foil</strong> card per pack.{" "}
+        <Src id="packContents" /> So reverse foils are a routine part of a pack&apos;s contents, not
+        an exotic variant — which is exactly why so many collector numbers cover more than one card.
       </GP>
 
       <GH2>Why the collector number will not settle it</GH2>
@@ -58,46 +90,57 @@ export default function Page() {
           { card: GUIDE_CARDS.prismaticUmbreon059MasterBall, caption: "Master Ball Pattern" },
         ]}
         width={160}
-        note="Three cards, one collector number. Pattern printings work the same way reverse holos do: the pattern is the card, not a coating on it."
+        note="Three separate catalogue records, all numbered 059/131. These flat scans are evidence that three records exist under one number — they are NOT evidence of how any of these finishes behaves under light, and should not be read as showing that."
       />
       <GP>
-        Modern sets have gone further than plain reverse holo — Poke Ball and Master Ball patterns,
-        and set-specific treatments like the Quick Ball pattern on{" "}
+        Modern sets carry treatments beyond plain reverse foil — the Poke Ball and Master Ball
+        patterns above, and set-specific ones like the Quick Ball pattern on{" "}
         <Link href={GUIDE_CARDS.ascendedHeroesPawniardQuickBall.href} className={GUIDE_LINK_CLASS}>
           Pawniard 146/217
         </Link>{" "}
-        in Ascended Heroes. The principle does not change: if the printing has its own record, it has
-        its own market.
+        in Ascended Heroes, whose printing our catalogue records as part of the card&apos;s name. The
+        structural point is the same in each case: if the printing has its own record, it has its own
+        market.
       </GP>
 
       <GH2>A note on the pictures on this page</GH2>
       <GP>
-        The images above are flat catalogue scans. They show you <em>which card</em> each record is,
-        which is the point being made — but a flat scan cannot show how foil moves under a light, and
-        we would rather say so than mock up a finish that is not a photograph of a real card. When
-        you are checking a listing, the seller&apos;s own angled photograph is the evidence, not an
-        illustration on a guide page.
+        The images above are flat catalogue scans, and it matters what they are and are not evidence
+        of. They show <em>which record</em> each card is — the point being made — and they show
+        nothing whatever about how a foil moves under a light. No image on this page is offered as a
+        demonstration of a finish, and none should be used to judge one. When you are checking a
+        listing, the seller&apos;s own angled photograph is the evidence.
       </GP>
 
-      <GH2>Making a listing tell you which one it is</GH2>
+      <GH2>Making the listing tell you which one it is</GH2>
+      <GP>
+        Since the photograph may not settle it and we are not going to pretend otherwise, the
+        practical approach is to move the question onto the seller, who can look at the card.
+      </GP>
       <GUL>
         <li>
-          <strong>Ask for a photograph taken at an angle, under a single light.</strong> A flat,
-          straight-on scan hides exactly the thing you are trying to see.
+          <strong>Ask the seller to name the printing, in words.</strong> &ldquo;Which printing is
+          this — the plain card, the reverse, or a pattern?&rdquo; is a fair question and a fast
+          one. An answer you can read beats an image you have to interpret.
         </li>
         <li>
-          <strong>Ask the seller to say the word.</strong> &ldquo;Is this the reverse holo or the
-          regular?&rdquo; is a fair question and a fast one. A seller who cannot answer it is telling
-          you they have not checked.
+          <strong>Ask for a photograph taken at an angle, under a single light.</strong> This will
+          not always be decisive, but a straight-on scan definitely is not: it hides the thing you
+          are asking about.
         </li>
         <li>
-          <strong>Do not accept the title as the answer.</strong> &ldquo;Holo&rdquo; is used loosely
-          to mean &ldquo;shiny&rdquo;, including by honest sellers.
+          <strong>Do not accept the title as the answer.</strong> &ldquo;Holo&rdquo; is written
+          loosely to mean &ldquo;shiny&rdquo;, including by honest sellers.
         </li>
         <li>
-          <strong>Check the rarity symbol and the set as well</strong> — see{" "}
-          <Link href="/guides/how-to-find-pokemon-card-set-and-number" className={GUIDE_LINK_CLASS}>
-            finding a card&apos;s set and number
+          <strong>Look the number up and see how many records it covers.</strong> This one you can do
+          without the seller: if a number resolves to three records here, you know there are three
+          answers the listing could have.
+        </li>
+        <li>
+          <strong>If it is graded</strong>, the printing should appear in the grader&apos;s record as
+          a variety — <Link href="/guides/check-graded-pokemon-card-certificate" className={GUIDE_LINK_CLASS}>
+            check it against the label
           </Link>
           .
         </li>
@@ -140,6 +183,19 @@ export default function Page() {
           — the rest of what a listing does and does not tell you.
         </li>
       </GUL>
+
+      <SourceList ids={["packContents"]}>
+        <li>
+          Read 22 September 2026. Collector numbers, printings and record counts are our own
+          catalogue records, read the same day.
+        </li>
+        <li>
+          <strong>Stated limitation.</strong> We hold no photography that demonstrates how a foil
+          treatment behaves under light, and no source for a general rule about where the foil sits
+          on a holo as against a reverse holo. This guide therefore does not offer one, and does not
+          claim you can identify a printing from a flat image.
+        </li>
+      </SourceList>
     </GuideLayout>
   );
 }

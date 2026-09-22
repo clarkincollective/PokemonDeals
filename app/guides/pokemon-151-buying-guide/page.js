@@ -1,6 +1,7 @@
 import Link from "next/link";
 import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import { Gallery, ProductGallery, GuideTable } from "@/components/guides/CardArt";
+import { Src, SourceList } from "@/components/guides/Src";
 import { guideMetadata } from "@/lib/guides";
 import { GUIDE_CARDS, GUIDE_LINK_CLASS, GUIDE_PRODUCTS, GUIDE_SETS, PRICE_CHECKER_HREF } from "@/lib/guideLinks";
 
@@ -86,12 +87,49 @@ export default function Page() {
 
       <GH2>There are two different 151 Elite Trainer Boxes</GH2>
       <GP>
-        This catches people out. Our sealed catalogue holds a standard{" "}
-        <strong>151 Elite Trainer Box</strong> and a separate{" "}
-        <strong>151 Pokemon Center Elite Trainer Box (Exclusive)</strong>. They are different
-        products with different contents and different prices, and a listing title saying
-        &ldquo;151 ETB&rdquo; has not yet told you which one is in the box.
+        This catches people out, and it is not a small difference. Our sealed catalogue holds a
+        standard <strong>151 Elite Trainer Box</strong> and a separate{" "}
+        <strong>151 Pokemon Center Elite Trainer Box (Exclusive)</strong>, and their official product
+        pages list different contents. A listing title saying &ldquo;151 ETB&rdquo; has not yet told
+        you which one is in the box.
       </GP>
+      <GuideTable
+        head={["Product", "Region / language", "Packs", "Promo cards", "Accessories", "Suits"]}
+        rows={[
+          [
+            <>
+              <Src id="s151Etb">151 Elite Trainer Box</Src>
+            </>,
+            "US listing, English",
+            "9",
+            "1 full-art foil Snorlax",
+            "65 sleeves, 45 Energy, player's guide, 6 damage-counter dice, 1 competition-legal coin-flip die, 2 condition markers, collector's box with 4 dividers, TCG Live code card",
+            "A gift, or a player who wants the accessories",
+          ],
+          [
+            <>
+              <Src id="s151PcEtb">151 Pokemon Center Elite Trainer Box</Src>
+            </>,
+            "US listing, English. Sold only at Pokemon Center",
+            "11",
+            "2: a full-art foil Snorlax with a Pokemon Center logo, and a full-art foil Snorlax",
+            "Same accessory list as the standard box",
+            "Someone who wants the exclusive promo and two extra packs",
+          ],
+          [
+            <>
+              <Src id="s151Upc">151 Ultra-Premium Collection</Src>
+            </>,
+            "US listing, English",
+            "16",
+            "1 etched foil Mew ex, 1 full-art foil Mewtwo, plus 1 etched metal Mew ex card",
+            "Playmat, deck box, metallic Mew coin, 6 damage-counter dice, 2 condition markers, TCG Live code card",
+            "Someone buying the collectibles as much as the packs",
+          ],
+        ]}
+        minWidth="52rem"
+        caption="Contents as listed on each product's own official page, read 22 September 2026. Pack counts and promos differ between the two Elite Trainer Boxes; the accessory list does not. Regional editions of a product can differ, so check the listing's own region."
+      />
       <ProductGallery
         products={[
           { product: GUIDE_PRODUCTS.s151EliteTrainerBox, caption: "Standard Elite Trainer Box" },
@@ -99,27 +137,29 @@ export default function Page() {
           { product: GUIDE_PRODUCTS.s151UltraPremium, caption: "Ultra-Premium Collection" },
         ]}
         width={168}
-        note="Three separate products in our sealed catalogue for one set. Check the exact product name in the listing title and the photograph of the box before you compare two prices."
+        note="The three products in the table, as catalogue product photographs. Check the exact product name in the listing title and the photograph of the box before you compare two prices."
       />
       <GP>
-        The general version of this problem — what each sealed format contains and who it suits — is
-        in the{" "}
+        Two packs and a second promo is the whole of the difference between the Elite Trainer Boxes.
+        Whether that is worth a price gap is your call — but it is a decision you can only make once
+        you know which box a listing is for. The general version of this problem is in the{" "}
         <Link href="/guides/booster-box-vs-etb-vs-booster-bundle" className={GUIDE_LINK_CLASS}>
           booster box vs ETB vs booster bundle guide
         </Link>
         .
       </GP>
 
-      <GH2>English 151 and Japanese SV2a are not the same purchase</GH2>
+      <GH2>A Japanese listing is not a cheaper English card</GH2>
       <GP>
-        The Japanese set that corresponds to 151 is <strong>SV2a</strong>, and it is a separate
-        product line with its own card list, its own products and its own market. A Japanese card is
-        not a cheaper version of the English one; it is a different card, and it should be priced
-        against other Japanese copies. Keep the two apart when you search, and read the{" "}
+        Japanese cards turn up constantly in English-language searches for this set. A Japanese card
+        is a different card with its own number and its own market, not a discount on the English
+        one, and it should be priced against other Japanese copies. Our catalogue holds{" "}
+        <strong>English records only</strong>, so we cannot identify the Japanese counterpart of a
+        151 card for you, and we do not publish a cross-language price comparison. Read the{" "}
         <Link href="/guides/japanese-vs-english-pokemon-cards" className={GUIDE_LINK_CLASS}>
           Japanese vs English guide
         </Link>{" "}
-        before buying across the two.
+        — which also covers where each language is legal to play — before buying across the two.
       </GP>
 
       <GH2>Reading a 151 single before you buy</GH2>
@@ -142,8 +182,8 @@ export default function Page() {
           .
         </li>
         <li>
-          <strong>Confirm the language.</strong> Japanese SV2a cards appear in English-language
-          searches constantly.
+          <strong>Confirm the language.</strong> Japanese cards appear in English-language searches
+          constantly, and our catalogue cannot price them.
         </li>
         <li>
           <strong>Read the condition wording against the photographs</strong>, and treat the
@@ -180,6 +220,14 @@ export default function Page() {
         Listings come and go. If a page is empty when you arrive, the card or product is simply not
         currently listed at a price we can stand behind — not that it does not exist.
       </GP>
+
+      <SourceList ids={["s151Etb", "s151PcEtb", "s151Upc", "s151Expansion"]}>
+        <li>
+          Product contents read from each product&apos;s own official page on 22 September 2026.
+          Card counts, collector numbers and rarities are our own catalogue records for the set,
+          read the same day — they describe what we track, not an official checklist.
+        </li>
+      </SourceList>
     </GuideLayout>
   );
 }
