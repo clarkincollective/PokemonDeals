@@ -174,10 +174,13 @@ export default function GuidesIndexPage() {
           {GUIDE_GROUPS.map(group => (
             <section key={group.title} className="mt-6">
               <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{group.title}</h3>
+              {/* The group's one-line purpose, OUTSIDE the grid: as a
+                  child of the <ul> it took a card cell and read as an
+                  untitled guide. */}
+              {group.blurb && (
+                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{group.blurb}</p>
+              )}
               <ul className="mt-3 grid gap-3 sm:grid-cols-2">
-            {group.blurb && (
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{group.blurb}</p>
-            )}
             {group.slugs.map(slug => GUIDES.find(g => g.slug === slug)).map((g) => (
               <li key={g.slug}>
                 <Link
