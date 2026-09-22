@@ -511,6 +511,15 @@ export default async function DealDetailPage({ params }) {
   const statedPrinting = parallelPrintingMismatch ? null : deal.reference_printing;
   const shipping = offerShipping(deal);
   const showSavings = hasPrice(deal.total_price) && presentation.savings === "trusted" && shipping.savingClaim !== "none";
+  // Why the price-history chart is not the basis for a saving, kept
+  // distinct from the FACT that it isn't. When presentation.savings is
+  // "trusted" the reference is supported and the comparison is positive -
+  // so a !showSavings here means the blocker was the recorded price or
+  // the shipping breakdown, NOT the reference, and the label must not
+  // deny a reference we hold. Otherwise the reason is the one
+  // listingPresentation already computed for its own notes.
+  const chartBasisReason =
+    presentation.savings === "trusted" ? "blocked_not_reference" : presentation.savingsReason;
   const isAuction = deal.listing_type === "AUCTION";
   // What the freshness line may claim: an exact availability confirmation
   // (only when the latest eBay evidence was a successful active verdict -
@@ -1006,20 +1015,43 @@ export default async function DealDetailPage({ params }) {
               case alone, because once a bad reference is INVALIDATED the
               printing is null and the narrower condition stopped firing,
               leaving the chart labelled as a reference on a page that
-              claims none. The specific parallel reason is still given
-              when it is known.
+              claims none.
+              The REASON is not inferred from !showSavings. showSavings is
+              a conjunction of three independent gates - a trusted
+              positive comparison, a recorded price, and a shipping
+              breakdown that supports a claim - and only the first is
+              about the reference. Saying "no supported market comparison"
+              whenever the conjunction fails denies a reference we do hold
+              in two of the cases: a listing priced at or above a valid
+              reference, and a valid reference whose claim is blocked by
+              unknown shipping. So the wording comes from
+              listingPresentation's savingsReason, and where the blocker
+              is price or shipping rather than the reference, the label
+              makes the safe generic statement instead of a false one.
               The chart is not deleted (it is legitimate history for this
               card) and not quietly hidden; it is labelled, so the two
               figures stop appearing to describe one comparison. */}
           {!showSavings ? (
-            <p className="text-xs text-amber-700 dark:text-amber-500">
-              This is the recorded history for this card. It is <strong>not</strong> the basis for a
-              saving on this listing
-              {parallelPrintingMismatch
-                ? `: our stored reference is the ${String(deal.reference_printing).toLowerCase()} printing, which this listing does not state.`
-                : " - this listing has no supported market comparison."}{" "}
-              Shown for context only.
-            </p>
+            chartBasisReason === "blocked_not_reference" ? (
+              // The blocker was the recorded price or the shipping
+              // breakdown, not the reference. Nothing true can be said
+              // here about the comparison itself, so nothing is.
+              <p className="text-xs text-amber-700 dark:text-amber-500">
+                This is the recorded history for this card. Shown for context only; no savings claim
+                is made for this listing.
+              </p>
+            ) : (
+              <p className="text-xs text-amber-700 dark:text-amber-500">
+                This is the recorded history for this card. It is <strong>not</strong> the basis for
+                a saving on this listing
+                {chartBasisReason === "parallel_printing"
+                  ? `: our stored reference is the ${String(deal.reference_printing).toLowerCase()} printing, which this listing does not state.`
+                  : chartBasisReason === "not_below_reference"
+                    ? " - this listing is not priced below that reference."
+                    : " - this listing has no supported market comparison."}{" "}
+                Shown for context only.
+              </p>
+            )
           ) : (
             <p className="text-xs text-zinc-600 dark:text-zinc-400">
               {deal.is_graded ? "Recorded graded sales and reference history." : "Recorded market reference history."} Updates are cached; dates below describe the available observations.

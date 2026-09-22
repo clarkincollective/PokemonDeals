@@ -21,6 +21,17 @@ import {
   isDisplayableDeal,
 } from "../../lib/dealQuality.js";
 
+// AVAILABILITY STAMPS ARE RELATIVE, NOT LITERAL. These were hardcoded
+// to the day the defect was reported, and isDisplayableDeal has a
+// freshness component (freshnessTierTtl, 36h for this tier). 36 hours
+// after that day the fixture went STALE and the "the listing still
+// shows" assertions started failing for a reason that has nothing to do
+// with what these tests assert. A test that expires by wall clock is
+// testing the clock, so the stamps are now derived from now(). The
+// staleness rule itself is unchanged and is covered by its own tests.
+const HOURS = 3600 * 1000;
+const agoISO = (h) => new Date(Date.now() - h * HOURS).toISOString();
+
 // A row shaped like the real one, reaching the gates through the real
 // rules rather than a bare object (see deal-first-r1 R1-6 for why).
 function row(over = {}) {
@@ -53,9 +64,9 @@ function row(over = {}) {
     reference_observed_at: "2026-09-20T12:03:16.827+00:00",
     reference_synced_at: "2026-09-20T12:03:16.827+00:00",
     is_active: true,
-    first_seen_at: "2026-09-20T15:00:37.110Z",
-    last_seen_at: "2026-09-20T15:30:16.773Z",
-    exact_verified_at: "2026-09-20T15:30:16.773Z",
+    first_seen_at: agoISO(6),
+    last_seen_at: agoISO(1),
+    exact_verified_at: agoISO(1),
     visual_authenticity_status: "MATCH",
     image_verdict: "SELLER_FRONT",
     disqualified_reason: null,
