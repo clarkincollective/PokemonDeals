@@ -460,7 +460,7 @@ export default async function Home() {
               </span>
               {liveCount != null && integrity?.withheldActive != null && integrity?.checked24h != null && (
                 <>
-                  {" "}As of {new Date(integrity.generatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}: {liveCount.toLocaleString()} listings shown, {integrity.withheldActive.toLocaleString()} withheld for failing a check, {integrity.checked24h.toLocaleString()} checked in the last 24 hours (
+                  {" "}As of {new Date(integrity.generatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}: {liveCount.toLocaleString()} listings shown, {integrity.withheldActive.toLocaleString()} withheld for failing a check, {integrity.checked24h.toLocaleString()} seen again in eBay search results in the last 24 hours (
                   <Link href="/integrity" className="underline underline-offset-2 hover:text-red-600 dark:hover:text-red-500">integrity report</Link>).
                 </>
               )}

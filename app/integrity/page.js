@@ -14,7 +14,7 @@ const SITE_URL = "https://pokemondealfinder.com";
 const PATH = "/integrity";
 const TITLE = "Listing Integrity Report";
 const DESCRIPTION =
-  "Live counts from our database: Pokemon card listings shown, listings withheld for failing a check and why, and listings checked in the last 24 hours.";
+  "Live counts from our database: Pokemon card listings shown, listings withheld for failing a check and why, and listings seen again on eBay in the last 24 hours.";
 
 export const metadata = {
   title: TITLE,
@@ -40,11 +40,11 @@ export default async function IntegrityPage() {
   const stoppedSentence = r.stopped24h != null ? ` and ${n(r.stopped24h)} stopped being shown because they ended, sold or were not re-seen` : "";
   const capsule = r.error
     ? "The integrity counts could not be read from the database on this build; the checks below still apply to every listing shown."
-    : `As of ${fmtDate(r.generatedAt)}, Pokemon Deal Finder shows ${n(r.activeShown)} live eBay Pokemon card listings and withholds ${n(r.withheldActive)} active listings that failed a check. In the last 24 hours ${n(r.checked24h)} listings were checked against eBay${stoppedSentence}. Listings come from ${r.marketplaces.length} eBay marketplaces (US, UK, Australia, Canada, Germany, Italy).`;
+    : `As of ${fmtDate(r.generatedAt)}, Pokemon Deal Finder shows ${n(r.activeShown)} live eBay Pokemon card listings and withholds ${n(r.withheldActive)} active listings that failed a check. In the last 24 hours ${n(r.checked24h)} listings were seen again in eBay search results${stoppedSentence}; that is a refresh count, not a per-listing availability re-check. Listings come from ${r.marketplaces.length} eBay marketplaces (US, UK, Australia, Canada, Germany, Italy).`;
   const tiles = [
     ["Shown now", r.activeShown],
     ["Withheld (active)", r.withheldActive],
-    ["Checked, 24 h", r.checked24h],
+    ["Seen in results, 24 h", r.checked24h],
     ...(r.stopped24h != null ? [["Stopped showing, 24 h", r.stopped24h]] : []),
   ];
   const first = history[0]?.day;

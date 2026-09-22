@@ -32,6 +32,14 @@ import { dealQualityScore } from "../../lib/dealQualityScore.js";
 import { CARD_REFERENCE_COLUMNS, clearedReference } from "../../lib/referenceProvenance.js";
 import { selectReferencePrinting } from "../../lib/printingMatch.js";
 
+// Availability stamps are relative: isDisplayableDeal has a freshness
+// component (36h for this tier), so literal dates make these tests
+// expire by wall clock - which is exactly what happened to two sibling
+// files. Reference dates stay literal; the provenance gates read those
+// and they carry no TTL.
+const HOURS = 3600 * 1000;
+const agoISO = (h) => new Date(Date.now() - h * HOURS).toISOString();
+
 // A persisted row carrying the defect, shaped like the real cohort
 // members (deal 33800: "Psyduck 104/147 Aquapolis Regular", reference
 // recorded as Reverse Holofoil at $700).
@@ -63,9 +71,9 @@ function persistedBadRow(over = {}) {
     reference_observed_at: "2026-09-20T12:00:00.000Z",
     reference_synced_at: "2026-09-20T12:00:00.000Z",
     is_active: true,
-    first_seen_at: "2026-09-06T10:00:00.000Z",
-    last_seen_at: "2026-09-21T08:00:56.309Z",
-    exact_verified_at: "2026-09-08T11:00:10.000Z",
+    first_seen_at: agoISO(6),
+    last_seen_at: agoISO(1),
+    exact_verified_at: agoISO(1),
     image_verdict: "SELLER_FRONT",
     disqualified_reason: null,
     ...over,

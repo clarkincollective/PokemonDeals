@@ -174,8 +174,11 @@ test("no user-facing auction score; DealCard auction copy stays truthful", () =>
   // score, and that is now structural rather than lexical: the whole
   // disclosure is gated on !isAuction, so the row is unreachable for an
   // auction whatever it is called. Both facts are asserted directly.
-  assert.match(dc, /\{!isAuction && \(showRef \|\| shippingConfirmed\) && \(/, "Price details is BIN-only");
-  const detailsIdx = dc.indexOf("{!isAuction && (showRef || shippingConfirmed) && (");
+  // 2026-09-22: `showRef` (arithmetic) became `showStoredRef` (arithmetic
+  // AND trusted), so the disclosure cannot print a reference the card
+  // says it does not have. BIN-only is unchanged and is what this pins.
+  assert.match(dc, /\{!isAuction && \(showStoredRef \|\| shippingConfirmed\) && \(/, "Price details is BIN-only");
+  const detailsIdx = dc.indexOf("{!isAuction && (showStoredRef || shippingConfirmed) && (");
   const scoreIdx = dc.indexOf("<dt>Deal score</dt>");
   assert.ok(scoreIdx > detailsIdx, "the only Deal score label sits inside that BIN-only disclosure");
   assert.equal((dc.match(/<dt>Deal score<\/dt>/g) ?? []).length, 1, "and it is rendered in exactly one place");

@@ -179,9 +179,24 @@ test('cold-navigation guard: a fail-safe explains a stalled load and offers a re
 
 test('cold-navigation guard: DealGrid itself hands off to its own rendering the instant it mounts, regardless of fetch outcome', () => {
   const grid = src('components/DealGrid.js');
-  assert.match(grid, /useEffect\(\(\) => \{\s*if \(!guardColdNav\) return;\s*const wrap = document\.getElementById\("pdf-grid-wrap"\);/);
-  assert.match(grid, /if \(wrap\) wrap\.hidden = false;/);
-  assert.match(grid, /if \(placeholder\) placeholder\.hidden = true;/);
+  // 2026-09-22: the guard no longer toggles `hidden` on the two elements.
+  // Those attributes are REACT's, and mutating them before hydration was
+  // a real mismatch on every filtered load; the guard now marks the
+  // document with an attribute React never renders and CSS does the
+  // hiding. THE GUARANTEE IS UNCHANGED and is what this pins: on mount,
+  // unconditionally and before any fetch resolves, DealGrid takes over
+  // its own rendering by clearing that marker.
+  assert.match(grid, /useEffect\(\(\) => \{\s*if \(!guardColdNav\) return;/);
+  assert.match(grid, /document\.documentElement\.removeAttribute\("data-pdf-cold-filter"\);/);
+  assert.match(grid, /document\.documentElement\.setAttribute\('data-pdf-cold-filter',''\);/, "and the guard sets it");
+  // Comment-stripped: the note above the guard explains what it used to
+  // do, so the old expression legitimately appears in prose.
+  const code = grid.replace(/^\s*\/\/.*$/gm, "");
+  assert.doesNotMatch(code, /wrap\.hidden\s*=|placeholder\.hidden\s*=|ph\.hidden\s*=/, "no pre-hydration mutation of React-owned attributes");
+  // the CSS that replaces the attribute toggling
+  const css = src("app/globals.css");
+  assert.match(css, /html\[data-pdf-cold-filter\] #pdf-grid-wrap \{ display: none !important; \}/);
+  assert.match(css, /html\[data-pdf-cold-filter\] #pdf-grid-loading \{ display: block !important; \}/);
 });
 
 test('cold-navigation guard: a no-JS visitor sees the real default content, never a stuck loading message (the script that would hide it never runs)', () => {

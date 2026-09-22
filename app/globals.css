@@ -181,6 +181,19 @@ h1, h2 {
 }
 .animate-savings-halo { animation: savings-halo 2.4s cubic-bezier(.4,0,.6,1) infinite; }
 
+/* COLD FILTERED NAVIGATION (components/DealGrid.js). One cached HTML
+   serves every filter permutation of /deals and /deals/graded, so a
+   cold load of a filtered URL would briefly show the UNFILTERED default.
+   A guard script marks the document before hydration and these rules do
+   the hiding.
+   It is done in CSS, on an attribute React never renders, rather than by
+   toggling `hidden` on the elements themselves: those attributes belong
+   to React, and mutating them before hydration is a genuine mismatch
+   (the one reported on /deals). DealGrid's mount effect removes the
+   marker the moment hydration completes. */
+html[data-pdf-cold-filter] #pdf-grid-wrap { display: none !important; }
+html[data-pdf-cold-filter] #pdf-grid-loading { display: block !important; }
+
 /* Deal cards: a restrained lift on pointer hover, the badge with it. */
 @media (hover: hover) {
   article[data-deal-card] { transition: transform 180ms cubic-bezier(.2,.7,.2,1), box-shadow 180ms, border-color 180ms; }

@@ -187,6 +187,12 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
   // "% below market" anywhere.
   const presentation = listingPresentation(deal);
   const showSavings = presentation.savings === "trusted";
+  // `showRef` above is ARITHMETIC only - a finite market_price, a
+  // positive difference, a convertible amount - and asks nothing about
+  // whether the reference may be BELIEVED. market_price is NOT NULL on
+  // `deals`, so a row whose provenance was cleared keeps its old figure.
+  // Anything that SHOWS the stored reference must gate on this instead.
+  const showStoredRef = showSavings && showRef;
 
   // Deterministic, evidence-gated (lib/dealQualityScore). null whenever
   // the listing has not earned one - the badge components render nothing
@@ -644,7 +650,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             the handler checks `open`), so it can never be mistaken for or
             duplicate an affiliate_click. Carries the same non-PII
             identifiers the impression/click events already use. */}
-        {!isAuction && (showRef || shippingConfirmed) && (
+        {!isAuction && (showStoredRef || shippingConfirmed) && (
           <details
             className="group/details mt-2.5 text-[13px]"
             data-analytics-toggle="deal_price_details_opened"
@@ -673,7 +679,21 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                   </dd>
                 </div>
               )}
-              {showRef && (
+              {/* TRUSTED REFERENCES ONLY. These two rows were gated on
+                  `showRef`, which is pure ARITHMETIC - a finite
+                  market_price, a positive difference, a convertible
+                  amount - and asks nothing about whether the reference
+                  may be believed. market_price is NOT NULL on `deals`,
+                  so a row whose provenance was cleared keeps its old
+                  figure, and the disclosure printed it: the Mew listing
+                  on /deals said "No verified market comparison" on its
+                  face and "Market reference A$40.49" one tap below.
+                  Measured before the fix: 245 of 247 untrusted
+                  displayable listings.
+                  `showStoredRef` adds the trust gate the visible
+                  comparison beside the price has always had, so the
+                  disclosure can no longer contradict the card. */}
+              {showStoredRef && (
                 <div className="flex justify-between gap-3">
                   <dt>Market reference</dt>
                   <dd className="tnum">
@@ -681,7 +701,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                   </dd>
                 </div>
               )}
-              {showRef && (
+              {showStoredRef && (
                 <div className="flex justify-between gap-3">
                   <dt>Reference is for</dt>
                   <dd className="text-right">

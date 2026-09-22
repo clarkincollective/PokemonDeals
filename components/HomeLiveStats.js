@@ -67,7 +67,7 @@ export default function HomeLiveStats({ liveCount, checked24h, marketplaceCount 
     stats.push({ key: "listings", icon: ICONS.listings, value: liveCount.toLocaleString(), label: "live listings", href: "/deals" });
   }
   if (checked24h != null) {
-    stats.push({ key: "checked", icon: ICONS.checked, value: checked24h.toLocaleString(), label: "checked in last 24 hours", href: "/integrity" });
+    stats.push({ key: "checked", icon: ICONS.checked, value: checked24h.toLocaleString(), label: "seen in eBay results, 24h", href: "/integrity" });
   }
   if (marketplaceCount) {
     stats.push({ key: "markets", icon: ICONS.markets, value: marketplaceCount, label: "eBay marketplaces", href: "/deals" });

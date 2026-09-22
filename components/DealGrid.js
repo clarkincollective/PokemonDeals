@@ -351,10 +351,10 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
   // the real default - is already right. Runs once; nothing to clean up.
   useEffect(() => {
     if (!guardColdNav) return;
-    const wrap = document.getElementById("pdf-grid-wrap");
-    const placeholder = document.getElementById("pdf-grid-loading");
-    if (wrap) wrap.hidden = false;
-    if (placeholder) placeholder.hidden = true;
+    // Clears the guard's document marker (see the inline script below).
+    // React's own attributes were never mutated, so there is nothing to
+    // put back on the elements themselves.
+    document.documentElement.removeAttribute("data-pdf-cold-filter");
   }, [guardColdNav]);
 
   // "This is a filtered query" - drives the empty state (relaxation
@@ -557,6 +557,8 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
               8s fail-safe below, its content is replaced in place with a
               stalled-load message + a real reload link - never silently
               swapped back to the unfiltered default underneath. */}
+          {/* Same intentional pre-hydration mutation as the wrapper
+              above - see the note there. */}
           <div id="pdf-grid-loading" hidden>
             <GridSkeleton />
           </div>
@@ -575,10 +577,22 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
                 var keys=['country','type','grader','grade','listing','minPrice','maxPrice','q','sort'];
                 var hasFilter=keys.some(function(k){return sp.get(k);})||(sp.get('page')&&sp.get('page')!=='1');
                 if(!hasFilter)return;
-                var wrap=document.getElementById('pdf-grid-wrap');
+                // HYDRATION (2026-09-22): this used to set wrap.hidden =
+                // true and ph.hidden = false. Those are attributes REACT
+                // renders, so mutating them before hydration made React
+                // compare its own output against a DOM something else had
+                // already changed - a genuine mismatch, on every filtered
+                // /deals and /deals/graded load.
+                // The server cannot render the right state instead:
+                // guardColdNav is route-level and one cached HTML serves
+                // every filter permutation, which is why this guard exists
+                // at all. So it now marks the DOCUMENT with an attribute
+                // React never renders, and CSS does the hiding (see
+                // app/globals.css). Same behaviour and timing, nothing
+                // suppressed, and React's own attributes are left exactly
+                // as it rendered them.
                 var ph=document.getElementById('pdf-grid-loading');
-                if(wrap)wrap.hidden=true;
-                if(ph)ph.hidden=false;
+                document.documentElement.setAttribute('data-pdf-cold-filter','');
                 setTimeout(function(){
                   // Review closure (2026-09-14): the fail-safe previously
                   // revealed wrap here - the unfiltered default - with no
@@ -590,7 +604,7 @@ export default function DealGrid({ kind, slug, basePath, initial, hubCounts = {}
                   // wins and restores the correct content the instant
                   // hydration does complete, whenever that happens - this
                   // only replaces what is shown while it has not.
-                  if(wrap&&wrap.hidden&&ph&&!ph.hidden){
+                  if(document.documentElement.hasAttribute('data-pdf-cold-filter')&&ph){
                     ph.innerHTML='<div role="status" class="rounded-lg border border-zinc-200 bg-white p-6 text-center text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">'
                       +'<p>This is taking longer than expected to load your filtered results.</p>'
                       +'<p class="mt-2"><a href="'+location.href+'" class="font-semibold text-red-600 underline underline-offset-2 dark:text-red-500">Reload the page</a> to try again.</p>'
