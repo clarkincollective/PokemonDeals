@@ -196,7 +196,7 @@ export default function HomeFeed({
           mode row above it, "More filters" for the full filter set, and
           the paginated / filtered list on any non-default view. Section
           ids keep their established analytics meaning. */}
-      <main id="deals" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 scroll-mt-6 px-6 py-5">
+      <main id="deals" tabIndex={-1} className="mx-auto w-full max-w-[92rem] flex-1 scroll-mt-6 px-6 py-5">
         {/* Feed controls, kept to two short rows above the first offer:
             (1) the section face + the nine mode links - one wrapping row
             on desktop, a horizontally scrolling row on phones (every link

@@ -224,18 +224,26 @@ test('SearchClient ResultTile: badge is gated on offerShipping, not a bare disco
 // switch is proven at runtime and not only in the source string.
 const DealCard = await load('components/DealCard.js');
 const dealCardFixtures = Object.fromEntries(DEAL_STATE_FIXTURES.map((f) => [f.id, f]));
-test('DealCard CTA: trusted deal says "View deal on eBay"', () => {
+// CRO 2026-09-22 (§17): transactional copy where the visitor can
+// actually transact. These RENDER the card, so they pin real behaviour -
+// what a shopper is told, by listing type. The three guarantees are
+// unchanged: a supported saving may be sold as a deal, a listing without
+// one never may, and an auction is neither whatever its savings state.
+test('DealCard CTA: a trusted deal says "Buy this deal"', () => {
   const el = DealCard({ deal: dealCardFixtures.bin_compared.deal, pageName: 'test' });
-  assert.match(words(el), /View deal on eBay/);
-  assert.doesNotMatch(words(el), /View listing on eBay/);
+  assert.match(words(el), /Buy this deal/);
+  assert.match(words(el), /on eBay/, 'and still names the marketplace');
+  assert.doesNotMatch(words(el), /View listing|View auction/);
 });
-test('DealCard CTA: a plain (untrusted-comparison) listing says "View listing on eBay", never "deal"', () => {
+test('DealCard CTA: a plain (untrusted-comparison) listing says "View listing", never "deal" or "buy"', () => {
   const el = DealCard({ deal: dealCardFixtures.bin_plain.deal, pageName: 'test' });
-  assert.match(words(el), /View listing on eBay/);
-  assert.doesNotMatch(words(el), /View deal on eBay/);
+  assert.match(words(el), /View listing/);
+  assert.match(words(el), /on eBay/);
+  assert.doesNotMatch(words(el), /Buy this deal|View deal/i, 'an unsupported listing is never sold as a deal');
 });
-test('DealCard CTA: an auction always says "View auction on eBay", independent of the savings state', () => {
+test('DealCard CTA: an auction always says "View auction", independent of the savings state', () => {
   const el = DealCard({ deal: dealCardFixtures.auction.deal, pageName: 'test' });
-  assert.match(words(el), /View auction on eBay/);
-  assert.doesNotMatch(words(el), /View deal on eBay|View listing on eBay/);
+  assert.match(words(el), /View auction/);
+  assert.match(words(el), /on eBay/);
+  assert.doesNotMatch(words(el), /Buy this deal|View deal|View listing/i, 'you cannot buy an auction outright');
 });

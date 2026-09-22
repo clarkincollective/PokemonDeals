@@ -92,7 +92,13 @@ test("R2-1. DealCard: unknown breakdown -> no badge, no 'Save', no '% below mark
   // that corner; SavingsBadge is the fallback for a supported saving we
   // could not score. The gate itself - supported claim, never an
   // auction, where a bid is not a saving - is unchanged.
-  assert.match(src, /!qualityScore && savingsSupported && !isAuction && \(\s*<SavingsBadge discountPct=\{deal\.discount_pct\}/, "the discount badge is gated on the supported claim and BIN");
+  // CRO 2026-09-22: the discount is now the card's dominant badge - a
+  // full-width bar above the artwork - and the deal score moved into
+  // Price details, so the score no longer decides whether a percentage
+  // appears. THE GATE IS UNCHANGED and is what this pins: a supported
+  // (trusted reference + shipping breakdown) claim, and BIN only.
+  assert.match(src, /\{savingsSupported && !isAuction && \(\s*<p className="flex items-center justify-center gap-1\.5 bg-emerald-600/, "the discount bar is gated on the supported claim and BIN");
+  assert.doesNotMatch(src, /<SavingsBadge/, "the card's dominant badge is the percentage bar, not the score-fallback chip");
   assert.match(src, /\{savingsSupported && isAuction && \(/, "auctions get their own bid badge");
   assert.match(src, /discount_band: savingsSupported \? discountBand\(discountPct\) : "no_savings_claim"/);
   assert.match(src, /\{!savingsSupported \? \([\s\S]{0,300}No saving stated: shipping breakdown not recorded/);
@@ -101,7 +107,10 @@ test("R2-1. DealCard: unknown breakdown -> no badge, no 'Save', no '% below mark
   // elements now that the amount is the headline of the line, so this
   // keys on the label element rather than the old inline sentence. What
   // it asserts is unchanged - the line must sit AFTER the gate.
-  const saveIdx = src.indexOf(">You save</span>");
+  // The RENDERED label, not the first textual mention - a comment above
+  // the comparison block also says "You save", and matching that made
+  // the ordering check below pass vacuously.
+  const saveIdx = src.search(/You save\s*<\/p>/);
   const gateIdx = src.indexOf("{!savingsSupported ? (");
   assert.ok(saveIdx > 0, "the You save label is still rendered");
   assert.ok(gateIdx > 0 && saveIdx > gateIdx, "Save line follows the gate");

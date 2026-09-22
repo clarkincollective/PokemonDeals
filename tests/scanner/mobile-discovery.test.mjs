@@ -187,5 +187,8 @@ test("DealCard image reserves space (no CLS)", () => {
   // the same 6:5 as desktop (object-contain, never cropped). A RESERVED
   // box - a fixed ratio so nothing shifts when the image lands - is what
   // this test guards, and that is unchanged.
-  assert.match(src, /aspect-\[6\/5\] w-full/, "deal image needs a reserved aspect box");
+  // CRO 2026-09-22: square, up from 6:5, so the artwork is ~40% of card
+  // height. What this pins is unchanged - a FIXED ratio box, which is
+  // what reserves the space and prevents CLS.
+  assert.match(src, /aspect-square w-full/, "deal image needs a reserved aspect box");
 });

@@ -118,7 +118,17 @@ test("DealCard never puts the green savings badge on an auction; the amber bid b
   const src = readFileSync(new URL("../../components/DealCard.js", import.meta.url), "utf8");
   assert.match(src, /savingsSupported && !isAuction && \(/, "green badge is BIN-only");
   assert.match(src, /savingsSupported && isAuction && \(/, "auction badge branch exists");
-  assert.match(src, /Bid \{savingsBadgeText\(deal\.discount_pct\)\}/);
+  // CRO 2026-09-22: the discount badge became a full-width bar and its
+  // wording moved to savingsPercentText, so the auction bar reads
+  // "Bid N% below market". Both guarantees this test exists for are
+  // unchanged: the auction bar is AMBER, never the green one, and it
+  // says the figure is a BID.
+  assert.match(src, /Bid \{pctText\} below market/);
+  assert.match(src, /bg-amber-500[^"]*text-amber-950/, "the auction bar is amber, not the green savings bar");
+  // The green bar's own condition excludes auctions, and the green
+  // savings PANEL in the body renders null for them.
+  assert.match(src, /savingsSupported && !isAuction && \(\s*<p className="flex[^"]*bg-emerald-600/, "the green bar is BIN-only by construction");
+  assert.match(src, /\) : isAuction \? null : \(/, "the green savings panel renders nothing for an auction");
   assert.match(src, /bids can raise the final price/);
 });
 

@@ -4,7 +4,7 @@ import { surfaceForPageName } from "@/lib/affiliateSurfaces";
 import { slugifySet } from "@/lib/slugify";
 import { currencyForDeal, refInListingCurrency } from "@/lib/money";
 import RelativeTime, { WithinWindow } from "@/components/RelativeTime";
-import { conditionLabel, listingPresentation, savingsBadgeText, savingsPercentText, isLoudSaving } from "@/lib/dealQuality";
+import { conditionLabel, listingPresentation, savingsPercentText } from "@/lib/dealQuality";
 import { normalizePublicText } from "@/lib/publicText";
 import { cardDisplayName } from "@/lib/cardName";
 import { priceBandUsd, discountBand, listingTypeProp, rawVsGraded } from "@/lib/analytics/props";
@@ -13,8 +13,6 @@ import DealImage from "@/components/DealImage";
 import { dealImageProps } from "@/lib/listingImage";
 import SaveCardButton from "@/components/SaveCardButton";
 import MarketplaceMark from "@/components/MarketplaceMark";
-import SavingsBadge from "@/components/SavingsBadge";
-import { DealQualityLabel, DealQualityScore } from "@/components/DealQualityBadge";
 import { dealQualityScore } from "@/lib/dealQualityScore";
 import Price from "@/components/Price";
 import AuctionPrice from "@/components/AuctionPrice";
@@ -49,17 +47,24 @@ function FactIcon({ kind }) {
 export const CTA_PRIMARY_CLASS =
   "flex min-h-12 w-full items-center justify-center rounded-lg bg-red-600 px-4 text-center text-sm font-semibold text-white transition-colors hover:bg-red-700 active:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600";
 
-// The percentage chip on the "You save" line, used only for the top two
-// savings tiers. Solid emerald with white ink, matching SavingsBadge -
-// globals.css's unlayered `.bg-emerald-600 { color: #FFFFFF }` rule keeps
-// the ink white whatever utility order Tailwind emits.
-const SAVING_PCT_CHIP =
-  "rounded-md bg-emerald-600 px-1.5 py-0.5 text-xs font-black uppercase tracking-wide text-white";
+// CRO 2026-09-22 - the grid card's own CTA: the shared CTA_PRIMARY_CLASS
+// contract (brand red, white label, 8px radius, hover / pressed /
+// keyboard-focus states) laid out as TWO LINES, so the button can say
+// what happens and where without a second control beside it. Taller than
+// the shared one (56px vs 48px) because on a card it is the single
+// conversion action and nothing else should read as its equal.
+// CTA_PRIMARY_CLASS itself is unchanged - SealedDealCard and
+// StickyDealCta still use it.
+const CTA_CARD_CLASS =
+  "flex min-h-14 w-full flex-col items-center justify-center gap-1 rounded-lg bg-red-600 px-4 text-center text-white transition-colors hover:bg-red-700 active:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600";
 
-// The discount badge is tiered by how good the deal actually is (real
-// discount_pct) so a 65%-under card doesn't look identical to a 12%-under
-// one - components/SavingsBadge. Only rendered when the savings claim is
-// TRUSTED (lib/dealQuality listingPresentation) - never on a plain listing.
+// CRO 2026-09-22: the discount is now the card's DOMINANT badge - a
+// full-width bar over the artwork reading "N% below market" - and the
+// deal score moved into Price details. Rendered only when the savings
+// claim is TRUSTED and a shipping breakdown supports it
+// (lib/dealQuality listingPresentation + lib/offerPresentation), never
+// on a plain listing. SavingsBadge and DealQualityBadge are still used
+// by SealedDealCard and remain exported.
 
 // Deal-first R1/R2 - one offer in a grid, laid out as the deal-card
 // contract (docs: PokemonDealFinder-Deal-First-Overhaul §5):
@@ -125,11 +130,6 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
   const dealRel = dealHref.includes("?") ? "nofollow" : undefined;
   const cardSet = deal.watchlist?.set;
   const discountPct = Math.round(deal.discount_pct * 100);
-  // Is this saving big enough to be allowed to shout? Same ladder as the
-  // corner badge (components/SavingsBadge), so the chip on the "You
-  // save" line and the badge over the artwork can never disagree about
-  // how good the deal is.
-  const loudSaving = isLoudSaving(deal.discount_pct);
   // "N%" / "less than 1%" - a positive saving never renders as 0%
   const pctText = savingsPercentText(deal.discount_pct);
   // Rendered in the listing's own currency on the server; <Price> swaps
@@ -199,6 +199,12 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
   // a distance keeps that a cheap textual check rather than one a
   // reviewer has to reason about.
   const qualityScore = dealQualityScore(deal);
+  // §22 - a genuinely exceptional trusted deal may be marked as such, but
+  // the ADJECTIVE never replaces the number: this only swaps the icon on
+  // the discount bar, which still reads "N% below market". Derived
+  // deterministically from the existing evidence-gated score band, so it
+  // cannot be applied to a mediocre deal and is never hand-set.
+  const exceptionalFind = qualityScore?.label === "Exceptional Deal";
   // Review round 2: a trusted reference is necessary but not sufficient -
   // when the row carries NO shipping breakdown (ship.state "unknown") the
   // stored total may or may not include a charge, so no saving (badge,
@@ -256,6 +262,38 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           beside Compare, where the redesign groups the secondary actions -
           one Watch control per card, not two. */}
       <div className="relative">
+        {/* CRO 2026-09-22 - THE DOMINANT BADGE IS THE DISCOUNT, and it is
+            a real block ABOVE the artwork, not an overlay on it. Two
+            reasons it is not absolutely positioned: it would cover the
+            top of a photo that fills its box (§8 - never crop away
+            listing information), and the artwork link below is
+            aria-hidden, so a bar inside it would be silent to screen
+            readers. As a sibling it is read normally and every card in a
+            row starts on the same baseline.
+            GATING IS UNCHANGED: `savingsSupported` is still a trusted
+            reference AND a shipping breakdown that supports a claim, and
+            the wording is the existing savingsPercentText - never a
+            recomputed figure. Not colour alone (WCAG 1.4.1): it says
+            "below market" in words; the flame is aria-hidden decoration
+            and only appears on a deterministically exceptional score. */}
+        {savingsSupported && !isAuction && (
+          <p className="flex items-center justify-center gap-1.5 bg-emerald-600 px-3 py-2 text-center text-white">
+            <span aria-hidden="true">{exceptionalFind ? "🔥" : "↓"}</span>
+            <span className="text-[15px] font-black uppercase tracking-wide">{pctText} below market</span>
+          </p>
+        )}
+        {/* integrity-2026-09-19: an auction's figure is the CURRENT BID,
+            not a secured price. It never wears the green savings bar -
+            amber, "bid", and the same "can rise" caveat AuctionPrice
+            states in full below. */}
+        {savingsSupported && isAuction && (
+          <p
+            title="Current bid against the market reference - bids can raise the final price"
+            className="flex items-center justify-center gap-1.5 bg-amber-500 px-3 py-2 text-center text-amber-950"
+          >
+            <span className="text-[15px] font-black uppercase tracking-wide">Bid {pctText} below market</span>
+          </p>
+        )}
         <a
           href={dealHref}
           rel={dealRel}
@@ -282,7 +320,15 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           // is never cropped - a cropped collectible is a misrepresented
           // one. The fixed ratio also reserves the space, so nothing
           // shifts when the image arrives (CLS).
-          className="relative block aspect-[6/5] w-full bg-zinc-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-red-600 dark:bg-zinc-900"
+          // CRO 2026-09-22: square, up from 6:5. object-contain means a
+          // portrait collectible is limited by the BOX HEIGHT, so a taller
+          // box is the only thing that actually makes the artwork bigger.
+          // Square puts the image at ~43% of card height - inside the
+          // 40-50% the brief asks for - without making the card so tall
+          // that the price and CTA leave a phone viewport. The fixed ratio
+          // still reserves the space, so nothing shifts when the image
+          // arrives (CLS).
+          className="relative block aspect-square w-full bg-zinc-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-red-600 dark:bg-zinc-900"
         >
           <DealImage
             {...dealImageProps(deal)}
@@ -296,8 +342,14 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             className="object-contain p-3 sm:p-4"
           />
 
+          {/* CRO 2026-09-22: the overlay sits BELOW the discount bar when
+              there is one, so nothing overlaps it. The deal-quality LABEL
+              left this corner entirely - "Strong Deal" beside "46% below
+              market" was the adjective competing with the number, and the
+              number wins (the score and its label are in Price details).
+              What is left is only what the percentage cannot say: rank,
+              which marketplace, and genuine recency. */}
           <div className="absolute left-1.5 top-1.5 flex flex-col items-start gap-1 sm:left-2 sm:top-2">
-            {qualityScore && !isAuction && <DealQualityLabel result={qualityScore} />}
             {rank != null && (
               <span aria-hidden="true" className="flex h-6 min-w-6 items-center justify-center rounded-md bg-zinc-900/85 px-1.5 text-xs font-bold text-white">
                 {rank}
@@ -326,33 +378,6 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             )}
           </div>
 
-          {/* 2026-09-22 redesign: the corner chip is the deal-quality
-              SCORE, and the saving moved into the body as a full "You
-              save X (Y%)" line, which is what a shopper actually reads.
-              The score is null for any listing without a trusted,
-              evidenced reference, and nothing is substituted when it is -
-              those cards simply carry no corner chip. */}
-          {qualityScore && !isAuction && (
-            <DealQualityScore result={qualityScore} className="absolute right-1.5 top-1.5 sm:right-2 sm:top-2" />
-          )}
-          {/* Fallback for a supported saving we could not score (no
-              evidenced reference): the factual discount badge, as before.
-              Never a fabricated score. */}
-          {!qualityScore && savingsSupported && !isAuction && (
-            <SavingsBadge discountPct={deal.discount_pct} className="absolute right-1.5 top-1.5 sm:right-2 sm:top-2" />
-          )}
-          {/* integrity-2026-09-19: an auction's figure is the CURRENT BID,
-              not a secured price. It never wears the green savings badge -
-              amber, "bid", and the same "can rise" caveat AuctionPrice
-              states in full below. */}
-          {savingsSupported && isAuction && (
-            <span
-              title="Current bid against the market reference - bids can raise the final price"
-              className="absolute right-1.5 top-1.5 rounded-lg border border-amber-600/40 bg-amber-50 px-2 py-1 text-sm font-extrabold leading-none tracking-tight text-amber-800 shadow-sm sm:right-2 sm:top-2 dark:bg-amber-950/60 dark:text-amber-300"
-            >
-              Bid {savingsBadgeText(deal.discount_pct)}
-            </span>
-          )}
         </a>
       </div>
 
@@ -429,19 +454,29 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                 striking it through would state a markdown that never
                 happened. That distinction is the same one the
                 "Seller reduced the item price" line below exists to keep. */}
-            <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <Price
-                usd={usdTotal}
-                native={{ amount: total, currency: nativeCurrency }}
-                className="tnum block break-words text-[1.75rem] font-extrabold leading-tight tracking-tight text-red-600 dark:text-red-500"
-              />
-              {showSavings && showRef && (
-                <span className="text-[13px] text-zinc-500 dark:text-zinc-400">
-                  Typical{" "}
-                  <Price usd={marketUsd} native={{ amount: marketNative, currency: nativeCurrency }} approxPrefix="" className="tnum font-medium" />
-                </span>
-              )}
-            </span>
+            {/* CRO 2026-09-22: the price is NEAR-BLACK, not red, and
+                bigger. The card's colour grammar is green = value, red =
+                action, black = product information - a red price competed
+                with the red BUY button for the same meaning, and the
+                button should own it. The reference moved onto its own
+                line beneath, labelled "Market", because it is a different
+                number about a different thing and reading them on one
+                baseline invited them to be read as one price.
+                Still NOT struck through: a market reference is what
+                comparable copies sell for, not a former price of THIS
+                listing, and striking it through would state a markdown
+                that never happened. */}
+            <Price
+              usd={usdTotal}
+              native={{ amount: total, currency: nativeCurrency }}
+              className="tnum mt-0.5 block break-words text-[2.125rem] font-black leading-none tracking-tight text-zinc-900 dark:text-zinc-50"
+            />
+            {showSavings && showRef && (
+              <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
+                Market{" "}
+                <Price usd={marketUsd} native={{ amount: marketNative, currency: nativeCurrency }} approxPrefix="" className="tnum font-medium" />
+              </p>
+            )}
             {/* SHORT shipping label only. The qualification a buyer must
                 see stays visible at all times - "incl. shipping" or, when
                 the breakdown was never recorded, the explicit warning -
@@ -456,14 +491,23 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                 reliably satisfy that. So the arithmetic ("$45.84 +
                 $22.92") moved into Price details, and the one figure the
                 schema depends on did not. */}
-            <p className={`mt-0.5 text-xs ${shippingConfirmed ? "text-zinc-500 dark:text-zinc-400" : "text-amber-700 dark:text-amber-500"}`}>
+            {/* CRO 2026-09-22: the unconfirmed-shipping line was AMBER,
+                which gave a routine "eBay didn't state a shipping price"
+                the same visual weight as a warning and made every such
+                card feel risky. The QUALIFICATION IS UNCHANGED in words
+                and still always rendered - only its colour is now the
+                same muted grey as the confirmed case, so it reads as the
+                footnote it is. The stronger amber is still used, below,
+                for the case that genuinely withholds a claim (shipping
+                breakdown not recorded at all). */}
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
               {shippingConfirmed ? (
                 <>
                   incl. shipping
                   {" · "}item <Price usd={usdTotal - shippingUsd} native={{ amount: total - shippingNative, currency: nativeCurrency }} approxPrefix="" className="tnum" />
                 </>
               ) : (
-                <>{ship.note} — check on eBay</>
+                <>Shipping: {String(ship.note).toLowerCase()} — check on eBay</>
               )}
             </p>
             {/* The recorded earlier price moved into Price details - it
@@ -481,9 +525,19 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             worth visiting. The shipping qualifier is never dropped - a
             saving computed before shipping says so. */}
         {!showSavings ? (
-          <div className="mt-1.5 flex flex-col gap-1">
+          // §21 - AN UNSUPPORTED LISTING MUST NOT LOOK LIKE A BARGAIN.
+          // No discount bar, no market figure, no saving, no score: the
+          // card above has already rendered only a price, and this says
+          // plainly that there is no comparison behind it, followed by
+          // the reason. Nothing here is styled as value - it is the same
+          // muted grey as the rest of the supporting text, and the CTA
+          // below says "View listing", never "Buy this deal".
+          <div className="mt-2.5 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
+            <p className="text-xs font-black uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              No verified market comparison
+            </p>
             {presentation.notes.map((note) => (
-              <p key={note} className="text-xs leading-snug text-zinc-500 dark:text-zinc-400">
+              <p key={note} className="mt-0.5 text-xs leading-snug text-zinc-500 dark:text-zinc-400">
                 {note}
               </p>
             ))}
@@ -510,29 +564,46 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             // is an overclaim made in CSS. The shipping qualifier is
             // never dropped and never shrunk out of readability - it is
             // what stops a before-shipping saving reading as delivered.
-            <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-sm font-bold text-emerald-700 dark:text-emerald-500">
+            // CRO 2026-09-22: THE SAVING IS A HERO ELEMENT. It is the
+            // answer to the only question that makes a deal site worth
+            // visiting, and it was a 14px line of text. It now sits in
+            // its own green panel with the money as the second-largest
+            // figure on the card, so a shopper never has to calculate
+            // anything or read a sentence to find it.
+            // A PANEL, not a green card: the tint is confined to this
+            // block so green keeps meaning "value" (brand grammar) rather
+            // than becoming the card's background.
+            // The shipping qualifier is never dropped and never shrunk
+            // out of readability - it is what stops a before-shipping
+            // saving reading as a delivered one.
+            <div className="mt-2.5 rounded-lg bg-emerald-50 px-3 py-2 dark:bg-emerald-950/40">
               {showRef ? (
                 <>
-                  <span className="text-xs font-extrabold uppercase tracking-wide">You save</span>
-                  <Price
-                    usd={savedUsd}
-                    native={{ amount: savedNative, currency: nativeCurrency }}
-                    className="tnum text-xl font-black tracking-tight"
-                  />
-                  <span className={loudSaving ? SAVING_PCT_CHIP : "font-bold"}>{pctText} below market</span>
-                  {ship.savingQualifier ? (
-                    <span className="text-xs font-semibold opacity-80">{ship.savingQualifier.trim()}</span>
-                  ) : null}
+                  <p className="text-xs font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-400">
+                    You save
+                  </p>
+                  <p className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <Price
+                      usd={savedUsd}
+                      native={{ amount: savedNative, currency: nativeCurrency }}
+                      className="tnum text-2xl font-black leading-none tracking-tight text-emerald-700 dark:text-emerald-400"
+                    />
+                    <span className="text-[13px] font-bold text-emerald-800 dark:text-emerald-400">
+                      {pctText} below market
+                    </span>
+                  </p>
                 </>
               ) : (
-                <>
-                  <span className={loudSaving ? SAVING_PCT_CHIP : "font-bold"}>{pctText} below market</span>
-                  {ship.savingQualifier ? (
-                    <span className="text-xs font-semibold opacity-80">{ship.savingQualifier.trim()}</span>
-                  ) : null}
-                </>
+                <p className="text-base font-black text-emerald-700 dark:text-emerald-400">
+                  {pctText} below market
+                </p>
               )}
-            </p>
+              {ship.savingQualifier ? (
+                <p className="mt-0.5 text-xs font-semibold text-emerald-800/80 dark:text-emerald-400/80">
+                  {ship.savingQualifier.trim()}
+                </p>
+              ) : null}
+            </div>
             )}
           </div>
         )}
@@ -569,9 +640,23 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             the server HTML rather than hiding it from a crawler.
             Everything a buyer MUST see to read the price correctly stays
             outside it. */}
+        {/* §29: one new event, on OPEN only (`toggle` fires both ways;
+            the handler checks `open`), so it can never be mistaken for or
+            duplicate an affiliate_click. Carries the same non-PII
+            identifiers the impression/click events already use. */}
         {!isAuction && (showRef || shippingConfirmed) && (
-          <details className="group/details mt-2 text-[13px]">
-            <summary className="inline-flex min-h-8 cursor-pointer list-none items-center gap-1 text-zinc-600 underline-offset-2 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-400 dark:hover:text-red-500 [&::-webkit-details-marker]:hidden">
+          <details
+            className="group/details mt-2.5 text-[13px]"
+            data-analytics-toggle="deal_price_details_opened"
+            data-analytics-props={JSON.stringify({
+              surface: pageName,
+              deal_id: deal.id,
+              content_id: String(deal.id),
+              listing_type: listingTypeProp(deal.listing_type),
+              discount_band: savingsSupported ? discountBand(discountPct) : "no_savings_claim",
+            })}
+          >
+            <summary className="inline-flex min-h-8 cursor-pointer list-none items-center gap-1 text-zinc-500 underline-offset-2 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-400 dark:hover:text-red-500 [&::-webkit-details-marker]:hidden">
               <svg aria-hidden viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3 transition-transform group-open/details:rotate-180">
                 <path d="M3 4.5 6 7.5 9 4.5" />
               </svg>
@@ -613,6 +698,29 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                   </dd>
                 </div>
               )}
+              {/* CRO 2026-09-22 - DEAL SCORE, DEMOTED. It kept the
+                  loudest corner of the card while answering a question
+                  nobody asked: "51% below market" is understood
+                  instantly, "88" needs a scale explained first. The
+                  score and its label are unchanged and still computed
+                  from the same evidence-gated rule - they are simply no
+                  longer the dominant element. */}
+              {qualityScore && (
+                <div className="flex justify-between gap-3">
+                  <dt>Deal score</dt>
+                  <dd className="tnum text-right">
+                    {qualityScore.score}/99 · {qualityScore.label}
+                  </dd>
+                </div>
+              )}
+              {/* Provenance, moved off the card face: useful, but not a
+                  reason to buy, so it does not compete with the CTA. */}
+              <div className="flex justify-between gap-3">
+                <dt>First found</dt>
+                <dd className="text-right">
+                  <RelativeTime date={deal.first_seen_at} />
+                </dd>
+              </div>
               <div className="pt-1">
                 <Link href="/methodology" className="font-medium text-zinc-600 underline underline-offset-2 hover:text-red-600 dark:text-zinc-300 dark:hover:text-red-500">
                   How we compare →
@@ -630,7 +738,18 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             visible on the page. A second, vaguer shipping line here said
             the same thing twice and made the unconfirmed case shout
             twice. */}
-        <ul className="mt-2.5 space-y-1 text-[13px] text-zinc-600 dark:text-zinc-400">
+        {/* CRO 2026-09-22 - ONE consolidated metadata row, not four
+            competing lines with their own icons. Listing type and
+            CURRENT freshness ("checked") are what a shopper weighs
+            before clicking; "found N ago" is provenance, not a reason to
+            buy, so it moved into Price details rather than taking a line
+            beside the CTA. The separate "Details" link is gone -
+            the artwork and the title already open that page, so it was a
+            third link to one destination and a tab stop for nothing.
+            "Checked" still renders ONLY on a real confirmed availability
+            check (listingAvailabilityEvidence), so nothing here implies
+            a check that did not happen. */}
+        <ul className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-zinc-500 dark:text-zinc-400">
           <li className="flex items-center gap-1.5">
             <FactIcon kind={isAuction ? "gavel" : "cart"} />
             <span>
@@ -650,6 +769,7 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
           </li>
           {listingAvailabilityEvidence(deal)?.kind === "confirmed" && (
             <li className="flex items-center gap-1.5">
+              <span aria-hidden="true">·</span>
               <FactIcon kind="clock" />
               <span>
                 Checked <RelativeTime date={deal.exact_verified_at} />
@@ -657,36 +777,6 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             </li>
           )}
         </ul>
-
-        {/* Provenance line. Freshness and listing type moved up into the
-            fact rows, so this carries what is left: how many other live
-            listings exist for the card, when it was first found, and the
-            link to the full detail page. */}
-        <div className="mt-2 flex items-center justify-between gap-2 text-[13px] text-zinc-500 dark:text-zinc-400">
-          <p className="min-w-0 truncate">
-            {isAuction ? (
-              <>
-                {deal.bid_count != null ? `${deal.bid_count} bids · ` : ""}
-                found <RelativeTime date={deal.first_seen_at} />
-              </>
-            ) : (
-              <>
-                {hub?.count >= 2 && (
-                  <>
-                    <Link href={`/cards/${hub.slug}`} className="font-semibold text-zinc-600 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500">
-                      {hub.count} {hub.count === 1 ? "listing" : "listings"}
-                    </Link>
-                    {" · "}
-                  </>
-                )}
-                found <RelativeTime date={deal.first_seen_at} />
-              </>
-            )}
-          </p>
-          <a href={dealHref} rel={dealRel} className="shrink-0 font-medium text-zinc-600 underline-offset-2 hover:text-red-600 hover:underline dark:text-zinc-300 dark:hover:text-red-500">
-            Details
-          </a>
-        </div>
       </div>
 
       {/* PRIMARY ACTION - the existing wrapper, tracking and surface
@@ -715,9 +805,30 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                   discount_band: savingsSupported ? discountBand(discountPct) : "no_savings_claim",
                 }
           }
-          className={CTA_PRIMARY_CLASS}
+          className={CTA_CARD_CLASS}
         >
-          {isAuction ? "View auction on eBay" : showSavings ? "View deal on eBay" : "View listing on eBay"}
+          {/* CRO 2026-09-22 - TRANSACTIONAL COPY, BY LISTING TYPE.
+              "View deal on eBay" is passive for a listing you can buy
+              right now. But the stronger wording is only honest where
+              the visitor CAN buy immediately and we are claiming a deal:
+                BIN + trusted saving  -> "Buy this deal"
+                BIN, no saving claim  -> "View listing" (never "deal",
+                                         and never "buy this deal", which
+                                         would imply a bargain we have
+                                         not evidenced)
+                auction               -> "View auction" (§18: you cannot
+                                         buy it, and the bid can rise)
+              The marketplace is the second line, so the button says what
+              happens AND where, and the destination is never a surprise.
+              href, tracking, rel and surface attribution are the
+              existing wrapper's - untouched. */}
+          <span className="text-[15px] font-bold leading-none">
+            {isAuction ? "View auction" : savingsSupported ? "Buy this deal" : "View listing"}
+            <span aria-hidden="true"> →</span>
+          </span>
+          <span className="text-xs font-medium leading-none opacity-80">
+            on eBay{marketInfo ? ` ${marketInfo.short}` : ""}
+          </span>
         </AffiliateLink>
 
         {/* SECONDARY ACTIONS - Watch and Compare, beneath the primary.
@@ -755,7 +866,11 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
               <svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className="h-4 w-4">
                 <path d="M2 5h6M2 11h12M11 2 8 5l3 3M5 8l-3 3 3 3" />
               </svg>
-              Compare ({hub.count})
+              {/* §20: names what is being compared. "Compare (4)" made
+                  the reader supply the noun, and the count is of
+                  LISTINGS - never sellers, which the card cannot count
+                  (claims-consistency). */}
+              Compare {hub.count} {hub.count === 1 ? "listing" : "listings"}
             </Link>
           )}
         </div>

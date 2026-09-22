@@ -73,7 +73,10 @@ test("R1-3. DealCard: the CTA names the destination and the state; no purchase c
   // Consistency phase 1: a plain (no trusted comparison) listing gets the
   // neutral "View listing on eBay" wording - "deal" is reserved for a
   // trusted savings claim, auctions keep their own wording either way.
-  assert.match(src, /\{isAuction \? "View auction on eBay" : showSavings \? "View deal on eBay" : "View listing on eBay"\}/);
+  // CRO 2026-09-22 (§17): transactional copy where the visitor can
+  // transact. The three-way split is unchanged - an auction never says
+  // "buy", and a listing with no supported saving never says "deal".
+  assert.match(src, /\{isAuction \? "View auction" : savingsSupported \? "Buy this deal" : "View listing"\}/);
   assert.doesNotMatch(src, /Buy now|Buy it now →|Bid now|Purchase/i);
   assert.doesNotMatch(src, /line-through/);
   // the existing wrapper + surface attribution are untouched
@@ -83,7 +86,12 @@ test("R1-3. DealCard: the CTA names the destination and the state; no purchase c
   // 2026-09-19: the primary control is the shared CTA_PRIMARY_CLASS (brand
   // red, 48px, 8px radius, hover/pressed/focus) so every surface agrees.
   assert.match(src, /export const CTA_PRIMARY_CLASS =\s*"flex min-h-12 w-full[^"]*rounded-lg bg-red-600[^"]*active:bg-red-800[^"]*focus-visible:outline-2/);
-  assert.match(src, /<AffiliateLink[\s\S]*className=\{CTA_PRIMARY_CLASS\}/);
+  // CRO 2026-09-22: the grid card uses CTA_CARD_CLASS - the same red /
+  // radius / hover / pressed / focus contract, laid out as two lines and
+  // 56px tall. CTA_PRIMARY_CLASS is unchanged and still shared by
+  // SealedDealCard and StickyDealCta, which is why it is asserted above.
+  assert.match(src, /const CTA_CARD_CLASS =\s*"flex min-h-14 w-full[^"]*rounded-lg bg-red-600[^"]*active:bg-red-800[^"]*focus-visible:outline-2/);
+  assert.match(src, /<AffiliateLink[\s\S]*className=\{CTA_CARD_CLASS\}/);
 });
 
 test("R1-4. DealCard: one dominant price with a clear meaning; shipping=0 is 'not confirmed', never free, and the saving is stated before shipping", () => {
@@ -95,7 +103,11 @@ test("R1-4. DealCard: one dominant price with a clear meaning; shipping=0 is 'no
   assert.match(src, /\{ship\.headline\}/);
   // the unconfirmed / unknown note is rendered from the contract's own
   // wording plus a "check on eBay" pointer (2026-09-19) - never "free"
-  assert.match(src, /shippingConfirmed \? \([\s\S]*?incl\. shipping[\s\S]*?\) : \(\s*<>\{ship\.note\} — check on eBay<\/>/);
+  // CRO 2026-09-22 (§14): the unconfirmed line is no longer amber -
+  // a routine "eBay did not state a shipping price" was carrying the
+  // weight of a warning. The WORDS are unchanged and still always
+  // rendered, now prefixed "Shipping:" so the line names its subject.
+  assert.match(src, /shippingConfirmed \? \([\s\S]*?incl\. shipping[\s\S]*?\) : \(\s*<>Shipping: \{String\(ship\.note\)\.toLowerCase\(\)\} — check on eBay<\/>/);
   assert.doesNotMatch(src, /Free shipping|free delivery|delivered total|no shipping charge listed/i, "a 0 shipping figure is never called free on the card");
   // the derived saving never reads as a verified delivered saving
   // graded-inventory-r1: the percentage comes from savingsPercentText ("N%" / "less than 1%")
@@ -104,12 +116,12 @@ test("R1-4. DealCard: one dominant price with a clear meaning; shipping=0 is 'no
   // in the top two tiers), then the shipping qualifier. The QUALIFIER is
   // the thing this pins - a saving computed before shipping must SAY so -
   // and it survives the restyle in both branches of the line.
-  assert.match(src, />You save<\/span>/, "the savings line still names what the figure is");
+  assert.match(src, /You save\s*<\/p>/, "the savings panel still names what the figure is");
   assert.match(src, /<Price\s+usd=\{savedUsd\}/, "and still shows the saved amount");
   assert.equal(
     (src.match(/\{ship\.savingQualifier\.trim\(\)\}/g) ?? []).length,
-    2,
-    "both branches of the savings line state the qualifier"
+    1,
+    "the savings panel states the qualifier once, below both of its branches"
   );
   assert.match(src, /data-shipping=\{ship\.state\}/);
   assert.equal(offerShipping({ shipping: 0 }).headline, "Listing price");
@@ -137,7 +149,7 @@ test("R1-4b. DealCard shape: one vertical card at every width, artwork in a rese
   // collectible is a misrepresented one), and a CTA spanning the card.
   assert.match(src, /flex h-full flex-col overflow-hidden rounded-xl/, "one vertical card at every width");
   assert.doesNotMatch(src, /grid-cols-\[7\.25rem_1fr\]/, "the phone thumbnail layout is gone");
-  assert.match(src, /aspect-\[6\/5\] w-full/, "reserved artwork box - fixed ratio, so no CLS");
+  assert.match(src, /aspect-square w-full/, "reserved artwork box - fixed ratio, so no CLS");
   assert.match(src, /className="object-contain p-3 sm:p-4"/, "artwork never cropped");
   assert.match(src, /w-full items-center justify-center rounded-lg bg-red-600/, "CTA spans the card");
 });
@@ -164,7 +176,9 @@ test("R1-5. DealCard: the comparison carries its condition context and only rend
   // saving we could not score. The gate this pins - the badge appears
   // only on a supported claim, and never on an auction, where a bid is
   // not a saving - is unchanged.
-  assert.match(src, /!qualityScore && savingsSupported && !isAuction && \(\s*<SavingsBadge discountPct=\{deal\.discount_pct\}/);
+  // CRO 2026-09-22: the dominant badge is the discount BAR; the gate
+  // (supported claim, BIN only) is unchanged.
+  assert.match(src, /\{savingsSupported && !isAuction && \(\s*<p className="flex[^"]*bg-emerald-600/);
   assert.match(src, /data-offer-state=\{isAuction \? "auction" : showSavings \? "bin_compared" : "bin_plain"\}/);
 });
 

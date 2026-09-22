@@ -79,35 +79,43 @@ test("5. deal-card meta lines are 13px", () => {
   assert.match(src, /gap-x-1 text-\[13px\] text-zinc-500 dark:text-zinc-400">\s*\{cardSet &&/);
   // moved into the Price details disclosure - see deal-first-r1 R1-5
   assert.match(src, /<dt>Market reference<\/dt>/);
-  // 2026-09-22 rev 2: the savings line is the headline of the redesigned
-  // card. The saved AMOUNT is now the largest thing on it and the
-  // percentage becomes a solid chip in the top two tiers, so the line is
-  // a flex row rather than a sentence. It is still the ONE green line
-  // and still only rendered on a trusted claim.
-  assert.match(src, /<p className="mt-1 flex flex-wrap items-baseline gap-x-1\.5 gap-y-0\.5 text-sm font-bold text-emerald-700/);
-  // The shipping qualifier survives the restyle in BOTH branches - it is
-  // what stops a before-shipping saving reading as delivered.
+  // CRO 2026-09-22 rev 3: the saving is a HERO element in its own green
+  // panel, not a line of text - the money is the card's second-largest
+  // figure. Still the only green treatment on the card, still rendered
+  // only on a trusted, shipping-supported claim.
+  assert.match(src, /<div className="mt-2\.5 rounded-lg bg-emerald-50 px-3 py-2 dark:bg-emerald-950\/40">/);
+  // The shipping qualifier survives the restyle - it is what stops a
+  // before-shipping saving reading as a delivered one. One render now
+  // (the panel states it once, below both branches) rather than two.
+  assert.match(src, /\{ship\.savingQualifier\.trim\(\)\}/);
   assert.equal(
     (src.match(/\{ship\.savingQualifier \? \(/g) ?? []).length,
-    2,
-    "both savings branches still print the shipping qualifier"
+    1,
+    "the savings panel states the shipping qualifier"
   );
-  assert.match(src, /mt-2 flex items-center justify-between gap-2 text-\[13px\]/);
+  // CRO 2026-09-22 (§16): the four separate meta lines and the
+  // "N listings · found X ago · Details" provenance row collapsed into
+  // ONE 13px row carrying listing type and current freshness. "Found"
+  // moved into Price details and the redundant "Details" link is gone -
+  // the artwork and the title already open that page.
+  assert.match(src, /<ul className="mt-2\.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-\[13px\]/);
+  assert.doesNotMatch(src, />\s*Details\s*<\/a>/, "the redundant third link to the detail page is gone");
 });
 
 test("5b. phone deal card: mono on figures only, marketplace words hidden behind the mark below sm, save control anchored to the art", () => {
   const src = read("components/DealCard.js");
   // no sentence paragraph carries the mono face; every inline <Price> in a sentence does
   assert.doesNotMatch(src, /<p className=\{?[`"]tnum (mt-0\.5 )?text-(xs|\[13px\])/, "a whole sentence in the mono face");
-  // rev 2: "You save" is its own small uppercase label and the figure
-  // beside it is the card's second-largest number, so the two are no
-  // longer one inline sentence. Still mono, still on the figure only.
-  assert.match(src, /<span className="text-xs font-extrabold uppercase tracking-wide">You save<\/span>/);
-  assert.match(src, /className="tnum text-xl font-black tracking-tight"/);
-  // 2026-09-22: the reference FIGURE sits beside the price as "Typical
-  // <x>" and the line below names what it is for. Both are still mono
-  // on the figure only, which is what this pins.
-  assert.match(src, /Typical\{" "\}\s*<Price [^/]*className="tnum font-medium/);
+  // rev 3: "You save" is the panel's own uppercase label and the figure
+  // below it is the card's second-largest number. Still mono, still on
+  // the figure only - the label itself carries no mono face.
+  assert.match(src, /You save\s*<\/p>/);
+  assert.match(src, /className="tnum text-2xl font-black leading-none tracking-tight text-emerald-700/);
+  // CRO 2026-09-22: the reference sits on its OWN line under the price,
+  // labelled "Market" - on one baseline beside the price the two invited
+  // being read as a single figure. Still mono on the figure only, which
+  // is what this pins.
+  assert.match(src, /Market\{" "\}\s*<Price [^/]*className="tnum font-medium/);
   assert.match(src, /<span className="sr-only sm:not-sr-only">eBay \{marketInfo\.short\}<\/span>/);
   // 2026-09-22: the save control is no longer anchored to the artwork.
   // It sits in the action row at the foot of the card beside Compare,
@@ -116,7 +124,7 @@ test("5b. phone deal card: mono on figures only, marketplace words hidden behind
   assert.match(src, /<SaveCardButton\s+card=\{\{/, "the card still carries exactly one save control");
   assert.equal((src.match(/<SaveCardButton/g) ?? []).length, 1, "and only one");
   // the headline figure keeps the mono face
-  assert.match(src, /className="tnum block break-words text-\[1\.75rem\] font-extrabold/);
+  assert.match(src, /className="tnum mt-0\.5 block break-words text-\[2\.125rem\] font-black/);
 });
 
 test("6. /deals filter bar: sort row outside, other rows behind the Filters button; every row still rendered", () => {
@@ -143,11 +151,13 @@ test("8. savings badge: one tiered component for cards and sealed product; loud 
     /if \(pct >= 60\) return "blowout";\s*if \(pct >= 40\) return "hot";\s*if \(pct >= 20\) return "strong";\s*return "modest";/
   );
   assert.match(badge, /export \{ savingsTier \};/, "the badge re-exports it rather than owning it");
-  assert.match(
-    read("components/DealCard.js"),
-    /isLoudSaving/,
-    "and the card grades its chip with the same ladder, not a private copy"
-  );
+  // CRO 2026-09-22: DealCard no longer renders SavingsBadge at all - its
+  // dominant badge is the discount BAR, and the tiered chip stayed with
+  // SealedDealCard, which has no deal score to take that corner. So the
+  // card no longer consumes the ladder, and the consumer to pin is the
+  // sealed card.
+  assert.match(read("components/SealedDealCard.js"), /<SavingsBadge discountPct=\{deal\.discount_pct\}/);
+  assert.doesNotMatch(read("components/DealCard.js"), /<SavingsBadge/);
   assert.match(badge, /blowout:\s*"animate-savings-halo bg-gradient-to-br from-emerald-600 to-emerald-900[^"]*text-white/, "blowout tier: the loudest, and the only animated one");
   assert.match(badge, /hot: "bg-emerald-600 [^"]*text-base font-black[^"]*shadow-\[/, "hot tier: solid green, larger, a halo");
   assert.match(badge, /strong: "bg-emerald-600 [^"]*text-sm font-extrabold/, "strong tier: solid green");
@@ -171,7 +181,10 @@ test("8. savings badge: one tiered component for cards and sealed product; loud 
   assert.match(badge, /\{savingsBadgeText\(discountPct\)\}/, "the real number, nothing else");
   assert.doesNotMatch(badge, /only \d|left!|selling fast|hurry|limited time/i, "no invented urgency");
   const card = read("components/DealCard.js");
-  assert.match(card, /savingsSupported && !isAuction && \(\s*<SavingsBadge discountPct=\{deal\.discount_pct\}/);
+  // CRO 2026-09-22: on a deal CARD the dominant badge is the discount
+  // BAR, not the tiered chip. The GATE is what this pins and it is
+  // unchanged - a supported (trusted + shipping-backed) claim, BIN only.
+  assert.match(card, /savingsSupported && !isAuction && \(\s*<p className="flex items-center justify-center gap-1\.5 bg-emerald-600/);
   assert.match(card, /savingsSupported && isAuction && \(/, "auction badge remains its own amber branch");
   assert.doesNotMatch(card, /function discountBadgeClass/);
   assert.match(read("components/SealedDealCard.js"), /showSavings && <SavingsBadge discountPct=\{deal\.discount_pct\}/);

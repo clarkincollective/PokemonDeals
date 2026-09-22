@@ -255,7 +255,15 @@ test("GI-10. savings wording needs a valid trusted comparison and a finite posit
       if (positive) assert.match(html, name === "whole" ? /20% below market/i : /less than 1% below market/i, `${name} ${where}`);
       else assert.doesNotMatch(html, /below market|% below/i, `${name} ${where}: no savings wording`);
     }
-    if (name === "underOnePercent") assert.match(tile, />&lt;1%</);
+    // CRO 2026-09-22: the card's compact "<1%" badge chip was replaced by
+    // the full-width discount bar, which spells the same fact out
+    // ("less than 1% below market", asserted above for both surfaces).
+    // What this line still guards is that the sub-1% case is rendered as
+    // a WORDED qualification and never rounded up or shown as 0%.
+    if (name === "underOnePercent") {
+      assert.match(tile, /less than 1% below market/i);
+      assert.doesNotMatch(tile, />1% below market/, "a sub-1% saving is never rounded up to 1%");
+    }
     assert.doesNotMatch(`${meta.title} ${meta.description}`, /(?<![\d.])0% below|−0%/i, `${name} metadata`);
     if (!positive) assert.doesNotMatch(meta.title, /below market/i);
   }

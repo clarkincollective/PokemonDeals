@@ -63,7 +63,7 @@ test("UX-CVR-2-1. the homepage has one dominant primary action per offer, and no
   assert.match(HOME, /<span>Try<\/span>/);
   assert.match(HOME, /className="hidden sm:contents">/);
   assert.doesNotMatch(HOME, /hero_example_clicked[\s\S]{0,120}(bg-zinc-900|bg-red-600|rounded-lg bg-)/);
-  assert.match(DEALCARD, /View deal on eBay/);
+  assert.match(DEALCARD, /Buy this deal/);
 });
 
 // ---- deal CTA contract (§7) ---------------------------------
@@ -75,11 +75,17 @@ test("UX-CVR-2-2. every deal CTA names eBay; BIN = 'View (deal) on eBay', auctio
   // implies a settled purchase. Consistency phase 1: DealCard's non-auction
   // branch is now a further showSavings ? "deal" : "listing" split - a
   // plain (untrusted-comparison) offer must never say "deal".
+  // CRO 2026-09-22 (§17): transactional copy where the visitor can
+  // actually transact. The three-way split and its guarantees are
+  // unchanged - an auction never says "buy" (you cannot buy it), and a
+  // listing with no trusted saving never says "deal". The marketplace
+  // moved to the button's second line, so every CTA still names eBay.
   assert.match(
     DEALCARD,
-    /isAuction \? "View auction on eBay" : showSavings \? "View deal on eBay" : "View listing on eBay"/,
+    /isAuction \? "View auction" : savingsSupported \? "Buy this deal" : "View listing"/,
     "DealCard CTA is not the unified contract (auction / trusted deal / plain listing)"
   );
+  assert.match(DEALCARD, /on eBay\{marketInfo \? ` \$\{marketInfo\.short\}` : ""\}/, "the DealCard CTA still names eBay");
   for (const [name, src] of [["SpeciesCard", SPECIESCARD], ["CatalogueBrowser", CATALOGUE]]) {
     assert.match(src, /isAuction \? "(Bid on eBay|View auction on eBay)(?: →)?" : "View (deal )?on eBay(?: →)?"/, `${name} CTA is not the unified contract`);
     // the deferred P2 lexical variants are gone from the VISIBLE label

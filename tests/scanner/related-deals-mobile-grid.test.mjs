@@ -68,7 +68,10 @@ test("DealCard and AuctionPrice headline prices can wrap instead of being clippe
   const dealCard = src("components/DealCard.js");
   assert.match(
     dealCard,
-    /className="tnum block break-words text-\[1\.75rem\] font-extrabold leading-tight tracking-tight text-red-600/,
+    // CRO 2026-09-22: the headline price is bigger and near-black (red is
+    // now reserved for the BUY action). break-words is the thing this
+    // test exists for, and it is still there.
+    /className="tnum mt-0\.5 block break-words text-\[2\.125rem\] font-black leading-none tracking-tight text-zinc-900/,
     "DealCard's BIN headline price must allow wrapping - a 4+ digit converted price at 320px overflowed the ~80px text column with no ellipsis"
   );
   const auctionPrice = src("components/AuctionPrice.js");

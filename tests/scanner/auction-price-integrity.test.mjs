@@ -144,7 +144,7 @@ test("2c. fixed-price (BIN) rendering: the landed total is the ONE dominant pric
   // 2026-09-22: the savings line is a flex row, so the "You save" label
   // and the amount are separate elements. Both are still present and the
   // saving is still stated - which is what this pins.
-  assert.match(src, />You save<\/span>/);
+  assert.match(src, /You save\s*<\/p>/);
   assert.match(src, /<Price\s+usd=\{savedUsd\}/);
   assert.doesNotMatch(binBranch, /line-through/, "no struck-through 'was' anchor on a fixed-price listing");
 });

@@ -126,7 +126,7 @@ export default async function AllDealsPage() {
         </div>
       </header>
 
-      <main id="main-content" tabIndex={-1} className="scroll-mt-6 mx-auto w-full max-w-7xl flex-1 px-6 py-6 sm:py-8">
+      <main id="main-content" tabIndex={-1} className="scroll-mt-6 mx-auto w-full max-w-[92rem] flex-1 px-6 py-6 sm:py-8">
         <DealGrid
           kind="all"
           basePath="/deals"

@@ -165,9 +165,20 @@ test("the auction ranker never calls the current gap a 'saving' and never predic
 
 test("no user-facing auction score; DealCard auction copy stays truthful", () => {
   for (const f of ["components/DealCard.js", "app/page.js"]) {
-    assert.ok(!/Auction Score|Deal Score|Opportunity Score|Hotness|auctionQualityScore/i.test(read(f)), `${f} exposes an auction score`);
+    assert.ok(!/Auction Score|Opportunity Score|Hotness|auctionQualityScore/i.test(read(f)), `${f} exposes an auction score`);
   }
   const dc = read("components/DealCard.js");
+  // CRO 2026-09-22: "Deal score" left the blanket string ban because the
+  // card now carries the label in ONE place - a row inside Price
+  // details. What this test protects is that an AUCTION never shows a
+  // score, and that is now structural rather than lexical: the whole
+  // disclosure is gated on !isAuction, so the row is unreachable for an
+  // auction whatever it is called. Both facts are asserted directly.
+  assert.match(dc, /\{!isAuction && \(showRef \|\| shippingConfirmed\) && \(/, "Price details is BIN-only");
+  const detailsIdx = dc.indexOf("{!isAuction && (showRef || shippingConfirmed) && (");
+  const scoreIdx = dc.indexOf("<dt>Deal score</dt>");
+  assert.ok(scoreIdx > detailsIdx, "the only Deal score label sits inside that BIN-only disclosure");
+  assert.equal((dc.match(/<dt>Deal score<\/dt>/g) ?? []).length, 1, "and it is rendered in exactly one place");
   assert.match(dc, /<AuctionPrice/, "DealCard renders auctions through AuctionPrice");
   assert.ok(!/auctionLaneRanking/.test(dc), "DealCard must not import the auction ranker");
   // P0 auction-price-integrity: the truthful auction copy now lives in the

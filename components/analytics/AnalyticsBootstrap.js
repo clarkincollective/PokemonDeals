@@ -166,8 +166,32 @@ export default function AnalyticsBootstrap() {
       }
     }
 
+    // CRO 2026-09-22 - disclosure opens, for [data-analytics-toggle] on a
+    // <details>. Separate from the click path on purpose: `toggle` fires
+    // on close as well, so this reports only the OPEN transition, and it
+    // can never produce or duplicate an affiliate_click (that event has
+    // one emitter, components/AffiliateLink). `toggle` does not bubble,
+    // so it is captured at the document.
+    function onToggle(e) {
+      const el = e.target;
+      if (!el || el.tagName !== "DETAILS" || !el.open) return;
+      const name = el.getAttribute("data-analytics-toggle");
+      if (!name) return;
+      let props = {};
+      try {
+        props = JSON.parse(el.getAttribute("data-analytics-props") || "{}");
+      } catch {
+        props = {};
+      }
+      capture(name, props);
+    }
+
     document.addEventListener("click", onClick, { capture: true });
-    return () => document.removeEventListener("click", onClick, { capture: true });
+    document.addEventListener("toggle", onToggle, { capture: true });
+    return () => {
+      document.removeEventListener("click", onClick, { capture: true });
+      document.removeEventListener("toggle", onToggle, { capture: true });
+    };
   }, []);
 
   return null;
