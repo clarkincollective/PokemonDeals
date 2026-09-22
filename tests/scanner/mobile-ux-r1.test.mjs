@@ -167,7 +167,15 @@ test("MUX-10. the condition-guide thumbnail reuses a verified grading-guide card
   assert.match(home, /imageAlt: "Umbreon VMAX #215\/203 \(Evolving Skies\) - a card used in the grading guides"/);
   assert.doesNotMatch(home, /image: null/);
   assert.equal(GUIDE_CARDS.umbreonVmaxAltArt.tcgplayerId, "246723");
-  // the grading-scale guide in the same "Check condition and grade" group uses this card
+  // the grading-scale guide in the same condition-and-grade group uses this card
   assert.match(src("app/guides/pokemon-card-grading-scale/page.js"), /GUIDE_CARDS\.umbreonVmaxAltArt\.href/);
-  assert.match(src("app/guides/page.js"), /"card-condition-grading", "how-to-check-pokemon-card-condition", "pokemon-card-grading-scale"/);
+  // 2026-09-22: that group was renamed "Prices, condition & grading" and
+  // its slugs are now one per line. What this pins is the GROUPING - the
+  // three condition/grading guides still sit together in one group -
+  // not the old label or the old single-line formatting.
+  const guides = src("app/guides/page.js");
+  const group = guides.slice(guides.indexOf('title: "Prices, condition & grading"'), guides.indexOf('title: "Buying safely"'));
+  for (const slug of ["card-condition-grading", "how-to-check-pokemon-card-condition", "pokemon-card-grading-scale"]) {
+    assert.match(group, new RegExp(`"${slug}"`), `${slug} stays in the condition & grading group`);
+  }
 });

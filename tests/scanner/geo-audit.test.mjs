@@ -231,7 +231,19 @@ test("guides: the buyer-intent cluster is registered, grouped, dated, and price-
     assert.doesNotMatch(src, /\$\s?\d/);
     assert.doesNotMatch(src, /verified authentic(?!&rdquo;)/);
   }
-  assert.match(read("app/guides/page.js"), /title: "Buy with confidence"/);
+  // 2026-09-22 content organisation: "Buy with confidence" became
+  // "Buying safely", and the booster-box guide moved to the new "Sealed
+  // products" group - it is a sealed-product explainer, and that group
+  // would otherwise hold only two items. What this test protects is that
+  // every member of the cluster is still REGISTERED AND GROUPED on the
+  // index (none was dropped), which is asserted directly.
+  const guidesIndex = read("app/guides/page.js");
+  const groupBlock = guidesIndex.slice(guidesIndex.indexOf("const GUIDE_GROUPS = ["), guidesIndex.indexOf("const EDITORIAL_PICKS"));
+  for (const slug of ["buying-pokemon-cards-on-ebay-safely", "how-to-read-a-pokemon-card-listing", "vintage-pokemon-cards-worth-buying", "pokemon-booster-box-prices"]) {
+    assert.match(groupBlock, new RegExp(`"${slug}"`), `${slug} is still grouped on the guides index`);
+  }
+  assert.match(groupBlock, /title: "Buying safely"/);
+  assert.match(groupBlock, /title: "Sealed products"/);
   assert.match(read("app/guides/raw-vs-graded-pokemon-cards/page.js"), /Raw or graded for the same budget: a decision table/);
   // set pages carry the capsule
   assert.match(read("app/sets/[slug]/page.js"), /data-answer-capsule/);

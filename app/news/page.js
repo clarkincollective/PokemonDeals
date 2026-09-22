@@ -208,56 +208,43 @@ export default function NewsIndexPage() {
           </ul>
         </section>
 
-        <section aria-labelledby="c30-heading" className="mt-12">
+        {/* 2026-09-22: THESE ARE GUIDES, NOT NEWS. They render at
+            /guides/* and are evergreen; only their subject overlaps with
+            a news story. Presented as large bordered cards with artwork
+            they were visually indistinguishable from the dated stories
+            above, so the section read as ten extra news items.
+            It is now a compact, clearly labelled cross-link list: no
+            artwork, no dates (they have none to show), an explicit
+            "Guide" tag on each, and a route to the full Guides index.
+            No URL, body or date changed - presentation only. */}
+        <section aria-labelledby="c30-heading" className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
           <h2 id="c30-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-600 dark:text-zinc-400">
-            30th Celebration coverage
+            Explore 30th Celebration guides
           </h2>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            The anniversary expansion in depth. The guide is the overview; each companion answers one question.
+            Evergreen background on the anniversary expansion - not news. The collector&apos;s guide is
+            the overview; each companion answers one question.
           </p>
-          <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+          <ul className="mt-4 grid gap-x-6 gap-y-1 sm:grid-cols-2">
             {C30_COVERAGE.map((c) => (
               <li key={c.href}>
                 <Link
                   href={c.href}
-                  className="flex h-full gap-4 rounded-xl border border-zinc-200 bg-white p-5 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600"
+                  className="flex min-h-11 items-center gap-2 rounded-md py-1.5 text-sm text-zinc-700 underline-offset-2 hover:text-red-600 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-300 dark:hover:text-red-500"
                 >
-                  <Image
-                    src={catalogImageUrl(c.image)}
-                    alt=""
-                    aria-hidden="true"
-                    width={56}
-                    height={78}
-                    sizes="56px"
-                    className="h-auto w-14 shrink-0 self-start rounded-md shadow-sm"
-                  />
-                  <span className="block">
-                    <span className="block font-semibold text-black dark:text-zinc-50">{c.title}</span>
-                    <span className="mt-2 block text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{c.description}</span>
+                  <span className="shrink-0 rounded border border-zinc-300 px-1.5 py-px text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                    Guide
                   </span>
+                  <span className="min-w-0">{c.title}</span>
                 </Link>
               </li>
             ))}
           </ul>
-        </section>
-
-        <section aria-labelledby="elsewhere-heading" className="mt-12">
-          <h2 id="elsewhere-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-600 dark:text-zinc-400">
-            Elsewhere on the site
-          </h2>
-          <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-            {ELSEWHERE.map((e) => (
-              <li key={e.href}>
-                <Link
-                  href={e.href}
-                  className="block h-full rounded-xl border border-zinc-200 bg-white p-5 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600"
-                >
-                  <span className="block font-semibold text-black dark:text-zinc-50">{e.title}</span>
-                  <span className="mt-2 block text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{e.description}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <p className="mt-5 text-sm">
+            <Link href="/guides" className="font-semibold text-red-600 hover:underline dark:text-red-500">
+              All buying &amp; collecting guides →
+            </Link>
+          </p>
         </section>
       </main>
 

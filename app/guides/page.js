@@ -13,7 +13,7 @@ const SITE_URL = "https://pokemondealfinder.com";
 // instead of the bare section label. The page now also carries the
 // market-data research, so the title names that too - the old title
 // described only half of what is on the page.
-const TITLE = "Pokemon Card Guides & Research";
+const TITLE = "Pokemon Card Buying & Collecting Guides";
 const DESCRIPTION =
   "Factual guides to buying Pokemon cards: how prices are set, condition and grading, raw vs graded, vintage vs modern, buying safely on eBay.";
 
@@ -29,51 +29,83 @@ export const metadata = {
 // this section is a signpost to them, not a second home. Nothing here is
 // newly published - the study is a fixed, dated snapshot, and its sample
 // window is stated so the listing can't read as fresh.
-const RESEARCH = [
-  {
-    href: "/market-data/pokemon-reference-price-changes",
-    title: "30-Day Reference-Price Changes",
-    description:
-      "A dated study of 150 sampled product records: how many moved, and why a product summary differs from its individual condition and printing variants.",
-    meta: "Sample window 12 August - 11 September 2026",
-  },
-  {
-    href: "/market-data",
-    title: "Market Data",
-    description:
-      "The live market pages: most valuable cards, the most-listed cards we are tracking, and how card values are distributed across the catalogue.",
-    meta: "Updated from the current catalogue",
-  },
-];
-
 const GUIDE_GROUPS = [
+  // 2026-09-22 content organisation. The old "New releases" bucket held
+  // 13 of the 28 guides and mixed four different jobs - release-date
+  // references, product comparisons, checklists, sealed-product
+  // explainers - under a label that described WHEN they were written
+  // rather than what they help a reader do. It also aged badly: a
+  // "new release" grouping is wrong the moment the set is old.
+  //
+  // These five groups describe the READER'S TASK, so a guide's home does
+  // not change as its subject ages. Every one of the 28 guides sits in
+  // exactly one group (asserted in tests/scanner/content-organisation).
+  //
+  // What did NOT move: no URL, no canonical, no article body, no
+  // published date. This is index grouping only.
   {
-    title: "New releases",
+    title: "Identify your card",
+    blurb: "Work out exactly which card and printing you are holding, before you price it.",
     slugs: [
+      "how-to-find-pokemon-card-set-and-number",
+      "base-set-shadowless-unlimited-first-edition",
+      "pokemon-promo-card-numbers",
+      "vintage-vs-modern-pokemon-cards",
+    ],
+  },
+  {
+    title: "Prices, condition & grading",
+    blurb: "What a card is worth, what condition means, and what a grade number actually says.",
+    slugs: [
+      "how-much-is-my-pokemon-card-worth",
+      "how-pokemon-card-prices-work",
+      "raw-vs-graded-pokemon-cards",
+      "card-condition-grading",
+      "how-to-check-pokemon-card-condition",
+      "pokemon-card-grading-scale",
+    ],
+  },
+  {
+    title: "Buying safely",
+    blurb: "Reading a listing, spotting a fake, and knowing what a below-market price does and does not tell you.",
+    slugs: [
+      "buying-pokemon-cards-on-ebay-safely",
+      "how-to-read-a-pokemon-card-listing",
+      "spotting-fake-pokemon-cards-in-listings",
+      "vintage-pokemon-cards-worth-buying",
+    ],
+  },
+  {
+    title: "Sealed products",
+    blurb: "Boxes and sealed sets: how they are priced, and what to check before paying.",
+    slugs: [
+      "pokemon-booster-box-prices",
+      "pokemon-30th-celebration-elite-trainer-box",
+      "pokemon-30th-celebration-classic-collection",
+    ],
+  },
+  {
+    title: "Set & collecting guides",
+    blurb: "Individual sets in depth - what is in them, what is confirmed, and how to collect them.",
+    slugs: [
+      "pokemon-30th-celebration-guide",
+      "pokemon-30th-celebration-release-dates",
+      "pokemon-30th-celebration-pikachu-checklist",
+      "pokemon-30th-celebration-promo-cards",
+      "pokemon-30th-celebration-mew-mewtwo",
+      "organise-pokemon-30th-celebration-collection",
+      "best-pokemon-30th-celebration-cards",
+      "best-pokemon-30th-celebration-pikachu-cards",
       "pokemon-delta-reign-release-date-what-is-official",
       "storm-emeralda-vs-delta-reign-japanese-or-english",
       "delta-reign-preorders-and-prerelease-what-to-know",
-      "pokemon-30th-celebration-guide",
-      "pokemon-30th-celebration-pikachu-checklist",
-      "best-pokemon-30th-celebration-pikachu-cards",
-      "pokemon-30th-celebration-classic-collection",
-      "pokemon-30th-celebration-elite-trainer-box",
-      "pokemon-30th-celebration-promo-cards",
-      "pokemon-30th-celebration-release-dates",
-      "pokemon-30th-celebration-mew-mewtwo",
-      "best-pokemon-30th-celebration-cards",
-      "organise-pokemon-30th-celebration-collection",
     ],
   },
-  { title: "Identify your card", slugs: ["how-to-find-pokemon-card-set-and-number", "base-set-shadowless-unlimited-first-edition", "pokemon-promo-card-numbers", "vintage-vs-modern-pokemon-cards"] },
-  { title: "Understand its price", slugs: ["how-much-is-my-pokemon-card-worth", "how-pokemon-card-prices-work", "raw-vs-graded-pokemon-cards"] },
-  { title: "Check condition and grade", slugs: ["card-condition-grading", "how-to-check-pokemon-card-condition", "pokemon-card-grading-scale"] },
-  // GEO audit 2026-09-19 - the buying step
-  {
-    title: "Buy with confidence",
-    slugs: ["buying-pokemon-cards-on-ebay-safely", "how-to-read-a-pokemon-card-listing", "spotting-fake-pokemon-cards-in-listings", "vintage-pokemon-cards-worth-buying", "pokemon-booster-box-prices"],
-  },
 ];
+
+// Editorial picks are opinion, not reference, and are labelled as such
+// so a "best cards" selection is never read as a ranking we measured.
+const EDITORIAL_PICKS = new Set(["best-pokemon-30th-celebration-cards", "best-pokemon-30th-celebration-pikachu-cards"]);
 
 const breadcrumbJsonLd = {
   "@context": "https://schema.org",
@@ -113,7 +145,7 @@ export default function GuidesIndexPage() {
       <header className="border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-3xl px-6 py-6 sm:py-8">
           <h1 className="text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
-            Guides &amp; Research
+            Buying &amp; Collecting Guides
           </h1>
           <p className="mt-3 text-base text-zinc-600 dark:text-zinc-400">
             Short, evergreen explainers — the background worth having before you buy — and the dated
@@ -143,6 +175,9 @@ export default function GuidesIndexPage() {
             <section key={group.title} className="mt-6">
               <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{group.title}</h3>
               <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+            {group.blurb && (
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{group.blurb}</p>
+            )}
             {group.slugs.map(slug => GUIDES.find(g => g.slug === slug)).map((g) => (
               <li key={g.slug}>
                 <Link
@@ -165,7 +200,14 @@ export default function GuidesIndexPage() {
                     />
                   )}
                   <span className="block">
-                    <span className="block font-semibold text-black dark:text-zinc-50">{g.title}</span>
+                    <span className="block font-semibold text-black dark:text-zinc-50">
+                      {g.title}
+                      {EDITORIAL_PICKS.has(g.slug) && (
+                        <span className="ml-2 inline-block rounded border border-zinc-300 px-1.5 py-px align-middle text-[11px] font-medium uppercase tracking-wide text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
+                          Editorial pick
+                        </span>
+                      )}
+                    </span>
                     <span className="mt-2 block text-base leading-relaxed text-zinc-600 dark:text-zinc-400">{g.blurb}</span>
                   </span>
                 </Link>
@@ -176,33 +218,27 @@ export default function GuidesIndexPage() {
           ))}
         </section>
 
-        <section aria-labelledby="research-heading" className="mt-12">
+        {/* RESEARCH IS NOT A GUIDES CATEGORY. The dated studies and the
+            live market summaries have their own canonical home at
+            /market-data; listing them here as a peer of the five reader
+            tasks implied they were guides, and a dated study sitting in
+            an evergreen index reads as current. This is now one
+            cross-link, clearly labelled as a different kind of page. */}
+        <aside aria-labelledby="research-heading" className="mt-12 rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
           <h2
             id="research-heading"
             className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-600 dark:text-zinc-400"
           >
-            Research
+            Looking for numbers?
           </h2>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Dated studies and market summaries. Each states its own sample and limits.
+            Rankings, catalogue snapshots and dated studies are not guides - they live in{" "}
+            <Link href="/market-data" className="font-semibold text-red-600 hover:underline dark:text-red-500">
+              Market Data &amp; Research
+            </Link>
+            , where each one states its own observation date, sample and limits.
           </p>
-          <ul className="mt-4 flex flex-col gap-4">
-            {RESEARCH.map((r) => (
-              <li key={r.href}>
-                <Link
-                  href={r.href}
-                  className="block rounded-lg border border-zinc-200 bg-white p-5 transition-colors hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
-                >
-                  <span className="block font-semibold text-black dark:text-zinc-50">{r.title}</span>
-                  <span className="mt-1 block text-sm text-zinc-600 dark:text-zinc-400">
-                    {r.description}
-                  </span>
-                  <span className="mt-2 block text-xs text-zinc-500 dark:text-zinc-500">{r.meta}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
+        </aside>
       </main>
 
       <SiteFooter />

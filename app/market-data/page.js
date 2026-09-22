@@ -9,7 +9,7 @@ import { formatScanTime, formatDate } from "@/lib/time";
 
 export const revalidate = 21600;
 
-const TITLE = "Pokemon Card Market Data";
+const TITLE = "Pokemon Card Market Data & Research";
 const DESCRIPTION =
   "First-party Pokemon card market data: the most valuable raw references, the most-listed cards on eBay right now, and how card values are distributed.";
 
@@ -31,32 +31,76 @@ export default async function MarketDataPage() {
   const snapshot = formatDate(composition?.snapshotAt);
   const comp = composition && !composition.error ? composition : null;
 
-  const pages = [
+  // 2026-09-22 content organisation. One flat list mixed three different
+  // kinds of page: live catalogue rankings, a FIXED dated study, and two
+  // browsing destinations that are not research at all. Side by side and
+  // undated, the 30-day study read as a current snapshot.
+  //
+  // Three labelled groups now, each saying what kind of thing it is. No
+  // calculation, fetch, cache or provider call changed - this is the
+  // index's own grouping and wording.
+  const groups = [
     {
-      href: "/market-data/most-expensive-cards",
-      title: "Most Valuable Cards",
-      description: "The highest raw, ungraded market references across every set we track.",
+      title: "Market rankings & snapshots",
+      blurb: "Numerical summaries of the catalogue and of live listings. These move as the catalogue and the listings move.",
+      pages: [
+        {
+          href: "/market-data/most-expensive-cards",
+          title: "Most Valuable Cards",
+          description: "The highest raw, ungraded market references across every set we track.",
+          meta: updated ? `Catalogue references as of ${updated}` : "Live from the current catalogue",
+        },
+        {
+          href: "/market-data/most-listed-cards",
+          title: "Most-Listed Cards",
+          description: "Cards with the most active eBay listings we're tracking right now.",
+          meta: "Live listing counts",
+        },
+        {
+          // Previously reachable only from a conditional block further up
+          // this page, so it vanished from the index whenever the
+          // composition query returned nothing. It is a primary
+          // market-data page and now has a permanent home here.
+          href: "/market-data/pokemon-card-value-distribution",
+          title: "Card Value Distribution",
+          description: "How card values are spread across the catalogue, from the long tail of low-value cards to the top end.",
+          meta: snapshot ? `Catalogue snapshot ${snapshot}` : "From the current catalogue",
+        },
+      ],
     },
     {
-      href: "/market-data/pokemon-reference-price-changes",
-      title: "30-Day Reference-Price Changes",
-      description:
-        "A dated study of 150 sampled product records: how many moved, and why a product summary differs from its individual condition and printing variants.",
+      title: "Research & historical studies",
+      blurb: "Bounded, dated analyses. Each is a fixed snapshot of the window it names - not a description of today's market.",
+      pages: [
+        {
+          href: "/market-data/pokemon-reference-price-changes",
+          title: "30-Day Reference-Price Changes",
+          description:
+            "A dated study of 150 sampled product records: how many moved, and why a product summary differs from its individual condition and printing variants.",
+          meta: "Study period 12 August - 11 September 2026 · figures fixed at publication",
+        },
+      ],
     },
     {
-      href: "/market-data/most-listed-cards",
-      title: "Most-Listed Cards",
-      description: "Cards with the most active eBay listings we're tracking right now.",
-    },
-    {
-      href: "/best-finds",
-      title: "Today's Best Finds",
-      description: "The biggest real discounts below market price right now.",
-    },
-    {
-      href: "/sets",
-      title: "Browse by Set",
-      description: "Every set with an active deal, browsable one at a time.",
+      title: "Related tools & browsing",
+      blurb: "Live deal and catalogue destinations, not research articles.",
+      pages: [
+        {
+          href: "/best-finds",
+          title: "Today's Best Finds",
+          description: "The biggest real discounts below market price right now. Lives in Deals; listed here as an onward link.",
+        },
+        {
+          href: "/sets",
+          title: "Browse by Set",
+          description: "Every set with an active deal, browsable one at a time.",
+        },
+        {
+          href: "/price-checker",
+          title: "Price Checker",
+          description: "Look up what a single card is currently referenced at.",
+        },
+      ],
     },
   ];
 
@@ -74,7 +118,10 @@ export default async function MarketDataPage() {
             url: "/market-data",
             dateModified: lastScan,
           }),
-          itemList(pages.map((p) => ({ name: p.title, url: p.href }))),
+          // Same set of destinations as before the regrouping, flattened
+          // back out so the ItemList keeps listing every page this index
+          // links to (structured data unchanged in shape and coverage).
+          itemList(groups.flatMap((g) => g.pages).map((p) => ({ name: p.title, url: p.href }))),
         ]}
       />
       <SkipToContent />
@@ -83,7 +130,7 @@ export default async function MarketDataPage() {
       <header className="border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-5xl px-6 py-6 sm:py-8">
           <h1 className="max-w-2xl text-3xl font-bold tracking-tight text-black dark:text-zinc-50 sm:text-4xl">
-            Pokemon Card Market Data
+            Market Data &amp; Research
           </h1>
           <p className="mt-3 max-w-2xl text-base text-zinc-600 dark:text-zinc-400">
             First-party numbers from the catalogue we maintain and the eBay listings we actively
@@ -168,18 +215,33 @@ export default async function MarketDataPage() {
           </section>
         )}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {pages.map((p) => (
-            <Link
-              key={p.href}
-              href={p.href}
-              className="rounded-xl border border-zinc-200 bg-white p-5 shadow-card transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950"
-            >
-              <h2 className="font-semibold text-black dark:text-zinc-50">{p.title} →</h2>
-              <p className="mt-1 text-base leading-relaxed text-zinc-500">{p.description}</p>
-            </Link>
-          ))}
-        </div>
+        {groups.map((group) => {
+          const id = `md-${group.title.replace(/[^a-z]+/gi, "-").toLowerCase()}`;
+          return (
+            <section key={group.title} aria-labelledby={id} className="mt-10">
+              <h2 id={id} className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-600 dark:text-zinc-400">
+                {group.title}
+              </h2>
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{group.blurb}</p>
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {group.pages.map((p) => (
+                  <Link
+                    key={p.href}
+                    href={p.href}
+                    className="rounded-xl border border-zinc-200 bg-white p-5 shadow-card transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:border-zinc-800 dark:bg-zinc-950"
+                  >
+                    <h3 className="font-semibold text-black dark:text-zinc-50">{p.title} &rarr;</h3>
+                    <p className="mt-1 text-base leading-relaxed text-zinc-500">{p.description}</p>
+                    {/* The OBSERVATION date or study period, kept apart
+                        from any publication date, so a fixed study cannot
+                        read as today's market. */}
+                    {p.meta && <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-500">{p.meta}</p>}
+                  </Link>
+                ))}
+              </div>
+            </section>
+          );
+        })}
       </main>
 
       <SiteFooter />
