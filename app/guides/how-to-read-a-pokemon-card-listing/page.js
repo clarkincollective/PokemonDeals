@@ -3,6 +3,11 @@ import GuideLayout, { GP, GH2, GUL } from "@/components/GuideLayout";
 import { Gallery } from "@/components/guides/CardArt";
 import { guideMetadata } from "@/lib/guides";
 import { GUIDE_CARDS, PRICE_CHECKER_HREF, GUIDE_LINK_CLASS } from "@/lib/guideLinks";
+// The budget category's label comes from the category registry rather than
+// being typed here: guides may not carry hard-coded prices (a price in
+// prose goes stale and guide-card-links test 4 enforces it), and this way
+// the link text cannot drift from the page it points at.
+import { categoryShortLabel } from "@/lib/dealCategories";
 
 const SLUG = "how-to-read-a-pokemon-card-listing";
 export const metadata = guideMetadata(SLUG);
@@ -98,6 +103,31 @@ export default function Page() {
         </Link>
         .
       </GP>
+      <GP>
+        <strong>Sold, not asking.</strong> This is the distinction that decides whether a
+        &ldquo;deal&rdquo; is one. A reference built from what cards actually <em>sold</em> for tells
+        you what people paid. A price built from what other sellers are <em>asking</em> tells you
+        only what they hope for — and a row of optimistic listings can sit unsold for months while
+        looking like a market. Comparing a listing against other listings is how a card that is
+        merely cheaper than the most expensive ask gets mistaken for a bargain.
+      </GP>
+      <GUL>
+        <li>
+          <strong>Check what the figure is before you trust the gap.</strong> Ours is sold-based, and
+          the condition it was recorded for is printed beside it. A number with no stated basis is
+          not a reference.
+        </li>
+        <li>
+          <strong>A reference can be stale.</strong> The recorded date is shown for that reason. A
+          thinly traded card may have no recent sale at all, which is why some listings carry no
+          comparison rather than an old one.
+        </li>
+        <li>
+          <strong>One sale is not a market.</strong> A single high result can lift a reference that a
+          spread of recent sales would not support. Treat a lone outlier as a question, not an
+          answer.
+        </li>
+      </GUL>
 
       <GH2>5. The saving — and the one case it is never shown</GH2>
       <GUL>
@@ -134,15 +164,54 @@ export default function Page() {
 
       <GP>
         Put together: identity, then condition, then total, then reference, then saving. If any step
-        does not hold, the saving is not real. Practise on{" "}
-        <Link href="/deals" className={GUIDE_LINK_CLASS}>
-          today&apos;s live listings
-        </Link>
-        , or read{" "}
+        does not hold, the saving is not real.
+      </GP>
+
+      <GH2>Practise on real listings</GH2>
+      <GP>
+        Each of these is the same five steps against a different kind of listing, which is the
+        fastest way to make the checks automatic.
+      </GP>
+      <GUL>
+        <li>
+          <Link href="/deals" className={GUIDE_LINK_CLASS}>
+            Today&apos;s live listings
+          </Link>{" "}
+          — every check above, on everything currently tracked.
+        </li>
+        <li>
+          <Link href="/deals/auctions" className={GUIDE_LINK_CLASS}>
+            Auctions, ending soonest
+          </Link>{" "}
+          — where step 5 matters most: a current bid is not a price, and it can rise until the end.
+        </li>
+        <li>
+          <Link href="/deals/graded" className={GUIDE_LINK_CLASS}>
+            Graded listings
+          </Link>{" "}
+          — practise matching the grader and grade, which a raw reference can never price.
+        </li>
+        <li>
+          <Link href="/deals/under-25" className={GUIDE_LINK_CLASS}>
+            Budget listings ({categoryShortLabel("under-25")})
+          </Link>{" "}
+          — that cap is the <em>delivered</em> total, not the item price, so it is a good place to
+          see how much shipping moves a cheap card.
+        </li>
+        <li>
+          <Link href="/deals/price-drops" className={GUIDE_LINK_CLASS}>
+            Recent price drops
+          </Link>{" "}
+          — a drop is a change in the asking price, not evidence about the reference. Run step 4
+          anyway.
+        </li>
+      </GUL>
+      <GP>
+        Then read{" "}
         <Link href="/guides/buying-pokemon-cards-on-ebay-safely" className={GUIDE_LINK_CLASS}>
           the eBay buyer&apos;s checklist
         </Link>{" "}
-        next.
+        for the seller-side questions this guide does not cover.
       </GP>
     </GuideLayout>
   );
