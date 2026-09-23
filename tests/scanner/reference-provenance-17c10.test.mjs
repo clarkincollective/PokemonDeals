@@ -399,3 +399,43 @@ test("RP-15. one structured verifier completion line: counts only, failure-isola
   assert.match(read("lib/sealedVerifyLane.mjs"), /entered: false/);
   assert.match(read("lib/sealedVerifyLane.mjs"), /out\.entered = true/);
 });
+
+// Added 2026-09-23. The declared column set and the builders that populate
+// it are two hand-maintained lists that must agree, and nothing pinned
+// them to each other. That is the exact shape of the defect that has now
+// hit this codebase twice - a field added to a producer but not to the
+// hand-written list a consumer copies:
+//
+//   * 17C.10 added the three provenance fields; the allocated marketData
+//     builder omitted them, so raw rows on that path stored a cleared
+//     reference set (14 of 282, against 31 of 31 on the sweep path).
+//   * deal 42127 added byPrintingCondition; BOTH marketData builders
+//     omitted it, so the printing resolver was dead on every path until
+//     2026-09-23.
+//
+// Both were correct in isolation and wrong at the join. Verified at the
+// time of writing: 12 declared, 12 built, no drift in either direction.
+test("RP-18. the declared reference columns and the builders that fill them do not drift apart", () => {
+  const cardBuilt = Object.keys(RP.buildCardReference({ source: "s", productId: 1, amount: 1 })).sort();
+  const cardDeclared = [...RP.CARD_REFERENCE_COLUMNS].sort();
+  assert.deepEqual(
+    cardBuilt,
+    cardDeclared,
+    "buildCardReference and CARD_REFERENCE_COLUMNS disagree - a column declared but never written is permanently null, and one written but never declared is never cleared on reassignment"
+  );
+
+  const sealedBuilt = Object.keys(RP.buildSealedReference({ source: "s", productId: 1, amount: 1 })).sort();
+  const sealedDeclared = [...RP.SEALED_REFERENCE_COLUMNS].sort();
+  assert.deepEqual(sealedBuilt, sealedDeclared, "buildSealedReference and SEALED_REFERENCE_COLUMNS disagree");
+
+  // sealed is the core set: no condition, printing or grade columns
+  for (const c of ["reference_condition", "reference_printing", "reference_grader", "reference_grade"]) {
+    assert.ok(cardDeclared.includes(c), `card references must carry ${c}`);
+    assert.ok(!sealedDeclared.includes(c), `sealed references must not carry ${c} - it would be permanently null`);
+  }
+  // and clearedReference must cover every declared column, or a
+  // reassignment would leave stale evidence behind
+  const cleared = RP.clearedReference(RP.CARD_REFERENCE_COLUMNS);
+  assert.deepEqual(Object.keys(cleared).sort(), cardDeclared, "clearedReference does not cover every declared column");
+  for (const v of Object.values(cleared)) assert.equal(v, null);
+});
