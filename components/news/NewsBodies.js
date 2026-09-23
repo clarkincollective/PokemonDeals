@@ -26,6 +26,62 @@ function PhotoFigure({ src, width, height, alt, caption, priority = false }) {
   );
 }
 
+// OFFICIAL CARD RENDERS from a publisher's own expansion page, shown as a
+// grid with the source credited once beneath it.
+//
+// Distinct from PhotoFigure above: these are not our scans and not a
+// supplied photograph, they are the rights holder's own published renders,
+// linked back to the page that publishes them. `href` makes every tile a
+// route to the source rather than a dead image. Dimensions are the real
+// intrinsic size (660x920) so the grid reserves space and never shifts.
+function OfficialCardGrid({ cards, credit, href }) {
+  return (
+    <figure className="mt-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {cards.map((c) => (
+          <a
+            key={c.src}
+            href={href}
+            rel="noopener noreferrer"
+            target="_blank"
+            className="group block rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+          >
+            <Image
+              src={c.src}
+              alt={c.alt}
+              width={660}
+              height={920}
+              sizes="(max-width: 640px) 45vw, 220px"
+              className="h-auto w-full rounded-lg shadow-sm transition-shadow group-hover:shadow-md"
+            />
+            <span className="mt-1.5 block text-xs leading-snug text-zinc-600 dark:text-zinc-400">
+              <span className="font-semibold text-black dark:text-zinc-50">{c.name}</span>
+              <span className="tnum"> {c.number}</span>
+            </span>
+          </a>
+        ))}
+      </div>
+      <figcaption className="mt-3 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">{credit}</figcaption>
+    </figure>
+  );
+}
+
+// The six English Delta Reign cards published on the official expansion
+// page. Name, number and the descriptive alt text were all read from the
+// card faces themselves - nothing here is taken from reporting.
+const DELTA_REIGN_OFFICIAL_PAGE = "https://www.pokemon.com/us/pokemon-tcg/mega-evolution-delta-reign";
+const DELTA_REIGN_CARDS = [
+  { n: 84, name: "Mega Rayquaza ex", number: "084/103", alt: "Mega Rayquaza ex, 084/103, 280 HP, with the Ruler's Roar Ability and the Storm Emerald attack" },
+  { n: 47, name: "Mega Golurk ex", number: "047/103", alt: "Mega Golurk ex, 047/103, 350 HP, with the Restricted Activation Ability and the Goliath's Punch attack" },
+  { n: 11, name: "Mega Golisopod ex", number: "011/103", alt: "Mega Golisopod ex, 011/103, 340 HP, with the Finishing Blow and Quadruple Hold attacks" },
+  { n: 69, name: "Mega Malamar ex", number: "069/103", alt: "Mega Malamar ex, 069/103, 320 HP, with the Psychic Marionette and Eerie Wave attacks" },
+  { n: 96, name: "Legendary Summit", number: "096/103", alt: "Legendary Summit, 096/103, the left half of the two-card Stadium, showing a mountain summit in yellow light" },
+  { n: 97, name: "Legendary Summit", number: "097/103", alt: "Legendary Summit, 097/103, the right half of the two-card Stadium, continuing the same mountain panorama" },
+].map((c) => ({
+  ...c,
+  src: `https://www.pokemon.com/static-assets/content-assets/cms2/img/cards/full/ME06/ME06_EN_${c.n}.png`,
+}));
+
 // Story bodies, one per written news item, keyed by slug. Kept out of the
 // route so the route stays a thin renderer that both kinds of item share.
 //
@@ -510,10 +566,12 @@ function DeltaReign() {
 // against reproducing leaked material, and a reader arriving from "delta
 // reign leak" deserves to be told the difference.
 //
-// NO CARD IMAGE IS REPRODUCED HERE. The official images sit on pokemon.com's
-// own CDN, which is not in our next/image allowlist, and they are TPCi press
-// assets sent to named outlets we are not among. The cards are showcased in
-// detail and linked to the page that shows them.
+// THE CARD IMAGES ARE THE RIGHTS HOLDER'S OWN, taken from the official
+// expansion page rather than from a third party's copy of the press pack.
+// next.config.mjs allows exactly that card-image path on pokemon.com and
+// nothing else on the domain; next/image proxies and caches them, the grid
+// credits The Pokemon Company International once beneath it, and every tile
+// links back to the page that publishes them.
 function DeltaReignCards() {
   return (
     <>
@@ -527,6 +585,21 @@ function DeltaReignCards() {
         Everything below was read from those six official images. They also settle something our earlier piece
         said had not been published: the set&apos;s numbering.
       </p>
+
+      <OfficialCardGrid
+        cards={DELTA_REIGN_CARDS}
+        href={DELTA_REIGN_OFFICIAL_PAGE}
+        credit={
+          <>
+            The six English cards published on the official{" "}
+            <a href={DELTA_REIGN_OFFICIAL_PAGE} rel="noopener noreferrer" target="_blank" className={A}>
+              Mega Evolution&mdash;Delta Reign expansion page
+            </a>
+            . Card images &copy; The Pokemon Company International; shown here as published, and each tile links
+            back to that page. They are not our scans, and none of these cards is in our catalogue yet.
+          </>
+        }
+      />
 
       <h2 className={H2}>The numbering, visible for the first time</h2>
       <ul className={UL}>

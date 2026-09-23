@@ -97,6 +97,22 @@ const nextConfig = {
       // in their API's `images` field depending on set age.
       { protocol: "https", hostname: "images.pokemontcg.io" },
       { protocol: "https", hostname: "images.scrydex.com" },
+      // The Pokemon Company's own card images, as published on its public
+      // expansion pages (added 2026-09-23 for the Delta Reign reveal).
+      //
+      // SCOPED TO THE CARD-IMAGE PATH, deliberately. This is not a blanket
+      // allow for pokemon.com - only the directory the official card
+      // renders live in, so nothing else on that domain can be pulled
+      // through next/image later without a conscious change here.
+      //
+      // next/image proxies and caches these server-side, so the origin is
+      // fetched once per variant rather than on every page view. Every
+      // surface that uses them credits the source; see the news bodies.
+      {
+        protocol: "https",
+        hostname: "www.pokemon.com",
+        pathname: "/static-assets/content-assets/cms2/img/cards/**",
+      },
     ],
   },
 };
