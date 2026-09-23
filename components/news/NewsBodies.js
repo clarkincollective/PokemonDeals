@@ -368,6 +368,24 @@ function DeltaReign() {
         already printed in Japan, and what circulated as a leak in July.
       </p>
 
+      {/* 2026-09-23 forward note. Two claims below were overtaken by the
+          official card reveal: that no numbering had been published, and
+          that the Legendary Stadium was only "widely reported". The dated
+          statements stay as written - this was true when published - but a
+          reader must not meet a superseded claim without being sent to the
+          correction. Same-kind linking belongs inline, as here, because
+          lib/editorialRelated is cross-kind only. */}
+      <p className={`${P} rounded-lg border border-zinc-200 bg-white p-3 text-sm dark:border-zinc-800 dark:bg-zinc-950`}>
+        <strong className="text-black dark:text-zinc-50">Update, 23 September 2026.</strong> The first English
+        cards have since been revealed officially, which settles two things this article could not: the set
+        numbers out of <strong>103</strong> under the code DLR, and the Legendary Summit Stadium turns out to be
+        two cards you combine. See{" "}
+        <Link href="/news/delta-reign-english-cards-revealed" className={A}>
+          Delta Reign English cards revealed
+        </Link>
+        . The sections below are left as first published.
+      </p>
+
       <Gallery
         cards={[
           { card: GUIDE_CARDS.rayquazaAscendedHeroes, caption: "Rayquaza, Ascended Heroes — in our catalogue now" },
