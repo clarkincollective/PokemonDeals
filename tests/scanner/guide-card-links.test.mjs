@@ -172,8 +172,15 @@ const VERIFIED = {
   c30SylveonExSir: ["716231", "Sylveon ex - 153/128", "ME: 30th Celebration", "153/128", "/cards/sylveon-ex-153-128-me-30th-celebration"],
   c30JirachiExSir: ["716232", "Jirachi ex - 155/128", "ME: 30th Celebration", "155/128", "/cards/jirachi-ex-155-128-me-30th-celebration"],
   c30SirSalamenceEx156: ["716233", "Salamence ex - 156/128", "ME: 30th Celebration", "156/128", "/cards/salamence-ex-156-128-me-30th-celebration"],
-  c30MewtwoExFuturistic: ["696687", "Mewtwo ex", "ME: 30th Celebration", "157/128", "/cards/mewtwo-ex-me-30th-celebration"],
-  c30MewExFuturistic: ["696688", "Mew ex", "ME: 30th Celebration", "158/128", "/cards/mew-ex-me-30th-celebration"],
+  // CORRECTED 2026-09-23. These two rows recorded the bare names, so test 1
+  // compared the registry against an equally wrong expectation and passed
+  // while both hrefs 404'd in production. Re-read from card_catalog on
+  // 2026-09-23: ids 696687 / 696688 store the collector number inside the
+  // name, and the slugs below are what catalogCardSlug derives from those
+  // stored names. A "verification" table only verifies if it came from the
+  // source - test 10 below now enforces that for the whole table.
+  c30MewtwoExFuturistic: ["696687", "Mewtwo ex - 157/128", "ME: 30th Celebration", "157/128", "/cards/mewtwo-ex-157-128-me-30th-celebration"],
+  c30MewExFuturistic: ["696688", "Mew ex - 158/128", "ME: 30th Celebration", "158/128", "/cards/mew-ex-158-128-me-30th-celebration"],
   c30ClassicCharizard: ["714372", "Charizard", "ME: 30th Celebration Classic Collection", "4/102", "/cards/charizard-me-30th-celebration-classic-collection"],
   c30CcDelcatty5109: ["716156", "Delcatty", "ME: 30th Celebration Classic Collection", "5/109", "/cards/delcatty-me-30th-celebration-classic-collection"],
   c30CcGenesectExTeamPlasma11101: ["716158", "Genesect EX (Team Plasma)", "ME: 30th Celebration Classic Collection", "11/101", "/cards/genesect-ex-team-plasma-me-30th-celebration-classic-collection"],
@@ -495,4 +502,51 @@ test("9. the set page links its guide from the registry, not a hand-typed URL", 
   // the same rule the guides themselves follow: no hand-typed guide slugs
   const typed = [...src.matchAll(/href="\/guides\/[^"]+"/g)].map((m) => m[0]);
   assert.deepEqual(typed, [], `hand-typed guide hrefs on the set page: ${typed.join(", ")}`);
+});
+
+// Added 2026-09-23 after an external audit found two entries whose hrefs
+// returned 404 in production while every test here passed. The cause was
+// not drift between the registry and this file - those agreed. It was that
+// BOTH held the same wrong name, and href is derived from the name.
+//
+// A checked-in expectation cannot detect that; only re-reading the source
+// can, which is what scripts/integrity/verifyGuideLinks.mjs now does (it
+// re-derives every href from the catalogue's own stored name and exits
+// non-zero on any mismatch). These two checks cover what IS decidable
+// statically.
+test("10. no two card entries resolve to the same page, and every href looks derived", () => {
+  const byHref = {};
+  for (const [key, c] of Object.entries(GUIDE_CARDS)) (byHref[c.href] ??= []).push(key);
+  for (const [href, keys] of Object.entries(byHref)) {
+    assert.equal(keys.length, 1, `${keys.join(" + ")} both resolve to ${href} - the catalogue has no two cards at one slug, so one of them names the wrong record`);
+  }
+  // every href must be exactly what its own name/set derive to; a
+  // hand-typed or stale href cannot survive this
+  for (const [key, c] of Object.entries(GUIDE_CARDS)) {
+    assert.equal(c.href, `/cards/${catalogCardSlug(c.name, c.set)}`, `${key}: href is not derived from its own name and set`);
+  }
+});
+
+test("11. a guide card whose set duplicates its name carries the number in the name", () => {
+  // The shape that broke: "Mew ex" in a set that also holds "Mew ex -
+  // 066/128". Where two entries share a Pokemon name within one set, the
+  // catalogue disambiguates by putting the collector number in the stored
+  // name - so a bare name there is the bug signature. This checks the
+  // registry is internally consistent about that.
+  const bySetAndBase = {};
+  for (const [key, c] of Object.entries(GUIDE_CARDS)) {
+    const base = c.name.replace(/\s*-\s*\S+\s*$/, "").trim();
+    const k = `${c.set}|${base.toLowerCase()}`;
+    (bySetAndBase[k] ??= []).push({ key, ...c });
+  }
+  for (const [k, group] of Object.entries(bySetAndBase)) {
+    if (group.length < 2) continue;
+    for (const c of group) {
+      assert.match(
+        c.name,
+        /\s-\s\S+$/,
+        `${c.key}: "${c.name}" shares a base name with ${group.length - 1} other entry in ${k.split("|")[0]}, so the stored name must carry its collector number - a bare name derives the wrong slug`
+      );
+    }
+  }
 });
