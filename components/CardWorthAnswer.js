@@ -72,7 +72,13 @@ export default function CardWorthAnswer({ answer, embedded = false, children, cl
           {live.lowUsd != null ? (
             <>
               , from <span className="tnum font-semibold text-black dark:text-zinc-50">${live.lowUsd.toFixed(2)} USD</span>{" "}
-              <span className="text-zinc-600 dark:text-zinc-400">(asking prices, not sold)</span>
+              {/* The figure's own basis, from lib/cardWorth: a total that
+                  includes a recorded shipping charge, an item price with
+                  shipping unconfirmed, or an unrecorded breakdown - and an
+                  auction's current bid is never called an asking price. */}
+              <span className="text-zinc-600 dark:text-zinc-400">
+                {live.lowShippingText} ({live.lowKindText})
+              </span>
             </>
           ) : null}
           .

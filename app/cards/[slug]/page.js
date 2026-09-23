@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { resolveCardSlug, resolveCatalogCard, resolveCatalogCardById, fetchCardOffers, fetchCardRelations, fetchSetSlugs, fetchCardPriceHistory, fetchSets, fetchSpeciesHubs } from "@/lib/deals";
 import { cardWorthAnswer, isUsableUsdPrice } from "@/lib/cardWorth";
+import { cardSummaryOffer } from "@/lib/cardSummaryOffer";
 import { cardNextSteps } from "@/lib/cardNextSteps";
 import CardWorthAnswer from "@/components/CardWorthAnswer";
 import CardNextSteps from "@/components/CardNextSteps";
@@ -289,10 +290,15 @@ export default async function CardHubPage({ params }) {
   // request-time APIs), the country grids cover that intent, and the
   // faceted per-hub URLs were only spending crawl budget.
   const cheapest = offers[0];
-  // Cheapest live listing, normalised to the USD value every offer
-  // carries - shown in the price summary as an asking-price floor, not a
-  // market value.
-  const rangeLowUsd = offers[0] ? dealTotalUsd(offers[0]) : null;
+  // Cheapest live listing, normalised to the USD value every offer carries,
+  // TOGETHER with what that figure is (delivered / before shipping /
+  // unrecorded), whether it is an auction bid, and whether this listing may
+  // claim a saving at all. Audit finding 2: the summaries used to receive
+  // only the bare number and re-derive a savings claim from it against the
+  // raw catalogue reference, contradicting the tile below - see
+  // lib/cardSummaryOffer for the measurement and the rule.
+  const summaryOffer = cardSummaryOffer(offers);
+  const rangeLowUsd = summaryOffer?.lowUsd ?? null;
 
   // Phase 11C: the chart + variant sparkline read the canonical merged
   // price_history spine (first-party 'catalog' forward + 'ppt_backfill'
@@ -325,7 +331,16 @@ export default async function CardHubPage({ params }) {
     firstEditionExcluded: /unlimited/i.test(catalog?.refPrinting ?? ""),
     // graded tiers load with the market panel, after the answer renders
     gradedAvailable: false,
-    liveListings: { count: offers.length, lowUsd: rangeLowUsd },
+    // The floor carries its own basis: a total that includes a recorded
+    // shipping charge, an item price with shipping unconfirmed, or a figure
+    // whose breakdown was never recorded - plus whether the cheapest
+    // listing is an auction, whose figure is a current bid.
+    liveListings: {
+      count: offers.length,
+      lowUsd: rangeLowUsd,
+      lowBasis: summaryOffer?.priceBasis ?? null,
+      lowIsAuction: Boolean(summaryOffer?.isAuction),
+    },
     nowMs: Date.now(),
   });
   const exploreLinks = cardNextSteps({
@@ -395,6 +410,18 @@ export default async function CardHubPage({ params }) {
     .sort((a, b) => Number(b.key.split(" ")[1]) - Number(a.key.split(" ")[1]));
   const refRecorded = catalog?.syncedAt ? new Date(catalog.syncedAt).toISOString().slice(0, 10) : null;
   const offerUsdTotals = allOffers.map((d) => dealTotalUsd(d)).filter((v) => Number.isFinite(v) && v > 0);
+  // Audit finding 2: these two properties were named "Lowest/Highest live
+  // total" unconditionally, but dealTotalUsd only includes a shipping charge
+  // where one was actually RECORDED (lib/offerPresentation) - so on most
+  // cards the figure is an item price, and "total" implied a delivered cost
+  // nothing here established. Named for what it really is, and the basis is
+  // stated in the property's own description either way.
+  const rangeAllDelivered =
+    allOffers.length > 0 && allOffers.every((d) => offerShipping(d).savingClaim === "delivered");
+  const rangeLabel = rangeAllDelivered ? "live total" : "live listing price";
+  const rangeDescription = rangeAllDelivered
+    ? "Item price plus the shipping charge recorded for every listing on this page; a landed total."
+    : "Item price. Shipping is not recorded for every listing on this page, so this is not a delivered cost.";
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -438,8 +465,8 @@ export default async function CardHubPage({ params }) {
   if (offerUsdTotals.length) {
     productJsonLd.additionalProperty.push(
       propertyValue("Live listings", schemaOffers.length),
-      propertyValue("Lowest live total", Math.min(...offerUsdTotals).toFixed(2), { unitCode: "USD" }),
-      propertyValue("Highest live total", Math.max(...offerUsdTotals).toFixed(2), { unitCode: "USD" })
+      propertyValue(`Lowest ${rangeLabel}`, Math.min(...offerUsdTotals).toFixed(2), { unitCode: "USD", description: rangeDescription }),
+      propertyValue(`Highest ${rangeLabel}`, Math.max(...offerUsdTotals).toFixed(2), { unitCode: "USD", description: rangeDescription })
     );
   }
 
@@ -602,7 +629,7 @@ export default async function CardHubPage({ params }) {
           trends={priceHistory?.trends ?? null}
           signal={priceHistory?.signal ?? null}
           coverage={priceHistory?.coverage ?? null}
-          cheapestListingUsd={rangeLowUsd}
+          summaryOffer={summaryOffer}
           offersCount={offers.length}
         />
 

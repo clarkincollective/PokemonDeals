@@ -250,7 +250,7 @@ export default function CatalogCardView({
               trends={priceHistory?.trends ?? null}
               signal={priceHistory?.signal ?? null}
               coverage={priceHistory?.coverage ?? null}
-              cheapestListingUsd={null}
+              summaryOffer={null}
               offersCount={0}
             />
           </>

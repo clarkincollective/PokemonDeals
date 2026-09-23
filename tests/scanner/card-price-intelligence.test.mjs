@@ -177,24 +177,31 @@ test("11. coverage phrasing is derived from the card's own series", () => {
 
 // === 12. live-deal comparison + no-deal state ===================
 
-test("12. deal context maths: only 'below' when the listing is genuinely under the reference", () => {
-  // mirrors CardPriceIntelligence: belowPct = round((1 - listing/mv)*100), shown only when >=1
-  const belowPct = (listing, mv) => (listing < mv ? Math.round((1 - listing / mv) * 100) : null);
-  assert.equal(belowPct(84, 100), 16);
-  assert.equal(belowPct(100, 100), null); // equal -> no savings framing
-  assert.equal(belowPct(120, 100), null); // above -> no savings framing
-  assert.equal(belowPct(99.6, 100), 0); // <1% rounds to 0 -> component suppresses it
-  // component only renders the block when belowPct >= 1
-  assert.match(PANEL_SRC, /const showDealContext = belowPct != null && belowPct >= 1/);
-  // and the offers it compares against are already display-gated upstream
+test("12. the panel states a saving only when the listing's own gates allow one - it derives none itself", () => {
+  // Audit finding 2 (2026-09-23), fixed 2026-09-24. This test used to pin
+  // the defect: it re-implemented the panel's own arithmetic
+  //   belowPct = round((1 - listing / marketValueUsd) * 100)
+  // and asserted the panel rendered it. That arithmetic WAS the bug - a
+  // second savings rule, run against the raw catalogue reference, which
+  // disagreed with the tile directly below the panel. The behaviour tests
+  // live in tests/scanner/card-summary-saving-2026-09-24.test.mjs; these
+  // are the structural pins that stop the arithmetic coming back.
+  const code = stripComments(PANEL_SRC);
+  assert.doesNotMatch(code, /1\s*-\s*listing\s*\/\s*mv|belowPct/);
+  assert.match(code, /const showDealContext = saving != null && listing != null/);
+  assert.match(code, /const saving = summaryOffer\?\.saving \?\? null/);
+  // the panel must not re-derive eligibility from the display gate either
+  assert.doesNotMatch(code, /isDisplayableDeal|savingsClaimTrusted|discount_pct|market_price/);
+  // and the offers the descriptor is built from are display-gated upstream
   assert.match(DEALS_SRC, /displayable\(data\)/);
 });
 
-test("12b. no-deal state: panel still renders value + windows with a null listing", () => {
-  assert.match(PANEL_SRC, /cheapestListingUsd = null/);
-  // page passes the cheapest USD listing (or null in the catalog view)
-  assert.match(PAGE_SRC, /cheapestListingUsd=\{rangeLowUsd\}/);
-  assert.match(CATVIEW_SRC, /cheapestListingUsd=\{null\}/);
+test("12b. no-deal state: panel still renders value + windows with no summary offer", () => {
+  assert.match(PANEL_SRC, /summaryOffer = null/);
+  // the live page passes the descriptor; the catalogue render has no offers
+  assert.match(PAGE_SRC, /summaryOffer=\{summaryOffer\}/);
+  assert.match(PAGE_SRC, /const summaryOffer = cardSummaryOffer\(offers\)/);
+  assert.match(CATVIEW_SRC, /summaryOffer=\{null\}/);
 });
 
 // === 13. currency-safe percentages =============================

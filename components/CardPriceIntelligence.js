@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Price from "@/components/Price";
 import { hasPrice } from "@/lib/money";
+import { savingsPercentText } from "@/lib/dealQuality";
 import { referenceConditionLabels } from "@/lib/referenceCondition";
 
 // SEO Phase 11C - Card Price Intelligence.
@@ -93,7 +94,13 @@ export default function CardPriceIntelligence({
   trends = null,
   signal = null,
   coverage = null,
-  cheapestListingUsd = null,
+  // lib/cardSummaryOffer's descriptor for the cheapest live listing, or null
+  // when there is none (the catalogue render always passes null). Carries
+  // the figure, what it is (delivered / before shipping / unrecorded),
+  // whether it is an auction bid, and - only when the listing's OWN trust
+  // checks allow one - the saving it may claim. This panel never derives a
+  // saving itself; see the deal-context block below.
+  summaryOffer = null,
   offersCount = 0,
   detailsOnly = false,
 }) {
@@ -116,13 +123,26 @@ export default function CardPriceIntelligence({
   const posPct = posTrend ? Math.round(Math.abs(posTrend.t.changePct) * 10) / 10 : null;
   const posDir = posTrend ? (posTrend.t.changePct >= 0 ? "above" : "below") : null;
 
-  // Deal context - offers passed in are already isDisplayableDeal-gated,
-  // so this is a real listing, not a plain browsable one. Only shown when
-  // the listing genuinely sits below the reference.
-  const listing = hasPrice(cheapestListingUsd) ? Number(cheapestListingUsd) : null;
-  const belowPct =
-    listing != null && mv != null && listing < mv ? Math.round((1 - listing / mv) * 100) : null;
-  const showDealContext = belowPct != null && belowPct >= 1;
+  // Deal context. isDisplayableDeal means "this listing MAY BE SHOWN"; it
+  // does NOT mean "this listing may claim a saving" - that is
+  // savingsClaimTrusted / listingPresentation, and conflating the two is
+  // what this panel used to do (audit finding 2, see lib/cardSummaryOffer).
+  //
+  // So there is no arithmetic here. `marketValueUsd` above is the RAW
+  // catalogue reference; comparing a graded copy, a parallel printing or an
+  // auction's current bid to it produced a percentage the tile below the
+  // panel refused to state. The saving rendered now is the cheapest
+  // listing's OWN trusted comparison, with its own shipping qualifier, or
+  // nothing at all - missing evidence never becomes a fallback discount.
+  const listing = summaryOffer && hasPrice(summaryOffer.lowUsd) ? Number(summaryOffer.lowUsd) : null;
+  const saving = summaryOffer?.saving ?? null;
+  const showDealContext = saving != null && listing != null;
+  // What the figure in the sentence below actually describes: the subject
+  // before the money, the grade as an aside after it.
+  const dealSubject = summaryOffer?.isAuction
+    ? "The cheapest active listing is an auction; its current bid"
+    : "The cheapest active listing";
+  const gradeAside = summaryOffer?.gradeLabel ? `, a ${summaryOffer.gradeLabel} graded copy,` : "";
   const d90 = trends && trends.d90 && Number.isFinite(trends.d90.changePct) ? trends.d90 : null;
   if (detailsOnly && !anyWindow && !signal && !coverage?.label && !showDealContext) return null;
 
@@ -191,10 +211,19 @@ export default function CardPriceIntelligence({
       )}
 
       {showDealContext && (
-        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">
-          The cheapest active {offersCount === 1 ? "listing" : "listing"} (
-          <Price usd={listing} native={{ amount: listing, currency: "USD" }} approxPrefix="" />) is{" "}
-          <span className="font-semibold">{belowPct}% below</span> this market reference.
+        <div
+          className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"
+          data-summary-saving={Math.round(saving.pct * 100)}
+        >
+          {/* Subject first, so an auction's figure is never called an asking
+              price, and a graded copy is named as one. "its" reference - the
+              listing's OWN comparison, which for a graded copy is the
+              grade-specific figure and never the raw one shown above. */}
+          {dealSubject}{" "}
+          (<Price usd={listing} native={{ amount: listing, currency: "USD" }} approxPrefix="" />){gradeAside} is{" "}
+          <span className="font-semibold">{savingsPercentText(saving.pct)} below</span>{" "}
+          {summaryOffer.gradeLabel ? `its ${summaryOffer.gradeLabel} market reference` : "its market reference"}
+          {saving.qualifier ? `, ${saving.qualifier.trim()}` : ""}.
           {d90 && (
             <>
               {" "}

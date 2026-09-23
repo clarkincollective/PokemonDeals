@@ -276,7 +276,17 @@ test("25. no Product/Offer schema introduced in this phase", () => {
     .sort();
   // the pre-17B set: live-listing hubs and listing detail pages, each built from real offers
   assert.deepEqual(withProduct, ["app/cards/[slug]/page.js", "app/deals/[id]/page.js", "app/sealed-deals/[id]/page.js"]);
+  // The rule is JSON-LD, not a vocabulary of banned words. Matching the
+  // bare substring "Offer" also fired on an ordinary prop name
+  // (`summaryOffer`, audit finding 2, 2026-09-24), which makes a naming
+  // choice look like a schema violation while a real one written any other
+  // way slips past. These check how the words are USED, and the deepEqual
+  // above already enforces the precise rule across all of app/ + components/.
+  // (CatalogCardView legitimately emits BreadcrumbList JSON-LD, so the
+  // presence of ld+json is not itself the violation - the TYPE is.)
+  const SCHEMA_USE =
+    /"@type"\s*:\s*"(?:Product|Offer|AggregateOffer|FAQPage)"|schema\.org\/(?:Product|Offer|AggregateOffer|FAQPage)|FAQPage|availability:|priceCurrency|itemCondition/;
   for (const f of ["components/CatalogCardView.js", "components/CardWorthAnswer.js", "components/CardNextSteps.js", "components/PriceCheckerGuide.js", "lib/cardWorth.js"]) {
-    assert.ok(!/Product|Offer|FAQPage/.test(read(f).replace(/\/\/[^\n]*/g, "")), `${f} introduces Product/Offer/FAQ schema`);
+    assert.ok(!SCHEMA_USE.test(read(f).replace(/\/\/[^\n]*/g, "")), `${f} introduces Product/Offer/FAQ schema`);
   }
 });

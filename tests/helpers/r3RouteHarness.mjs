@@ -23,7 +23,13 @@ const pure = new Set(['dealPage','listingAvailability','indexability','dealQuali
   // the shared purchase CTA wording + treatment - pure strings, no IO,
   // no env; the grid card and the deal page's purchase panel and sticky
   // bar all read it so the three cannot drift
-  'dealCta']);
+  'dealCta',
+  // what a CARD SUMMARY may say about the cheapest live listing (audit
+  // finding 2, 2026-09-24). Pure: it only asks dealQuality,
+  // offerPresentation and money - all three already listed above - and
+  // returns a plain descriptor. The card route reaches it on every render
+  // with offers, and stubbing it would hide the very defect it fixes.
+  'cardSummaryOffer']);
 export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis=null,renderComponents=false,currency={viewer:null,rates:null}}={}) {
   const calls=[];
   const components=new Map();

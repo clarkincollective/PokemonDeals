@@ -84,7 +84,16 @@ test("card page: Product carries identity, the reference's condition + recorded 
   assert.doesNotMatch(src, /"@type": "AggregateOffer"/);
   assert.match(src, /propertyValue\(`Market reference\$\{refCondition \? ` \(\$\{refCondition\}\)` : ""\}`/);
   assert.match(src, /propertyValue\("Reference recorded", refRecorded\)/);
-  assert.match(src, /propertyValue\("Lowest live total"/);
+  // Audit finding 2: the range property is named for the basis it really
+  // has. dealTotalUsd only includes a shipping charge where one was
+  // recorded, so "total" is claimed only when EVERY listing on the page has
+  // a confirmed charge; otherwise it is a listing price, and either way the
+  // property's own description states which.
+  assert.match(src, /propertyValue\(`Lowest \$\{rangeLabel\}`/);
+  assert.match(src, /const rangeLabel = rangeAllDelivered \? "live total" : "live listing price"/);
+  assert.match(src, /allOffers\.every\(\(d\) => offerShipping\(d\)\.savingClaim === "delivered"\)/);
+  assert.match(src, /description: rangeDescription/);
+  assert.match(src, /not recorded for every listing on this page, so this is not a delivered cost/);
   assert.match(src, /a reference, not a guaranteed sale price/);
   assert.doesNotMatch(src, /aggregateRating|"@type": "Review"/);
 });
