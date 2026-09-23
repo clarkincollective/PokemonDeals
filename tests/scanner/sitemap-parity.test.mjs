@@ -19,7 +19,7 @@ import { withReferenceEvidence } from "../helpers/referenceEvidence.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { isDisplayableDeal } from "../../lib/dealQuality.js";
+import { isDisplayableDeal, isDisplayableSealedDeal } from "../../lib/dealQuality.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const HOUR = 3_600_000;
@@ -183,6 +183,88 @@ test("lib/sitemap.js uses the shared display gate as the deals-table page-indexa
   assert.match(SITEMAP_SRC, /pageIndexable\s*=\s*sealed[\s\S]*?isDisplayableSealedDeal\(r\) && savingsClaimTrusted\(r\)/);
   assert.match(SITEMAP_SRC, /:\s*\(r\) => isDisplayableDeal\(r\) && savingsClaimTrusted\(r\)/);
   assert.match(SITEMAP_SRC, /if \(!pageIndexable\(row\)\) continue/);
+});
+
+// --- the SEALED column list, which had no parity coverage at all -------
+//
+// Audit 2026-09-23 finding 1. The block above projects only the deals
+// list; the sealed one was never exercised, and it was missing two things
+// the sealed gate reads. Measured live on 2026-09-24: nine quarantined
+// rows were still advertised in /sitemaps/sealed-deals.xml while their
+// pages rendered "unavailable here" with robots.index=false.
+const SEALED_COLS = (QUOTED[0] ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+// The embedded product is selected as `sealed_watchlist:sealed_watchlist_id (a, b)`.
+const SEALED_PRODUCT_FIELDS = (COLS_BLOCK.match(/sealed_watchlist:sealed_watchlist_id \(([^)]*)\)/)?.[1] ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const projectToSealedSitemapRow = (row) => {
+  const out = {};
+  for (const c of SEALED_COLS) {
+    if (c.startsWith("sealed_watchlist")) continue;
+    out[c] = row[c];
+  }
+  if (row.sealed_watchlist) {
+    out.sealed_watchlist = {};
+    for (const f of SEALED_PRODUCT_FIELDS) out.sealed_watchlist[f] = row.sealed_watchlist[f];
+  }
+  return out;
+};
+
+const sealedRow = (over = {}) => ({
+  id: 2435,
+  is_active: true,
+  disqualified_reason: null,
+  title: "Pokemon TCG Champion's Path Elite Trainer Box ETB Sealed Charizard Promo",
+  listing_id: "v1|137746114155|0",
+  listing_url: "https://www.ebay.com/itm/137746114155",
+  affiliate_url: "https://www.ebay.com/itm/137746114155?mkevt=1",
+  listing_type: "FIXED_PRICE",
+  auction_end_at: null,
+  last_seen_at: ago(1),
+  first_seen_at: ago(48),
+  market_price: 147.89,
+  sealed_watchlist: { id: 999, name: "Champion's Path Elite Trainer Box", set: "Champion's Path", tcgplayer_id: 210311 },
+  ...over,
+});
+
+test("SEALED sitemap parity: the projected row reaches the SAME verdict as the full row", () => {
+  const cases = [
+    ["a genuine sealed listing", {}, true],
+    // the two columns the sealed select was missing
+    ["a quarantined row", { disqualified_reason: "product:not_a_sealed_product" }, false],
+    [
+      "a graded promo bound to the box it names",
+      { title: "N's Zekrom Ascended Heroes Elite Trainer Box (031) 2026 Pokemon Mep EN-Me Black" },
+      false,
+    ],
+    ["an accessory sold for the box", { title: "Protectors for POKEMON TCG Champion's Path Elite Trainer Box" }, false],
+    ["an inactive row", { is_active: false }, false],
+    ["a non-exact CTA", { listing_url: "https://www.ebay.com/sch/i.html?_nkw=etb", affiliate_url: null }, false],
+  ];
+  for (const [name, over, expected] of cases) {
+    const full = sealedRow(over);
+    assert.equal(isDisplayableSealedDeal(full), expected, `${name} (full row)`);
+    assert.equal(
+      isDisplayableSealedDeal(projectToSealedSitemapRow(full)),
+      expected,
+      `${name}: the sitemap projection disagrees with the page - a column the gate reads is not selected`
+    );
+  }
+});
+
+test("SEALED sitemap parity: the select carries the columns the gate actually reads", () => {
+  for (const c of ["is_active", "disqualified_reason", "title", "last_seen_at", "first_seen_at", "listing_id", "listing_url", "affiliate_url", "listing_type", "auction_end_at"]) {
+    assert.ok(SEALED_COLS.includes(c), `sealed select is missing ${c}`);
+  }
+  // sealedRowMatchesItsProduct returns true early when the product has no
+  // name, so omitting `name` silently disables the identity decision.
+  assert.ok(SEALED_PRODUCT_FIELDS.includes("name"), "sealed_watchlist must embed `name`");
+  assert.ok(SEALED_PRODUCT_FIELDS.includes("set"), "sealed_watchlist must embed `set`");
 });
 
 // SEO-GSC re-audit: the served deals/sealed-deals sitemap XML was found
