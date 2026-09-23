@@ -190,8 +190,18 @@ test("15b. every function that calls authHeaders() is a background scan/verify/d
   // Strip //-comment lines first so a comment merely mentioning
   // "authHeaders()" in prose (like the one right above its own
   // definition) isn't counted as a call site.
+  //
+  // SPLIT ON /\r?\n/, NOT "\n" (fixed 2026-09-23). This repo checks out
+  // CRLF on Windows, so splitting on "\n" leaves a trailing "\r" on every
+  // line - and then /\/\/.*$/ does not match, because "." will not cross
+  // a carriage return and "$" without the m flag only matches end of
+  // string. The stripper silently did nothing, the prose comment above
+  // authHeaders() was counted as a ninth call site, and this test failed
+  // on Windows while passing anywhere with LF endings. It was quarantined
+  // on 2026-09-16 as a result. The affiliate property itself was never
+  // broken: 7 known callers + 1 definition = 8, exactly as asserted.
   const src = read("lib/ebay.js")
-    .split("\n")
+    .split(/\r?\n/)
     .map((line) => line.replace(/\/\/.*$/, ""))
     .join("\n");
   const knownScanFunctions = ["searchListings", "searchNewlyListed", "getGradingDetails", "getRawListingDetail", "getListingFreshness", "getListingSnapshot", "getItemsByLegacyIds"];

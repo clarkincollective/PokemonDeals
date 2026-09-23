@@ -252,7 +252,14 @@ test("9. static: every public label derives from the reference's recorded condit
 });
 
 test("10. static: writers stamp provenance best-effort and never change a price or the history series key; the migration is present and non-destructive", () => {
-  const mig = read("supabase/price_condition_provenance_migration.sql");
+  // NORMALISE LINE ENDINGS (fixed 2026-09-23). The needles below span a
+  // newline ("card_catalog\n  add column ..."), and this .sql file is
+  // checked out with CRLF on Windows - so includes() never matched and
+  // this test failed here while passing anywhere with LF endings. It was
+  // quarantined on 2026-09-16 for that reason; the migration itself was
+  // always correct. Same root cause as the authHeaders() miscount in
+  // ebay-affiliate-attribution.
+  const mig = read("supabase/price_condition_provenance_migration.sql").replace(/\r\n/g, "\n");
   for (const col of ["card_catalog\n  add column if not exists market_condition text", "add column if not exists market_printing", "price_history\n  add column if not exists reference_condition text", "add column if not exists reference_printing"]) {
     assert.ok(mig.includes(col), `migration adds ${col.split("exists ")[1] ?? col}`);
   }

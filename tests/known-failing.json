@@ -12,16 +12,8 @@
       "test": "16. Phase 11C adds no route family, no sitemap change, no finance schema"
     },
     {
-      "file": "tests/scanner/ebay-affiliate-attribution.test.mjs",
-      "test": "15b. every function that calls authHeaders() is a background scan/verify/discovery function, not a page render"
-    },
-    {
       "file": "tests/scanner/graded-confidence.test.mjs",
       "test": "no graded price is exposed as an Offer / AggregateOffer; no new route"
-    },
-    {
-      "file": "tests/scanner/price-condition-provenance.test.mjs",
-      "test": "10. static: writers stamp provenance best-effort and never change a price or the history series key; the migration is present and non-destructive"
     },
     {
       "file": "tests/scanner/recent-sales-filter.test.mjs",
