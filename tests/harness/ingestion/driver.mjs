@@ -154,16 +154,37 @@ function describeWrittenRows(db) {
 
 async function run() {
   if (scenario === "stored") {
-    // the display gate over the saved production rows, exactly as stored
-    return ev.deals.filter((d) => d.is_active).map((d) => ({
-      id: d.id,
-      listingId: d.listing_id,
-      title: d.title,
-      storedAs: `${d.card_name} | ${d.card_set}`,
-      discountPct: d.discount_pct,
-      displayable: dq.isDisplayableDeal(d),
-      disqualificationReason: dq.disqualificationReason(d),
-    }));
+    // The display gate over the saved production rows.
+    //
+    // TIME IS NEUTRALISED, 2026-09-23. These rows were captured on
+    // 2026-09-12/13 and disqualificationReason() evaluates freshness (and
+    // auction end) BEFORE identity. Once the capture aged past those
+    // windows every row returned "freshness:stale" or "auction_ended",
+    // so this scenario stopped exercising the identity gate it exists to
+    // test and the assertion was quarantined on 09-16. Running them
+    // "exactly as stored" now means running them always-stale, which
+    // proves nothing.
+    //
+    // The evidence file is left untouched - it is a real capture. Only
+    // the two decaying fields are refreshed here, and only for rows that
+    // carried them, so identity is the dimension under test.
+    const fresh = (d) => ({
+      ...d,
+      last_seen_at: new Date().toISOString(),
+      ...(d.auction_end_at ? { auction_end_at: new Date(Date.now() + 36e5).toISOString() } : {}),
+    });
+    return ev.deals.filter((d) => d.is_active).map((d0) => {
+      const d = fresh(d0);
+      return {
+        id: d.id,
+        listingId: d.listing_id,
+        title: d.title,
+        storedAs: `${d.card_name} | ${d.card_set}`,
+        discountPct: d.discount_pct,
+        displayable: dq.isDisplayableDeal(d),
+        disqualificationReason: dq.disqualificationReason(d),
+      };
+    });
   }
   let url, mod;
   if (scenario === "sweep" || scenario === "memo" || scenario === "refcap") {

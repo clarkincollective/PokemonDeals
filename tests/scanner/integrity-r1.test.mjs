@@ -113,18 +113,48 @@ test("IR-4. credible slab-grade claims vs raw copies that merely mention grading
   for (const t of raw) assert.equal(dm.titleClaimsSlabGrade(t), false, t);
 });
 
+// WALL-CLOCK DECAY, fixed 2026-09-23. This test asserts on the IDENTITY
+// gate, but the rows come from a real evidence capture taken 2026-09-12
+// to 09-13 and disqualificationReason() checks FRESHNESS first. Once the
+// capture aged past the freshness TTL every row started returning
+// "freshness:stale", so the test had been failing - and, worse, had
+// stopped exercising the identity rule at all - purely because time
+// passed. It was quarantined on 09-16 as a result.
+//
+// The evidence file is a read-only capture of production rows and is not
+// rewritten to suit a test. Instead the one dimension this test is not
+// about is neutralised here: each row is given a current last_seen_at so
+// the freshness check passes and the identity rule is the thing actually
+// under assertion. Everything else about the row is untouched.
+//
+// (Three other fixture files hit this same decay on 2026-09-22 and were
+// fixed the same way - relative timestamps rather than hard-coded ones.)
+// Two time dimensions decay here, not one: three of these five rows are
+// AUCTIONs whose auction_end_at has also passed, which returns
+// "auction_ended" ahead of the identity rule. Both are neutralised, and
+// only for rows that genuinely carry an end time - a FIXED_PRICE row is
+// left without one, exactly as captured.
+const freshen = (row) => ({
+  ...row,
+  last_seen_at: new Date().toISOString(),
+  ...(row.auction_end_at ? { auction_end_at: new Date(Date.now() + 36e5).toISOString() } : {}),
+});
+
 test("IR-5. display: a raw row with a credible slab claim is hidden with a named reason; graded rows and 'Contender' raw rows are not", () => {
   const byId = new Map(evidence.deals.map((d) => [d.id, d]));
   for (const id of [27488, 35441, 35970, 37955]) {
-    const row = byId.get(id);
+    const row = freshen(byId.get(id));
+    // the freshness dimension is neutralised, so a stale reason here would
+    // mean the freshening broke rather than the identity rule firing
+    assert.notEqual(dq.disqualificationReason(row), "freshness:stale", `deal ${id}: still stale after freshening`);
     assert.equal(dq.isDisplayableDeal(row), false, `deal ${id}`);
     assert.equal(dq.disqualificationReason(row), "identity:graded_title_on_raw", `deal ${id}`);
   }
-  const contender = byId.get(37679);
+  const contender = freshen(byId.get(37679));
   assert.equal(dq.isDisplayableDeal(contender), true);
   assert.equal(dq.disqualificationReason(contender), null);
   // a graded row with the same wording is judged by the graded rules, not this one
-  assert.equal(dq.disqualificationReason({ ...byId.get(27488), is_graded: true, grader: "PSA", grade: "9" }), null);
+  assert.equal(dq.disqualificationReason({ ...freshen(byId.get(27488)), is_graded: true, grader: "PSA", grade: "9" }), null);
 });
 
 test("IR-6. wiring: every raw ingestion path refuses a slab claim before pricing; nothing re-prices it as graded", () => {
