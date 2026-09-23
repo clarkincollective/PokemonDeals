@@ -21,6 +21,7 @@
 // legitimately advertise the promo card inside them.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { loadRoute } from "../helpers/r3RouteHarness.mjs";
 import { sealedListingDecision, productKindOfTitle, NOT_A_SEALED_PRODUCT } from "../../lib/sealedProductMatch.js";
@@ -293,4 +294,30 @@ test("SI-15b. a genuine sealed listing's detail page is unchanged", async () => 
 
 test("SI-16. NOT_A_SEALED_PRODUCT is the single list both the product reader and rule 4 use", () => {
   assert.deepEqual([...NOT_A_SEALED_PRODUCT], ["single_card", "accessory", "empty_box"]);
+});
+
+// === 7. the gate needs the product NAME on every read path =============
+
+test("SI-17. sealedRowMatchesItsProduct cannot decide without the product's name", () => {
+  // This is the failure mode that let the fix leak: the decision is not
+  // "reject", it is "nothing to check against" -> accept. A read path that
+  // forgets `name` therefore disables the identity rule silently.
+  const withName = storedRow(T.zekrom2435, ASCENDED_ETB);
+  const withoutName = { ...withName, sealed_watchlist: { id: ASCENDED_ETB.id, set: ASCENDED_ETB.set, tcgplayer_id: 668496 } };
+  assert.equal(isDisplayableSealedDeal(withName), false);
+  assert.equal(isDisplayableSealedDeal(withoutName), true, "documents WHY the name is required");
+});
+
+test("SI-18. every sealed_deals read path that feeds a display gate embeds name AND set", () => {
+  // Structural pin over the real queries. lib/sitemap.js has its own
+  // parity coverage (tests/scanner/sitemap-parity); these are the
+  // catalogue-offer and grid paths in lib/deals.js, plus the detail route.
+  for (const file of ["lib/deals.js", "app/sealed-deals/[id]/page.js", "lib/sealedVerifyLane.mjs", "lib/sitemap.js"]) {
+    const src = readFileSync(new URL(`../../${file}`, import.meta.url), "utf8");
+    for (const m of src.matchAll(/sealed_watchlist:sealed_watchlist_id!?(?:inner)?\s*\(([^)]*)\)/g)) {
+      const fields = m[1].split(",").map((s) => s.trim());
+      assert.ok(fields.includes("name"), `${file}: embedded sealed_watchlist is missing \`name\` -> ${m[1]}`);
+      assert.ok(fields.includes("set"), `${file}: embedded sealed_watchlist is missing \`set\` -> ${m[1]}`);
+    }
+  }
 });
