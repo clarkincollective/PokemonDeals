@@ -65,12 +65,24 @@ test("dealTotalUsd returns null for a non-USD listing with no trustworthy USD to
 
 // === the region-agnostic string builders are single-currency =====
 
+// THESE TWO PIN A CURRENCY RULE, NOT A SENTENCE. Both used to require the
+// literal phrase "${marketUsd.toFixed(2)} real market price". The page now
+// says "market reference" instead - a deliberate honesty change, since a
+// reference is not a real market price - so the pin broke on wording while
+// the rule it protects was never at risk, and both tests sat quarantined
+// from 2026-09-16.
+//
+// Re-pointed 2026-09-23 at the thing that actually matters: the "$" must
+// be attached to the USD figure (marketUsd / dealTotalUsd) and never to
+// the native total_price. The trailing prose is deliberately no longer
+// matched, so rewording the description cannot break a money-correctness
+// test again. Every other assertion is unchanged.
 test("deals/[id] meta description: both money figures are USD, native total_price is NOT interpolated with $", () => {
   const src = read("app/deals/[id]/page.js");
   const gen = src.slice(src.indexOf("export async function generateMetadata"), src.indexOf("export default"));
   // the description line must use dealTotalUsd + the USD market_price
   assert.match(gen, /const listingUsd = dealTotalUsd\(deal\)/);
-  assert.match(gen, /\$\$\{marketUsd\.toFixed\(2\)\} real market price/);
+  assert.match(gen, /\$\$\{marketUsd\.toFixed\(2\)\}/, "the $ must sit on the USD market figure");
   // and must NOT put "$" in front of the native total_price
   assert.doesNotMatch(gen, /\$\$\{Number\(deal\.total_price\)\.toFixed/);
   assert.doesNotMatch(gen, /for \$\$\{Number\(deal\.total_price\)/);
@@ -80,7 +92,7 @@ test("sealed-deals/[id] meta description: same USD-only rule", () => {
   const src = read("app/sealed-deals/[id]/page.js");
   const gen = src.slice(src.indexOf("export async function generateMetadata"), src.indexOf("export default"));
   assert.match(gen, /dealTotalUsd\(deal\)/);
-  assert.match(gen, /\$\$\{marketUsd\.toFixed\(2\)\} real market price/);
+  assert.match(gen, /\$\$\{marketUsd\.toFixed\(2\)\}/, "the $ must sit on the USD market figure");
   assert.doesNotMatch(gen, /for \$\$\{Number\(\s*deal\.total_price\s*\)/);
 });
 
