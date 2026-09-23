@@ -479,7 +479,156 @@ function DeltaReign() {
   );
 }
 
+// 2026-09-23. The first English Delta Reign cards. Every card detail below
+// was read from the SIX card images published on the official expansion
+// page (pokemon.com) - names, HP, ability and attack text, and the
+// collector numbers that give us the set code, regulation mark and printed
+// total for the first time.
+//
+// WHY THIS IS NOT A LEAK, AND WHY THAT MATTERS HERE. PokeBeach reports that
+// TPCi's own European branch sent the wider image set to press outlets.
+// That is a press distribution, the opposite of the July leak the sibling
+// article covers. We say so explicitly: this site has a standing rule
+// against reproducing leaked material, and a reader arriving from "delta
+// reign leak" deserves to be told the difference.
+//
+// NO CARD IMAGE IS REPRODUCED HERE. The official images sit on pokemon.com's
+// own CDN, which is not in our next/image allowlist, and they are TPCi press
+// assets sent to named outlets we are not among. The cards are showcased in
+// detail and linked to the page that shows them.
+function DeltaReignCards() {
+  return (
+    <>
+      <p className={P}>
+        The first English <em>Mega Evolution&mdash;Delta Reign</em> cards are public, and the framing matters:
+        these are <strong>not</strong> leaks. Six card images are on the official expansion page, and PokeBeach
+        reports that TPCi&apos;s European branch sent a wider set of images directly to press outlets. That is a
+        press reveal, not the July leak that preceded it.
+      </p>
+      <p className={P}>
+        Everything below was read from those six official images. They also settle something our earlier piece
+        said had not been published: the set&apos;s numbering.
+      </p>
+
+      <h2 className={H2}>The numbering, visible for the first time</h2>
+      <ul className={UL}>
+        <li>
+          <strong>Set code DLR</strong>, printed in the black box at the foot of every card beside{" "}
+          <strong>EN</strong>.
+        </li>
+        <li>
+          <strong>Regulation mark J</strong>, the single letter to the left of that box.
+        </li>
+        <li>
+          <strong>A printed total of 103.</strong> All six read <em>nnn/103</em>.
+        </li>
+      </ul>
+      <p className={P}>
+        Hold that 103 against the official &ldquo;over 135 cards&rdquo; and the gap is the interesting part: the
+        cards above 103 are the ones numbered past the printed total, which is where modern sets put their
+        premium printings. If that numbering is unfamiliar, our{" "}
+        <Link href="/guides/how-to-find-pokemon-card-set-and-number" className={A}>
+          set-and-number guide
+        </Link>{" "}
+        covers why a number can exceed its own set total.
+      </p>
+
+      <h2 className={H2}>The four Mega Evolution ex cards</h2>
+      <p className={P}>
+        These four were the only cards the official pages previously named. Now they are shown in full.
+      </p>
+      <ul className={UL}>
+        <li>
+          <strong>Mega Rayquaza ex &mdash; 084/103.</strong> A Basic, 280 HP. Its Ability{" "}
+          <em>Ruler&apos;s Roar</em> triggers once, when you play it from your hand onto your Bench: look at the
+          top 4 cards of your deck, attach a Basic Energy found there to this Pokemon, and shuffle the rest to
+          the bottom. Its attack <em>Storm Emerald</em> does 50 damage for each of two Energy types attached
+          across all of your Pokemon.
+        </li>
+        <li>
+          <strong>Mega Golurk ex &mdash; 047/103.</strong> Stage 1, evolves from Golett, 350 HP &mdash; the
+          highest of the four. Its Ability <em>Restricted Activation</em> is a real cost: it cannot attack at
+          all unless you have 10 or more cards in hand. <em>Goliath&apos;s Punch</em> hits for 300 and does 30
+          damage to itself.
+        </li>
+        <li>
+          <strong>Mega Golisopod ex &mdash; 011/103.</strong> Stage 1, evolves from Wimpod, 340 HP.{" "}
+          <em>Finishing Blow</em> does 60, plus 160 more if the opponent&apos;s Active Pokemon already has
+          damage counters on it. <em>Quadruple Hold</em> does 160 and stops the Defending Pokemon retreating
+          next turn.
+        </li>
+        <li>
+          <strong>Mega Malamar ex &mdash; 069/103.</strong> Stage 1, evolves from Inkay, 320 HP.{" "}
+          <em>Psychic Marionette</em> does 70 damage for each of the opponent&apos;s Benched Pokemon;{" "}
+          <em>Eerie Wave</em> does 200 and leaves the Active Pokemon Confused.
+        </li>
+      </ul>
+
+      <h2 className={H2}>Legendary Summit is two cards, not one</h2>
+      <p className={P}>
+        The mechanic our earlier piece could only call &ldquo;widely reported&rdquo; is now confirmed on the
+        cards themselves, and it is stranger than a normal Stadium. <strong>096/103</strong> and{" "}
+        <strong>097/103</strong> are both called <em>Legendary Summit</em>, and each carries the same
+        instruction: you cannot play it by itself, and you must combine <strong>two different</strong>{" "}
+        <em>Legendary Summit</em> cards from your hand to play them as one Stadium. The artwork runs
+        continuously across the pair, so the two halves form a single panorama.
+      </p>
+      <p className={P}>
+        Once in play, the combined Stadium reads: whenever a star Pokemon &mdash; either player&apos;s &mdash;
+        is Knocked Out by damage from an attack from the opponent&apos;s Pokemon, that player takes 1 fewer
+        Prize card.
+      </p>
+      <p className={P}>
+        For a buyer, that two-card requirement is the thing to watch. A listing offering &ldquo;Legendary
+        Summit&rdquo; is offering one of two different cards, and only one of them is the half you are missing.
+        It is the same trap a shared collector number sets elsewhere, and the reason our{" "}
+        <Link href="/guides/how-to-read-a-pokemon-card-listing" className={A}>
+          listing-reading guide
+        </Link>{" "}
+        starts with identity rather than price.
+      </p>
+
+      <h2 className={H2}>What is still not known</h2>
+      <ul className={UL}>
+        <li>
+          <strong>The full English list.</strong> Six cards are on the official page and PokeBeach&apos;s
+          gallery shows more. Neither is the complete 103.
+        </li>
+        <li>
+          <strong>Rarity and print treatment</strong> for most numbers, which these images do not settle.
+        </li>
+        <li>
+          <strong>Anything about price, pull rates or availability.</strong> No Delta Reign card is in our
+          catalogue, so we hold no reference for one and will not estimate.
+        </li>
+      </ul>
+
+      <Gallery
+        cards={[
+          { card: GUIDE_CARDS.rayquazaAscendedHeroes, caption: "Rayquaza, Ascended Heroes — in our catalogue now" },
+          { card: GUIDE_CARDS.c30ClassicRayquazaEx, caption: "Rayquaza EX, Classic Collection reprint — in our catalogue now" },
+        ]}
+        width={168}
+        note="The Rayquaza cards we hold and can price today. Neither is a Delta Reign card, and no Delta Reign card is in our catalogue yet — the six revealed cards are on the official expansion page linked below."
+      />
+
+      <p className={P}>
+        For the release date, the Japanese source set and where the July leak fits, see{" "}
+        <Link href="/news/mega-evolution-delta-reign-what-is-known" className={A}>
+          our earlier Delta Reign piece
+        </Link>
+        , or the{" "}
+        <Link href="/guides/pokemon-delta-reign-release-date-what-is-official" className={A}>
+          release-date guide
+        </Link>{" "}
+        for what is official versus reported.
+      </p>
+    </>
+  );
+}
+
 export const NEWS_BODIES = {
+  "delta-reign-english-cards-revealed": DeltaReignCards,
   "mega-evolution-delta-reign-what-is-known": DeltaReign,
   "pokemon-tcg-30th-celebration-out-now": ThirtiethOutNow,
   "rgb-mew-30th-celebration-unconfirmed": RgbMew,

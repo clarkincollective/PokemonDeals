@@ -75,7 +75,24 @@ test("4. an article with no genuine counterpart gets no block", () => {
   // three pre-launch guides - and reaches all of them, both directions
   const delta = relatedReading("news", "mega-evolution-delta-reign-what-is-known");
   assert.deepEqual(delta.map((i) => i.slug), ["pokemon-delta-reign-release-date-what-is-official", "storm-emeralda-vs-delta-reign-japanese-or-english", "delta-reign-preorders-and-prerelease-what-to-know"]);
-  for (const g of delta) assert.deepEqual(relatedReading("guide", g.slug).map((i) => i.slug), ["mega-evolution-delta-reign-what-is-known"]);
+  // 2026-09-23: a SECOND Delta Reign story (the English card reveal) joined
+  // the cluster, so the release-date guide - the one whose whole subject is
+  // what is official - now reaches both stories, newest first. The other two
+  // guides are unchanged: the reveal does not bear on the Japanese-vs-English
+  // choice or on preorders, and a block is only earned by a genuine
+  // counterpart. The two stories link to each other inline in their own
+  // prose, because this map is cross-kind only (test 2).
+  assert.deepEqual(
+    relatedReading("guide", "pokemon-delta-reign-release-date-what-is-official").map((i) => i.slug),
+    ["delta-reign-english-cards-revealed", "mega-evolution-delta-reign-what-is-known"]
+  );
+  for (const g of ["storm-emeralda-vs-delta-reign-japanese-or-english", "delta-reign-preorders-and-prerelease-what-to-know"]) {
+    assert.deepEqual(relatedReading("guide", g).map((i) => i.slug), ["mega-evolution-delta-reign-what-is-known"]);
+  }
+  // and the new story reaches guides, never another story
+  const reveal = relatedReading("news", "delta-reign-english-cards-revealed");
+  assert.ok(reveal.length > 0, "the card-reveal story should reach its guides");
+  for (const i of reveal) assert.ok(i.href.startsWith("/guides/"), `${i.slug}: a news item must not link another news item here`);
   // an evergreen guide about no particular release still gets no block
   assert.deepEqual(relatedReading("guide", "how-pokemon-card-prices-work"), []);
   assert.deepEqual(relatedReading("news", "no-such-story"), []);
