@@ -87,7 +87,8 @@ export default function SetsFilterList({ sets, checklistSlugs = [], filter = tru
                 // only the ones that can evidence a discount - so it says
                 // "listings". See lib/catalogAggregates.js computeAggregates.
                 <span className="shrink-0 rounded-md bg-zinc-700 px-2 py-0.5 text-xs font-semibold text-zinc-100">
-                  {s.count} {s.count === 1 ? "listing" : "listings"}
+                  {/* FINDING 6: distinct eBay listings, not stored rows */}
+                  {s.listingCount ?? s.count} {(s.listingCount ?? s.count) === 1 ? "listing" : "listings"}
                 </span>
               )}
             </Link>

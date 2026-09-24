@@ -84,9 +84,27 @@ test("7. empty / nullish input -> zeroes, no throw", () => {
   assert.deepEqual(speciesDealStatCounts(undefined), { dealCards: 0, dealListings: 0 });
 });
 
-test("8. listingKey: marketplace + listing_id, falls back to row id", () => {
-  assert.equal(listingKey({ marketplace: "EBAY_US", listing_id: "x" }), "EBAY_US:x");
-  assert.equal(listingKey({ marketplace: "EBAY_GB", id: 9 }), "EBAY_GB:9");
+test("8. listingKey: the eBay listing, NOT the marketplace it was found on", () => {
+  // AUDIT FINDING 6 (2026-09-25). THIS TEST PINNED THE DEFECT: it asserted
+  // the key was `marketplace + listing_id`, which is what made one eBay
+  // listing stored for four regional sites count as four buying options
+  // (measured live: 1,103 displayable rows behind 998 listings; the
+  // Magneton hub said "12 active listings" over 6).
+  //
+  // The same item on different eBay sites is ONE option.
+  assert.equal(
+    listingKey({ marketplace: "EBAY_US", listing_id: "v1|123|0" }),
+    listingKey({ marketplace: "EBAY_GB", listing_id: "v1|123|0" })
+  );
+  // ...but two VARIATIONS of one listing are genuinely different offers
+  // and must not collapse, so the variation component stays in the key.
+  assert.notEqual(
+    listingKey({ marketplace: "EBAY_US", listing_id: "v1|123|0" }),
+    listingKey({ marketplace: "EBAY_US", listing_id: "v1|123|1" })
+  );
+  // ...and an identity-less row never merges with anything.
+  assert.equal(listingKey({ marketplace: "EBAY_GB", id: 9 }), "row:9");
+  assert.notEqual(listingKey({ id: 9 }), listingKey({ id: 10 }));
   assert.equal(listingKey(null), null);
 });
 

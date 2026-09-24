@@ -408,6 +408,23 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
             title link, so "which eBay site is this on" is still answered
             without changing anything on screen. */}
         {marketInfo && <span className="sr-only">Listed on eBay {marketInfo.label}</span>}
+        {/* FINDING 6 (2026-09-25). This is ONE eBay listing that is also
+            reachable from other regional eBay sites. Those rows used to
+            render as separate tiles, which read as several independent
+            buying options. They are collapsed into this one - so the fact
+            that it is available regionally is stated here rather than
+            thrown away. The price, currency, shipping statement and
+            savings qualifier above all belong to THIS marketplace's copy;
+            the other sites quote their own and are not mixed in. */}
+        {Array.isArray(deal.regional_alternatives) && deal.regional_alternatives.length > 0 && (
+          <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
+            Same listing, also on{" "}
+            {deal.regional_alternatives
+              .map((m) => `eBay ${MARKETPLACES[m]?.short ?? String(m).replace("EBAY_", "")}`)
+              .join(", ")}{" "}
+            <span className="text-zinc-400 dark:text-zinc-500">(prices differ by site)</span>
+          </p>
+        )}
         {/* Set · condition. The condition (or grader + grade) is REQUIRED
             reading, never fine print: it sits in its own non-shrinking span
             so a long set name truncates instead of hiding it, and at the

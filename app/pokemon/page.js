@@ -71,7 +71,10 @@ export default async function PokemonIndexPage() {
       name: s.name,
       dex: s.dex,
       slug: deal?.slug ?? s.slug,
-      count: deal?.count ?? 0,
+      // FINDING 6: the reader-facing badge counts BUYING OPTIONS (distinct
+      // eBay listings), not stored regional rows. deal.count still drives
+      // membership and ordering upstream.
+      count: deal?.listingCount ?? deal?.count ?? 0,
       hasDeal: Boolean(deal),
     });
   }

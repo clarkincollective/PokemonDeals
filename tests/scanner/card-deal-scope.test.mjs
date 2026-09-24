@@ -70,7 +70,14 @@ test("duplicate DB rows for the same eBay item DO collapse", () => {
 });
 
 test("listingKey falls back to row id when there is no listing_id", () => {
-  assert.equal(listingKey({ marketplace: "EBAY_GB", id: 9 }), "EBAY_GB:9");
+  // AUDIT FINDING 6 (2026-09-25): the key no longer carries the
+  // marketplace. One eBay item is discoverable from several regional eBay
+  // sites and stored once per site, so including it made one buying option
+  // read as several. An identity-less row still falls back to its own row
+  // id, which is the point of this test: unknown identity must never merge
+  // with anything.
+  assert.equal(listingKey({ marketplace: "EBAY_GB", id: 9 }), "row:9");
+  assert.notEqual(listingKey({ marketplace: "EBAY_GB", id: 9 }), listingKey({ marketplace: "EBAY_GB", id: 10 }));
 });
 
 // ===== the shared filter contract on the card page ================
