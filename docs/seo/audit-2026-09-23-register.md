@@ -16,7 +16,7 @@ while working a finding that is NOT part of that finding.
 | 4 | Sealed links lose the product selection | **closed** — commits `e45a18d`, `927fcb8`, 2026-09-25; production-verified desktop + 387px, see below |
 | 5 | `customid=other` on some affiliate links | **closed** — commits `67e1c1f`, `a6c4ae3`, 2026-09-25; pre-change sample 395/475 = 83.2% fallback, post-change sample 0/690 = 0.0% — **different samples, not a single delta**, see below |
 | 6 | Duplicate marketplace rows | **closed** — commits `f4a8568`, `cb4d675`, 2026-09-24; 1,105 displayable rows behind 1,000 listings, Magneton hub 12 → 6, see below |
-| 7 | Hero chips drop qualifiers; desktop overflow 1384 vs 1363px | open — not started |
+| 7 | Hero chips drop qualifiers; desktop overflow 1384 vs 1363px | **closed** — commit `72869e0`, 2026-09-24; 229 of 308 hero chips contradicted their destination; overflow reproduced as a 1024-1400px band, see below |
 | 8 | Variant searches drop set / number | open — not started |
 | 9 | Sales ordering | open — not started |
 
@@ -1215,3 +1215,135 @@ Nothing reader-facing was wrong in between: the tiles read
 `s.listingCount ?? s.count`, and the bad value only ever reached the
 snapshot, not a rendered page, before it was corrected. Had it not been,
 those tiles would have begun showing "1 listing" at the next rebuild.
+
+---
+
+## Open technical debt — indexability thresholds read the raw row count
+
+Recorded 2026-09-24, from finding 6. **Not acted on, deliberately.**
+
+`CARD_HUB_MIN_LISTINGS`, `SET_MIN_LISTINGS` and `SPECIES_MIN_LISTINGS` are
+applied to `count` (stored rows), not to `listingCount` (distinct eBay
+listings). So a page can exist because it holds two rows that are one
+listing regionally duplicated — the page's own premise ("compare several
+listings") is then false for it, while the badge now correctly says one.
+
+Measured on live records, 2026-09-24, English, through `isOfferCountable`:
+
+| | today (rows) | on distinct listings | would disappear |
+|---|---|---|---|
+| card hubs (threshold 2) | 246 | 210 | **36** |
+| set pages (threshold 3) | 85 | 81 | **4** |
+| groups whose count changes | 81 of 601 card, 47 of 133 set | | |
+
+Switching membership to `listingCount` removes 40 live, indexed pages.
+That is an indexability and content decision with its own evidence and its
+own review — it is not something to fold into a duplicate-listing display
+fix, and the codebase has the same precedent recorded inside
+`computeAggregates`, where a change that would have taken card hubs
+248 → 69 was rejected as silently deleting pages.
+
+**Nothing about page eligibility, routes or sitemap membership changed.**
+The two counts are separated precisely so the display could be corrected
+without touching them.
+
+---
+
+# Finding 7 — hero claims and hero overflow (CLOSED, 2026-09-24)
+
+Commit `72869e0`. Reproduced against current behaviour before any change;
+the audit's evidence was treated as historical, not as proof.
+
+## Defect 1 — the chip ran its own gate
+
+`components/HomeHeroArt.js` decided the chip with
+`Number(d.discount_pct) > 0`: its own arithmetic test, standing beside the
+shared presentation rules instead of asking them.
+
+Measured read-only on live rows, 2026-09-24, cutoff `22:32:47Z`
+(`scripts/integrity/auditHeroClaims.mjs`, SELECT-only, no provider call,
+no affiliate URL requested). Of **308** displayable rows the hero would
+have chipped, **229** carried a claim their own destination contradicts:
+
+| reason | rows | the hero said | the deal page says |
+|---|---|---|---|
+| before shipping | **126** | `75% off` | `75% below market before shipping` |
+| auction | **80** | `75% off` | `75% under market ref · Auction, bids can rise` |
+| no trusted reference | **23** | `74% off` | no savings claim — plain listing |
+| agrees | 79 | | |
+
+Representative, from the audit output:
+
+- deal 43513, *Metagross (Delta Species)* — hero `74% off`; destination
+  makes **no savings claim** (`savingsReason: no_reference`).
+- deal 43744, *Metagross (Delta Species)* — hero `74% off`; destination
+  `74% below market **before shipping**`.
+- deal 44119, *Umbreon EX* — hero `74% off`; destination
+  `74% under market ref · **Auction, bids can rise**`.
+
+### After
+
+The chip asks `listingPresentation` and `offerShipping`, exactly as
+`DealCard` does, and prints only what they already allow. The percentage
+is still `savingsPercentText(discount_pct)` — the same value the tile
+prints. No new arithmetic, no new eligibility.
+
+| case | chip |
+|---|---|
+| not trusted | *(none)* |
+| auction | *(none)* — a bid can rise, and the chip has no room to say so without burying it |
+| before shipping | `45% off before shipping` |
+| delivered | `45% off` |
+
+The qualifier rides **on** the chip, which wraps within a capped width
+rather than truncating — never a tooltip, never left to the destination.
+
+## Defect 2 — methodology implied every comparison includes delivery
+
+> The price compared is what a buyer actually pays: **item price plus
+> shipping**, using the real figures eBay returns.
+
+True of one of the three bases `lib/offerPresentation` actually supports,
+and 126 of the 308 rows above are on a different one. The copy now states
+the delivered case *"wherever eBay gives us a shipping cost for your
+country"*, the before-shipping case and its label, the no-breakdown case
+(no saving claim), and that an auction is a current bid that can rise.
+
+**No pricing check was weakened to make the old sentence true** — the
+predicates are unchanged and HC-15 pins them.
+
+## Defect 3 — hero overflow
+
+Reproduced at **measured layout viewports** (`innerWidth` recorded with
+each result), and it is a band rather than the single point the audit
+recorded:
+
+| innerWidth | scrollWidth | overflow |
+|---|---|---|
+| 1920 / 1600 / 1440 | ≤ innerWidth | none |
+| 1400 | 1403 | 3px |
+| **1384** | 1395 | **11px** |
+| **1363** | 1384 | **21px** |
+| 1280 | 1335 | 55px |
+| 1024 | 1122 | **98px** |
+| 900 / 768 / 430 / 390 | ≤ innerWidth | none |
+
+Sole cause, both halves in `HomeHeroArt`: the cards were `shrink-0`, so
+the row stayed wider than its grid column (480px of cards in a 400px
+column at 1280), and a card rotated 9° has a bounding box wider than the
+card (152px → **212px**) which escaped the container on top of that. At
+1280 the third card's right edge measured 1335 against a 1280 viewport.
+
+Fixed inside the component: cards may shrink to their column
+(`flex-1 max-w-[9.5rem]`), the row has `min-w-0`, and the wrapper clips
+with vertical padding so rotated corners and the chip cannot extend the
+page. Clean below `lg` where the fan is hidden, and clean at `lg`+.
+
+## Preserved
+
+Destinations, affiliate attribution and marketplace behaviour untouched —
+the hero builds no affiliate URL at all, each card still links to its own
+`/deals/[id]`. No breakpoint, grid, typography, navigation, branding or
+CTA change anywhere on the homepage.
+
+**No traffic, ranking or revenue improvement is claimed.**
