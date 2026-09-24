@@ -190,7 +190,8 @@ test("MB-8. wording: the header control names the marketplace, not shipping", ()
 
 test("MB-9. attribution and indexing unchanged", () => {
   const card = read("components/DealCard.js");
-  assert.match(card, /wrapEbayAffiliateUrl\(deal\.affiliate_url, \{ surface: surfaceForPageName\(pageName\) \}\)/);
+  // finding 5 (2026-09-25): same contract, new mapping module.
+  assert.match(card, /wrapEbayAffiliateUrl\(deal\.affiliate_url, attributionOptionsForPageName\(pageName\)\)/);
   // new links are internal, nofollow query links
   const note = read("components/MarketplaceScopeNote.js");
   assert.match(note, /rel="nofollow"/);

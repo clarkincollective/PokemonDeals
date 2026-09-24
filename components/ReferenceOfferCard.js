@@ -5,6 +5,7 @@ import EbaySearchLink from "@/components/EbaySearchLink";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import { catalogImageUrl } from "@/lib/cardImage";
 import { buildEbaySearchLink } from "@/lib/ebayLinks";
+import { withPlacement } from "@/lib/affiliateAttribution";
 
 // Deal-first R1 - the CATALOGUE / REFERENCE-ONLY offer state, in the same
 // shell as <DealCard> so the two read as one system while staying
@@ -20,7 +21,9 @@ import { buildEbaySearchLink } from "@/lib/ebayLinks";
 export default function ReferenceOfferCard({ card, surface = "other" }) {
   const image = card.tcgplayerId ? catalogImageUrl(card.tcgplayerId) : null;
   const query = [card.name, card.set, card.number].filter(Boolean).join(" ");
-  const searchHref = buildEbaySearchLink(query, undefined, surface);
+  // This tile exists precisely because there is no qualifying offer, so
+  // its CTA is a search, never a listing - placement "reference".
+  const searchHref = buildEbaySearchLink(query, undefined, withPlacement(surface, "reference"));
   const hasRef = Number.isFinite(Number(card.referenceUsd)) && Number(card.referenceUsd) > 0;
   const identity = [card.set, card.number].filter(Boolean).join(" · ");
 

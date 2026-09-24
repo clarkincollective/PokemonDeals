@@ -2,6 +2,7 @@ import AffiliateLink from "@/components/AffiliateLink";
 import Price from "@/components/Price";
 import { normalizePublicText } from "@/lib/publicText";
 import { wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
+import { withPlacement } from "@/lib/affiliateAttribution";
 
 // PokemonPriceTracker's recent-sales feed carries a USD price per sale
 // (no per-sale currency in the data contract); <Price> localises it to
@@ -22,7 +23,7 @@ export default function RecentSales({
   sales,
   cardName,
   page = "recent_sales",
-  surface, // fixed EPN attribution surface (lib/affiliateSurfaces.js) - see below
+  surface, // the caller page's affiliate attribution (lib/affiliateAttribution.js)
   limit = 8,
   variant = null, // "raw" -> label the list as raw (ungraded) sales
   className = "",
@@ -73,7 +74,9 @@ export default function RecentSales({
                   // same idempotent customid-only overwrite used
                   // throughout this feature - no cache-key change, no
                   // extra fetch.
-                  href={wrapEbayAffiliateUrl(sale.url, { surface })}
+                  // FINDING 5: a sold comp is a different action from the
+                  // page's own buy CTA - same page, placement "sold".
+                  href={wrapEbayAffiliateUrl(sale.url, withPlacement(surface, "sold"))}
                   eventName="eBay Click"
                   eventData={{ card: cardName, page }}
                   className="line-clamp-1 block text-sm text-zinc-700 hover:underline dark:text-zinc-300"

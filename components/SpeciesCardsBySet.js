@@ -1,5 +1,6 @@
 import { slugifySet } from "@/lib/slugify";
 import { buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
+import { asAttributionOptions } from "@/lib/affiliateAttribution";
 import { sortCards, DEFAULT_SORT } from "@/lib/catalogueView";
 import CatalogueBrowser from "@/components/CatalogueBrowser";
 import CatalogueLinkIndex from "@/components/CatalogueLinkIndex";
@@ -28,10 +29,12 @@ export const RICH_BROWSER_CAP = 120;
 // (slugifySet is cheap; the campaign-wrapped eBay search url needs the
 // server-only EBAY_CAMPAIGN_ID). Shared with the page's featured-value
 // section so both build tiles identically.
-// `surface` is the caller's fixed EPN attribution surface (see
-// lib/affiliateSurfaces.js) - this helper is shared by /pokemon/[slug]
+// `surface` is the caller's affiliate attribution (see
+// lib/affiliateAttribution.js) - a legacy surface string or a
+// { page, placement } pair. This helper is shared by /pokemon/[slug]
 // ("pokemon") and /sets/[slug] ("set"), so it can't assume its own
-// context and must be told.
+// context and must be told. The tiles it feeds re-apply their own
+// placement at the render boundary (SpeciesCard, CatalogueBrowser.Tile).
 export function buildCatalogueItems(cards, validSetSlugs = [], surface) {
   return (cards ?? []).map((c) => ({
     ...c,
@@ -41,7 +44,7 @@ export function buildCatalogueItems(cards, validSetSlugs = [], surface) {
     // c.deal.affiliateUrl (when a card carries a live verified deal) is
     // re-wrapped here too, server-side - the client <CatalogueBrowser>
     // this feeds cannot do it itself (EBAY_CAMPAIGN_ID is server-only).
-    deal: c.deal ? { ...c.deal, affiliateUrl: wrapEbayAffiliateUrl(c.deal.affiliateUrl, { surface }) } : c.deal,
+    deal: c.deal ? { ...c.deal, affiliateUrl: wrapEbayAffiliateUrl(c.deal.affiliateUrl, asAttributionOptions(surface)) } : c.deal,
   }));
 }
 

@@ -202,7 +202,7 @@ export default async function SealedDealDetailPage({ params }) {
   const isAuction = deal.listing_type === "AUCTION";
   const auctionParts = isAuction ? auctionDisplayParts(deal) : null;
   const marketInfo = MARKETPLACES[deal.marketplace];
-  const tcgplayerLink = buildTcgplayerLink(productName, watchlist?.tcgplayer_id);
+  const tcgplayerLink = buildTcgplayerLink(productName, watchlist?.tcgplayer_id, { page: "sealed_item", placement: "reference" });
 
   let history = [];
   if (watchlist?.tcgplayer_id) {
@@ -375,7 +375,7 @@ export default async function SealedDealDetailPage({ params }) {
 
             <div className="mt-5 flex flex-wrap gap-3">
               <AffiliateLink
-                href={wrapEbayAffiliateUrl(deal.affiliate_url, { surface: "deal_page" })}
+                href={wrapEbayAffiliateUrl(deal.affiliate_url, { page: "sealed_item", placement: "offer" })}
                 eventName="eBay Click"
                 eventData={{
                   product: productName,

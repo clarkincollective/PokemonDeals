@@ -7,7 +7,7 @@ import Price from "@/components/Price";
 import { offerShipping } from "@/lib/offerPresentation";
 import { currencyForDeal, hasPrice } from "@/lib/money";
 import { buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
-import { surfaceForPageName } from "@/lib/affiliateSurfaces";
+import { attributionOptionsForPageName } from "@/lib/affiliateAttribution";
 import { upgradeCatalogImage } from "@/lib/cardImage";
 import { cardDisplayName, cardIdentityLine } from "@/lib/cardName";
 
@@ -29,10 +29,19 @@ import { cardDisplayName, cardIdentityLine } from "@/lib/cardName";
 //
 // `label` is the grouping name (set / species) used only for click
 // tracking; `speciesName` is accepted as its old name.
-export default function SpeciesCard({ card, label, speciesName, pageName = "species_card" }) {
+// `placement` overrides the placement half of the attribution pair for a
+// tile rendered outside its page's main grid - the sealed catalogue's
+// selected-product panel being the case that matters (finding 4 added it,
+// and without this it reported as the sealed browse grid).
+export default function SpeciesCard({ card, label, speciesName, pageName = "species_card", placement }) {
   const context = label ?? speciesName;
-  // EPN sub-ID attribution - see components/DealCard.js's identical comment.
-  const surface = surfaceForPageName(pageName);
+  // EPN sub-ID attribution - see components/DealCard.js's identical
+  // comment. A tile has two mutually exclusive CTAs and they are NOT the
+  // same action: one goes to a specific vouched listing, the other to an
+  // eBay search. They keep the same page half and differ in placement, so
+  // a report can tell "clicked a real offer" from "went looking".
+  const offerAttribution = attributionOptionsForPageName(pageName, placement);
+  const searchAttribution = { page: offerAttribution.page, placement: "search" };
 
   // A card only counts as a DEAL tile when it carries the exact verified
   // /itm/ listing URL. Anything else -> render as a no-deal card (Find on
@@ -41,7 +50,7 @@ export default function SpeciesCard({ card, label, speciesName, pageName = "spec
   // happens after, at render time.
   const dealUrl =
     typeof card.deal?.affiliateUrl === "string" && /\.ebay\.[^/]+\/itm\/\d+/.test(card.deal.affiliateUrl)
-      ? wrapEbayAffiliateUrl(card.deal.affiliateUrl, { surface })
+      ? wrapEbayAffiliateUrl(card.deal.affiliateUrl, offerAttribution)
       : null;
   const isDeal = Boolean(dealUrl);
 
@@ -66,8 +75,8 @@ export default function SpeciesCard({ card, label, speciesName, pageName = "spec
   // everywhere else in this feature - rather than trusting an upstream
   // value to already be correct. No new data fetch, no cache-key change.
   const searchHref = card.ebayHref
-    ? wrapEbayAffiliateUrl(card.ebayHref, { surface })
-    : buildEbaySearchLink(ebayQuery, undefined, surface);
+    ? wrapEbayAffiliateUrl(card.ebayHref, searchAttribution)
+    : buildEbaySearchLink(ebayQuery, undefined, searchAttribution);
   const isAuction = card.deal?.listingType === "AUCTION";
   const shipping = offerShipping(card.deal);
   const showSavings = shipping.savingClaim !== "none" && card.deal?.discountPct != null;

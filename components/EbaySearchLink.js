@@ -5,6 +5,7 @@ import { capture } from "@/lib/analytics/client";
 import { EVENTS } from "@/lib/analytics/events";
 import { pageTypeFromPath } from "@/lib/analytics/pageType";
 import { useRegion, localizeEbaySearchUrl } from "@/lib/useRegion";
+import { attributionFromHref } from "@/lib/affiliateAttribution";
 
 // The catalogue "Find on eBay" CTA. `href` is the server-built,
 // campaign-wrapped US search url (crawler-visible, always valid); on the
@@ -31,7 +32,19 @@ export default function EbaySearchLink({ href, event = {}, className, children }
     }
     try {
       const placement = event.placement ?? "ebay_search";
+      // Read off the href actually being followed - see
+      // components/AffiliateLink.js for why it is not plumbed separately.
+      // finalHref, not href: the client re-points the search at the
+      // visitor's marketplace domain, and the identifier rides along.
+      const attribution = attributionFromHref(finalHref);
       capture(EVENTS.AFFILIATE_CLICK, {
+        ...(attribution
+          ? {
+              epn_customid: attribution.id,
+              affiliate_page: attribution.page,
+              affiliate_placement: attribution.placement,
+            }
+          : {}),
         origin_section: placement,
         placement,
         page_type: typeof window !== "undefined" ? pageTypeFromPath(window.location.pathname) : undefined,
@@ -43,10 +56,14 @@ export default function EbaySearchLink({ href, event = {}, className, children }
     }
   }
   return (
+    // `data-affiliate-link`: see components/AffiliateLink.js - an ancestor
+    // that also tracks clicks stands down when it sees this, so one action
+    // cannot be counted twice.
     <a
       href={finalHref}
       target="_blank"
       rel="sponsored noopener noreferrer"
+      data-affiliate-link=""
       className={className}
       onClick={onClick}
     >

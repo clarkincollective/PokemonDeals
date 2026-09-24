@@ -75,8 +75,17 @@ test("AffiliateLink does not mutate href or affiliate params, and does not block
   const src = read("components/AffiliateLink.js");
   // href is passed straight to <a href={href}>
   assert.match(src, /<a\s+[\s\S]*?href=\{href\}/);
-  // no rewriting of EPN / Impact params
-  assert.doesNotMatch(src, /campid|mkcid|mkrid|mkevt|customid|\.replace\(\s*\/.*(campid|mkcid)/i);
+  // No REWRITING of EPN / Impact params. Since finding 5 (2026-09-25) the
+  // component READS the sub-ID back off the href so the analytics event
+  // reports exactly what the network will receive - that is a read, and the
+  // href still reaches <a> byte-identical. So this asserts the absence of
+  // mutation, not the absence of the word: no param setter, no string
+  // rewrite of the href, no rebuilt URL.
+  assert.doesNotMatch(src, /searchParams\.(set|append|delete)|href\.replace|href\s*\+|new URL\(/);
+  assert.doesNotMatch(src, /\.replace\(\s*\/.*(campid|mkcid)/i);
+  // the only thing it may do with the href, besides pass it to <a>, is
+  // read the attribution off it
+  assert.match(src, /attributionFromHref\(href\)/);
   // click handler swallows analytics errors (try/catch around capture)
   assert.match(src, /try\s*\{[\s\S]*capture\(/);
   // navigation is a normal anchor - no preventDefault / router.push in the handler

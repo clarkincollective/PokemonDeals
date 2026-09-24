@@ -223,6 +223,7 @@ export default async function CardsDirectoryPage() {
               speciesName="Pokemon"
               items={featured}
               placement="cards_directory_featured"
+              attribution={{ page: "card", placement: "catalog" }}
             />
           </section>
         )}

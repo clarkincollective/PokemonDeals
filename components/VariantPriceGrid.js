@@ -2,6 +2,7 @@ import MiniSparkline from "@/components/MiniSparkline";
 import AffiliateLink from "@/components/AffiliateLink";
 import Price from "@/components/Price";
 import { buildEbaySearchLink } from "@/lib/ebayLinks";
+import { withPlacement } from "@/lib/affiliateAttribution";
 import { hasPrice } from "@/lib/money";
 import { referenceConditionLabels } from "@/lib/referenceCondition";
 
@@ -79,7 +80,7 @@ function Tile({ label, isActive, searchQuery, eventData, surface, ...contentProp
 
   return (
     <AffiliateLink
-      href={buildEbaySearchLink(searchQuery, undefined, surface)}
+      href={buildEbaySearchLink(searchQuery, undefined, withPlacement(surface, "variant"))}
       eventName="eBay Click"
       eventData={eventData}
       className={className}
@@ -93,8 +94,8 @@ function Tile({ label, isActive, searchQuery, eventData, surface, ...contentProp
 // sales) side by side, each with its own real price history sparkline -
 // activeKey (either "raw" or a grade key like "psa10") highlights whichever
 // variant the deal being viewed actually is.
-// `surface` is the caller's fixed EPN attribution surface (see
-// lib/affiliateSurfaces.js) - this component is shared across
+// `surface` is the caller page's affiliate attribution (see
+// lib/affiliateAttribution.js) - this component is shared across
 // /cards/[slug] ("card") and /deals/[id] ("deal_page"), so it can't
 // assume its own context and must be told.
 export default function VariantPriceGrid({ raw, graded, activeKey, cardName, surface }) {

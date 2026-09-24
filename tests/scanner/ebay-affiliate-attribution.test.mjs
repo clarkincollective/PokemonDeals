@@ -1,4 +1,14 @@
 // eBay Partner Network sub-ID attribution (customid / affiliateReferenceId).
+//
+// MIGRATED 2026-09-25 by audit finding 5. customid now carries
+// "<page>-<placement>" from lib/affiliateAttribution.js instead of a single
+// fused token; the old vocabulary is frozen in lib/affiliateSurfaces.js as
+// the historical record of what EPN already recorded. Every assertion here
+// that was about the PROPERTIES of the link - destination preserved,
+// campid preserved, one of every param, no identity or query in customid,
+// no new API call or OAuth scope - is kept and simply re-expressed against
+// the new values. tests/scanner/affiliate-attribution-2026-09-25.test.mjs
+// covers the new mapping itself.
 // Zero new eBay access, zero new quota - metadata on already-existing
 // outbound links only. See docs/ebay-affiliate-attribution.md.
 //
@@ -33,9 +43,9 @@ test("1. every AFFILIATE_SURFACES value round-trips through affiliateSurface unc
 });
 
 test("1b. wrapEbayAffiliateUrl sets customid to exactly the requested valid surface", () => {
-  for (const surface of ["home_best", "search", "pokemon", "card", "deal_page"]) {
+  for (const [surface, expected] of [["home_best", "home-best"], ["search", "search-grid"], ["pokemon", "pokemon-grid"], ["card", "card-offer"], ["deal_page", "deal-offer"]]) {
     const url = new URL(wrapEbayAffiliateUrl(ITEM_URL, { surface }));
-    assert.equal(url.searchParams.get("customid"), surface);
+    assert.equal(url.searchParams.get("customid"), expected, surface);
   }
 });
 
@@ -59,7 +69,7 @@ test("2c. customid is set even when EBAY_CAMPAIGN_ID is unavailable in this exec
     delete process.env.EBAY_CAMPAIGN_ID;
     const alreadyWrapped = "https://www.ebay.com/itm/123456789012?hash=item1&mkevt=1&mkcid=1&mkrid=711-53200-19255-0&campid=5339197414&customid=&toolid=10049";
     const url = new URL(wrapEbayAffiliateUrl(alreadyWrapped, { surface: "search" }));
-    assert.equal(url.searchParams.get("customid"), "search"); // fixed, not left blank
+    assert.equal(url.searchParams.get("customid"), "search-grid"); // fixed, not left blank
     assert.equal(url.searchParams.get("campid"), "5339197414"); // untouched, not blanked out either
   } finally {
     process.env.EBAY_CAMPAIGN_ID = original;
@@ -67,18 +77,17 @@ test("2c. customid is set even when EBAY_CAMPAIGN_ID is unavailable in this exec
 });
 
 test("2b. wrapEbayAffiliateUrl with no surface, or a bogus one, still sets a valid customid (never blank, never the raw value)", () => {
-  assert.equal(new URL(wrapEbayAffiliateUrl(ITEM_URL)).searchParams.get("customid"), "other");
-  assert.equal(new URL(wrapEbayAffiliateUrl(ITEM_URL, {})).searchParams.get("customid"), "other");
-  assert.equal(new URL(wrapEbayAffiliateUrl(ITEM_URL, { surface: "not_a_real_surface" })).searchParams.get("customid"), "other");
+  assert.equal(new URL(wrapEbayAffiliateUrl(ITEM_URL)).searchParams.get("customid"), "other-other");
+  assert.equal(new URL(wrapEbayAffiliateUrl(ITEM_URL, {})).searchParams.get("customid"), "other-other");
+  assert.equal(new URL(wrapEbayAffiliateUrl(ITEM_URL, { surface: "not_a_real_surface" })).searchParams.get("customid"), "other-other");
 });
 
 // === 3-6. things that must NEVER reach customid ==============================
 
 test("3. a search query never enters customid", () => {
   const url = new URL(buildEbaySearchLink("Charizard 11/108 Prerelease Promo", "EBAY_US", "search"));
-  assert.equal(url.searchParams.get("customid"), "search");
-  assert.ok(!url.searchParams.get("customid").includes("charizard".toLowerCase()) || true); // customid is a fixed enum, not derived from the query at all
-  assert.equal(AFFILIATE_SURFACES.has(url.searchParams.get("customid")), true);
+  assert.equal(url.searchParams.get("customid"), "search-grid");
+  assert.doesNotMatch(url.searchParams.get("customid"), /charizard|11|108|prerelease|promo/i);
 });
 
 test("4. a card name never enters customid", () => {
@@ -115,14 +124,14 @@ test("8. an exact /itm/ URL keeps its item ID and gains campid/mkevt/mkcid/mkrid
   assert.equal(wrapped.searchParams.get("mkcid"), "1");
   assert.equal(wrapped.searchParams.get("mkrid"), "711-53200-19255-0");
   assert.equal(wrapped.searchParams.get("toolid"), "10049");
-  assert.equal(wrapped.searchParams.get("customid"), "deal_page");
+  assert.equal(wrapped.searchParams.get("customid"), "deal-offer");
 });
 
 test("9. an eBay search URL keeps _nkw and _sacat alongside the affiliate params", () => {
   const url = new URL(buildEbaySearchLink("Charizard 11/108", "EBAY_US", "card"));
   assert.equal(url.searchParams.get("_nkw"), "Charizard 11/108");
   assert.equal(url.searchParams.get("_sacat"), "183454");
-  assert.equal(url.searchParams.get("customid"), "card");
+  assert.equal(url.searchParams.get("customid"), "card-offer");
   assert.equal(url.searchParams.get("campid"), "5339197414");
 });
 
@@ -132,7 +141,7 @@ test("10. buildEbaySearchLink still targets the right eBay site per marketplace,
   for (const [mp, host] of [["EBAY_US", "www.ebay.com"], ["EBAY_GB", "www.ebay.co.uk"], ["EBAY_AU", "www.ebay.com.au"]]) {
     const url = new URL(buildEbaySearchLink("Charizard", mp, "search"));
     assert.equal(url.hostname, host);
-    assert.equal(url.searchParams.get("customid"), "search");
+    assert.equal(url.searchParams.get("customid"), "search-grid");
   }
 });
 
@@ -141,7 +150,7 @@ test("11. client-side localizeEbaySearchUrl preserves customid across AU/US/GB h
   for (const [region, host] of [["EBAY_AU", "www.ebay.com.au"], ["EBAY_GB", "www.ebay.co.uk"], ["EBAY_US", "www.ebay.com"]]) {
     const localized = new URL(localizeEbaySearchUrl(us, region));
     assert.equal(localized.hostname, host);
-    assert.equal(localized.searchParams.get("customid"), "pokemon");
+    assert.equal(localized.searchParams.get("customid"), "pokemon-grid");
     assert.equal(localized.searchParams.get("campid"), "5339197414");
   }
 });
@@ -155,7 +164,7 @@ test("12. re-wrapping an already-wrapped URL with a different surface still yiel
   assert.equal(url.searchParams.getAll("customid").length, 1);
   assert.equal(url.searchParams.getAll("campid").length, 1);
   assert.equal(url.searchParams.getAll("mkevt").length, 1);
-  assert.equal(url.searchParams.get("customid"), "search"); // the later wrap wins - idempotent overwrite, not accumulation
+  assert.equal(url.searchParams.get("customid"), "search-grid"); // the later wrap wins - idempotent overwrite, not accumulation
 });
 
 // === 13/14. no new eBay API call, no new OAuth scope =========================
@@ -272,25 +281,25 @@ test("closeout 1/2/3: a pre-built href with no surface, or the wrong one, is cor
   // Simulates exactly what SpeciesCard/RecentSales receive: an
   // already-built eBay URL from a shared data layer, carrying "other"
   // (or nothing) because that layer has no page context.
-  const preBuilt = wrapEbayAffiliateUrl(ITEM_URL); // no surface given upstream -> "other"
-  assert.equal(new URL(preBuilt).searchParams.get("customid"), "other");
+  const preBuilt = wrapEbayAffiliateUrl(ITEM_URL); // no surface given upstream -> the fallback
+  assert.equal(new URL(preBuilt).searchParams.get("customid"), "other-other");
 
-  for (const [pageSurface, label] of [["set", "set page"], ["card", "card page"], ["deal_page", "deal page"]]) {
+  for (const [pageSurface, expected, label] of [["set", "set-grid", "set page"], ["card", "card-offer", "card page"], ["deal_page", "deal-offer", "deal page"]]) {
     const final = wrapEbayAffiliateUrl(preBuilt, { surface: pageSurface });
-    assert.equal(new URL(final).searchParams.get("customid"), pageSurface, `${label}: must correct "other" to "${pageSurface}"`);
+    assert.equal(new URL(final).searchParams.get("customid"), expected, `${label}: must correct the fallback to "${expected}"`);
   }
 });
 
 test("closeout 4: a known page's own surface is never left as other once the final wrap is applied", () => {
   for (const surface of ["set", "card", "deal_page"]) {
     const url = new URL(wrapEbayAffiliateUrl(ITEM_URL, { surface }));
-    assert.notEqual(url.searchParams.get("customid"), "other");
+    assert.notEqual(url.searchParams.get("customid"), "other-other");
   }
 });
 
 test("closeout 5: other still works correctly for a genuinely unknown/unmapped context", () => {
-  assert.equal(new URL(wrapEbayAffiliateUrl(ITEM_URL, { surface: "totally_unknown_surface" })).searchParams.get("customid"), "other");
-  assert.equal(new URL(wrapEbayAffiliateUrl(ITEM_URL)).searchParams.get("customid"), "other");
+  assert.equal(new URL(wrapEbayAffiliateUrl(ITEM_URL, { surface: "totally_unknown_surface" })).searchParams.get("customid"), "other-other");
+  assert.equal(new URL(wrapEbayAffiliateUrl(ITEM_URL)).searchParams.get("customid"), "other-other");
 });
 
 test("closeout 6/7/8: re-applying the known surface over a pre-built href changes ONLY customid - no duplicate customid, no duplicate campid, every other param intact", () => {
@@ -311,7 +320,7 @@ test("closeout 9: marketplace localization is unaffected by re-applying the know
   const final = wrapEbayAffiliateUrl(preBuilt, { surface: "set" });
   const localized = new URL(localizeEbaySearchUrl(final, "EBAY_AU"));
   assert.equal(localized.hostname, "www.ebay.com.au");
-  assert.equal(localized.searchParams.get("customid"), "set");
+  assert.equal(localized.searchParams.get("customid"), "set-grid");
 });
 
 test("closeout 10: the fix touches only presentation-layer render points, not the cached data layer - no new cache-key/route/card/listing identity is introduced", () => {
@@ -345,8 +354,15 @@ test("closeout 13/14: no new eBay API call or OAuth scope was introduced by this
 });
 
 test("an unmapped/unknown pageName resolves to other, not a crash or a guess", () => {
-  assert.equal(surfaceForPageName("sealed_hub"), "other");
-  assert.equal(surfaceForPageName("japanese_cards"), "other");
+  // AUDIT FINDING 5, 2026-09-25. This test PINNED THE DEFECT. "sealed_hub"
+  // and "japanese_cards" are not hypothetical unmapped names - they are two
+  // of the site's real surfaces, and asserting they resolve to "other"
+  // locked in the gap that sent 83.2% of outbound hrefs to the fallback.
+  // The live mapping moved to lib/affiliateAttribution.js, where both have
+  // their own identity; this file now only pins the FALLBACK BEHAVIOUR of
+  // the frozen historical vocabulary, with names that are genuinely not
+  // surfaces.
   assert.equal(surfaceForPageName(undefined), "other");
   assert.equal(surfaceForPageName("totally_made_up"), "other");
+  assert.equal(surfaceForPageName(""), "other");
 });

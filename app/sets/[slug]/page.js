@@ -409,6 +409,7 @@ export default async function SetDetailPage({ params }) {
             <CatalogueViews defaultView={checklistPilot ? "list" : "gallery"} listLabel={checklistPilot ? "Checklist" : "Card list"} gallery={<CatalogueBrowser
               variant="set"
               label={setLabel}
+              attribution={{ page: "set", placement: "catalog" }}
               items={
                 catalogueItems.length > RICH_BROWSER_CAP
                   ? sortCards(catalogueItems, DEFAULT_SORT, { relevanceTier: true }).slice(0, RICH_BROWSER_CAP)
@@ -456,6 +457,7 @@ export default async function SetDetailPage({ params }) {
               speciesName={resolved.set}
               items={featuredItems}
               placement="set_featured_value"
+              attribution={{ page: "set", placement: "catalog" }}
             />
           </section>
         )}

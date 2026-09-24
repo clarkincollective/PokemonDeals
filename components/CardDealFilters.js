@@ -457,7 +457,7 @@ export default function CardDealFilters({
                           className="font-semibold text-black dark:text-zinc-50"
                         />
                         <AffiliateLink
-                          href={wrapEbayAffiliateUrl(deal.affiliate_url, { surface: "card" })}
+                          href={wrapEbayAffiliateUrl(deal.affiliate_url, { page: "card", placement: "grid" })}
                           eventName="eBay Click"
                           eventData={{ page: "card_hub" }}
                           className="rounded-lg bg-black px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"

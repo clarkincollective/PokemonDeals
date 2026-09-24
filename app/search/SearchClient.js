@@ -602,7 +602,16 @@ export default function SearchClient({
               {deals.map((deal, i) => (
                 <div
                   key={deal.id}
-                  onClick={() => {
+                  onClick={(e) => {
+                    // FINDING 5. This wrapper fired on ANY click inside the
+                    // card - including the "View on eBay" CTA, which emits
+                    // its own affiliate_click. One click on that button was
+                    // therefore counted twice (two Vercel events, two
+                    // PostHog events), inflating the search surface against
+                    // every other. The affiliate control owns its own
+                    // measurement; this wrapper measures only the clicks it
+                    // is actually for.
+                    if (e.target?.closest?.("[data-affiliate-link]")) return;
                     track("Price Checker Deal Click", { deal: deal.id });
                     capture(EVENTS.SEARCH_RESULT_CLICKED, {
                       surface: "deal",
@@ -1006,7 +1015,7 @@ function ResultTile({ c, rank, ccyApprox, inDisplayCcy }) {
       {inner}
       <div className="px-3 pb-3">
         <AffiliateLink
-          href={buildEbaySearchLink(`${c.name} ${c.set ?? ""}`.trim(), undefined, "search")}
+          href={buildEbaySearchLink(`${c.name} ${c.set ?? ""}`.trim(), undefined, { page: "search", placement: "catalog" })}
           eventName="eBay Click"
           eventData={{ card: c.name, page: "price_checker_no_page" }}
           className="block rounded-lg border border-zinc-200 px-3 py-1.5 text-center text-xs font-semibold text-zinc-700 transition-colors hover:border-zinc-300 dark:border-zinc-700 dark:text-zinc-300"

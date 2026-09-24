@@ -86,7 +86,16 @@ test("2. lib/ebayLinks.js is browser-safe: no Node built-ins, no telemetry, no p
   const src = read("lib/ebayLinks.js").replace(/\/\/[^\n]*/g, "");
   assert.doesNotMatch(src, /require\(["']node:|from ["']node:|require\(["'](fs|path|os|crypto|async_hooks|net|http|https)["']/, "Node built-in in a browser-safe module");
   assert.doesNotMatch(src, /ebayTelemetry|supabase|fetchWithRetry|\bfetch\(|getAccessToken|EBAY_CLIENT_SECRET/);
-  const allowed = new Set(["./affiliateSurfaces"]);
+  // affiliateAttribution replaced affiliateSurfaces here on 2026-09-25
+  // (audit finding 5). It must be browser-safe on the same terms, so it is
+  // held to this module's own rules rather than merely allow-listed.
+  const attribution = read("lib/affiliateAttribution.js").replace(/\/\/[^\n]*/g, "");
+  assert.doesNotMatch(
+    attribution,
+    /require\(["']node:|from ["']node:|\bfetch\(|process\.env|supabase/,
+    "the attribution module reached from a browser bundle must be browser-safe too"
+  );
+  const allowed = new Set(["./affiliateAttribution"]);
   for (const m of src.matchAll(/require\(["']([^"']+)["']\)/g)) assert.ok(allowed.has(m[1]), `unexpected require in ebayLinks: ${m[1]}`);
   for (const name of ["MARKETPLACES", "EBAY_SEARCH_DOMAIN", "wrapEbayAffiliateUrl", "buildEbaySearchLink", "upscaleEbayImage", "primaryListingImage", "allListingImages"]) {
     assert.match(src, new RegExp(`\\b${name}\\b[\\s\\S]*module\\.exports[\\s\\S]*\\b${name}\\b`), `${name} defined + exported by ebayLinks`);

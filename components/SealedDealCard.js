@@ -2,7 +2,7 @@ import Image from "next/image";
 import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import MarketplaceMark from "@/components/MarketplaceMark";
 import SavingsBadge from "@/components/SavingsBadge";
-import { surfaceForPageName } from "@/lib/affiliateSurfaces";
+import { attributionOptionsForPageName } from "@/lib/affiliateAttribution";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { currencyForDeal, refInListingCurrency, dealTotalUsd, hasPrice } from "@/lib/money";
 import RelativeTime from "@/components/RelativeTime";
@@ -40,9 +40,12 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
   const marketNative = refInListingCurrency(marketUsd, total, usdTotal, nativeCurrency);
   const savedNative = marketNative != null ? marketNative - total : null;
   const showRef = Number.isFinite(marketUsd) && savedUsd > 0 && marketNative != null;
-  const tcgplayerLink = buildTcgplayerLink(productName, deal.sealed_watchlist?.tcgplayer_id);
-  // EPN sub-ID attribution - see components/DealCard.js's identical comment.
-  const affiliateHref = wrapEbayAffiliateUrl(deal.affiliate_url, { surface: surfaceForPageName(pageName) });
+  // FINDING 5: one attribution pair for this card, used by BOTH networks.
+  // eBay carries it in customid, Impact in subId1 - separate contracts,
+  // same identifier value, so the two reports line up.
+  const attribution = attributionOptionsForPageName(pageName);
+  const tcgplayerLink = buildTcgplayerLink(productName, deal.sealed_watchlist?.tcgplayer_id, attribution);
+  const affiliateHref = wrapEbayAffiliateUrl(deal.affiliate_url, attribution);
   const isAuction = deal.listing_type === "AUCTION";
   const marketInfo = MARKETPLACES[deal.marketplace];
   // 17C.7: no evidenced reference for this exact product -> plain listing

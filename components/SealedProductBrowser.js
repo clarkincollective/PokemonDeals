@@ -80,7 +80,10 @@ function SelectedProduct({ id, state, product, onClear }) {
       {product && (
         <div className="mt-4">
           <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 sm:grid-cols-3 lg:max-w-md">
-            <SpeciesCard card={product} />
+            {/* FINDING 5: this tile is the product the reader ASKED for,
+                not one of the browse grid's - so it reports as
+                sealed-selected, never sealed-grid. */}
+            <SpeciesCard card={product} pageName="sealed_product" />
           </div>
           {!product.deal && (
             // A known product with no eligible offer still shows its own

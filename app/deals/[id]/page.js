@@ -343,7 +343,7 @@ export default async function DealDetailPage({ params }) {
     const setSlugRaw = cardSet && deal?.watchlist?.language !== "japanese" ? slugifySet(cardSet) : null;
     const setSlug = setSlugRaw && validSetSlugs.includes(setSlugRaw) ? setSlugRaw : null;
     const searchQuery = cardName ? `${cardName}${cardSet ? ` ${cardSet}` : ""}` : null;
-    const ebaySearchUrl = searchQuery ? buildEbaySearchLink(searchQuery, deal?.marketplace, "deal_page") : null;
+    const ebaySearchUrl = searchQuery ? buildEbaySearchLink(searchQuery, deal?.marketplace, { page: "deal", placement: "search" }) : null;
     return (
       <div className="min-h-screen bg-paper">
         <SkipToContent />
@@ -553,7 +553,7 @@ export default async function DealDetailPage({ params }) {
   const ctaPriceNative = auctionParts
     ? { amount: auctionParts.bid.native, currency: auctionParts.currency }
     : { amount: total, currency: nativeCurrency };
-  const tcgplayerLink = buildTcgplayerLink(cardName, deal.watchlist?.justtcg_tcgplayer_id);
+  const tcgplayerLink = buildTcgplayerLink(cardName, deal.watchlist?.justtcg_tcgplayer_id, { page: "deal", placement: "reference" });
 
   // Structured data so a search result can show price/availability
   // directly (Google's Product rich result). Auctions report the current
@@ -971,7 +971,7 @@ export default async function DealDetailPage({ params }) {
                 They are all preserved - none was removed. */}
             <div className="mt-5">
               <AffiliateLink
-                href={wrapEbayAffiliateUrl(deal.affiliate_url, { surface: "deal_page" })}
+                href={wrapEbayAffiliateUrl(deal.affiliate_url, { page: "deal", placement: "offer" })}
                 eventName="eBay Click"
                 eventData={{
                   card: cardName,
@@ -1164,7 +1164,7 @@ export default async function DealDetailPage({ params }) {
                   {analysis.conditionBreakdown.map((c) => (
                     <li key={c.condition}>
                       <AffiliateLink
-                        href={buildEbaySearchLink(`${cardName} ${c.condition}`, undefined, "deal_page")}
+                        href={buildEbaySearchLink(`${cardName} ${c.condition}`, undefined, { page: "deal", placement: "condition" })}
                         eventName="eBay Click"
                         eventData={{ card: cardName, page: "condition_breakdown", condition: c.condition }}
                         className="flex items-center justify-between text-sm text-zinc-600 hover:text-red-600 dark:text-zinc-300 dark:hover:text-red-400"
@@ -1245,7 +1245,7 @@ export default async function DealDetailPage({ params }) {
       <div className="h-32 lg:hidden" aria-hidden="true" />
 
       <StickyDealCta
-        href={wrapEbayAffiliateUrl(deal.affiliate_url, { surface: "deal_page" })}
+        href={wrapEbayAffiliateUrl(deal.affiliate_url, { page: "deal", placement: "sticky" })}
         priceUsd={ctaPriceUsd}
         priceNative={ctaPriceNative}
         priceLabel={isAuction ? (auctionParts ? "Current bid" : "Recorded auction price") : shipping.headline}

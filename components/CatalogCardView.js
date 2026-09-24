@@ -59,7 +59,7 @@ export default function CatalogCardView({
   // to the live-deal hub path. Rejects Trainer / Energy names even when
   // the catalogue `species` column is set.
   const speciesLink = cardSpeciesLink({ name: card.name, cardType: card.cardType, species });
-  const tcgplayerLink = buildTcgplayerLink(name, card.tcgplayerId);
+  const tcgplayerLink = buildTcgplayerLink(name, card.tcgplayerId, { page: "card", placement: "reference" });
   // Phase 11C: canonical merged price_history spine (not a provider
   // history call). Bounded + downsampled server-side.
   const chartPoints = priceHistory?.chartPoints ?? [];

@@ -229,7 +229,7 @@ export default async function CardHubPage({ params }) {
         speciesLiveCount={catalogSpecies ? (speciesHubs ?? []).find((s) => s.slug === catalogSpecies.slug)?.count ?? null : null}
         setLiveCount={(liveSets ?? []).find((s) => s.slug === setSlugHere)?.count ?? null}
         alertsEnabled={emailEnabled()}
-        ebaySearchHref={buildEbaySearchLink(`${card.displayName ?? cardDisplayName(card)} ${card.set}`.trim(), undefined, "card")}
+        ebaySearchHref={buildEbaySearchLink(`${card.displayName ?? cardDisplayName(card)} ${card.set}`.trim(), undefined, { page: "card", placement: "search" })}
         nowMs={Date.now()}
       />
     );
@@ -309,7 +309,7 @@ export default async function CardHubPage({ params }) {
   // history comparable to the latest recorded reference (null until such
   // history exists) - never the whole series, whose older points may be
   // for an unrecorded or different condition / printing.
-  const tcgplayerLink = buildTcgplayerLink(hub.name, hub.tcgplayerId);
+  const tcgplayerLink = buildTcgplayerLink(hub.name, hub.tcgplayerId, { page: "card", placement: "reference" });
 
   // Phase 17B - the "How much is <card> worth?" answer: the SAME raw Near
   // Mint figure CardPriceSummary shows (analysis.raw.currentPrice) and the
@@ -715,7 +715,7 @@ export default async function CardHubPage({ params }) {
           const shipping = offerShipping(cheapest);
           return (
             <StickyDealCta
-              href={wrapEbayAffiliateUrl(cheapest.affiliate_url, { surface: "card" })}
+              href={wrapEbayAffiliateUrl(cheapest.affiliate_url, { page: "card", placement: "offer" })}
               priceUsd={parts ? parts.bid.usd : dealTotalUsd(cheapest)}
               priceNative={
                 parts

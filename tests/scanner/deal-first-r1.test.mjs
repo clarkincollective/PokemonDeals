@@ -85,7 +85,10 @@ test("R1-3. DealCard: the CTA names the destination and the state; no purchase c
   assert.doesNotMatch(src, /Buy now|Buy it now →|Bid now|Purchase/i);
   assert.doesNotMatch(src, /line-through/);
   // the existing wrapper + surface attribution are untouched
-  assert.match(src, /wrapEbayAffiliateUrl\(deal\.affiliate_url, \{ surface: surfaceForPageName\(pageName\) \}\)/);
+  // finding 5 (2026-09-25) moved the live mapping to
+  // lib/affiliateAttribution.js; the contract asserted here is unchanged -
+  // the CTA's href is attributed from the card's own pageName.
+  assert.match(src, /wrapEbayAffiliateUrl\(deal\.affiliate_url, attributionOptionsForPageName\(pageName\)\)/);
   assert.match(src, /<AffiliateLink[\s\S]*href=\{affiliateHref\}/);
   // 44px primary action
   // 2026-09-19: the primary control is the shared CTA_PRIMARY_CLASS (brand

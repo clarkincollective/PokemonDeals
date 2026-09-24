@@ -10,7 +10,9 @@ import Price from "@/components/Price";
 import { cardNameWithoutNumber, cardIdentityLine } from "@/lib/cardName";
 import { useCatalogueView } from "@/components/CatalogueViews";
 import { upgradeCatalogImage } from "@/lib/cardImage";
-import { useRegion, localizeEbaySearchUrl } from "@/lib/useRegion";
+import { useRegion } from "@/lib/useRegion";
+import EbaySearchLink from "@/components/EbaySearchLink";
+import { wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import {
   SORTS,
   DEFAULT_SORT,
@@ -40,6 +42,9 @@ import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 // 2026-09-14): 12 image-heavy groups made a phone page ~21,000px tall.
 const INITIAL_SET_GROUPS = 6;
 
+// The default page/placement pair for a catalogue tile (see Tile below).
+const CATALOG_ATTRIBUTION = Object.freeze({ page: "pokemon", placement: "catalog" });
+
 // One USD-canonical figure, localised to the viewer's currency after
 // hydration (Phase 6A currency closeout - this grid used to print raw
 // "$X" regardless of the selected country).
@@ -56,7 +61,11 @@ function permanentHref(card) {
 
 // `showSet` is false on a set page, where every tile is the same set and
 // repeating its name pushed the collector number off the end of the line.
-export function Tile({ card, speciesName, placement, showSet = true }) {
+// `attribution` is the affiliate page/placement pair for this tile's
+// outbound CTA (lib/affiliateAttribution.js). The tile renders on three
+// different pages, so it cannot infer its own; the default is the species
+// catalogue, and /sets/[slug] and /cards override it.
+export function Tile({ card, speciesName, placement, showSet = true, attribution = CATALOG_ATTRIBUTION }) {
   const region = useRegion();
   const href = permanentHref(card);
   // The identity line below prints "#<number>", so the name shows the
@@ -204,7 +213,7 @@ export function Tile({ card, speciesName, placement, showSet = true }) {
           )}
           {isDeal && card.deal.affiliateUrl ? (
             <AffiliateLink
-              href={card.deal.affiliateUrl}
+              href={wrapEbayAffiliateUrl(card.deal.affiliateUrl, attribution)}
               eventName="eBay Click"
               eventData={{
                 ...ev,
@@ -216,15 +225,23 @@ export function Tile({ card, speciesName, placement, showSet = true }) {
               {isAuction ? "Bid on eBay" : "View on eBay"}
             </AffiliateLink>
           ) : (
-            <a
-              href={localizeEbaySearchUrl(card.ebayHref, region)}
-              target="_blank"
-              rel="sponsored noopener noreferrer"
-              onClick={() => track("eBay Click", { ...ev, cta: "find_on_ebay", card: card.name, marketplace: region || "unknown" })}
+            // FINDING 5. This was a bare <a> with its own track() call: it
+            // emitted the Vercel event but NO PostHog affiliate_click, so
+            // the catalogue's only route to eBay was invisible to the
+            // growth report - and its href came straight from the cached
+            // data layer, which has no page context, so it carried the
+            // fallback attribution. EbaySearchLink is the shared control
+            // that does both correctly, and localizes exactly the same way.
+            <EbaySearchLink
+              href={wrapEbayAffiliateUrl(card.ebayHref, {
+                page: attribution.page,
+                placement: "search",
+              })}
+              event={{ ...ev, cta: "find_on_ebay", card: card.name, placement: ev.placement ?? "catalog_tile" }}
               className="inline-flex min-h-10 flex-1 items-center justify-center rounded-lg bg-zinc-900 px-3 py-2 text-center text-xs font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
             >
               Find on eBay
-            </a>
+            </EbaySearchLink>
           )}
         </div>
       </div>
@@ -237,7 +254,7 @@ const GRID = "mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4";
 // EVERY tile / group is always rendered (so the full card list + all
 // /cards/[slug] links are in the SSR HTML for crawlers); "collapsed" ones
 // just get `hidden` (display:none). This is disclosure, never lazy load.
-function SetGroup({ set, list, speciesName, expandAll, groupHidden }) {
+function SetGroup({ set, list, speciesName, expandAll, groupHidden, attribution }) {
   const [open, setOpen] = useState(false);
   const small = list.length <= ALWAYS_FULL_UP_TO;
   const showAll = small || open || expandAll;
@@ -272,6 +289,7 @@ function SetGroup({ set, list, speciesName, expandAll, groupHidden }) {
                 card={c}
                 speciesName={speciesName}
                 showSet={false}
+                attribution={attribution}
                 placement={!small && i >= INITIAL_PER_LARGE_GROUP ? "species_set_expanded" : "species_catalog"}
               />
             </div>
@@ -294,9 +312,13 @@ function SetGroup({ set, list, speciesName, expandAll, groupHidden }) {
   );
 }
 
-export default function CatalogueBrowser({ speciesName, label, items, variant = "species", totalCount }) {
+export default function CatalogueBrowser({ speciesName, label, items, variant = "species", totalCount, attribution }) {
   const name = label ?? speciesName;
   const isSet = variant === "set";
+  // The browser already knows which kind of page it is rendering on, so
+  // the affiliate page half is derived from `variant` rather than being a
+  // second thing a caller has to remember; an explicit prop still wins.
+  const tileAttribution = attribution ?? { page: isSet ? "set" : "pokemon", placement: "catalog" };
   const prefix = isSet ? "set_" : "species_";
   // When the page capped what it handed us (large catalogue), say so and
   // offer the complete list (the CatalogueLinkIndex in the List view).
@@ -458,6 +480,7 @@ export default function CatalogueBrowser({ speciesName, label, items, variant = 
                     card={c}
                     speciesName={name}
                     showSet={false}
+                    attribution={tileAttribution}
                     placement={
                       isFiltering
                         ? `${prefix}catalog_filtered`
@@ -515,7 +538,7 @@ export default function CatalogueBrowser({ speciesName, label, items, variant = 
       ) : isFiltering ? (
         <div className={GRID}>
           {flat.map((c) => (
-            <Tile key={c.tcgplayerId ?? `${c.name}|${c.set}`} card={c} speciesName={name} placement="species_catalog_filtered" />
+            <Tile key={c.tcgplayerId ?? `${c.name}|${c.set}`} card={c} speciesName={name} attribution={tileAttribution} placement="species_catalog_filtered" />
           ))}
         </div>
       ) : (
@@ -527,6 +550,7 @@ export default function CatalogueBrowser({ speciesName, label, items, variant = 
                 set={set}
                 list={list}
                 speciesName={name}
+                attribution={tileAttribution}
                 expandAll={expandAll}
                 groupHidden={!showAllSets && !expandAll && i >= INITIAL_SET_GROUPS}
               />

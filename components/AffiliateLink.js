@@ -5,6 +5,7 @@ import { capture } from "@/lib/analytics/client";
 import { EVENTS } from "@/lib/analytics/events";
 import { listingTypeProp, rawVsGraded, priceBandUsd, discountBand } from "@/lib/analytics/props";
 import { pageTypeFromPath } from "@/lib/analytics/pageType";
+import { attributionFromHref } from "@/lib/affiliateAttribution";
 
 // 2026-09-19 §11 - two more STRUCTURAL dimensions on affiliate_click so
 // clicks can be reported by page type and by the control that was clicked:
@@ -18,6 +19,20 @@ import { pageTypeFromPath } from "@/lib/analytics/pageType";
 //              TCGPlayer never share a line in a report
 function networkFor(eventName) {
   return /tcgplayer/i.test(String(eventName ?? "")) ? "tcgplayer" : "ebay";
+}
+
+// FINDING 5 (2026-09-25). The affiliate identifier reported here is READ
+// BACK OFF THE HREF that is about to be followed (customid for eBay,
+// subId1 for Impact), not plumbed separately. That is deliberate: a second
+// parallel prop threaded through every render site is a claim nothing
+// checks, and it drifts. Reading the href guarantees the event names
+// exactly the value the network will receive, so an EPN or Impact row can
+// be joined to a PostHog row on `epn_customid` without assuming the two
+// were wired consistently.
+function attributionProps(href) {
+  const a = attributionFromHref(href);
+  if (!a) return {};
+  return { epn_customid: a.id, affiliate_page: a.page, affiliate_placement: a.placement };
 }
 
 // A normal affiliate link that also records the click. Navigation itself
@@ -41,6 +56,7 @@ export default function AffiliateLink({ href, eventName, eventData, analyticsPro
       // Build a NON-PII structural payload. Never forward `card` (the card
       // name) or any free text from eventData.
       capture(EVENTS.AFFILIATE_CLICK, {
+        ...attributionProps(href),
         origin_section: p.origin_section ?? d.page ?? "unknown",
         page_type: typeof window !== "undefined" ? pageTypeFromPath(window.location.pathname) : undefined,
         placement: p.placement ?? d.page ?? "unknown",
@@ -61,10 +77,15 @@ export default function AffiliateLink({ href, eventName, eventData, analyticsPro
   }
 
   return (
+    // `data-affiliate-link` marks this anchor as an emitter. An ancestor
+    // that also tracks clicks (the /search result wrapper) checks for it
+    // and stands down, so one user action can never be counted twice
+    // through overlapping handlers.
     <a
       href={href}
       target="_blank"
       rel="sponsored noopener noreferrer"
+      data-affiliate-link=""
       className={className}
       onClick={onClick}
     >

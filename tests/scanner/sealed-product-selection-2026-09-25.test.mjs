@@ -95,7 +95,9 @@ test("SP-5. the selected product is identified, and a zero-offer product still s
   assert.match(src, /data-selected-product=\{id\}/);
   assert.match(src, /Selected product/);
   // its own tile, carrying the existing eligibility-gated `deal`
-  assert.match(src, /<SpeciesCard card=\{product\} \/>/);
+  // finding 5: the panel's tile carries its own pageName so its outbound
+  // click is attributed as sealed-selected, not as the browse grid
+  assert.match(src, /<SpeciesCard card=\{product\} pageName="sealed_product" \/>/);
   // a known product with no eligible offer keeps its identity and labels
   // the rest of the page as alternatives
   assert.match(src, /No eBay listing currently passes our checks for this exact product/);

@@ -32,12 +32,13 @@ function loadComponent({ region = "EBAY_AU", pathname = "/cards/some-card" } = {
     if (name === "@/lib/analytics/events") return require(resolve(root, "lib/analytics/events.js"));
     if (name === "@/lib/analytics/pageType") return require(resolve(root, "lib/analytics/pageType.js"));
     if (name === "@/lib/useRegion") return { useRegion: () => region, localizeEbaySearchUrl: (href) => href };
+    if (name === "@/lib/affiliateAttribution") return require(resolve(root, "lib/affiliateAttribution.js"));
     throw new Error("unexpected dependency " + name);
   };
   const mod = { exports: {} };
   new Function("require", "module", "exports", code)(dependency, mod, mod.exports);
   const Component = mod.exports.default;
-  const HREF = "https://www.ebay.com/sch/i.html?_nkw=Charizard&mkcid=1&mkrid=711-53200-19255-0&campid=5339&customid=card";
+  const HREF = "https://www.ebay.com/sch/i.html?_nkw=Charizard&mkcid=1&mkrid=711-53200-19255-0&campid=5339&customid=card-search";
   const el = Component({ href: HREF, event: { placement: "card_no_deal", cta: "search_ebay" }, className: "x", children: "Search" });
   return { el, tracked, captured, HREF };
 }
@@ -53,7 +54,18 @@ test("one click -> one Vercel 'eBay Click' + one PostHog affiliate_click, struct
   assert.equal(captured.length, 1, "exactly one PostHog event per click");
   assert.deepEqual(captured[0], [
     "affiliate_click",
-    { origin_section: "card_no_deal", placement: "card_no_deal", page_type: "card", network: "ebay", country: "AU" },
+    {
+      // FINDING 5: the identifier the NETWORK will receive, read off the
+      // href being followed rather than plumbed separately.
+      epn_customid: "card-search",
+      affiliate_page: "card",
+      affiliate_placement: "search",
+      origin_section: "card_no_deal",
+      placement: "card_no_deal",
+      page_type: "card",
+      network: "ebay",
+      country: "AU",
+    },
   ]);
   el.props.onClick();
   assert.equal(tracked.length, 2);
@@ -87,6 +99,7 @@ test("a failing analytics call cannot stop the click handler", () => {
     if (name === "@/lib/analytics/events") return require(resolve(root, "lib/analytics/events.js"));
     if (name === "@/lib/analytics/pageType") return require(resolve(root, "lib/analytics/pageType.js"));
     if (name === "@/lib/useRegion") return { useRegion: () => "EBAY_US", localizeEbaySearchUrl: (href) => href };
+    if (name === "@/lib/affiliateAttribution") return require(resolve(root, "lib/affiliateAttribution.js"));
     throw new Error("unexpected dependency " + name);
   }, mod, mod.exports);
   const throwing = mod.exports.default({ href: "https://www.ebay.com/sch/i.html?_nkw=x", event: { placement: "card_no_deal" }, children: "S" });

@@ -51,7 +51,11 @@ test("§9 checklist: missing-only view offers 'Find offers for cards I'm missing
   assert.match(t, /href=\{`\$\{r\.href\}#card-offers`\}/);
   assert.doesNotMatch(t, /fetch\(/, "nothing fetched, nothing invented");
   const card = read("app/cards/[slug]/page.js");
-  assert.match(card, /buildEbaySearchLink\(.*, undefined, "card"\)/, "server: crawler-visible default domain + card surface");
+  assert.match(
+    card,
+    /buildEbaySearchLink\(.*, undefined, \{ page: "card", placement: "search" \}\)/,
+    "server: crawler-visible default domain + card page/search placement (finding 5 split the fused surface token)"
+  );
   assert.match(read("components/EbaySearchLink.js"), /localizeEbaySearchUrl\(href, region\)/, "client: re-pointed at the viewer's marketplace");
 });
 

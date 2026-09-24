@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
-import { surfaceForPageName } from "@/lib/affiliateSurfaces";
+import { attributionOptionsForPageName } from "@/lib/affiliateAttribution";
 import { slugifySet } from "@/lib/slugify";
 import { currencyForDeal, refInListingCurrency } from "@/lib/money";
 import RelativeTime, { WithinWindow } from "@/components/RelativeTime";
@@ -111,10 +111,11 @@ export const CTA_PRIMARY_CLASS =
 // active listings, optional. `priority` marks an above-the-fold image.
 export default function DealCard({ deal, rank, hub, pageName = "home", validSetSlugs, from, fromCountry, analytics, priority = false }) {
   const cardName = cardDisplayName({ name: normalizePublicText(deal.watchlist?.name ?? deal.title) });
-  // EPN sub-ID attribution: a fixed, privacy-safe surface enum derived
-  // from the existing pageName taxonomy (never the card/deal identity) -
-  // see lib/affiliateSurfaces.js.
-  const affiliateHref = wrapEbayAffiliateUrl(deal.affiliate_url, { surface: surfaceForPageName(pageName) });
+  // EPN sub-ID attribution: "<page>-<placement>" from the closed
+  // vocabularies in lib/affiliateAttribution.js, derived from the existing
+  // pageName taxonomy - never the card/deal identity, never the visitor's
+  // acquisition source.
+  const affiliateHref = wrapEbayAffiliateUrl(deal.affiliate_url, attributionOptionsForPageName(pageName));
 
   // A "return to browsing" hint for /deals/[id]: the internal page this
   // card was clicked from (+ its country filter). Read + WHITELISTED on
