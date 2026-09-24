@@ -301,6 +301,9 @@ export async function GET(request) {
         browseVerifyAttempts: 0,
         ingestDailyAttemptLimit: INGEST_DAILY_ATTEMPT_LIMIT,
         ingestDailyAttemptsLeft: 0,
+        ingestDailyAllowanceKnown: true, // a KNOWN zero is the only thing that skips
+        ingestExternalAttempts: 0,
+        ingestRetries: 0,
         tookMs: Date.now() - startedAt,
       });
       return Response.json({ skipped: "ingest_daily_attempt_limit", limit: INGEST_DAILY_ATTEMPT_LIMIT, remaining: 0 });

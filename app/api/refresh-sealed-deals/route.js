@@ -216,8 +216,18 @@ export async function GET(request) {
   // first run records itself and enforces nothing; enforcement can only
   // become real on a later window, after a clean one has been observed.
   //
-  // ROLLBACK IS IMMEDIATE AND NEEDS NO DEPLOY: set SEALED_BROWSE_ENFORCE to
-  // "off" (or "0") and this reverts to the global mode on the next run.
+  // ROLLBACK. The flag is read inside the handler on every invocation, so
+  // whichever value the RUNNING function has applies on its very next run.
+  // What that does NOT mean - and an earlier version of this comment wrongly
+  // claimed - is that editing the variable in the Vercel dashboard reaches
+  // an already-deployed function: Vercel bakes env values into a deployment,
+  // so a change needs a redeploy to take effect. That was never verified and
+  // must not be relied on.
+  //
+  // The VERIFIED immediate lever is Vercel Instant Rollback to the
+  // deployment before this canary (commit 9123bbb, which keeps the ingest
+  // hard bound and carries no sealed enforcement). It promotes an existing
+  // build, so there is no rebuild. See docs/ebay-browse-budget-audit-2026-09-24.
   const sealedEnforceKill = String(process.env.SEALED_BROWSE_ENFORCE ?? "").trim().toLowerCase();
   const sealedEnforceDisabled = sealedEnforceKill === "off" || sealedEnforceKill === "0" || sealedEnforceKill === "false";
   const sealedBudget = await acquireBrowseLease(db, {

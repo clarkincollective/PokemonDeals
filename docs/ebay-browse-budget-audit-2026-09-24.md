@@ -136,3 +136,86 @@ Proposed order, each step gated on the previous:
 10. **Only then consider wider enforcement**, and only after step 4.
 
 **Nothing in this plan has been executed.**
+
+---
+
+# Addendum — proof gaps closed (2026-09-24)
+
+## Correction: production mode is OBSERVE, not `off`
+
+The body of this document says `browseBudgetMode()` returns `off`. That
+reading came from a local script against `.env.local`, which does not carry
+`BROWSE_BUDGET_MODE`. The ledger rows are prefixed `browse_budget_observe:`,
+which is authoritative: **production runs in observe**. The conclusions are
+unchanged — in observe the caps are still non-binding — but the reason is
+"observe grants the full ask", not "off skips the ledger".
+
+## What actually provides the global daily cap
+
+Not the attempt guard, which is invocation-local. The guarantee is a
+**durable reservation under compare-and-set**:
+
+1. `evaluateGrant` computes `capLeft = cap − used − sumOpen(key)`, so an
+   **open, unsettled lease already removes capacity** from everyone else.
+2. The reservation is written with `.eq("updated_at", prevVersion)` — a real
+   CAS. A losing writer loops, re-reads and re-evaluates, so **the decision a
+   caller receives always belongs to the iteration whose write won**.
+3. An unsettled lease that expires is charged **in full**, never refunded.
+4. In observe the lease reserves the full `want`, not the trimmed grant —
+   conservative, and it is why a second concurrent invocation sees a negative
+   `capLeft` and stands down.
+
+Measured directly (cap 40, used 23, remainder 17):
+
+| invocation | capLeft | ceiling | outcome |
+|---|---|---|---|
+| A | 17 | 17 | spends |
+| B | −23 | 0 | skips |
+| C | −63 | 0 | skips |
+| | | **17** | **= the remainder exactly** |
+
+## Verified rollback procedure for the sealed canary
+
+My earlier claim — *"one env var, no deploy"* — **was wrong and is
+withdrawn**. Vercel bakes environment values into a deployment, so editing
+`SEALED_BROWSE_ENFORCE` in the dashboard does not reach an already-deployed
+function; it needs a redeploy. I did not verify otherwise and will not
+assert it.
+
+**The verified immediate lever is Vercel Instant Rollback.** Confirmed from
+the deployments API on 2026-09-24:
+
+| deployment | commit | contains | state |
+|---|---|---|---|
+| `dpl_AvxdUvbmQJCDCZix9FSenruSdpWx` | `1bad152` | ingest bound **+ sealed canary** | current production |
+| `dpl_AinciR3NJUhbKQ1oHe9xbvRAXggd` | `9123bbb` | ingest bound, **no canary** | `READY`, `isRollbackCandidate: true` |
+
+Procedure, fastest first:
+
+1. **Instant Rollback to `dpl_AinciR3NJUhbKQ1oHe9xbvRAXggd`** — promotes an
+   existing build, no rebuild. Removes the sealed canary and keeps the
+   ingest hard bound. This is the documented rollback.
+2. Or set `SEALED_BROWSE_ENFORCE=off` **and redeploy** (`vercel redeploy`,
+   or an empty commit). Slower: it requires a deployment.
+
+The flag is still read inside the handler on every invocation, so whichever
+value the *running* function has applies on its next run — that part is
+real, and is all the flag guarantees.
+
+## Production telemetry — ingest
+
+From `catalog_snapshot / ingest_feed_runs`, window ending 2026-09-25T07:00Z:
+
+| run (UTC) | code | logical queued | external attempts | note |
+|---|---|---|---|---|
+| 07:00 | pre-fix | — | 0 | |
+| 08:01 | pre-fix | 40 | 40 | |
+| 09:01 | pre-fix | 40 | 40 | |
+| 10:01 | pre-fix | 20 | 20 | |
+| 11:01 | pre-fix | 19 | 19 | **119 total, matching the ledger exactly** |
+| **12:00** | **bounded** | — | **0** | `skipped: ingest_daily_attempt_limit`, `dailyLeft 0`, `limit 40` |
+
+The bound fired on its first production run and made **zero** external
+calls. The window was already 119/40 over when the fix deployed, so this
+window cannot demonstrate the 40 ceiling — only that the stop works. The
+first clean measurement is the window beginning **2026-09-25T07:00Z**.
