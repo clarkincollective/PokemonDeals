@@ -470,3 +470,83 @@ Exact ids per category are retained in the frozen JSON under `byReason`.
 Nothing above is scheduled. No row will be quarantined, re-linked,
 deactivated or rewritten until a dry run for that specific action has been
 reviewed.
+
+## Stage 1 — 116 stale 30th Celebration links (DONE, 2026-09-24)
+
+`scripts/remediation/sealed30thRelink.mjs`. Cohort taken from the frozen
+snapshot, never from a fresh query. 0 of 116 had drifted since the freeze.
+
+**The destination was proved per row, not assumed.** Every candidate title
+was run against **all 196 active watched products** through the real
+two-stage scanner path — `dealMatching.listingMatchesSealedProduct` via
+`sealedNameMatch` (so the scoped 30th alias applies exactly as at
+ingestion), then `sealedListingDecision`. A row qualified only when
+**exactly one** product accepted it.
+
+| | rows |
+|---|---|
+| deterministic (exactly one accepting product) | **115** |
+| manual review | **1** |
+| → destination 123 *30th Celebration Elite Trainer Box* | 114 |
+| → destination 122 *30th Celebration **Pokemon Center** ETB* | 1 |
+
+That single Pokemon Center row (#250) is why the per-row proof was
+required: the cohort pattern would have sent it to the standard ETB.
+
+**#1386 stayed in manual review** — *"**Pokémon** Center Elite Trainer Box
+30th Celebrations - READ DESCRIPTION"*. The correct product (122) accepts
+it at the identity stage but **fails the name-token stage**, because the
+title spells it `Pokémon` with an accent and the product name spells it
+`Pokemon`; the token matcher does not strip diacritics. Proved by re-running
+the matcher on an accent-stripped copy of the same title, which passes. A
+**diacritic-normalisation gap**, recorded for Stage 4 — not guessed here.
+
+### Two canaries failed closed before anything was written
+
+The first canary wrote **0 rows**: `market_price` is `NOT NULL`, so the
+comparison could not simply be emptied. The second also wrote **0 rows**:
+`discount_pct` is `NOT NULL` too. (An earlier probe suggested it was
+nullable; that probe was invalid — it targeted `id = -1`, matched no rows,
+so the constraint was never evaluated. The canary is what established the
+truth.) The write was then defined as:
+
+- `market_price` ← the **destination product's own** `sealed_catalog`
+  reference, copied verbatim (173.73 for 704143, 303.80 for 704144). A
+  lookup, not a computation, and never the old product's 353.12.
+- `discount_pct` ← `0`, the encoding of **no discount asserted**.
+  `hasPositiveComparison` requires `pct > 0`, so such a row cannot claim a
+  saving, cannot enter a discount-ranked view and cannot enter the sitemap.
+  No discount is derived here; the destination's own scan rewrites it.
+- `reference_*` ← cleared. The old product's evidence can never describe
+  the new one.
+
+### Results
+
+Canary of 2 (one per destination) verified at DB, ownership, duplicate,
+display-gate, detail-route and sitemap level, then the remaining 113.
+**115/115 written**, and every written row re-read afterwards:
+
+| check | result |
+|---|---|
+| landed on the proposed destination | 115/115 |
+| identity rule now accepts | 115/115 |
+| making a savings claim | **0** |
+| still carrying a stale reference | **0** |
+| displayable | 0 — all held by the 17C.7 pre-release guard |
+| eligible for the verification lane | 115 |
+| unintended column changes | **0** |
+
+Ownership moved 76 → 122/123 as planned (product 76: 184→69 rows; 123:
+0→114; 122: 0→1). The 31 duplicate `listing_id`s in the manifest are all
+cross-marketplace, so no unique-key conflict arose.
+
+**Visible effect:** the relinked detail pages remain noindex and out of the
+sitemap, but their gated notice now names the correct release — *"30th
+Celebration released 16 September · this listing predates it"* — where it
+previously derived from the 2021 set. The relink corrected the copy as well
+as the data, and surfaced nothing new.
+
+Active unresolved cohort **262 → 147**; `edition_mismatch:30th_vs_25th`
+**116 → 1**. Focused sealed suites 75/75; ratchet OK, quarantine 25.
+Rollback files: `sealed-30th-prior-canary-…json`,
+`sealed-30th-prior-remainder-…json`.
