@@ -25,13 +25,13 @@ import { offerShipping } from "@/lib/offerPresentation";
 // what those already allow:
 //
 //   not trusted            -> no chip
-//   auction                -> no chip (a bid can rise; "N% off" would be
-//                             a settled-saving claim, and the chip has no
-//                             room to say "current bid, bids can rise"
-//                             without burying it)
+//   auction                -> no chip (a bid can rise; a bare percentage
+//                             would be a settled-saving claim, and the chip
+//                             has no room to say "current bid, bids can
+//                             rise" without burying it)
 //   before shipping        -> the qualifier is ON the chip, never a
 //                             tooltip and never left to the destination
-//   delivered              -> "N% off"
+//   delivered              -> "N% below market"
 //
 // No new arithmetic, no new eligibility: the percentage is still
 // savingsPercentText(discount_pct), the same value the tile prints.
@@ -43,7 +43,11 @@ function heroSavingsChip(deal) {
   if (!(Number(deal.discount_pct) > 0)) return null;
   const pct = savingsPercentText(deal.discount_pct);
   if (!pct) return null;
-  return `${pct} off${ship.savingQualifier}`;
+  // "below market", not "off". "Off" reads as a seller's markdown from
+  // their own former price; this is a comparison against a market
+  // reference we hold, which is what the deal page says too
+  // ("N% below market{qualifier}"). Same words, same basis, same listing.
+  return `${pct} below market${ship.savingQualifier}`;
 }
 
 // The hero's visual half: a fan of REAL cards that are on the site right

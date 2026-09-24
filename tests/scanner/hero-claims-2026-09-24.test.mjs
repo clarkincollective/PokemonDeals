@@ -99,7 +99,10 @@ test("HC-1. delivered comparison: the chip states the percentage", () => {
   const r = row();
   const out = chip(r);
   assert.ok(out, "a trusted, delivered, fixed-price saving still earns a chip");
-  assert.match(out, /^\d+% off$/, `expected a bare percentage, got "${out}"`);
+  // "below market", not "off": this is a comparison against a market
+  // reference, not a seller's markdown from their own former price.
+  assert.match(out, /^\d+% below market$/, `expected a bare comparison, got "${out}"`);
+  assert.doesNotMatch(out, /\boff\b/, "never 'off' - that implies a seller markdown");
   assert.doesNotMatch(out, /before shipping/);
 });
 
@@ -115,7 +118,7 @@ test("HC-2. before-shipping comparison: the qualifier is beside the claim, not d
   assert.ok(out, "a before-shipping saving is still a saving; it just has to be qualified");
   assert.match(out, /before shipping/, `the qualifier must be on the chip, got "${out}"`);
   // and it comes from the shared helper, not a literal typed here
-  assert.equal(out, `${(r.discount_pct * 100).toFixed(0)}% off${offerShipping(r).savingQualifier}`);
+  assert.equal(out, `${(r.discount_pct * 100).toFixed(0)}% below market${offerShipping(r).savingQualifier}`);
 });
 
 test("HC-3. the qualifier can wrap rather than be truncated away", () => {
@@ -220,8 +223,8 @@ test("HC-13. the fix stays inside this component", () => {
 
 test("HC-14. methodology describes all three comparison bases, not just delivered", () => {
   const m = read("app/methodology/page.js");
-  assert.match(m, /item price plus shipping/, "the delivered case is still described");
-  assert.match(m, /wherever eBay gives us a shipping cost/, "…and is no longer stated unconditionally");
+  assert.match(m, /Where eBay gave us a shipping charge/, "the delivered case is still described");
+  assert.match(m, /item price plus that recorded shipping/, "…as RECORDED shipping, not a quote to the reader");
   assert.match(m, /before shipping/, "the before-shipping case is described");
   assert.match(m, /no saving claim/, "the no-basis case is described");
   assert.match(m, /current bid that can still rise/, "auctions are described");

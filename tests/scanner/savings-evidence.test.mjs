@@ -170,7 +170,11 @@ test("9. a count that is not a savings claim says 'listings', not 'deals'", () =
   // count rather than the stored-row count. The wording contract this test
   // exists for - "listings", never "deals" - is unchanged.
   assert.match(sets, /\? "listing" : "listings"/);
-  assert.match(sets, /s\.listingCount \?\? s\.count/, "the tile must show buying options, not stored rows");
+  // 2026-09-24: the badge shows DISTINCT LISTINGS and suppresses itself
+  // when that number is unavailable - it never falls back to the row
+  // count, which would state a record total under a "listings" label.
+  assert.match(sets, /typeof s\.listingCount === "number"/, "the tile shows buying options");
+  assert.doesNotMatch(sets, /listingCount \?\? s\.count/, "no fallback to the row count");
   assert.doesNotMatch(sets, /\? "deal" : "deals"/);
   const species = read("components/PokemonFilterList.js");
   assert.doesNotMatch(species, /active deal\$\{/, "species tooltip must not call an unevidenced listing a deal");

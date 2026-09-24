@@ -190,13 +190,24 @@ test("DL-12. the filtered card grid uses the same rule and honours the country s
   assert.doesNotMatch(fn, /const seen = new Set\(\)/);
 });
 
-test("DL-13. the compare chip counts buying options, not stored rows", () => {
-  assert.match(read("lib/deals.js"), /out\[h\.id\] = \{ count: h\.listingCount \?\? h\.count, slug: h\.slug \}/);
+test("DL-13. the compare chip counts buying options, and never the row count", () => {
+  // Tightened 2026-09-24: no fallback. When the distinct-listing count is
+  // unavailable, `count` is undefined and DealCard's own `hub.count >= 2`
+  // gate shows no Compare chip at all - better than "Compare 12 listings"
+  // over a hub that will render 6.
+  const deals = read("lib/deals.js");
+  assert.match(deals, /out\[h\.id\] = \{ count: h\.listingCount, slug: h\.slug \}/);
+  assert.doesNotMatch(deals, /h\.listingCount \?\? h\.count/);
 });
 
-test("DL-14. the set and species tiles show buying options", () => {
-  assert.match(read("components/SetsFilterList.js"), /s\.listingCount \?\? s\.count/);
-  assert.match(read("app/pokemon/page.js"), /deal\?\.listingCount \?\? deal\?\.count \?\? 0/);
+test("DL-14. the tiles show buying options, and suppress rather than fall back", () => {
+  const sets = read("components/SetsFilterList.js");
+  assert.match(sets, /typeof s\.listingCount === "number" && s\.listingCount > 0/);
+  assert.doesNotMatch(sets, /listingCount \?\? s\.count/);
+  const species = read("components/PokemonFilterList.js");
+  assert.match(species, /typeof s\.listingCount === "number" && s\.listingCount > 0/);
+  assert.doesNotMatch(species, /\{s\.count\}/, "the badge must not print the row count");
+  assert.match(read("app/pokemon/page.js"), /listingCount: deal\?\.listingCount/);
 });
 
 // === 7. one shared rule, and the scope it was kept inside ==============
@@ -311,8 +322,8 @@ test("DL-23. computeAggregates produces a listingCount that is never a silent 1"
   // it reads the shared rule, not a local one
   assert.match(agg, /import \{ listingIdentityKey, hasKnownListingIdentity \} from "@\/lib\/listingIdentity"/);
   assert.equal((agg.match(/listingIdentityKey\(row\)/g) ?? []).length, 5, "sets, card hubs (x2) and species (x2)");
-  // and every aggregate emits it, through the fail-safe wrapper (DL-25)
-  for (const call of ["setListings.get(set).size)", "listings.size)", "g.listings.size))"]) {
+  // and every aggregate emits it through the per-group fail-safe (DL-25)
+  for (const call of ["listingCountOf(setGroups.get(set))", "listingCountOf(w)", "listingCountOf(g)"]) {
     assert.ok(agg.includes(call), `missing ${call}`);
   }
 });
@@ -340,10 +351,151 @@ test("DL-25. a count that could not be computed is omitted, never published as 1
   // a missing one - the tile treats 1 as real and shows it, while a
   // missing field falls back to `count`.
   const agg = read("lib/catalogAggregates.js");
-  assert.match(agg, /const identityKnown = rows\.some\(\(r\) => hasKnownListingIdentity\(r\)\)/);
-  assert.match(agg, /const withListingCount = \(obj, size\) => \(identityKnown \? \{ \.\.\.obj, listingCount: size \} : obj\)/);
+  assert.match(agg, /const listingCountOf = \(group\) => \(group\.identified \? group\.listings\.size : undefined\)/);
+  assert.match(agg, /const withListingCount = \(obj, size\) => \(size === undefined \? obj : \{ \.\.\.obj, listingCount: size \}\)/);
   // every emission site goes through it - no raw `listingCount:` remains
   const body = agg.slice(agg.indexOf("export function computeAggregates"));
   assert.equal((body.match(/withListingCount\(/g) ?? []).length, 3, "sets, card hubs and species all go through it");
   assert.doesNotMatch(body, /listingCount: (setListings|listings|g\.listings)/, "no emission bypasses the fail-safe");
+  // identity is tracked PER GROUP, not once for the whole batch
+  assert.equal((body.match(/identified = false/g) ?? []).length, 3, "sets, card hubs and species each track it");
+});
+
+// === 11. identity coverage decides whether a count may be shown ========
+//
+// Behavioural, against the real computeAggregates. A distinct-listing
+// count may only be published when EVERY row in that group carries
+// listing identity: two identity-less rows may be the same eBay listing
+// and nothing can tell them apart, so counting them separately would
+// publish a ROW total under a "listings" label.
+
+// lib/catalogAggregates.js imports via the "@/lib/..." alias, which bare
+// node cannot resolve, so it is compiled and its imports are wired to the
+// real modules here. The function under test is the shipped one.
+const computeAggregates = (() => {
+  const swc = require("next/dist/build/swc/index.js");
+  const { code } = swc.transformSync(read("lib/catalogAggregates.js"), {
+    filename: "catalogAggregates.js",
+    jsc: { parser: { syntax: "ecmascript" }, target: "es2022" },
+    module: { type: "commonjs" },
+  });
+  const dep = (name) => {
+    const rel = name.startsWith("@/") ? name.slice(2) : name;
+    return require(join(ROOT, rel.endsWith(".js") ? rel : `${rel}.js`));
+  };
+  const mod = { exports: {} };
+  new Function("require", "module", "exports", code)(dep, mod, mod.exports);
+  return mod.exports.computeAggregates;
+})();
+
+// A countable row for the aggregates: watchlist join present, priced, no
+// disqualification or blocking visual verdict.
+const aggRow = (over = {}) => ({
+  id: over.id ?? 1,
+  listing_id: "v1|100|0",
+  total_price: 10,
+  total_price_usd: 10,
+  image_url: "i.jpg",
+  market_price: 20,
+  discount_pct: 0.5,
+  watchlist: { id: 900, name: "Charizard", set: "Base Set", language: "english", justtcg_tcgplayer_id: "1" },
+  ...over,
+});
+
+const setOf = (agg, name) => agg.sets.find((s) => s.set === name);
+
+test("DL-26. complete identity: the distinct-listing count is published", () => {
+  const agg = computeAggregates([
+    aggRow({ id: 1, listing_id: "v1|100|0" }),
+    aggRow({ id: 2, listing_id: "v1|100|0" }), // same listing, another marketplace
+    aggRow({ id: 3, listing_id: "v1|200|0" }),
+    aggRow({ id: 4, listing_id: "v1|300|0" }),
+    aggRow({ id: 5, listing_id: "v1|300|0" }), // another regional pair
+  ]);
+  const s = setOf(agg, "Base Set");
+  assert.equal(s.count, 5, "the row count is unchanged");
+  assert.equal(s.listingCount, 3, "three distinct listings behind five rows");
+  assert.equal(agg.cardHubs[0].listingCount, 3);
+  assert.equal(agg.speciesHubs[0].listingCount, 3);
+});
+
+test("DL-27. absent identity: the count is unavailable, never the row count", () => {
+  const agg = computeAggregates([1, 2, 3, 4, 5].map((id) => aggRow({ id, listing_id: null })));
+  const s = setOf(agg, "Base Set");
+  assert.equal(s.count, 5);
+  assert.equal(s.listingCount, undefined, "unavailable, so the badge suppresses");
+  assert.ok(!("listingCount" in s), "the field is absent, not a number");
+  assert.equal(agg.cardHubs[0].listingCount, undefined);
+  assert.equal(agg.speciesHubs[0].listingCount, undefined);
+});
+
+test("DL-28. PARTIAL identity: still unavailable — the identifiable subset is not a total", () => {
+  // Two rows carry identity, one does not. Publishing "2" would present
+  // the identifiable subset as the whole answer; publishing "3" would be
+  // the row count. Neither is true, so the field is absent.
+  const agg = computeAggregates([
+    aggRow({ id: 1, listing_id: "v1|100|0" }),
+    aggRow({ id: 2, listing_id: "v1|200|0" }),
+    aggRow({ id: 3, listing_id: "v1|300|0" }),
+    aggRow({ id: 4, listing_id: "v1|400|0" }),
+    aggRow({ id: 5, listing_id: null }),
+  ]);
+  const s = setOf(agg, "Base Set");
+  assert.equal(s.count, 5, "the row count still exists for the thresholds");
+  assert.equal(s.listingCount, undefined);
+  assert.equal(agg.cardHubs[0].listingCount, undefined);
+  assert.equal(agg.speciesHubs[0].listingCount, undefined);
+});
+
+test("DL-29. identity coverage is decided PER GROUP, not once for the batch", () => {
+  // One set fully identified, another not. The clean set must keep its
+  // count; the other must lose it. A batch-wide flag would fail one or
+  // the other.
+  const clean = (id) => aggRow({ id, listing_id: `v1|${id}0|0`, watchlist: { id: 901, name: "Pikachu", set: "Clean Set", language: "english", justtcg_tcgplayer_id: "2" } });
+  const dirty = (id, lid) => aggRow({ id, listing_id: lid, watchlist: { id: 902, name: "Eevee", set: "Dirty Set", language: "english", justtcg_tcgplayer_id: "3" } });
+  // Five rows each: SPECIES_MIN_LISTINGS is 5, so both species hubs exist
+  // and the per-group behaviour can be checked on all three aggregates.
+  const agg = computeAggregates([
+    clean(1), clean(2), clean(3), clean(4), clean(5),
+    dirty(6, "v1|600|0"), dirty(7, null), dirty(8, "v1|800|0"), dirty(9, "v1|900|0"), dirty(10, "v1|1000|0"),
+  ]);
+  assert.equal(setOf(agg, "Clean Set").listingCount, 5, "a fully identified set keeps its count");
+  assert.equal(setOf(agg, "Dirty Set").listingCount, undefined, "its neighbour losing identity must not cost it");
+  assert.equal(setOf(agg, "Dirty Set").count, 5, "…and its row count is untouched");
+  const byName = Object.fromEntries(agg.speciesHubs.map((h) => [h.name, h]));
+  assert.equal(byName.Pikachu?.listingCount, 5);
+  assert.ok("Eevee" in byName, "the species hub still exists");
+  assert.equal(byName.Eevee?.listingCount, undefined);
+  const hubs = Object.fromEntries(agg.cardHubs.map((h) => [h.name, h]));
+  assert.equal(hubs.Pikachu?.listingCount, 5);
+  assert.equal(hubs.Eevee?.listingCount, undefined);
+});
+
+test("DL-30. a computed zero is distinguishable from an unavailable count", () => {
+  // `undefined` means "could not compute"; a real number - including 0 -
+  // means "this is the answer". The tiles branch on typeof, so the two
+  // can never be confused.
+  const { listingIdentityKey, countDistinctListings } = L;
+  assert.equal(countDistinctListings([]), 0, "no rows is a computed zero, not unavailable");
+  assert.equal(typeof countDistinctListings([]), "number");
+
+  const unavailable = computeAggregates([1, 2, 3, 4, 5].map((id) => aggRow({ id, listing_id: null })));
+  assert.equal(typeof setOf(unavailable, "Base Set").listingCount, "undefined");
+
+  const available = computeAggregates([1, 2, 3, 4, 5].map((id) => aggRow({ id, listing_id: `v1|${id}00|0` })));
+  assert.equal(typeof setOf(available, "Base Set").listingCount, "number");
+  // and the render gate treats them differently
+  const sets = read("components/SetsFilterList.js");
+  assert.match(sets, /typeof s\.listingCount === "number"/, "typeof, not truthiness - 0 is a real answer");
+  assert.doesNotMatch(sets, /s\.listingCount \|\| s\.count/, "|| would swallow a computed zero");
+});
+
+test("DL-31. the thresholds still read the row count, so identity loss cannot delete a page", () => {
+  // Three rows, none identified: listingCount is unavailable, but the set
+  // still clears SET_MIN_LISTINGS on its row count and the hub still
+  // clears CARD_HUB_MIN_LISTINGS. Page eligibility is untouched.
+  const agg = computeAggregates([1, 2, 3, 4, 5].map((id) => aggRow({ id, listing_id: null })));
+  assert.ok(setOf(agg, "Base Set"), "the set page still exists");
+  assert.equal(agg.cardHubs.length, 1, "the card hub still exists");
+  assert.equal(agg.speciesHubs.length, 1, "the species hub still exists");
 });

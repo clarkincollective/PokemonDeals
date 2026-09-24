@@ -82,13 +82,21 @@ export default function SetsFilterList({ sets, checklistSlugs = [], filter = tru
                 <span className="block font-semibold">{s.set}</span>
                 <span className="mt-1 block text-xs text-zinc-600 dark:text-zinc-400">{s.count > 0 ? "Explore listings & cards" : "Explore card list"}</span>
               </span>
-              {s.count > 0 && (
-                // SEO-4: the count is every offer we hold for the set, not
-                // only the ones that can evidence a discount - so it says
-                // "listings". See lib/catalogAggregates.js computeAggregates.
+              {/* SEO-4: the count is every offer we hold for the set, not
+                  only the ones that can evidence a discount - so it says
+                  "listings". See lib/catalogAggregates.js computeAggregates.
+
+                  FINDING 6 (tightened 2026-09-24): the number is DISTINCT
+                  EBAY LISTINGS, and there is no fallback to the row count.
+                  `listingCount` is absent exactly when it could not be
+                  computed, and a row count under a "listings" label would
+                  be the overstatement this badge exists to stop - so the
+                  badge is suppressed instead. A computed 0 is a real
+                  answer and is not the same as absent: `count > 0` already
+                  keeps a set with nothing to show out of the list. */}
+              {s.count > 0 && typeof s.listingCount === "number" && s.listingCount > 0 && (
                 <span className="shrink-0 rounded-md bg-zinc-700 px-2 py-0.5 text-xs font-semibold text-zinc-100">
-                  {/* FINDING 6: distinct eBay listings, not stored rows */}
-                  {s.listingCount ?? s.count} {(s.listingCount ?? s.count) === 1 ? "listing" : "listings"}
+                  {s.listingCount} {s.listingCount === 1 ? "listing" : "listings"}
                 </span>
               )}
             </Link>

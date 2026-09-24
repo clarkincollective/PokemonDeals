@@ -242,20 +242,33 @@ export default function MethodologyPage() {
               before-shipping basis. No check was weakened to make the
               old sentence true; the sentence now describes what the
               checks already do. */}
+          {/* The shipping figure is the one eBay returned when we scanned
+              the listing on that marketplace. It is NOT a quote to your
+              address: we never ask for one, and the scan records whatever
+              eBay listed for that marketplace's own delivery country. So
+              this says "recorded shipping", which is what we actually
+              hold, and never "shipping to your country". */}
           <li>
-            The price compared is what a buyer actually pays, using the real figures eBay returns —{" "}
-            <span className="font-semibold text-black dark:text-zinc-50">item price plus shipping</span>{" "}
-            wherever eBay gives us a shipping cost for your country.
+            Where eBay gave us a shipping charge, the price compared is the{" "}
+            <span className="font-semibold text-black dark:text-zinc-50">
+              item price plus that recorded shipping
+            </span>
+            , using the real figures eBay returned when we scanned the listing.
           </li>
           <li>
-            When it does not, we compare the item price and say so: those listings are labelled{" "}
-            <span className="font-semibold text-black dark:text-zinc-50">&ldquo;before shipping&rdquo;</span>{" "}
-            next to the saving, so you know delivery is still to be added.
+            Where it gave us no charge, we compare the item price alone and label the saving{" "}
+            <span className="font-semibold text-black dark:text-zinc-50">&ldquo;before shipping&rdquo;</span>,
+            so you know delivery is still to be added.
           </li>
           <li>
-            When we have no shipping breakdown at all, we show the recorded price and make{" "}
+            Where we hold no shipping breakdown at all, we show the recorded price and make{" "}
             <span className="font-semibold text-black dark:text-zinc-50">no saving claim</span> for that
             listing. An auction is shown as a current bid that can still rise, never as a settled saving.
+          </li>
+          <li>
+            None of these is a checkout total. Shipping to your own address, taxes, duties and any
+            import charges are set by the seller and eBay at checkout, and can differ from what we
+            recorded.
           </li>
           <li>
             A listing has to be meaningfully below its market reference to be shown — a modest, genuine

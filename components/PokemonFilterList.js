@@ -137,7 +137,18 @@ export default function PokemonFilterList({ groups }) {
                         key={s.name}
                         href={`/pokemon/${s.slug}`}
                         className={s.hasDeal ? "species-tile species-tile-deal" : "species-tile species-tile-plain"}
-                        title={s.hasDeal ? `${s.count} active listing${s.count === 1 ? "" : "s"}` : "Browse every card"}
+                        // FINDING 6 (tightened 2026-09-24): the badge is
+                        // DISTINCT EBAY LISTINGS. When that could not be
+                        // computed the number is suppressed - never swapped
+                        // for the stored row count, which would state a
+                        // record total under a "listings" label.
+                        title={
+                          !s.hasDeal
+                            ? "Browse every card"
+                            : typeof s.listingCount === "number"
+                              ? `${s.listingCount} active listing${s.listingCount === 1 ? "" : "s"}`
+                              : "Has active listings"
+                        }
                       >
                         <span className="flex min-w-0 items-center gap-1.5">
                           {/* PokéAPI game sprite - small identification-
@@ -166,9 +177,9 @@ export default function PokemonFilterList({ groups }) {
                             {s.name}
                           </span>
                         </span>
-                        {s.hasDeal && (
+                        {s.hasDeal && typeof s.listingCount === "number" && s.listingCount > 0 && (
                         <span className="shrink-0 rounded-md bg-zinc-700 px-1.5 py-0.5 text-xs font-semibold text-zinc-100">
-                          {s.count}
+                          {s.listingCount}
                         </span>
                       )}
                     </Link>
