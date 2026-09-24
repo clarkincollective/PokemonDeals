@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Gallery } from "@/components/guides/CardArt";
 import { GUIDE_CARDS } from "@/lib/guideLinks";
+import { catalogImageUrl } from "@/lib/cardImage";
 
 // A supplied photograph rather than a catalogue scan. Credit is required
 // and the caption carries it, so a reader always knows whose image this is
@@ -718,9 +719,156 @@ function DeltaReignCards() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// TRIBUTE ARTICLE (2026-09-25)
+//
+// Carries no affiliate link, no price, no product recommendation and no
+// email capture. The news route renders none of those for any article, so
+// nothing had to be suppressed - but the card below is deliberately NOT a
+// link to its own card page either, because that page shows a market price
+// and live listings. A tribute does not route a reader to a shopping
+// surface.
+// ---------------------------------------------------------------------------
+
+// One catalogue card face, shown to identify the exact card and nothing
+// else: no link, no price, no availability. Dimensions are reserved from
+// the real 717x1000 scan aspect so the article never shifts as it loads.
+function TributeCardFigure({ tcgplayerId, alt, caption, width = 260 }) {
+  const height = Math.round((width * 1000) / 717);
+  return (
+    <figure className="mt-6 flex flex-col items-center">
+      <Image
+        src={catalogImageUrl(tcgplayerId)}
+        alt={alt}
+        width={width}
+        height={height}
+        sizes={`(max-width: 640px) 60vw, ${width}px`}
+        className="h-auto w-full rounded-lg shadow-sm"
+        style={{ maxWidth: width }}
+      />
+      <figcaption className="mt-3 max-w-md text-center text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+        {caption}
+      </figcaption>
+    </figure>
+  );
+}
+
+// A plain link out to a source's own page, used where we have no licence to
+// reproduce the material itself. It is a link and a caption - no
+// third-party script and no iframe, so there is nothing that can fail to
+// load and leave a hole in the article.
+function SourceCard({ href, label, note }) {
+  return (
+    <aside className="mt-6 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 sm:p-5">
+      <a
+        href={href}
+        rel="noopener noreferrer"
+        target="_blank"
+        className="text-base font-semibold text-red-600 underline underline-offset-2 hover:text-red-700 dark:text-red-500"
+      >
+        {label}
+      </a>
+      <p className="mt-1.5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{note}</p>
+    </aside>
+  );
+}
+
+function AveryTribute() {
+  return (
+    <>
+      <p className={P}>
+        Avery, known to a large Pokemon audience as Avery the Poke Kid, died on 18 September 2026. He was 12. His
+        parents, Christian Garcia and Rebecca Rosa-Valentin, announced his death that evening on the family&apos;s
+        Instagram account, where they had shared his collecting alongside his long illness.
+      </p>
+      <p className={P}>
+        We did not know Avery. We are writing about him because a great many people in this hobby did, and because
+        the last thing his family chose to share with them was a pack opening.
+      </p>
+
+      <h2 className={H2}>A collector first</h2>
+      <p className={P}>
+        What came through Avery&apos;s videos was ordinary, recognisable enthusiasm: the wait while a pack is
+        fanned out, the hope for one particular card, the hands going to the face when something rare actually
+        turns up. He posted across Instagram, YouTube, TikTok and Facebook, to an audience reported at more than
+        600,000 people in total.
+      </p>
+      <p className={P}>
+        The clearest sign of what that audience made of him came earlier in September 2026. Avery had talked about
+        wanting 100,000 YouTube subscribers; when people heard he was running out of time, enough of them
+        subscribed that he passed it within days, and YouTube sent the Silver Play Button that goes with it. He
+        got to see it happen.
+      </p>
+
+      <h2 className={H2}>The final pack</h2>
+      <p className={P}>
+        On 22 September, four days after his death, Avery&apos;s family posted a video to his Instagram account and
+        titled it <em>Avery&apos;s final pack</em>. That is how this article describes it too: the video his family
+        shared as his final pack opening. It is their framing, not a claim of ours about the last card he ever
+        held.
+      </p>
+      <p className={P}>
+        In it he opens{" "}
+        <Link href="/news/pokemon-tcg-30th-celebration-out-now" className={A}>
+          30th Celebration
+        </Link>{" "}
+        packs, and pulls a Jirachi ex special illustration rare.
+      </p>
+
+      <TributeCardFigure
+        tcgplayerId="716232"
+        alt="Jirachi ex, card 155 of 128 from the Pokemon TCG 30th Celebration expansion — a special illustration rare. Complete card face."
+        caption={
+          <>
+            <strong>Jirachi ex — 155/128, 30th Celebration.</strong> Special illustration rare, illustrated by
+            江川あきら (AKIRA EGAWA). Catalogue scan, the same one our card pages use. Card artwork © Pokemon.
+          </>
+        }
+      />
+
+      <p className={P}>
+        Jirachi is the wish Pokemon, which is not lost on anyone who has watched the clip. We would rather leave
+        that where it is than make more of it than his family has.
+      </p>
+
+      <SourceCard
+        href="https://www.instagram.com/averythepokekid/reel/DdmDjLKppsn/"
+        label="Watch the video on the family's own account →"
+        note="We have no licence to reproduce the family's photographs or video here, so this article links to their post rather than republishing it. Opens Instagram in a new tab."
+      />
+
+      <h2 className={H2}>The artist replied</h2>
+      <p className={P}>
+        AKIRA EGAWA, who illustrated that Jirachi ex, saw the video and answered it publicly on X. In remarks
+        reported in English, Egawa wrote,{" "}
+        <a href="https://x.com/rev_akira/status/2102582296176181569" rel="noopener noreferrer" target="_blank" className={A}>
+          &ldquo;I want my art to bring happiness to people. That&apos;s one of the reasons I draw.&rdquo;
+        </a>{" "}
+        and, in a{" "}
+        <a href="https://x.com/rev_akira/status/2102585071740027230" rel="noopener noreferrer" target="_blank" className={A}>
+          second post
+        </a>
+        , &ldquo;I&apos;m so deeply moved. I&apos;m so glad I kept drawing. I&apos;ve honestly been in tears ever
+        since I saw this.&rdquo;
+      </p>
+      <p className={P}>
+        It is a rare thing for the person who drew a card to learn what it meant to the person who opened it.
+      </p>
+
+      <h2 className={H2}>From us</h2>
+      <p className={P}>
+        This site exists because people enjoy these cards. Avery enjoyed them as openly as anyone, and shared that
+        enjoyment with a lot of strangers who are now thinking about him. Our condolences to his family and to
+        everyone who watched him open packs.
+      </p>
+    </>
+  );
+}
+
 export const NEWS_BODIES = {
   "delta-reign-english-cards-revealed": DeltaReignCards,
   "mega-evolution-delta-reign-what-is-known": DeltaReign,
   "pokemon-tcg-30th-celebration-out-now": ThirtiethOutNow,
+  "remembering-avery-the-poke-kid": AveryTribute,
   "rgb-mew-30th-celebration-unconfirmed": RgbMew,
 };
