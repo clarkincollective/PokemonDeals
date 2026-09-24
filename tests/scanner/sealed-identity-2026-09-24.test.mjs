@@ -379,6 +379,80 @@ test("SI-17c. a nameless product reaches the customer-facing page as 'unavailabl
   assert.equal(meta.robots.index, false);
 });
 
+// === STAGE 4: three measured matcher corrections ======================
+//
+// Each was measured against all 731 stored rows before shipping: 8 rows
+// changed decision, 0 regressions, and every newly-accepted row was
+// confirmed from its listing photograph because acceptance can make a row
+// customer-visible. The deltas are pinned here, including the two rows
+// that must STAY refused despite a lexically similar title.
+
+test("SI-19. a genuine box sold WITH a protective case is the box, not a case SKU", () => {
+  // deal 221, photograph: a sealed Champion's Path ETB inside a clear case.
+  // The `case` rule sits above `etb`, and the old PROTECTIVE_CASE list only
+  // recognised a case that named an adjective, so a bare "+ Case" won.
+  const cp = { name: "Champion's Path Elite Trainer Box", set: "Champion's Path", productType: null };
+  assert.deepEqual(decide("Pokémon TCG Champion's Path Elite Trainer Box Englisch OVP sealed + Case", CHAMPIONS_PATH_ETB), { ok: true });
+  // deal 13, photograph: a sealed Surging Sparks Booster Box in a case.
+  const ss = { id: 1, name: "Surging Sparks Booster Box", set: "SV08: Surging Sparks", product_type: "Booster Box" };
+  assert.deepEqual(decide("Sealed Surging Sparks Booster Box Pokémon TCG Scarlet & Violet SV08 With Case", ss), { ok: true });
+  // the accompaniment marker is what does it - these forms all read as "box"
+  for (const t of ["… Elite Trainer Box with case", "… Elite Trainer Box incl. case", "… Elite Trainer Box w/ case", "… Elite Trainer Box plus case"]) {
+    assert.equal(productKindOfTitle(t), "etb", t);
+  }
+  // …and WITHOUT a marker a case is still a case
+  assert.equal(productKindOfTitle("Pokemon ME ETB Elite Trainer Box Case - Ascended Heroes"), "case");
+  assert.equal(sealedListingDecision("Sealed Case of 4 Elite Trainer Boxes", cp).ok, false);
+});
+
+test("SI-20. Top-Trainer-Box is the German name for an Elite Trainer Box", () => {
+  // deal 937, photograph: a sealed Pokemon GO box whose panel reads
+  // "Top-Trainer-Box". Previously `collection` claimed it via a bare "box".
+  assert.equal(productKindOfTitle("Pokemon GO - Top Trainer Box - Elite Trainer - deutsch - NEU OVP"), "etb");
+  assert.deepEqual(decide("Pokemon GO - Top Trainer Box - Elite Trainer - deutsch - NEU OVP", POKEMON_GO_ETB), { ok: true });
+  for (const t of ["Pokemon Top-Trainer-Box", "Pokemon TopTrainerBox", "Pokemon Top Trainer Box"]) {
+    assert.equal(productKindOfTitle(t), "etb", t);
+  }
+});
+
+test("SI-21. 'empty' is recognised in German, Italian and French, not only English", () => {
+  // All six corpus rows were already refused; this fixes the RECORDED
+  // REASON, so the next such title is refused for being empty, not by luck.
+  for (const [t, product] of [
+    ["Pokemon ME ETB Elite Trainer Box Case leer - Ascended Heroes ME 2.5", ASCENDED_ETB],
+    ["Pokemon Pitch Black Booster Bundle Box Case - ME05 Pitch Black - LEER OHNE KARTEN", { id: 1, name: "Pitch Black Booster Box", set: "ME05: Pitch Black" }],
+    ["Pokemon Perfect Order Booster Bundle Box Case ME03 ordine perfetto VUOTO NO CARTE", { id: 1, name: "Perfect Order Booster Box", set: "ME03: Perfect Order" }],
+    ["Pokemon Celebrations Elite Trainer Box Incomplete", CELEBRATIONS_2021_ETB],
+  ]) {
+    assert.equal(productKindOfTitle(t), "empty_box", t);
+    assert.equal(decide(t, product).ok, false, t);
+  }
+});
+
+test("SI-22. the two rows image-proved NOT to be sealed product stay refused", () => {
+  // Protected against a future lexical "improvement": both were inspected.
+  // #513 is an open display of 3-card mini packs; #519 is loose packs
+  // (~151 cards) despite its title saying "Booster-Box".
+  const rs = { id: 1, name: "XY Roaring Skies Booster Box", set: "XY - Roaring Skies" };
+  const xy = { id: 2, name: "XY Booster Box", set: "XY Base Set" };
+  assert.equal(decide("Pokemon TCG 96 packs XY Roaring Skies BOX 3-Card Booster Packs", rs).ok, false);
+  assert.equal(decide("Pokémon GO 151Cards 2014 XY Base Set NEU VERSIEGELT Booster-Box 1x", xy).ok, false);
+});
+
+test("SI-23. Stage 4 leaves the held booster-bundle cohort alone", () => {
+  // The 84 kind_mismatch:booster_bundle_vs_booster_box rows are held for a
+  // separate stage. No Stage 4 change may accept one onto the Booster Box
+  // product it is wrongly bound to.
+  const bb = { id: 1, name: "Pitch Black Booster Box", set: "ME05: Pitch Black" };
+  for (const t of [
+    "Pokemon - Mega Evolution ME05 Pitch Black Booster Bundle Box Sealed New",
+    "Pokémon TCG SCARLET & VIOLET SURGING SPARKS Booster Bundle Box SV08 6 Packs",
+  ]) {
+    assert.equal(decide(t, bb).ok, false, t);
+    assert.equal(productKindOfTitle(t), "booster_bundle", t);
+  }
+});
+
 test("SI-18. projection hygiene: read paths still embed name AND set (defence in depth)", () => {
   // NOT the correctness boundary - SI-17 is. This is a static text scan and
   // it can only see the embeds it matches, in the files it is given: it
