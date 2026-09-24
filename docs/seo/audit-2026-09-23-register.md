@@ -15,7 +15,7 @@ while working a finding that is NOT part of that finding.
 | 3 | Two 30th Celebration guide links resolve to 404 | **closed** — commit `eeabe80`, 2026-09-23 |
 | 4 | Sealed links lose the product selection | **closed** — commits `e45a18d`, `927fcb8`, 2026-09-25; production-verified desktop + 387px, see below |
 | 5 | `customid=other` on some affiliate links | **closed** — commits `67e1c1f`, `a6c4ae3`, 2026-09-25; pre-change sample 395/475 = 83.2% fallback, post-change sample 0/690 = 0.0% — **different samples, not a single delta**, see below |
-| 6 | Duplicate marketplace rows | **closed** — commit `f4a8568`, 2026-09-25; 1,105 displayable rows behind 1,000 listings, Magneton hub 12 → 6, see below |
+| 6 | Duplicate marketplace rows | **closed** — commits `f4a8568`, `cb4d675`, 2026-09-24; 1,105 displayable rows behind 1,000 listings, Magneton hub 12 → 6, see below |
 | 7 | Hero chips drop qualifiers; desktop overflow 1384 vs 1363px | open — not started |
 | 8 | Variant searches drop set / number | open — not started |
 | 9 | Sales ordering | open — not started |
@@ -1189,3 +1189,29 @@ budget, priority-lane, protected-cohort or scheduled-checkpoint change.
 **No conversion or revenue improvement is claimed.** What is established
 is that one eBay listing now presents as one buying option, and that the
 counts equal the options actually displayed.
+
+### The defect the production check found — `cb4d675`
+
+The first `/api/refresh-catalog` cron after `f4a8568` (22:00:35 UTC) wrote
+the new `listingCount` field **as 1, for every set** — against measured
+values of 17, 36 and 17 for the three sets being checked.
+
+Cause: neither `AGGREGATE_SELECT` (`lib/deals.js`) nor `SELECT`
+(`app/api/refresh-catalog`) selected `id` or `listing_id`, so every row
+handed to `computeAggregates` keyed as `row:undefined` and collapsed into
+one group. **A grouping rule is only as good as the columns it is given,
+and nothing checked that it was given them.** Both selects and both their
+legacy fallbacks now select `id, listing_id` first, and DL-21 asserts it
+for all four.
+
+The rule was hardened at the same time: `listingIdentityKey` fell back to
+`row:<id>`, which is only distinct while the row *has* an id — with
+neither field it returned one string for every row, the opposite of the
+guarantee the module documents and DL-10 tests. It now takes the row's
+position in the batch and uses it only in that last-resort case. DL-22
+pins the exact broken shape.
+
+Nothing reader-facing was wrong in between: the tiles read
+`s.listingCount ?? s.count`, and the bad value only ever reached the
+snapshot, not a rendered page, before it was corrected. Had it not been,
+those tiles would have begun showing "1 listing" at the next rebuild.
