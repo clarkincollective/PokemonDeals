@@ -13,7 +13,7 @@ while working a finding that is NOT part of that finding.
 | 1a | Sealed identity validator accepts a product with no `name` (fail-open) | **closed** — commit `40e0847`, 2026-09-24 |
 | 2 | Card-page summaries claim savings their own listing tiles refuse | **closed** — commit `367d79a`, 2026-09-24 |
 | 3 | Two 30th Celebration guide links resolve to 404 | **closed** — commit `eeabe80`, 2026-09-23 |
-| 4 | Sealed links lose the product selection | open — not started |
+| 4 | Sealed links lose the product selection | **closed** — commits `e45a18d`, `927fcb8`, 2026-09-25; production-verified desktop + 387px, see below |
 | 5 | `customid=other` on some affiliate links | open — not started |
 | 6 | Duplicate marketplace rows | open — not started |
 | 7 | Hero chips drop qualifiers; desktop overflow 1384 vs 1363px | open — not started |
@@ -783,3 +783,118 @@ market`, and stays noindex (a plain listing with no evidenced reference).
 The 60 with no accepting watched product are **left unresolved**, not
 written and not judged. Focused sealed suites 61/61; ratchet OK, quarantine
 25. Unresolved cohort **147 → 145**.
+
+---
+
+# Finding 4 — sealed links lose the product selection (CLOSED, 2026-09-25)
+
+Commits `e45a18d` (implementation) and `927fcb8` (one production-found gap).
+
+## Root cause
+
+`lib/guideLinks.js` already carried each named product's exact catalogue
+identity (`tcgplayerId`) and then threw it away:
+
+```js
+function product({ name, set, productType, tcgplayerId, label }) {
+  return Object.freeze({ ..., href: "/sealed-deals" });   // hardcoded
+}
+```
+
+So every named sealed product in a guide landed on the unfiltered
+catalogue of 2,354 products across 151 sets, and the reader had to find
+the product again — including the two cases a set link or a text search
+*cannot* resolve, because both editions share every distinguishing word:
+
+| product | id |
+|---|---|
+| 151 Elite Trainer Box | 503313 |
+| 151 Pokemon Center Elite Trainer Box (Exclusive) | 501999 |
+| Prismatic Evolutions Elite Trainer Box | 593355 |
+| Prismatic Evolutions Pokemon Center Elite Trainer Box (Exclusive) | 593324 |
+
+A second cause sat underneath it: `/sealed-deals` *could* filter but the
+state was not addressable. The page read no search parameters and the
+browser wrote none, so a filtered view had no URL to link to.
+
+## Why `?product=<tcgplayerId>` and not the existing `/sealed-deals/[id]`
+
+`/sealed-deals/[id]` already exists, but its `id` is a **`sealed_deals`
+row** — one live listing. It exists only while an offer exists, and its id
+is not stable catalogue identity. Nine of the ten audited guide products
+have no qualifying offer today, so that route could not serve them at all.
+`tcgplayerId` is the catalogue's own identity and exists regardless of
+whether anything is for sale.
+
+## What shipped
+
+- `lib/sealedFilterUrl.js` (new, pure) — parse/build the filter URL, one
+  `VALID_PRODUCT_ID = /^[0-9]{1,20}$/`, and **one** exclusivity rule:
+  selecting a product drops the browse filters; touching a browse filter
+  drops the product. Unrelated parameters (`utm_*`, `gclid`, …) are never
+  touched.
+- `app/api/sealed-catalog/route.js` — `?product=` exact lookup, placed
+  *before* the set/text paths. Malformed → 400 `invalid_product`; unknown
+  → 404 `unknown_product`. Neither falls through to a text search.
+- `components/SealedProductBrowser.js` — a "Selected product" panel, URL
+  as the single source of filter state, `popstate` restore, and
+  suppression of the page's unrelated "Live sealed deals right now" strip
+  while a product is claimed.
+- `proxy.js` — `X-Robots-Tag: noindex, follow` on filtered states only.
+  Done in the proxy, not the page, so `/sealed-deals` stays static (○) and
+  CDN-cached; the unfiltered page's indexing policy is unchanged.
+- `scripts/integrity/verifyGuideLinks.mjs` — now derives each product's
+  href and rejects duplicate destinations. Live: 146 cards, 10 products,
+  21 sets, **0 problems**.
+- `tests/scanner/sealed-product-selection-2026-09-25.test.mjs` — SP-1…14.
+- `tests/scanner/guide-card-links.test.mjs` test 1b had **pinned the
+  defect** (`assert.equal(p.href, "/sealed-deals")`); it now pins the new
+  contract.
+
+## Production verification, 2026-09-25
+
+Desktop (1440-wide window) and a **measured 387 CSS px** layout viewport.
+`resize_window` reported success but the Chrome window stayed maximised at
+1920, so the mobile pass was measured in a same-origin 390px iframe and
+`window.innerWidth` recorded with each result rather than assumed.
+
+| check | result |
+|---|---|
+| five audited guides emit exact product links | 501999 / 502005 / 503313 / 593324 / 593355 / 600518 / 242436 / 668541 / 672434 / 453470 |
+| remaining bare `/sealed-deals` links | generic link text only ("Sealed", "Sealed Products", "Sealed product listings") |
+| all 10 destinations resolve live | yes |
+| editions distinct | 151 std ref A$684.67 vs 151 Pokemon Center ref A$1,815.68 |
+| product with a live offer (593355) | panel renders tile + "1 live listing" + View on eBay |
+| zero-offer products (the other 9) | "No eBay listing currently passes our checks for this exact product… alternatives, not this product" |
+| invalid id (`abc`) | API 400 `invalid_product`; page says "Product not found" |
+| unknown numeric id (`999999999`) | API 404 `unknown_product`; page says nothing below is that product |
+| empty `?product=` | 200, ordinary browse |
+| Clear selection | URL → `/sealed-deals`, panel gone, strip restored |
+| Back / Forward | `?product=593355` ⇄ `/sealed-deals`, panel and strip both restored |
+| 8 keystrokes in the search box | URL tracked every keystroke; `history.length` delta **0** |
+| exclusivity, live | typing on `?product=593355&utm_source=guide&utm_campaign=prismatic` → `?utm_source=guide&utm_campaign=prismatic&q=charizard` — product dropped, **both attribution parameters kept** |
+| `X-Robots-Tag` | `/sealed-deals` → none; `?product=…` → `noindex, follow`; `?q=…` → `noindex, follow`; `?utm_source=guide` → none |
+| canonical | still `/sealed-deals`; no filtered URL in any sitemap |
+| 387px viewport | no horizontal overflow (scrollWidth 368 ≤ 387); panel present; strip hidden; CTA 252×36 |
+
+### The one gap production found — fixed in `927fcb8`
+
+A **malformed** id left the featured strip showing, so a reader who
+followed a broken product link met a rotation of *other* products above
+the "Product not found" notice. A numeric-but-unknown id already hid it.
+The strip's condition was `Boolean(selectedId)`; the panel's was
+`selectedId || selectedState === "invalid"`. They now share one
+`productClaimed` flag and SP-6 fails if they diverge again.
+
+## Known limitation (measured, not fixed)
+
+At 387px the panel starts **545px** down the page, below the site header
+and the page's existing hero, so a reader following a product link scrolls
+roughly two-thirds of a screen before seeing it. Once scrolled, the whole
+panel including the eBay CTA fits in one 841px screen. This is the page's
+pre-existing header/hero, not something finding 4 introduced, and removing
+it was outside this task.
+
+**No traffic or revenue improvement is claimed from this change.** What is
+established is that a guide link now resolves to the exact product and
+edition it names, and says so plainly when it cannot.
