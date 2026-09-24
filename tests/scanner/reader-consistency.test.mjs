@@ -102,8 +102,13 @@ test("RC-4 a genuine eligible listing counts and displays; a catalogue printing 
 test("RC-5 wiring: every offer-counting reader excludes held rows at the query and applies isOfferCountable; the pool select carries the verdict evidence", () => {
   const deals = read("lib/deals.js");
   assert.match(deals, /const OFFER_ELIGIBILITY_COLUMNS = "disqualified_reason, visual_authenticity_status, visual_authenticity_reason, market_price, discount_pct";/);
-  assert.match(deals, /const AGGREGATE_SELECT =\s*\n\s*`total_price, total_price_usd, image_url, \$\{OFFER_ELIGIBILITY_COLUMNS\}/);
-  assert.match(deals, /const AGGREGATE_SELECT_LEGACY =\s*\n\s*`total_price, image_url, \$\{OFFER_ELIGIBILITY_COLUMNS\}/);
+  // finding 6 (2026-09-24) added `id, listing_id` to the front of this
+  // select: computeAggregates now counts distinct eBay listings, and
+  // without those columns every row keys identically and every count
+  // collapses to 1. The eligibility evidence this test exists for is
+  // unchanged and still asserted.
+  assert.match(deals, /const AGGREGATE_SELECT =\s*\n\s*`id, listing_id, total_price, total_price_usd, image_url, \$\{OFFER_ELIGIBILITY_COLUMNS\}/);
+  assert.match(deals, /const AGGREGATE_SELECT_LEGACY =\s*\n\s*`id, listing_id, total_price, image_url, \$\{OFFER_ELIGIBILITY_COLUMNS\}/);
   const scan = deals.slice(deals.indexOf("async function scanActiveDealRows"), deals.indexOf("async function readCatalogSnapshot"));
   assert.match(scan, /\.eq\("is_active", true\)\s*\n(?:\s*\/\/.*\n)*\s*\.is\("disqualified_reason", null\)/);
   const prints = deals.slice(deals.indexOf("async function fetchSpeciesPrintsUncached"), deals.indexOf("export const fetchSpeciesPrints"));

@@ -270,3 +270,49 @@ test("DL-20. the collapsed regional options are stated, not silently dropped", (
   assert.match(card, /Same listing, also on/);
   assert.match(card, /prices differ by site/);
 });
+
+// === 9. the fields the rule needs must actually be selected ============
+//
+// Found in production on 2026-09-24: the first cron run after the fix
+// wrote listingCount = 1 for EVERY set, because the aggregate query
+// selected neither `id` nor `listing_id`, so every row keyed identically.
+// A grouping rule is only as good as the columns it is handed.
+
+test("DL-21. every query feeding computeAggregates selects the identity columns", () => {
+  const deals = read("lib/deals.js");
+  for (const name of ["AGGREGATE_SELECT", "AGGREGATE_SELECT_LEGACY"]) {
+    const i = deals.indexOf(`const ${name} =`);
+    assert.ok(i > -1, `${name} not found`);
+    const decl = deals.slice(i, deals.indexOf(";", i));
+    assert.match(decl, /\bid\b/, `${name} must select id`);
+    assert.match(decl, /\blisting_id\b/, `${name} must select listing_id`);
+  }
+  const route = read("app/api/refresh-catalog/route.js");
+  for (const name of ["SELECT", "SELECT_LEGACY"]) {
+    const i = route.indexOf(`const ${name} =`);
+    assert.ok(i > -1, `${name} not found`);
+    const decl = route.slice(i, route.indexOf(";", i));
+    assert.match(decl, /"id, listing_id,/, `${name} must select id and listing_id first`);
+  }
+});
+
+test("DL-22. rows with no identity at all still count as separate options", () => {
+  // The exact shape the broken query produced: no listing_id, no id.
+  const blind = [{ marketplace: "EBAY_US" }, { marketplace: "EBAY_GB" }, { marketplace: "EBAY_CA" }];
+  assert.equal(L.countDistinctListings(blind), 3, "unknown identity must never collapse to one");
+  assert.equal(L.dedupeListings(blind).length, 3);
+  // and the key is stable for a given position, so the count is deterministic
+  assert.equal(L.listingIdentityKey(blind[0], 0), L.listingIdentityKey(blind[0], 0));
+  assert.notEqual(L.listingIdentityKey(blind[0], 0), L.listingIdentityKey(blind[1], 1));
+});
+
+test("DL-23. computeAggregates produces a listingCount that is never a silent 1", () => {
+  const agg = read("lib/catalogAggregates.js");
+  // it reads the shared rule, not a local one
+  assert.match(agg, /import \{ listingIdentityKey \} from "@\/lib\/listingIdentity"/);
+  assert.equal((agg.match(/listingIdentityKey\(row\)/g) ?? []).length, 5, "sets, card hubs (x2) and species (x2)");
+  // and every aggregate exposes it
+  for (const field of ["listingCount: setListings.get(set).size", "listingCount: listings.size", "listingCount: g.listings.size"]) {
+    assert.ok(agg.includes(field), `missing ${field}`);
+  }
+});

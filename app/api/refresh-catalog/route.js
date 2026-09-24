@@ -18,10 +18,12 @@ const PAGE_SIZE = 1000;
 // filters on savingsClaimTrusted, which reads the stored reference
 // evidence - without these columns every row of a tracked recent release
 // fails that check and the set can never become deal-backed.
+// FINDING 6: `id` and `listing_id` are REQUIRED - computeAggregates counts
+// distinct eBay listings with them. See lib/deals AGGREGATE_SELECT.
 const SELECT =
-  "total_price, total_price_usd, image_url, disqualified_reason, visual_authenticity_status, visual_authenticity_reason, market_price, discount_pct, card_set, title, card_tcgplayer_id, is_graded, grader, grade, condition, reference_product_id, reference_amount, reference_currency, reference_fx_rate, reference_fx_asof, reference_observed_at, reference_condition, reference_printing, reference_grader, reference_grade, watchlist:watchlist_id!inner (id, name, set, language, justtcg_tcgplayer_id)";
+  "id, listing_id, total_price, total_price_usd, image_url, disqualified_reason, visual_authenticity_status, visual_authenticity_reason, market_price, discount_pct, card_set, title, card_tcgplayer_id, is_graded, grader, grade, condition, reference_product_id, reference_amount, reference_currency, reference_fx_rate, reference_fx_asof, reference_observed_at, reference_condition, reference_printing, reference_grader, reference_grade, watchlist:watchlist_id!inner (id, name, set, language, justtcg_tcgplayer_id)";
 const SELECT_LEGACY =
-  "total_price, image_url, disqualified_reason, visual_authenticity_status, visual_authenticity_reason, market_price, discount_pct, card_set, title, card_tcgplayer_id, is_graded, grader, grade, condition, reference_product_id, reference_amount, reference_currency, reference_fx_rate, reference_fx_asof, reference_observed_at, reference_condition, reference_printing, reference_grader, reference_grade, watchlist:watchlist_id!inner (id, name, set, language, justtcg_tcgplayer_id)";
+  "id, listing_id, total_price, image_url, disqualified_reason, visual_authenticity_status, visual_authenticity_reason, market_price, discount_pct, card_set, title, card_tcgplayer_id, is_graded, grader, grade, condition, reference_product_id, reference_amount, reference_currency, reference_fx_rate, reference_fx_asof, reference_observed_at, reference_condition, reference_printing, reference_grader, reference_grade, watchlist:watchlist_id!inner (id, name, set, language, justtcg_tcgplayer_id)";
 
 export async function GET() {
   const started = Date.now();
