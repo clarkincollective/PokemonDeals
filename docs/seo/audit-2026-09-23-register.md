@@ -10,7 +10,7 @@ while working a finding that is NOT part of that finding.
 | # | Summary | State |
 |---|---|---|
 | 1 | Graded singles presented as sealed ETBs (deals 2435, 961) | **closed** — commits `ad7d2d8`, `1ff328a`, `93e6461`, `108ae12`, 2026-09-24; population reconciled and figures corrected 2026-09-24, see below |
-| 1a | Sealed identity validator accepts a product with no `name` (fail-open) | **open** — carried out of finding 1, not fixed |
+| 1a | Sealed identity validator accepts a product with no `name` (fail-open) | **closed** — commit `40e0847`, 2026-09-24 |
 | 2 | Card-page summaries claim savings their own listing tiles refuse | **closed** — commit `367d79a`, 2026-09-24 |
 | 3 | Two 30th Celebration guide links resolve to 404 | **closed** — commit `eeabe80`, 2026-09-23 |
 | 4 | Sealed links lose the product selection | open — not started |
@@ -209,6 +209,76 @@ Closing it properly means making the validator return `false` (or throw)
 on incomplete input and inverting SI-17 — a behaviour change to a shared
 gate, deliberately out of scope for a bounded reporting reconciliation, and
 recorded here as open.
+
+### Item 1a — CLOSED, commit `40e0847` (2026-09-24)
+
+The paragraphs above describe the state **before** this commit and are kept
+as the record of it. What shipped:
+
+`dealQuality.sealedRowMatchesItsProduct` now **fails closed**. A new
+`sealedProductIdentity(product)` returns `null` unless the embedded product
+is a plain object (not null, not an array, not a primitive) carrying a
+**non-blank string** `name`; the validator returns `false` on `null`.
+Nothing is inferred from neighbouring fields — `set`, `tcgplayer_id` and
+the row's own title are not substitutes for the name. `set` and
+`product_type` remain optional and are passed through trimmed, so a
+properly populated row reaches the same verdict it did before. Both
+functions are exported so the boundary is testable directly, not only
+through the display gate.
+
+**Before → after**
+
+| Input | Before | After |
+|---|---|---|
+| product absent / `null` / `undefined` | **accepted** | rejected |
+| `name: null` / `""` / whitespace-only / non-string | **accepted** | rejected |
+| product not an object, or an array | **accepted** | rejected |
+| only `set` + `tcgplayer_id`, no name | **accepted** | rejected |
+| populated product, title matches | accepted | accepted (unchanged) |
+| populated product, title mismatches | rejected | rejected (unchanged) |
+
+**Live impact: none.** Measured across all 727 stored sealed rows before
+shipping — 0 rows (0 active) have a null FK, an unresolvable product or a
+blank product name. Displayable is 134 under the shipped gate and 134 under
+a fail-open counterfactual on the same read. This removed a latent hazard,
+not a live row.
+
+**Tests.** SI-17 was inverted **in the same commit as the implementation**
+and now proves rejection across all the shapes in the table above, asserted
+at both the validator and the display gate. SI-17b proves the boundary does
+not depend on how the row was produced (database shape, hand-assembled,
+JSON round-trip). SI-17c drives a nameless fixture through the real detail
+route and requires "This listing is unavailable here",
+`robots.index = false` and no product name in the HTML. All three were
+verified to fail when the fail-open is temporarily restored. One fixture
+was *completed, not weakened*: `sealed-match-17c9` S-7 built its product as
+`{ set }` only; its subject is early availability, not identity, so it now
+carries the real catalogue name it always implied.
+
+**SI-18 remains defence in depth for projection hygiene and is explicitly
+not the correctness boundary.** It is a static text scan that can only see
+the embeds it matches in the files it is given; the runtime validator is
+what guarantees rejection regardless of file, query spelling, embed syntax,
+hand-built objects or future callers. A caller that now drops `name` hides
+rows rather than showing wrong ones — safe, but still a bug worth catching
+early, which is why the scan is kept.
+
+**Caller audit.** Every direct caller of `isDisplayableSealedDeal` /
+`isSealedVerificationCandidate` was checked: the sealed detail route,
+`sealedDisplayable` (pool, paged grid, catalogue offers), `lib/sitemap.js`
+and `lib/sealedVerifyLane.mjs`. All embed `name`; none depends on nameless
+products being accepted. `r6-category-currency` stubs the gate and is
+unaffected.
+
+**Production verification** (deployment `dpl_5Xpu2ZV…`, commit `40e0847`,
+tree byte-identical to the tested commit): legitimate sealed deal 2462
+still renders "Champion's Path Elite Trainer Box · 69% below market before
+shipping"; kind-mismatch rows 2435, 961, 933 and 525 all render
+"unavailable here", noindex, with no product name; sealed sitemap 0/40 and
+sealed index 0/8 quarantined. The malformed/nameless case has no
+production HTTP path — creating such a row would be a data mutation — so it
+is verified through the real route module at the deployed commit
+(fixture-only, SI-17c).
 
 ## Separate defects found while working finding 1 (recorded, NOT fixed here)
 
