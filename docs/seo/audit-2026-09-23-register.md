@@ -550,3 +550,119 @@ Active unresolved cohort **262 → 147**; `edition_mismatch:30th_vs_25th`
 **116 → 1**. Focused sealed suites 75/75; ratchet OK, quarantine 25.
 Rollback files: `sealed-30th-prior-canary-…json`,
 `sealed-30th-prior-remainder-…json`.
+
+## Stage 2 — Booster Bundle watchlist coverage: HALTED at Phase C, nothing written
+
+`scripts/remediation/sealedBundleAudit.mjs` (SELECT only). Audit artefact:
+`.local/remediation/sealed-bundle-audit-2026-09-24.json`. **No production
+data was mutated in Stage 2.** No product was added to `sealed_watchlist`,
+no row was relinked, no canary was run.
+
+### Figure correction to the accepted read-only report
+
+That report said *"71 Booster Bundle products exist in `sealed_catalog`"*.
+That matched on **name + set**. The catalogue's own classification is
+`product_type`, and matching **name + product_type** gives **171**. The two
+reconcile exactly:
+
+| | products |
+|---|---|
+| name says "Booster Bundle" — the earlier 71 | **71** = 8 needed + 63 with no current rows |
+| name does not, but `product_type` does | **100** — `Sleeved Booster Pack Bundle [Set of 8]`, `Booster Pack Art Bundle [Set of 4]` … |
+| **catalogue total by `product_type`** | **171** |
+
+The 100 are a **different SKU class** (multi-pack / art / sleeved), not the
+single modern Booster Bundle the 84 rows describe, and are excluded.
+
+### Phase A — 171 products, disjoint groups
+
+| group | n |
+|---|---|
+| 1 — needed for current unresolved rows | **8** |
+| 2 — legitimate Booster Bundle, no current rows | 63 |
+| 3 — different SKU class (pack / art / sleeved variant) | 100 |
+| 4 — inactive / no reference / non-English | 0 |
+| 5 — ambiguous, manual review | 0 |
+| **total** | **171** |
+
+None of the 171 is currently watched. The 8 needed:
+
+| rows | tcgplayer | product | ref | marketplaces |
+|---|---|---|---|---|
+| 42 | 692942 | Pitch Black Booster Bundle | 38.37 | AU 21, CA 14, IT 7 |
+| 16 | 684456 | Chaos Rising Booster Bundle | 36.37 | AU 10, CA 2, IT 4 |
+| 13 | 672396 | Perfect Order Booster Bundle | 38.93 | AU 6, CA 6, GB 1 |
+| 4 | 610953 | Journey Together Booster Bundle | 45.50 | CA 2, AU 2 |
+| 2 | 625670 | Destined Rivals Booster Bundle | 64.64 | CA 1, AU 1 |
+| 1 | 644362 | Mega Evolution Booster Bundle | 63.80 | AU 1 |
+| 1 | 654160 | Phantasmal Flames Booster Bundle | 88.05 | AU 1 |
+| 1 | 679564 | Surging Sparks Booster Bundle (Retail) | 61.42 | AU 1 |
+
+### Phase B — the 84 rows
+
+| verdict | rows |
+|---|---|
+| exactly one Booster Bundle destination | **80** |
+| no valid Booster Bundle destination | **4** |
+| multiple bundle destinations | 0 |
+| accepted by an existing watched product | 0 |
+
+**0 rows are contested** by an already-watched product, so there is no
+duplicate-ownership competition. A row having exactly one accepting product
+is *not* a finding that the row is correct — only that one destination is
+available.
+
+### Phase C — two blockers, either one sufficient to stop the stage
+
+**Blocker 1 — the schedule cannot see these listings.** The only scheduled
+sealed scan is `0 20 7 * * *  /api/refresh-sealed-deals?country=EBAY_US` —
+one marketplace. The cohort is **AU 46, CA 26, IT 11, GB 1; EBAY_US 0 of
+84**. Watching a Booster Bundle product would search EBAY_US only and would
+never encounter any of these 84 listings. **Adding the products cannot
+re-home a single row on the current schedule**, whatever the budget allows.
+
+**Blocker 2 — the sealed browse budget is already at capacity.**
+`lib/browseBudget` funds sealed at a hard **200 Browse calls/day**, and
+`refresh-sealed-deals` spends **one call per product per marketplace**.
+
+| scenario | watched products | calls/run | cap | headroom | coverage if capped |
+|---|---|---|---|---|---|
+| current | 196 | 196 | 200 | **4** | 100% |
+| + 3-product canary | 199 | 199 | 200 | 1 | 100% |
+| + the 8 needed | 204 | 204 | 200 | **−4** | 98% |
+| + all 71 name-matched | 267 | 267 | 200 | −67 | 75% |
+| + all 171 | 367 | 367 | 200 | −167 | 54% |
+
+Even the minimal addition — the 8 products actually needed — **exceeds the
+cap**. Adding all 171 would leave the lease short, and `acquireBrowseLease`
+would grant a partial pass: roughly **46% of the existing watchlist would
+stop being scanned each day**. That is a coverage regression for products
+that work today, in exchange for products that still could not see their
+listings because of Blocker 1.
+
+Scanning the needed products in the four marketplaces the rows actually
+occupy would cost **(196+8) × 6 = 1,224 calls/day against a 200 cap** if the
+cron were unscoped.
+
+### Conclusion
+
+Stage 2 is **halted before Phase D**, under the stage's own instruction not
+to proceed if expansion risks destabilising scan quotas or schedules. The
+blocker is not the watchlist — it is the **marketplace scope of the sealed
+cron** and the **200/day sealed budget**. Both are provider-budget and
+scan-schedule decisions, which are explicitly outside what this work may
+change, and both are the owner's call.
+
+Two options for the owner, neither taken here:
+
+1. **Re-allocate the sealed budget** (currently 200/day, taken from
+   `sweep:EBAY_US`) and **add a non-US sealed cron pass**, then re-run this
+   stage. The 8 needed products in AU + CA + IT + GB would cost ~816
+   calls/day on top of today's 196.
+2. **Accept the 84 as safely refused.** They are hidden, make no savings
+   claim, and carry no false product name. Correctness for them remains
+   *unestablished*, not *wrong*.
+
+Note the pre-existing INV-10 failure (Browse went over the global 5,000/day
+envelope on 2026-09-21, 5,035) — the global budget is already stressed,
+which makes option 1 a real trade-off rather than a free addition.
