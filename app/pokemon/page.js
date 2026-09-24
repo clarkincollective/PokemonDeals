@@ -46,7 +46,9 @@ export default async function PokemonIndexPage() {
   // deal (SPECIES_MIN_LISTINGS+). Other species still link to their
   // catalogue fallback; only these carry a live listing-count badge.
   const dealBySpecies = new Map();
-  for (const h of hubs) dealBySpecies.set(h.name, { slug: h.slug, count: h.count });
+  // FINDING 6: carry `listingCount` (distinct eBay listings) through - it
+  // is what the badge shows. See the same note in app/sets/page.js.
+  for (const h of hubs) dealBySpecies.set(h.name, { slug: h.slug, count: h.count, listingCount: h.listingCount });
 
   // The full canonical dex, in order, tagged with generation and (where
   // it exists) its live deal count. extractSpecies collapses forms and

@@ -309,10 +309,41 @@ test("DL-22. rows with no identity at all still count as separate options", () =
 test("DL-23. computeAggregates produces a listingCount that is never a silent 1", () => {
   const agg = read("lib/catalogAggregates.js");
   // it reads the shared rule, not a local one
-  assert.match(agg, /import \{ listingIdentityKey \} from "@\/lib\/listingIdentity"/);
+  assert.match(agg, /import \{ listingIdentityKey, hasKnownListingIdentity \} from "@\/lib\/listingIdentity"/);
   assert.equal((agg.match(/listingIdentityKey\(row\)/g) ?? []).length, 5, "sets, card hubs (x2) and species (x2)");
-  // and every aggregate exposes it
-  for (const field of ["listingCount: setListings.get(set).size", "listingCount: listings.size", "listingCount: g.listings.size"]) {
-    assert.ok(agg.includes(field), `missing ${field}`);
+  // and every aggregate emits it, through the fail-safe wrapper (DL-25)
+  for (const call of ["setListings.get(set).size)", "listings.size)", "g.listings.size))"]) {
+    assert.ok(agg.includes(call), `missing ${call}`);
   }
+});
+
+// === 10. the number must SURVIVE the trip to the tile ==================
+//
+// DL-14 checked that the tile reads `listingCount`, and DL-23 that the
+// aggregate emits it - and the badge was still wrong, because the page in
+// between rebuilt each row as {set, slug, count} and dropped the field.
+// Checking the two ends of a pipe does not check the pipe.
+
+test("DL-24. every page that reshapes an aggregate row carries listingCount through", () => {
+  const sets = read("app/sets/page.js");
+  assert.match(sets, /bySlug\.set\(s\.slug, \{ set: s\.set, slug: s\.slug, count: s\.count, listingCount: s\.listingCount \}\)/);
+  assert.doesNotMatch(sets, /\{ set: s\.set, slug: s\.slug, count: s\.count \}/, "the field must not be dropped again");
+
+  const pokemon = read("app/pokemon/page.js");
+  assert.match(pokemon, /dealBySpecies\.set\(h\.name, \{ slug: h\.slug, count: h\.count, listingCount: h\.listingCount \}\)/);
+  assert.doesNotMatch(pokemon, /\{ slug: h\.slug, count: h\.count \}/, "the field must not be dropped again");
+});
+
+test("DL-25. a count that could not be computed is omitted, never published as 1", () => {
+  // The exact live situation on 2026-09-24: an older writer produced a
+  // snapshot whose every listingCount was 1. A wrong number is worse than
+  // a missing one - the tile treats 1 as real and shows it, while a
+  // missing field falls back to `count`.
+  const agg = read("lib/catalogAggregates.js");
+  assert.match(agg, /const identityKnown = rows\.some\(\(r\) => hasKnownListingIdentity\(r\)\)/);
+  assert.match(agg, /const withListingCount = \(obj, size\) => \(identityKnown \? \{ \.\.\.obj, listingCount: size \} : obj\)/);
+  // every emission site goes through it - no raw `listingCount:` remains
+  const body = agg.slice(agg.indexOf("export function computeAggregates"));
+  assert.equal((body.match(/withListingCount\(/g) ?? []).length, 3, "sets, card hubs and species all go through it");
+  assert.doesNotMatch(body, /listingCount: (setListings|listings|g\.listings)/, "no emission bypasses the fail-safe");
 });

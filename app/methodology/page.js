@@ -235,10 +235,27 @@ export default function MethodologyPage() {
 
         <h2 className={h2}>What counts as a deal</h2>
         <ul className={ul}>
+          {/* FINDING 7 (2026-09-24): this said the compared price is
+              "item price plus shipping" full stop, which is only one of
+              the three cases the site actually supports - measured on
+              live rows, 126 of 308 displayable listings compare on a
+              before-shipping basis. No check was weakened to make the
+              old sentence true; the sentence now describes what the
+              checks already do. */}
           <li>
-            The price compared is what a buyer actually pays:{" "}
-            <span className="font-semibold text-black dark:text-zinc-50">item price plus shipping</span>
-            , using the real figures eBay returns.
+            The price compared is what a buyer actually pays, using the real figures eBay returns —{" "}
+            <span className="font-semibold text-black dark:text-zinc-50">item price plus shipping</span>{" "}
+            wherever eBay gives us a shipping cost for your country.
+          </li>
+          <li>
+            When it does not, we compare the item price and say so: those listings are labelled{" "}
+            <span className="font-semibold text-black dark:text-zinc-50">&ldquo;before shipping&rdquo;</span>{" "}
+            next to the saving, so you know delivery is still to be added.
+          </li>
+          <li>
+            When we have no shipping breakdown at all, we show the recorded price and make{" "}
+            <span className="font-semibold text-black dark:text-zinc-50">no saving claim</span> for that
+            listing. An auction is shown as a current bid that can still rise, never as a settled saving.
           </li>
           <li>
             A listing has to be meaningfully below its market reference to be shown — a modest, genuine

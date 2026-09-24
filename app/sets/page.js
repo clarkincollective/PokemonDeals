@@ -40,8 +40,16 @@ export default async function SetsIndexPage() {
   ]);
 
   const bySlug = new Map();
-  for (const s of dealSets ?? []) bySlug.set(s.slug, { set: s.set, slug: s.slug, count: s.count });
-  for (const s of catSets ?? []) if (!bySlug.has(s.slug)) bySlug.set(s.slug, { set: s.set, slug: s.slug, count: 0 });
+  // FINDING 6: `listingCount` (distinct eBay listings) must survive this
+  // merge. It is what the tile badge shows; `count` (stored rows) still
+  // drives the ordering below and the thin-content threshold upstream.
+  // Rebuilding the object without it silently sent the badge back to the
+  // row count - the aggregate carried the right number and the tile read
+  // the right field, and this line in between dropped it.
+  for (const s of dealSets ?? [])
+    bySlug.set(s.slug, { set: s.set, slug: s.slug, count: s.count, listingCount: s.listingCount });
+  for (const s of catSets ?? [])
+    if (!bySlug.has(s.slug)) bySlug.set(s.slug, { set: s.set, slug: s.slug, count: 0, listingCount: 0 });
 
   const sets = [...bySlug.values()]
     .map((s) => ({ ...s, logo: setImage(s.set)?.logo ?? null }))
