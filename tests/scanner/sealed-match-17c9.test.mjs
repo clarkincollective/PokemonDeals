@@ -134,7 +134,11 @@ test("S-7. an early sealed listing needs eBay's own confirmation before it is sh
   const early = {
     id: 1,
     title: "Pokemon TCG 30th Anniversary Celebrations Elite Trainer Box ETB PRESALE Ships 9/16",
-    sealed_watchlist: { set: "ME: 30th Celebration" },
+    // finding 1a: the product's NAME is required identity evidence now, so
+    // this fixture carries the real catalogue name it always implied. The
+    // rule under test here is early availability, not identity - the row
+    // must reach that rule, which a nameless product no longer does.
+    sealed_watchlist: { name: "30th Celebration Elite Trainer Box", set: "ME: 30th Celebration" },
     listing_id: "v1|123|0",
     listing_url: "https://www.ebay.com/itm/123",
     affiliate_url: "https://www.ebay.com/itm/123?mkevt=1",

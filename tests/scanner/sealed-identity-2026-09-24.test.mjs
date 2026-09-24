@@ -26,7 +26,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { loadRoute } from "../helpers/r3RouteHarness.mjs";
 import { sealedListingDecision, productKindOfTitle, NOT_A_SEALED_PRODUCT } from "../../lib/sealedProductMatch.js";
 import { ingestSealedListings } from "../../lib/sealedIngest.js";
-import { isDisplayableSealedDeal, listingPresentation, savingsClaimTrusted } from "../../lib/dealQuality.js";
+import {
+  isDisplayableSealedDeal,
+  listingPresentation,
+  savingsClaimTrusted,
+  sealedRowMatchesItsProduct,
+  sealedProductIdentity,
+} from "../../lib/dealQuality.js";
 
 // --- the real catalogue products these titles were bound to -------------
 const ASCENDED_ETB = { id: 131, name: "Ascended Heroes Elite Trainer Box", set: "ME: Ascended Heroes", product_type: "Elite Trainer Box" };
@@ -298,20 +304,88 @@ test("SI-16. NOT_A_SEALED_PRODUCT is the single list both the product reader and
 
 // === 7. the gate needs the product NAME on every read path =============
 
-test("SI-17. sealedRowMatchesItsProduct cannot decide without the product's name", () => {
-  // This is the failure mode that let the fix leak: the decision is not
-  // "reject", it is "nothing to check against" -> accept. A read path that
-  // forgets `name` therefore disables the identity rule silently.
-  const withName = storedRow(T.zekrom2435, ASCENDED_ETB);
-  const withoutName = { ...withName, sealed_watchlist: { id: ASCENDED_ETB.id, set: ASCENDED_ETB.set, tcgplayer_id: 668496 } };
-  assert.equal(isDisplayableSealedDeal(withName), false);
-  assert.equal(isDisplayableSealedDeal(withoutName), true, "documents WHY the name is required");
+// SI-17 previously asserted the OPPOSITE of this - that a nameless product
+// was accepted - as a characterisation of the fail-open hazard. Finding 1a
+// closed the hazard, so the assertion is inverted here in the same commit
+// as the implementation. The old behaviour is not preserved anywhere: it
+// was unsafe, and these cases prove it is gone.
+//
+// This is the PRIMARY safety boundary. It is a runtime property of the
+// validator, so it holds regardless of which file produced the row, how the
+// query was spelled, what embed syntax was used, or whether the object was
+// assembled in code rather than read from the database.
+test("SI-17. missing product identity FAILS CLOSED, at the validator and at the display gate", () => {
+  const good = storedRow(T.genuineEtbWithPromo, CHAMPIONS_PATH_ETB);
+  const withProduct = (p) => ({ ...good, sealed_watchlist: p });
+  const bare = { ...good };
+  delete bare.sealed_watchlist;
+
+  const rejected = [
+    ["product key absent entirely", bare],
+    ["product null", withProduct(null)],
+    ["product undefined", withProduct(undefined)],
+    ["name null", withProduct({ id: 1, name: null, set: CHAMPIONS_PATH_ETB.set })],
+    ["name empty string", withProduct({ id: 1, name: "", set: CHAMPIONS_PATH_ETB.set })],
+    ["name whitespace only", withProduct({ id: 1, name: "   \t\n ", set: CHAMPIONS_PATH_ETB.set })],
+    ["name non-string (number)", withProduct({ id: 1, name: 12345, set: CHAMPIONS_PATH_ETB.set })],
+    ["name non-string (object)", withProduct({ id: 1, name: { toString: () => "ETB" }, set: CHAMPIONS_PATH_ETB.set })],
+    ["product is not an object", withProduct("Champion's Path Elite Trainer Box")],
+    ["product is an array", withProduct([{ name: CHAMPIONS_PATH_ETB.name }])],
+    // identity is never inferred from a neighbouring field
+    ["only set and tcgplayer_id present", withProduct({ id: 1, set: CHAMPIONS_PATH_ETB.set, tcgplayer_id: 210311 })],
+  ];
+  for (const [label, row] of rejected) {
+    assert.equal(sealedRowMatchesItsProduct(row), false, `validator accepted: ${label}`);
+    assert.equal(isDisplayableSealedDeal(row), false, `display gate accepted: ${label}`);
+    assert.equal(sealedProductIdentity(row.sealed_watchlist), null, `identity extracted from: ${label}`);
+  }
+
+  // A properly populated product is unaffected: still accepted when the
+  // title matches, still refused when it does not.
+  assert.equal(sealedRowMatchesItsProduct(good), true);
+  assert.equal(isDisplayableSealedDeal(good), true);
+  const mismatched = storedRow(T.zekrom2435, ASCENDED_ETB);
+  assert.equal(sealedRowMatchesItsProduct(mismatched), false);
+  assert.equal(isDisplayableSealedDeal(mismatched), false);
+  // a name that only needs trimming is still usable identity evidence
+  assert.deepEqual(sealedProductIdentity({ name: "  Champion's Path Elite Trainer Box  ", set: "  Champion's Path  " }), {
+    name: "Champion's Path Elite Trainer Box",
+    set: "Champion's Path",
+    productType: null,
+  });
 });
 
-test("SI-18. every sealed_deals read path that feeds a display gate embeds name AND set", () => {
-  // Structural pin over the real queries. lib/sitemap.js has its own
-  // parity coverage (tests/scanner/sitemap-parity); these are the
-  // catalogue-offer and grid paths in lib/deals.js, plus the detail route.
+test("SI-17b. the fail-closed boundary does not depend on where the row came from", () => {
+  // Three rows for the SAME listing, built three different ways: a database
+  // shape, a hand-assembled object, and one round-tripped through JSON.
+  // None of them carries a product name; all three must be refused.
+  const base = storedRow(T.genuineEtbWithPromo, CHAMPIONS_PATH_ETB);
+  const dbShape = { ...base, sealed_watchlist: { id: 1, set: "Champion's Path", tcgplayer_id: 210311 } };
+  const handBuilt = { title: base.title, is_active: true, listing_url: base.listing_url, affiliate_url: base.affiliate_url, listing_id: base.listing_id, listing_type: "FIXED_PRICE", sealed_watchlist: {} };
+  const roundTripped = JSON.parse(JSON.stringify({ ...base, sealed_watchlist: { id: 1, name: undefined, set: "Champion's Path" } }));
+  for (const [label, row] of [["db shape", dbShape], ["hand built", handBuilt], ["json round trip", roundTripped]]) {
+    assert.equal(isDisplayableSealedDeal(row), false, label);
+  }
+});
+
+test("SI-17c. a nameless product reaches the customer-facing page as 'unavailable', not as the product", async () => {
+  // The same malformed fixture driven through the real detail route, so the
+  // fail-closed decision is proven on the display path, not only in the
+  // predicate. It must not name a product it cannot evidence.
+  const malformed = { ...storedRow(T.genuineEtbWithPromo, CHAMPIONS_PATH_ETB, { id: 90001 }), sealed_watchlist: { id: 999, set: "Champion's Path", tcgplayer_id: 210311 } };
+  const { html, meta } = await renderDetail(malformed);
+  assert.match(html, /This listing is unavailable here/);
+  assert.doesNotMatch(html, /Champion&#x27;s Path Elite Trainer Box|Champion's Path Elite Trainer Box/);
+  assert.equal(meta.robots.index, false);
+});
+
+test("SI-18. projection hygiene: read paths still embed name AND set (defence in depth)", () => {
+  // NOT the correctness boundary - SI-17 is. This is a static text scan and
+  // it can only see the embeds it matches, in the files it is given: it
+  // says nothing about other files, other query spellings, rows built in
+  // code or partial objects. It is kept because a caller that drops `name`
+  // now hides rows rather than showing wrong ones, which is safe but still
+  // a bug worth catching early.
   for (const file of ["lib/deals.js", "app/sealed-deals/[id]/page.js", "lib/sealedVerifyLane.mjs", "lib/sitemap.js"]) {
     const src = readFileSync(new URL(`../../${file}`, import.meta.url), "utf8");
     for (const m of src.matchAll(/sealed_watchlist:sealed_watchlist_id!?(?:inner)?\s*\(([^)]*)\)/g)) {
