@@ -1347,3 +1347,34 @@ the hero builds no affiliate URL at all, each card still links to its own
 CTA change anywhere on the homepage.
 
 **No traffic, ranking or revenue improvement is claimed.**
+
+---
+
+## Open technical debt — site header overflows in a 1024–1150px band
+
+Found 2026-09-24 while verifying finding 7. **Not fixed: it is the shared
+navigation, which finding 7's scope explicitly excluded from change.**
+
+After the hero fix, a residual horizontal overflow remains in a narrow
+desktop band. It is **not** the hero — the hero art is inside the viewport
+at every width measured — and it is **not** homepage-specific:
+`/methodology`, which renders no hero art at all, overflows by exactly the
+same amounts.
+
+| innerWidth | homepage | /methodology (no hero) |
+|---|---|---|
+| 1023 | clean | clean |
+| **1060** | **+61px** | **+61px** |
+| **1100** | **+21px** | **+21px** |
+| 1150 | clean | clean |
+| 1200 / 1260 / 1400 / 1440 / 1920 | clean | clean |
+
+The offender is the header's right-hand cluster — *"♡ Saved / All
+marketplaces /* search icon*"* — whose right edge sits at a fixed **1122px**
+regardless of viewport width, so it escapes any viewport narrower than
+about 1140 once the desktop nav is showing (below `lg` it collapses and
+the band ends).
+
+Fixing it means changing the header's layout, which is navigation. It
+should be done deliberately, with its own before/after at these widths.
+

@@ -121,7 +121,7 @@ test("HC-2. before-shipping comparison: the qualifier is beside the claim, not d
 test("HC-3. the qualifier can wrap rather than be truncated away", () => {
   // A chip that could not fit its qualifier would be worse than no chip.
   assert.doesNotMatch(CODE, /whitespace-nowrap/, "the chip must be allowed to wrap");
-  assert.match(SRC, /max-w-\[8\.5rem\]/, "…within a capped width");
+  assert.match(CODE, /inset-x-1/, "…spanning the card, so it wraps to as few lines as it can");
   assert.match(CODE, /leading-tight/, "…and stay legible on two lines");
   assert.doesNotMatch(CODE, /truncate|text-ellipsis|line-clamp/, "no truncation of a qualification");
 });

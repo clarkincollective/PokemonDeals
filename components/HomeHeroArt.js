@@ -133,7 +133,7 @@ export default function HomeHeroArt({ deals = [] }) {
                 // The qualifier rides on the chip, so it is never dropped
                 // to make the text fit: the chip wraps instead of
                 // truncating (no whitespace-nowrap, capped width).
-                <span className="absolute -bottom-2 left-1/2 max-w-[8.5rem] -translate-x-1/2 rounded-md bg-emerald-600 px-2 py-0.5 text-center text-[11px] font-bold leading-tight text-white shadow-sm">
+                <span className="absolute -bottom-2 inset-x-1 rounded-md bg-emerald-600 px-1.5 py-0.5 text-center text-[11px] font-bold leading-tight text-white shadow-sm">
                   {pct}
                 </span>
               )}
