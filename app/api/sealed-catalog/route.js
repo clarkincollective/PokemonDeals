@@ -1,5 +1,11 @@
 import { fetchSealedCatalog, slimSealedProduct } from "@/lib/deals";
 
+// FINDING 5: products delivered by this route are rendered in the BROWSER,
+// where EBAY_CAMPAIGN_ID is unreadable - so the campaign-wrapped search
+// href must be built HERE, on the server, or the tile ships without a
+// campaign id and earns nothing. The page's own props still omit it.
+const WITH_HREF = { withEbayHref: true };
+
 // audit-r1 (page-weight) - the sealed catalogue's products, one set or a
 // filtered slice at a time, for components/SealedProductBrowser. Until
 // 15 Sep 2026 /sealed-deals shipped every product (2,344, 1.8 MB of client
@@ -47,7 +53,7 @@ export async function GET(request) {
     }
     for (const g of catalog.groups) {
       const p = g.products.find((x) => String(x.tcgplayerId) === productId);
-      if (p) return Response.json({ ok: true, product: slimSealedProduct(p), set: g.set, slug: g.slug }, { headers: HEADERS });
+      if (p) return Response.json({ ok: true, product: slimSealedProduct(p, WITH_HREF), set: g.set, slug: g.slug }, { headers: HEADERS });
     }
     return Response.json({ ok: false, reason: "unknown_product" }, { status: 404, headers: HEADERS });
   }
@@ -56,11 +62,11 @@ export async function GET(request) {
   if (setSlug) {
     const g = catalog.groups.find((x) => x.slug === setSlug);
     if (!g) return Response.json({ ok: false, reason: "unknown_set" }, { status: 404, headers: HEADERS });
-    return Response.json({ ok: true, set: g.set, slug: g.slug, products: g.products.map(slimSealedProduct) }, { headers: HEADERS });
+    return Response.json({ ok: true, set: g.set, slug: g.slug, products: g.products.map((p) => slimSealedProduct(p, WITH_HREF)) }, { headers: HEADERS });
   }
   const q = (sp.get("q") ?? "").slice(0, 80);
   const type = (sp.get("type") ?? "all").slice(0, 40);
   const dealsOnly = sp.get("deals") === "1";
-  const groups = filterSealedGroups(catalog.groups, { q, type, dealsOnly }).map((g) => ({ ...g, products: g.products.map(slimSealedProduct) }));
+  const groups = filterSealedGroups(catalog.groups, { q, type, dealsOnly }).map((g) => ({ ...g, products: g.products.map((p) => slimSealedProduct(p, WITH_HREF)) }));
   return Response.json({ ok: true, groups }, { headers: HEADERS });
 }

@@ -513,3 +513,45 @@ test("AA-28. analytics failing cannot stop the outbound click", async () => {
   const el = mod.exports.default({ href: ITEM_URL, eventName: "eBay Click", eventData: {}, children: "x" });
   assert.doesNotThrow(() => el.props.onClick());
 });
+
+// === 12. the campaign id must survive the client-render boundary =======
+
+test("AA-29. a product delivered by the API carries a campaign-wrapped href; the page props still do not", async () => {
+  const deals = read("lib/deals.js");
+  // the slimmer no longer claims something nothing checks
+  assert.doesNotMatch(deals, /rebuilt by\s*\n?\/\/ SpeciesCard from `searchQuery` with the same builder \(campaign id and/);
+  assert.match(deals, /export function slimSealedProduct\(p, \{ withEbayHref = false \} = \{\}\)/);
+  assert.match(deals, /withEbayHref \? \{ ebayHref:/);
+
+  // the API opts in (browser render, no server env there)...
+  const route = read("app/api/sealed-catalog/route.js");
+  assert.match(route, /const WITH_HREF = \{ withEbayHref: true \}/);
+  assert.equal((route.match(/slimSealedProduct\(p, WITH_HREF\)/g) ?? []).length, 3, "every API path must ship the href");
+  // ...and the page props deliberately do not, so the page weight the
+  // prerendered sets were slimmed for is unchanged.
+  assert.match(read("app/sealed-deals/page.js"), /g\.products\.map\(slimSealedProduct\)/);
+});
+
+test("AA-30. a server-built href keeps its campaign id when the client re-applies the placement", () => {
+  // Exactly what SpeciesCard does to an API-delivered product: the href
+  // arrives campaign-wrapped from the server, and the browser - where
+  // EBAY_CAMPAIGN_ID is undefined - rewrites only customid.
+  const serverBuilt = buildEbaySearchLink("151 Elite Trainer Box", undefined, { page: "sealed", placement: "grid" });
+  assert.equal(new URL(serverBuilt).searchParams.get("campid"), "5339197414");
+
+  const original = process.env.EBAY_CAMPAIGN_ID;
+  try {
+    delete process.env.EBAY_CAMPAIGN_ID; // the browser
+    const clientFinal = new URL(wrapEbayAffiliateUrl(serverBuilt, { page: "sealed", placement: "selected" }));
+    assert.equal(clientFinal.searchParams.get("campid"), "5339197414", "the campaign id must survive");
+    assert.equal(clientFinal.searchParams.get("customid"), "sealed-selected");
+    assert.equal(clientFinal.searchParams.get("_nkw"), "151 Elite Trainer Box");
+
+    // and the failure this replaced: building from scratch in the browser
+    // produces a link with NO campaign id at all
+    const builtInBrowser = new URL(buildEbaySearchLink("151 Elite Trainer Box", undefined, { page: "sealed", placement: "selected" }));
+    assert.equal(builtInBrowser.searchParams.get("campid"), null, "this is why the API must send the href");
+  } finally {
+    process.env.EBAY_CAMPAIGN_ID = original;
+  }
+});
