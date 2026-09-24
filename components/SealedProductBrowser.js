@@ -177,6 +177,12 @@ export default function SealedProductBrowser({ groups, types, totals = null }) {
     return undefined;
   }, [selectedId]);
 
+  // The URL asked for ONE product - whether or not we could resolve it.
+  // The malformed case matters as much as the resolved one: the reader
+  // followed a product link either way, so the page owes them the answer
+  // about that product first, not a rotation of other ones.
+  const productClaimed = Boolean(selectedId) || selectedState === "invalid";
+
   // The page's own "Live sealed deals right now" strip is a rotation of
   // unrelated products. While one exact product is selected it would sit
   // above that product's own offer and read as if it were part of it, so
@@ -184,11 +190,11 @@ export default function SealedProductBrowser({ groups, types, totals = null }) {
   useEffect(() => {
     const strip = document.querySelector("[data-featured-sealed-strip]");
     if (!strip) return undefined;
-    strip.hidden = Boolean(selectedId);
+    strip.hidden = productClaimed;
     return () => {
       strip.hidden = false;
     };
-  }, [selectedId]);
+  }, [productClaimed]);
 
   // filters: one debounced request, latest wins
   useEffect(() => {
@@ -243,7 +249,7 @@ export default function SealedProductBrowser({ groups, types, totals = null }) {
 
   return (
     <div>
-      {(selectedId || selectedState === "invalid") && (
+      {productClaimed && (
         <SelectedProduct
           id={selectedId}
           state={selectedState}

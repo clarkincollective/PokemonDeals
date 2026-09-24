@@ -105,11 +105,18 @@ test("SP-5. the selected product is identified, and a zero-offer product still s
   assert.match(src, /Nothing below is that product/);
 });
 
-test("SP-6. the unrelated featured strip is suppressed while a product is selected", () => {
+test("SP-6. the unrelated featured strip is suppressed while a product is claimed", () => {
   assert.match(read("app/sealed-deals/page.js"), /data-featured-sealed-strip/);
   const src = read("components/SealedProductBrowser.js");
   assert.match(src, /querySelector\("\[data-featured-sealed-strip\]"\)/);
-  assert.match(src, /strip\.hidden = Boolean\(selectedId\)/);
+  // Production check, 25 Sep: a MALFORMED id left the strip showing, so a
+  // reader who followed a broken product link met a rotation of other
+  // products above the "we cannot look that up" notice. The strip and the
+  // panel now share one condition, which covers the malformed case too.
+  assert.match(src, /const productClaimed = Boolean\(selectedId\) \|\| selectedState === "invalid"/);
+  assert.match(src, /strip\.hidden = productClaimed/);
+  assert.match(src, /\{productClaimed && \(/, "the panel and the strip must not drift apart again");
+  assert.doesNotMatch(src, /strip\.hidden = Boolean\(selectedId\)/);
 });
 
 test("SP-7. eligibility stays authoritative - the browser re-implements none of it", () => {
