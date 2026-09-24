@@ -324,8 +324,15 @@ a real click, which this work deliberately does not generate.
 
 - **EPN / Impact dashboards.** Group by sub-ID as before. The value now
   splits on `-`: the first half is the page, the second the control. So
-  "all sealed-catalogue revenue" is the `sealed-*` prefix, and "the reader
-  clicked the exact product a guide named" is precisely `sealed-selected`.
+  "all sealed-catalogue revenue" is the `sealed-*` prefix, and
+  `sealed-selected` is clicks on the selected-product panel specifically.
+  **`sealed-selected` identifies the PLACEMENT that was clicked, not where
+  the visitor came from.** That panel is reached by any link carrying
+  `?product=` — a guide, a shared URL, search, a direct visit. To ask
+  whether guide readers are the ones clicking it, cross `affiliate_page` /
+  `affiliate_placement` with the landing context (`traffic_source`,
+  `utm_*`, `landing_page_type`, `attribution_scope`) on the same
+  `affiliate_click` event. The sub-ID alone cannot answer it.
 - **`npm run report:growth`** (`scripts/reporting/growthReport.mjs`) is
   unchanged and its existing dimensions (`page_type`, `placement`,
   `origin_section`, `network`) still work. `affiliate_click` now *also*

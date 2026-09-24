@@ -14,8 +14,8 @@ while working a finding that is NOT part of that finding.
 | 2 | Card-page summaries claim savings their own listing tiles refuse | **closed** — commit `367d79a`, 2026-09-24 |
 | 3 | Two 30th Celebration guide links resolve to 404 | **closed** — commit `eeabe80`, 2026-09-23 |
 | 4 | Sealed links lose the product selection | **closed** — commits `e45a18d`, `927fcb8`, 2026-09-25; production-verified desktop + 387px, see below |
-| 5 | `customid=other` on some affiliate links | **closed** — commits `67e1c1f`, `a6c4ae3`, 2026-09-25; measured 83.2% → 0.0% fallback in production, see below |
-| 6 | Duplicate marketplace rows | open — not started |
+| 5 | `customid=other` on some affiliate links | **closed** — commits `67e1c1f`, `a6c4ae3`, 2026-09-25; pre-change sample 395/475 = 83.2% fallback, post-change sample 0/690 = 0.0% — **different samples, not a single delta**, see below |
+| 6 | Duplicate marketplace rows | **closed** — commit `f4a8568`, 2026-09-25; 1,105 displayable rows behind 1,000 listings, Magneton hub 12 → 6, see below |
 | 7 | Hero chips drop qualifiers; desktop overflow 1384 vs 1363px | open — not started |
 | 8 | Variant searches drop set / number | open — not started |
 | 9 | Sales ordering | open — not started |
@@ -955,7 +955,15 @@ only the identifier value is shared, which is the PostHog join key.
 ## Production verification, after deploy
 
 `node scripts/integrity/verifyAffiliateAttribution.mjs` — 12 routes, **690
-attributed outbound hrefs, 0 problems, fallback 0.0%** (from 83.2%).
+attributed outbound hrefs, 0 problems, fallback 0.0%**.
+
+**These are two different samples, and the two rates are reported
+separately, not as one before/after delta.** The pre-change census covered
+16 routes and found 475 eBay hrefs (395 = 83.2% on the fallback); the
+post-change census covers 12 routes and 690 attributed hrefs (0 = 0.0%).
+The route lists, the href totals and the inclusion rule all differ — the
+second census also counts Impact hrefs and drops routes that returned 404
+in the first. Each figure describes its own sample.
 
 | | share |
 |---|---|
@@ -1039,3 +1047,145 @@ existing event name and property.
 
 **No traffic, revenue or commission improvement is claimed from the
 implementation alone.**
+
+---
+
+# Finding 6 — duplicate marketplace rows (CLOSED, 2026-09-25)
+
+Commit `f4a8568`. Reproduced against current records and rendered
+production first; the audit's original example listings were not assumed
+to still be active.
+
+## Reproduced, read-only
+
+`scripts/integrity/auditDuplicateListings.mjs` — SELECT-only (0 mutation
+verbs), no provider call, no scan. Population `deals where is_active =
+true and source = 'ebay'`, cutoff `2026-09-24T21:35:50Z`, through the
+existing display gate:
+
+| | rows | distinct listings |
+|---|---|---|
+| all active | 1,222 | 1,089 |
+| **displayable** (the gate the grids use) | **1,105** | **1,000** |
+
+88 listings stored for 2+ marketplaces, 105 surplus rows, inflation
+**1.105×**. **75 of 635** card hubs with offers overstated their count.
+Two cases that would have made grouping wrong were checked and are absent
+today: **0** item numbers carrying several variation ids, and **0**
+displayable rows with no `listing_id`. The rule handles both anyway.
+
+Rendered production, before: the live Magneton hub stated **"12 active
+listings"** and **"View 12 offers"** over **6** real listings — one of
+them (`v1|397683212966|0`) stored four times, on US, GB, CA and AU.
+
+## Root cause — two rules, side by side
+
+| module | key | correct? |
+|---|---|---|
+| `lib/allDealsInventory.js` (`/deals`) | `listing_id` | yes |
+| `lib/speciesDealScope.js` (hubs, species counts, filtered grid) | `marketplace + ":" + listing_id` | **no** |
+
+The same eBay item is discoverable from several regional eBay sites and is
+stored once per site, so putting the marketplace in the key turned one
+buying option into up to six. An existing test **pinned the defect**
+(`"8. listingKey: marketplace + listing_id"`), the same shape as finding
+4's `guide-card-links` test 1b and finding 5's `sealed_hub → "other"`.
+
+## One shared rule — `lib/listingIdentity.js`
+
+`chooseListingCopy` and the marketplace order moved there **verbatim**
+from `allDealsInventory`, which now imports them, so `/deals` is
+unaffected.
+
+- **The key is the whole `listing_id`.** eBay's id is
+  `v1|<item>|<variation>`; two variations of one listing are different
+  offers and stay apart. Only the marketplace is dropped.
+- **Never by card, title, seller or image** — asserted directly against
+  the key function's source.
+- **Unknown identity never merges.** A row without a `listing_id` keys on
+  its own row id, so a missing field cannot make two unrelated listings
+  look like one.
+- **Never "the cheapest row".** Copies disagree because eBay converts per
+  site and shipping to another country is a different quote, so **one
+  whole copy** is chosen and its price, currency, shipping statement,
+  savings qualifier and affiliate destination all travel together. Order:
+  the reader's own marketplace scope where the surface has one (the card
+  page's "Listing marketplace" filter), then the listing's home market,
+  then the fixed marketplace order, then the lowest row id.
+  The live Pikachu ex group is why: US home market at USD 99 free
+  shipping, CA copy converting to USD 98.82 — 18 cents lower, on a
+  Canadian delivery basis.
+- **Regional availability is stated, not dropped**: the tile reads
+  *"Same listing, also on eBay CA, AU (prices differ by site)"*.
+
+## Counts
+
+Every number on a card hub already reads `fetchCardOffers`, so the grid
+and its counts cannot disagree. For the aggregates, `computeAggregates`
+now carries **both**:
+
+- `count` — stored rows. **Unchanged**, and still what the thin-content
+  thresholds and the ordering use.
+- `listingCount` — distinct listings. What is displayed.
+
+## Deliberately NOT done, with its measurement
+
+Recomputing **membership** on `listingCount` would remove **36 card hubs
+and 4 set pages** (measured: of 601 card-hub groups 81 change count, of
+133 set groups 47 do). That is an indexability decision with its own
+evidence and review — not something to fold silently into a
+duplicate-listing fix. The codebase has the same precedent recorded in
+`computeAggregates` itself, where a change that would have taken card hubs
+248 → 69 was rejected as silently deleting pages. **Open item.**
+
+## Production verification, after deploy
+
+Card hubs, matching the predicted numbers exactly:
+
+| hub | before | after | regional notes rendered |
+|---|---|---|---|
+| Magneton (Base Set Shadowless) | 12 | **6** | 3 |
+| Floatzel 37/106 | 9 | **5** | 3 |
+| Judge (Full Art) | 6 | **4** | 2 |
+
+On Magneton, header, CTA and section heading all agree — "6 active
+listings", "View 6 offers", "ACTIVE LISTINGS (6)", "All 6 active
+listings" — and inside `#card-offers` there are exactly 6 sponsored
+anchors over 6 distinct item numbers. (The other `/itm/` links on the page
+belong to the "more cards" modules, which are different cards.)
+
+Affiliate hrefs, **inspected without being followed**: all 6 carry
+`campid=5339197414`, `toolid=10049` and finding 5's `customid`
+(`card-offer` / `card-grid`), and each points at the chosen copy's own
+marketplace domain (`.com`, `.ca`, `.com.au`). **0 missing `campid`.**
+
+`/deals` unchanged and independently corroborated: it reports **1,000
+listings**, exactly the distinct-listing figure the read-only census
+measured for the same population. Pages 1 and 2 each render 24 distinct
+items — pagination boundaries coherent.
+
+Measured **386 CSS px** viewport (`resize_window` is ineffective on this
+maximised window, so a same-origin 390px iframe was used and
+`window.innerWidth` recorded with the result): 6 offers, 6 distinct items,
+header and CTA both "6", all 3 regional notes render, 0 overflowing, no
+horizontal overflow (scrollWidth 371 ≤ 386), CTA 293×56.
+
+## Known propagation delay
+
+The `/sets` and `/pokemon` tile badges read a precomputed aggregate
+snapshot (`catalog_snapshot`) written by the existing `*/30` cron
+`/api/refresh-catalog`, which makes **no provider call**. The snapshot
+live at deploy time was written at 21:30:36 UTC, before the deployment
+went live at ~21:37, so it has no `listingCount` and the tiles correctly
+fall back to `count` until the next scheduled run. Nothing was triggered
+to hurry it.
+
+## Scope
+
+Presentation/query layer only. No stored record deleted, no ingestion
+change, no pricing or savings-eligibility change, no scan forced, no
+budget, priority-lane, protected-cohort or scheduled-checkpoint change.
+
+**No conversion or revenue improvement is claimed.** What is established
+is that one eBay listing now presents as one buying option, and that the
+counts equal the options actually displayed.
