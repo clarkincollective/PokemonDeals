@@ -354,3 +354,119 @@ is verified through the real route module at the deployed commit
    the same commit to check how the schema words are used; recorded here
    because it is the same defect class this session keeps finding — a
    hand-maintained claim that nothing checks against reality.
+
+---
+
+# The 262 active unresolved sealed rows — read-only classification (2026-09-24)
+
+Investigation phase only. **No production data was mutated**: the freeze
+script (`scripts/remediation/sealedUnresolvedFreeze.mjs`) contains no
+`update`, `insert`, `upsert`, `delete` or `rpc` call, and a re-read of all
+262 rows after the analysis found 0 differing from the frozen copy and 0
+carrying any `disqualified_reason`. Finding 1's containment, identity rule
+and historical reconciliation are untouched.
+
+Language is used strictly: **"unresolved" means correctness has not been
+established.** "Rejected by the rule" does not mean the listing is wrong,
+and "accepted by the rule" would not mean it is verified correct.
+
+## Frozen cohort
+
+`.local/remediation/sealed-unresolved-frozen-2026-09-24.json` (gitignored)
+— read at **2026-09-24T06:17:20.139Z**, 727 table rows, cohort **262**.
+Every deal id, title, linked product (id/name/set/tcgplayer_id/active),
+listing state, disqualification state, the exact matcher input, the
+sub-verdicts and a per-gate breakdown are retained per row.
+
+Reproducibility check: the id set is **identical** to the active unresolved
+rows in the 2026-09-23T22:34:49Z snapshot — 0 in one read only, in either
+direction, across 7.7 hours.
+
+## Disjoint category table (first match wins inside `sealedListingDecision`)
+
+| # | Refusal reason | n | hidden by identity ALONE | also another reason | image-confirmed |
+|---|---|---|---|---|---|
+| 1 | `edition_mismatch:30th_vs_25th` | 116 | 0 | 116 | 0 |
+| 2 | `kind_mismatch:booster_bundle_vs_booster_box` | 84 | 80 | 4 | 0 |
+| 3 | `quantity_lot` | 23 | 21 | 2 | 0 |
+| 4 | `edition_unstated:25th` | 11 | 11 | 0 | 0 |
+| 5 | `kind_mismatch:collection_vs_booster_box` | 7 | 7 | 0 | 2 |
+| 6 | `kind_mismatch:etb_vs_booster_box` | 5 | 5 | 0 | 0 |
+| 7 | `kind_mismatch:case_vs_etb` | 3 | 3 | 0 | 1 |
+| 8 | `kind_mismatch:case_vs_booster_box` | 3 | 3 | 0 | 0 |
+| 9 | `kind_mismatch:pokemon_center_etb_vs_etb` | 3 | 2 | 1 | 0 |
+| 10 | `kind_mismatch:booster_box_vs_etb` | 2 | 2 | 0 | 0 |
+| 11 | `kind_mismatch:deck_vs_booster_box` | 2 | 2 | 0 | 0 |
+| 12 | `kind_mismatch:build_battle_stadium_vs_booster_box` | 1 | 1 | 0 | 0 |
+| 13 | `kind_mismatch:build_battle_box_vs_booster_box` | 1 | 1 | 0 | 0 |
+| 14 | `kind_mismatch:collection_vs_etb` | 1 | 0 | 1 | 1 |
+| | **Total** | **262** | **138** | **124** | **4** |
+
+Display consequence, measured on the frozen snapshot: **138** rows are
+hidden solely because of the identity refusal; **124** have at least one
+other independent reason (116 `listingNamesDifferentExpansion`, 8
+`auctionEnded`). **0** of the 262 are displayable under the shipped gate.
+These are frozen-snapshot figures and are not to be explained with a later
+live read.
+
+Exact ids per category are retained in the frozen JSON under `byReason`.
+
+## Disposition per category
+
+| # | State | Root cause | Proposed action (NOT implemented) |
+|---|---|---|---|
+| 1 | Correct refusal; the **link** is stale, not the listing | All 116 are 2026 "30th Anniversary Celebrations ETB" listings bound to the **2021** product 242811. The correct product **704143 exists and is actively watched** — these rows were written before the alias shipped and have not been re-seen by 704143's own scan | **verification lane / re-link** |
+| 2 | Correct refusal by title; different SKU | A Booster Bundle (6 packs) is not a Booster Box (36). 71 Booster Bundle products exist in `sealed_catalog` but **0 are in `sealed_watchlist`**, so no scan can ever re-home them | **catalogue/watchlist coverage** |
+| 3 | Correct refusal; multi-unit or part-box | "x4", "(13) LOT", "Lot of 2", "18x packs 1/2 Half Booster Box". 9 **Half Booster Box** products are watched, so part of this group has a correct home | **re-link (half-box subset) / no action (true lots)** |
+| 4 | Correct refusal; **mis-categorised** | 10 of 11 are single-card-shaped (Greninja Gold Star SWSH144 promos). Rule 3 (edition) fires before rule 4 (kind), so they carry an edition reason rather than `single_card`. Already refused; no display harm. Finding 1's cohort count was an undercount of the single-card population by these 10 — **recorded only; finding 1 is not reopened** | **no action** |
+| 5 | Mixed | #513 image-confirmed a 3-card mini-pack display; #519 image-confirmed loose packs (~151 cards). Both refusals **right**. Remainder unassessed | **needs manual evidence** |
+| 6 | Correct refusal; different product type | ETB listings bound to Booster Box products | **re-link** |
+| 7 | **Contains a confirmed false refusal** | #221 image-confirmed a genuine sealed Champion's Path ETB in a clear protective case — refused because the `case` rule sits above `etb` and `PROTECTIVE_CASE` does not cover a bare "+ Case". #930/#931 are German "Case **leer**" (empty) — right refusal, wrong reason | **matcher improvement** |
+| 8 | Correct refusal; wrong reason | All three are empty cases stated in German/Italian ("LEER OHNE KARTEN", "VUOTO NO CARTE") that the English-only `empty_box` rule misses | **matcher improvement (low urgency — already refused)** |
+| 9 | Correct refusal | 2 are Pokemon Center ETB Plus bound to the standard ETB; product **270709 is watched**. 1 is an Italian "sealed case of 4 ETBs" | **re-link** |
+| 10 | Ambiguous | "Champion's Path Elite Trainer **Booster** Box *READ DESCRIPTION*" — the seller wrote both product types | **needs manual evidence** |
+| 11 | Correct refusal | Starter deck display, not a booster box | **no action** |
+| 12–13 | Correct refusal | Build & Battle Stadium / Box are separate SKUs at different prices | **no action** |
+| 14 | **Confirmed false refusal** | #937 image-confirmed a genuine sealed German **"Top-Trainer-Box"** — the official German retail name for the Elite Trainer Box. `productKindOfTitle` returns `collection` because the `collection` rule matches a bare `\bbox\b` | **matcher improvement (product alias)** |
+
+## Systematic rule gaps found
+
+1. **Stale product links dominate.** 116 of 262 (44%) are one link error
+   against one product, with the correct product already watched. A data
+   problem, not a matcher problem.
+2. **Watchlist coverage gap.** 84 of 262 (32%) are Booster Bundles whose
+   catalogue product exists but is not watched.
+3. **`\bbox\b` inside the `collection` rule is a catch-all.** It swallows
+   `Booster-Box` (hyphenated), `Top-Trainer-Box` and other compound forms
+   before a more specific rule can see them. Confirmed by direct probe:
+   `"…Booster-Box 1x"` → `collection`; `"…Booster Box"` → `booster_box`.
+4. **Product aliases / localisation are unhandled.** "Top-Trainer-Box"
+   (German ETB) is refused; `Boosterbox` (one word) resolves to no kind.
+5. **`case` outranks `etb` / `booster_box`.** A genuine box sold *in* a
+   case is refused unless the case carries one of six English adjectives.
+6. **"Empty" is detected only in English.** 6 rows use `leer` /
+   `ohne Karten` / `vuoto` / `no carte` / `Incomplete`.
+7. **Rule ordering hides the true category** for 10 single-card rows.
+
+## Evidence strength
+
+| | Rows |
+|---|---|
+| Independently confirmed (listing image inspected) | **4** — #221, #937 (refusal wrong); #513, #519 (refusal right) |
+| Title-evidence-only reading recorded | **258** |
+| Called "wrong", "valid" or "correct" without independent evidence | **0** |
+
+## Ranked remediation proposal (not implemented)
+
+| Rank | Action | Rows | Safety |
+|---|---|---|---|
+| 1 | Re-link the 116 30th rows onto watched product 704143 via the verification lane | 116 | High — target exists, is watched, and the reassignment path already clears the old comparison |
+| 2 | Add Booster Bundle products to `sealed_watchlist` | 84 | High — additive; no existing row's classification changes |
+| 3 | Matcher: stop `\bbox\b` swallowing compound forms; add the `Top-Trainer-Box` alias; let a genuine box in a bare "+ Case" stay a box | ≥2 confirmed, up to 11 in scope | Medium — changes an ordering rule; needs a finding-1 style measured dry run first |
+| 4 | Re-link the ETB / Pokemon-Center / Half-Box subsets | ≤10 | High |
+| 5 | Matcher: non-English "empty" wording | 6 | Low urgency — all already refused; improves the recorded reason only |
+| 6 | Manual evidence for the ambiguous remainder | ~9 | N/A |
+
+Nothing above is scheduled. No row will be quarantined, re-linked,
+deactivated or rewritten until a dry run for that specific action has been
+reviewed.
