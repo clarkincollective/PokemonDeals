@@ -14,7 +14,7 @@ while working a finding that is NOT part of that finding.
 | 2 | Card-page summaries claim savings their own listing tiles refuse | **closed** — commit `367d79a`, 2026-09-24 |
 | 3 | Two 30th Celebration guide links resolve to 404 | **closed** — commit `eeabe80`, 2026-09-23 |
 | 4 | Sealed links lose the product selection | **closed** — commits `e45a18d`, `927fcb8`, 2026-09-25; production-verified desktop + 387px, see below |
-| 5 | `customid=other` on some affiliate links | open — not started |
+| 5 | `customid=other` on some affiliate links | **closed** — commits `67e1c1f`, `a6c4ae3`, 2026-09-25; measured 83.2% → 0.0% fallback in production, see below |
 | 6 | Duplicate marketplace rows | open — not started |
 | 7 | Hero chips drop qualifiers; desktop overflow 1384 vs 1363px | open — not started |
 | 8 | Variant searches drop set / number | open — not started |
@@ -898,3 +898,144 @@ it was outside this task.
 **No traffic or revenue improvement is claimed from this change.** What is
 established is that a guide link now resolves to the exact product and
 edition it names, and says so plainly when it cannot.
+
+---
+
+# Finding 5 — affiliate attribution (CLOSED, 2026-09-25)
+
+Commits `67e1c1f` (implementation) and `a6c4ae3` (one defect the production
+check found). Full contract, vocabulary and reporting guidance:
+`docs/ebay-affiliate-attribution.md`, "FINDING 5" section.
+
+## Measured before changing anything
+
+Census of the **rendered production HTML**, read-only: it fetches page
+HTML and inspects hrefs, never requesting an `ebay.com` or
+`partner.tcgplayer.com` URL, so it generated no click, impression, order
+or commission.
+
+| route | outbound eBay hrefs | on `other` |
+|---|---|---|
+| `/sealed-deals` and `?product=` | 178 each | 100% |
+| `/japanese-cards` | 24 | 100% |
+| `/latest-releases` | 12 | 100% |
+| `/guides/pokemon-151-buying-guide` | 3 | 100% |
+| `/`, `/deals`, `/best-finds`, `/pokemon/[slug]` | 88 | 0% |
+| **total** | **475** | **395 = 83.2%** |
+
+## Two causes
+
+1. Real surfaces were never added to the closed enum — `sealed`,
+   `sealed_hub`, `guide_offers`, `japanese_cards`, `latest_releases`. A
+   test in the suite **pinned** `sealed_hub` and `japanese_cards` as
+   `"other"`, locking the gap in. Same shape as finding 4's
+   `guide-card-links` test 1b.
+2. One token answered two questions — `home_best` fuses page and module,
+   so the sealed browse grid and the selected-product panel had no way to
+   differ.
+
+## What shipped
+
+`customid = "<page>-<placement>"` (`subId1` on Impact), both halves closed
+`Set`s of literal strings. Longest producible value 17 chars against EPN's
+documented 256; `encodeURIComponent` is a no-op on all of them; an unknown
+half degrades to an explicit `other`.
+
+**The page is never the acquisition source.** A reader arriving from a
+guide and clicking on `/sealed-deals` is `sealed`, not `guide`. The
+landing source already lives — and only where it is reliably captured — in
+the analytics landing context (`traffic_source` / `utm_*` /
+`landing_page_type` / `attribution_scope`, set by `AnalyticsBootstrap`),
+and is deliberately not copied into a network parameter.
+
+**The networks are kept apart.** `customid` and `subId1` are built by
+different functions so neither can inherit the other's parameter name;
+only the identifier value is shared, which is the PostHog join key.
+
+## Production verification, after deploy
+
+`node scripts/integrity/verifyAffiliateAttribution.mjs` — 12 routes, **690
+attributed outbound hrefs, 0 problems, fallback 0.0%** (from 83.2%).
+
+| | share |
+|---|---|
+| `sealed-search` | 489 · 70.9% |
+| `sealed-feature` | 48 · 7.0% |
+| `pokemon-search` | 37 · 5.4% |
+| `deals-grid` / `japanese-grid` / `card-search` | 24 each · 3.5% |
+| `latest-grid` | 16 · 2.3% |
+| `home-all` · `sealed-grid` · `best_finds-grid` · `home-best` · `guide-offer` · `pokemon-grid` | 28 total |
+| **`other-other`** | **0** |
+
+Live DOM checks (read-only, no link followed):
+
+- `?product=593355` selected panel → `customid=sealed-selected`, `campid`
+  intact, destination `/itm/326988324164` intact, `rel="sponsored noopener
+  noreferrer"`, `data-affiliate-link` present.
+- `?product=503313` zero-offer panel → `customid=sealed-search`, `_nkw`
+  and `_sacat` intact.
+- Homepage: 13 sponsored anchors, **0 unmarked**, all attributed
+  (`home-all` 9, `home-best` 4).
+
+## Two event-integrity defects found while tracing, both fixed
+
+1. **Double count on `/search`.** The result-card wrapper's `onClick`
+   fired on any click inside the card, including the affiliate CTA, which
+   emits its own `affiliate_click` — two Vercel and two PostHog events for
+   one action, inflating the search surface. Affiliate anchors now carry
+   `data-affiliate-link` and the wrapper stands down for them.
+2. **Silent under-count in the catalogue.** The tile's "Find on eBay" was
+   a bare `<a>` with its own `track()`: Vercel event yes, `affiliate_click`
+   no, so it was invisible to the growth report. Now uses the shared
+   `EbaySearchLink`. A test fails if a sponsored anchor is ever added
+   outside the two emitting components.
+
+## The defect the production check found — `a6c4ae3`
+
+Live DOM inspection of `?product=503313` showed the CTA correctly
+attributed **and carrying `campid=null`**. A link with no campaign id
+earns nothing — worse than `other`.
+
+Root cause is this session's recurring shape: **a comment claiming
+something nothing checked.** `slimSealedProduct` dropped `ebayHref` for
+page weight (audit-r1) and said the href was *"rebuilt by SpeciesCard from
+`searchQuery` with the same builder (campaign id and surface intact)"*.
+The campaign-id half was false: SpeciesCard rebuilds wherever it renders,
+and for an API-delivered product that is the browser, where
+`EBAY_CAMPAIGN_ID` is server-only and undefined.
+
+Pre-existing, not introduced by finding 5. Affected every client-loaded
+sealed tile — sets beyond the six the page prerenders, any filtered
+result, and the selected-product panel, which is always client-loaded and
+is exactly where a guide link lands.
+
+Fixed by having the API (server-side, can read the campaign id) send the
+campaign-wrapped href; the page's own props still omit it, so the
+page-weight saving is unchanged. The census now also reads the API's JSON
+and fails if a delivered product has no href or no `campid`.
+
+## Preserved, and asserted
+
+`campid`, `mkevt`, `mkcid`, `mkrid`, `toolid`, `_nkw`, `_sacat`, the
+destination item or search, marketplace routing and client-side
+localisation, the Impact tracking base and its `u=` destination byte for
+byte, `rel="sponsored noopener noreferrer"`, `target="_blank"`, the
+cookieless analytics posture and its daily session boundaries, and every
+existing event name and property.
+
+## Limits of this verification
+
+- **Instrumentation is verified; network-recorded activity is not.**
+  Recorded clicks, orders and commission in EPN and Impact require
+  subsequent real visitor activity and cannot be asserted from shipping.
+- **The Impact `subId1` change is verified structurally only.** It is
+  Impact's documented partner sub-ID parameter and the tracking base and
+  destination are pinned unchanged, but whether it surfaces in *this
+  account's* reporting needs a real click, which this work deliberately
+  does not generate.
+- Historical `other` rows are unchanged and not back-filled. **This
+  deployment starts the improved measurement period**; an EPN row from
+  before it means "we could not tell", not "surface: other".
+
+**No traffic, revenue or commission improvement is claimed from the
+implementation alone.**
