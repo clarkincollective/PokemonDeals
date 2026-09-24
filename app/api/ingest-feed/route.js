@@ -30,7 +30,8 @@ import {
   classifyListingLanguage,
   languageCompatible,
 } from "@/lib/dealQuality";
-import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError } from "@/lib/ebayTelemetry";
+import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError, setBrowseAttemptGuard } from "@/lib/ebayTelemetry";
+import { CONSUMER_CAPS, browseBudgetMode } from "@/lib/browseBudget";
 import { attachBrowseLease } from "@/lib/ebayTelemetry";
 import { acquireBrowseLease } from "@/lib/browseBudget";
 import {
@@ -66,6 +67,38 @@ export const maxDuration = 300;
 const DISCOUNT_THRESHOLD = 0.1; // same value as refresh-deals / refresh-sealed-deals
 const RATE_LIMIT_FLOOR = 800; // only supplement when we genuinely have room
 const MAX_NEW_PER_CYCLE = 40; // hard ceiling on Browse spend per run
+
+// --- ingest-hard-bound-2026-09-24 -------------------------------------
+// A REAL daily ceiling on external Browse ATTEMPTS, not a nominal ledger
+// cap. Measured 19-24 Sep: this job spent 305-423 calls/day against the 40
+// it is funded for, for a documented ~4.5 first-time eligible pairs/day -
+// roughly 70-85 calls per useful outcome, the worst ratio of any consumer.
+//
+// It over-spent because the grant was ADVISORY: the route narrowed its
+// queue only `if (budget.effective === "enforce")`, and production runs in
+// observe, so `verifyBudget` stayed at MAX_NEW_PER_CYCLE every run whatever
+// the ledger said.
+//
+// Two independent bounds now apply, and neither depends on the global
+// budget mode:
+//   1. the QUEUE is sized from the ledger's own remaining allowance
+//      (decision.capLeft, computed under compare-and-set, so repeated or
+//      concurrent invocations cannot collectively overspend);
+//   2. a HARD ATTEMPT GUARD (lib/ebayTelemetry.setBrowseAttemptGuard) is
+//      armed around the verification work. It is checked on every Browse
+//      attempt - retries included - in EVERY budget mode, before and
+//      independently of any lease, so no request can bypass it.
+// When the allowance is gone the run returns before any Browse call rather
+// than falling through unleased.
+const INGEST_DAILY_ATTEMPT_LIMIT = CONSUMER_CAPS.ingest; // 40, the cap it is already budgeted for
+// A run may take up to the whole REMAINING daily allowance and no more.
+// There is deliberately no smaller per-run slice: allocateVerifyBudget
+// drains `neverSeen` (first-time candidates, the only tier that can produce
+// a NEW pair) before `dueRecheck`, so a run that takes what is left spends
+// it on the highest-value work available. Rationing it into equal hourly
+// slices would spread the day's allowance across re-checks instead, which
+// is the "spending the 40 attempts randomly" outcome we are avoiding.
+const INGEST_MAX_ATTEMPTS_PER_RUN = INGEST_DAILY_ATTEMPT_LIMIT;
 const RECENT_VERIFY_HOURS = 20; // skip re-verifying an item seen this recently
 const FEED_ONLY_GRACE_DAYS = 2; // expire a feed-only deal absent from the board this long
 const CATALOG_PAGE = 1000;
@@ -105,6 +138,10 @@ export async function GET(request) {
   const db = supabaseAdmin();
   const ctx = beginJobRun({ job: "ingest-feed" });
   let budgetLease = null;
+  // ingest-hard-bound-2026-09-24 telemetry, reported on every run.
+  let dailyAttemptsLeft = null;
+  let attemptCeiling = null;
+  let attemptGuard = null;
   try {
   // Pre-flight quota guard. A high floor on purpose: this is spare-capacity
   // supplementation - it backs off FIRST so the primary scanner
@@ -227,6 +264,11 @@ export async function GET(request) {
       minGrant: Math.min(5, verifyDemand),
       observation: rl,
       ttlMs: (maxDuration + 60) * 1000,
+      // The ledger path must run even when the global mode is `off`, or
+      // there is no durable record of what this job has already spent
+      // today and the daily bound could not be honoured. This forces
+      // ingest's OWN accounting only; no other consumer's mode changes.
+      ...(browseBudgetMode() === "off" ? { mode: "observe" } : {}),
     });
     if (budget.granted <= 0) {
       markSkipped(`budget_${budget.decision?.denied ?? "denied"}`);
@@ -235,7 +277,44 @@ export async function GET(request) {
     }
     budgetLease = budget.lease;
     attachBrowseLease(budgetLease);
-    if (budget.effective === "enforce") verifyBudget = Math.min(MAX_NEW_PER_CYCLE, budget.granted - (budget.granted >= 10 ? 2 : 0));
+
+    // THE DAILY BOUND. capLeft is cap - used - open for this key, computed
+    // from the durable ledger under compare-and-set, so two invocations
+    // racing cannot both see the same last unit.
+    //
+    // UNKNOWN IS NOT EXHAUSTED. An unreadable ledger (the documented
+    // "ledger_error" path) returns no capLeft. Treating that as zero would
+    // turn a transient ledger blip into a silent outage of this job, and it
+    // would also contradict this file's own contract that a ledger failure
+    // "never blocks work outside enforce". So an unknown allowance falls
+    // back to the PER-RUN ceiling - still a hard bound on real attempts,
+    // just without the daily guarantee, and the run says so in its
+    // telemetry (ingestDailyAllowanceKnown) so a degraded day is visible
+    // rather than assumed. Only a KNOWN zero stops the run.
+    const capLeft = Number(budget.decision?.capLeft);
+    dailyAttemptsLeft = Number.isFinite(capLeft) ? Math.max(0, Math.floor(capLeft)) : null;
+    if (dailyAttemptsLeft === 0) {
+      markSkipped("ingest_daily_attempt_limit");
+      await recordIngestRun(db, {
+        at: new Date().toISOString(),
+        browseBudgetSkipped: "ingest_daily_attempt_limit",
+        browseVerifyAttempts: 0,
+        ingestDailyAttemptLimit: INGEST_DAILY_ATTEMPT_LIMIT,
+        ingestDailyAttemptsLeft: 0,
+        tookMs: Date.now() - startedAt,
+      });
+      return Response.json({ skipped: "ingest_daily_attempt_limit", limit: INGEST_DAILY_ATTEMPT_LIMIT, remaining: 0 });
+    }
+    attemptCeiling = Math.min(dailyAttemptsLeft ?? INGEST_MAX_ATTEMPTS_PER_RUN, INGEST_MAX_ATTEMPTS_PER_RUN);
+    // Hard ceiling on real attempts for the rest of this invocation.
+    // Retries included, every budget mode, ahead of any lease check.
+    attemptGuard = setBrowseAttemptGuard(attemptCeiling);
+    // One lookup is one Browse call (getItemsByLegacyIds issues one request
+    // per legacy id), so the queue is sized to the attempt ceiling and the
+    // guard stops the run at it even if retries make a lookup cost two.
+    // This no longer depends on `effective === "enforce"` - that condition
+    // is exactly why the job over-spent.
+    verifyBudget = Math.min(MAX_NEW_PER_CYCLE, attemptCeiling);
   }
   const toVerify = allocateVerifyBudget({
     neverSeen: part.neverSeen,
@@ -509,6 +588,24 @@ export async function GET(request) {
     capHit,
     quotaFloorSkipped: false,
     browseVerifyAttempts: browseCalls,
+    // ingest-hard-bound-2026-09-24. `browseCalls` counts LOGICAL lookups
+    // (one per legacy id); `attemptGuard.attempts` counts REAL external
+    // attempts, retries included, which is what eBay meters. The gap
+    // between them is the retry amplification that made the nominal cap
+    // meaningless.
+    ingestDailyAttemptLimit: INGEST_DAILY_ATTEMPT_LIMIT,
+    ingestDailyAttemptsLeft: dailyAttemptsLeft,
+    // false means the ledger could not be read this run, so the daily
+    // guarantee is degraded to the per-run ceiling - visible, not assumed
+    ingestDailyAllowanceKnown: dailyAttemptsLeft !== null,
+    ingestAttemptCeiling: attemptCeiling,
+    ingestLogicalLookupsRequested: verifyDemand,
+    ingestLogicalLookupsQueued: queuedForVerify,
+    ingestExternalAttempts: attemptGuard?.attempts ?? browseCalls,
+    ingestRetries: Math.max(0, (attemptGuard?.attempts ?? browseCalls) - browseCalls),
+    ingestSkippedForAllowance: (attemptGuard?.refused ?? 0) + Math.max(0, verifyDemand - queuedForVerify),
+    ingestFirstTimeEligiblePairs: counts.upserted,
+    ingestCallsPerUsefulOutcome: counts.upserted > 0 ? Number((((attemptGuard?.attempts ?? browseCalls) / counts.upserted)).toFixed(2)) : null,
     verified,
     accepted: counts.upserted,
     rejected,
@@ -535,8 +632,17 @@ export async function GET(request) {
     neverSeenQueued: part.neverSeen.length,
     dueRecheckQueued: part.dueRecheck.length,
     queuedForVerify,
-    verifyBudget: MAX_NEW_PER_CYCLE,
+    verifyBudget,
     capHit,
+    ingestBound: {
+      dailyLimit: INGEST_DAILY_ATTEMPT_LIMIT,
+      dailyLeft: dailyAttemptsLeft,
+      dailyAllowanceKnown: dailyAttemptsLeft !== null,
+      attemptCeiling,
+      externalAttempts: attemptGuard?.attempts ?? browseCalls,
+      retries: Math.max(0, (attemptGuard?.attempts ?? browseCalls) - browseCalls),
+      refusedByGuard: attemptGuard?.refused ?? 0,
+    },
     verified,
     browseCalls,
     ...counts,
