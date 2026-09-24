@@ -195,12 +195,38 @@ export async function GET(request) {
   // rather than by luck. minGrant is a quarter of the ask: a partial pass over
   // the watchlist is still worth making, a token grant is not.
   const plannedCalls = (watchlistRows?.length ?? 0) * marketplaceIds.length;
+  // sealed-enforcement-canary-2026-09-24. Enforcement is switched on for
+  // THIS LEASE KEY ONLY, by passing the mode per call. The global
+  // BROWSE_BUDGET_MODE is not read when a mode is supplied, so no other
+  // consumer's behaviour changes - which matters, because the ledger's own
+  // hypothetical record says global enforcement would cut sweep:EBAY_US to
+  // 81 of 1,091 calls (93% truncated).
+  //
+  // Why sealed is the safe canary: measured 19-24 Sep it used 196 against a
+  // 200 cap every single day, and the ledger's `wouldGrant` for it was 196
+  // - so enforcement is expected to be behaviourally neutral. Simulated
+  // against the real evaluateGrant before shipping: a fresh window grants
+  // 196 (binding "requested"); a second full pass in the same window is
+  // denied at the cap, which is the intended protection and cannot bite the
+  // single daily cron.
+  //
+  // Activation is deliberately gradual and NOT in our hands: an enforce
+  // ledger is born PENDING unless the previous window already carried one
+  // (enforceBirthState), and a PENDING window runs as `observe`. So the
+  // first run records itself and enforces nothing; enforcement can only
+  // become real on a later window, after a clean one has been observed.
+  //
+  // ROLLBACK IS IMMEDIATE AND NEEDS NO DEPLOY: set SEALED_BROWSE_ENFORCE to
+  // "off" (or "0") and this reverts to the global mode on the next run.
+  const sealedEnforceKill = String(process.env.SEALED_BROWSE_ENFORCE ?? "").trim().toLowerCase();
+  const sealedEnforceDisabled = sealedEnforceKill === "off" || sealedEnforceKill === "0" || sealedEnforceKill === "false";
   const sealedBudget = await acquireBrowseLease(db, {
     key: "sealed",
     requested: Math.max(plannedCalls, 1),
     minGrant: Math.max(Math.ceil(plannedCalls / 4), 1),
     observation: rl,
     ttlMs: (maxDuration + 60) * 1000,
+    ...(sealedEnforceDisabled ? {} : { mode: "enforce" }),
   });
   if (sealedBudget.granted <= 0) {
     markSkipped(`budget_${sealedBudget.decision?.denied ?? "denied"}`);
@@ -319,6 +345,24 @@ export async function GET(request) {
     dealsFound,
     errors,
     scannedAt: new Date().toISOString(),
+    // sealed-enforcement-canary-2026-09-24: everything needed to compare an
+    // enforced run against the previous normal one, in the response itself.
+    sealedEnforcementCanary: {
+      requested: Math.max(plannedCalls, 1),
+      granted: sealedBudget.granted,
+      mode: sealedBudget.mode,
+      effective: sealedBudget.effective, // "observe" while the enforce window is PENDING
+      binding: sealedBudget.decision?.binding ?? null,
+      denied: sealedBudget.decision?.denied ?? null,
+      capLeft: sealedBudget.decision?.capLeft ?? null,
+      killSwitch: sealedEnforceDisabled ? "off" : "on",
+      productsInWatchlist: watchlistRows?.length ?? 0,
+      marketplaces: marketplaceIds,
+      productsScanned: scanned,
+      productsSkipped: Math.max(0, (watchlistRows?.length ?? 0) * marketplaceIds.length - scanned),
+      errorCount: errors.length,
+      completed: true,
+    },
   });
   } catch (err) {
     markError(err);
