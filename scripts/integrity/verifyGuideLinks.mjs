@@ -25,7 +25,7 @@
 import { existsSync } from "node:fs";
 import { config as loadDotenv } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
-import { GUIDE_CARDS, GUIDE_PRODUCTS, GUIDE_SETS } from "../../lib/guideLinks.js";
+import { GUIDE_CARDS, GUIDE_PRODUCTS, GUIDE_SETS, sealedProductHref } from "../../lib/guideLinks.js";
 import { catalogCardSlug } from "../../lib/cardSlug.js";
 import { slugifySet } from "../../lib/slugify.js";
 
@@ -91,6 +91,25 @@ for (const k of pKeys) {
   if (r.name !== p.name) problems.push({ kind: "product", key: k, issue: "name", registry: p.name, catalogue: r.name });
   if (r.set !== p.set) problems.push({ kind: "product", key: k, issue: "set", registry: p.set, catalogue: r.set });
   if (r.product_type !== p.productType) problems.push({ kind: "product", key: k, issue: "productType", registry: p.productType, catalogue: r.product_type });
+  // FINDING 4. The same check the cards already get: re-derive the href
+  // from the row's OWN catalogue id and require the registry to agree. Until
+  // 2026-09-25 every product href was the bare "/sealed-deals", so a reader
+  // who clicked a named product landed on the whole catalogue - a defect no
+  // amount of name/set checking could have caught, because the identity was
+  // correct and simply not used.
+  const href = sealedProductHref(r.tcgplayer_id);
+  if (href !== p.href) problems.push({ kind: "product", key: k, issue: "href", registry: p.href, derived: href });
+  // A destination that selects nothing is worse than a generic one: it
+  // would render "no such product" for a product we know exists.
+  if (!/[?&]product=\d+$/.test(p.href)) problems.push({ kind: "product", key: k, issue: "href selects no product", registry: p.href });
+}
+
+// Two products resolving to one destination means one of them names the
+// wrong record - the standard and Pokemon Center editions are different ids.
+const byProductHref = {};
+for (const k of pKeys) (byProductHref[GUIDE_PRODUCTS[k].href] ??= []).push(k);
+for (const [href, keys] of Object.entries(byProductHref)) {
+  if (keys.length > 1) problems.push({ kind: "product", key: keys.join(" + "), issue: "duplicate href", href });
 }
 
 // --- sets ----------------------------------------------------------------

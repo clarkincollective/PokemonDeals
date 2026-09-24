@@ -39,8 +39,19 @@ test("1b. every guide product is a verified sealed_catalog identity, links the s
     assert.equal(p.name, name, key);
     assert.equal(p.set, set, key);
     assert.equal(p.productType, type, key);
-    assert.equal(p.href, "/sealed-deals", key);
+    // AUDIT 2026-09-23, FINDING 4. This used to assert
+    //   assert.equal(p.href, "/sealed-deals", key)
+    // i.e. it PINNED the defect: every named product dropped the reader on
+    // the unfiltered catalogue, losing the selection the guide had just
+    // made for them. The id was in the registry all along. A product link
+    // now carries its own catalogue identity, which is also the only thing
+    // that separates a standard edition from its Pokemon Center one.
+    assert.equal(p.href, `/sealed-deals?product=${id}`, key);
   }
+  // No two products may share a destination - that would mean one of them
+  // names the wrong record.
+  const hrefs = Object.values(GUIDE_PRODUCTS).map((p) => p.href);
+  assert.equal(new Set(hrefs).size, hrefs.length, "two products share one destination");
   const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "app/guides/pokemon-booster-box-prices/page.js"), "utf8");
   assert.match(src, /<ProductGallery/);
   // The pack-count comparison this guide is built on. Named explicitly, so

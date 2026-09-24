@@ -123,8 +123,12 @@ export default async function SealedDealsPage() {
           </p>
         )}
 
+        {/* finding 4: a rotation of UNRELATED products. When a reader
+            arrives with an exact product selected, SealedProductBrowser
+            hides this strip for the duration, so the selected product's own
+            offer is never read as part of an unrelated featured feed. */}
         {featuredDeals.length > 0 && (
-          <section className="mb-12">
+          <section className="mb-12" data-featured-sealed-strip>
             <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-500">
               Live sealed deals right now
             </h2>

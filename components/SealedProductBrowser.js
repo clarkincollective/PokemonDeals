@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import SpeciesCard from "@/components/SpeciesCard";
+import { parseSealedFilters, buildSealedSearch } from "@/lib/sealedFilterUrl";
 
 // The standalone /sealed-deals catalogue: every sealed product PPT
 // tracks, grouped by set (newest first), each tile flagged as an active
@@ -25,10 +26,87 @@ async function fetchJson(url) {
   return r.json();
 }
 
+// finding 4: the reader's selection lives in the URL, so a guide can link
+// to one exact product. Nothing here re-implements matching or eligibility:
+// the selected product and its offer come from /api/sealed-catalog, which
+// is the same catalogue read the page renders from and still runs every
+// display, availability and savings gate.
+function SelectedProduct({ id, state, product, onClear }) {
+  const label = product ? product.displayName || product.name : null;
+  return (
+    <section
+      data-selected-product={id}
+      aria-live="polite"
+      className="mb-6 rounded-xl border border-zinc-200 bg-white p-4 shadow-card dark:border-zinc-800 dark:bg-zinc-950 sm:p-5"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            Selected product
+          </p>
+          <h3 className="mt-0.5 text-lg font-bold text-black dark:text-zinc-50">
+            {state === "loading" ? "Finding that product…" : label ?? "Product not found"}
+          </h3>
+          {product && <p className="mt-0.5 text-sm text-zinc-600 dark:text-zinc-400">{product.meta}</p>}
+        </div>
+        {/* Clearing the exact selection is a visible control, not a guess */}
+        <button
+          type="button"
+          onClick={onClear}
+          className="min-h-11 shrink-0 rounded-lg border border-zinc-300 px-3 text-sm font-medium text-zinc-700 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-200"
+        >
+          Clear selection
+        </button>
+      </div>
+
+      {state === "error" && (
+        <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+          That product could not be loaded just now. The full catalogue is below.
+        </p>
+      )}
+      {state === "unknown" && (
+        <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+          We don&apos;t track a sealed product with that id. Nothing below is that product — browse
+          the full catalogue instead.
+        </p>
+      )}
+      {state === "invalid" && (
+        <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+          That link didn&apos;t name a product we can look up. Nothing below is that product — browse
+          the full catalogue instead.
+        </p>
+      )}
+
+      {product && (
+        <div className="mt-4">
+          <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 sm:grid-cols-3 lg:max-w-md">
+            <SpeciesCard card={product} />
+          </div>
+          {!product.deal && (
+            // A known product with no eligible offer still shows its own
+            // identity and reference. The catalogue below is explicitly
+            // labelled as alternatives, never as this product's offers.
+            <p className="mt-3 max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
+              No eBay listing currently passes our checks for this exact product. Its reference price
+              and an eBay search are on the tile above. Everything below is the rest of the
+              catalogue — <span className="font-semibold">alternatives, not this product</span>.
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function SealedProductBrowser({ groups, types, totals = null }) {
   const [query, setQuery] = useState("");
   const [type, setType] = useState("all");
   const [dealsOnly, setDealsOnly] = useState(false);
+  // finding 4 - the exact product selection, read from the URL
+  const [selectedId, setSelectedId] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [selectedState, setSelectedState] = useState("idle"); // idle|loading|ready|unknown|invalid|error
+  const selectSeq = useRef(0);
   const [openSets, setOpenSets] = useState(() => new Set(groups.filter((g) => g.products).map((g) => g.set)));
   // set -> products, seeded from the page; filled per set on demand
   const [loaded, setLoaded] = useState(() => new Map(groups.filter((g) => g.products).map((g) => [g.set, g.products])));
@@ -42,6 +120,75 @@ export default function SealedProductBrowser({ groups, types, totals = null }) {
   const totalDeals = totals?.deals ?? groups.reduce((n, g) => n + g.dealCount, 0);
   const logoBySet = useMemo(() => new Map(groups.map((g) => [g.set, g.logo ?? null])), [groups]);
   const filtering = query.trim() !== "" || type !== "all" || dealsOnly;
+
+  // --- URL state (finding 4) ------------------------------------------
+  // Read on mount and on Back/Forward; written on change. `replace` is used
+  // for typing so a search does not leave one history entry per keystroke;
+  // explicit choices (a type chip, the deals toggle, selecting or clearing
+  // a product) push, so Back undoes the action the reader actually took.
+  const applyFromUrl = () => {
+    const f = parseSealedFilters(window.location.search);
+    setQuery(f.q);
+    setType(f.type);
+    setDealsOnly(f.dealsOnly);
+    setSelectedId(f.product);
+    if (f.invalidProduct) {
+      setSelected(null);
+      setSelectedState("invalid");
+    } else if (!f.product) {
+      setSelected(null);
+      setSelectedState("idle");
+    }
+  };
+  useEffect(() => {
+    applyFromUrl();
+    const onPop = () => applyFromUrl();
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const navigate = (patch, { replace = false } = {}) => {
+    const search = buildSealedSearch(window.location.search, patch);
+    const url = `${window.location.pathname}${search}`;
+    if (replace) window.history.replaceState(null, "", url);
+    else window.history.pushState(null, "", url);
+    applyFromUrl();
+  };
+
+  // Resolve the selected product by EXACT catalogue identity. A malformed
+  // or unknown id is reported as such and never falls back to a text
+  // search that could show an unrelated product as the requested one.
+  useEffect(() => {
+    if (!selectedId) return undefined;
+    const seq = ++selectSeq.current;
+    setSelectedState("loading");
+    fetchJson(`/api/sealed-catalog?product=${encodeURIComponent(selectedId)}`)
+      .then((j) => {
+        if (seq !== selectSeq.current) return;
+        setSelected(j.product ?? null);
+        setSelectedState(j.product ? "ready" : "unknown");
+      })
+      .catch((err) => {
+        if (seq !== selectSeq.current) return;
+        setSelected(null);
+        setSelectedState(String(err?.message ?? "").includes("404") ? "unknown" : "error");
+      });
+    return undefined;
+  }, [selectedId]);
+
+  // The page's own "Live sealed deals right now" strip is a rotation of
+  // unrelated products. While one exact product is selected it would sit
+  // above that product's own offer and read as if it were part of it, so
+  // it is hidden for the duration of the selection.
+  useEffect(() => {
+    const strip = document.querySelector("[data-featured-sealed-strip]");
+    if (!strip) return undefined;
+    strip.hidden = Boolean(selectedId);
+    return () => {
+      strip.hidden = false;
+    };
+  }, [selectedId]);
 
   // filters: one debounced request, latest wins
   useEffect(() => {
@@ -96,12 +243,20 @@ export default function SealedProductBrowser({ groups, types, totals = null }) {
 
   return (
     <div>
+      {(selectedId || selectedState === "invalid") && (
+        <SelectedProduct
+          id={selectedId}
+          state={selectedState}
+          product={selected}
+          onClear={() => navigate({ product: null })}
+        />
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative max-w-xs flex-1">
           <input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => navigate({ q: e.target.value }, { replace: true })}
             placeholder="Search products, e.g. Evolving Skies..."
             aria-label="Search sealed products"
             className="min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 pr-14 text-base outline-none focus:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
@@ -109,7 +264,7 @@ export default function SealedProductBrowser({ groups, types, totals = null }) {
           {query && (
             <button
               type="button"
-              onClick={() => setQuery("")}
+              onClick={() => navigate({ q: "" })}
               aria-label="Clear search"
               className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-600 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-300"
             >
@@ -121,7 +276,7 @@ export default function SealedProductBrowser({ groups, types, totals = null }) {
           <input
             type="checkbox"
             checked={dealsOnly}
-            onChange={(e) => setDealsOnly(e.target.checked)}
+            onChange={(e) => navigate({ deals: e.target.checked })}
             className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
           />
           Deals only{totalDeals > 0 ? ` (${totalDeals})` : ""}
@@ -133,7 +288,7 @@ export default function SealedProductBrowser({ groups, types, totals = null }) {
           <button
             key={t}
             type="button"
-            onClick={() => setType(t)}
+            onClick={() => navigate({ type: t })}
             aria-pressed={type === t}
             className={`min-h-11 rounded-full px-3 py-1 text-sm font-medium transition-colors ${
               type === t

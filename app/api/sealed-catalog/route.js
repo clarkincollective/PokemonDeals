@@ -34,6 +34,24 @@ export async function GET(request) {
   const sp = new URL(request.url).searchParams;
   const catalog = await fetchSealedCatalog({ language: "english" });
   if (catalog.error) return Response.json({ ok: false, reason: "catalogue_unavailable" }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  // finding 4: ONE product, selected by exact catalogue identity. This is
+  // deliberately not a text search - the edition lives in the id, and a
+  // name/set approximation cannot separate a standard ETB from its Pokemon
+  // Center edition. An id that is malformed, or that names no catalogue
+  // row, returns a stated failure; it must never fall through to a filter
+  // that would present unrelated products as the requested one.
+  const productId = (sp.get("product") ?? "").trim().slice(0, 32);
+  if (productId) {
+    if (!/^[0-9]{1,20}$/.test(productId)) {
+      return Response.json({ ok: false, reason: "invalid_product" }, { status: 400, headers: HEADERS });
+    }
+    for (const g of catalog.groups) {
+      const p = g.products.find((x) => String(x.tcgplayerId) === productId);
+      if (p) return Response.json({ ok: true, product: slimSealedProduct(p), set: g.set, slug: g.slug }, { headers: HEADERS });
+    }
+    return Response.json({ ok: false, reason: "unknown_product" }, { status: 404, headers: HEADERS });
+  }
+
   const setSlug = (sp.get("set") ?? "").trim();
   if (setSlug) {
     const g = catalog.groups.find((x) => x.slug === setSlug);
