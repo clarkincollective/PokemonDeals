@@ -666,3 +666,120 @@ Two options for the owner, neither taken here:
 Note the pre-existing INV-10 failure (Browse went over the global 5,000/day
 envelope on 2026-09-21, 5,035) — the global budget is already stressed,
 which makes option 1 a real trade-off rather than a free addition.
+
+### Stage 2 cost correction (2026-09-24, read-only)
+
+**The ~816 figure above was the wrong unit of work.** It priced *widening
+the entire 204-product sweep* across four marketplaces. The remediation
+needs only the **8** Booster Bundle destinations, and each only where its
+rows actually exist:
+
+| product | AU | CA | IT | GB | calls | rows |
+|---|---|---|---|---|---|---|
+| Pitch Black Booster Bundle | 21 | 14 | 7 | — | 3 | 42 |
+| Chaos Rising Booster Bundle | 10 | 2 | 4 | — | 3 | 16 |
+| Perfect Order Booster Bundle | 6 | 6 | — | 1 | 3 | 13 |
+| Journey Together Booster Bundle | 2 | 2 | — | — | 2 | 4 |
+| Destined Rivals Booster Bundle | 1 | 1 | — | — | 2 | 2 |
+| Mega Evolution Booster Bundle | 1 | — | — | — | 1 | 1 |
+| Phantasmal Flames Booster Bundle | 1 | — | — | — | 1 | 1 |
+| Surging Sparks Booster Bundle (Retail) | 1 | — | — | — | 1 | 1 |
+| **total** | | | | | **16** | **80** |
+
+**16 product-marketplace calls/day**, not 816 — and below the 32 ceiling of
+"8 × 4 marketplaces", because marketplace-aware scheduling queries each
+product only where its cohort is.
+
+**Blocker 2 as originally written was wrong.** `browseBudgetMode()` returns
+**`off`**; the ledger rows are `browse_budget_observe:`. The caps record
+hypothetical decisions and **do not gate grants today**, so the 200/day
+sealed cap would not have truncated anything. The real constraint is eBay's
+external 5,000/day limit, and measured consumption shows there is no
+headroom:
+
+| window ending | total | sealed | sweep:US (cap 790) | allocated | verify | ingest | unleased |
+|---|---|---|---|---|---|---|---|
+| 2026-09-24 | 4,988 | 196 | 1,091 | 2,345 | 440 | 305 | 0 |
+| 2026-09-23 | 4,788 | 196 | 932 | 2,307 | 400 | 384 | 0 |
+| 2026-09-22 | 4,995 | 196 | 1,006 | 2,339 | 420 | 360 | 22 |
+| **2026-09-21** | **5,035** | 196 | 998 | 2,220 | 440 | 423 | **95** |
+| 2026-09-20 | 5,028 | 196 | 1,051 | 2,369 | 380 | 353 | 35 |
+| 2026-09-19 | 5,000 | 196 | 1,018 | 2,311 | 440 | 360 | 0 |
+
+**The 5,035 day explained:** no single consumer overshot its own share by
+much; the total is the sum of every consumer running unthrottled because the
+budget is in `off` mode. `sweep:EBAY_US` alone spent **998 against a 790
+cap** (and 1,091, 1,051, 1,018 on other days) — it is the largest and most
+redundant over-spender, running 96 times a day over the same query set. 95
+calls that day were `unleased:` — made outside any lease at all. So the
+envelope is breached by unenforced drift, not by one runaway job.
+
+**Blocker 1 stands and remains decisive**: the scheduled sealed scan is
+EBAY_US only, and 0 of the 84 rows are in EBAY_US.
+
+### Answers to the targeted-lane questions
+
+1. **Matrix / calls** — above: **16/day** marketplace-aware, 32 if each
+   product were scanned in all four union marketplaces.
+2. **Can the scanner take a subset?** `refresh-sealed-deals` reads only
+   `minDiscount` and `country`. **Explicit marketplace: yes, today.
+   Product subset: no. Priority queue: no.** A subset would need a new
+   parameter; the scan/ownership semantics beneath it (`ingestSealedListings`,
+   the identity decision, the guarded write) need no change at all, because
+   a targeted lane is the same scan over fewer products.
+3. **Can it use spare global capacity?** **No.** The envelope is strictly
+   zero-sum and asserted: group caps 4,580 + reserve 420 = 5,000, and the
+   reserve is explicitly never grantable to a consumer lease. 16 calls must
+   be *taken from* a consumer, not found. The natural donor is
+   `sweep:EBAY_US` for the same reason sealed-rev1 used it: 96 runs/day over
+   one query set, so 16 calls is ~2% of its cap and costs a fraction of one
+   page per run.
+4. **Lowest-cost architecture (proposed, NOT built):** a
+   **marketplace-aware priority scan** — a small table or config of
+   `(tcgplayer_id, marketplace)` pairs that `refresh-sealed-deals` reads
+   when given e.g. `?lane=priority`, scanning exactly those pairs under its
+   own small lease key. It preserves the 196-product US sweep untouched,
+   reuses the existing matcher, ownership and guarded-write paths verbatim,
+   creates no duplicate scans (the pairs are disjoint from the US sweep),
+   and writes no special-case data — a relinked row is written by the normal
+   ingest path, not by a remediation script. Prefer this general capability
+   over a one-off script.
+
+**Still to decide by the owner, before anything is built:** whether to take
+16 calls/day from `sweep:EBAY_US`, and whether to address the unenforced
+budget (`off` mode) that is letting the envelope drift over 5,000.
+
+## Stage 3 — deterministic relinks to already-watched products (DONE, 2026-09-24)
+
+`scripts/remediation/sealedDeterministicRelink.mjs`. Same proof and same
+write contract as Stage 1. Scope: the frozen 262 **minus** the 84
+booster-bundle rows (Stage 2, still held), **minus** #1386 (Stage 1 manual
+review), **minus** the 116 `edition_mismatch` rows Stage 1 owns = **62 in
+scope**, 0 drifted.
+
+| | rows |
+|---|---|
+| deterministic (exactly one accepting watched product) | **2** |
+| no active watched product accepts the title | 60 |
+
+Both are `kind_mismatch:etb_vs_booster_box`: #150 and #159, *"POKEMON TCG
+SV09 Journey Together Elite Trainer Box | ETB 9 Booster Packs"*, bound to
+the Journey Together **Booster Box** and relinked to the Journey Together
+**Elite Trainer Box** (product 63). **Image-confirmed** a genuine Journey
+Together ETB before writing — these are the first rows in this remediation
+that become customer-visible, so title evidence alone was not enough.
+
+Canary of 1 (#150) verified at DB, ownership, duplicate, display-gate,
+detail-route and sitemap level, then #159. **2/2 written**, both re-read:
+identity accepts, `market_price` = the destination's own 138.02,
+`discount_pct` = 0, references cleared, **no savings claim**, 0 unintended
+column changes. Ownership: product 63 4→5 active, product 9 (Booster Box)
+12→10. No duplicate-ownership conflict.
+
+**Production:** `/sealed-deals/150` now reads *"Journey Together Elite
+Trainer Box"* where it previously said Booster Box, renders no `% below
+market`, and stays noindex (a plain listing with no evidenced reference).
+
+The 60 with no accepting watched product are **left unresolved**, not
+written and not judged. Focused sealed suites 61/61; ratchet OK, quarantine
+25. Unresolved cohort **147 → 145**.
