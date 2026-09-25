@@ -17,7 +17,7 @@ while working a finding that is NOT part of that finding.
 | 5 | `customid=other` on some affiliate links | **closed** — commits `67e1c1f`, `a6c4ae3`, 2026-09-25; pre-change sample 395/475 = 83.2% fallback, post-change sample 0/690 = 0.0% — **different samples, not a single delta**, see below |
 | 6 | Duplicate marketplace rows | **closed** — commits `f4a8568`, `cb4d675`, 2026-09-24; 1,105 displayable rows behind 1,000 listings, Magneton hub 12 → 6, see below |
 | 7 | Hero chips drop qualifiers; desktop overflow 1384 vs 1363px | **closed** — commit `72869e0`, 2026-09-24; 229 of 308 hero chips contradicted their destination; overflow reproduced as a 1024-1400px band, see below |
-| 8 | Variant searches drop set / number | open — not started |
+| 8 | Variant searches drop set / number | **closed** — commit `ef6df5a`, 2026-09-25; 16 of 16 graded hubs lost the set, 9 also the number, see below |
 | 9 | Sales ordering | open — not started |
 
 ## Finding 2 — what was measured, and what changed
@@ -1378,3 +1378,101 @@ the band ends).
 Fixing it means changing the header's layout, which is navigation. It
 should be done deliberately, with its own before/after at these widths.
 
+
+---
+
+# Finding 8 — variant searches losing set / number (CLOSED, 2026-09-25)
+
+Commit `ef6df5a`. Reproduced against current behaviour before any change.
+
+## Reproduced, read-only
+
+`scripts/integrity/auditVariantSearches.mjs` — SELECT-only against our own
+tables plus GETs to our own `/api/card-analysis`; no provider call, and no
+eBay or Impact URL is ever requested, so no affiliate click is generated.
+Cutoff `2026-09-25T00:27:51Z`, 40 hubs sampled.
+
+**Of 16 card hubs rendering graded variant tiles, 16 lost the SET and 9
+also lost the COLLECTOR NUMBER.**
+
+| hub identity shown | query before | query after |
+|---|---|---|
+| Hidden Fates: Shiny Vault · SV72/SV94 · PSA 10 | `Scizor GX PSA 10` | `Scizor GX SV72/SV94 Hidden Fates Shiny Vault PSA 10` |
+| EX Delta Species · 11/113 · PSA 9 | `Metagross (Delta Species) PSA 9` | `Metagross (Delta Species) 11/113 EX Delta Species PSA 9` |
+| Hidden Fates · 68/68 · PSA 10 | `Jessie & James (Full Art) PSA 10` | `Jessie & James (Full Art) 68/68 Hidden Fates PSA 10` |
+| SM - Unified Minds · 245/236 · PSA 9 | `Mega Sableye & Tyranitar GX (Secret) PSA 9` | `… 245/236 Unified Minds PSA 9` |
+| SV: Prismatic Evolutions · 150/131 · PSA 10 | `Glaceon ex - 150/131 PSA 10` | `Glaceon ex 150/131 Prismatic Evolutions PSA 10` |
+| XY Promos · XY112 · PSA 8 | `Jirachi - XY112 PSA 8` | `Jirachi XY112 XY Promos PSA 8` |
+
+The number survived before **only** where it happened to sit inside the
+hub name. Where the name had no number — Scizor GX, Metagross, Jessie &
+James — the search was the bare card name plus a grade.
+
+**The audit's Gengar example, as a class.** No Gengar hub is live today,
+so it is fixture-tested rather than production-verified. The catalogue
+does hold **`Gengar (Prime)` in two sets under the same number 94/102**
+(Triumphant, and the ME: 30th Celebration Classic Collection reprint), so
+a name-only query cannot separate them even in principle. VS-1 pins both.
+
+## Root cause — structural, not a bad string
+
+`components/CardMarketPanel`, the only thing that renders the grid, was
+never passed the set or the collector number. `VariantPriceGrid` built
+`cardName` / `` `${cardName} ${grade}` `` because that was all it had.
+
+## The shared builder
+
+`lib/cardSearchQuery.js` composes name, collector number, set, language
+and the explicitly selected grade.
+
+- **Number verbatim.** Prefixes (`XY112`, `SV72/SV94`) and leading zeros
+  (`009/102`) are identity, not formatting, and are never trimmed.
+- **No repetition.** A number already embedded in the name is stripped
+  before being added back once; a *different* number in the name (e.g.
+  `M Gengar EX (121 Secret Rare)` with `121/119`) is identity and is kept.
+- **Set normalised for SEARCH ONLY.** The TCGplayer era prefix
+  (`SWSH08: `, `SM - `, `ME: `) is cataloguing convention, not seller
+  language — 42 of 86 live set names carry one. Requires a real separator,
+  so `EX Delta Species`, `XY Promos` and `SM Promos` stay whole. Stored
+  names, slugs and every displayed label are untouched.
+- **Language** only when established and not English.
+- **No printing or finish.** The analysis exposes `referencePrinting`, but
+  that names the printing the *reference price* came from, and its
+  companion `referenceExact` is about the *condition* match — neither
+  establishes the reader's finish. Reverse Holofoil is never a default.
+  The builder accepts an explicit `printing` for a caller that ever does
+  verify one; no caller passes it today, and VS-9 enforces that.
+- **Absent fields are absent.** `buildCardSearchQuery({ name: "Charizard" })`
+  is `"Charizard"` — no invented specificity.
+
+Three other builders with the same shape were corrected too: the deal
+page's condition breakdown, its unavailable-listing search, and the card
+page's own search link.
+
+## Honest labelling
+
+Tiles read **"Search eBay for PSA 10 copies"** (or "Search eBay listings"
+with no grade selected) instead of "Find on eBay". The condition list now
+says these open an eBay search, **not a checked list of matching offers**.
+No label describes a search as available inventory.
+
+## Preserved
+
+`campid`, `toolid`, `mkrid`, the finding 5 `customid` page/placement
+contract (`card-variant`), the `_sacat=183454` category filter, the
+destination marketplace routing (US / GB / AU all verified), sponsored
+link attributes, one click handler per tile and every analytics event
+name. eBay and Impact remain separate.
+
+## Remaining limitation
+
+These are keyword searches. eBay matches title words, so a longer, more
+precise query **trades recall for precision**: a seller who omits the set
+name or writes the number differently will not be matched, and some
+searches will return fewer results than the old broad one did. That is
+the intended direction for this finding — the previous behaviour returned
+*more* results by returning the wrong cards — but it is a real trade-off,
+not a free gain. The search is also still a search: nothing guarantees
+every returned result is this exact card, which is why the labels say so.
+
+**No ranking, traffic or revenue improvement is claimed.**
