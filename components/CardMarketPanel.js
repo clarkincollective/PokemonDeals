@@ -20,7 +20,10 @@ function loadAnalysis(id) {
       id,
       fetch(`/api/card-analysis?id=${encodeURIComponent(id)}`, { headers: { accept: "application/json" } })
         .then((r) => (r.ok ? r.json() : null))
-        .then((j) => j?.analysis ?? null)
+        // FINDING 8: variantSearch carries the server-built,
+        // campaign-bearing search hrefs - the browser cannot add a
+        // campid itself. Kept beside the analysis, not merged into it.
+        .then((j) => (j?.analysis ? { ...j.analysis, variantSearch: j.variantSearch ?? null } : null))
         .catch(() => null)
     );
   }
@@ -106,6 +109,7 @@ export default function CardMarketPanel({
               set={set}
               cardNumber={analysis.cardNumber ?? null}
               language={language}
+              searchHrefs={analysis.variantSearch ?? null}
               surface={surface}
             />
           </div>

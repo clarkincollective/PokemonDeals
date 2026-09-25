@@ -1,7 +1,7 @@
 import MiniSparkline from "@/components/MiniSparkline";
 import AffiliateLink from "@/components/AffiliateLink";
 import Price from "@/components/Price";
-import { buildEbaySearchLink } from "@/lib/ebayLinks";
+import { buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import { withPlacement } from "@/lib/affiliateAttribution";
 import { buildCardSearchQuery, cardSearchLabel } from "@/lib/cardSearchQuery";
 import { hasPrice } from "@/lib/money";
@@ -68,7 +68,14 @@ function TileContents({ label, badge, currentPrice, minPrice, maxPrice, saleCoun
 // tracked eBay search for that specific grade - a visitor comparing
 // variants who decides they'd rather have a different one should still
 // leave through an affiliate-tracked link, not a dead end.
-function Tile({ label, isActive, searchQuery, searchLabel, eventData, surface, ...contentProps }) {
+// FINDING 8 / FINDING 5: `searchHref` is the server-built href, which
+// carries the campaign id the browser cannot add (EBAY_CAMPAIGN_ID is
+// server-only, so a link this component builds for itself has no campid
+// and earns nothing - confirmed live on the Scizor GX hub before this
+// fix). Re-wrapping rewrites only customid and leaves campid intact.
+// `searchQuery` is the fallback when the API supplied no href: the right
+// query without the campaign id, which beats no link at all.
+function Tile({ label, isActive, searchQuery, searchHref, searchLabel, eventData, surface, ...contentProps }) {
   const className = `block rounded-lg border p-3 text-left transition-colors ${
     isActive
       ? "border-red-400 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20"
@@ -85,7 +92,11 @@ function Tile({ label, isActive, searchQuery, searchLabel, eventData, surface, .
 
   return (
     <AffiliateLink
-      href={buildEbaySearchLink(searchQuery, undefined, withPlacement(surface, "variant"))}
+      href={
+        searchHref
+          ? wrapEbayAffiliateUrl(searchHref, withPlacement(surface, "variant"))
+          : buildEbaySearchLink(searchQuery, undefined, withPlacement(surface, "variant"))
+      }
       eventName="eBay Click"
       eventData={eventData}
       className={className}
@@ -116,6 +127,7 @@ export default function VariantPriceGrid({
   set = null,
   cardNumber = null,
   language = null,
+  searchHrefs = null,
   surface,
 }) {
   return (
@@ -127,6 +139,7 @@ export default function VariantPriceGrid({
         badge={<span className="text-[11px] text-zinc-500 dark:text-zinc-400">{referenceConditionLabels(raw?.referenceCondition).short}</span>}
         isActive={activeKey === "raw"}
         searchQuery={buildCardSearchQuery({ name: cardName, set, cardNumber, language })}
+        searchHref={searchHrefs?.raw ?? null}
         searchLabel={cardSearchLabel(null)}
         eventData={{ card: cardName, page: "variant_grid", variant: "raw" }}
         surface={surface}
@@ -149,6 +162,7 @@ export default function VariantPriceGrid({
           }
           isActive={activeKey === g.key}
           searchQuery={buildCardSearchQuery({ name: cardName, set, cardNumber, language, grade: g.label })}
+          searchHref={searchHrefs?.[g.key] ?? null}
           searchLabel={cardSearchLabel(g.label)}
           eventData={{ card: cardName, page: "variant_grid", variant: g.key }}
           surface={surface}

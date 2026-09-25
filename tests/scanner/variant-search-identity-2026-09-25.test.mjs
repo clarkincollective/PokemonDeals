@@ -293,3 +293,58 @@ test("VS-21. no duplicate click handler and no analytics event name changed", ()
   assert.match(grid, /page: "variant_grid"/);
   assert.doesNotMatch(grid, /onClick=/, "the tile adds no handler of its own");
 });
+
+// === 12. the campaign id must survive the client-render boundary =======
+//
+// Found on production AFTER the query fix shipped: the queries and the
+// customid were right and `campid` was null, because the variant grid
+// renders in the BROWSER where EBAY_CAMPAIGN_ID is a server-only
+// variable. Same defect class as the sealed catalogue's (a6c4ae3) and the
+// same fix - the server builds the campaign-bearing href.
+
+test("VS-22. /api/card-analysis serves a campaign-bearing href per variant", () => {
+  const route = read("app/api/card-analysis/route.js");
+  assert.match(route, /function variantSearchHrefs\(card, analysis\)/);
+  assert.match(route, /buildEbaySearchLink\(buildCardSearchQuery\(\{ \.\.\.identity, grade \}\)/);
+  assert.match(route, /out\.raw = href\(null\)|const out = \{ raw: href\(null\) \}/);
+  assert.match(route, /variantSearch: variantSearchHrefs\(card, analysis\)/);
+  // the query comes from the SHARED builder, so the API and the client
+  // cannot disagree about what is being searched for
+  assert.match(route, /from "@\/lib\/cardSearchQuery"/);
+});
+
+test("VS-23. the grid prefers the server href and re-wraps only the placement", () => {
+  const grid = read("components/VariantPriceGrid.js");
+  assert.match(grid, /searchHref\s*\?\s*wrapEbayAffiliateUrl\(searchHref, withPlacement\(surface, "variant"\)\)/);
+  assert.match(grid, /searchHref=\{searchHrefs\?\.raw \?\? null\}/);
+  assert.match(grid, /searchHref=\{searchHrefs\?\.\[g\.key\] \?\? null\}/);
+  // and still falls back to a correct (if campid-less) link rather than none
+  assert.match(grid, /: buildEbaySearchLink\(searchQuery, undefined, withPlacement\(surface, "variant"\)\)/);
+  assert.match(read("components/CardMarketPanel.js"), /searchHrefs=\{analysis\.variantSearch \?\? null\}/);
+});
+
+test("VS-24. re-wrapping a server href keeps campid and sets the placement customid", () => {
+  // Exactly what the tile does: a server-built href arrives with the
+  // campaign id, and the browser - where EBAY_CAMPAIGN_ID is undefined -
+  // rewrites only customid.
+  const q = Q.buildCardSearchQuery({ name: "Scizor GX", set: "Hidden Fates: Shiny Vault", cardNumber: "SV72/SV94", grade: "PSA 10" });
+  const serverHref = buildEbaySearchLink(q, undefined, { page: "card", placement: "variant" });
+  assert.equal(new URL(serverHref).searchParams.get("campid"), "5339197414");
+
+  const { wrapEbayAffiliateUrl } = require(join(ROOT, "lib", "ebayLinks.js"));
+  const original = process.env.EBAY_CAMPAIGN_ID;
+  try {
+    delete process.env.EBAY_CAMPAIGN_ID; // the browser
+    const u = new URL(wrapEbayAffiliateUrl(serverHref, { page: "deal", placement: "variant" }));
+    assert.equal(u.searchParams.get("campid"), "5339197414", "the campaign id must survive");
+    assert.equal(u.searchParams.get("customid"), "deal-variant", "the placement is re-applied");
+    assert.equal(u.searchParams.get("_nkw"), q, "the query is untouched");
+    assert.equal(u.searchParams.get("_sacat"), "183454");
+
+    // and the failure this replaced: building from scratch in the browser
+    const clientBuilt = new URL(buildEbaySearchLink(q, undefined, { page: "card", placement: "variant" }));
+    assert.equal(clientBuilt.searchParams.get("campid"), null, "this is why the API must send the href");
+  } finally {
+    process.env.EBAY_CAMPAIGN_ID = original;
+  }
+});
