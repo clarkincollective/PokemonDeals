@@ -17,6 +17,7 @@ import { extractSpecies } from "@/lib/pokemonSpecies";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { MARKETPLACES, buildEbaySearchLink, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
+import { buildCardSearchQuery } from "@/lib/cardSearchQuery";
 import MarketplaceMark from "@/components/MarketplaceMark";
 import { currencyForDeal, refInListingCurrency, dealTotalUsd, auctionDisplayParts, formatMoney, hasPrice, symbolFor } from "@/lib/money";
 import { offerShipping } from "@/lib/offerPresentation";
@@ -342,7 +343,17 @@ export default async function DealDetailPage({ params }) {
     ]);
     const setSlugRaw = cardSet && deal?.watchlist?.language !== "japanese" ? slugifySet(cardSet) : null;
     const setSlug = setSlugRaw && validSetSlugs.includes(setSlugRaw) ? setSlugRaw : null;
-    const searchQuery = cardName ? `${cardName}${cardSet ? ` ${cardSet}` : ""}` : null;
+    // FINDING 8: keep the collector number and language too. `deal` may be
+    // absent here (the unavailable-listing path), so every field is
+    // optional and an absent one is simply left out.
+    const searchQuery = cardName
+      ? buildCardSearchQuery({
+          name: cardName,
+          set: cardSet,
+          cardNumber: deal?.watchlist?.card_number ?? deal?.card_number ?? null,
+          language: deal?.watchlist?.language ?? null,
+        })
+      : null;
     const ebaySearchUrl = searchQuery ? buildEbaySearchLink(searchQuery, deal?.marketplace, { page: "deal", placement: "search" }) : null;
     return (
       <div className="min-h-screen bg-paper">
@@ -480,6 +491,12 @@ export default async function DealDetailPage({ params }) {
 
   const cardName = cardDisplayName({ name: normalizePublicText(deal.watchlist?.name ?? deal.title) });
   const cardSet = deal.watchlist?.set;
+  // FINDING 8: the identity a condition/variant search must keep. The
+  // number comes from the analysis payload the page already loaded, the
+  // language from the watchlist row. Absent fields stay absent - the
+  // query keeps what is verified and guesses nothing.
+  const cardNumberForSearch = analysis?.cardNumber ?? null;
+  const cardLanguage = deal.watchlist?.language ?? null;
   // /sets/[slug] only exists for an English set that clears
   // SET_MIN_LISTINGS - gate on the real list, not just "is English".
   const setSlugRaw = cardSet && deal.watchlist?.language !== "japanese" ? slugifySet(cardSet) : null;
@@ -1158,13 +1175,29 @@ export default async function DealDetailPage({ params }) {
               <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">
                 <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Condition breakdown</h2>
                 <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                  Current raw market price by condition - click any to find that condition on eBay.
+                  Current raw market price by condition — click any to search eBay for that condition.
+                  These open an eBay search, not a checked list of matching offers.
                 </p>
                 <ul className="mt-4 flex flex-col gap-2">
                   {analysis.conditionBreakdown.map((c) => (
                     <li key={c.condition}>
                       <AffiliateLink
-                        href={buildEbaySearchLink(`${cardName} ${c.condition}`, undefined, { page: "deal", placement: "condition" })}
+                        href={buildEbaySearchLink(
+                          // FINDING 8: was `${cardName} ${c.condition}` -
+                          // no set, no number, so it broadened to every
+                          // card sharing the name. The condition rides
+                          // in the `grade` slot: it is the variant the
+                          // reader explicitly picked.
+                          buildCardSearchQuery({
+                            name: cardName,
+                            set: cardSet,
+                            cardNumber: cardNumberForSearch,
+                            language: cardLanguage,
+                            grade: c.condition,
+                          }),
+                          undefined,
+                          { page: "deal", placement: "condition" }
+                        )}
                         eventName="eBay Click"
                         eventData={{ card: cardName, page: "condition_breakdown", condition: c.condition }}
                         className="flex items-center justify-between text-sm text-zinc-600 hover:text-red-600 dark:text-zinc-300 dark:hover:text-red-400"

@@ -279,6 +279,8 @@ export default function CatalogCardView({
         <CardMarketPanel
           tcgplayerId={card.tcgplayerId}
           cardName={name}
+          set={set}
+          language={card.language ?? null}
           chartPoints={chartPoints}
           comparableRange={priceHistory?.comparableRange ?? null}
         />

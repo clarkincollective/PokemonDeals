@@ -46,7 +46,15 @@ test("CPD-3 the client panel fetches once per card after first paint and renders
   assert.match(panel, /const inflight = new Map\(\)/, "one request per card, shared by summary and panel");
   assert.match(panel, /requestIdleCallback\(start, \{ timeout: 1500 \}\)/);
   assert.match(panel, /<CardPriceSummary analysis=\{analysis\} detailsOnly \/>/);
-  assert.match(panel, /<VariantPriceGrid raw=\{canonRaw\} graded=\{graded\} cardName=\{gridName \?\? cardName\} surface=\{surface\} \/>/);
+  // finding 8 (2026-09-25) added the verified identity the grid needs to
+  // search for THIS card - set, collector number and language. The block
+  // this test exists for is unchanged; it just carries more props now.
+  assert.match(panel, /<VariantPriceGrid\b/);
+  assert.match(panel, /raw=\{canonRaw\}/);
+  assert.match(panel, /graded=\{graded\}/);
+  assert.match(panel, /cardName=\{gridName \?\? cardName\}/);
+  assert.match(panel, /surface=\{surface\}/);
+  assert.match(panel, /cardNumber=\{analysis\.cardNumber \?\? null\}/);
   assert.match(panel, /sales=\{analysis\.primaryRecentSales\}/);
   // the same merge with the first-party history the page did server-side
   assert.match(panel, /history: chartPoints, minPrice: comparableRange\?\.min \?\? null, maxPrice: comparableRange\?\.max \?\? null/);

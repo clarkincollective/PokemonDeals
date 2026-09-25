@@ -59,7 +59,21 @@ export function CardMarketSummary({ tcgplayerId }) {
 // The every-variant grid + recent sales. `chartPoints` / `comparableRange`
 // come from the first-party price_history spine (server-rendered), exactly
 // as the page merged them before.
-export default function CardMarketPanel({ tcgplayerId, cardName, gridName = null, chartPoints = [], comparableRange = null, surface = "card", recentSalesPage = "card_recent_sales" }) {
+// FINDING 8: `set` and `language` are the verified identity the variant
+// grid needs in order to search for THIS card rather than every card
+// sharing its name. The collector number needs no new prop - it is in the
+// analysis payload this panel already fetches (analysis.cardNumber).
+export default function CardMarketPanel({
+  tcgplayerId,
+  cardName,
+  gridName = null,
+  set = null,
+  language = null,
+  chartPoints = [],
+  comparableRange = null,
+  surface = "card",
+  recentSalesPage = "card_recent_sales",
+}) {
   const { status, analysis } = useCardAnalysis(tcgplayerId);
   if (status === "loading") {
     return (
@@ -85,7 +99,15 @@ export default function CardMarketPanel({ tcgplayerId, cardName, gridName = null
             flagged. Live offers, where any exist, are listed above.
           </p>
           <div className="mt-4">
-            <VariantPriceGrid raw={canonRaw} graded={graded} cardName={gridName ?? cardName} surface={surface} />
+            <VariantPriceGrid
+              raw={canonRaw}
+              graded={graded}
+              cardName={gridName ?? cardName}
+              set={set}
+              cardNumber={analysis.cardNumber ?? null}
+              language={language}
+              surface={surface}
+            />
           </div>
         </div>
       )}

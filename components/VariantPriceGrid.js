@@ -3,6 +3,7 @@ import AffiliateLink from "@/components/AffiliateLink";
 import Price from "@/components/Price";
 import { buildEbaySearchLink } from "@/lib/ebayLinks";
 import { withPlacement } from "@/lib/affiliateAttribution";
+import { buildCardSearchQuery, cardSearchLabel } from "@/lib/cardSearchQuery";
 import { hasPrice } from "@/lib/money";
 import { referenceConditionLabels } from "@/lib/referenceCondition";
 
@@ -51,7 +52,11 @@ function TileContents({ label, badge, currentPrice, minPrice, maxPrice, saleCoun
         </p>
       )}
       {showBuyHint && (
-        <p className="mt-1.5 text-[11px] font-semibold text-red-600 dark:text-red-400">Find on eBay →</p>
+        // FINDING 8: this is a SEARCH, and says so. It is never described
+        // as available inventory and never implies every result matches.
+        <p className="mt-1.5 text-[11px] font-semibold leading-tight text-red-600 dark:text-red-400">
+          {showBuyHint} →
+        </p>
       )}
     </>
   );
@@ -63,7 +68,7 @@ function TileContents({ label, badge, currentPrice, minPrice, maxPrice, saleCoun
 // tracked eBay search for that specific grade - a visitor comparing
 // variants who decides they'd rather have a different one should still
 // leave through an affiliate-tracked link, not a dead end.
-function Tile({ label, isActive, searchQuery, eventData, surface, ...contentProps }) {
+function Tile({ label, isActive, searchQuery, searchLabel, eventData, surface, ...contentProps }) {
   const className = `block rounded-lg border p-3 text-left transition-colors ${
     isActive
       ? "border-red-400 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20"
@@ -85,7 +90,7 @@ function Tile({ label, isActive, searchQuery, eventData, surface, ...contentProp
       eventData={eventData}
       className={className}
     >
-      <TileContents label={label} {...contentProps} showBuyHint />
+      <TileContents label={label} {...contentProps} showBuyHint={searchLabel} />
     </AffiliateLink>
   );
 }
@@ -98,7 +103,21 @@ function Tile({ label, isActive, searchQuery, eventData, surface, ...contentProp
 // lib/affiliateAttribution.js) - this component is shared across
 // /cards/[slug] ("card") and /deals/[id] ("deal_page"), so it can't
 // assume its own context and must be told.
-export default function VariantPriceGrid({ raw, graded, activeKey, cardName, surface }) {
+// FINDING 8: `set`, `cardNumber` and `language` are the verified identity
+// this grid could not previously see - CardMarketPanel was never given
+// them, so every query broadened to the bare card name. They are
+// optional: an absent field is simply absent from the query, never
+// guessed, and the query keeps whatever identity IS verified.
+export default function VariantPriceGrid({
+  raw,
+  graded,
+  activeKey,
+  cardName,
+  set = null,
+  cardNumber = null,
+  language = null,
+  surface,
+}) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
       <Tile
@@ -107,7 +126,8 @@ export default function VariantPriceGrid({ raw, graded, activeKey, cardName, sur
         // reference is REALLY for; "Market reference" when PPT doesn't say.
         badge={<span className="text-[11px] text-zinc-500 dark:text-zinc-400">{referenceConditionLabels(raw?.referenceCondition).short}</span>}
         isActive={activeKey === "raw"}
-        searchQuery={cardName}
+        searchQuery={buildCardSearchQuery({ name: cardName, set, cardNumber, language })}
+        searchLabel={cardSearchLabel(null)}
         eventData={{ card: cardName, page: "variant_grid", variant: "raw" }}
         surface={surface}
         currentPrice={raw.currentPrice}
@@ -128,7 +148,8 @@ export default function VariantPriceGrid({ raw, graded, activeKey, cardName, sur
             )
           }
           isActive={activeKey === g.key}
-          searchQuery={`${cardName} ${g.label}`}
+          searchQuery={buildCardSearchQuery({ name: cardName, set, cardNumber, language, grade: g.label })}
+          searchLabel={cardSearchLabel(g.label)}
           eventData={{ card: cardName, page: "variant_grid", variant: g.key }}
           surface={surface}
           currentPrice={g.currentPrice}

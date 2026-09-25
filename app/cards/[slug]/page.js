@@ -18,6 +18,7 @@ import { cardSpeciesLink } from "@/lib/cardLinks";
 import { slugifySet } from "@/lib/slugify";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
 import { wrapEbayAffiliateUrl, buildEbaySearchLink } from "@/lib/ebayLinks";
+import { buildCardSearchQuery } from "@/lib/cardSearchQuery";
 import SiteHeader from "@/components/SiteHeader";
 import SkipToContent from "@/components/SkipToContent";
 import CardDealFilters from "@/components/CardDealFilters";
@@ -229,7 +230,19 @@ export default async function CardHubPage({ params }) {
         speciesLiveCount={catalogSpecies ? (speciesHubs ?? []).find((s) => s.slug === catalogSpecies.slug)?.count ?? null : null}
         setLiveCount={(liveSets ?? []).find((s) => s.slug === setSlugHere)?.count ?? null}
         alertsEnabled={emailEnabled()}
-        ebaySearchHref={buildEbaySearchLink(`${card.displayName ?? cardDisplayName(card)} ${card.set}`.trim(), undefined, { page: "card", placement: "search" })}
+        // FINDING 8: was `${displayName} ${set}` - the collector number was
+        // dropped unless it happened to be inside the display name, so two
+        // cards of the same name in the same set could not be separated.
+        ebaySearchHref={buildEbaySearchLink(
+          buildCardSearchQuery({
+            name: card.displayName ?? cardDisplayName(card),
+            set: card.set,
+            cardNumber: card.cardNumber ?? card.card_number ?? null,
+            language: card.language ?? null,
+          }),
+          undefined,
+          { page: "card", placement: "search" }
+        )}
         nowMs={Date.now()}
       />
     );
@@ -666,6 +679,8 @@ export default async function CardHubPage({ params }) {
           tcgplayerId={hub.tcgplayerId}
           cardName={cardName}
           gridName={hub.name}
+          set={hub.set}
+          language={hub.language ?? null}
           chartPoints={chartPoints}
           comparableRange={priceHistory?.comparableRange ?? null}
         />

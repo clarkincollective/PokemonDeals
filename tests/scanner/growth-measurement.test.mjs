@@ -51,11 +51,16 @@ test("§9 checklist: missing-only view offers 'Find offers for cards I'm missing
   assert.match(t, /href=\{`\$\{r\.href\}#card-offers`\}/);
   assert.doesNotMatch(t, /fetch\(/, "nothing fetched, nothing invented");
   const card = read("app/cards/[slug]/page.js");
+  // finding 8 (2026-09-25) wrapped the query in buildCardSearchQuery, so
+  // the call spans several lines now. The contract this test exists for -
+  // crawler-visible default domain, card page/search placement - is
+  // unchanged and still asserted.
   assert.match(
     card,
-    /buildEbaySearchLink\(.*, undefined, \{ page: "card", placement: "search" \}\)/,
+    /buildEbaySearchLink\([\s\S]*?undefined,\s*\{ page: "card", placement: "search" \}\s*\)/,
     "server: crawler-visible default domain + card page/search placement (finding 5 split the fused surface token)"
   );
+  assert.match(card, /buildCardSearchQuery\(\{[\s\S]*?cardNumber:/, "…and the query keeps the collector number (finding 8)");
   assert.match(read("components/EbaySearchLink.js"), /localizeEbaySearchUrl\(href, region\)/, "client: re-pointed at the viewer's marketplace");
 });
 
