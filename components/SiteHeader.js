@@ -4,7 +4,16 @@ import NavMenu from "@/components/NavMenu";
 import NavDropdown from "@/components/NavDropdown";
 import RegionControl from "@/components/RegionControl";
 import SavedNavLink from "@/components/SavedNavLink";
-import { NAV_RAIL, NAV_SEARCH, navGroupItems } from "@/lib/navLinks";
+import {
+  NAV_RAIL,
+  NAV_SEARCH,
+  navGroupItems,
+  RAIL_BAR_SPACING,
+  RAIL_ITEM_PX,
+  RAIL_ITEM_TEXT,
+  RAIL_SEARCH_SIZE,
+  RAIL_UTILITY_GAP,
+} from "@/lib/navLinks";
 
 // Shared sticky header. Desktop (>= lg): the logo, then the flat rail of
 // seven named destinations (Deals, Pokemon, Sets, Graded, Sealed,
@@ -20,7 +29,7 @@ export default function SiteHeader() {
     <div className="sticky top-0 z-30 border-b border-zinc-200 bg-paper/90 backdrop-blur-xl dark:border-zinc-700/70 dark:bg-black/80">
       {/* px-4 below sm: the wordmark + region control + menu button must
           fit a 320px viewport without the page scrolling sideways */}
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3.5 sm:gap-6 sm:px-6 sm:py-4">
+      <div className={`mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3.5 sm:gap-6 sm:px-6 sm:py-4 ${RAIL_BAR_SPACING}`}>
         <Link href="/" className="shrink-0 rounded-md transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600">
           <Logo size="small" />
         </Link>
@@ -47,7 +56,7 @@ export default function SiteHeader() {
                 // mobile menu and the footer - see NAV_RAIL/fromPrimary.
                 data-analytics-click={link.analyticsClick ?? undefined}
                 data-analytics-props={link.analyticsClick ? JSON.stringify(link.analyticsProps ?? {}) : undefined}
-                className="flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-red-950 dark:hover:text-red-400"
+                className={`flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-red-950 dark:hover:text-red-400 ${RAIL_ITEM_PX} ${RAIL_ITEM_TEXT}`}
               >
                 {link.label}
               </a>
@@ -55,7 +64,7 @@ export default function SiteHeader() {
           )}
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className={`flex items-center gap-2 ${RAIL_UTILITY_GAP}`}>
           {/* §6: "Saved (N)" - a utility beside the market control, not a
               fourth destination; the count is this device's own list */}
           <SavedNavLink />
@@ -63,7 +72,7 @@ export default function SiteHeader() {
           <a
             href={NAV_SEARCH.href}
             aria-label="Search cards and sets"
-            className="hidden h-11 w-11 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 lg:inline-flex dark:text-zinc-300 dark:hover:bg-red-950 dark:hover:text-red-400"
+            className={`hidden h-11 w-11 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 lg:inline-flex dark:text-zinc-300 dark:hover:bg-red-950 dark:hover:text-red-400 ${RAIL_SEARCH_SIZE}`}
           >
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="h-5 w-5">
               <circle cx="8.5" cy="8.5" r="5.5" />

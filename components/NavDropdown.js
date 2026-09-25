@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+// FINDING 7 follow-up: the rail-band tightening amounts. Shared with
+// SiteHeader because the two were measured together - see lib/navLinks.js.
+import { RAIL_CHEVRON_PR, RAIL_ITEM_PL, RAIL_ITEM_PR, RAIL_ITEM_PX, RAIL_ITEM_TEXT } from "@/lib/navLinks";
 
 // One "Deals ▾" / "Cards & Sets ▾" dropdown in the desktop header.
 //
@@ -94,7 +97,7 @@ export default function NavDropdown({ label, items, href = null }) {
         <span className="flex items-stretch">
           <a
             href={href}
-            className="flex min-h-11 items-center rounded-l-lg pl-3 pr-1.5 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-red-500"
+            className={`flex min-h-11 items-center rounded-l-lg pl-3 pr-1.5 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-red-500 ${RAIL_ITEM_PL} ${RAIL_ITEM_PR} ${RAIL_ITEM_TEXT}`}
           >
             {label}
           </a>
@@ -105,7 +108,7 @@ export default function NavDropdown({ label, items, href = null }) {
             aria-controls={id}
             aria-label={`${label} menu`}
             onClick={toggle}
-            className="flex min-h-11 items-center rounded-r-lg pl-0.5 pr-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-red-500"
+            className={`flex min-h-11 items-center rounded-r-lg pl-0.5 pr-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-red-500 ${RAIL_CHEVRON_PR}`}
           >
             <svg aria-hidden viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`}>
               <path d="M3 4.5 6 7.5 9 4.5" />
@@ -119,7 +122,7 @@ export default function NavDropdown({ label, items, href = null }) {
           aria-expanded={open}
           aria-controls={id}
           onClick={toggle}
-          className="flex min-h-11 items-center gap-1 rounded-lg px-3 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-red-500"
+          className={`flex min-h-11 items-center gap-1 rounded-lg px-3 text-sm font-semibold tracking-tight text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-red-500 ${RAIL_ITEM_PX} ${RAIL_ITEM_TEXT}`}
         >
           {label}
           <svg
