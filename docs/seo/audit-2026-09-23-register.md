@@ -1350,10 +1350,59 @@ CTA change anywhere on the homepage.
 
 ---
 
-## Open technical debt — site header overflows in a 1024–1150px band
+## Site header overflow band — CLOSED, 2026-09-25 (commit `7e0dae3`)
 
-Found 2026-09-24 while verifying finding 7. **Not fixed: it is the shared
-navigation, which finding 7's scope explicitly excluded from change.**
+Found 2026-09-24 while verifying finding 7, recorded then as technical debt
+because it is the shared navigation, which finding 7's scope excluded. Fixed
+deliberately on 2026-09-25 with its own before/after at real `innerWidth`.
+
+**Measurement method, because the obvious one does not work here.** The
+browser tooling's window resize reports success but leaves `innerWidth`
+unchanged, so the band cannot be reproduced by resizing. It **can** be
+reproduced in an iframe, which honours media queries at its own width and is
+same-origin on our own pages. That is how both the before and after figures
+below were taken — not from computed style arithmetic.
+
+| innerWidth | before | after |
+|---|---|---|
+| 1023 | clean (rail hidden below `lg`) | clean |
+| 1024 | — | clean |
+| **1040** | **+82px** | clean |
+| **1060** | **+62px** | clean |
+| **1100** | **+22px** | clean |
+| 1136 | clean | clean |
+| 1279 / 1280 | clean | clean — no jump at the `xl` boundary |
+
+**Why it had grown since finding 7.** That pass recorded the band as
+1024–1150 against a **seven**-item rail. `/news` then added an eighth
+destination, widening the rail and the band with it. The right edge sat at a
+fixed 1122px whatever the viewport. Nothing was checking the rail's natural
+width — the defect class, rather than the pixel values.
+
+**The fix** tightens the rail **only** inside 1024–1279 and restores the
+roomier spacing from `xl` up: item padding 12→6px, header gap 24→12px, header
+padding 24→16px, rail text 14→13px, search icon 44→36px, utility gap 8→4px.
+All eight destinations stay visible at every desktop width; nothing is
+removed or moved behind the hamburger.
+
+The amounts live in `lib/navLinks.js` beside the nav model, because
+`SiteHeader` and `NavDropdown` both render rail items with their own padding
+and must tighten by the same amounts — tightening one alone reopens the band.
+
+**Guarded** by `tests/scanner/nav-rail-width-2026-09-25.test.mjs` (5 tests).
+A unit test cannot measure pixels, so it pins what actually regressed: the
+rail item count the band was measured against, failing with an instruction to
+re-measure; that every constant both tightens at `lg` **and** restores at
+`xl`, so cramped spacing cannot leak onto wide desktops; that both renderers
+read the shared amounts; and that the mobile menu still carries every
+destination.
+
+**Also verified:** all 16 generated Tailwind utilities are present in the
+built CSS. Worth stating because the classes live in a string constant in
+`lib/`, so a content-scanner that did not reach that file would have produced
+a silently inert fix that still built and still passed every test.
+
+### The original record (2026-09-24), for reference
 
 After the hero fix, a residual horizontal overflow remains in a narrow
 desktop band. It is **not** the hero — the hero art is inside the viewport
