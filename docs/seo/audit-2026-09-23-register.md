@@ -18,7 +18,7 @@ while working a finding that is NOT part of that finding.
 | 6 | Duplicate marketplace rows | **closed** — commits `f4a8568`, `cb4d675`, 2026-09-24; 1,105 displayable rows behind 1,000 listings, Magneton hub 12 → 6, see below |
 | 7 | Hero chips drop qualifiers; desktop overflow 1384 vs 1363px | **closed** — commit `72869e0`, 2026-09-24; 229 of 308 hero chips contradicted their destination; overflow reproduced as a 1024-1400px band, see below |
 | 8 | Variant searches drop set / number | **closed** — commit `ef6df5a`, 2026-09-25; 16 of 16 graded hubs lost the set, 9 also the number, see below |
-| 9 | Sales ordering | open — not started |
+| 9 | Sales ordering | **closed** — 2026-09-25; 18 of 23 orderable production lists (78%) were not newest-first, median 85-day lag, see below |
 
 ## Finding 2 — what was measured, and what changed
 
@@ -1474,5 +1474,91 @@ the intended direction for this finding — the previous behaviour returned
 *more* results by returning the wrong cards — but it is a real trade-off,
 not a free gain. The search is also still a search: nothing guarantees
 every returned result is this exact card, which is why the labels say so.
+
+**No ranking, traffic or revenue improvement is claimed.**
+
+---
+
+## Finding 9 — "Recent eBay sales" was not ordered by date (CLOSED, 2026-09-25)
+
+### Reproduced against production, read-only
+
+`scripts/integrity/auditSalesOrder.mjs` fetches PRODUCTION deal pages, which
+are ISR-cached and served to any visitor, and extracts the rendered
+recent-sales dates **in display order**. No provider call is made by the
+audit, and no eBay or affiliate URL is ever requested, so no affiliate click
+is generated. 40 active deal pages sampled, 2026-09-25.
+
+Of **23 pages with an orderable list (2+ dated rows), 18 (78%) were not
+newest-first**:
+
+| order shape | pages |
+|---|---|
+| unordered / mixed | 10 |
+| oldest-first (ascending) | 8 |
+| newest-first (correct) | 5 |
+
+Lag between the sale the page **led with** and the newest sale that same list
+held: **median 85 days, maximum 216 days**. Examples:
+
+| deal | display order | newest held |
+|---|---|---|
+| 44620 | Jan 29 → Dec 21 → May 10 → … → Sep 2 | Sep 2 (led with Jan 29, **216d** older) |
+| 44624 | Jul 30 → Aug 2 → … → Sep 20 (strictly ascending) | Sep 20 (led with Jul 30) |
+| 44633 | Feb 7 → Mar 17 → Apr 7 → Aug 9 → Aug 10 | Aug 10 (led with Feb 7, 184d older) |
+| 44645 | Mar 7 → Mar 3 → Mar 21 → Mar 24 → Mar 23 → Apr 4 → Apr 5 | Apr 5 (led with Mar 7) |
+
+### Root cause — a missing rule, not a bad string
+
+`normalizeSoldListings` (`lib/pokemonPriceTracker.js`) was a pure `.map()`:
+no sort anywhere in the pipeline. `components/RecentSales` then did
+`rows.slice(0, limit)`. So the order was whatever PokemonPriceTracker
+returned, and the provider guarantees none.
+
+**Where the harm is: the slice.** 11 of the 18 misordered lists were full at
+the 8-row limit. Truncating an unordered array keeps the first eight
+*received*, not the eight most recent — so on an ascending list the page kept
+the eight **oldest** sales and discarded the newest, under a heading reading
+"Recent eBay sales". SO-4 pins exactly this case.
+
+### The shared rule
+
+`lib/soldListingOrder.js` — `sortSoldListingsByDate`, pure (no IO, env or
+clock), applied in two places that must not drift:
+
+- the **provider adapter's chokepoint** (`normalizeSoldListings`), so every
+  consumer, present and future, inherits the order; and
+- the **display component**, which is where the word "Recent" is written and
+  where `limit` is applied — and it sorts **before** it slices (SO-12).
+
+Behaviour: newest first; **undated sales sort after every dated one**, so an
+unknown date is never presented as the most recent sale; an unparseable date
+is treated as undated rather than as epoch or NaN; equal dates keep their
+original relative order on an explicit index tie-break, so a day with several
+sales is deterministic rather than engine-dependent; the input array is never
+mutated (callers pass cached provider payloads they do not own); and no sale
+is invented, dropped or rewritten — ordering only.
+
+### Not touched
+
+`lastSaleDate` is **provider-sourced** (`gradeData.lastSaleDate`), derived
+from the provider's own aggregate and not from this list, so it was never
+affected by the ordering defect and was left alone. The sort is display-only:
+no caller reads sold listings by array position, and no pricing, savings
+eligibility, deal-quality or indexability path consumes them at all. Raw-sale
+filtering (`rawSaleMatchesPrinting`, `rawSalePriceIsPlausible`) is unchanged.
+
+12 behavioural tests (`tests/scanner/sold-listing-order-2026-09-25.test.mjs`)
+run against the real helper. Ratchet OK, quarantine unchanged at 25.
+
+### Separate observation — recorded, NOT fixed here
+
+On some pages the **newest** sale in a correctly ordered list is still months
+old (deal 44643's newest is Feb 14, 2026; read on 2026-09-25 — seven months).
+Ordering makes the list genuinely lead with the most recent sale available,
+but it does not make that sale recent. Whether a list whose newest entry is
+seven months old should still be headed "Recent eBay sales", or should carry
+the age of its newest entry, is a **wording question outside this finding's
+scope** and is recorded here as open. No claim about it is made either way.
 
 **No ranking, traffic or revenue improvement is claimed.**

@@ -3,6 +3,7 @@ import Price from "@/components/Price";
 import { normalizePublicText } from "@/lib/publicText";
 import { wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import { withPlacement } from "@/lib/affiliateAttribution";
+import { sortSoldListingsByDate } from "@/lib/soldListingOrder";
 
 // PokemonPriceTracker's recent-sales feed carries a USD price per sale
 // (no per-sale currency in the data contract); <Price> localises it to
@@ -28,7 +29,15 @@ export default function RecentSales({
   variant = null, // "raw" -> label the list as raw (ungraded) sales
   className = "",
 }) {
-  const rows = (sales ?? []).filter((s) => s && s.price != null);
+  // FINDING 9: this component writes the word "Recent" and then slices the
+  // first `limit` rows, so it is where the ordering claim is actually made.
+  // The provider adapter already orders newest-first
+  // (lib/soldListingOrder.js); applying the SAME shared rule here means the
+  // two cannot drift, a caller that assembles a list some other way still
+  // gets a true heading, and the sort runs before the slice so the rows
+  // shown are the most recent ones rather than the first ones received.
+  // Idempotent on an already-sorted list.
+  const rows = sortSoldListingsByDate((sales ?? []).filter((s) => s && s.price != null));
   const heading = variant === "raw" ? "Recent raw eBay sales" : "Recent eBay sales";
   const caption =
     variant === "raw"

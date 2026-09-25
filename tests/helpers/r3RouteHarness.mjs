@@ -29,7 +29,12 @@ const pure = new Set(['dealPage','listingAvailability','indexability','dealQuali
   // offerPresentation and money - all three already listed above - and
   // returns a plain descriptor. The card route reaches it on every render
   // with offers, and stubbing it would hide the very defect it fixes.
-  'cardSummaryOffer']);
+  'cardSummaryOffer',
+  // newest-first ordering for sold-listing lists (audit finding 9,
+  // 2026-09-25). Pure: array work on rows already in hand, no IO, no env,
+  // no clock. RecentSales reaches it on every render, and stubbing it
+  // would hide the very ordering defect it fixes.
+  'soldListingOrder']);
 export function loadRoute(file, {deal=null,hub=null,card=null,offers=[],analysis=null,renderComponents=false,currency={viewer:null,rates:null}}={}) {
   const calls=[];
   const components=new Map();
