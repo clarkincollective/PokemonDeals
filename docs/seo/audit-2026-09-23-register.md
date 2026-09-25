@@ -18,7 +18,7 @@ while working a finding that is NOT part of that finding.
 | 6 | Duplicate marketplace rows | **closed** — commits `f4a8568`, `cb4d675`, 2026-09-24; 1,105 displayable rows behind 1,000 listings, Magneton hub 12 → 6, see below |
 | 7 | Hero chips drop qualifiers; desktop overflow 1384 vs 1363px | **closed** — commit `72869e0`, 2026-09-24; 229 of 308 hero chips contradicted their destination; overflow reproduced as a 1024-1400px band, see below |
 | 8 | Variant searches drop set / number | **closed** — commit `ef6df5a`, 2026-09-25; 16 of 16 graded hubs lost the set, 9 also the number, see below |
-| 9 | Sales ordering | **closed** — 2026-09-25; 18 of 23 orderable production lists (78%) were not newest-first, median 85-day lag, see below |
+| 9 | Sales ordering | **closed** — commit `09ed6b8`, 2026-09-25; 18 of 23 orderable production lists were visibly misordered and **all 23 were affected** once truncation loss is counted; 0 of 23 after deploy, see below |
 
 ## Finding 2 — what was measured, and what changed
 
@@ -1551,14 +1551,57 @@ filtering (`rawSaleMatchesPrinting`, `rawSalePriceIsPlausible`) is unchanged.
 12 behavioural tests (`tests/scanner/sold-listing-order-2026-09-25.test.mjs`)
 run against the real helper. Ratchet OK, quarantine unchanged at 25.
 
+### Production verification, and a correction to the count above
+
+Same script, same 40 pages, after deploy (commit `09ed6b8`):
+
+| | before | after |
+|---|---|---|
+| orderable lists | 23 | 23 |
+| not newest-first | 18 (78%) | **0 (0%)** |
+| order shapes | 10 mixed, 8 ascending, 5 descending | 23 descending |
+| lag: sale shown first vs newest held | median 85d, max 216d | **0d / 0d** |
+
+**The 78% understated the defect, and the re-run proves it.** All 16 lists
+that were full at the 8-row limit now lead with a sale that was **not present
+in the pre-fix list at all** — so truncation was discarding sales newer than
+anything the page displayed:
+
+| deal | led with, before | leads with, now | pre-fix list's own newest |
+|---|---|---|---|
+| 44637 | Feb 4, 2026 | **Sep 23, 2026** | Feb 4 |
+| 44612 | Jan 20, 2026 | **Sep 20, 2026** | Jan 20 |
+| 44610 | Jan 20, 2026 | **Sep 24, 2026** | Feb 11 |
+| 44622 | Jan 15, 2026 | **Sep 11, 2026** | Jan 15 |
+| 44643 | Jan 12, 2026 | **Sep 19, 2026** | Feb 14 |
+| 44645 | Mar 7, 2026 | **Sep 13, 2026** | Apr 5 |
+
+Critically, **all five pages the census classified as "newest-first" are in
+that group** (44637, 44630, 44627, 44622, 44612 — each now leading with a sale
+193–243 days newer than before). They were ordered *within the visible eight*
+while the array as a whole was not sorted, so they too kept the oldest rows
+available and dropped the newest. **Descending in the visible window is not
+the same as sorted**, and the shape classification could not see the
+difference.
+
+So the corrected statement is: **all 23 orderable lists were affected** — 18
+by visible misordering, and all 16 truncated ones (including the 5 that looked
+right) by discarding newer sales. Every one of the 23 now leads with a sale at
+least as recent as before, 21 of them strictly newer.
+
 ### Separate observation — recorded, NOT fixed here
 
-On some pages the **newest** sale in a correctly ordered list is still months
-old (deal 44643's newest is Feb 14, 2026; read on 2026-09-25 — seven months).
-Ordering makes the list genuinely lead with the most recent sale available,
-but it does not make that sale recent. Whether a list whose newest entry is
-seven months old should still be headed "Recent eBay sales", or should carry
-the age of its newest entry, is a **wording question outside this finding's
-scope** and is recorded here as open. No claim about it is made either way.
+The fix substantially reduced this, because the sales being discarded were the
+recent ones: most pages now lead with a September 2026 sale where they led with
+January–May before. But it does not eliminate it. Two pages in the sample still
+lead with an older sale simply because nothing newer exists in the data — deal
+44629 leads with Mar 23, 2026 and deal 44614 with Jul 19, 2026, read on
+2026-09-25.
+
+Ordering makes a list genuinely lead with the most recent sale available; it
+cannot make that sale recent. Whether a list whose newest entry is six months
+old should still be headed "Recent eBay sales", or should carry the age of its
+newest entry, is a **wording question outside this finding's scope** and is
+recorded here as open. No claim about it is made either way.
 
 **No ranking, traffic or revenue improvement is claimed.**
