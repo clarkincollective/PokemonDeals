@@ -184,7 +184,7 @@ test("14. the raw recent-sales list omits graded slabs AND foreign printings", (
 
 test("15. the aggregate market history and individual sales stay distinctly labelled", () => {
   const rs = readFileSync(join(REPO, "components", "RecentSales.js"), "utf8");
-  assert.match(rs, /Recent raw eBay sales|Recent eBay sales/);
+  assert.match(rs, /Latest recorded (raw )?eBay sales/);
   assert.match(rs, /appear to match this raw printing/);
   assert.match(rs, /Graded slabs,? .*(?:other printings|price-feed outliers).* are filtered out/);
   const card = readFileSync(join(REPO, "app", "cards", "[slug]", "page.js"), "utf8");

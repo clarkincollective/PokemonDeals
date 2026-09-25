@@ -10,7 +10,7 @@ const MONTHS = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7,
 
 function salesSection(html) {
   // The RecentSales <section> — anchored on its own heading text.
-  const h = html.search(/Recent (raw )?eBay sales/);
+  const h = html.search(/(?:Recent|Latest recorded) (?:raw )?eBay sales/);
   if (h < 0) return null;
   const end = html.indexOf("</section>", h);
   return html.slice(h, end < 0 ? h + 40000 : end);

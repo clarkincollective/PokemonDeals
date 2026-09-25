@@ -38,7 +38,15 @@ export default function RecentSales({
   // shown are the most recent ones rather than the first ones received.
   // Idempotent on an already-sorted list.
   const rows = sortSoldListingsByDate((sales ?? []).filter((s) => s && s.price != null));
-  const heading = variant === "raw" ? "Recent raw eBay sales" : "Recent eBay sales";
+  // FINDING 9 follow-up (wording): these were headed "Recent eBay sales",
+  // but the provider's sold-sales window can leave the newest record months
+  // old - after the ordering fix, two pages in the 40-page census still led
+  // with a sale from March and July respectively, read on 2026-09-25.
+  // "Latest recorded" is true whatever the dates turn out to be: it claims
+  // only that these are the most recent sales we hold, which the sort above
+  // now guarantees. It needs no age threshold and no date arithmetic, so
+  // there is nothing here that can drift out of step with the data.
+  const heading = variant === "raw" ? "Latest recorded raw eBay sales" : "Latest recorded eBay sales";
   const caption =
     variant === "raw"
       ? "Real individual sold listings that appear to match this raw printing — not a market-reference estimate. Graded slabs, other printings (reprints, 1st Edition, Japanese) and obvious price-feed outliers are filtered out, so few or none may remain."
