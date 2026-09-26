@@ -192,6 +192,7 @@ test("TC-6 wiring pins: default source, WOTC pass gated to the provider, snapsho
   assert.match(cron, /"path": "\/api\/sync-card-catalog\?language=japanese"/);
   const client = read("lib/tcgcsv.js");
   assert.match(client, /WOTC_DUAL_PRINTING_SETS\.has/);
+  assert.match(client, /language === "english" && isWotcDualPrintingGroup\(setName\)/, "the WOTC skip is scoped to English: a Japanese set sharing a name is a different product");
   assert.match(client, /"User-Agent": USER_AGENT/);
   assert.equal(tcgcsv.isWotcDualPrintingGroup("Neo Destiny"), true);
   assert.equal(tcgcsv.isWotcDualPrintingGroup("ME: 30th Celebration"), false);
