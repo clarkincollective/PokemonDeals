@@ -274,6 +274,56 @@ test("SR-18 the cached pool shape carries reference_source, so homepage / pool c
   assert.equal(prov.referenceObservedDateText(slim), "as of 25 Sep 2026");
 });
 
+test("SR-19 a 200 whose minute allowance is spent holds the pool until the minute reset; a short hold never shortens a long one", async () => {
+  const db = createMemoryDb({ catalog_snapshot: [] });
+  ppt.setPptCircuitSink(db);
+  const minuteReset = String(Math.floor(Date.now() / 1000) + 1); // epoch seconds, 1 s ahead
+  const calls = mockFetch([
+    { status: 200, body: OK_BODY, headers: { "content-type": "application/json", "x-ratelimit-daily-remaining": "57", "x-ratelimit-minute-remaining": "0", "x-ratelimit-minute-reset": minuteReset } },
+    { status: 200, body: OK_BODY },
+    { status: 200, body: OK_BODY, headers: { "content-type": "application/json", "x-ratelimit-daily-remaining": "0", "x-ratelimit-daily-reset": String(Math.floor(Date.now() / 1000) + 3600) } },
+    { status: 200, body: OK_BODY, headers: { "content-type": "application/json", "x-ratelimit-daily-remaining": "0", "x-ratelimit-minute-remaining": "0", "x-ratelimit-minute-reset": "60" } },
+  ]);
+  const md = await ppt.getConditionPrices("1001", "english");
+  assert.equal(md.byCondition["Near Mint"], 10, "the response that spent the minute is still used");
+  await assert.rejects(() => ppt.getConditionPrices("1001", "english"), (e) => e.code === "ppt_exhausted");
+  assert.equal(calls.length, 1, "nothing more is sent this minute");
+  let row = db.tables.catalog_snapshot.find((r) => r.kind === "ppt_circuit:credits");
+  assert.equal(row.data.reason, "minute_remaining_0");
+  assert.ok(Date.parse(row.data.until) - Date.now() <= 1_500, "held only until the minute reset");
+  await new Promise((r) => setTimeout(r, 1_300));
+  ppt.setPptCircuitSink(db); // a fresh process after the minute: reads the persisted (now past) hold
+  await ppt.getConditionPrices("1001", "english");
+  assert.equal(calls.length, 2, "the next minute's request goes out");
+  // two responses in flight: the daily-spent one lands first (1 h hold), the
+  // minute-spent one second (60 s) - the hold must stay at the hour
+  await Promise.all([ppt.getConditionPrices("1001", "english"), ppt.getConditionPrices("1002", "english")]);
+  row = db.tables.catalog_snapshot.find((r) => r.kind === "ppt_circuit:credits");
+  assert.equal(row.data.reason, "daily_remaining_0");
+  assert.ok(Date.parse(row.data.until) - Date.now() > 3_500_000, "a 60 s minute hold did not shorten the daily hold");
+  assert.equal(calls.length, 4);
+});
+
+test("SR-20 the paced client waits out a short (minute) hold and retries; a long hold still fails at once", async () => {
+  const db = createMemoryDb({ catalog_snapshot: [] });
+  ppt.setPptCircuitSink(db);
+  const calls = mockFetch([
+    { status: 200, body: OK_BODY, headers: { "content-type": "application/json", "x-ratelimit-minute-remaining": "0", "x-ratelimit-minute-reset": "1" } },
+    { status: 200, body: OK_BODY },
+  ]);
+  await ppt.getConditionPrices("1001", "english"); // spends the minute: 1 s hold
+  const t0 = Date.now();
+  const body = await ppt.fetchPPTPaced(new URL("https://www.pokemonpricetracker.com/api/v2/cards?tcgPlayerId=1001"), { op: "test" });
+  assert.ok(body?.data, "the paced request succeeded after the hold");
+  assert.ok(Date.now() - t0 >= 900, "it waited for the minute reset rather than failing the row");
+  assert.equal(calls.length, 2, "exactly one request after the hold, none during it");
+  // an hours-long hold is not waited out
+  const db2 = createMemoryDb({ catalog_snapshot: [{ kind: "ppt_circuit:credits", data: { until: new Date(Date.now() + 3_600_000).toISOString(), reason: "daily_429" } }] });
+  ppt.setPptCircuitSink(db2);
+  await assert.rejects(() => ppt.fetchPPTPaced(new URL("https://www.pokemonpricetracker.com/api/v2/cards?tcgPlayerId=1001"), { op: "test" }), (e) => e.code === "ppt_exhausted");
+  assert.equal(calls.length, 2);
+});
+
 test("SR-11 PPT_SAVED_DATA_MODE closes all three doors before any request, the export included", async () => {
   const db = createMemoryDb({ catalog_snapshot: [] });
   ppt.setPptCircuitSink(db);
