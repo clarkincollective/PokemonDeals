@@ -150,10 +150,10 @@ test("IDB-8. the pool + homepage-lanes cache keys were bumped so a stale entry o
   // (deal-first P1); v4 = slim rows carrying the stored reference evidence
   // (SEO-4) - a v3 entry has no evidence, so every row in it would render
   // with no saving at all until the entry expired
-  assert.match(src, /\["deals-pool-v4"\]/);
-  assert.match(src, /\["homepage-lanes-v4"\]/);
-  assert.doesNotMatch(src, /\["deals-pool"\]|\["deals-pool-v2"\]|\["deals-pool-v3"\]/);
-  assert.doesNotMatch(src, /\["homepage-lanes-v1"\]|\["homepage-lanes-v2"\]|\["homepage-lanes-v3"\]/);
+  assert.match(src, /\["deals-pool-v5"\]/);
+  assert.match(src, /\["homepage-lanes-v5"\]/);
+  assert.doesNotMatch(src, /\["deals-pool"\]|\["deals-pool-v2"\]|\["deals-pool-v3"\]|\["deals-pool-v4"\]/);
+  assert.doesNotMatch(src, /\["homepage-lanes-v1"\]|\["homepage-lanes-v2"\]|\["homepage-lanes-v3"\]|\["homepage-lanes-v4"\]/);
 });
 
 test("IDB-9. every homepage lane pool is slimmed before it enters the homepage-lanes cache entry", () => {

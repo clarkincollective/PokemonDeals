@@ -19,7 +19,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import { createMemoryDb } from "../harness/ingestion/memoryDb.mjs";
 
@@ -262,6 +262,16 @@ test("SR-17 a 403 key block holds the pool for exactly the provider's retryAfter
   const untilMs = Date.parse(row.data.until);
   assert.ok(untilMs >= before + 11646_000 - 5_000 && untilMs <= Date.now() + 11646_000 + 5_000, "held for the provider's stated seconds");
   assert.equal(row.data.reason, "key_blocked_403");
+});
+
+test("SR-18 the cached pool shape carries reference_source, so homepage / pool cards can name a saved reference", async () => {
+  const shape = await import(pathToFileURL(join(REPO, "lib/dealPoolShape.mjs")).href);
+  assert.ok(shape.POOL_ROW_FIELDS.includes("reference_source"), "POOL_ROW_FIELDS");
+  assert.match(shape.DEAL_POOL_SELECT, /\breference_source\b/, "DEAL_POOL_SELECT");
+  const slim = shape.slimPoolRow({ id: 1, reference_source: "card_catalog", reference_observed_at: AS_OF_NEW, watchlist: { name: "x" } });
+  assert.equal(slim.reference_source, "card_catalog");
+  assert.equal(prov.referenceSourceLabel(slim), "Saved catalogue price");
+  assert.equal(prov.referenceObservedDateText(slim), "as of 25 Sep 2026");
 });
 
 test("SR-11 PPT_SAVED_DATA_MODE closes all three doors before any request, the export included", async () => {
