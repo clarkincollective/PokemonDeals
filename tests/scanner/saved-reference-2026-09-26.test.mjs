@@ -247,6 +247,23 @@ test("SR-16 a 200 with NO allowance header leaves the circuit closed; an ISO res
   assert.equal(row.data.until, new Date(resetIso).toISOString(), "the provider's own ISO reset is the hold, not our midnight guess");
 });
 
+test("SR-17 a 403 key block holds the pool for exactly the provider's retryAfter, not until midnight", async () => {
+  const db = createMemoryDb({ catalog_snapshot: [] });
+  ppt.setPptCircuitSink(db);
+  const before = Date.now();
+  const calls = mockFetch([
+    { status: 403, body: '{"error":"API key blocked for abuse","message":"Block #3: exceeded 50 429 requests in 5 minutes (free plan)","retryAfter":11646}' },
+    { status: 200, body: OK_BODY },
+  ]);
+  await assert.rejects(() => ppt.getConditionPrices("1001", "english"), /403/);
+  await assert.rejects(() => ppt.getConditionPrices("1001", "english"), (e) => e.code === "ppt_exhausted");
+  assert.equal(calls.length, 1, "nothing is sent while the key is blocked");
+  const row = db.tables.catalog_snapshot.find((r) => r.kind === "ppt_circuit:credits");
+  const untilMs = Date.parse(row.data.until);
+  assert.ok(untilMs >= before + 11646_000 - 5_000 && untilMs <= Date.now() + 11646_000 + 5_000, "held for the provider's stated seconds");
+  assert.equal(row.data.reason, "key_blocked_403");
+});
+
 test("SR-11 PPT_SAVED_DATA_MODE closes all three doors before any request, the export included", async () => {
   const db = createMemoryDb({ catalog_snapshot: [] });
   ppt.setPptCircuitSink(db);
