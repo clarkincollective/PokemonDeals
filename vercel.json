@@ -57,6 +57,10 @@
       "schedule": "0 2 * * *"
     },
     {
+      "path": "/api/sync-card-catalog?language=japanese",
+      "schedule": "40 2 * * *"
+    },
+    {
       "path": "/api/sync-sealed-catalog",
       "schedule": "0 5 * * *"
     },

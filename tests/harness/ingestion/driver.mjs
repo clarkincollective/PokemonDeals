@@ -286,6 +286,16 @@ async function run() {
         updated_at: "2026-09-26T10:30:00.000Z",
       });
     }
+    // 2026-09-27: the Clefairy card ALSO holds a fresh tcgcsv_ref row (Near
+    // Mint only, same $60, TCGCSV's own file date). The written Near Mint
+    // comparison must carry THAT date, while a ladder-only card keeps
+    // SAVED_AS_OF - the cell-level provenance the merge promises.
+    const FRESH_AS_OF = "2026-09-26T20:02:58.000Z";
+    savedRows.push({
+      kind: "tcgcsv_ref:syn-clefairy-bs:english",
+      data: { v: 1, tcgplayerId: "syn-clefairy-bs", language: "english", name: "Clefairy", setName: "Base Set", cardNumber: "005/102", retrievedAt: "2026-09-27T02:00:00.000Z", source: "tcgcsv", printings: { Normal: { nm: 60, lp: null, mp: null, hp: null, dmg: null, market: 60, marketCondition: "Near Mint", low: 55, mid: null, high: null, lastPriceUpdate: FRESH_AS_OF } } },
+      updated_at: "2026-09-27T02:00:00.000Z",
+    });
     const priority = scenario === "saved-percard";
     const wl = watchlist.map((w) => ({ ...w, tier: priority ? "priority" : "extended", last_known_price: null }));
     wl.push({ id: "syn-wl-wrongprint", name: "Clefable", set: "Base Set", justtcg_tcgplayer_id: wrongPrintId, active: true, language: "english", tier: priority ? "priority" : "extended", last_known_price: null });

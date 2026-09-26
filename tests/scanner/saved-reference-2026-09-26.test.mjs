@@ -46,7 +46,7 @@ test("SR-1 two printings stay two printings; collapsed maps take the lowest and 
   assert.deepEqual(md.byPrintingCondition["Reverse Holofoil"], { "Near Mint": 150 });
   assert.deepEqual(md.byPrintingCondition.Holofoil, { "Near Mint": 100, "Lightly Played": 80 });
   assert.equal(md.byCondition["Near Mint"], 100);
-  assert.deepEqual(md.byConditionReference["Near Mint"], { price: 100, condition: "Near Mint", printing: "Holofoil" });
+  assert.deepEqual(md.byConditionReference["Near Mint"], { price: 100, condition: "Near Mint", printing: "Holofoil", observedAt: "2026-09-25T00:00:00.000Z" }, "the cell carries its own provider date");
   assert.equal(md.byConditionReference["Lightly Played"].printing, "Holofoil");
   assert.equal(md.fallbackPrice, 100, "fallback is pickCatalogMarketReference's choice, the same rule the nightly sync uses");
   assert.equal(md.fallbackReference.condition, "Near Mint");
@@ -420,7 +420,11 @@ for (const scenario of ["saved-percard", "saved-sweep"]) {
     assert.ok(raw.length > 0, `${scenario} wrote no raw rows`);
     for (const w of raw) {
       assert.equal(w.referenceSource, "card_catalog", `${w.title}: reference_source`);
-      assert.equal(w.referenceObservedAt, SAVED_AS_OF, `${w.title}: the provider's as-of, never the download or scan day`);
+      // 2026-09-27: Clefairy also holds a fresh tcgcsv_ref row, so its Near
+      // Mint comparison carries the TCGCSV file date; every other card is
+      // ladder-only and keeps the preserved provider as-of
+      const expectedAsOf = w.cardId === "syn-clefairy-bs" ? "2026-09-26T20:02:58.000Z" : SAVED_AS_OF;
+      assert.equal(w.referenceObservedAt, expectedAsOf, `${w.title}: the producing cell's own provider date, never the download or scan day`);
       assert.ok(w.referenceCondition, `${w.title}: reference_condition`);
       assert.ok(w.referencePrinting, `${w.title}: reference_printing`);
       assert.ok(w.marketPrice > 0 && w.discountPct > 0, `${w.title}: a real comparison`);

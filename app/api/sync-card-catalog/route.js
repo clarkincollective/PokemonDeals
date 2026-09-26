@@ -8,6 +8,10 @@ import {
   getCatalogReference,
 } from "@/lib/pokemonPriceTracker";
 import { upsertWithProvenance, updateWithProvenance } from "@/lib/referenceProvenanceDb";
+// 2026-09-27 - TCGCSV, the free daily TCGplayer catalogue (lib/tcgcsv.js):
+// the default row source now that the provider's export is not on its free
+// plan. Same export row shape, so everything below the fetch is unchanged.
+import { fetchTcgcsvCatalogue, buildTcgcsvRefRows, writeTcgcsvRefs, TCGCSV_SOURCE } from "@/lib/tcgcsv";
 import { extractSpecies } from "@/lib/pokemonSpecies";
 import { catalogImageUrl } from "@/lib/cardImage";
 import { setPptConsumer } from "@/lib/pptTelemetry";
@@ -51,15 +55,35 @@ export async function GET(request) {
   const url = new URL(request.url);
   const language = url.searchParams.get("language") || "english";
   const limit = Number(url.searchParams.get("limit")) || null; // test pass
+  // 2026-09-27: "tcgcsv" (default) reads TCGplayer's daily catalogue from
+  // tcgcsv.com - free, keyless, both languages; "ppt" is the provider's
+  // printings export, which its free plan does not include. The rows have
+  // the same shape either way, so the merge and every write below are shared.
+  const source = url.searchParams.get("source") === "ppt" ? "ppt" : TCGCSV_SOURCE;
+  // The browsing catalogue (card_catalog) is English; another language's
+  // rows feed only the scanner's saved references (tcgcsv_ref), never
+  // card_catalog or its history.
+  const writeCatalog = language === "english";
 
   const db = supabaseAdmin();
   const started = Date.now();
 
   let rows;
+  let tcgcsv = null;
   try {
-    rows = await downloadPrintingsExport();
+    if (source === "ppt") {
+      rows = await downloadPrintingsExport();
+    } else {
+      const got = await fetchTcgcsvCatalogue({ language, groupLimit: limit ? 3 : null });
+      rows = got.rows;
+      tcgcsv = { asOf: got.asOf, ...got.stats };
+    }
   } catch (err) {
-    return Response.json({ ok: false, stage: "export", error: err.message }, { status: 200 });
+    // either source failing returns HERE, before any write and before the
+    // history snapshot - a frozen catalogue is never written back as a day
+    // of history (tests/scanner/pause-safety-2026-09-22)
+    if (source === "ppt") return Response.json({ ok: false, stage: "export", error: err.message }, { status: 200 });
+    return Response.json({ ok: false, stage: "tcgcsv", error: err.message }, { status: 200 });
   }
 
   // Merge the per-printing rows into one record per card (tcgPlayerId).
@@ -126,7 +150,7 @@ export async function GET(request) {
       market_condition: ref.condition,
       market_printing: ref.printing,
       image_url: catalogImageUrl(c.tcgplayer_id),
-      source: "pokemonpricetracker",
+      source: source === "ppt" ? "pokemonpricetracker" : TCGCSV_SOURCE,
       synced_at: new Date().toISOString(),
     };
   });
@@ -159,6 +183,7 @@ export async function GET(request) {
   const provenanceState = {};
   let upserted = 0;
   for (let i = 0; i < records.length; i += UPSERT_CHUNK) {
+    if (!writeCatalog) break; // another language: saved references only, no card_catalog rows
     const slice = records.slice(i, i + UPSERT_CHUNK);
     const { error } = await upsertWithProvenance(db, "card_catalog", slice, "tcgplayer_id", provenanceState);
     if (error) {
@@ -182,7 +207,11 @@ export async function GET(request) {
   // next daily run continues.
   let wotcChecked = 0;
   let wotcFixed = 0;
-  if (!limit) {
+  // 2026-09-27: the re-derivation spends provider credits (one /cards call
+  // per WOTC card) and exists to undo the PPT export's 1st/Unlimited blend;
+  // the TCGCSV pass skips those eleven sets entirely (their stored
+  // references are kept, not blended), so it has nothing to fix here.
+  if (!limit && source === "ppt" && writeCatalog) {
     const wotcRows = records.filter((r) => WOTC_DUAL_PRINTING_SETS.has(r.set));
     const deadline = started + (maxDuration - 120) * 1000;
     const queue = [...wotcRows];
@@ -232,9 +261,29 @@ export async function GET(request) {
   // The provenance of every price this job just wrote (including the WOTC
   // second-pass corrections), keyed by card, for the history snapshot.
   const provenanceById = new Map(records.map((r) => [String(r.tcgplayer_id), { condition: r.market_condition ?? null, printing: r.market_printing ?? null }]));
-  const snap = limit
-    ? { written: 0, error: "skipped (limit pass)", provenance: null }
-    : await snapshotCatalogHistory(db, language, provenanceById, provenanceState);
+  // 2026-09-27: a TCGCSV pass refreshes only the cards its files price today
+  // (the WOTC sets and any card it lacks keep their stored figure), and a
+  // card that was NOT refreshed must not get a history point dated today -
+  // that would be a reused reference written as a new observation. So the
+  // snapshot is restricted to the ids this run wrote. The PPT export
+  // refreshed the whole catalogue, so its snapshot stays whole.
+  const snapshotIds = source === "ppt" ? null : new Set(provenanceById.keys());
+  const snap = limit || !writeCatalog
+    ? { written: 0, error: writeCatalog ? "skipped (limit pass)" : `skipped (${language}: no card_catalog rows)`, provenance: null }
+    : await snapshotCatalogHistory(db, language, provenanceById, provenanceState, snapshotIds);
+
+  // 2026-09-27: the scanner's FRESH saved references - one tcgcsv_ref row per
+  // card + language, every printing kept, Near Mint only, the file's own
+  // as-of. Written for every language (this is how Japanese cards get a
+  // current reference); merged cell by cell with the preserved ladders in
+  // lib/savedReference. A limit pass writes only its slice.
+  let tcgcsvRefs = { written: 0, errors: [] };
+  if (source !== "ppt") {
+    const keep = limit ? new Set(records.map((r) => String(r.tcgplayer_id))) : null;
+    const refRows = buildTcgcsvRefRows(keep ? rows.filter((r) => keep.has(String(r.tcgPlayerId))) : rows);
+    tcgcsvRefs = await writeTcgcsvRefs(db, refRows);
+    tcgcsvRefs.rows = refRows.length;
+  }
 
   // Both write paths converge here: the chunked upsert and the WOTC
   // second pass, which re-derives market_price for dual-printing sets.
@@ -243,6 +292,11 @@ export async function GET(request) {
   return Response.json({
     ok: true,
     language,
+    source,
+    asOf: tcgcsv?.asOf ?? null,
+    tcgcsv,
+    tcgcsvRefs,
+    writeCatalog,
     invalidated,
     invalidationErrors,
     exportRows: rows.length,
@@ -275,7 +329,9 @@ const SNAPSHOT_CHUNK = 1000;
 // KEY ('Near Mint' - part of the unique index, the card_reference_lastmod
 // filter and the chart read) and is NOT the observed condition - see
 // supabase/price_condition_provenance_migration.sql.
-async function snapshotCatalogHistory(db, language, provenanceById = new Map(), provenanceState = {}) {
+// `onlyIds` (Set | null): when given, only these cards are snapshotted -
+// the ones THIS run refreshed (2026-09-27, see the caller).
+async function snapshotCatalogHistory(db, language, provenanceById = new Map(), provenanceState = {}, onlyIds = null) {
   const observed_on = new Date().toISOString().slice(0, 10);
   let written = 0;
   let scanned = 0;
@@ -293,6 +349,7 @@ async function snapshotCatalogHistory(db, language, provenanceById = new Map(), 
 
     const chunk = [];
     for (const r of data) {
+      if (onlyIds && !onlyIds.has(String(r.tcgplayer_id))) continue; // not refreshed today: no point today
       const p = Number(r.market_price);
       if (!Number.isFinite(p) || p <= 0 || SNAPSHOT_SENTINELS.has(p)) continue;
       const prov = provenanceById.get(String(r.tcgplayer_id)) ?? { condition: null, printing: null };

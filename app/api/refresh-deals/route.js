@@ -222,11 +222,15 @@ function marketDataForListing(marketData, { listing, row }) {
   if (!choice.printing) return null;
 
   const tiers = matrix[choice.printing] ?? {};
+  // 2026-09-27: the cell's own provider date, when the data states one per
+  // cell (saved rows merged from two dated sources); live data states none
+  // here and keeps the matrix-level observedAt downstream
+  const asOfRow = marketData.byPrintingConditionAsOf?.[choice.printing] ?? {};
   const byCondition = {};
   const byConditionReference = {};
   for (const [tier, price] of Object.entries(tiers)) {
     byCondition[tier] = price;
-    byConditionReference[tier] = { price, condition: tier, printing: choice.printing };
+    byConditionReference[tier] = { price, condition: tier, printing: choice.printing, observedAt: asOfRow[tier] ?? null };
   }
   // The aggregate fallback is only safe when the card has ONE printing.
   // On a multi-printing card it may blend them, which is the same class
@@ -260,6 +264,9 @@ async function savedMarketDataFor(db, row) {
     byConditionReference: saved.byConditionReference,
     fallbackReference: saved.fallbackReference,
     byPrintingCondition: saved.byPrintingCondition,
+    // 2026-09-27: per-cell provider dates (a merged saved row carries a fresh
+    // Near Mint date and the preserved ladder's date side by side)
+    byPrintingConditionAsOf: saved.byPrintingConditionAsOf ?? null,
     observedAt: saved.lastUpdated ?? null,
     source: saved.source,
     savedFrom: saved.savedFrom ?? null,
@@ -644,7 +651,9 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
       productId,
       amount: ref.price,
       currency: "USD",
-      observedAt: marketData?.observedAt ?? null,
+      // 2026-09-27: the date of the CELL that produced the figure when the
+      // data states one (merged saved rows); else the matrix-level date
+      observedAt: ref.observedAt ?? marketData?.observedAt ?? null,
       syncedAt: new Date().toISOString(),
       condition: ref.condition ?? null,
       printing: ref.printing ?? null,
@@ -1312,7 +1321,8 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
               productId: row.justtcg_tcgplayer_id,
               amount: sweepRef.price,
               currency: "USD",
-              observedAt: marketData.observedAt ?? null,
+              // 2026-09-27: the producing cell's own date first (merged saved rows)
+              observedAt: sweepRef.observedAt ?? marketData.observedAt ?? null,
               syncedAt: new Date().toISOString(),
               condition: sweepRef.condition ?? null,
               printing: sweepRef.printing ?? null,
