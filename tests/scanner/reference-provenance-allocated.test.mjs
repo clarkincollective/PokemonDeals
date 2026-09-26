@@ -68,6 +68,10 @@ const REFERENCE_FOR_SRC = ROUTE.match(/const referenceFor = \(core\) => \{[\s\S]
 function referenceFor(core, marketData, row = { justtcg_tcgplayer_id: "113764" }) {
   const fn = runInNewContext("(" + REFERENCE_FOR_SRC.replace(/;$/, "") + ")", {
     row, marketData, listingMarket: marketData,
+    // 2026-09-26: the graded branch now names its own source (live bucket =
+    // "ppt_live", saved bucket = "card_catalog") through this closure
+    // variable; the live value is bound here, as the route initialises it.
+    gradedReferenceSource: "ppt_live",
     selectConditionReference, buildCardReference, clearedReference, CARD_REFERENCE_COLUMNS,
   });
   return fn(core);

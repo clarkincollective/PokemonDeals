@@ -5,6 +5,7 @@ import { slugifySet } from "@/lib/slugify";
 import { currencyForDeal, refInListingCurrency } from "@/lib/money";
 import RelativeTime, { WithinWindow } from "@/components/RelativeTime";
 import { conditionLabel, listingPresentation, savingsPercentText } from "@/lib/dealQuality";
+import { referenceSourceLabel, referenceObservedDateText } from "@/lib/referenceProvenance";
 import { normalizePublicText } from "@/lib/publicText";
 import { cardDisplayName } from "@/lib/cardName";
 import { priceBandUsd, discountBand, listingTypeProp, rawVsGraded } from "@/lib/analytics/props";
@@ -730,6 +731,20 @@ export default function DealCard({ deal, rank, hub, pageName = "home", validSetS
                   <dd className="text-right">
                     {conditionText}
                     {deal.reference_printing ? ` · ${deal.reference_printing}` : ""}
+                  </dd>
+                </div>
+              )}
+              {/* 2026-09-26 - WHERE the reference came from and WHEN the
+                  provider observed it. A comparison priced from a saved
+                  catalogue figure says so, with the figure's own date -
+                  never the day we re-read it. Same trust gate as the two
+                  rows above, so a plain listing shows no source line. */}
+              {showStoredRef && referenceSourceLabel(deal) && (
+                <div className="flex justify-between gap-3">
+                  <dt>Reference source</dt>
+                  <dd className="text-right">
+                    {referenceSourceLabel(deal)}
+                    {referenceObservedDateText(deal) ? ` · ${referenceObservedDateText(deal)}` : ""}
                   </dd>
                 </div>
               )}

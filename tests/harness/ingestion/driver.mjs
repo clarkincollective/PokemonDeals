@@ -148,6 +148,15 @@ function describeWrittenRows(db) {
       discountPct: Math.round(Number(r.discount_pct) * 1000) / 1000,
       displayable: dq.isDisplayableDeal(row),
       disqualificationReason: dq.disqualificationReason(row),
+      // 2026-09-26 saved references: the provenance the writer stored and
+      // the display gate's verdict on the SAVINGS claim (not just visibility)
+      referenceSource: r.reference_source ?? null,
+      referenceObservedAt: r.reference_observed_at ?? null,
+      referenceCondition: r.reference_condition ?? null,
+      referencePrinting: r.reference_printing ?? null,
+      referenceGrader: r.reference_grader ?? null,
+      referenceGrade: r.reference_grade ?? null,
+      savingsTrusted: dq.savingsClaimTrusted(row),
     };
   });
 }
@@ -232,6 +241,57 @@ async function run() {
     harness.db = seedDb({ priority: true });
     mod = await import(pathToFileURL(join(REPO, "app", "api", "refresh-deals", "route.js")).href);
     url = "http://harness/api/refresh-deals?tier=priority&country=EBAY_US";
+  } else if (scenario === "saved-percard" || scenario === "saved-sweep") {
+    // 2026-09-26 SAVED REFERENCES - the provider is EXHAUSTED (free tier,
+    // credits gone: every billed lookup throws PptExhaustedError) and the
+    // scanner must price from what we hold. Seeds one saved_ref row per
+    // evidence card, in the shape scripts/preservation/importSavedReferences
+    // writes: ONE printing ("Normal") carrying a Near Mint figure equal to
+    // the catalogue's market_price, a Lightly Played figure below it, and
+    // the provider's own as-of (SAVED_AS_OF) - never today's date. One
+    // card ("wrongprint") holds ONLY a Reverse Holofoil printing, so a
+    // listing that does not evidence that finish must get no comparison.
+    // Graded: the stub refuses too, and no saved_graded rows are seeded, so
+    // graded listings must NOT be written with any raw reference.
+    harness.pptExhausted = true;
+    const SAVED_AS_OF = "2026-09-25T00:00:00.000Z";
+    // One synthetic RAW Clefairy listing (no finish stated) at $30 against a
+    // $60 Near Mint saved reference: a 50% saved-reference discount for the
+    // Base Set row, and the wrong-printing row's test subject.
+    listings.push(toListing({ listing_id: "v1|900000000002|0", title: "Clefairy 5/102 Base Set", listing_type: "FIXED_PRICE", total_price_usd: 30 }));
+    // A SECOND synthetic card whose only saved printing is a parallel
+    // (Reverse Holofoil) and whose listing states no finish: the scanner may
+    // store the catalogue printing, but the display gate must withhold the
+    // savings claim (deal 42127's rule) - no substituted comparison shown.
+    // Its own name, so it shares no listing with the Clefairy rows.
+    listings.push(toListing({ listing_id: "v1|900000000003|0", title: "Clefable 6/102 Base Set", listing_type: "FIXED_PRICE", total_price_usd: 30 }));
+    const wrongPrintId = "syn-wrongprint";
+    const catalogWithPrinting = catalog.map((c) => ({ ...c, market_condition: "Near Mint", market_printing: "Normal" }));
+    catalogWithPrinting.push({ tcgplayer_id: wrongPrintId, name: "Clefable", set: "Base Set", card_number: "006/102", market_price: 60, language: "english", market_condition: "Near Mint", market_printing: "Reverse Holofoil" });
+    const savedRows = [];
+    for (const c of catalogWithPrinting) {
+      const nm = Number(c.market_price);
+      if (!(nm > 0)) continue;
+      const printing = c.tcgplayer_id === wrongPrintId ? "Reverse Holofoil" : "Normal";
+      savedRows.push({
+        kind: `saved_ref:${c.tcgplayer_id}:${c.language ?? "english"}`,
+        data: {
+          v: 1,
+          tcgplayerId: String(c.tcgplayer_id),
+          language: c.language ?? "english",
+          retrievedAt: "2026-09-26T10:30:00.000Z",
+          source: "ppt_export",
+          printings: { [printing]: { nm, lp: Math.round(nm * 0.85 * 100) / 100, mp: null, hp: null, dmg: null, market: nm, marketCondition: "Near Mint", low: null, sellers: 5, lastPriceUpdate: SAVED_AS_OF } },
+        },
+        updated_at: "2026-09-26T10:30:00.000Z",
+      });
+    }
+    const priority = scenario === "saved-percard";
+    const wl = watchlist.map((w) => ({ ...w, tier: priority ? "priority" : "extended", last_known_price: null }));
+    wl.push({ id: "syn-wl-wrongprint", name: "Clefable", set: "Base Set", justtcg_tcgplayer_id: wrongPrintId, active: true, language: "english", tier: priority ? "priority" : "extended", last_known_price: null });
+    harness.db = createMemoryDb({ watchlist: wl, card_catalog: catalogWithPrinting, deals: [], discovery_events: [], ebay_job_runs: [], scan_target_state: [], catalog_snapshot: savedRows });
+    mod = await import(pathToFileURL(join(REPO, "app", "api", "refresh-deals", "route.js")).href);
+    url = priority ? "http://harness/api/refresh-deals?tier=priority&country=EBAY_US" : "http://harness/api/refresh-deals?mode=sweep&country=EBAY_US&pages=1";
   } else if (scenario === "feed") {
     harness.db = seedDb();
     harness.feedItems = deals.map((d) => ({ marketplace: "EBAY_US", ebayItemId: legacy(d.listing_id), sourceUrl: "https://example.invalid/board", feedTitle: d.title }));
@@ -248,6 +308,8 @@ async function run() {
     calls: harness.calls,
     gradedPriceRequests: harness.gradedPriceRequests,
     written: describeWrittenRows(harness.db),
+    // 2026-09-26: reusing a saved reference must never manufacture history
+    priceHistoryWrites: harness.db.writes.filter((w) => w.table === "price_history").length,
     ...(scenario === "sweepgrant"
       ? {
           ledger: (() => {

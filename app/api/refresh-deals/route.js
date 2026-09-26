@@ -8,7 +8,11 @@ import {
   getRawListingDetail,
   getBrowseRateLimit,
 } from "@/lib/ebay";
-import { getConditionPrices, getGradedPrice } from "@/lib/pokemonPriceTracker";
+import { getConditionPrices, getGradedPrice, isPptCircuitOpen } from "@/lib/pokemonPriceTracker";
+// 2026-09-26 - saved market references (lib/savedReference.js): the
+// reference source when the provider cannot be asked. Same shapes as the
+// live response, provenance "card_catalog", provider dates preserved.
+import { loadSavedMarketData, loadSavedGradedPrice, savedReferenceIds } from "@/lib/savedReference";
 import { getUsdRates, toUsd } from "@/lib/fx";
 import { logDiscoveryEvent } from "@/lib/discoveryLog";
 import { writeDiscoverySighting, insertNewSighting, finalisePilotInsert, abandonedPilotPendingRows, PILOT_PENDING_REASON, DEAL_LISTS_TAG, takeObservationTally } from "@/lib/listingAvailability";
@@ -235,6 +239,30 @@ function marketDataForListing(marketData, { listing, row }) {
     fallbackPrice: singlePrinting ? marketData.fallbackPrice : null,
     fallbackReference: singlePrinting ? marketData.fallbackReference : null,
     printingChoice: choice,
+  };
+}
+
+// 2026-09-26 SAVED REFERENCES. The provider-shaped market data for a card
+// from what we already hold (lib/savedReference: the captured printings
+// export's per-printing condition ladders, else card_catalog's single
+// labelled figure). Same field whitelist as the two live builders below,
+// so marketDataForListing, the tier selectors and referenceFor consume it
+// unchanged. `source` travels with it and becomes reference_source;
+// `observedAt` is the PROVIDER's own lastPriceUpdate, never today.
+async function savedMarketDataFor(db, row) {
+  if (!row?.justtcg_tcgplayer_id) return null;
+  const saved = await loadSavedMarketData(db, { tcgplayerId: row.justtcg_tcgplayer_id, language: row.language });
+  if (!saved) return null;
+  return {
+    byCondition: saved.byCondition,
+    fallbackPrice: saved.fallbackPrice,
+    priceChange24hr: null,
+    byConditionReference: saved.byConditionReference,
+    fallbackReference: saved.fallbackReference,
+    byPrintingCondition: saved.byPrintingCondition,
+    observedAt: saved.lastUpdated ?? null,
+    source: saved.source,
+    savedFrom: saved.savedFrom ?? null,
   };
 }
 
@@ -584,13 +612,16 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
   // choice is per LISTING, so the reference this builds must come from
   // the narrowed view, never the card-wide one.
   let listingMarket = null;
+  // 2026-09-26 - where this scan's graded figure came from ("ppt_live" or
+  // "card_catalog"), set by the graded branch below before it writes.
+  let gradedReferenceSource = "ppt_live";
 
   const referenceFor = (core) => {
     const productId = row.justtcg_tcgplayer_id ?? null;
     if (productId == null || core.market_price == null) return clearedReference(CARD_REFERENCE_COLUMNS);
     if (core.is_graded) {
       return buildCardReference({
-        source: "ppt_live",
+        source: gradedReferenceSource,
         productId,
         amount: core.market_price,
         currency: "USD",
@@ -607,7 +638,9 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
       return clearedReference(CARD_REFERENCE_COLUMNS);
     }
     return buildCardReference({
-      source: "ppt_live",
+      // 2026-09-26: the source the market data itself declares - a saved
+      // reference says "card_catalog", a live one "ppt_live". Never assumed.
+      source: listingMarket?.source ?? marketData?.source ?? "ppt_live",
       productId,
       amount: ref.price,
       currency: "USD",
@@ -822,10 +855,21 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
       // evidence (recognised grader + valid grade + a title that says so,
       // not a multi-card lot). Fail CLOSED - never fall back to a graded
       // price on ambiguous evidence (deal 31721).
-      const gradedPrice =
-        grading.grader && gradedReferenceAllowed(cheapestGraded, grading)
-          ? await getGradedPrice(row.justtcg_tcgplayer_id, grading.grader, grading.grade, row.language)
-          : null;
+      // 2026-09-26: the live graded bucket first; when the provider cannot
+      // answer (free-tier exhaustion, a blocked key, any failure) the SAVED
+      // bucket for this exact grader+grade, judged by the same confidence
+      // gate. Never a raw figure for a slab, and never a different grade.
+      let gradedPrice = null;
+      gradedReferenceSource = "ppt_live";
+      if (grading.grader && gradedReferenceAllowed(cheapestGraded, grading)) {
+        try {
+          gradedPrice = await getGradedPrice(row.justtcg_tcgplayer_id, grading.grader, grading.grade, row.language);
+        } catch (err) {
+          gradedPrice = await loadSavedGradedPrice(db, { tcgplayerId: row.justtcg_tcgplayer_id, language: row.language, grader: grading.grader, grade: grading.grade });
+          if (gradedPrice) gradedReferenceSource = gradedPrice.source;
+          else console.error(`Graded lookup failed for ${row.name} (${marketplaceId}), no saved bucket:`, err.message);
+        }
+      }
 
       if (gradedPrice) {
         const { totalLocal, totalUsd, discountPct } = pricedListing(cheapestGraded, gradedPrice.price, rates);
@@ -969,7 +1013,23 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
     if (marketPriceCache.has(key)) return marketPriceCache.get(key);
     let marketData = null;
     try {
-      const raw = await getConditionPrices(row.justtcg_tcgplayer_id, row.language);
+      let raw = null;
+      // 2026-09-26: the provider first; when it cannot answer (free-tier
+      // exhaustion, a blocked key, any failure) the saved reference for
+      // this exact card+language, or nothing. One attempt per card per run
+      // either way - the cache below means an exhausted provider is never
+      // asked twice for the same card in one sweep.
+      try {
+        raw = await getConditionPrices(row.justtcg_tcgplayer_id, row.language);
+        if (raw) raw.source = "ppt_live";
+      } catch {
+        raw = null;
+      }
+      if (!raw) {
+        const saved = await savedMarketDataFor(db, row);
+        marketPriceCache.set(key, saved);
+        return saved;
+      }
       if (raw) {
         // Same aggregate-price distrust guard as scanOneCard: an
         // aggregate-only price that disagrees sharply with the daily
@@ -1002,6 +1062,7 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
             // getConditionPrices); only the carrying was missing.
             byPrintingCondition: raw.byPrintingCondition,
             observedAt: raw.lastUpdated ?? null,
+            source: raw.source ?? "ppt_live",
           };
         }
       }
@@ -1128,9 +1189,20 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
             if (gradedReferenceRequests >= GRADED_LOOKUP_CAP) continue;
             gradedReferenceRequests++;
           }
-          const gradedPrice = referenceAllowed
-            ? await getGradedPrice(row.justtcg_tcgplayer_id, grading.grader, grading.grade, row.language)
-            : null;
+          // 2026-09-26: live bucket first; when the provider cannot answer,
+          // the SAVED bucket for this exact grader+grade through the same
+          // confidence gate - never a raw figure, never another grade.
+          let gradedPrice = null;
+          let sweepGradedSource = "ppt_live";
+          if (referenceAllowed) {
+            try {
+              gradedPrice = await getGradedPrice(row.justtcg_tcgplayer_id, grading.grader, grading.grade, row.language);
+            } catch (err) {
+              gradedPrice = await loadSavedGradedPrice(db, { tcgplayerId: row.justtcg_tcgplayer_id, language: row.language, grader: grading.grader, grade: grading.grade });
+              if (gradedPrice) sweepGradedSource = gradedPrice.source;
+              else errors.push(`Graded lookup failed for ${row.name} (${marketplaceId}), no saved bucket: ${err.message}`);
+            }
+          }
           if (!gradedPrice) continue;
 
           const { totalLocal, totalUsd, discountPct } = pricedListing(listing, gradedPrice.price, rates);
@@ -1151,7 +1223,7 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
             // graded buckets carry no provider as-of, so observedAt stays
             // null and such rows remain plain
             buildCardReference({
-              source: "ppt_live",
+              source: sweepGradedSource,
               productId: row.justtcg_tcgplayer_id,
               amount: gradedPrice.price,
               currency: "USD",
@@ -1233,7 +1305,10 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
       const sweepReference =
         sweepRef?.price != null && Math.abs(Number(sweepRef.price) - Number(marketPrice)) <= 0.01
           ? buildCardReference({
-              source: "ppt_live",
+              // 2026-09-26: the source the market data declares (saved =
+              // "card_catalog", live = "ppt_live"); observedAt below stays
+              // the provider's own date either way
+              source: marketData.source ?? "ppt_live",
               productId: row.justtcg_tcgplayer_id,
               amount: sweepRef.price,
               currency: "USD",
@@ -1508,6 +1583,34 @@ export async function GET(request) {
       allocatedBudget.effective === "enforce" ? Math.max(0, Math.floor((allocatedBudget.granted - BUDGET_RETRY_UNITS) / perTarget)) : null;
     const active = (watchlistRowsRaw ?? []).filter((r) => r.justtcg_tcgplayer_id);
 
+    // 2026-09-26 SAVED REFERENCES - while the provider is unavailable
+    // (free-tier credits spent, key blocked, or PPT_SAVED_DATA_MODE), a
+    // card with no saved reference cannot be priced at all: scanning it
+    // would spend eBay budget and publish nothing. So this run's budget -
+    // the SAME budget, unchanged - goes to cards that can be priced. The
+    // allocator itself, its lanes, the protected cohorts and the priority
+    // lane are untouched; only the pool it is handed is narrowed, and only
+    // while the provider is down. With the provider back the pool is the
+    // full active list again on the next run.
+    let activePool = active;
+    let savedReferenceGate = null;
+    if (await isPptCircuitOpen()) {
+      const byLanguage = new Map();
+      for (const r of active) {
+        const lang = r.language || "english";
+        if (!byLanguage.has(lang)) byLanguage.set(lang, []);
+        byLanguage.get(lang).push(r);
+      }
+      const keep = new Set();
+      for (const [lang, rows] of byLanguage) {
+        const ids = await savedReferenceIds(db, rows.map((r) => String(r.justtcg_tcgplayer_id)), lang);
+        for (const r of rows) if (ids.has(String(r.justtcg_tcgplayer_id))) keep.add(r);
+      }
+      activePool = active.filter((r) => keep.has(r));
+      savedReferenceGate = { providerUnavailable: true, eligible: active.length, withSavedReference: activePool.length };
+      console.warn(`saved-reference gate: provider unavailable, ${activePool.length} of ${active.length} active targets carry a saved reference`);
+    }
+
     let stateByCard = null;
     if (allocatorEnabled) {
       try {
@@ -1528,7 +1631,7 @@ export async function GET(request) {
     }
 
     if (stateByCard) {
-      const targets = active.map((r) => ({
+      const targets = activePool.map((r) => ({
         ...(stateByCard.get(String(r.justtcg_tcgplayer_id)) ?? {}),
         card_tcgplayer_id: String(r.justtcg_tcgplayer_id),
         _row: r,
@@ -1545,7 +1648,7 @@ export async function GET(request) {
       // FALLBACK: the old extended-chunk behaviour for this country-day.
       const dayOfMonth = new Date().getUTCDate();
       const fbChunk = String(((dayOfMonth - 1) % EXTENDED_CHUNKS) + 1);
-      watchlistRows = active.filter((r) => r.tier === "extended" && chunkOf(r, EXTENDED_CHUNKS) === fbChunk);
+      watchlistRows = activePool.filter((r) => r.tier === "extended" && chunkOf(r, EXTENDED_CHUNKS) === fbChunk);
     }
   } else {
     watchlistRows = chunk
@@ -1652,11 +1755,29 @@ export async function GET(request) {
   async function loadCardMarketData(row, errors) {
     let marketData;
     try {
-      const raw = await getConditionPrices(row.justtcg_tcgplayer_id, row.language);
+      // 2026-09-26: the provider first. When it cannot answer - free-tier
+      // credits spent, key blocked, paused, or any failure - the SAVED
+      // reference for this exact card+language takes its place, through
+      // the same trust checks and the same shape below; when there is no
+      // saved reference either, the card is skipped exactly as before.
+      let raw = null;
+      let providerError = null;
+      try {
+        raw = await getConditionPrices(row.justtcg_tcgplayer_id, row.language);
+      } catch (err) {
+        providerError = err;
+      }
       if (!raw || (raw.fallbackPrice == null && Object.keys(raw.byCondition).length === 0)) {
-        errors.push(`No price for watchlist item "${row.name}" (id ${row.id})`);
+        const saved = await savedMarketDataFor(db, row);
+        if (saved) return saved;
+        errors.push(
+          providerError
+            ? `Price lookup failed for "${row.name}" and no saved reference: ${providerError.message}`
+            : `No price for watchlist item "${row.name}" (id ${row.id})`
+        );
         return null;
       }
+      raw.source = "ppt_live";
 
       // When PokemonPriceTracker only has a single aggregate price for a
       // card (no per-condition breakdown), that number is where graded
@@ -1703,6 +1824,7 @@ export async function GET(request) {
         // to the printing the LISTING evidences.
         byPrintingCondition: raw.byPrintingCondition,
         observedAt: raw.lastUpdated ?? null,
+        source: raw.source ?? "ppt_live",
       };
     } catch (err) {
       errors.push(`Price lookup failed for "${row.name}": ${err.message}`);
