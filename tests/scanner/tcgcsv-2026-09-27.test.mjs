@@ -38,11 +38,17 @@ function fakeTcgcsv() {
     "3/24722/products": [
       { productId: 696676, name: "Greninja ex - 021/128", cleanName: "Greninja ex 021 128", extendedData: [{ name: "Number", value: "021/128" }, { name: "Rarity", value: "Double Rare" }] },
       { productId: 700001, name: "30th Celebration Elite Trainer Box", cleanName: "30th Celebration Elite Trainer Box", extendedData: [] },
+      // an unnumbered promo: no Number, but Rarity - a single (455 such Japanese watchlist cards, measured 26 Sep)
+      { productId: 670191, name: "Charizard", cleanName: "Charizard", extendedData: [{ name: "Rarity", value: "Promo" }] },
+      // a sealed product described only in prose
+      { productId: 700002, name: "Booster Box", cleanName: "Booster Box", extendedData: [{ name: "Description", value: "36 packs" }] },
     ],
     "3/24722/prices": [
       { productId: 696676, lowPrice: 1.2, midPrice: 1.9, highPrice: 20, marketPrice: 1.74, directLowPrice: null, subTypeName: "Normal" },
       { productId: 696676, lowPrice: 3, midPrice: 4, highPrice: 30, marketPrice: 3.5, directLowPrice: null, subTypeName: "Holofoil" },
       { productId: 700001, lowPrice: 40, midPrice: 45, highPrice: 60, marketPrice: 44.99, directLowPrice: null, subTypeName: "Normal" },
+      { productId: 670191, lowPrice: 300, midPrice: 400, highPrice: 900, marketPrice: 350, directLowPrice: null, subTypeName: "Holofoil" },
+      { productId: 700002, lowPrice: 100, midPrice: 120, highPrice: 150, marketPrice: 119, directLowPrice: null, subTypeName: "Normal" },
     ],
   };
   const fetchImpl = async (url, init) => {
@@ -61,8 +67,13 @@ test("TC-1 the client: export-shaped rows, singles only, WOTC skipped, the file'
   assert.deepEqual(calls.map((c) => c.path), ["3/groups", "3/24722/products", "3/24722/prices"], "groups once, then products + prices per non-WOTC group only");
   assert.ok(calls.every((c) => /pokemondealfinder/.test(c.ua)), "an identifying User-Agent on every request");
   assert.deepEqual(got.stats.skippedWotcGroups, ["Base Set"]);
-  assert.equal(got.stats.sealedSkipped, 1);
-  assert.equal(got.rows.length, 2, "two printings of the one single; the sealed product is not a card");
+  assert.equal(got.stats.sealedSkipped, 2, "the box with no attributes and the box described in prose");
+  assert.equal(got.rows.length, 3, "two printings of the numbered single plus the unnumbered promo; sealed products are not cards");
+  const promo = got.rows.find((r) => r.tcgPlayerId === "670191");
+  assert.equal(promo.cardNumber, null, "an unnumbered single keeps a null number rather than an invented one");
+  assert.equal(promo.marketPrice, 350);
+  assert.equal(tcgcsv.isSingleCard({ extendedData: [{ name: "HP", value: "120" }] }), true);
+  assert.equal(tcgcsv.isSingleCard({ extendedData: [{ name: "Description", value: "36 packs" }] }), false);
   const normal = got.rows.find((r) => r.printing === "Normal");
   assert.equal(normal.tcgPlayerId, "696676");
   assert.equal(normal.setName, "ME: 30th Celebration");
@@ -83,8 +94,8 @@ test("TC-2 ref rows: one tcgcsv_ref per card + language, every printing kept, Ne
   const { fetchImpl } = fakeTcgcsv();
   const { rows } = await tcgcsv.fetchTcgcsvCatalogue({ language: "english", fetchImpl, pace: 0 });
   const refRows = tcgcsv.buildTcgcsvRefRows(rows, { retrievedAt: "2026-09-27T02:00:00.000Z" });
-  assert.equal(refRows.length, 1);
-  const [row] = refRows;
+  assert.equal(refRows.length, 2, "one row per card: the numbered single and the promo");
+  const row = refRows.find((r) => r.kind === "tcgcsv_ref:696676:english");
   assert.equal(row.kind, "tcgcsv_ref:696676:english");
   assert.equal(row.data.source, "tcgcsv");
   assert.deepEqual(Object.keys(row.data.printings).sort(), ["Holofoil", "Normal"]);
@@ -95,8 +106,8 @@ test("TC-2 ref rows: one tcgcsv_ref per card + language, every printing kept, Ne
   assert.equal(row.data.retrievedAt, "2026-09-27T02:00:00.000Z", "our download time is kept apart from the provider date");
   const db = createMemoryDb({ catalog_snapshot: [] });
   const res = await tcgcsv.writeTcgcsvRefs(db, refRows);
-  assert.deepEqual(res, { written: 1, errors: [] });
-  assert.equal(db.tables.catalog_snapshot.length, 1);
+  assert.deepEqual(res, { written: 2, errors: [] });
+  assert.equal(db.tables.catalog_snapshot.length, 2);
 });
 
 test("TC-3 mergeSavedRows: fresh Near Mint with its own date, the ladder's tiers with theirs; nothing invented, nothing shortened", () => {
