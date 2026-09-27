@@ -144,6 +144,9 @@ const GREEN_ALLOWED = new Set([
   "app/sealed-deals/[id]/page.js",
   "app/sealed-deals/page.js",
   "app/search/SearchClient.js",        // below-market indicator in results
+  "components/BoardDealCard.js",       // 2026-09-27: the imported listing's saving
+                                       // against its published market value (the
+                                       // owner: show what the boards say AS the saving)
 ]);
 
 test("green is RESERVED for savings - a new surface may not borrow it", () => {

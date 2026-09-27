@@ -27,6 +27,7 @@ import HomeQuickFilters from "@/components/HomeQuickFilters";
 import HomePopularPokemon from "@/components/HomePopularPokemon";
 import HomeBudgetDeals from "@/components/HomeBudgetDeals";
 import BoardDealsSection from "@/components/BoardDealsSection";
+import { fetchBoardDealsCount } from "@/lib/boardDealsFeed";
 import HomeTrustSection from "@/components/HomeTrustSection";
 import HomeHeroArt from "@/components/HomeHeroArt";
 import EmailCapture from "@/components/EmailCapture";
@@ -239,7 +240,7 @@ export default async function Home() {
   // churn); a new bucket rotates the visible curated inventory.
   const bucket = rotationBucket();
 
-  const [homeLanesResult, lastRefreshed, cardHubsResult, hubCounts, summary, validSetSlugs, integrity, speciesResult] =
+  const [homeLanesResult, lastRefreshed, cardHubsResult, hubCounts, summary, validSetSlugs, integrity, speciesResult, boardCount] =
     await Promise.all([
       fetchHomepageLanes({ country: null }),
       fetchLastScanTime({ table: "deals", language: "english" }),
@@ -252,6 +253,8 @@ export default async function Home() {
       // what lets the pill row and the discovery row below be labelled
       // "most listed" rather than "trending" - see HomeQuickFilters.
       fetchSpeciesHubs({ language: "english" }),
+      // the imported listings with published savings (lib/boardDealsFeed)
+      fetchBoardDealsCount(),
     ]);
   const speciesHubs = speciesResult?.species ?? [];
 
@@ -295,7 +298,13 @@ export default async function Home() {
   // the six most-listed card hubs render ONCE, in the explore section
   // (fold revision: the hero's duplicate "Most listed" row is gone)
   const topHubs = cardHubsResult.hubs.slice(0, 6);
-  const liveCount = summary?.activeDeals ?? null;
+  // The headline count is every deal the site shows: the matched, evidenced
+  // listings PLUS the imported ones with published savings (owner, 27 Sep:
+  // "count them in our listings"). The integrity sentence below keeps the
+  // checked count alone, because its withheld / re-seen figures describe
+  // only the listings our own pipeline scanned.
+  const checkedCount = summary?.activeDeals ?? null;
+  const liveCount = checkedCount == null ? null : checkedCount + boardCount;
 
   // Budget-module previews. Taken from the pools this render ALREADY
   // loaded - no extra query - and banded on the same USD total the
@@ -459,9 +468,9 @@ export default async function Home() {
                     where the implementation draws it. */}
                 {" "}Every listing shown has passed a card-identity match, a seller-condition check and an availability re-check. Selected higher-risk listings also get an image-based screen — not all of them. A saving is only claimed where the printing and condition are matched to a market reference we can evidence; otherwise the listing is shown plainly, with the reason.
               </span>
-              {liveCount != null && integrity?.withheldActive != null && integrity?.checked24h != null && (
+              {checkedCount != null && integrity?.withheldActive != null && integrity?.checked24h != null && (
                 <>
-                  {" "}As of {new Date(integrity.generatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}: {liveCount.toLocaleString()} listings shown, {integrity.withheldActive.toLocaleString()} withheld for failing a check, {integrity.checked24h.toLocaleString()} seen again in eBay search results in the last 24 hours (
+                  {" "}As of {new Date(integrity.generatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}: {checkedCount.toLocaleString()} listings shown, {integrity.withheldActive.toLocaleString()} withheld for failing a check, {integrity.checked24h.toLocaleString()} seen again in eBay search results in the last 24 hours (
                   <Link href="/integrity" className="underline underline-offset-2 hover:text-red-600 dark:hover:text-red-500">integrity report</Link>).
                 </>
               )}

@@ -147,6 +147,8 @@ test("BD-4 records: publish, queue, touch, expire; what the page gets carries no
   const shape = bd.toRenderShape(rec);
   assert.deepEqual(Object.keys(shape).filter((k) => /source|board|captured|market$/.test(k)), [], "nothing that names the source reaches the page");
   assert.equal(shape.discountPercentText, "45% off");
+  assert.equal(shape.savingsPercentText, "Save 45%");
+  assert.equal(shape.marketValueText, "£5.98", "the published market value, as text, in the listing's currency");
   assert.equal(shape.priceText, "£3.31");
   assert.equal(shape.marketplaceShort, "UK");
   assert.equal(JSON.stringify(shape).includes("pokedealfinder"), false);
@@ -244,14 +246,29 @@ test("BD-6 wiring pins: lock before any lookup and released on every exit, verdi
   assert.match(route, /revalidateTag\(BOARD_DEALS_TAG, \{ expire: 0 \}\)/);
   assert.match(read("vercel.json"), /"path": "\/api\/ingest-feed",\s*"schedule": "\*\/30 \* \* \* \*"/, "every 30 minutes");
   const section = read("components/BoardDealsSection.js");
-  assert.doesNotMatch(section, /pokedealfinder|PokeDealFinder|Poke Deal/i, "the source is never named on the surface");
-  assert.match(section, /wrapEbayAffiliateUrl\(d\.affiliateUrl, \{ page, placement: "feature" \}\)/, "our EPN link, with the page's placement");
-  assert.match(section, /rel="nofollow sponsored noopener"/);
-  assert.match(section, /not our own market comparison/, "the imported figure is not presented as our verified saving");
+  const card = read("components/BoardDealCard.js");
+  const morePage = read("app/more-deals/page.js");
+  for (const [name, src] of [["section", section], ["card", card], ["page", morePage]]) {
+    assert.doesNotMatch(src, /pokedealfinder|PokeDealFinder|Poke Deal|jimmy/i, `the source is never named on the surface (${name})`);
+  }
+  assert.match(card, /wrapEbayAffiliateUrl\(d\.affiliateUrl, \{ page, placement: "feature" \}\)/, "our EPN link, with the page's placement");
+  assert.match(card, /rel="nofollow sponsored noopener"/);
+  // owner, 27 Sep: the published figure is shown AS the saving, against the
+  // published market value; the record still carries its own verified flag
+  assert.match(card, /\{d\.savingsPercentText\}/, "the saving is shown as a saving");
+  assert.match(card, /vs market value \{d\.marketValueText\}/, "against the published market value, never an invented one");
   assert.match(section, /check the listing on eBay before buying/, "the unverified trade-off is stated on the surface");
-  assert.doesNotMatch(section, /savingsClaimTrusted|Save \$/, "the evidenced-savings vocabulary is not used here");
+  assert.doesNotMatch(section + card, /savingsClaimTrusted/, "the evidenced-savings gate is not claimed here");
+  assert.match(section, /href="\/more-deals"/, "the section links to the full list");
+  assert.match(morePage, /fetchBoardDealsPage\(/);
+  assert.match(morePage, /<BoardDealCard key=\{d\.id\} deal=\{d\} page="deals" \/>/);
   assert.match(read("app/deals/page.js"), /<BoardDealsSection page="deals"/);
-  assert.match(read("app/page.js"), /<BoardDealsSection page="home"/);
+  const home = read("app/page.js");
+  assert.match(home, /<BoardDealsSection page="home"/);
+  assert.match(home, /const liveCount = checkedCount == null \? null : checkedCount \+ boardCount;/, "the headline count includes the imported deals");
+  assert.match(home, /\{checkedCount\.toLocaleString\(\)\} listings shown,/, "the integrity sentence keeps the checked count alone");
+  assert.match(read("lib/navLinks.js"), /href: "\/more-deals"/);
+  assert.match(read("lib/sitemap.js"), /\/more-deals`/);
   const lib = read("lib/boardDeals.js");
   assert.match(lib, /sourceUrl: it\.sourceUrl \?\? null, \/\/ audit only, never rendered/);
 });
@@ -480,4 +497,23 @@ test("BD-8 end to end (harness), NO quota: the run makes no lookup, the fresh ro
   assert.equal(shapes[0].verified, false);
   assert.equal(out.boardLock, null);
   assert.equal(out.boardRuns.at(-1).skipped, "ebay_rate_limited");
+});
+
+test("BD-14 /more-deals filters over the render shapes: market, kind from the stated variant, format; unknown values filter nothing", () => {
+  const rows = [
+    { id: "a", marketplace: "EBAY_US", variant: "Raw", format: "BIN" },
+    { id: "b", marketplace: "EBAY_GB", variant: "PSA 10", format: "Auction" },
+    { id: "c", marketplace: "EBAY_US", variant: "Sealed", format: "BIN" },
+    { id: "d", marketplace: "EBAY_DE", variant: null, format: null },
+  ];
+  const ids = (opts) => bd.filterBoardDeals(rows, opts).map((r) => r.id);
+  assert.deepEqual(ids({}), ["a", "b", "c", "d"]);
+  assert.deepEqual(ids({ market: "EBAY_US" }), ["a", "c"]);
+  assert.deepEqual(ids({ kind: "raw" }), ["a"]);
+  assert.deepEqual(ids({ kind: "graded" }), ["b"], "graded is any stated variant that is not Raw or Sealed");
+  assert.deepEqual(ids({ kind: "sealed" }), ["c"]);
+  assert.deepEqual(ids({ format: "bin" }), ["a", "c", "d"], "no stated format counts as Buy It Now");
+  assert.deepEqual(ids({ format: "auction" }), ["b"]);
+  assert.deepEqual(ids({ market: "EBAY_US", kind: "sealed", format: "bin" }), ["c"]);
+  assert.deepEqual(ids({ kind: "bogus", format: "bogus" }), ["a", "b", "c", "d"]);
 });
