@@ -208,11 +208,19 @@ function localVisionFor(row) {
         // premium slots. So a local COUNTERFEIT is recorded as a SUSPECT
         // (catalog_snapshot "visual_suspects" + .local/visual-suspects.log)
         // for the owner to confirm with scripts/remediation/holdReportedListing.mjs.
-        return {
-          status: va.VERDICTS.UNKNOWN,
-          reason: `suspected_counterfeit(local${plate && !genuineIsMetal ? ",material_agrees" : ""}): ${String(parsed.reason || "").slice(0, 120)} | material:${materials.join("/")}`,
-          suspect: { evidence: String(parsed.reason || "").slice(0, 160), materials: materials.join("/"), agrees: plate && !genuineIsMetal },
-        };
+        // Measured on the first full pass (173 rows): the model said
+        // COUNTERFEIT on 107 - 62% of the queue - and the material probe
+        // agreed on NONE of them. A COUNTERFEIT call without material
+        // agreement is noise, so it is plain UNKNOWN; only an agreeing call
+        // (a metal/plastic object where the printing is paper) is a suspect.
+        if (plate && !genuineIsMetal) {
+          return {
+            status: va.VERDICTS.UNKNOWN,
+            reason: `suspected_counterfeit(local,material_agrees): ${String(parsed.reason || "").slice(0, 120)} | material:${materials.join("/")}`,
+            suspect: { evidence: String(parsed.reason || "").slice(0, 160), materials: materials.join("/"), agrees: true },
+          };
+        }
+        return { status: va.VERDICTS.UNKNOWN, reason: `unconfirmed_counterfeit_call(local): ${String(parsed.reason || "").slice(0, 120)} | material:${materials.join("/")}` };
       }
       // MATCH
       if (front === "paper" || genuineIsMetal) return { status, reason: `${reason} | material:${front}` };
