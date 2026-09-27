@@ -3,8 +3,12 @@ import { wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import { fetchBoardDeals } from "@/lib/boardDealsFeed";
 
 // "More deals" (2026-09-27) - listings published by the external deal board,
-// shown with the board's own captured discount after OUR eBay lookup
-// confirmed each one is live at the captured price (lib/boardDeals).
+// shown with the board's own captured discount: a FRESH row (by the board's
+// found-at, within lib/boardDeals.UNVERIFIED_FRESH_HOURS) at once and
+// unverified, on the plain listing URL wrapped with our campaign; older rows
+// only after OUR eBay lookup confirmed them live at the captured price. The
+// owner accepted the unverified trade-off on 27 Sep (a row may have sold or
+// changed price before its lookup), and the surface note says to check.
 //
 // What this surface deliberately does NOT do:
 //   * name, brand, credit or link the source (the source URL and capture
@@ -32,7 +36,7 @@ export default async function BoardDealsSection({ deals = null, page = "deals", 
           {heading}
         </h2>
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Listings checked live on eBay. The percentage is the listed discount, not our own market comparison.
+          New finds every 30 minutes. The percentage is the listed discount, not our own market comparison; check the listing on eBay before buying.
         </p>
       </div>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

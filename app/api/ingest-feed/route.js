@@ -19,6 +19,8 @@ import {
   buildBoardDealRecord,
   touchBoardDealRecord,
   pendingBoardDealRecord,
+  unverifiedBoardDealRecord,
+  isFreshCapture,
   expireAbsentRecords,
   loadBoardDealRecords,
   saveBoardDealRecords,
@@ -171,7 +173,7 @@ export async function GET(request) {
   // Board-deal bookkeeping for this run: discoveries, imports (published),
   // duplicates (a record already exists: touched, no lookup), queued
   // (pending, awaiting quota), failures and the quota it ran under.
-  const board = { discovered: 0, withDiscount: 0, duplicatesSkipped: 0, queuedPending: 0, lookedUp: 0, published: 0, priceChanged: 0, ended: 0, rejected: 0, lookupFailed: 0, expired: 0, saved: 0, saveErrors: [] };
+  const board = { discovered: 0, withDiscount: 0, duplicatesSkipped: 0, queuedPending: 0, unverifiedShown: 0, lookedUp: 0, published: 0, priceChanged: 0, ended: 0, rejected: 0, lookupFailed: 0, expired: 0, saved: 0, saveErrors: [] };
   const runNow = new Date().toISOString();
   let boardRecords = null; // Map<kind, record>, loaded once on first use
   const boardChanged = new Map(); // kind -> record to save this run
@@ -208,11 +210,19 @@ export async function GET(request) {
       const kind = boardDealKind(it.marketplace, it.ebayItemId);
       if (boardChanged.has(kind)) continue;
       const prev = records.get(kind);
-      if (prev) {
+      const captured = capturedFromFeedItem(it, runNow);
+      if (prev && prev.status !== "pending") {
+        boardChanged.set(kind, touchBoardDealRecord(prev, { now: runNow }));
+        board.duplicatesSkipped++;
+      } else if (isFreshCapture(captured)) {
+        // 2026-09-27 (owner): a fresh row is shown at once, verified later
+        boardChanged.set(kind, unverifiedBoardDealRecord({ feedItem: it, captured, prev, now: runNow }));
+        board.unverifiedShown++;
+      } else if (prev) {
         boardChanged.set(kind, touchBoardDealRecord(prev, { now: runNow }));
         board.duplicatesSkipped++;
       } else {
-        boardChanged.set(kind, pendingBoardDealRecord({ feedItem: it, captured: capturedFromFeedItem(it, runNow), now: runNow }));
+        boardChanged.set(kind, pendingBoardDealRecord({ feedItem: it, captured, now: runNow }));
         board.queuedPending++;
       }
     }
@@ -224,8 +234,8 @@ export async function GET(request) {
     const cutoff = Date.now() - BOARD_ABSENCE_HOURS * 3600_000;
     const out = [];
     for (const [kind, r] of records) {
-      if (r.status !== "pending" || onBoardKeys.has(kind) || !(Date.parse(r.lastSeenOnBoardAt ?? "") > cutoff)) continue;
-      out.push({ marketplace: r.marketplace, ebayItemId: r.itemId, feedTitle: r.title, feedPrice: r.captured?.price ?? null, feedMarket: r.captured?.market ?? null, capturedDiscountPct: r.captured?.discountPct ?? null, capturedDiscountText: r.captured?.discountText ?? null, boardName: r.name, boardSet: r.set, boardVariant: r.variant, boardFormat: r.format, boardImage: r.image, plainEbayUrl: r.listingUrl, sourceUrl: r.captured?.sourceUrl ?? null, _queued: true });
+      if ((r.status !== "pending" && r.status !== "unverified") || onBoardKeys.has(kind) || !(Date.parse(r.lastSeenOnBoardAt ?? "") > cutoff)) continue;
+      out.push({ marketplace: r.marketplace, ebayItemId: r.itemId, feedTitle: r.title, feedPrice: r.captured?.price ?? null, feedMarket: r.captured?.market ?? null, capturedDiscountPct: r.captured?.discountPct ?? null, capturedDiscountText: r.captured?.discountText ?? null, boardFoundAt: r.captured?.foundAt ?? null, boardId: r.captured?.boardId ?? null, boardName: r.name, boardSet: r.set, boardVariant: r.variant, boardFormat: r.format, boardImage: r.image, plainEbayUrl: r.listingUrl, sourceUrl: r.captured?.sourceUrl ?? null, _queued: true });
     }
     return out;
   };
@@ -243,7 +253,7 @@ export async function GET(request) {
       board.saved = written;
       board.saveErrors = errors;
     }
-    const publicationChanged = toSave.some((r) => r.status === "published" || r.unpublishedAt || r.status === "expired" || r.status === "price_changed" || r.status === "ended");
+    const publicationChanged = toSave.some((r) => r.status === "published" || r.status === "unverified" || r.unpublishedAt || r.status === "expired" || r.status === "price_changed" || r.status === "ended");
     if (publicationChanged) {
       try {
         revalidateTag(BOARD_DEALS_TAG, { expire: 0 });

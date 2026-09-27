@@ -302,8 +302,11 @@ async function run() {
     harness.db = createMemoryDb({ watchlist: wl, card_catalog: catalogWithPrinting, deals: [], discovery_events: [], ebay_job_runs: [], scan_target_state: [], catalog_snapshot: savedRows });
     mod = await import(pathToFileURL(join(REPO, "app", "api", "refresh-deals", "route.js")).href);
     url = priority ? "http://harness/api/refresh-deals?tier=priority&country=EBAY_US" : "http://harness/api/refresh-deals?mode=sweep&country=EBAY_US&pages=1";
-  } else if (scenario === "feed") {
+  } else if (scenario === "feed" || scenario === "feed-noquota") {
     harness.db = seedDb();
+    // 2026-09-27 fallback: with NO eBay quota (below the 800 floor) the run
+    // must still read the board and show its FRESH rows unverified.
+    if (scenario === "feed-noquota") harness.rateLimit = { remaining: 100, limit: 5000, reset: null };
     // 2026-09-27 board deals: the first two board rows carry a published
     // discount figure - the first at the listing's LIVE price (must publish),
     // the second at a stale price (must be recorded as price_changed, never
@@ -327,6 +330,8 @@ async function run() {
             boardFormat: "BIN",
             boardImage: null,
             plainEbayUrl: `https://www.ebay.com/itm/${legacy(d.listing_id)}`,
+            // the board's own found-at: the first row fresh (10 min ago), the second stale (2 days ago)
+            boardFoundAt: new Date(Date.now() - (i === 0 ? 10 * 60_000 : 48 * 3600_000)).toISOString(),
           }
         : {}),
     }));

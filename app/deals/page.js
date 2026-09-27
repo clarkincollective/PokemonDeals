@@ -141,7 +141,7 @@ export default async function AllDealsPage() {
         {/* 2026-09-27: externally published listings, checked live on eBay,
             with their listed discount - a separate surface from the evidenced
             grid above (components/BoardDealsSection). */}
-        <BoardDealsSection page="deals" limit={12} />
+        <BoardDealsSection page="deals" limit={24} />
 
         {/* 2026-09-21: the browse guide sits BELOW the grid - listings are
             what a visitor came for, and the homepage fold rule applies
