@@ -8,6 +8,9 @@ import {
   languageAspect,
 } from "@/lib/ebay";
 import { fetchFeed } from "@/lib/pokeFeed";
+// 2026-09-27 (owner's decision B): the second board, all listings - singles,
+// graded, sealed, five markets, both formats (lib/jimmyFeed).
+import { fetchJimmyFeed, JIMMY_SOURCE } from "@/lib/jimmyFeed";
 // 2026-09-27 BOARD DEALS - the board's own published listings + discount
 // figure, shown on a separate surface only after THIS route's eBay lookup
 // confirms the listing is live at the captured price (lib/boardDeals).
@@ -173,7 +176,31 @@ export async function GET(request) {
   // Board-deal bookkeeping for this run: discoveries, imports (published),
   // duplicates (a record already exists: touched, no lookup), queued
   // (pending, awaiting quota), failures and the quota it ran under.
-  const board = { discovered: 0, withDiscount: 0, duplicatesSkipped: 0, queuedPending: 0, unverifiedShown: 0, lookedUp: 0, published: 0, priceChanged: 0, ended: 0, rejected: 0, lookupFailed: 0, expired: 0, saved: 0, saveErrors: [] };
+  const board = { discovered: 0, withDiscount: 0, bySource: {}, duplicatesSkipped: 0, queuedPending: 0, unverifiedShown: 0, lookedUp: 0, published: 0, priceChanged: 0, ended: 0, rejected: 0, lookupFailed: 0, expired: 0, saved: 0, saveErrors: [], feedErrors: [] };
+  // Both boards, one list. The second board's failures never stop the first.
+  // `?full=1` (the daily cron) walks the second board's every list and sort.
+  const fullPass = new URL(request.url).searchParams.get("full") === "1";
+  const fetchBoards = async () => {
+    const first = await fetchFeed();
+    let second = { listings: [], error: null, pageErrors: [] };
+    try {
+      second = await fetchJimmyFeed({ full: fullPass });
+    } catch (err) {
+      second = { listings: [], error: err?.message ?? String(err), pageErrors: [] };
+    }
+    if (second.error) board.feedErrors.push(`${JIMMY_SOURCE}: ${second.error}`);
+    for (const e of second.pageErrors ?? []) board.feedErrors.push(`${JIMMY_SOURCE} ${e}`);
+    const seen = new Set(first.listings.map((it) => `${it.marketplace}:${it.ebayItemId}`));
+    const merged = [...first.listings];
+    for (const it of second.listings) {
+      const key = `${it.marketplace}:${it.ebayItemId}`;
+      if (seen.has(key)) continue; // the same eBay item on both boards: one row
+      seen.add(key);
+      merged.push(it);
+    }
+    board.bySource = { pokedealfinder: first.listings.length, [JIMMY_SOURCE]: second.listings.length, [`${JIMMY_SOURCE}Lists`]: second.pages ?? 0, fullPass };
+    return { listings: merged, error: first.error && second.listings.length === 0 ? first.error : null };
+  };
   const runNow = new Date().toISOString();
   let boardRecords = null; // Map<kind, record>, loaded once on first use
   const boardChanged = new Map(); // kind -> record to save this run
@@ -187,7 +214,7 @@ export async function GET(request) {
     const captured = capturedFromFeedItem(feedItem, runNow) ?? prev?.captured ?? null;
     board.lookedUp++;
     if (!captured) return; // the row carries no published figure: nothing for this surface
-    const verdict = classifyVerification({ captured, listing, trusted: listing ? boardListingTrusted(listing) : true });
+    const verdict = classifyVerification({ captured, listing, trusted: listing ? boardListingTrusted(listing, { kind: captured.kind ?? "single" }) : true });
     boardChanged.set(kind, buildBoardDealRecord({ feedItem, listing, captured, verdict, prev, now: runNow }));
     if (verdict.status === "published") board.published++;
     else if (verdict.status === "price_changed") board.priceChanged++;
@@ -212,14 +239,14 @@ export async function GET(request) {
       const prev = records.get(kind);
       const captured = capturedFromFeedItem(it, runNow);
       if (prev && prev.status !== "pending") {
-        boardChanged.set(kind, touchBoardDealRecord(prev, { now: runNow }));
+        boardChanged.set(kind, touchBoardDealRecord(prev, { now: runNow, source: it.source ?? null }));
         board.duplicatesSkipped++;
-      } else if (isFreshCapture(captured)) {
+      } else if (isFreshCapture(captured, { lastSeenOnBoardAt: runNow })) {
         // 2026-09-27 (owner): a fresh row is shown at once, verified later
         boardChanged.set(kind, unverifiedBoardDealRecord({ feedItem: it, captured, prev, now: runNow }));
         board.unverifiedShown++;
       } else if (prev) {
-        boardChanged.set(kind, touchBoardDealRecord(prev, { now: runNow }));
+        boardChanged.set(kind, touchBoardDealRecord(prev, { now: runNow, source: it.source ?? null }));
         board.duplicatesSkipped++;
       } else {
         boardChanged.set(kind, pendingBoardDealRecord({ feedItem: it, captured, now: runNow }));
@@ -235,7 +262,7 @@ export async function GET(request) {
     const out = [];
     for (const [kind, r] of records) {
       if ((r.status !== "pending" && r.status !== "unverified") || onBoardKeys.has(kind) || !(Date.parse(r.lastSeenOnBoardAt ?? "") > cutoff)) continue;
-      out.push({ marketplace: r.marketplace, ebayItemId: r.itemId, feedTitle: r.title, feedPrice: r.captured?.price ?? null, feedMarket: r.captured?.market ?? null, capturedDiscountPct: r.captured?.discountPct ?? null, capturedDiscountText: r.captured?.discountText ?? null, boardFoundAt: r.captured?.foundAt ?? null, boardId: r.captured?.boardId ?? null, boardName: r.name, boardSet: r.set, boardVariant: r.variant, boardFormat: r.format, boardImage: r.image, plainEbayUrl: r.listingUrl, sourceUrl: r.captured?.sourceUrl ?? null, _queued: true });
+      out.push({ marketplace: r.marketplace, ebayItemId: r.itemId, feedTitle: r.title, feedPrice: r.captured?.price ?? null, feedMarket: r.captured?.market ?? null, capturedDiscountPct: r.captured?.discountPct ?? null, capturedDiscountText: r.captured?.discountText ?? null, boardFoundAt: r.captured?.foundAt ?? null, boardId: r.captured?.boardId ?? null, source: r.captured?.source ?? null, boardKind: r.captured?.kind ?? null, boardValuation: r.captured?.valuation ?? null, boardName: r.name, boardSet: r.set, boardVariant: r.variant, boardFormat: r.format, boardImage: r.image, plainEbayUrl: r.listingUrl, sourceUrl: r.captured?.sourceUrl ?? null, _queued: true });
     }
     return out;
   };
@@ -285,7 +312,7 @@ export async function GET(request) {
     // rows are queued as pending records for a run that has quota.
     let boardQueued = null;
     try {
-      const { listings: boardRows } = await fetchFeed();
+      const { listings: boardRows } = await fetchBoards();
       await queueBoardDiscoveries(boardRows);
       boardQueued = await flushBoard({ browseCalls: 0, quota: { remaining: rl.remaining, floor: RATE_LIMIT_FLOOR }, skipped: "ebay_rate_limited" });
     } catch {
@@ -308,8 +335,9 @@ export async function GET(request) {
     });
   }
 
-  // 1. Pull the board.
-  const { listings: feedItems, error: feedError } = await fetchFeed();
+  // 1. Pull the board. (Both boards, in fact - see fetchBoards; this
+  //    comment's first line is a text anchor for tests/scanner/p032.)
+  const { listings: feedItems, error: feedError } = await fetchBoards();
   if (feedError) {
     await recordIngestRun(db, { at: new Date().toISOString(), feedUnavailable: true, error: feedError, browseVerifyAttempts: 0, tookMs: Date.now() - startedAt });
     return Response.json({ skipped: "feed_unavailable", error: feedError });

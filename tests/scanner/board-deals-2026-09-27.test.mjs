@@ -19,6 +19,7 @@ const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(REPO, p), "utf8");
 const feed = require("../../lib/pokeFeed.js");
 const bd = require("../../lib/boardDeals.js");
+const jimmy = require("../../lib/jimmyFeed.js");
 const { createMemoryDb } = await import(pathToFileURL(join(REPO, "tests/harness/ingestion/memoryDb.mjs")).href);
 
 // The board's measured markup (26 Sep 2026), two cards + a duplicate of the first.
@@ -180,7 +181,7 @@ test("BD-4b the fresh-window fallback: a fresh board row is shown unverified on 
   const feedItem = { ...feed.parseFeedHtml(BOARD_HTML)[0], boardFoundAt: iso(now - 30 * 60_000) };
   const captured = bd.capturedFromFeedItem(feedItem, iso(now));
   assert.equal(bd.isFreshCapture(captured, { now }), true);
-  assert.equal(bd.isFreshCapture({ ...captured, foundAt: iso(now - 7 * 3600_000) }, { now }), false, "older than the window");
+  assert.equal(bd.isFreshCapture({ ...captured, foundAt: iso(now - 25 * 3600_000) }, { now }), false, "older than the window");
   assert.equal(bd.isFreshCapture({ ...captured, foundAt: null }, { now }), false, "no board timestamp (HTML fallback) is never fresh");
   const unv = bd.unverifiedBoardDealRecord({ feedItem, captured, now: iso(now) });
   assert.equal(unv.status, "unverified");
@@ -191,7 +192,7 @@ test("BD-4b the fresh-window fallback: a fresh board row is shown unverified on 
   assert.equal(unv.listingType, "FIXED_PRICE");
   assert.equal(unv.publishedAt, iso(now));
   assert.equal(bd.publishableBoardDeals([unv], { now }).length, 1, "shown at once");
-  assert.equal(bd.publishableBoardDeals([unv], { now: now + 7 * 3600_000 }).length, 0, "not shown past the fresh window without a lookup");
+  assert.equal(bd.publishableBoardDeals([unv], { now: now + 25 * 3600_000 }).length, 0, "not shown past the fresh window without a lookup");
   const shape = bd.toRenderShape(unv);
   assert.equal(shape.verified, false);
   assert.equal(JSON.stringify(shape).includes("pokedealfinder"), false);
@@ -238,7 +239,7 @@ test("BD-6 wiring pins: lock before any lookup and released on every exit, verdi
   assert.match(route, /finally\s*\{\s*await finishJobRun\(db, ctx\);\s*\}/, "the telemetry finally is unchanged");
   assert.ok(route.indexOf("await recordBoardVerdict(feedItem, listing);") < route.indexOf("if (listing.soldOut === true) {"), "the board verdict is recorded before the discovery pipeline's own gates");
   assert.equal((route.match(/await queueBoardDiscoveries\(/g) ?? []).length, 4, "queued on the floor skip, the budget skip, the daily-limit skip and at the end of a normal run");
-  assert.match(route, /else if \(isFreshCapture\(captured\)\) \{/, "a fresh row is shown unverified on every queue path");
+  assert.match(route, /else if \(isFreshCapture\(captured, \{ lastSeenOnBoardAt: runNow \}\)\) \{/, "a fresh row (by found-at, or by the second board still listing it) is shown unverified on every queue path");
   assert.match(route, /\(r\.status !== "pending" && r\.status !== "unverified"\)/, "unverified rows the board dropped still get their lookup");
   assert.match(route, /revalidateTag\(BOARD_DEALS_TAG, \{ expire: 0 \}\)/);
   assert.match(read("vercel.json"), /"path": "\/api\/ingest-feed",\s*"schedule": "\*\/30 \* \* \* \*"/, "every 30 minutes");
@@ -253,6 +254,143 @@ test("BD-6 wiring pins: lock before any lookup and released on every exit, verdi
   assert.match(read("app/page.js"), /<BoardDealsSection page="home"/);
   const lib = read("lib/boardDeals.js");
   assert.match(lib, /sourceUrl: it\.sourceUrl \?\? null, \/\/ audit only, never rendered/);
+});
+
+// The second board's measured row markup (27 Sep 2026): a single, a sealed
+// box and a PSA 10 slab. The image tag is split across lines, as served.
+const JROW = ({ id, title, name, set, cond, price, postage, total, valuation, refNm, grade, type, added, diff }) => `
+<tr class="listing-title-row" style="background-color: #f0f0f0;"><td colspan="15"><a href="https://www.ebay.com/itm/${id}?mkcid=1&mkrid=711-53200-19255-0&siteid=0&campid=5339084796&toolid=20001&mkevt=1&customid=pokemon" rel="noopener noreferrer sponsored" class="underline-link">${title} (eBay)</a></td></tr>
+<tr>
+<td><img src="/static/flags/us.svg" alt="USA Flag" width="20" height="14"> US</td>
+<td style="overflow: hidden;">
+  <img
+    src="https://i.ebayimg.com/images/g/${id}/s-l400.jpg"
+    alt="${name}"
+    width="100" class="thumbnail" data-ebay="https://i.ebayimg.com/images/g/${id}/s-l400.jpg" data-ref="https://storage.googleapis.com/images.pricecharting.com/x/1600.jpg" onerror="this.style.display='none';" />
+</td>
+<td><a href="https://www.ebay.com/itm/${id}?campid=5339084796" class="underline-link"> ${title.slice(0, 20)}... (eBay) </a><br><br> stellar_trading_cards (2192) 100.0% <br><br><a href="https://www.ebay.com/sch/i.html?_nkw=x&campid=5339084796">🔗 Search card on eBay</a></td>
+<td><a href="https://pricecharting.com/game/pokemon-x/y" rel="noopener noreferrer"> ${name} </a><br><br><a href="https://www.setfinisher.com/x">🎯 Set Finisher</a></td>
+<td> ${set} <br><br><a href="https://www.setfinisher.com/y">🎯 Set Finisher</a></td>
+<td>${cond}</td>
+<td> $${price} <br><br> ($${postage} postage) <br><br> Total: $${total} </td>
+<td> $${valuation}<br><br>Adjusted ${cond} value <a href="#valuation-explained">(?)</a><br><br>$${refNm}<br><br>Reference NM value </td>
+<td>${grade}</td>
+<td>${type}</td>
+<td>N/A</td>
+<td>${added}</td>
+<td style='background-color: #00ff00'>${diff}%</td>
+<td style='background-color: #00ff00'>$206.56</td>
+</tr>`;
+const JIMMY_HTML = `<html><body><table>
+${JROW({ id: "377522417725", title: "Pokemon TCG Glaceon VMAX 209/203 SWSH07 Evolving Skies UR Holo ENG 310 HP", name: "Glaceon VMAX #209", set: "Evolving Skies (2021)", cond: "LP (assumed)", price: "26.60", postage: "3.99", total: "30.59", valuation: "237.15", refNm: "263.50", grade: "Ungraded", type: "Buy it now", added: "10 hours ago", diff: "675.25" })}
+${JROW({ id: "198668921233", title: "Used Pokemon Card Game MEGA Storm Emerald Booster Pack Box", name: "Booster Pack", set: "Emerald (2005)", cond: "NM (assumed)", price: "120.17", postage: "0.00", total: "120.17", valuation: "830.67", refNm: "830.67", grade: "Ungraded", type: "Buy it now", added: "35 minutes ago", diff: "591.25" })}
+${JROW({ id: "377447114502", title: "Pokemon TCG Raihan 202/203 Evolving Skies Trainer PSA 10", name: "Raihan #202", set: "Evolving Skies (2021)", cond: "PSA 10", price: "64.99", postage: "6.50", total: "71.49", valuation: "419.00", refNm: "10.00", grade: "PSA 10", type: "Auction", added: "2 days ago", diff: "486.10" })}
+${JROW({ id: "377522417725", title: "Pokemon TCG Glaceon VMAX 209/203 SWSH07 Evolving Skies UR Holo ENG 310 HP", name: "Glaceon VMAX #209", set: "Evolving Skies (2021)", cond: "LP (assumed)", price: "26.60", postage: "3.99", total: "30.59", valuation: "237.15", refNm: "263.50", grade: "Ungraded", type: "Buy it now", added: "10 hours ago", diff: "675.25" })}
+</table></body></html>`;
+
+test("BD-9 the second board's parser: identity from the eBay link (its affiliate params dropped), single / sealed / graded, prices, valuation, the derived discount, coarse found-at, duplicates dropped", () => {
+  const now = Date.parse("2026-09-27T03:55:00.000Z");
+  const items = jimmy.parseJimmyHtml(JIMMY_HTML, { marketplace: "EBAY_US", format: "buy_it_now", now });
+  assert.equal(items.length, 3, "the duplicate row is dropped");
+  const single = items[0];
+  assert.equal(single.source, "jimmys");
+  assert.equal(single.ebayItemId, "377522417725");
+  assert.equal(single.marketplace, "EBAY_US");
+  assert.equal(single.plainEbayUrl, "https://www.ebay.com/itm/377522417725", "the board's own campaign params are not carried");
+  assert.equal(single.feedTitle, "Pokemon TCG Glaceon VMAX 209/203 SWSH07 Evolving Skies UR Holo ENG 310 HP");
+  assert.equal(single.boardKind, "single");
+  assert.equal(single.boardName, "Glaceon VMAX #209");
+  assert.equal(single.boardSet, "Evolving Skies (2021)");
+  assert.equal(single.feedCondition, "LP (assumed)");
+  assert.equal(single.feedItemPrice, 26.6);
+  assert.equal(single.feedPostage, 3.99);
+  assert.equal(single.feedPrice, 30.59, "the listed total is the price a buyer pays");
+  assert.equal(single.boardValuation, 237.15);
+  assert.equal(single.boardReferenceNm, 263.5);
+  assert.equal(single.boardValuationBasis, "LP (assumed)");
+  assert.equal(single.boardPriceDifferencePct, 6.7525, "the board's own figure, kept verbatim as a fraction");
+  assert.equal(single.capturedDiscountPct, 0.871, "1 - total / valuation on the board's two published numbers");
+  assert.equal(single.capturedDiscountText, "87% off");
+  assert.equal(single.boardImage, "https://i.ebayimg.com/images/g/377522417725/s-l400.jpg", "the image tag split across lines is read");
+  assert.deepEqual(single.boardSeller, { name: "stellar_trading_cards", feedbackScore: 2192, feedbackPct: 100 });
+  assert.equal(single.boardFoundAt, new Date(now - 10 * 3600_000).toISOString(), "'10 hours ago' -> now minus ten hours, coarse");
+  assert.equal(single.boardFormat, "BIN");
+  assert.equal(single.boardVariant, "Raw");
+  assert.match(single.sourceUrl, /^https:\/\/www\.jimmysdealfinder\.com\/pokemon\/us\/buy_it_now\/24hrs$/, "the page it came from, kept for auditing");
+  const sealed = items[1];
+  assert.equal(sealed.boardKind, "sealed");
+  assert.equal(sealed.boardVariant, "Sealed");
+  assert.equal(sealed.feedPostage, 0);
+  assert.equal(sealed.capturedDiscountPct, 0.855);
+  assert.equal(sealed.boardFoundAt, new Date(now - 35 * 60_000).toISOString());
+  const graded = items[2];
+  assert.equal(graded.boardKind, "graded");
+  assert.equal(graded.boardVariant, "PSA 10");
+  assert.equal(graded.boardFormat, "Auction");
+  assert.equal(graded.feedFormat, "auction");
+  assert.equal(graded.boardFoundAt, new Date(now - 2 * 86400_000).toISOString());
+  assert.equal(jimmy.foundAtFromAgo("just now", now), new Date(now).toISOString());
+  assert.equal(jimmy.foundAtFromAgo("yesterday", now), null);
+});
+
+test("BD-10 second-board rows through the pipeline: a sealed row is trusted by the sealed rule, a slab by the card rule; the same eBay item on both boards is ONE record with both sources; fresh rows publish unverified with our link", () => {
+  const now = Date.parse("2026-09-27T03:55:00.000Z");
+  const [single, sealed] = jimmy.parseJimmyHtml(JIMMY_HTML, { marketplace: "EBAY_US", format: "buy_it_now", now });
+  const capSealed = bd.capturedFromFeedItem(sealed, new Date(now).toISOString());
+  assert.equal(capSealed.source, "jimmys");
+  assert.equal(capSealed.kind, "sealed");
+  assert.equal(capSealed.valuation, 830.67);
+  assert.equal(capSealed.priceDifferencePct, 5.9125);
+  const boxListing = { title: "Used Pokemon Card Game MEGA Storm Emerald Booster Pack Box", listingUrl: "https://www.ebay.com/itm/198668921233", listingType: "FIXED_PRICE", bidCount: 0, price: 120.17, sellerFeedbackPct: 98.5, sellerFeedbackScore: 13711, condition: "New", soldOut: false };
+  assert.equal(bd.boardListingTrusted(boxListing, { kind: "sealed" }), true, "a sealed box passes the sealed rule");
+  assert.equal(bd.boardListingTrusted({ ...boxListing, title: "Pokemon booster box PROXY custom" }, { kind: "sealed" }), false, "a proxy never passes");
+  // unverified at once, our link
+  const unv = bd.unverifiedBoardDealRecord({ feedItem: sealed, captured: capSealed, now: new Date(now).toISOString() });
+  assert.equal(unv.status, "unverified");
+  assert.match(unv.affiliateUrl, /^https:\/\/www\.ebay\.com\/itm\/198668921233\?/);
+  assert.equal(unv.variant, "Sealed");
+  assert.equal(bd.publishableBoardDeals([unv], { now }).length, 1);
+  const shape = bd.toRenderShape(unv);
+  assert.equal(shape.discountPercentText, "86% off");
+  assert.equal(JSON.stringify(shape).includes("jimmys"), false, "the source name never reaches the page");
+  assert.equal(JSON.stringify(shape).includes("pricecharting"), false);
+  // both boards, one record
+  const merged = bd.touchBoardDealRecord({ ...unv, captured: { ...capSealed, source: "pokedealfinder" } }, { now: new Date(now).toISOString(), source: "jimmys" });
+  assert.deepEqual(merged.sources.sort(), ["jimmys", "pokedealfinder"]);
+  // a single from this board still needs the card rule
+  const capSingle = bd.capturedFromFeedItem(single, new Date(now).toISOString());
+  assert.equal(capSingle.kind, "single");
+  assert.equal(bd.boardListingTrusted({ title: "Pokemon TCG Glaceon VMAX lot of 50 cards", listingUrl: "https://www.ebay.com/itm/1", listingType: "FIXED_PRICE", bidCount: 0, price: 5, sellerFeedbackPct: 100, sellerFeedbackScore: 100 }, { kind: "single" }), false, "a lot is not one card");
+  // wiring
+  const route = read("app/api/ingest-feed/route.js");
+  assert.match(route, /const \{ listings: feedItems, error: feedError \} = await fetchBoards\(\);/, "both boards feed the run");
+  assert.match(route, /boardListingTrusted\(listing, \{ kind: captured\.kind \?\? "single" \}\)/);
+  assert.equal(bd.UNVERIFIED_FRESH_HOURS, 24);
+});
+
+test("BD-11 every list, every sort: the half-hourly plan reads the Today lists, the daily full pass reads every market x format x window x sort; slices dedupe on the eBay item id; presence on the second board keeps a row current", async () => {
+  const quick = jimmy.jimmyListPlan({ full: false });
+  const full = jimmy.jimmyListPlan({ full: true });
+  assert.equal(quick.length, 6 * 2 * 1 * 2, "6 markets (incl. all countries) x 2 formats x Today x 2 sorts");
+  assert.equal(full.length, 6 * 2 * 2 * 6, "6 markets x 2 formats x 2 windows x 6 sorts");
+  assert.ok(full.some((l) => l.url === "https://www.jimmysdealfinder.com/pokemon/all/auction/alltime?sort=end_asc"), "Auctions Ending Soonest is the all-time auction list sorted by end");
+  assert.ok(full.some((l) => l.url === "https://www.jimmysdealfinder.com/pokemon/uk/buy_it_now/alltime"), "Buy It Now - All");
+  // a fake site: every list returns the same three rows, so the walk must yield three
+  const urls = [];
+  const fetchImpl = async (url) => { urls.push(url); return { ok: true, text: async () => JIMMY_HTML }; };
+  const got = await jimmy.fetchJimmyFeed({ full: true, pace: 0, fetchImpl });
+  assert.equal(got.pages, 144);
+  assert.equal(urls.length, 144);
+  assert.equal(got.listings.length, 3, "the same listing across 144 slices is one row");
+  assert.equal(got.listings[0].sourceUrl, "https://www.jimmysdealfinder.com/pokemon/us/buy_it_now/24hrs", "the first list it was seen on, kept for auditing");
+  // freshness by presence: an all-time row added days ago is current while the board lists it
+  const now = Date.now();
+  const stale = { source: "jimmys", foundAt: new Date(now - 5 * 86400_000).toISOString(), discountPct: 0.5, price: 10 };
+  assert.equal(bd.isFreshCapture(stale, { now }), false, "by found-at alone it is not fresh");
+  assert.equal(bd.isFreshCapture(stale, { now, lastSeenOnBoardAt: new Date(now - 3600_000).toISOString() }), true, "but the board listed it an hour ago");
+  assert.equal(bd.isFreshCapture({ ...stale, source: "pokedealfinder" }, { now, lastSeenOnBoardAt: new Date(now - 3600_000).toISOString() }), false, "the first board's rows stay on found-at");
+  assert.match(read("vercel.json"), /"path": "\/api\/ingest-feed\?full=1",\s*"schedule": "20 4 \* \* \*"/, "the daily full pass is scheduled");
+  assert.match(read("app/api/ingest-feed/route.js"), /fetchJimmyFeed\(\{ full: fullPass \}\)/);
 });
 
 test("BD-7 end to end (harness): a board row at the live price is published with our affiliate link; a stale-price row is recorded as price_changed and never published; the run is recorded", () => {

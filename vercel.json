@@ -77,6 +77,10 @@
       "schedule": "*/30 * * * *"
     },
     {
+      "path": "/api/ingest-feed?full=1",
+      "schedule": "20 4 * * *"
+    },
+    {
       "path": "/api/screen-visual-authenticity",
       "schedule": "40 */3 * * *"
     },
