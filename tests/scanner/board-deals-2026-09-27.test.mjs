@@ -393,6 +393,44 @@ test("BD-11 every list, every sort: the half-hourly plan reads the Today lists, 
   assert.match(read("app/api/ingest-feed/route.js"), /fetchJimmyFeed\(\{ full: fullPass \}\)/);
 });
 
+test("BD-13 pages: the last linked page is read from the markup, a walk stops at the last page, an empty page or a page adding nothing; the backfill specs cover graded and sealed for every list", async () => {
+  assert.equal(jimmy.maxPageFromHtml('<a href="?page_num=2">2</a> <a href="?sort=x&page_num=17">17</a> <a href="?page_num=3">3</a>'), 17);
+  assert.equal(jimmy.maxPageFromHtml("<p>no pages</p>"), 1);
+  const quick = jimmy.jimmyListSpecs({ mode: "quick" });
+  const full = jimmy.jimmyListSpecs({ mode: "full" });
+  const back = jimmy.jimmyListSpecs({ mode: "backfill" });
+  assert.equal(quick.length, 12);
+  assert.ok(quick.every((s) => s.window === "24hrs" && s.maxPages === 3));
+  assert.equal(full.length, 24);
+  assert.ok(full.every((s) => s.maxPages === 50));
+  assert.equal(back.length, 24 * (1 + jimmy.SEALED_SEARCH_TERMS.length), "graded + every sealed search, per list");
+  assert.equal(back.filter((s) => s.label === "graded").length, 24);
+  assert.equal(jimmy.specUrl({ slug: "uk", format: "auction", window: "alltime", query: { grade: "Graded" } }, 3), "https://www.jimmysdealfinder.com/pokemon/uk/auction/alltime?grade=Graded&page_num=3");
+  assert.equal(jimmy.specUrl({ slug: "us", format: "buy_it_now", window: "24hrs", query: {} }, 1), "https://www.jimmysdealfinder.com/pokemon/us/buy_it_now/24hrs", "page 1 is the plain list");
+  // a three-page list where page 3 repeats page 2: stops with "nothing_new"
+  const page = (ids, max) => `${ids.map((id) => JROW({ id, title: `Card ${id}`, name: `Card ${id}`, set: "Set (2021)", cond: "NM (assumed)", price: "10.00", postage: "0.00", total: "10.00", valuation: "20.00", refNm: "20.00", grade: "Ungraded", type: "Buy it now", added: "1 hours ago", diff: "100" })).join("")}<a href="?page_num=${max}">${max}</a>`;
+  const served = { 1: page(["100000000001", "100000000002"], 5), 2: page(["100000000003"], 5), 3: page(["100000000003"], 5) };
+  const urls = [];
+  const fetchImpl = async (url) => { urls.push(url); const n = Number(/page_num=(\d+)/.exec(url)?.[1] ?? 1); return { ok: true, text: async () => served[n] ?? "" }; };
+  const spec = { slug: "us", marketplace: "EBAY_US", format: "buy_it_now", window: "alltime", query: {}, maxPages: 50, label: "full" };
+  const got = await jimmy.fetchJimmyListPages(spec, { pace: 0, fetchImpl });
+  assert.equal(got.maxPage, 5);
+  assert.equal(got.pages, 3);
+  assert.equal(got.listings.length, 3);
+  assert.equal(got.stoppedBecause, "nothing_new");
+  // an empty page stops the walk; a maxPages cap is respected
+  const empty = await jimmy.fetchJimmyListPages(spec, { pace: 0, fetchImpl: async (url) => ({ ok: true, text: async () => (/page_num=2/.test(url) ? "<p></p>" : served[1]) }) });
+  assert.equal(empty.pages, 2);
+  assert.equal(empty.stoppedBecause, "empty_page");
+  const capped = await jimmy.fetchJimmyListPages({ ...spec, maxPages: 1 }, { pace: 0, fetchImpl });
+  assert.equal(capped.pages, 1);
+  // a refused page reports and stops, keeping what was read
+  const refused = await jimmy.fetchJimmyListPages(spec, { pace: 0, fetchImpl: async (url) => (/page_num=2/.test(url) ? { ok: false, status: 429 } : { ok: true, text: async () => served[1] }) });
+  assert.equal(refused.listings.length, 2);
+  assert.equal(refused.errors.length, 1);
+  assert.match(refused.errors[0], /429/);
+});
+
 test("BD-7 end to end (harness): a board row at the live price is published with our affiliate link; a stale-price row is recorded as price_changed and never published; the run is recorded", () => {
   const r = spawnSync(process.execPath, ["--no-warnings", "--import", "./tests/harness/ingestion/register.mjs", "tests/harness/ingestion/driver.mjs", "feed"], { cwd: REPO, encoding: "utf8", timeout: 180_000, maxBuffer: 64 * 1024 * 1024 });
   assert.equal(r.status, 0, `feed harness failed: ${r.stderr}`);
