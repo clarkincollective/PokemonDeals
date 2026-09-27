@@ -198,6 +198,11 @@ export async function GET(request) {
   // for a run that has quota.
   const queueBoardDiscoveries = async (items) => {
     const records = await loadBoard();
+    // a skip path reaches here before the main path counted the board
+    if (board.discovered === 0 && (items ?? []).length) {
+      board.discovered = items.length;
+      board.withDiscount = items.filter((it) => it?.capturedDiscountPct != null).length;
+    }
     for (const it of items ?? []) {
       if (it?.capturedDiscountPct == null) continue;
       const kind = boardDealKind(it.marketplace, it.ebayItemId);
