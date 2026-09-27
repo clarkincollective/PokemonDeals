@@ -2,7 +2,7 @@ import SkipToContent from "@/components/SkipToContent";
 import { offerShipping } from "@/lib/offerPresentation";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
-import Image from "next/image";
+import DealImage from "@/components/DealImage";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { buildTcgplayerLink } from "@/lib/tcgplayer";
@@ -269,7 +269,8 @@ export default async function SealedDealDetailPage({ params }) {
         <div className="mt-4 flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-4 shadow-card sm:flex-row sm:p-6 dark:border-zinc-800 dark:bg-zinc-950">
           <div className="relative h-40 w-40 shrink-0 sm:h-56 sm:w-56 self-center overflow-hidden rounded-lg bg-zinc-50 sm:self-auto dark:bg-zinc-900">
             {deal.image_url ? (
-              <Image src={deal.image_url} alt={normalizePublicText(deal.title)} fill sizes="224px" className="object-contain p-3" />
+              // VERCEL-COST-2: eBay listing photo -> DealImage (no Vercel transformation)
+              <DealImage src={deal.image_url} alt={normalizePublicText(deal.title)} sizes="224px" className="object-contain p-3" />
             ) : (
               <CardImagePlaceholder className="h-24 w-16" />
             )}

@@ -16,6 +16,10 @@ const dq = require(join(REPO, "lib", "dealQuality.js"));
 const ev = JSON.parse(readFileSync(join(HERE, "evidence", "integrity-r1.json"), "utf8"));
 const scenario = process.argv[2];
 process.env.CRON_SECRET = "harness";
+// The routes end each run with ONE structured completion line on stdout
+// (lib/runtimeLog.logRunSummary); this driver's stdout IS the JSON result,
+// so route logging is silenced here - the same as verifyRetention.mjs.
+console.log = () => {};
 
 // Synthetic, clearly-labelled legitimate-ambiguity case (not production
 // evidence): one graded listing that honestly matches two printings sharing

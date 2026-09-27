@@ -16,6 +16,8 @@ import {
 import { honeypotTripped, rateLimit, keyFromRequest } from "@/lib/crm/signupGuard";
 
 export const dynamic = "force-dynamic";
+// VERCEL-COST-2: an explicit ceiling; without one Fluid bills up to 300 s when an upstream hangs.
+export const maxDuration = 30;
 
 const SITE_URL = "https://pokemondealfinder.com";
 

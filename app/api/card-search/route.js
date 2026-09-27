@@ -17,6 +17,8 @@ import { setPptConsumer } from "@/lib/pptTelemetry";
 // the SAME function. This route serves client-side searches after
 // hydration (typing, facet / sort / country changes, Back/Forward).
 export const dynamic = "force-dynamic";
+// VERCEL-COST-2: an explicit ceiling; without one Fluid bills up to 300 s when an upstream hangs.
+export const maxDuration = 30;
 
 const IS_DEV = process.env.NODE_ENV !== "production";
 

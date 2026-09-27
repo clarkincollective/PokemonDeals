@@ -121,8 +121,10 @@ test("fetchSetSearchVocabulary / fetchCatalogSets read a catalog_snapshot first"
 
 test("/api/refresh-catalog writes the setVocabulary + catalogSets snapshots", () => {
   const src = read("app/api/refresh-catalog/route.js");
-  assert.match(src, /kind: "setVocabulary"/);
-  assert.match(src, /kind: "catalogSets"/);
+  // VERCEL-COST-2: written through writeChanged (only when the structure
+  // differs from the stored row), under their own kinds
+  assert.match(src, /const CATALOG_KINDS = \["setVocabulary", "catalogSets"\];/);
+  assert.match(src, /writeChanged\(db, stored, \{ setVocabulary, catalogSets \}, updated_at\)/);
   assert.match(src, /buildSetVocabularyFromRows/);
   assert.match(src, /buildCatalogSetsFromRows/);
   // it is a SEPARATE try/catch so a card_catalog scan failure leaves the

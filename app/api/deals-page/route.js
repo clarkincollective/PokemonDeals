@@ -16,6 +16,8 @@ import { marketplaceFilterValue } from "@/lib/marketplaceScope";
 import { rotationBucket, rotateForBucket, selectDiverseLane, buildHomepageLanes } from "@/lib/homepageVariety";
 
 export const dynamic = "force-dynamic";
+// VERCEL-COST-2: an explicit ceiling; without one Fluid bills up to 300 s when an upstream hangs.
+export const maxDuration = 60;
 
 // Powers client-side pagination + filtering on /sets/[slug] and
 // /pokemon/[slug] so those pages can stay statically cacheable (their

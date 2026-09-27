@@ -1,4 +1,5 @@
 {
+  "ignoreCommand": "bash scripts/vercelIgnoreBuild.sh",
   "crons": [
     {
       "path": "/api/refresh-catalog",

@@ -3,6 +3,8 @@ import { viewerCurrency } from "@/lib/viewerCurrency";
 import { detectedMarketplace, edgeCountry } from "@/lib/geo";
 
 export const dynamic = "force-dynamic";
+// VERCEL-COST-2: an explicit ceiling; without one Fluid bills up to 300 s when an upstream hangs.
+export const maxDuration = 15;
 
 // The one request-time personalisation endpoint. Client components
 // (CurrencyProvider, RegionRedirect, the saved / recently-viewed strips)

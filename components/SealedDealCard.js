@@ -1,4 +1,4 @@
-import Image from "next/image";
+import DealImage from "@/components/DealImage";
 import { MARKETPLACES, wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 import MarketplaceMark from "@/components/MarketplaceMark";
 import SavingsBadge from "@/components/SavingsBadge";
@@ -58,10 +58,13 @@ export default function SealedDealCard({ deal, rank, scoreBadge, pageName = "sea
     <div className="group flex h-full flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover dark:border-zinc-800 dark:bg-zinc-950">
       <a href={`/sealed-deals/${deal.id}`} className="relative block h-40 w-full bg-zinc-50 sm:h-48 dark:bg-zinc-900">
         {deal.image_url ? (
-          <Image
+          // VERCEL-COST-2: an eBay listing photo (sealed_deals.image_url is
+          // the listing's own imageUrl) - unique per transient listing, so it
+          // goes through DealImage's eBay branch (eBay's size variants, no
+          // Vercel transformation), exactly as DealCard does for singles.
+          <DealImage
             src={deal.image_url}
             alt={normalizePublicText(deal.title)}
-            fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             className="object-contain p-3 transition-transform duration-200 group-hover:scale-[1.03]"
           />

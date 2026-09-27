@@ -44,7 +44,13 @@ function Thumb({ row }) {
       data-checklist-thumb
     >
       {row.image ? (
-        <Image src={row.image} alt="" fill sizes="(max-width: 640px) 44px, 52px" quality={80} className="object-contain" />
+        // VERCEL-COST-2: quality 80 is not in next.config's `qualities` [75, 85],
+        // so Next 16 answered every checklist thumbnail with HTTP 400 (no image
+        // rendered). 75 is a configured quality. Intrinsic width/height instead
+        // of `fill` + a px-only `sizes` (which makes next/image advertise all
+        // six configured widths for a 52 px slot): 1x/2x of 52 px both snap to
+        // the 128 px variant, so one transformation per card instead of six.
+        <Image src={row.image} alt="" width={52} height={73} quality={75} className="h-full w-full object-contain" />
       ) : (
         <CardImagePlaceholder className="h-7 w-5" />
       )}

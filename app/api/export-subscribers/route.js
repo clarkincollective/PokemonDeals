@@ -1,6 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
+// VERCEL-COST-2: an explicit ceiling; without one Fluid bills up to 300 s when an upstream hangs.
+export const maxDuration = 60;
 
 // GET /api/export-subscribers  (Authorization: Bearer <CRON_SECRET>)
 // CSV of confirmed, still-subscribed newsletter addresses.

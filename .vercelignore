@@ -1,0 +1,18 @@
+# VERCEL-COST-2 (27 Sep 2026). Nothing here is read by `next build` or by any
+# route at runtime, and together it is ~300 MB uploaded on every deployment
+# (measured: _mobileqa 220 MB, _homeshots 30 MB, _p021qa 8.6 MB of committed QA
+# screenshots; assets/ 22 MB; docs/ 6 MB; tests/ 6 MB). Keeping it out of the
+# deployment shrinks the upload, the build's working set and what Vercel
+# retains per deployment. lib/, app/, components/, public/, scripts/ and the
+# config files are untouched - scripts/vercelIgnoreBuild.sh must stay.
+_mobileqa
+_homeshots
+_p021qa
+assets
+docs
+tests
+design
+.claude
+.local
+.social-preview
+tmp

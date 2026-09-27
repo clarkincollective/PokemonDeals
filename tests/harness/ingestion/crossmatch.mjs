@@ -24,6 +24,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 import { createMemoryDb } from "./memoryDb.mjs";
+// The routes end each run with one structured completion line on stdout
+// (lib/runtimeLog.logRunSummary); this driver's stdout IS the JSON result.
+console.log = () => {};
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..", "..", "..");

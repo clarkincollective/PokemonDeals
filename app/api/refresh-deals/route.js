@@ -66,6 +66,25 @@ import { pilotTail, rankPilotCards, withoutStoredListings, allowances as pilotAl
 import { acquireBrowseLease } from "@/lib/browseBudget";
 import { createCrossMatchObserver, recordCrossMatchObservation } from "@/lib/crossMatchObservation";
 import { beginJobRun, finishJobRun, setQuotaSnapshot, markSkipped, markError, recordDedupeSavedGrading } from "@/lib/ebayTelemetry";
+import { cappedLogger, logRunSummary } from "@/lib/runtimeLog";
+
+// VERCEL-COST-2 (27 Sep 2026) - log discipline for the scanner, the app's
+// most frequent job (156 runs/day). Its per-listing / per-card error lines
+// were uncapped: one bad column or an RLS change would have emitted a line
+// per listing per run (1,000-1,600 x 156). Each condition now logs its first
+// three occurrences per function instance with the real message, counts the
+// rest, and the counts go into ONE completion line per run (below) and the
+// response. Nothing is hidden: the first lines still say what broke.
+const upsertErrorLog = cappedLogger("deal-upsert-error", { cap: 3 });
+const gradedLookupLog = cappedLogger("graded-lookup-error", { cap: 3 });
+const referenceUnverifiedLog = cappedLogger("reference-price-unverified", { cap: 3, level: "warn" });
+function takeLogCounts() {
+  const counts = { upsertErrors: upsertErrorLog.count(), gradedLookupErrors: gradedLookupLog.count(), referenceUnverified: referenceUnverifiedLog.count() };
+  upsertErrorLog.reset();
+  gradedLookupLog.reset();
+  referenceUnverifiedLog.reset();
+  return counts;
+}
 
 // This route does real work (API calls + database writes) and must never
 // be cached by Next.js. A full priority-tier run measured at ~6.5 min
@@ -577,7 +596,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
       return usd > 0 && usd <= marketData.fallbackPrice * REF_SANITY_MAX_RATIO;
     });
   if (referenceUnverified) {
-    console.warn(
+    referenceUnverifiedLog.log(
       `reference:price_unverified - ${row.name} / ${row.set} (${marketplaceId}): ` +
         `${refCandidates.length} matched listings all <= ${REF_SANITY_MAX_RATIO * 100}% of $${marketData.fallbackPrice.toFixed(2)} - skipping deal publication this cycle`
     );
@@ -693,7 +712,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
     lastWriteOutcome = error ? "error" : outcome;
     if (candidateMode && error) candidateOutcomes.writeErrors++;
     if (candidateMode && outcome === "exists") candidateOutcomes.existing++;
-    if (error) console.error(`Failed to upsert deal ${core.listing_id}:`, error.message);
+    if (error) upsertErrorLog.log(`Failed to upsert deal ${core.listing_id}:`, error.message);
     else if (outcome === "blocked") blockedRetired++;
     else if (outcome === "exists" || outcome === "quarantined" || outcome === "pending") {
       // candidate mode: another writer owns this listing, its copies
@@ -876,7 +895,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
         } catch (err) {
           gradedPrice = await loadSavedGradedPrice(db, { tcgplayerId: row.justtcg_tcgplayer_id, language: row.language, grader: grading.grader, grade: grading.grade });
           if (gradedPrice) gradedReferenceSource = gradedPrice.source;
-          else console.error(`Graded lookup failed for ${row.name} (${marketplaceId}), no saved bucket:`, err.message);
+          else gradedLookupLog.log(`Graded lookup failed for ${row.name} (${marketplaceId}), no saved bucket:`, err.message);
         }
       }
 
@@ -899,7 +918,7 @@ async function scanCardInMarketplace(row, marketplaceId, marketData, db, discoun
         }
       }
     } catch (err) {
-      console.error(`Graded lookup failed for ${row.name} (${marketplaceId}):`, err.message);
+      gradedLookupLog.log(`Graded lookup failed for ${row.name} (${marketplaceId}):`, err.message);
     }
   }
 
@@ -1122,7 +1141,7 @@ async function runSweep(marketplaceId, watchlistRows, db, discountThreshold, pag
       Object.assign(core, reference ?? clearedReference(CARD_REFERENCE_COLUMNS));
     }
     const { outcome, error } = await writeDiscoverySighting(db, core);
-    if (error) console.error(`Failed to upsert deal ${core.listing_id}:`, error.message);
+    if (error) upsertErrorLog.log(`Failed to upsert deal ${core.listing_id}:`, error.message);
     else if (outcome === "blocked") blockedRetired++;
     else {
       dealsFound++;
@@ -1354,6 +1373,7 @@ export async function GET(request) {
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const runStartedMs = Date.now();
 
   const db = supabaseAdmin();
   const rates = await getUsdRates();
@@ -1482,7 +1502,9 @@ export async function GET(request) {
     // as a 200 rather than letting the throw surface as a cron 500.
     try {
       const result = await runSweep(marketplaceId, allActiveRows ?? [], db, discountThreshold, pages, rates);
-      return Response.json({ mode: "sweep", marketplace: marketplaceId, ...result, rateLimitRemaining, scannedAt: new Date().toISOString() });
+      const logCounts = takeLogCounts();
+      logRunSummary("refresh_deals_complete", { mode: "sweep", marketplace: marketplaceId, swept: result.swept, matched: result.matched, dealsFound: result.dealsFound, blockedRetired: result.blockedRetired, errors: result.errors?.length ?? 0, ...logCounts, rateLimitRemaining, durationMs: Date.now() - runStartedMs });
+      return Response.json({ mode: "sweep", marketplace: marketplaceId, ...result, logCounts, rateLimitRemaining, scannedAt: new Date().toISOString() });
     } catch (err) {
       // EBAY-14R - deliberately not markError/rethrow: this is the
       // existing "never let a mid-sweep eBay error surface as a cron 500"
@@ -2161,6 +2183,19 @@ export async function GET(request) {
   // run is already inspected, with no new table, service or dashboard.
   // Read-only: nothing branches on it.
   const observations = takeObservationTally();
+  const logCounts = takeLogCounts();
+  logRunSummary("refresh_deals_complete", {
+    mode: allocatedMode ? "allocated" : "manual",
+    country: allocatedMode ? allocatedCountry : null,
+    scanned,
+    dealsFound,
+    blockedRetired,
+    errors: errors.length,
+    invalidated,
+    ...logCounts,
+    rateLimitRemaining,
+    durationMs: Date.now() - runStartedMs,
+  });
 
   return Response.json({
     scanned,
@@ -2170,6 +2205,7 @@ export async function GET(request) {
     invalidationErrors,
     blockedRetired,
     errors,
+    logCounts,
     rateLimitRemaining,
     scannedAt: new Date().toISOString(),
     ...(allocatedMode

@@ -16,6 +16,8 @@ const WITH_HREF = { withEbayHref: true };
 //   ?set=<slug>                       one set's products
 //   ?q=<text>&type=<type>&deals=1     products matching the filters, grouped by set
 export const dynamic = "force-dynamic";
+// VERCEL-COST-2: an explicit ceiling; without one Fluid bills up to 300 s when an upstream hangs.
+export const maxDuration = 60;
 
 const HEADERS = { "Cache-Control": "public, s-maxage=900, stale-while-revalidate=3600", "X-Robots-Tag": "noindex" };
 

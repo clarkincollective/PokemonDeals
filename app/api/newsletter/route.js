@@ -2,6 +2,8 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { classifyTokenLookup, writeSucceeded } from "@/lib/newsletterFlow";
 
 export const dynamic = "force-dynamic";
+// VERCEL-COST-2: an explicit ceiling; without one Fluid bills up to 300 s when an upstream hangs.
+export const maxDuration = 30;
 
 const SITE_URL = "https://pokemondealfinder.com";
 const INFRA_ERROR_MESSAGE = "Something went wrong on our end. Please try again in a few minutes.";

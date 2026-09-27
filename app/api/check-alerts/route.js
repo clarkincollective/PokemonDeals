@@ -21,7 +21,13 @@ const DISCOUNT_FLOOR = 0.1;
 // subject, a digest preference). Matching is lib/alertMatch's pure
 // evaluator over the SAME displayable, cheapest-first offers the card page
 // shows - so an alert can never fire on a listing the site would not show.
-export async function GET() {
+export async function GET(request) {
+  // VERCEL-COST-2: CRON_SECRET, like every other cron route (this one sends
+  // email and was callable by anyone who knew the path).
+  const authHeader = request?.headers?.get("authorization");
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
   if (!emailEnabled()) {
     return Response.json({ ok: true, skipped: "disabled" });
   }

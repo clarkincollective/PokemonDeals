@@ -1,4 +1,4 @@
-import Image from "next/image";
+import DealImage from "@/components/DealImage";
 import { wrapEbayAffiliateUrl } from "@/lib/ebayLinks";
 
 // One imported listing (lib/boardDeals toRenderShape): image, name, set, the
@@ -12,8 +12,14 @@ export default function BoardDealCard({ deal: d, page = "deals" }) {
   return (
     <li className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
       <div className="relative aspect-[4/5] w-full bg-zinc-50 dark:bg-zinc-950">
+        {/* VERCEL-COST-2 (27 Sep): an eBay listing photo, unique per transient
+            listing (5,000+ of them on /more-deals). DealImage serves these
+            through eBay's own size variants, NOT Vercel Image Optimization -
+            the first version of this card put them through next/image with
+            `fill` and would have billed up to 8 transformations + cache
+            writes per listing for near-zero reuse. */}
         {d.image ? (
-          <Image src={d.image} alt={d.name ? `${d.name}${d.set ? ` (${d.set})` : ""}` : d.title ?? ""} fill sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw" className="object-contain p-2" />
+          <DealImage src={d.image} alt={d.name ? `${d.name}${d.set ? ` (${d.set})` : ""}` : d.title ?? ""} sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw" className="object-contain p-2" />
         ) : null}
         <span className="absolute left-2 top-2 rounded-md bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
           {d.savingsPercentText}

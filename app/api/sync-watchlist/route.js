@@ -8,6 +8,7 @@ import {
 } from "@/lib/pokemonPriceTracker";
 import { upsertWithProvenance } from "@/lib/referenceProvenanceDb";
 import { setPptConsumer } from "@/lib/pptTelemetry";
+import { debugLog, logRunSummary } from "@/lib/runtimeLog";
 
 // Pages through the entire Pokemon catalog, so this can take a while -
 // give it room instead of the default timeout.
@@ -275,8 +276,12 @@ async function syncViaSetCrawl(db, manualKeys, maxSets, language) {
   let priceHistoryWritten = 0;
   let priceHistoryError = null;
 
+  let rateLimited = 0;
   for (const [setIndex, set] of sets.entries()) {
-    console.log(`[sync-watchlist] (${setIndex + 1}/${sets.length}) ${set.name}`);
+    // VERCEL-COST-2: one line per set (218-442 per nightly run) was the
+    // biggest single-run log burst in the app. Debug-only; the run ends
+    // with ONE summary line instead.
+    debugLog(`[sync-watchlist] (${setIndex + 1}/${sets.length}) ${set.name}`);
 
     // A single fetchAllInSet call costs one credit per card *toward the
     // per-minute rate limit too* - a big set (200-300+ cards) can burn
@@ -289,7 +294,8 @@ async function syncViaSetCrawl(db, manualKeys, maxSets, language) {
       const retryMatch = err.message.match(/"retryAfter":(\d+)/);
       if (retryMatch) {
         const waitMs = (Number(retryMatch[1]) + 2) * 1000;
-        console.log(`[sync-watchlist] rate limited on ${set.name}, waiting ${waitMs}ms`);
+        rateLimited++;
+        debugLog(`[sync-watchlist] rate limited on ${set.name}, waiting ${waitMs}ms`);
         await sleep(waitMs);
         try {
           cards = await listSetCards(set.tcgPlayerId, language);
@@ -386,6 +392,20 @@ async function syncViaSetCrawl(db, manualKeys, maxSets, language) {
 
   const retired = maxSets ? 0 : await retireStaleAutoRows(db, seenKeys, language);
   const priceHistory = { written: priceHistoryWritten, error: priceHistoryError };
+
+  logRunSummary("sync_watchlist_complete", {
+    language,
+    setsScanned: sets.length,
+    totalSets: allSets.length,
+    priorityCount,
+    extendedCount,
+    skipped,
+    retired,
+    rateLimited,
+    priceHistoryRows: priceHistory.written,
+    priceHistoryError: priceHistory.error ? String(priceHistory.error).slice(0, 200) : null,
+    errors: errors.length,
+  });
 
   return {
     method: "set-crawl",

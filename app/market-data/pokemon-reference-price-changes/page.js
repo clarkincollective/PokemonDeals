@@ -148,7 +148,8 @@ export default function ReferencePriceChangesPage() {
                     alt={`${c.name} (${c.set}) - catalogue artwork`}
                     fill
                     sizes="(max-width: 640px) 25vw, 104px"
-                    quality={80}
+                    // VERCEL-COST-2: 80 is not a configured quality (400 from the optimizer)
+                    quality={75}
                     className="object-contain"
                   />
                 </div>

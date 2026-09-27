@@ -22,13 +22,20 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
 
 const ROUTES = ["app/api/refresh-catalog/route.js", "app/api/refresh-deals/route.js"];
+// VERCEL-COST-2 (27 Sep 2026): each refresh expires the tag its own readers
+// carry. The deal scan writes deals -> the shared deal-lists tag. The
+// catalogue refresh writes catalog_snapshot -> the snapshot tag carried by
+// fetchSets / fetchCardHubs / fetchSpeciesHubs (those caches were untagged
+// before, so the old deal-lists expiry never refreshed them and instead
+// regenerated the homepage and every category page 48 times a day).
+const TAG_FOR = { "app/api/refresh-catalog/route.js": "CATALOG_SNAPSHOT_TAG", "app/api/refresh-deals/route.js": "DEAL_LISTS_TAG" };
 
-test("1. both refresh routes expire the shared deal-lists tag", () => {
+test("1. both refresh routes expire the tag their readers carry, immediately", () => {
   for (const r of ROUTES) {
     const src = read(r);
     assert.match(src, /import \{ revalidateTag \} from "next\/cache";/, `${r}: imports revalidateTag`);
-    assert.match(src, /DEAL_LISTS_TAG/, `${r}: uses the shared list tag`);
-    assert.match(src, /revalidateTag\(DEAL_LISTS_TAG, \{ expire: 0 \}\)/, `${r}: expires now, not stale-while-revalidate`);
+    assert.match(src, new RegExp(TAG_FOR[r]), `${r}: uses its readers' tag`);
+    assert.match(src, new RegExp(`revalidateTag\\(${TAG_FOR[r]}, \\{ expire: 0 \\}\\)`), `${r}: expires now, not stale-while-revalidate`);
   }
 });
 
@@ -37,7 +44,7 @@ test("2. a failed invalidation never fails the refresh", () => {
   // successful scan into a 500 and, on a cron, into a retry that rescans
   for (const r of ROUTES) {
     const src = read(r);
-    const idx = src.indexOf("revalidateTag(DEAL_LISTS_TAG");
+    const idx = src.indexOf(`revalidateTag(${TAG_FOR[r]}`);
     assert.ok(idx > 0, `${r}: no invalidation`);
     const around = src.slice(Math.max(0, idx - 400), idx + 400);
     assert.match(around, /try \{/, `${r}: invalidation must be guarded`);

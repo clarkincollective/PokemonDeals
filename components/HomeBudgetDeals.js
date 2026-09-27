@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+import DealImage from "@/components/DealImage";
 
 // "Deals under your budget" - the price-banded discovery modules.
 //
@@ -65,7 +65,12 @@ export default function HomeBudgetDeals({ previewsByBand = {} }) {
                       key={p.id ?? n}
                       className="relative block h-16 w-12 overflow-hidden rounded-md border border-white bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
                     >
-                      <Image src={p.image} alt="" fill sizes="48px" className="object-contain p-0.5" />
+                      {/* VERCEL-COST-2: these are eBay listing photos off the
+                          deals pool - transient, unique per listing. DealImage
+                          serves them from eBay's own size variants instead of
+                          minting Vercel transformations (12 per homepage render,
+                          rotating with every 180 s regeneration before). */}
+                      <DealImage src={p.image} alt="" sizes="48px" className="object-contain p-0.5" />
                     </span>
                   ))}
                 </span>
