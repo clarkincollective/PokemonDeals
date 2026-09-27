@@ -547,10 +547,12 @@ test("AA-30. a server-built href keeps its campaign id when the client re-applie
     assert.equal(clientFinal.searchParams.get("customid"), "sealed-selected");
     assert.equal(clientFinal.searchParams.get("_nkw"), "151 Elite Trainer Box");
 
-    // and the failure this replaced: building from scratch in the browser
-    // produces a link with NO campaign id at all
+    // 27 Sep 2026: building from scratch in the browser used to produce a
+    // link with NO campaign id at all (which is why the API sends the href);
+    // the public campaign id is now the fallback, so even that path is tracked
     const builtInBrowser = new URL(buildEbaySearchLink("151 Elite Trainer Box", undefined, { page: "sealed", placement: "selected" }));
-    assert.equal(builtInBrowser.searchParams.get("campid"), null, "this is why the API must send the href");
+    assert.equal(builtInBrowser.searchParams.get("campid"), "5339197414", "the public campaign id is the browser fallback");
+    assert.equal(builtInBrowser.searchParams.get("customid"), "sealed-selected");
   } finally {
     process.env.EBAY_CAMPAIGN_ID = original;
   }

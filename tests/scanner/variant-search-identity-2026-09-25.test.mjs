@@ -341,9 +341,11 @@ test("VS-24. re-wrapping a server href keeps campid and sets the placement custo
     assert.equal(u.searchParams.get("_nkw"), q, "the query is untouched");
     assert.equal(u.searchParams.get("_sacat"), "183454");
 
-    // and the failure this replaced: building from scratch in the browser
+    // 27 Sep 2026: building from scratch in the browser used to produce a
+    // link with no campaign id (which is why the API sends the href); the
+    // public campaign id is now the fallback, so even that path is tracked
     const clientBuilt = new URL(buildEbaySearchLink(q, undefined, { page: "card", placement: "variant" }));
-    assert.equal(clientBuilt.searchParams.get("campid"), null, "this is why the API must send the href");
+    assert.equal(clientBuilt.searchParams.get("campid"), "5339197414", "the public campaign id is the browser fallback");
   } finally {
     process.env.EBAY_CAMPAIGN_ID = original;
   }
