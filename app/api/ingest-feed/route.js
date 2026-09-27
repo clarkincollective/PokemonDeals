@@ -8,6 +8,26 @@ import {
   languageAspect,
 } from "@/lib/ebay";
 import { fetchFeed } from "@/lib/pokeFeed";
+// 2026-09-27 BOARD DEALS - the board's own published listings + discount
+// figure, shown on a separate surface only after THIS route's eBay lookup
+// confirms the listing is live at the captured price (lib/boardDeals).
+import {
+  BOARD_DEALS_TAG,
+  boardDealKind,
+  capturedFromFeedItem,
+  classifyVerification,
+  buildBoardDealRecord,
+  touchBoardDealRecord,
+  pendingBoardDealRecord,
+  expireAbsentRecords,
+  loadBoardDealRecords,
+  saveBoardDealRecords,
+  acquireRunLock,
+  releaseRunLock,
+  recordBoardRun,
+  boardListingTrusted,
+  BOARD_ABSENCE_HOURS,
+} from "@/lib/boardDeals";
 import { getUsdRates, toUsd } from "@/lib/fx";
 import { logDiscoveryEvent, legacyIdFromListingId, discoveryListingKey } from "@/lib/discoveryLog";
 // 17C.10 - this writer changes a comparison but has no provider-dated
@@ -142,7 +162,101 @@ export async function GET(request) {
   let dailyAttemptsLeft = null;
   let attemptCeiling = null;
   let attemptGuard = null;
+
+  // 2026-09-27 board deals: ONE run at a time. The cron is every 30 minutes
+  // and a run may take up to maxDuration, so a second invocation that finds
+  // the lock held stops here having made no eBay call. A lock past its
+  // `until` (a crashed run) is taken over.
+  // (acquired inside the try below, released by its inner finally)
+  // Board-deal bookkeeping for this run: discoveries, imports (published),
+  // duplicates (a record already exists: touched, no lookup), queued
+  // (pending, awaiting quota), failures and the quota it ran under.
+  const board = { discovered: 0, withDiscount: 0, duplicatesSkipped: 0, queuedPending: 0, lookedUp: 0, published: 0, priceChanged: 0, ended: 0, rejected: 0, lookupFailed: 0, expired: 0, saved: 0, saveErrors: [] };
+  const runNow = new Date().toISOString();
+  let boardRecords = null; // Map<kind, record>, loaded once on first use
+  const boardChanged = new Map(); // kind -> record to save this run
+  const loadBoard = async () => (boardRecords ??= await loadBoardDealRecords(db));
+  // Record OUR lookup's verdict for one board row. `listing` is the
+  // mapItemSummary result, or null when the lookup returned nothing.
+  const recordBoardVerdict = async (feedItem, listing) => {
+    if (!feedItem) return;
+    const kind = boardDealKind(feedItem.marketplace, feedItem.ebayItemId);
+    const prev = (await loadBoard()).get(kind) ?? null;
+    const captured = capturedFromFeedItem(feedItem, runNow) ?? prev?.captured ?? null;
+    board.lookedUp++;
+    if (!captured) return; // the row carries no published figure: nothing for this surface
+    const verdict = classifyVerification({ captured, listing, trusted: listing ? boardListingTrusted(listing) : true });
+    boardChanged.set(kind, buildBoardDealRecord({ feedItem, listing, captured, verdict, prev, now: runNow }));
+    if (verdict.status === "published") board.published++;
+    else if (verdict.status === "price_changed") board.priceChanged++;
+    else if (verdict.status === "ended") board.ended++;
+    else board.rejected++;
+  };
+  // Every board row with a captured discount that this run did NOT look up:
+  // a record already exists -> duplicate (touched: the board still lists it,
+  // no lookup, no re-import); none -> queued as pending, captured data kept,
+  // for a run that has quota.
+  const queueBoardDiscoveries = async (items) => {
+    const records = await loadBoard();
+    for (const it of items ?? []) {
+      if (it?.capturedDiscountPct == null) continue;
+      const kind = boardDealKind(it.marketplace, it.ebayItemId);
+      if (boardChanged.has(kind)) continue;
+      const prev = records.get(kind);
+      if (prev) {
+        boardChanged.set(kind, touchBoardDealRecord(prev, { now: runNow }));
+        board.duplicatesSkipped++;
+      } else {
+        boardChanged.set(kind, pendingBoardDealRecord({ feedItem: it, captured: capturedFromFeedItem(it, runNow), now: runNow }));
+        board.queuedPending++;
+      }
+    }
+  };
+  // Pending records the board no longer lists still deserve their lookup
+  // (the queue outlives the board's own recency window), as feed-shaped items.
+  const pendingOffBoard = async (onBoardKeys) => {
+    const records = await loadBoard();
+    const cutoff = Date.now() - BOARD_ABSENCE_HOURS * 3600_000;
+    const out = [];
+    for (const [kind, r] of records) {
+      if (r.status !== "pending" || onBoardKeys.has(kind) || !(Date.parse(r.lastSeenOnBoardAt ?? "") > cutoff)) continue;
+      out.push({ marketplace: r.marketplace, ebayItemId: r.itemId, feedTitle: r.title, feedPrice: r.captured?.price ?? null, feedMarket: r.captured?.market ?? null, capturedDiscountPct: r.captured?.discountPct ?? null, capturedDiscountText: r.captured?.discountText ?? null, boardName: r.name, boardSet: r.set, boardVariant: r.variant, boardFormat: r.format, boardImage: r.image, plainEbayUrl: r.listingUrl, sourceUrl: r.captured?.sourceUrl ?? null, _queued: true });
+    }
+    return out;
+  };
+  // Expire records absent from the board, save every changed record, expire
+  // the page cache when what is published changed, and write the run summary.
+  const flushBoard = async ({ browseCalls = 0, quota = null, skipped = null } = {}) => {
+    const records = await loadBoard();
+    const untouched = [...records.entries()].filter(([kind]) => !boardChanged.has(kind)).map(([, r]) => r);
+    const { records: aged, expired } = expireAbsentRecords(untouched, { now: Date.now() });
+    for (const r of aged) if (r.status === "expired" && records.get(boardDealKind(r.marketplace, r.itemId))?.status !== "expired") boardChanged.set(boardDealKind(r.marketplace, r.itemId), r);
+    board.expired = expired;
+    const toSave = [...boardChanged.values()];
+    if (toSave.length) {
+      const { written, errors } = await saveBoardDealRecords(db, toSave);
+      board.saved = written;
+      board.saveErrors = errors;
+    }
+    const publicationChanged = toSave.some((r) => r.status === "published" || r.unpublishedAt || r.status === "expired" || r.status === "price_changed" || r.status === "ended");
+    if (publicationChanged) {
+      try {
+        revalidateTag(BOARD_DEALS_TAG, { expire: 0 });
+      } catch {
+        /* the 15-minute revalidate still applies */
+      }
+    }
+    await recordBoardRun(db, { at: runNow, skipped, browseCalls, quota, ...board });
+    return { ...board };
+  };
   try {
+  const runLock = await acquireRunLock(db, { ttlMs: (maxDuration + 60) * 1000, owner: ctx?.runId ?? null });
+  if (!runLock.acquired) {
+    markSkipped("overlapping_run");
+    await recordBoardRun(db, { at: new Date().toISOString(), skipped: "overlapping_run", heldUntil: runLock.heldUntil ?? null, error: runLock.error ?? null });
+    return Response.json({ skipped: "overlapping_run", heldUntil: runLock.heldUntil ?? null });
+  }
+  try { // released by the inner finally on EVERY exit below (indentation kept flat: the body is unchanged)
   // Pre-flight quota guard. A high floor on purpose: this is spare-capacity
   // supplementation - it backs off FIRST so the primary scanner
   // (app/api/refresh-deals, which has no floor) always keeps quota. A
@@ -152,6 +266,16 @@ export async function GET(request) {
   setQuotaSnapshot({ remainingStart: rl?.remaining ?? null, limit: rl?.limit ?? null, reserveFloor: RATE_LIMIT_FLOOR });
   if (rl && rl.remaining != null && rl.remaining < RATE_LIMIT_FLOOR) {
     markSkipped("ebay_rate_limited");
+    // 2026-09-27 board deals: the board is still read (no eBay call) so its
+    // rows are queued as pending records for a run that has quota.
+    let boardQueued = null;
+    try {
+      const { listings: boardRows } = await fetchFeed();
+      await queueBoardDiscoveries(boardRows);
+      boardQueued = await flushBoard({ browseCalls: 0, quota: { remaining: rl.remaining, floor: RATE_LIMIT_FLOOR }, skipped: "ebay_rate_limited" });
+    } catch {
+      /* queueing is best-effort */
+    }
     await recordIngestRun(db, {
       at: new Date().toISOString(),
       quotaFloorSkipped: true,
@@ -165,6 +289,7 @@ export async function GET(request) {
       floor: RATE_LIMIT_FLOOR,
       remaining: rl.remaining,
       reset: rl.reset,
+      boardDeals: boardQueued,
     });
   }
 
@@ -183,7 +308,13 @@ export async function GET(request) {
   //
   // Keep only supported marketplaces; canonical-dedupe is handled by
   // partitionCandidates on discoveryListingKey.
-  const supportedItems = feedItems.filter((it) => MARKETPLACES[it.marketplace]);
+  const boardItems = feedItems.filter((it) => MARKETPLACES[it.marketplace]);
+  // 2026-09-27 board deals: what the board published this run, plus the
+  // pending records it no longer lists (the queue outlives the board).
+  board.discovered = boardItems.length;
+  board.withDiscount = boardItems.filter((it) => it.capturedDiscountPct != null).length;
+  const onBoardKeys = new Set(boardItems.map((it) => boardDealKind(it.marketplace, it.ebayItemId)));
+  const supportedItems = [...boardItems, ...(await pendingOffBoard(onBoardKeys))];
   const candidateKeys = [...new Set(supportedItems.map(candidateKey).filter(Boolean))];
   const recentCutoffMs = Date.now() - RECENT_VERIFY_HOURS * 3600 * 1000;
   const recentCutoff = new Date(recentCutoffMs).toISOString();
@@ -273,7 +404,10 @@ export async function GET(request) {
     if (budget.granted <= 0) {
       markSkipped(`budget_${budget.decision?.denied ?? "denied"}`);
       await recordIngestRun(db, { at: new Date().toISOString(), browseBudgetSkipped: budget.decision?.denied ?? true, browseVerifyAttempts: 0, tookMs: Date.now() - startedAt });
-      return Response.json({ skipped: "browse_budget", budget: { mode: budget.mode, ...budget.decision } });
+      // 2026-09-27 board deals: no quota this run - queue, do not look up
+      await queueBoardDiscoveries(supportedItems);
+      const boardQueued = await flushBoard({ browseCalls: 0, quota: { remaining: rl?.remaining ?? null, decision: budget.decision ?? null }, skipped: "browse_budget" });
+      return Response.json({ skipped: "browse_budget", budget: { mode: budget.mode, ...budget.decision }, boardDeals: boardQueued });
     }
     budgetLease = budget.lease;
     attachBrowseLease(budgetLease);
@@ -306,7 +440,10 @@ export async function GET(request) {
         ingestRetries: 0,
         tookMs: Date.now() - startedAt,
       });
-      return Response.json({ skipped: "ingest_daily_attempt_limit", limit: INGEST_DAILY_ATTEMPT_LIMIT, remaining: 0 });
+      // 2026-09-27 board deals: the day's lookups are spent - queue, do not look up
+      await queueBoardDiscoveries(supportedItems);
+      const boardQueued = await flushBoard({ browseCalls: 0, quota: { remaining: rl?.remaining ?? null, dailyAttemptsLeft: 0 }, skipped: "ingest_daily_attempt_limit" });
+      return Response.json({ skipped: "ingest_daily_attempt_limit", limit: INGEST_DAILY_ATTEMPT_LIMIT, remaining: 0, boardDeals: boardQueued });
     }
     attemptCeiling = Math.min(dailyAttemptsLeft ?? INGEST_MAX_ATTEMPTS_PER_RUN, INGEST_MAX_ATTEMPTS_PER_RUN);
     // Hard ceiling on real attempts for the rest of this invocation.
@@ -370,8 +507,23 @@ export async function GET(request) {
     browseCalls += calls;
     verified += listings.length;
 
+    // 2026-09-27 board deals: a row we looked up that came back with nothing
+    // (ended / removed / not found) is a failed lookup for this surface.
+    {
+      const returned = new Set(listings.map((l) => String(legacyIdFromListingId(l.listingId))));
+      for (const it of items) {
+        if (returned.has(String(it.ebayItemId))) continue;
+        board.lookupFailed++;
+        await recordBoardVerdict(it, null);
+      }
+    }
+
     for (const listing of listings) {
       const feedItem = feedByLegacy.get(String(legacyIdFromListingId(listing.listingId)));
+      // 2026-09-27 board deals: OUR lookup's verdict on this board row is
+      // recorded BEFORE the discovery pipeline's own gates below, which
+      // decide something different (whether it becomes one of OUR deals).
+      await recordBoardVerdict(feedItem, listing);
       // One discovery-analytics event per VERIFIED listing (Phase 2, Step 9
       // acceptance-rate denominator). Best-effort - never blocks ingestion.
       const logFeed = (becameDeal, extra = {}) =>
@@ -559,6 +711,12 @@ export async function GET(request) {
     .lt("last_seen_at", graceCutoff)
     .select("id");
 
+  // 2026-09-27 board deals: rows not looked up this run are duplicates
+  // (record exists, touched) or queued pending; absent records expire; the
+  // page cache is refreshed when publication changed; the run is recorded.
+  await queueBoardDiscoveries(supportedItems);
+  const boardSummary = await flushBoard({ browseCalls, quota: { remaining: rl?.remaining ?? null, dailyAttemptsLeft, attemptCeiling } });
+
   const rejectionBreakdown = {
     untrusted: counts.untrusted,
     graded: counts.graded,
@@ -654,8 +812,12 @@ export async function GET(request) {
     invalidation,
     expiredFeedOnly: expired?.length ?? 0,
     rateLimitRemaining: rl?.remaining ?? null,
+    boardDeals: boardSummary,
     tookMs: Date.now() - startedAt,
   });
+  } finally {
+    await releaseRunLock(db); // 2026-09-27 board deals: one run at a time
+  }
   } catch (err) {
     markError(err);
     throw err;

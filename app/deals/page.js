@@ -6,6 +6,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import DealGrid from "@/components/DealGrid";
 import DealsBrowseGuide from "@/components/DealsBrowseGuide";
+import BoardDealsSection from "@/components/BoardDealsSection";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { normalizePublicText } from "@/lib/publicText";
 import { serializeJsonLd } from "@/lib/jsonLd";
@@ -136,6 +137,11 @@ export default async function AllDealsPage() {
           validSetSlugs={validSetSlugs}
           subjectLabel="matching"
         />
+
+        {/* 2026-09-27: externally published listings, checked live on eBay,
+            with their listed discount - a separate surface from the evidenced
+            grid above (components/BoardDealsSection). */}
+        <BoardDealsSection page="deals" limit={12} />
 
         {/* 2026-09-21: the browse guide sits BELOW the grid - listings are
             what a visitor came for, and the homepage fold rule applies

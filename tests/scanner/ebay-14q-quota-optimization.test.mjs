@@ -165,7 +165,7 @@ test("14Q-20. vercel.json cron schedules for every eBay-consuming route are unch
   // sweep keeps everything at or below market instead of only 10%+ off, at
   // zero extra quota. One marketplace only, so the other five stay a control.
   assert.equal(byPath["/api/refresh-deals?mode=sweep&country=EBAY_US&pages=5&minDiscount=0"], "*/15 * * * *");
-  assert.equal(byPath["/api/ingest-feed"], "0 * * * *");
+  assert.equal(byPath["/api/ingest-feed"], "*/30 * * * *"); // 2026-09-27: board ingestion every 30 minutes (owner's brief); daily cap unchanged
   // sealed-rev1 (16 Sep 2026): moved from 06:00 to 07:20 UTC and scoped to one
   // marketplace. 06:00 sits an hour BEFORE the daily Browse reset, so this job
   // was skipped "ebay_rate_limited" on every attempt for five straight days.

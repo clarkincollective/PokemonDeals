@@ -26,6 +26,7 @@ import HomeLiveStats from "@/components/HomeLiveStats";
 import HomeQuickFilters from "@/components/HomeQuickFilters";
 import HomePopularPokemon from "@/components/HomePopularPokemon";
 import HomeBudgetDeals from "@/components/HomeBudgetDeals";
+import BoardDealsSection from "@/components/BoardDealsSection";
 import HomeTrustSection from "@/components/HomeTrustSection";
 import HomeHeroArt from "@/components/HomeHeroArt";
 import EmailCapture from "@/components/EmailCapture";
@@ -557,6 +558,9 @@ export default async function Home() {
           empty shell when that data is thin. */}
       <HomePopularPokemon species={speciesHubs} />
       <HomeBudgetDeals previewsByBand={budgetPreviews} />
+      {/* 2026-09-27: externally published listings checked live on eBay, with
+          their listed discount - kept apart from the evidenced feed above. */}
+      <BoardDealsSection page="home" limit={8} />
 
       {/* TRUST - the methodology work as conversion support. Every claim
           links to where it is substantiated; no invented social proof. */}

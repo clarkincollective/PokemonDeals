@@ -304,7 +304,32 @@ async function run() {
     url = priority ? "http://harness/api/refresh-deals?tier=priority&country=EBAY_US" : "http://harness/api/refresh-deals?mode=sweep&country=EBAY_US&pages=1";
   } else if (scenario === "feed") {
     harness.db = seedDb();
-    harness.feedItems = deals.map((d) => ({ marketplace: "EBAY_US", ebayItemId: legacy(d.listing_id), sourceUrl: "https://example.invalid/board", feedTitle: d.title }));
+    // 2026-09-27 board deals: the first two board rows carry a published
+    // discount figure - the first at the listing's LIVE price (must publish),
+    // the second at a stale price (must be recorded as price_changed, never
+    // shown). Every other row is identity-only, as before.
+    harness.feedItems = deals.map((d, i) => ({
+      marketplace: "EBAY_US",
+      ebayItemId: legacy(d.listing_id),
+      sourceUrl: "https://example.invalid/board",
+      feedTitle: d.title,
+      ...(i === 0 || i === 1
+        ? {
+            capturedDiscountPct: i === 0 ? 0.3 : 0.2,
+            capturedDiscountText: i === 0 ? "30% off" : "20% off",
+            feedPrice: i === 0 ? Number(d.total_price_usd) : Math.round(Number(d.total_price_usd) * 2 * 100) / 100,
+            feedMarket: "US",
+            boardListingPriceText: `$${Number(d.total_price_usd).toFixed(2)}`,
+            boardMarketPriceText: "$99.00",
+            boardName: d.title,
+            boardSet: null,
+            boardVariant: "Raw",
+            boardFormat: "BIN",
+            boardImage: null,
+            plainEbayUrl: `https://www.ebay.com/itm/${legacy(d.listing_id)}`,
+          }
+        : {}),
+    }));
     mod = await import(pathToFileURL(join(REPO, "app", "api", "ingest-feed", "route.js")).href);
     url = "http://harness/api/ingest-feed";
   } else {
@@ -320,6 +345,10 @@ async function run() {
     written: describeWrittenRows(harness.db),
     // 2026-09-26: reusing a saved reference must never manufacture history
     priceHistoryWrites: harness.db.writes.filter((w) => w.table === "price_history").length,
+    // 2026-09-27 board deals: the records and run summaries the ingest wrote
+    boardDeals: harness.db.tables.catalog_snapshot.filter((r) => String(r.kind).startsWith("board_deal:")).map((r) => r.data),
+    boardRuns: harness.db.tables.catalog_snapshot.find((r) => r.kind === "board_ingest_runs")?.data ?? [],
+    boardLock: harness.db.tables.catalog_snapshot.find((r) => r.kind === "board_ingest:lock") ?? null,
     ...(scenario === "sweepgrant"
       ? {
           ledger: (() => {
