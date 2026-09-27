@@ -41,8 +41,18 @@ const log = (line) => {
     /* stdout has it */
   }
 };
+// The project identity, so the CLI needs no `vercel link` in the clone.
+const VERCEL_ORG_ID = process.env.VERCEL_ORG_ID || "team_AI42Gwyydk0v01wVv9bVSeH3";
+const VERCEL_PROJECT_ID = process.env.VERCEL_PROJECT_ID || "prj_2TBMLoTBL0bn5TyDVPTvwBdLTofw";
 const run = (cmd, args, opts = {}) => {
-  const r = spawnSync(cmd, args, { cwd: CLONE, encoding: "utf8", windowsHide: true, shell: process.platform === "win32", ...opts });
+  const r = spawnSync(cmd, args, {
+    cwd: CLONE,
+    encoding: "utf8",
+    windowsHide: true,
+    shell: process.platform === "win32",
+    env: { ...process.env, VERCEL_ORG_ID, VERCEL_PROJECT_ID, CI: "1" },
+    ...opts,
+  });
   return { code: r.status, out: (r.stdout ?? "") + (r.stderr ?? "") };
 };
 
@@ -99,22 +109,56 @@ if (r.code !== 0) {
 run("git", ["clean", "-fdq", "-e", ".vercel"]);
 
 // --- install, pull env, build, deploy ------------------------------------
+// `vercel pull` cannot return the project's SENSITIVE variables (they are
+// write-only on Vercel, and nearly every variable of this project is
+// sensitive), so the build would run without NEXT_PUBLIC_SUPABASE_URL etc.
+// The NEXT_PUBLIC_* values are inlined into the client bundle at build time
+// and must be present; runtime secrets are attached by Vercel to the
+// deployment itself. So after the pull, every key the pulled file lacks is
+// filled from this machine's .env.local (the same values production uses).
+function overlayEnv() {
+  const pulled = join(CLONE, ".vercel", ".env.production.local");
+  const local = join(REPO, ".env.local");
+  if (!existsSync(local)) return { added: 0 };
+  const parse = (text) => {
+    const out = new Map();
+    for (const line of text.split(/\r?\n/)) {
+      const m = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(line);
+      if (m) out.set(m[1], m[2]);
+    }
+    return out;
+  };
+  const have = existsSync(pulled) ? parse(readFileSync(pulled, "utf8")) : new Map();
+  const mine = parse(readFileSync(local, "utf8"));
+  const missing = [...mine].filter(([k, v]) => !have.has(k) || have.get(k) === "" || have.get(k) === '""').filter(([, v]) => v !== "");
+  if (!missing.length) return { added: 0 };
+  mkdirSync(join(CLONE, ".vercel"), { recursive: true });
+  appendFileSync(pulled, `\n# filled from the owner's .env.local (sensitive keys cannot be pulled)\n${missing.map(([k, v]) => `${k}=${v}`).join("\n")}\n`);
+  return { added: missing.length };
+}
+
+const VERCEL = ["--yes", "vercel@latest"]; // the newest builder, as Vercel's own builds use
 const steps = [
   ["npm", ["ci", "--no-audit", "--no-fund", "--loglevel=error"]],
-  ["npx", ["vercel", "pull", "--yes", "--environment=production", `--token=${TOKEN}`]],
-  ["npx", ["vercel", "build", "--prod", "--yes", `--token=${TOKEN}`]],
-  ["npx", ["vercel", "deploy", "--prebuilt", "--prod", "--yes", `--token=${TOKEN}`]],
+  ["npx", [...VERCEL, "pull", "--yes", "--environment=production", `--token=${TOKEN}`]],
+  ["overlay-env", []],
+  ["npx", [...VERCEL, "build", "--prod", "--yes", `--token=${TOKEN}`]],
+  ["npx", [...VERCEL, "deploy", "--prebuilt", "--prod", "--yes", `--token=${TOKEN}`]],
 ];
 const started = Date.now();
 for (const [cmd, args] of steps) {
+  if (cmd === "overlay-env") {
+    log(`> env overlay: ${overlayEnv().added} key(s) filled from .env.local`);
+    continue;
+  }
   const label = `${cmd} ${args.filter((a) => !a.startsWith("--token")).join(" ")}`;
   log(`> ${label}`);
   r = run(cmd, args);
   if (r.code !== 0) {
-    log(`FAILED (${r.code}) ${label}\n${r.out.slice(-1500)}`);
+    log(`FAILED (${r.code}) ${label}\n${r.out.slice(-2500)}`);
     process.exit(1);
   }
-  if (cmd === "npx" && args[1] === "deploy") log(r.out.trim().split("\n").slice(-3).join(" | "));
+  if (args.includes("deploy")) log(r.out.trim().split("\n").filter((l) => /https:\/\/|Production|Aliased|Deployed/i.test(l)).slice(-3).join(" | "));
 }
 writeFileSync(LAST, head + "\n");
 log(`deployed ${head.slice(0, 7)} in ${Math.round((Date.now() - started) / 1000)} s`);
