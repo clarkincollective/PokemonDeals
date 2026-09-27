@@ -118,3 +118,5 @@ const nextConfig = {
 };
 
 export default nextConfig;
+
+// 2026-09-28: Vercel builds re-enabled after the PC-built deployment served 500s on dynamic routes (see handover 3S).
