@@ -112,8 +112,13 @@ async function chatJson(content, images, { numPredict = 200, key = "verdict" } =
       model: MODEL,
       stream: false,
       format: "json",
-      keep_alive: "30m",
-      options: { temperature: 0, num_predict: numPredict },
+      // 5 min: the model is unloaded between hourly runs instead of sitting
+      // resident. num_ctx 6144: the model's default 32k context spilled a
+      // 29 GB working set into system RAM (26% CPU / 74% GPU) and starved
+      // the machine (694 MB free of 31 GB, the first backlog run was killed);
+      // the prompt is ~700 tokens and two 1024 px images ~2,500.
+      keep_alive: "5m",
+      options: { temperature: 0, num_predict: numPredict, num_ctx: 6144 },
       messages: [{ role: "user", content, images }],
     }),
     signal: AbortSignal.timeout(180_000),
@@ -194,8 +199,20 @@ function localVisionFor(row) {
             materials.push("unreadable");
           }
         }
-        if (plate && !genuineIsMetal) return { status, reason: `${reason} | material:${materials.join("/")}` };
-        return { status: va.VERDICTS.UNKNOWN, reason: `${reason} | material:${materials.join("/")} (no agreement, not accused)` };
+        // NEVER an automatic accusation from the local model. Reviewed by eye
+        // on 27 Sep: of its first four COUNTERFEIT calls (all with a
+        // material probe agreeing), three were genuine cards - a Garchomp in
+        // a display holder, a rainbow-rare Umbreon, a gold-bordered Classic
+        // Articuno - and one was a fan-made card sold under a real promo's
+        // name. A hold hides a real deal; UNKNOWN only keeps it out of the
+        // premium slots. So a local COUNTERFEIT is recorded as a SUSPECT
+        // (catalog_snapshot "visual_suspects" + .local/visual-suspects.log)
+        // for the owner to confirm with scripts/remediation/holdReportedListing.mjs.
+        return {
+          status: va.VERDICTS.UNKNOWN,
+          reason: `suspected_counterfeit(local${plate && !genuineIsMetal ? ",material_agrees" : ""}): ${String(parsed.reason || "").slice(0, 120)} | material:${materials.join("/")}`,
+          suspect: { evidence: String(parsed.reason || "").slice(0, 160), materials: materials.join("/"), agrees: plate && !genuineIsMetal },
+        };
       }
       // MATCH
       if (front === "paper" || genuineIsMetal) return { status, reason: `${reason} | material:${front}` };
@@ -204,6 +221,42 @@ function localVisionFor(row) {
       return { unavailable: `${e?.name ?? "error"}:${String(e?.message ?? "").slice(0, 100)}` };
     }
   };
+}
+
+// The review list: a rolling catalog_snapshot row (newest first, 200 max) and
+// a local log line. The owner confirms with
+//   node scripts/remediation/holdReportedListing.mjs --ids=<id> --apply --confirm=1 --prior-out=<file>
+const SUSPECTS_KIND = "visual_suspects";
+async function recordSuspect(row, verdict) {
+  const entry = {
+    id: row.id,
+    at: new Date().toISOString(),
+    title: String(row.card_name ?? "").slice(0, 80),
+    set: String(row.card_set ?? "").slice(0, 60),
+    marketplace: row.marketplace,
+    market: row.market_price,
+    discountPct: row.discount_pct,
+    images: [row.image_url, ...((Array.isArray(row.image_urls) ? row.image_urls : []).filter((u) => u !== row.image_url))].slice(0, 4),
+    page: `https://pokemondealfinder.com/deals/${row.id}`,
+    evidence: verdict.suspect?.evidence ?? null,
+    materials: verdict.suspect?.materials ?? null,
+    materialAgrees: Boolean(verdict.suspect?.agrees),
+  };
+  try {
+    const { appendFileSync, mkdirSync } = await import("node:fs");
+    mkdirSync(".local", { recursive: true });
+    appendFileSync(".local/visual-suspects.log", JSON.stringify(entry) + "\n");
+  } catch {
+    /* log is best-effort */
+  }
+  try {
+    const { data } = await db.from("catalog_snapshot").select("data").eq("kind", SUSPECTS_KIND).maybeSingle();
+    const list = Array.isArray(data?.data?.items) ? data.data.items.filter((s) => s.id !== row.id) : [];
+    list.unshift(entry);
+    await db.from("catalog_snapshot").upsert({ kind: SUSPECTS_KIND, data: { v: 1, items: list.slice(0, 200) }, updated_at: entry.at }, { onConflict: "kind" });
+  } catch {
+    /* the log line still exists */
+  }
 }
 
 async function fetchImage(url) {
@@ -306,10 +359,13 @@ for (const row of rows) {
   summary.screened++;
   summary.results[verdict.status] = (summary.results[verdict.status] ?? 0) + 1;
   if (/vision_unavailable/.test(verdict.reason ?? "")) summary.unavailable++;
+  const suspected = /^suspected_counterfeit\(local/.test(verdict.reason ?? "");
+  if (suspected) summary.suspects = (summary.suspects ?? 0) + 1;
   const d = { id: row.id, from: row.visual_authenticity_status ?? null, status: verdict.status, reason: String(verdict.reason ?? "").slice(0, 140) };
   summary.detail.push(d);
-  console.error(`  ${row.id} ${row.visual_authenticity_status ?? "-"} -> ${verdict.status}  ${d.reason}`);
+  console.error(`  ${row.id} ${row.visual_authenticity_status ?? "-"} -> ${verdict.status}${suspected ? " (SUSPECT)" : ""}  ${d.reason}`);
   if (DRY) continue;
+  if (suspected) await recordSuspect(row, verdict);
 
   const { error } = await db
     .from("deals")
