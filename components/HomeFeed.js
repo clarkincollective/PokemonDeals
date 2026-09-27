@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import Image from "next/image";
+import DealImage from "@/components/DealImage";
 import FilterBar from "@/components/FilterBar";
 import Pagination, { pageHref } from "@/components/Pagination";
 import DealCard from "@/components/DealCard";
@@ -428,10 +428,13 @@ export default function HomeFeed({
                     >
                       <div className="relative aspect-square w-full bg-zinc-50 dark:bg-zinc-900">
                         {hub.image ? (
-                          <Image
+                          // VERCEL-COST-2: a hub image is the catalogue art when
+                          // there is one, else a listing's own eBay photo; DealImage
+                          // keeps the eBay case off the optimizer (measured: one
+                          // per homepage render was still going through it).
+                          <DealImage
                             src={hub.image}
                             alt={`${hub.name} - ${hub.set}`}
-                            fill
                             sizes="(max-width: 640px) 50vw, 16vw"
                             className="object-contain p-2"
                           />
