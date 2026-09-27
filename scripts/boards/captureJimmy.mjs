@@ -55,10 +55,24 @@ if (got.error && got.listings.length === 0) {
   process.exit(1);
 }
 
-// one run at a time with the production route (same lock)
-const lock = await bd.acquireRunLock(db, { ttlMs: 10 * 60_000, owner: "captureJimmy" });
+// One run at a time with the production route (same lock). The site's own
+// job runs at :00 and :30 and so does the scheduled task here, so the lock
+// is usually held for a few minutes when this starts: WAIT for it (up to
+// LOCK_WAIT_MAX_MS, polling), rather than give up - measured 27 Sep 15:00
+// local: the first scheduled run met the lock and exited without capturing.
+const LOCK_WAIT_MAX_MS = 8 * 60_000;
+const LOCK_POLL_MS = 15_000;
+let lock = await bd.acquireRunLock(db, { ttlMs: 10 * 60_000, owner: "captureJimmy" });
+const waitStart = Date.now();
+while (!lock.acquired && !lock.error && Date.now() - waitStart < LOCK_WAIT_MAX_MS) {
+  const untilMs = Date.parse(lock.heldUntil ?? "");
+  const wait = Math.min(LOCK_POLL_MS, Math.max(2_000, (Number.isFinite(untilMs) ? untilMs - Date.now() : LOCK_POLL_MS) + 500));
+  console.error(`  lock held until ${lock.heldUntil ?? "?"} by ${lock.heldBy ?? "?"}; waiting ${Math.round(wait / 1000)}s`);
+  await new Promise((r) => setTimeout(r, wait));
+  lock = await bd.acquireRunLock(db, { ttlMs: 10 * 60_000, owner: "captureJimmy" });
+}
 if (!lock.acquired) {
-  console.error(`  another run holds the lock until ${lock.heldUntil ?? "?"}; try again later`);
+  console.error(`  could not take the lock after ${Math.round((Date.now() - waitStart) / 1000)}s (${lock.error ?? `held until ${lock.heldUntil ?? "?"}`}); nothing written`);
   process.exit(3);
 }
 try {
