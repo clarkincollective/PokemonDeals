@@ -125,6 +125,15 @@ test("TC-3 mergeSavedRows: fresh Near Mint with its own date, the ladder's tiers
   const freshOnly = saved.buildSavedMarketData(saved.mergeSavedRows(null, fresh));
   assert.deepEqual(freshOnly.byPrintingCondition.Normal, { "Near Mint": 58 });
   assert.equal(freshOnly.byConditionReference["Near Mint"].observedAt, FILE_AS_OF);
+  // a preserved played tier at or above today's Near Mint is dropped, never re-scaled (Greninja ex 021/128, 27 Sep: NM 0.60 fresh vs LP 0.75 ladder)
+  const moved = saved.mergeSavedRows(
+    { printings: { Holofoil: { nm: 1.74, lp: 0.75, mp: 0.5, lastPriceUpdate: LADDER_AS_OF } } },
+    { source: "tcgcsv", printings: { Holofoil: { nm: 0.6, market: 0.6, lastPriceUpdate: FILE_AS_OF } } }
+  );
+  assert.deepEqual(moved.printings.Holofoil.droppedAboveFreshNm, ["Lightly Played"]);
+  const movedMd = saved.buildSavedMarketData(moved);
+  assert.deepEqual(movedMd.byPrintingCondition.Holofoil, { "Near Mint": 0.6, "Moderately Played": 0.5 }, "the impossible Lightly Played tier is gone; the still-plausible Moderately Played tier stays with its own date");
+  assert.equal(movedMd.byPrintingConditionAsOf.Holofoil["Moderately Played"], LADDER_AS_OF);
   const useless = { source: "tcgcsv", printings: { Normal: { nm: null, market: null, lastPriceUpdate: FILE_AS_OF } } };
   const unchanged = saved.buildSavedMarketData(saved.mergeSavedRows(ladder, useless));
   assert.equal(unchanged.byCondition["Near Mint"], 60, "a fresh row with nothing usable changes nothing");
