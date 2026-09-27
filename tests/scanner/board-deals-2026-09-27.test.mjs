@@ -517,3 +517,7 @@ test("BD-14 /more-deals filters over the render shapes: market, kind from the st
   assert.deepEqual(ids({ market: "EBAY_US", kind: "sealed", format: "bin" }), ["c"]);
   assert.deepEqual(ids({ kind: "bogus", format: "bogus" }), ["a", "b", "c", "d"]);
 });
+
+test("BD-15 the record loader walks the store in kind order (an unordered range walk skipped a third of the rows, 27 Sep)", () => {
+  assert.match(read("lib/boardDeals.js"), /\.like\("kind", `\$\{BOARD_DEAL_KIND_PREFIX\}%`\)\.order\("kind"\)\.range\(from, from \+ 999\)/);
+});
