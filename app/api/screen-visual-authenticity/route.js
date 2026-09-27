@@ -30,6 +30,14 @@ const BATCH = 20;
 const RECHECK_BATCH = 30;
 const MISMATCH_VERDICTS = ["MISMATCH", "COUNTERFEIT_MISMATCH", "IDENTITY_MISMATCH"];
 const RESCREEN_AFTER_DAYS = 21;
+// A row whose last screen ended "vision_unavailable" (Stage 1 inconclusive
+// and Stage 2 got no verdict - key, balance, model, network) is NOT a
+// screened row: it is retried after this many hours instead of waiting out
+// the 21-day window. 27 Sep 2026: 133 active rows sat in that state for up
+// to three weeks, among them deal 42912 (a gold-plate novelty on Best
+// Finds), because a failed Stage 2 was stamped with a checked_at like a
+// real verdict.
+const VISION_RETRY_HOURS = 6;
 // Candidate scan is bounded - we only ever look at this many active rows
 // to find BATCH unscreened/stale ones, and stop early once BATCH are in
 // hand. Rows sort checked_at-asc-nulls-first so the unscreened ones come
@@ -46,7 +54,7 @@ const COLS =
   "id, listing_id, card_name, card_set, card_tcgplayer_id, image_url, market_price, discount_pct, is_graded, " +
   "price, total_price, total_price_usd, " +
   "disqualified_reason, seller_feedback_score, image_count, returns_accepted, " +
-  "visual_authenticity_status, visual_authenticity_checked_at";
+  "visual_authenticity_status, visual_authenticity_checked_at, visual_authenticity_reason";
 
 async function fetchImage(url) {
   const r = await fetch(url, { signal: AbortSignal.timeout(20000) });
@@ -63,6 +71,15 @@ export async function GET(request) {
   const db = supabaseAdmin();
   const recheck = new URL(request.url).searchParams.get("mode") === "recheck-mismatch";
   const staleCutoff = new Date(Date.now() - RESCREEN_AFTER_DAYS * 864e5).toISOString();
+  const retryCutoff = new Date(Date.now() - VISION_RETRY_HOURS * 3600e3).toISOString();
+  // fresh enough to skip: a real verdict inside the 21-day window, or a
+  // vision-unavailable stamp younger than the retry window
+  const recentlyScreened = (row) => {
+    const at = row.visual_authenticity_checked_at;
+    if (!at) return false;
+    if (/vision_unavailable/.test(String(row.visual_authenticity_reason ?? ""))) return at > retryCutoff;
+    return at > staleCutoff;
+  };
 
   let candidates = [];
   if (recheck) {
@@ -93,7 +110,7 @@ export async function GET(request) {
       for (const row of data) {
         if (candidates.length >= BATCH) break;
         if (!isVisualScreeningCandidate(row)) continue;
-        if (row.visual_authenticity_checked_at && row.visual_authenticity_checked_at > staleCutoff) continue;
+        if (recentlyScreened(row)) continue;
         candidates.push(row);
       }
       if (data.length < PAGE) break;
