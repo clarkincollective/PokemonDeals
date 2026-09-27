@@ -1,0 +1,1 @@
+Deployments are built on the owner's PC and uploaded prebuilt (scripts/deploy/deployFromPc.mjs, Task Scheduler PokemonDealFinder-Deploy, every 5 minutes). While this file exists, scripts/vercelIgnoreBuild.sh makes Vercel skip its own Git-triggered build. Delete it (and commit) to return to Vercel building each push.

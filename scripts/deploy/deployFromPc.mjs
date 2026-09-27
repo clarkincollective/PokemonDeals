@@ -137,18 +137,52 @@ function overlayEnv() {
   return { added: missing.length };
 }
 
+// The Next builder writes some function directories as SYMLINKS to a shared
+// one (e.g. functions/news/[slug].func -> ../cards/[slug].func). Uploaded
+// from Windows those arrive as links whose target the platform cannot
+// resolve ("ENOENT ... _global-error.func" on the first attempt), so every
+// symlink under .vercel/output is replaced by a real copy of its target
+// before the upload. Larger upload, identical deployment.
+async function dereferenceOutput() {
+  const { lstatSync, readlinkSync, rmSync, cpSync, readdirSync, statSync } = await import("node:fs");
+  const { resolve: resolvePath, dirname: dirOf } = await import("node:path");
+  const root = join(CLONE, ".vercel", "output");
+  let replaced = 0;
+  const walk = (dir) => {
+    for (const name of readdirSync(dir)) {
+      const p = join(dir, name);
+      const st = lstatSync(p);
+      if (st.isSymbolicLink()) {
+        const target = resolvePath(dirOf(p), readlinkSync(p));
+        rmSync(p, { force: true, recursive: true });
+        cpSync(target, p, { recursive: true, dereference: true });
+        replaced++;
+      } else if (st.isDirectory()) {
+        walk(p);
+      }
+    }
+  };
+  if (existsSync(root)) walk(root);
+  return { replaced };
+}
+
 const VERCEL = ["--yes", "vercel@latest"]; // the newest builder, as Vercel's own builds use
 const steps = [
   ["npm", ["ci", "--no-audit", "--no-fund", "--loglevel=error"]],
   ["npx", [...VERCEL, "pull", "--yes", "--environment=production", `--token=${TOKEN}`]],
   ["overlay-env", []],
   ["npx", [...VERCEL, "build", "--prod", "--yes", `--token=${TOKEN}`]],
+  ["dereference", []],
   ["npx", [...VERCEL, "deploy", "--prebuilt", "--prod", "--yes", `--token=${TOKEN}`]],
 ];
 const started = Date.now();
 for (const [cmd, args] of steps) {
   if (cmd === "overlay-env") {
     log(`> env overlay: ${overlayEnv().added} key(s) filled from .env.local`);
+    continue;
+  }
+  if (cmd === "dereference") {
+    log(`> symlinks replaced by copies in .vercel/output: ${(await dereferenceOutput()).replaced}`);
     continue;
   }
   const label = `${cmd} ${args.filter((a) => !a.startsWith("--token")).join(" ")}`;
