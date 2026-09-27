@@ -105,7 +105,7 @@ test("N3-4. refill schedule is activated (post-proof) and documents Brisbane sem
   assert.match(REFILL_SCHEDULE.brisbane_local, /06:00 Australia\/Brisbane/);
   assert.match(REFILL_SCHEDULE.cron_utc, /20:00 UTC/);
   // added to vercel.json after the Phase-13 proof refill reconciled cleanly
-  const v = JSON.parse(read("vercel.json"));
+  const v = JSON.parse(read("crons.json"));
   assert.ok(v.crons.some((c) => c.path === "/api/social-backlog-refill" && c.schedule === "0 20 * * 6,2"), "refill cron must be in vercel.json matching REFILL_SCHEDULE.queue_cron_utc");
 });
 
@@ -209,7 +209,7 @@ test("N3-12. Stage 1 / live social / email / eBay Browse / verify are untouched 
 });
 
 test("N3-13. the refill cron route is in vercel.json and REFILL_SCHEDULE.activated is true (Phase-13 activation, post-proof)", () => {
-  const v = JSON.parse(read("vercel.json"));
+  const v = JSON.parse(read("crons.json"));
   assert.ok(v.crons.some((c) => c.path.includes("social-backlog-refill")));
   assert.equal(REFILL_SCHEDULE.activated, true);
 });

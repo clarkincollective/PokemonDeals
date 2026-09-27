@@ -149,7 +149,7 @@ test("GR-7 route: ceiling, reserve, schedule and guarded retirement unchanged; g
   assert.match(src, /batch: runBatch - recoveryRows\.length - sealed\.used,/, "card lanes still share one run batch (BATCH outside enforce mode)");
   assert.match(src, /retireForAvailability\(db, \{ key: \{ id: r\.id \}, reason, patch \}\)/, "SOLD / ENDED keep the quarantine-preserving write");
   assert.match(src, /"grader, grade"/);
-  const cron = JSON.parse(read("vercel.json")).crons.find((c) => c.path === "/api/verify-deals");
+  const cron = JSON.parse(read("crons.json")).crons.find((c) => c.path === "/api/verify-deals");
   assert.equal(cron.schedule, "*/30 * * * *");
 });
 

@@ -155,7 +155,7 @@ test("AUTO2-10 email digest history + Supabase digest_state both gate the weekly
 // ---- cron / schedule ----
 
 test("AUTO2-11 vercel.json installs the autonomous crons at the intended cadence", () => {
-  const vj = JSON.parse(read("vercel.json"));
+  const vj = JSON.parse(read("crons.json"));
   const social = vj.crons.filter((c) => c.path === "/api/social-auto");
   const email = vj.crons.filter((c) => c.path === "/api/crm-auto");
   assert.equal(social.length, 1);

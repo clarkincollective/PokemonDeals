@@ -2,116 +2,12 @@
   "ignoreCommand": "bash scripts/vercelIgnoreBuild.sh",
   "crons": [
     {
-      "path": "/api/refresh-catalog",
-      "schedule": "*/30 * * * *"
-    },
-    {
-      "path": "/api/sweep-stale-deals",
-      "schedule": "*/30 * * * *"
-    },
-    {
-      "path": "/api/verify-deals",
-      "schedule": "*/30 * * * *"
-    },
-    {
       "path": "/api/check-alerts",
       "schedule": "15 * * * *"
     },
     {
       "path": "/api/send-digest",
       "schedule": "0 15 * * 1"
-    },
-    {
-      "path": "/api/integrity-snapshot",
-      "schedule": "40 5 * * *"
-    },
-    {
-      "path": "/api/refresh-deals?mode=sweep&country=EBAY_US&pages=5&minDiscount=0",
-      "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/refresh-deals?mode=sweep&country=EBAY_GB&pages=8",
-      "schedule": "5 */2 * * *"
-    },
-    {
-      "path": "/api/refresh-deals?mode=sweep&country=EBAY_IT&pages=8",
-      "schedule": "10 */2 * * *"
-    },
-    {
-      "path": "/api/refresh-deals?mode=sweep&country=EBAY_AU&pages=8",
-      "schedule": "20 */2 * * *"
-    },
-    {
-      "path": "/api/refresh-deals?mode=sweep&country=EBAY_CA&pages=8",
-      "schedule": "35 */2 * * *"
-    },
-    {
-      "path": "/api/refresh-deals?mode=sweep&country=EBAY_DE&pages=8",
-      "schedule": "50 */2 * * *"
-    },
-    {
-      "path": "/api/sync-watchlist",
-      "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/sync-card-catalog",
-      "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/sync-card-catalog?language=japanese",
-      "schedule": "40 2 * * *"
-    },
-    {
-      "path": "/api/sync-sealed-catalog",
-      "schedule": "0 5 * * *"
-    },
-    {
-      "path": "/api/sync-sealed-watchlist",
-      "schedule": "30 5 * * *"
-    },
-    {
-      "path": "/api/refresh-sealed-deals?country=EBAY_US",
-      "schedule": "20 7 * * *"
-    },
-    {
-      "path": "/api/ingest-feed",
-      "schedule": "*/30 * * * *"
-    },
-    {
-      "path": "/api/ingest-feed?full=1",
-      "schedule": "20 4 * * *"
-    },
-    {
-      "path": "/api/screen-visual-authenticity",
-      "schedule": "40 */3 * * *"
-    },
-    {
-      "path": "/api/screen-deal-images",
-      "schedule": "15 * * * *"
-    },
-    {
-      "path": "/api/refresh-deals?tier=allocated&country=EBAY_US",
-      "schedule": "0 8,20 * * *"
-    },
-    {
-      "path": "/api/refresh-deals?tier=allocated&country=EBAY_GB",
-      "schedule": "0 10,22 * * *"
-    },
-    {
-      "path": "/api/refresh-deals?tier=allocated&country=EBAY_AU",
-      "schedule": "30 11,23 * * *"
-    },
-    {
-      "path": "/api/refresh-deals?tier=allocated&country=EBAY_CA",
-      "schedule": "30 13,1 * * *"
-    },
-    {
-      "path": "/api/refresh-deals?tier=allocated&country=EBAY_DE",
-      "schedule": "0 15,3 * * *"
-    },
-    {
-      "path": "/api/refresh-deals?tier=allocated&country=EBAY_IT",
-      "schedule": "0 17,5 * * *"
     },
     {
       "path": "/api/social-auto",

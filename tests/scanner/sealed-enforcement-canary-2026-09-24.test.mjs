@@ -70,7 +70,7 @@ test("SEC-4. a second full pass in the same window is denied at the cap", () => 
   assert.equal(d.granted, 0);
   assert.equal(d.denied, "cap");
   // the daily cron runs once, so this cannot bite it - it bounds a re-run
-  const crons = JSON.parse(readFileSync(join(REPO, "vercel.json"), "utf8")).crons.filter((c) => /refresh-sealed-deals/.test(c.path));
+  const crons = JSON.parse(readFileSync(join(REPO, "crons.json"), "utf8")).crons.filter((c) => /refresh-sealed-deals/.test(c.path));
   assert.equal(crons.length, 1, "one scheduled sealed run per day");
 });
 
@@ -94,7 +94,7 @@ test("SEC-6. retries are accounted the same way under enforcement", () => {
 });
 
 test("SEC-7. no scheduler change, and the canary reports what a comparison needs", () => {
-  const vercel = JSON.parse(readFileSync(join(REPO, "vercel.json"), "utf8"));
+  const vercel = JSON.parse(readFileSync(join(REPO, "crons.json"), "utf8"));
   const sealed = vercel.crons.filter((c) => /refresh-sealed-deals/.test(c.path));
   assert.deepEqual(sealed.map((c) => `${c.schedule} ${c.path}`), ["20 7 * * * /api/refresh-sealed-deals?country=EBAY_US"]);
   const code = stripComments(ROUTE);

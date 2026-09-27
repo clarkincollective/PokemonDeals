@@ -399,7 +399,7 @@ test("AUTO1-27 cron endpoints verify CRON_SECRET, resolve posture + circuit, and
 });
 
 test("AUTO1-28 the autonomous cron entries exist in vercel.json (AUTO-2) and the endpoints still re-verify every flag", () => {
-  const vj = JSON.parse(read("vercel.json"));
+  const vj = JSON.parse(read("crons.json"));
   const paths = vj.crons.map((c) => c.path);
   assert.ok(paths.includes("/api/social-auto"), "social-auto cron missing");
   assert.ok(paths.includes("/api/crm-auto"), "crm-auto cron missing");

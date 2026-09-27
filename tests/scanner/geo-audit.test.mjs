@@ -168,7 +168,7 @@ test("integrity follow-up: 'stopped showing' comes from a trigger-stamped column
   assert.match(cron, /authorization"\) !== `Bearer \$\{process\.env\.CRON_SECRET\}`/);
   assert.match(cron, /upsert\(row, \{ onConflict: "day" \}\)/);
   assert.match(cron, /skipped: "table_missing"/);
-  assert.match(read("vercel.json"), /"path": "\/api\/integrity-snapshot",\s*"schedule": "40 5 \* \* \*"/);
+  assert.match(read("crons.json"), /"path": "\/api\/integrity-snapshot",\s*"schedule": "40 5 \* \* \*"/);
   // no scanner code path was touched for the stamp
   for (const f of ["app/api/verify-deals/route.js", "app/api/sweep-stale-deals/route.js", "app/api/refresh-deals/route.js", "app/api/ingest-feed/route.js"]) {
     assert.doesNotMatch(read(f), /deactivated_at/, `${f}: the trigger stamps it, not the scanner`);

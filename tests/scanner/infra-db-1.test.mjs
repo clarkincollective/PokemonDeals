@@ -180,7 +180,7 @@ test("IDB-11. INFRA-DB-1 does not touch verify-deals, the verify allocator, scan
     assert.doesNotMatch(c, /verifyAllocator|allocateVerifyBatch|api\/verify-deals|refresh-deals|ebayBrowse|\/buy\/browse/i, `${p} must not reference verify / scanner / Browse`);
   }
   // vercel.json cron cadence unchanged for the protected jobs
-  const v = JSON.parse(read("vercel.json"));
+  const v = JSON.parse(read("crons.json"));
   const byPath = Object.fromEntries(v.crons.map((c) => [c.path, c.schedule]));
   assert.equal(byPath["/api/verify-deals"], "*/30 * * * *");
   assert.equal(byPath["/api/social-auto"], "0 * * * *");

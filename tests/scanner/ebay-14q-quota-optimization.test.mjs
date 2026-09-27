@@ -154,7 +154,7 @@ test("14Q-19. a missing/stale grading lookup still makes a real eBay call - the 
 // ---- Part 6 - cron schedules / reserve floors unchanged across the board ---
 
 test("14Q-20. vercel.json cron schedules for every eBay-consuming route are unchanged", () => {
-  const cfg = JSON.parse(read("vercel.json"));
+  const cfg = JSON.parse(read("crons.json"));
   const byPath = Object.fromEntries(cfg.crons.map((c) => [c.path, c.schedule]));
   assert.equal(byPath["/api/verify-deals"], "*/30 * * * *");
   assert.equal(byPath["/api/screen-deal-images"], "15 * * * *");

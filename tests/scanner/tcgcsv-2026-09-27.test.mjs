@@ -208,7 +208,7 @@ test("TC-6 wiring pins: default source, WOTC pass gated to the provider, snapsho
   assert.match(scanner, /observedAt: ref\.observedAt \?\? marketData\?\.observedAt \?\? null/);
   assert.match(scanner, /observedAt: sweepRef\.observedAt \?\? marketData\.observedAt \?\? null/);
   assert.match(scanner, /observedAt: asOfRow\[tier\] \?\? null/);
-  const cron = read("vercel.json");
+  const cron = read("crons.json");
   assert.match(cron, /"path": "\/api\/sync-card-catalog\?language=japanese"/);
   const client = read("lib/tcgcsv.js");
   assert.match(client, /WOTC_DUAL_PRINTING_SETS\.has/);

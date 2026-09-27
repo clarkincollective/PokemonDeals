@@ -127,7 +127,7 @@ test("SL3-7 queue + health + alerts run on Vercel (production env), rendering on
   assert.match(ops, /env\.SOCIAL_ALERT_EMAIL/);
   assert.match(ops, /qa_type", "SOCIAL_ALERT"/);
   assert.match(ops, /empty posting slots in the next 24 h/);
-  const vj = JSON.parse(readFileSync("vercel.json", "utf8"));
+  const vj = JSON.parse(readFileSync("crons.json", "utf8"));
   assert.ok(vj.crons.some((c) => c.path === "/api/social-autopilot-queue" && c.schedule === "25 * * * *"));
   assert.ok(vj.crons.some((c) => c.path === "/api/social-health"));
   for (const r of ["app/api/social-autopilot-queue/route.js", "app/api/social-health/route.js"]) assert.match(readFileSync(r, "utf8"), /Bearer \$\{process\.env\.CRON_SECRET\}/);

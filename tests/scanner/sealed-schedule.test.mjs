@@ -28,7 +28,7 @@ import { dirname, join } from "node:path";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
-const crons = JSON.parse(read("vercel.json")).crons ?? [];
+const crons = JSON.parse(read("crons.json")).crons ?? [];
 const sealed = crons.filter((c) => c.path.startsWith("/api/refresh-sealed-deals"));
 
 test("1. the sealed scan runs AFTER the daily quota reset, not before it", () => {

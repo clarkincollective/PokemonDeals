@@ -236,7 +236,7 @@ test("P043-14 no verify-deals / allocator path calls eBay Browse from social:aut
 test("P043-15 total Browse budget is unchanged - BATCH still 20, cron still every 30 min", () => {
   const src = read("app/api/verify-deals/route.js");
   assert.match(src, /const BATCH = 20;/);
-  const vj = JSON.parse(read("vercel.json"));
+  const vj = JSON.parse(read("crons.json"));
   const vd = vj.crons.find((c) => c.path === "/api/verify-deals");
   assert.equal(vd.schedule, "*/30 * * * *");
 });

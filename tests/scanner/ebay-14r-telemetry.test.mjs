@@ -391,7 +391,7 @@ test("14R-safety-3. refresh-sealed-deals and ingest-feed and refresh-deals still
 // ---- Part 12 - cron / reserve / cadence unchanged ----------------------
 
 test("14R-12. vercel.json cron schedules for every eBay-consuming route are STILL unchanged", () => {
-  const cfg = JSON.parse(read("vercel.json"));
+  const cfg = JSON.parse(read("crons.json"));
   const byPath = Object.fromEntries(cfg.crons.map((c) => [c.path, c.schedule]));
   assert.equal(byPath["/api/verify-deals"], "*/30 * * * *");
   assert.equal(byPath["/api/screen-deal-images"], "15 * * * *");

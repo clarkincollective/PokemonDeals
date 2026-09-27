@@ -244,7 +244,7 @@ test("BD-6 wiring pins: lock before any lookup and released on every exit, verdi
   assert.match(route, /else if \(isFreshCapture\(captured, \{ lastSeenOnBoardAt: runNow \}\)\) \{/, "a fresh row (by found-at, or by the second board still listing it) is shown unverified on every queue path");
   assert.match(route, /\(r\.status !== "pending" && r\.status !== "unverified"\)/, "unverified rows the board dropped still get their lookup");
   assert.match(route, /revalidateTag\(BOARD_DEALS_TAG, \{ expire: 0 \}\)/);
-  assert.match(read("vercel.json"), /"path": "\/api\/ingest-feed",\s*"schedule": "\*\/30 \* \* \* \*"/, "every 30 minutes");
+  assert.match(read("crons.json"), /"path": "\/api\/ingest-feed",\s*"schedule": "\*\/30 \* \* \* \*"/, "every 30 minutes");
   const section = read("components/BoardDealsSection.js");
   const card = read("components/BoardDealCard.js");
   const morePage = read("app/more-deals/page.js");
@@ -406,7 +406,7 @@ test("BD-11 every list, every sort: the half-hourly plan reads the Today lists, 
   assert.equal(bd.isFreshCapture(stale, { now }), false, "by found-at alone it is not fresh");
   assert.equal(bd.isFreshCapture(stale, { now, lastSeenOnBoardAt: new Date(now - 3600_000).toISOString() }), true, "but the board listed it an hour ago");
   assert.equal(bd.isFreshCapture({ ...stale, source: "pokedealfinder" }, { now, lastSeenOnBoardAt: new Date(now - 3600_000).toISOString() }), false, "the first board's rows stay on found-at");
-  assert.match(read("vercel.json"), /"path": "\/api\/ingest-feed\?full=1",\s*"schedule": "20 4 \* \* \*"/, "the daily full pass is scheduled");
+  assert.match(read("crons.json"), /"path": "\/api\/ingest-feed\?full=1",\s*"schedule": "20 4 \* \* \*"/, "the daily full pass is scheduled");
   assert.match(read("app/api/ingest-feed/route.js"), /fetchJimmyFeed\(\{ full: fullPass \}\)/);
 });
 

@@ -274,7 +274,7 @@ test("14. no automatic follow-up: followUpAt is stored but nothing sends it (OUT
   const worker = read("lib/outreach/automation/worker.mjs");
   assert.doesNotMatch(worker, /followUpAt/);
   assert.match(worker, /No follow-up sequence exists: a record is contacted once/);
-  assert.match(read("vercel.json"), /"\/api\/outreach-worker"/);
+  assert.match(read("crons.json"), /"\/api\/outreach-worker"/);
   let jobExists = false;
   try { readFileSync(join(ROOT, "app/api/outreach-followup/route.js")); jobExists = true; } catch {}
   assert.equal(jobExists, false);
@@ -539,7 +539,7 @@ test("C19. no inbound webhook route: replies use bounded polling; the provider n
     assert.equal(exists, false, `${p} must not exist`);
   }
   assert.doesNotMatch(PROVIDER_SRC, /\/webhooks\b/);
-  assert.doesNotMatch(read("vercel.json"), /instantly|webhook/i);
+  assert.doesNotMatch(read("crons.json"), /instantly|webhook/i);
 });
 
 test("TM1. a TEST submit success records lastTest and never a delivery field; only non-test sets QUEUED", () => {

@@ -373,7 +373,7 @@ test("16. no deal-integrity module carries a P0.4.2 edit", () => {
 });
 
 test("17. vercel.json: the static priority tier + the 30 extended-chunk crons are gone, replaced by allocated runs (every marketplace twice a day)", () => {
-  const cron = JSON.parse(read("vercel.json"));
+  const cron = JSON.parse(read("crons.json"));
   const paths = cron.crons.map((c) => c.path);
   assert.ok(!paths.some((p) => p.startsWith("/api/refresh-deals?tier=priority")), "static priority cron still present");
   assert.ok(!paths.some((p) => p.includes("tier=extended")), "extended-chunk crons still present");

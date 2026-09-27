@@ -94,7 +94,7 @@ test("3. the documented full-rotation cadence matches what the numbers give", ()
 });
 
 test("4. the cron schedule still matches the assumptions behind that cadence", () => {
-  const vercel = JSON.parse(read("vercel.json"));
+  const vercel = JSON.parse(read("crons.json"));
   const crons = vercel.crons ?? [];
   const allocated = crons.filter((c) => c.path.includes("tier=allocated"));
   const extended = crons.filter((c) => c.path.includes("tier=extended"));
@@ -142,7 +142,7 @@ test("6. the documented cron-parameter claims match vercel.json", () => {
   // cron calls" while the US sweep cron passed minDiscount=0 - which is
   // why EBAY_US carries 206 sub-threshold deals and every other
   // marketplace carries none.
-  const vercel = JSON.parse(read("vercel.json"));
+  const vercel = JSON.parse(read("crons.json"));
   const crons = vercel.crons ?? [];
   const route = read(ROUTE);
 
