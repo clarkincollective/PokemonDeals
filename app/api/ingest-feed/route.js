@@ -188,8 +188,19 @@ export async function GET(request) {
     } catch (err) {
       second = { listings: [], error: err?.message ?? String(err), pageErrors: [] };
     }
-    if (second.error) board.feedErrors.push(`${JIMMY_SOURCE}: ${second.error}`);
-    for (const e of second.pageErrors ?? []) board.feedErrors.push(`${JIMMY_SOURCE} ${e}`);
+    // Per-status counts, not 144 lines. Measured 27 Sep 04:18Z: this board's
+    // host (Cloudflare) answers 403 to every request from Vercel's address
+    // range while the same pages answer 200 elsewhere, so the second board
+    // is captured by scripts/boards/captureJimmy.mjs from an allowed machine
+    // into the same records; this route still tries, cheaply, and reports.
+    const statuses = {};
+    for (const e of second.pageErrors ?? []) {
+      const m = /HTTP (\d+)/.exec(e);
+      const k = m ? `http_${m[1]}` : "other";
+      statuses[k] = (statuses[k] ?? 0) + 1;
+    }
+    if (Object.keys(statuses).length) board.feedErrors.push(`${JIMMY_SOURCE}: ${(second.pageErrors ?? []).length} of ${second.pages ?? 0} lists failed (${Object.entries(statuses).map(([k, v]) => `${k}=${v}`).join(", ")})`);
+    else if (second.error) board.feedErrors.push(`${JIMMY_SOURCE}: ${second.error}`);
     const seen = new Set(first.listings.map((it) => `${it.marketplace}:${it.ebayItemId}`));
     const merged = [...first.listings];
     for (const it of second.listings) {
