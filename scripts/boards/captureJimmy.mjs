@@ -38,6 +38,7 @@ const require = createRequire(import.meta.url);
 const jimmy = require("../../lib/jimmyFeed.js");
 const bd = require("../../lib/boardDeals.js");
 const bcm = require("../../lib/boardCardMatch.js");
+const fx = require("../../lib/fx.js");
 
 const args = new Set(process.argv.slice(2));
 const MODE = args.has("--backfill") ? "backfill" : args.has("--sealed") ? "sealed" : args.has("--full") ? "full" : "quick";
@@ -150,6 +151,25 @@ if (MODE !== "backfill") {
     } catch (e) {
       summary.saveErrors.push(e?.message ?? String(e));
     }
+  }
+}
+// 28 Sep 2026: the stored web index (lib/boardDeals.saveBoardIndex) - the
+// site reads this one row instead of rebuilding from the whole store.
+if (!DRY) {
+  try {
+    const merged = new Map(records);
+    for (const [k, r] of changedAll) merged.set(k, r);
+    let rates = null;
+    try {
+      rates = await fx.getUsdRates();
+    } catch {
+      rates = null;
+    }
+    const idx = await bd.saveBoardIndex(db, merged, { now: Date.now(), rates });
+    summary.index = idx;
+    if (idx.error) summary.saveErrors.push(`index: ${idx.error}`);
+  } catch (e) {
+    summary.saveErrors.push(`index: ${e?.message ?? String(e)}`);
   }
 }
 if (!DRY) await bd.recordBoardRun(db, { ...summary, perSpec: undefined, source: "captureJimmy" });

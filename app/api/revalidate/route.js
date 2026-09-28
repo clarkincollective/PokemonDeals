@@ -1,4 +1,5 @@
 import { revalidateTag, revalidatePath } from "next/cache";
+import { BOARD_DEALS_TAG } from "@/lib/boardDeals";
 
 // Cache expiry on behalf of the scheduled jobs that run on the owner's PC
 // (scripts/crons, 28 Sep 2026). A job that used to run as a Vercel function
@@ -27,7 +28,11 @@ export async function POST(request) {
   let expired = 0;
   for (const t of tags) {
     try {
-      revalidateTag(t, { expire: 0 });
+      // 28 Sep 2026: the board tag expires stale-while-revalidate ("max") -
+      // its index is a 1.5 MB row and a hard expiry made the next visitor
+      // wait on it ("/" p75 10 s that day). Every other tag keeps the hard
+      // expiry its flow was built on.
+      revalidateTag(t, t === BOARD_DEALS_TAG ? "max" : { expire: 0 });
       expired++;
     } catch (e) {
       errors.push(`${t}: ${e?.message ?? e}`);

@@ -34,8 +34,9 @@ test("BC-1 filterBoardDeals: a USD price band reads priceUsd and never guesses",
 
 test("BC-2 the cached index carries priceUsd (one FX read per build) and the page read takes maxPriceUsd", () => {
   const feed = read("lib/boardDealsFeed.js");
-  assert.match(feed, /import \{ getUsdRates, toUsd \} from "@\/lib\/fx";/);
-  assert.match(feed, /priceUsd: Number\.isFinite\(usd\) \? Math\.round\(usd \* 100\) \/ 100 : null/);
+  assert.match(feed, /const stored = await loadBoardIndex\(db\);/, "28 Sep 2026: the index is read as one stored row");
+  assert.match(feed, /if \(stored\?\.rows\?\.length\) return stored\.rows;/);
+  assert.match(feed, /priceUsd: Number\.isFinite\(usd\) \? Math\.round\(usd \* 100\) \/ 100 : null/, "the fallback rebuild still computes it");
   assert.match(feed, /\["board-deals-index-v3"\]/, "the index shape changed, so its cache key did");
   assert.match(feed, /filterBoardDeals\(index, \{ market, kind, format, maxPriceUsd, card \}\)/);
 });

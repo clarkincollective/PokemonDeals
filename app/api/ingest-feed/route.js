@@ -32,6 +32,7 @@ import {
   recordBoardRun,
   boardListingTrusted,
   BOARD_ABSENCE_HOURS,
+  saveBoardIndex,
 } from "@/lib/boardDeals";
 import { getUsdRates, toUsd } from "@/lib/fx";
 import { logDiscoveryEvent, legacyIdFromListingId, discoveryListingKey } from "@/lib/discoveryLog";
@@ -293,8 +294,20 @@ export async function GET(request) {
     }
     const publicationChanged = toSave.some((r) => r.status === "published" || r.status === "unverified" || r.unpublishedAt || r.status === "expired" || r.status === "price_changed" || r.status === "ended");
     if (publicationChanged) {
+      // 28 Sep 2026: write the stored web index (one row) so the site never
+      // rebuilds it from the whole store, then expire the web cache
+      // stale-while-revalidate ("max") rather than hard (expire: 0) - a
+      // visitor gets the previous rows at once while the fresh row loads,
+      // instead of waiting on the rebuild ("/" p75 10-12 s that day).
       try {
-        revalidateTag(BOARD_DEALS_TAG, { expire: 0 });
+        const merged = new Map(records);
+        for (const [k, r] of boardChanged) merged.set(k, r);
+        board.index = await saveBoardIndex(db, merged, { now: Date.now(), rates: await getUsdRates().catch(() => null) });
+      } catch (e) {
+        board.indexError = e?.message ?? String(e);
+      }
+      try {
+        revalidateTag(BOARD_DEALS_TAG, "max");
       } catch {
         /* the 15-minute revalidate still applies */
       }

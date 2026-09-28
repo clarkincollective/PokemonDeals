@@ -243,7 +243,7 @@ test("BD-6 wiring pins: lock before any lookup and released on every exit, verdi
   assert.equal((route.match(/await queueBoardDiscoveries\(/g) ?? []).length, 4, "queued on the floor skip, the budget skip, the daily-limit skip and at the end of a normal run");
   assert.match(route, /else if \(isFreshCapture\(captured, \{ lastSeenOnBoardAt: runNow \}\)\) \{/, "a fresh row (by found-at, or by the second board still listing it) is shown unverified on every queue path");
   assert.match(route, /\(r\.status !== "pending" && r\.status !== "unverified"\)/, "unverified rows the board dropped still get their lookup");
-  assert.match(route, /revalidateTag\(BOARD_DEALS_TAG, \{ expire: 0 \}\)/);
+  assert.match(route, /revalidateTag\(BOARD_DEALS_TAG, "max"\)/, "28 Sep 2026: stale-while-revalidate, never a hard expiry a visitor waits on");
   assert.match(read("crons.json"), /"path": "\/api\/ingest-feed",\s*"schedule": "\*\/30 \* \* \* \*"/, "every 30 minutes");
   const section = read("components/BoardDealsSection.js");
   const card = read("components/BoardDealCard.js");

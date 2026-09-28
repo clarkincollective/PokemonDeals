@@ -64,7 +64,7 @@ test("PC-4 the runner invokes the route like Vercel's scheduler and hands cache 
   assert.doesNotMatch(hooks, /@\/lib\/ebay"|@\/lib\/supabaseAdmin|@\/lib\/pokemonPriceTracker/, "no provider is stubbed - production modules only");
   const route = read("app/api/revalidate/route.js");
   assert.match(route, /Bearer \$\{process\.env\.CRON_SECRET\}/);
-  assert.match(route, /revalidateTag\(t, \{ expire: 0 \}\)/);
+  assert.match(route, /revalidateTag\(t, t === BOARD_DEALS_TAG \? "max" : \{ expire: 0 \}\)/, "hard expiry for every tag except the board index (28 Sep 2026: stale-while-revalidate)");
   const shim = read("scripts/crons/nextCacheShim.mjs");
   assert.match(shim, /\/api\/revalidate/);
 });
