@@ -84,12 +84,13 @@ async function ollamaReady() {
 }
 
 function startOllama() {
-  // the tray app starts the server; the CLI is enough on machines where the
-  // service is already registered
-  const app = OLLAMA_BIN.replace(/ollama\.exe$/i, "ollama app.exe");
-  if (existsSync(app)) {
-    spawnSync("cmd", ["/c", "start", "", app], { stdio: "ignore", windowsHide: true });
-  }
+  // `ollama serve` directly, detached and hidden: it needs no desktop
+  // session, so it also works when this task runs at the login screen
+  // (the tray app, by contrast, only starts inside an interactive logon).
+  if (!existsSync(OLLAMA_BIN)) return;
+  const { spawn } = require("node:child_process");
+  const child = spawn(OLLAMA_BIN, ["serve"], { detached: true, stdio: "ignore", windowsHide: true });
+  child.unref();
 }
 
 function pullModel() {
