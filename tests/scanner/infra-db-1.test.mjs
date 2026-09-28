@@ -183,7 +183,6 @@ test("IDB-11. INFRA-DB-1 does not touch verify-deals, the verify allocator, scan
   const v = JSON.parse(read("crons.json"));
   const byPath = Object.fromEntries(v.crons.map((c) => [c.path, c.schedule]));
   assert.equal(byPath["/api/verify-deals"], "*/30 * * * *");
-  assert.equal(byPath["/api/social-auto"], "0 * * * *");
 });
 
 test("IDB-12. the social / newsroom source path does not import the web deal pool", () => {

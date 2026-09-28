@@ -49,7 +49,6 @@ import {
   isPositiveActiveConfirmation as isPositiveActiveConfirmationDQ,
   PREMIUM_EXACT_VERIFICATION_MAX_AGE_HOURS,
 } from "../../lib/dealQuality.js";
-import { isSociallyEligible } from "../../lib/social/eligibility.mjs";
 import { expiredDealDestination } from "../../lib/dealPage.js";
 import { repricedAuctionPatch } from "../../lib/auctionPricing.js";
 
@@ -760,14 +759,12 @@ test("SIF-33. a recent SOLD or NOT_FOUND retirement followed by a sighting can n
     //     even a row something forced back to is_active stays out
     const withReason = premiumRow({ lastSeen: sightedAt, exact: retiredAt, reason });
     assert.equal(isPremiumDealEligible(withReason, now), false, reason);
-    assert.equal(isSociallyEligible(withReason, now), false, reason);
     // (b) the LEGACY shape: retired by the old code (no reason), then
     //     revived by a sighting - recent stamp, displayable row
     const legacy = premiumRow({ lastSeen: sightedAt, exact: retiredAt, reason: null });
     assert.equal(isDisplayableDeal(legacy), true, "fixture sanity: the legacy row IS displayable");
     assert.equal(isExactVerifiedFresh(legacy, now), false, "a recent retirement timestamp must never qualify");
     assert.equal(isPremiumDealEligible(legacy, now), false);
-    assert.equal(isSociallyEligible(legacy, now), false);
     assert.equal(listingAvailabilityEvidence(legacy).kind, "seen");
     // (c) the retirement stamp with no later sighting (exact AFTER last seen)
     const stampOnly = premiumRow({ lastSeen: hoursAgo(3, now), exact: retiredAt, reason: null });

@@ -20,7 +20,6 @@ import {
   listingNamesDifferentExpansion,
   disqualificationReason,
 } from "../../lib/dealQuality.js";
-import { isSociallyEligible } from "../../lib/social/eligibility.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const src = (p) => readFileSync(join(ROOT, p), "utf8");
@@ -170,7 +169,6 @@ test("PG-6. a plain listing inherits no savings treatment anywhere", () => {
     assert.equal(isDisplayableDeal(plain), true, "shown");
     assert.equal(listingPresentation(plain).savings, null, "but with no savings claim");
     assert.equal(isPremiumDealEligible(plain), false, "no premium slot");
-    assert.equal(isSociallyEligible(plain), false, "no social promotion");
   });
   // ranking, scores, filters, aggregates, sitemap and structured data
   const deals = src("lib/deals.js");

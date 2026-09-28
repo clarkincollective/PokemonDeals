@@ -226,11 +226,9 @@ test("P043-13 the allocator preserves the P0.2 general-tier order (justAdded > h
   assert.equal(batch[0].id, 1, "justAdded still beats highValue in the general tier");
 });
 
-test("P043-14 no verify-deals / allocator path calls eBay Browse from social:auto", () => {
+test("P043-14 the allocator is pure - it never imports eBay", () => {
   // the allocator is pure - it never imports ebay
   assert.doesNotMatch(read("lib/verifyAllocator.mjs"), /from "\.\/ebay|browse\.api|getBrowseRateLimit|getListing/);
-  // social:auto never imports the allocator or verify-deals
-  assert.doesNotMatch(read("scripts/socialAuto.mjs"), /verifyAllocator|verify-deals/);
 });
 
 test("P043-15 total Browse budget is unchanged - BATCH still 20, cron still every 30 min", () => {

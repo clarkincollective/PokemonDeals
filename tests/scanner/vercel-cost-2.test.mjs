@@ -134,14 +134,6 @@ test("VC2-6 logging: per-item lines are capped and counted, jobs end with one su
   assert.match(read("lib/runtimeLog.js"), /process\.env\.LOG_DEBUG/);
 });
 
-test("VC2-7 outreach worker stops before any network call while automation is off", () => {
-  const src = read("lib/outreach/automation/worker.mjs");
-  const gate = src.search(/report\.outcome = "BLOCKED";\r?\n\s*return report;/);
-  const control = src.indexOf('store.getJson("state/control.json"');
-  const caps = src.indexOf("client.capabilities(");
-  assert.ok(gate > 0 && gate < control && gate < caps, "the disabled return precedes the control read and the capability probes");
-});
-
 test("VC2-8 user-facing dynamic routes carry an explicit duration ceiling", () => {
   for (const f of ["alerts", "card-search", "deals-page", "sealed-catalog", "rates", "newsletter", "newsletter/subscribe", "export-subscribers"]) {
     assert.match(read(`app/api/${f}/route.js`), /export const maxDuration = \d+;/, f);

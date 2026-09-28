@@ -20,10 +20,6 @@
       "test": "30. the price-sanity filter feeds NOTHING but the displayed list"
     },
     {
-      "file": "tests/scanner/render-ci-3b1.test.mjs",
-      "test": "RB-7. CDP discovery polls http://127.0.0.1:<port>/json/version with bounded retry + backoff; stderr scrape is only a fallback"
-    },
-    {
       "file": "tests/scanner/search-ranking.test.mjs",
       "test": "15. the aggregate market history and individual sales stay distinctly labelled"
     },
@@ -40,30 +36,6 @@
       "test": "R-8. wiring: server-rendered after the primary checklist, hidden in print, pilot-gated in the component"
     },
     {
-      "file": "tests/scanner/social-daily-workflow.test.mjs",
-      "test": "14. the market_snapshot template renders a 1080x1350 Mode-B document with no <img> tag"
-    },
-    {
-      "file": "tests/scanner/social-daily-workflow.test.mjs",
-      "test": "16. the daily gallery is review-only (no publish control), shows per-capability rights, and surfaces mix warnings"
-    },
-    {
-      "file": "tests/scanner/social-daily-workflow.test.mjs",
-      "test": "2. a healthy pool yields a varied batch of 3-5 posts, at most one per family"
-    },
-    {
-      "file": "tests/scanner/social-daily-workflow.test.mjs",
-      "test": "3. an empty post history never blocks anything (fresh install)"
-    },
-    {
-      "file": "tests/scanner/social-daily-workflow.test.mjs",
-      "test": "3d. a same-card post 10 days ago is still on cooldown (14-day window); 20 days ago is not"
-    },
-    {
-      "file": "tests/scanner/social-daily-workflow.test.mjs",
-      "test": "5. market_snapshot is only produced while ppt_social_data is CLEARED"
-    },
-    {
       "file": "tests/scanner/social-landing-conversion-uxcvr1.test.mjs",
       "test": "UX-CVR-1-1. the deal-detail primary CTA names eBay for BIN and auctions, and never implies a guaranteed buy"
     },
@@ -78,14 +50,6 @@
     {
       "file": "tests/scanner/social-landing-conversion-uxcvr1.test.mjs",
       "test": "UX-CVR-1-9. social UTM does not change any price / reference / discount on the page"
-    },
-    {
-      "file": "tests/scanner/social-newsroom-3b.test.mjs",
-      "test": "N3B-10. a GitHub Actions render runner exists, is workflow_dispatch-only (schedule commented), concurrency-locked, and never queues"
-    },
-    {
-      "file": "tests/scanner/social-newsroom-3b.test.mjs",
-      "test": "N3B-11. the two-stage cadence is documented in Brisbane + UTC; Stage B activated post-proof, Stage A (render) stays manual/CI-dispatch (SS16/SS28)"
     },
     {
       "file": "tests/scanner/verify-allocator-p043.test.mjs",

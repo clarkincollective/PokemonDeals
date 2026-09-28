@@ -1,44 +1,139 @@
 {
-  "_comment": "The site's scheduled jobs (28 Sep 2026). host 'pc' = run on the owner's always-on PC by scripts/crons/tick.mjs (Task Scheduler, every minute); host 'vercel' = still a Vercel cron and MUST appear identically in vercel.json (a test pins the two lists equal). pcEnv = the non-secret production flags the PC applies so the jobs behave as on Vercel: BROWSE_BUDGET_MODE observe is what production's ledger rows show (browse_budget_observe:*), and the crossmatch pilot has been recording observations there.",
+  "_comment": "The site's scheduled jobs (28 Sep 2026). host 'pc' = run on the owner's always-on PC by scripts/crons/tick.mjs (Task Scheduler, every minute); host 'vercel' = still a Vercel cron and MUST appear identically in vercel.json (a test pins the two lists equal). pcEnv = the non-secret production flags the PC applies so the jobs behave as on Vercel: BROWSE_BUDGET_MODE observe is what production's ledger rows show (browse_budget_observe:*), and the crossmatch pilot has been recording observations there. 28 Sep 2026: the 9 Vercel-hosted jobs (price-alert + digest emails, social autopilot, CRM, cold outreach) were removed with the marketing stack; the owner stopped social and email outreach. Nothing runs on Vercel cron now.",
   "pcEnv": {
     "BROWSE_BUDGET_MODE": "observe",
     "CROSSMATCH_PRICE_PILOT": "on"
   },
   "crons": [
-    { "path": "/api/refresh-catalog", "schedule": "*/30 * * * *", "host": "pc" },
-    { "path": "/api/sweep-stale-deals", "schedule": "*/30 * * * *", "host": "pc" },
-    { "path": "/api/verify-deals", "schedule": "*/30 * * * *", "host": "pc" },
-    { "path": "/api/check-alerts", "schedule": "15 * * * *", "host": "vercel" },
-    { "path": "/api/send-digest", "schedule": "0 15 * * 1", "host": "vercel" },
-    { "path": "/api/integrity-snapshot", "schedule": "40 5 * * *", "host": "pc" },
-    { "path": "/api/refresh-deals?mode=sweep&country=EBAY_US&pages=5&minDiscount=0", "schedule": "*/15 * * * *", "host": "pc" },
-    { "path": "/api/refresh-deals?mode=sweep&country=EBAY_GB&pages=8", "schedule": "5 */2 * * *", "host": "pc" },
-    { "path": "/api/refresh-deals?mode=sweep&country=EBAY_IT&pages=8", "schedule": "10 */2 * * *", "host": "pc" },
-    { "path": "/api/refresh-deals?mode=sweep&country=EBAY_AU&pages=8", "schedule": "20 */2 * * *", "host": "pc" },
-    { "path": "/api/refresh-deals?mode=sweep&country=EBAY_CA&pages=8", "schedule": "35 */2 * * *", "host": "pc" },
-    { "path": "/api/refresh-deals?mode=sweep&country=EBAY_DE&pages=8", "schedule": "50 */2 * * *", "host": "pc" },
-    { "path": "/api/sync-watchlist", "schedule": "0 3 * * *", "host": "pc" },
-    { "path": "/api/sync-card-catalog", "schedule": "0 2 * * *", "host": "pc" },
-    { "path": "/api/sync-card-catalog?language=japanese", "schedule": "40 2 * * *", "host": "pc" },
-    { "path": "/api/sync-sealed-catalog", "schedule": "0 5 * * *", "host": "pc" },
-    { "path": "/api/sync-sealed-watchlist", "schedule": "30 5 * * *", "host": "pc" },
-    { "path": "/api/refresh-sealed-deals?country=EBAY_US", "schedule": "20 7 * * *", "host": "pc" },
-    { "path": "/api/ingest-feed", "schedule": "*/30 * * * *", "host": "pc" },
-    { "path": "/api/ingest-feed?full=1", "schedule": "20 4 * * *", "host": "pc" },
-    { "path": "/api/screen-visual-authenticity", "schedule": "40 */3 * * *", "host": "pc" },
-    { "path": "/api/screen-deal-images", "schedule": "15 * * * *", "host": "pc" },
-    { "path": "/api/refresh-deals?tier=allocated&country=EBAY_US", "schedule": "0 8,20 * * *", "host": "pc" },
-    { "path": "/api/refresh-deals?tier=allocated&country=EBAY_GB", "schedule": "0 10,22 * * *", "host": "pc" },
-    { "path": "/api/refresh-deals?tier=allocated&country=EBAY_AU", "schedule": "30 11,23 * * *", "host": "pc" },
-    { "path": "/api/refresh-deals?tier=allocated&country=EBAY_CA", "schedule": "30 13,1 * * *", "host": "pc" },
-    { "path": "/api/refresh-deals?tier=allocated&country=EBAY_DE", "schedule": "0 15,3 * * *", "host": "pc" },
-    { "path": "/api/refresh-deals?tier=allocated&country=EBAY_IT", "schedule": "0 17,5 * * *", "host": "pc" },
-    { "path": "/api/social-auto", "schedule": "0 * * * *", "host": "vercel" },
-    { "path": "/api/crm-auto", "schedule": "0 16 * * 2", "host": "vercel" },
-    { "path": "/api/crm-auto", "schedule": "0 16 * * 5", "host": "vercel" },
-    { "path": "/api/social-backlog-refill", "schedule": "0 20 * * 6,2", "host": "vercel" },
-    { "path": "/api/social-autopilot-queue", "schedule": "25 * * * *", "host": "vercel" },
-    { "path": "/api/social-health", "schedule": "40 */2 * * *", "host": "vercel" },
-    { "path": "/api/outreach-worker", "schedule": "*/15 * * * *", "host": "vercel" }
+    {
+      "path": "/api/refresh-catalog",
+      "schedule": "*/30 * * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/sweep-stale-deals",
+      "schedule": "*/30 * * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/verify-deals",
+      "schedule": "*/30 * * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/integrity-snapshot",
+      "schedule": "40 5 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/refresh-deals?mode=sweep&country=EBAY_US&pages=5&minDiscount=0",
+      "schedule": "*/15 * * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/refresh-deals?mode=sweep&country=EBAY_GB&pages=8",
+      "schedule": "5 */2 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/refresh-deals?mode=sweep&country=EBAY_IT&pages=8",
+      "schedule": "10 */2 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/refresh-deals?mode=sweep&country=EBAY_AU&pages=8",
+      "schedule": "20 */2 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/refresh-deals?mode=sweep&country=EBAY_CA&pages=8",
+      "schedule": "35 */2 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/refresh-deals?mode=sweep&country=EBAY_DE&pages=8",
+      "schedule": "50 */2 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/sync-watchlist",
+      "schedule": "0 3 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/sync-card-catalog",
+      "schedule": "0 2 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/sync-card-catalog?language=japanese",
+      "schedule": "40 2 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/sync-sealed-catalog",
+      "schedule": "0 5 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/sync-sealed-watchlist",
+      "schedule": "30 5 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/refresh-sealed-deals?country=EBAY_US",
+      "schedule": "20 7 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/ingest-feed",
+      "schedule": "*/30 * * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/ingest-feed?full=1",
+      "schedule": "20 4 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/screen-visual-authenticity",
+      "schedule": "40 */3 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/screen-deal-images",
+      "schedule": "15 * * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/refresh-deals?tier=allocated&country=EBAY_US",
+      "schedule": "0 8,20 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/refresh-deals?tier=allocated&country=EBAY_GB",
+      "schedule": "0 10,22 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/refresh-deals?tier=allocated&country=EBAY_AU",
+      "schedule": "30 11,23 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/refresh-deals?tier=allocated&country=EBAY_CA",
+      "schedule": "30 13,1 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/refresh-deals?tier=allocated&country=EBAY_DE",
+      "schedule": "0 15,3 * * *",
+      "host": "pc"
+    },
+    {
+      "path": "/api/refresh-deals?tier=allocated&country=EBAY_IT",
+      "schedule": "0 17,5 * * *",
+      "host": "pc"
+    }
   ]
 }

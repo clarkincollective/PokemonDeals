@@ -185,14 +185,10 @@ test("CRM1-14 summaryFromCounts is pure arithmetic on pre-aggregated counts", ()
   assert.equal(s.top_signup_source, "instagram");
 });
 
-test("CRM1-15 crm:summary + operator panel never select the email column", () => {
+test("CRM1-15 crm:summary never selects the email column", () => {
   const cli = read("scripts/crmSummary.mjs");
   assert.doesNotMatch(cli, /\.select\([^)]*email/i, "crm:summary must not select email");
   assert.match(cli, /deliberately NOT selecting `email`/);
-  const dash = read("scripts/socialDashboard.mjs");
-  const panel = dash.slice(dash.indexOf("subscribers summary"), dash.indexOf("subscribers summary") + 1400);
-  assert.doesNotMatch(panel, /select\(\s*["']email/i);
-  assert.match(dash, /Subscribers \(CRM-1 — counts only, no addresses\)/);
 });
 
 // ============================ analytics contract ============================
@@ -360,11 +356,9 @@ test("CRM1-29 form asks for EMAIL only - no name/phone, no pre-checked consent b
 
 // ============================ isolation / safety ============================
 
-test("CRM1-30 subscriber mail is fully separate from the cold-outreach provider", () => {
+test("CRM1-30 subscriber mail never references the (removed) cold-outreach provider", () => {
   const email = read("lib/email.js");
   assert.doesNotMatch(email, /outreach|instantly/i);
-  const provider = read("lib/outreach/provider.js");
-  assert.doesNotMatch(provider, /RESEND_API_KEY|lib\/email|ALERT_FROM_EMAIL/);
   for (const f of ["lib/crm/subscribers.js", "lib/crm/digestTemplate.js", "lib/crm/signupGuard.js", "lib/crm/summary.js", "app/api/newsletter/subscribe/route.js"]) {
     assert.doesNotMatch(read(f), /instantly/i, `${f} references Instantly`);
   }

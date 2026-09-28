@@ -250,7 +250,7 @@ test("12. eligibility logic is untouched by this change", async () => {
   // key thresholds/constants still hold their values
   const dq = await import("../../lib/dealQuality.js");
   assert.equal(dq.PREMIUM_HIGH_RISK_MARKET_USD, 100);
-  assert.equal(dq.PREMIUM_HIGH_RISK_DISCOUNT, 0.4);
+  assert.equal(dq.PREMIUM_HIGH_RISK_DISCOUNT, 0.3); // 28 Sep 2026: 0.4 -> 0.3 (deal 42912)
   assert.equal(typeof dq.isDisplayableDeal, "function");
   assert.equal(typeof dq.isPremiumDealEligible, "function");
   const idx = await import("../../lib/indexability.js");
