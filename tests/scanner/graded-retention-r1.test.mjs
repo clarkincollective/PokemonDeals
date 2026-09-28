@@ -144,7 +144,7 @@ test("GR-6 a successful ACTIVE check refreshes the evidence the freshness policy
 
 test("GR-7 route: ceiling, reserve, schedule and guarded retirement unchanged; graded identity columns read", () => {
   const src = read("app/api/verify-deals/route.js");
-  assert.match(src, /const BATCH = 20;/);
+  assert.match(src, /const BATCH = 40;/);
   assert.match(src, /const RESERVE = 800;/);
   assert.match(src, /batch: runBatch - recoveryRows\.length - sealed\.used,/, "card lanes still share one run batch (BATCH outside enforce mode)");
   assert.match(src, /retireForAvailability\(db, \{ key: \{ id: r\.id \}, reason, patch \}\)/, "SOLD / ENDED keep the quarantine-preserving write");
@@ -203,8 +203,8 @@ test("GR-9 real verify-deals route: UNKNOWN cooldown across invocations, expired
   const lane = (run) => run.checked.filter(([id]) => id < 100);
   const attemptKinds = (run) => Object.keys(run.record).filter((k) => k.startsWith(RETENTION_ATTEMPT_KIND_PREFIX));
   for (const run of [...sequence, ...faults, ...concurrent.runs]) {
-    assert.equal(run.verified, 20, `${run.label}: total batch stays 20`);
-    assert.equal(run.calls, 20, `${run.label}: one provider call per slot`);
+    assert.equal(run.verified, 40, `${run.label}: total batch stays 40 (BATCH, 20 until 28 Sep 2026)`);
+    assert.equal(run.calls, 40, `${run.label}: one provider call per slot`);
     assert.ok(run.allocation.graded_retention_used <= 2);
   }
   for (const run of sequence) {

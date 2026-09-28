@@ -491,7 +491,7 @@ test("SIF-20. verify-deals persists the reason on SOLD / ENDED only, per row, an
   assert.match(code, /await retireForAvailability\(db, \{ key: \{ id: r\.id \}, reason, patch \}\)/);
   assert.match(code, /await db\.from\("deals"\)\.update\(patch\)\.eq\("id", r\.id\)/);
   assert.doesNotMatch(code, /\.in\("listing_id"|\.eq\("listing_id"/, "no write keyed by listing id (would reach other marketplaces)");
-  assert.match(code, /const BATCH = 20;/);
+  assert.match(code, /const BATCH = 40;/);
   assert.match(code, /const RESERVE = 800;/);
   const ingest = stripComments(read("app/api/ingest-feed/route.js"));
   assert.match(ingest, /const MAX_NEW_PER_CYCLE = 40;/);

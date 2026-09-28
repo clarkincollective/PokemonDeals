@@ -169,7 +169,7 @@ test("9. exact /itm/ gating still runs before freshness - a wrong-destination ro
 test("10. /api/verify-deals is hard-capped at a small batch", () => {
   const src = readFileSync(join(HERE, "..", "..", "app", "api", "verify-deals", "route.js"), "utf8");
   const batch = Number(src.match(/const BATCH\s*=\s*(\d+)/)?.[1]);
-  assert.ok(batch >= 1 && batch <= 25, `BATCH is ${batch}`);
+  assert.ok(batch >= 1 && batch <= 40, `BATCH is ${batch}`); // 28 Sep 2026: ceiling raised with BATCH 20 -> 40 (still a small, bounded run)
   // P0.4.3: batch composition moved to the pure allocator, which hard-caps
   // its output at `batch` (lib/verifyAllocator + verify-allocator-p043 tests).
   assert.match(src, /allocateVerifyBatch\(\{/);

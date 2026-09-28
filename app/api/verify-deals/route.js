@@ -59,6 +59,19 @@ import {
 // the protected 800-call floor. See docs/p02-availability-incident.md for
 // the full quota-allocation reasoning.
 //
+// 28 Sep 2026 (owner: "do what you think is best and achievable" for fresher
+// links): BATCH 20 -> 40, same 30-minute cadence, same RESERVE. Measured
+// 25-27 Sep: the verifier ran 20 rows in ~26 s (max 49 s), the pool fell
+// under the 800 reserve at ~19:00Z every day, so verification stopped for
+// the second half of each day at ~480-580 calls; 173 rows were item-checked
+// in the last 24 h and 32 of them (18%) were already sold or ended. Every
+// job now runs on the owner's PC, so the doubled batch costs no Vercel
+// compute; it costs ~480 more Browse calls a day, which the evening sweeps
+// and allocated scans would otherwise have spent (their own floors - 250
+// for sweeps - are untouched, they simply reach them ~1.5 h earlier).
+// getItems (20 ids per call) would have been the real fix but is 403 on
+// this keyset (lib/ebay.js). maxDuration 120 -> 180 for the longer loop.
+//
 // Batch composition (P0.4.3 - lib/verifyAllocator.allocateVerifyBatch):
 //   1. CRITICAL auctions ending within ~90 min - always, ahead of all.
 //   2. BIN FRESHNESS RESERVE - a bounded, quota-scaled slice (~35% of the
@@ -113,9 +126,9 @@ import {
 //                   fall, so that is a bad response, not a price drop)
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 180;
 
-const BATCH = 20;
+const BATCH = 40;
 const RESERVE = 800; // never let Browse quota fall to/below this
 // browse-budget-r1 (enforce mode only): below this grant a run is not worth
 // the pool read; the verifier's 720-call cap then accrues for a later run.

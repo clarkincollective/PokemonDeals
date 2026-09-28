@@ -91,7 +91,7 @@ test("14Q-10. verify-deals' CONFIRMED_NO_IMAGE path reuses the EXACT NO_TRUSTED_
 
 test("14Q-11. verify-deals RESERVE and BATCH are unchanged", () => {
   const src = read("app/api/verify-deals/route.js");
-  assert.match(src, /const BATCH = 20;/);
+  assert.match(src, /const BATCH = 40;/);
   assert.match(src, /const RESERVE = 800;/);
 });
 

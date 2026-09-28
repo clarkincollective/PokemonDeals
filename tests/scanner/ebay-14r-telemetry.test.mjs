@@ -410,7 +410,7 @@ test("14R-12. vercel.json cron schedules for every eBay-consuming route are STIL
 });
 
 test("14R-12b. reserve/batch/cap constants are STILL unchanged", () => {
-  assert.match(read("app/api/verify-deals/route.js"), /const BATCH = 20;/);
+  assert.match(read("app/api/verify-deals/route.js"), /const BATCH = 40;/);
   assert.match(read("app/api/verify-deals/route.js"), /const RESERVE = 800;/);
   assert.match(read("app/api/screen-deal-images/route.js"), /const IMAGE_RECOVER_PER_RUN = 12;/);
   assert.match(read("app/api/screen-deal-images/route.js"), /const RECOVER_RESERVE = 900;/);

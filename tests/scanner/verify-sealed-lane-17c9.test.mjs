@@ -262,8 +262,8 @@ test("VL-8b. an ACTIVE answer whose PRICE has moved releases the retirement but 
 });
 
 // --- the route's wiring ---------------------------------------------
-test("VL-9. the route wires the lane into the SAME 20-call ceiling", () => {
-  assert.match(ROUTE, /const BATCH = 20;/);
+test("VL-9. the route wires the lane into the SAME BATCH-call ceiling (40 since 28 Sep 2026)", () => {
+  assert.match(ROUTE, /const BATCH = 40;/);
   assert.match(ROUTE, /const RESERVE = 800;/);
   assert.match(ROUTE, /rl\.remaining - BATCH < RESERVE/, "the existing quota guard is untouched");
   assert.match(ROUTE, /runSealedVerifyLane\(\{/, "the lane is actually called");

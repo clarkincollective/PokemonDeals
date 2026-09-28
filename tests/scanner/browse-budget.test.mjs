@@ -303,13 +303,13 @@ test("BB-10 real verify-deals route under enforce: calls never exceed the grant;
   const { runs, crashGranted } = JSON.parse(r.stdout);
   const [fresh, used700, used715, used718, afterCrash, observe] = runs;
   const critical = (run) => run.checkedIds.filter((id) => id <= 5).length;
-  assert.equal(fresh.budget.granted, 20);
-  assert.equal(fresh.calls, 19, "one unit held back for a retry");
+  assert.equal(fresh.budget.granted, 40); // 28 Sep 2026: BATCH 20 -> 40
+  assert.equal(fresh.calls, 39, "one unit held back for a retry");
   assert.ok(fresh.calls <= fresh.budget.granted);
   assert.equal(critical(fresh), 5);
   assert.ok(fresh.allocation.graded_retention_used <= 2);
-  assert.equal(fresh.ledger.used.verify, 19, "settled attempts only; the unused unit is released");
-  assert.equal(used700.calls, 19);
+  assert.equal(fresh.ledger.used.verify, 39, "settled attempts only; the unused unit is released");
+  assert.equal(used700.calls, 19); // cap-bound (450 ledger cap), not BATCH-bound
   assert.equal(used700.allocation.graded_retention_slots, 0, "optional lanes yield near the verifier cap");
   assert.equal(used700.allocation.bin_reserve_used, 0);
   assert.equal(critical(used700), 5);
@@ -319,12 +319,12 @@ test("BB-10 real verify-deals route under enforce: calls never exceed the grant;
   assert.equal(used715.ledger.used.verify, 450);
   assert.equal(used718.skipped, "browse_budget");
   assert.equal(used718.calls, 0);
-  assert.equal(crashGranted, 20);
+  assert.equal(crashGranted, 20); // pacing-bound grant, not BATCH-bound
   assert.equal(afterCrash.ledger.counters.expired, 1);
   assert.equal(afterCrash.ledger.used.verify, 100 + 20 + afterCrash.calls, "the crashed lease is charged its whole grant");
   assert.equal(observe.skipped, null);
-  assert.equal(observe.calls, 20, "observe mode keeps today's batch");
-  assert.equal(observe.ledger.used.verify, 20, "observe records real attempts in its own row");
+  assert.equal(observe.calls, 40, "observe mode keeps today's batch (BATCH 40 since 28 Sep 2026)");
+  assert.equal(observe.ledger.used.verify, 40, "observe records real attempts in its own row");
 });
 
 
@@ -535,7 +535,7 @@ test("BB-15 real verify-deals route in a PENDING enforce window keeps today's fl
   assert.equal(r.status, 0, r.stderr);
   const { pending } = JSON.parse(r.stdout);
   assert.equal(pending.run.budget.effective, "observe");
-  assert.equal(pending.run.calls, 20, "BATCH 20, as today");
+  assert.equal(pending.run.calls, 40, "BATCH 40, as today (20 until 28 Sep 2026)");
   assert.equal(pending.floorSkip.skipped, "quota_reserve", "the 800 floor still applies in a pending window");
   assert.equal(pending.floorSkip.calls, 0);
   // the floor-skipped run's lease is settled (0 attempts), not left to expire and be charged 20

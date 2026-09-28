@@ -14,14 +14,14 @@ import {
   QUOTA_HEADROOM_FOR_BIN_RESERVE,
 } from "../../lib/verifyAllocator.mjs";
 
-const BATCH = 20;
+const BATCH = 40; // 28 Sep 2026: mirrors app/api/verify-deals (20 -> 40)
 const RESERVE = 800;
 const HEALTHY = RESERVE + BATCH + QUOTA_HEADROOM_FOR_BIN_RESERVE + 50;
 
 test("SV-1. nothing due -> no sealed slots, and the card lanes keep the whole batch", () => {
   const slots = sealedVerifySlots({ batch: BATCH, sealedDue: 0, quotaRemaining: HEALTHY, reserve: RESERVE });
   assert.equal(slots, 0, "today's real demand is zero - the lane costs nothing until rows re-home");
-  assert.equal(cardSlotsAfterSealed(BATCH, slots), 20);
+  assert.equal(cardSlotsAfterSealed(BATCH, slots), BATCH);
 });
 
 test("SV-2. with demand, the slice is bounded and total stays capped at BATCH", () => {
@@ -45,7 +45,7 @@ test("SV-4. 3 slots/run covers the post-re-home demand, and the displaced card c
   const dailySealed = SEALED_MAX_PER_RUN * RUNS_PER_DAY;
   const dailyTotal = BATCH * RUNS_PER_DAY;
   assert.equal(dailySealed, 144);
-  assert.equal(dailyTotal, 960);
+  assert.equal(dailyTotal, 1920); // 28 Sep 2026: 40 x 48 (was 960)
   assert.ok(dailySealed >= 138, "covers all 138 rows that become early once re-homed");
   assert.ok(dailySealed / dailyTotal <= 0.15 + 1e-9, "displaces at most 15% of card verification");
 });
@@ -74,6 +74,6 @@ test("SV-5. the card allocator itself is unchanged when it is handed the reduced
     reserve: RESERVE,
   });
   assert.equal(sealed, 3);
-  assert.equal(batch.length, 17, "the card lanes get exactly the remainder");
-  assert.equal(batch.length + sealed, BATCH, "one 20-call ceiling, split");
+  assert.equal(batch.length, BATCH - sealed, "the card lanes get exactly the remainder");
+  assert.equal(batch.length + sealed, BATCH, "one BATCH-call ceiling, split");
 });

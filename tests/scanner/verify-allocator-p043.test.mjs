@@ -231,9 +231,9 @@ test("P043-14 the allocator is pure - it never imports eBay", () => {
   assert.doesNotMatch(read("lib/verifyAllocator.mjs"), /from "\.\/ebay|browse\.api|getBrowseRateLimit|getListing/);
 });
 
-test("P043-15 total Browse budget is unchanged - BATCH still 20, cron still every 30 min", () => {
+test("P043-15 verifier shape: BATCH 40 (20 until 28 Sep 2026), cron still every 30 min", () => {
   const src = read("app/api/verify-deals/route.js");
-  assert.match(src, /const BATCH = 20;/);
+  assert.match(src, /const BATCH = 40;/);
   const vj = JSON.parse(read("crons.json"));
   const vd = vj.crons.find((c) => c.path === "/api/verify-deals");
   assert.equal(vd.schedule, "*/30 * * * *");
