@@ -39,14 +39,23 @@ const FORMATS = [
   ["bin", "Buy It Now"],
   ["auction", "Auctions"],
 ];
+// 28 Sep 2026: the category pages' price bands (USD, like /deals/under-N)
+const PRICES = [
+  ["", "Any price"],
+  ["25", "Under $25"],
+  ["50", "Under $50"],
+  ["100", "Under $100"],
+  ["250", "Under $250"],
+];
 
 const pick = (v, allowed) => (allowed.some(([k]) => k && k === v) ? v : null);
 
-function query({ page, market, kind, format }) {
+function query({ page, market, kind, format, maxPrice }) {
   const q = new URLSearchParams();
   if (market) q.set("market", market);
   if (kind) q.set("kind", kind);
   if (format) q.set("format", format);
+  if (maxPrice) q.set("maxPrice", maxPrice);
   if (page > 1) q.set("page", String(page));
   const s = q.toString();
   return s ? `/more-deals?${s}` : "/more-deals";
@@ -60,12 +69,13 @@ async function readParams(searchParams) {
     market: pick(one(sp.market), MARKETS),
     kind: pick(one(sp.kind), KINDS),
     format: pick(one(sp.format), FORMATS),
+    maxPrice: pick(one(sp.maxPrice), PRICES),
   };
 }
 
 export async function generateMetadata({ searchParams }) {
   const p = await readParams(searchParams);
-  const plain = p.page === 1 && !p.market && !p.kind && !p.format;
+  const plain = p.page === 1 && !p.market && !p.kind && !p.format && !p.maxPrice;
   return {
     title: TITLE,
     description: DESCRIPTION,
@@ -98,7 +108,7 @@ function ChipRow({ label, options, current, build }) {
 
 export default async function MoreDealsPage({ searchParams }) {
   const p = await readParams(searchParams);
-  const result = await fetchBoardDealsPage({ page: p.page, pageSize: BOARD_PAGE_SIZE, market: p.market, kind: p.kind, format: p.format });
+  const result = await fetchBoardDealsPage({ page: p.page, pageSize: BOARD_PAGE_SIZE, market: p.market, kind: p.kind, format: p.format, maxPriceUsd: p.maxPrice ? Number(p.maxPrice) : null });
   const rows = result.rows.filter((d) => d?.affiliateUrl && d.price > 0 && d.discountPct > 0);
   const filtered = Boolean(p.market || p.kind || p.format);
   const build = (patch) => query({ ...p, page: 1, ...patch });
@@ -121,6 +131,7 @@ export default async function MoreDealsPage({ searchParams }) {
             <ChipRow label="Market" options={MARKETS} current={p.market} build={(v) => build({ market: v })} />
             <ChipRow label="Type" options={KINDS} current={p.kind} build={(v) => build({ kind: v })} />
             <ChipRow label="Format" options={FORMATS} current={p.format} build={(v) => build({ format: v })} />
+            <ChipRow label="Price" options={PRICES} current={p.maxPrice} build={(v) => build({ maxPrice: v })} />
           </div>
         </div>
       </header>

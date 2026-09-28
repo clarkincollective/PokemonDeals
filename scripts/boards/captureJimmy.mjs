@@ -39,7 +39,7 @@ const jimmy = require("../../lib/jimmyFeed.js");
 const bd = require("../../lib/boardDeals.js");
 
 const args = new Set(process.argv.slice(2));
-const MODE = args.has("--backfill") ? "backfill" : args.has("--full") ? "full" : "quick";
+const MODE = args.has("--backfill") ? "backfill" : args.has("--sealed") ? "sealed" : args.has("--full") ? "full" : "quick";
 const DRY = args.has("--dry");
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   console.error("  Missing NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (.env.local)");

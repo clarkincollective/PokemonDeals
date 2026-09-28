@@ -15,6 +15,7 @@ import RegionRedirect from "@/components/RegionRedirect";
 import DealGrid from "@/components/DealGrid";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import SiteFooter from "@/components/SiteFooter";
+import BoardDealsSection from "@/components/BoardDealsSection";
 import { serializeJsonLd } from "@/lib/jsonLd";
 
 const SITE_URL = "https://pokemondealfinder.com";
@@ -48,6 +49,31 @@ async function resolveCategorySets(cat) {
 // first paint), then <DealGrid kind="category"> takes over for filters /
 // pagination via /api/deals-page - identical pattern to /sets/[slug] and
 // /pokemon/[slug], so the route stays statically cacheable.
+// The board-row selection a category implies (28 Sep 2026). null = the
+// category has no board equivalent, so no section.
+export function boardFiltersForCategory(cat) {
+  const f = cat?.filter ?? {};
+  if (Array.isArray(f.sets) || f.modernEra || f.priceDrop) return null;
+  const out = {};
+  if (f.cardType === "graded") out.kind = "graded";
+  else if (f.cardType === "raw") out.kind = "raw";
+  if (f.listingType === "AUCTION") out.format = "auction";
+  else if (f.listingType === "FIXED_PRICE") out.format = "bin";
+  if (f.country) out.market = f.country;
+  if (Number.isFinite(Number(f.maxPrice)) && Number(f.maxPrice) > 0) out.maxPriceUsd = Number(f.maxPrice);
+  return Object.keys(out).length ? out : null;
+}
+
+const BOARD_MARKET_NAMES = { EBAY_GB: "the UK", EBAY_AU: "Australia", EBAY_CA: "Canada", EBAY_US: "the US", EBAY_DE: "Germany", EBAY_IT: "Italy" };
+export function boardHeadingForCategory(cat) {
+  const f = cat?.filter ?? {};
+  if (f.cardType === "graded") return "More graded deals";
+  if (f.listingType === "AUCTION") return "More auction deals";
+  if (f.country) return `More deals in ${BOARD_MARKET_NAMES[f.country] ?? "this marketplace"}`;
+  if (Number(f.maxPrice) > 0) return `More deals under $${Number(f.maxPrice)}`;
+  return "More deals";
+}
+
 export default async function DealCategoryPage({ slug }) {
   const cat = DEAL_CATEGORIES[slug];
   if (!cat) return null; // caller already guarded, belt-and-braces
@@ -78,6 +104,8 @@ export default async function DealCategoryPage({ slug }) {
   const { deals, error } = initial;
 
   const basePath = `/deals/${slug}`;
+  const boardFilters = boardFiltersForCategory(cat);
+  const boardHeading = boardHeadingForCategory(cat);
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
@@ -180,6 +208,13 @@ export default async function DealCategoryPage({ slug }) {
           // audit-r1: a country landing page fixes the marketplace the same way
           lockedCountry={cat.filter?.country ?? null}
         />
+
+        {/* 28 Sep 2026: the imported board rows that belong to THIS category
+            (graded / auctions / a marketplace / a price band), below the
+            evidenced grid, the same way /deals carries them. Categories
+            defined by set lists (vintage, modern) or by our own price
+            history (price drops) have no board equivalent and show none. */}
+        {boardFilters ? <BoardDealsSection page="deals" limit={24} heading={boardHeading} {...boardFilters} /> : null}
 
         <nav className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">More deal categories</h2>

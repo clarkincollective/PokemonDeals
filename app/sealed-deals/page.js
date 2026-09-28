@@ -11,6 +11,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import SealedDealCard from "@/components/SealedDealCard";
 import SealedProductBrowser from "@/components/SealedProductBrowser";
+import BoardDealsSection from "@/components/BoardDealsSection";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbList, collectionPage } from "@/lib/jsonLd";
 
@@ -139,6 +140,13 @@ export default async function SealedDealsPage() {
             </div>
           </section>
         )}
+
+        {/* 28 Sep 2026 (owner: "Sealed doesn't have many"): the sealed rows the
+            external boards publish, below our own live strip and above the
+            catalogue browser. Same separate surface as /deals; only sealed. */}
+        <div className="-mx-4 mb-8 sm:-mx-6">
+          <BoardDealsSection page="sealed" kind="sealed" limit={24} heading="More sealed deals" />
+        </div>
 
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
           Browse every sealed product
