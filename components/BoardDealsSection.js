@@ -46,8 +46,8 @@ function moreDealsHref({ kind, market, format, maxPriceUsd }) {
   return s ? `/more-deals?${s}` : "/more-deals";
 }
 
-export default async function BoardDealsSection({ deals = null, page = "deals", heading = "More deals", limit = 12, kind = null, market = null, format = null, maxPriceUsd = null, id = "board-deals", headingStyle = "page" }) {
-  const filters = { kind: kind || null, market: market || null, format: format || null, maxPriceUsd: maxPriceUsd || null };
+export default async function BoardDealsSection({ deals = null, page = "deals", heading = "More deals", limit = 12, kind = null, market = null, format = null, maxPriceUsd = null, card = null, id = "board-deals", headingStyle = "page", showSeeAll = true }) {
+  const filters = { kind: kind || null, market: market || null, format: format || null, maxPriceUsd: maxPriceUsd || null, card: card || null };
   let rows = deals;
   let total = 0;
   if (rows) {
@@ -59,7 +59,7 @@ export default async function BoardDealsSection({ deals = null, page = "deals", 
   }
   const items = (rows ?? []).filter((d) => d?.affiliateUrl && d.price > 0 && d.discountPct > 0);
   if (items.length === 0) return null;
-  const seeAll = moreDealsHref(filters);
+  const seeAll = moreDealsHref(filters); // ignores `card`: /more-deals has no per-card view
   return (
     <section id={id} aria-labelledby={`${id}-heading`} className={headingStyle === "sub" ? "scroll-mt-6" : "mx-auto w-full max-w-7xl px-4 py-10 sm:px-6"}>
       <div className="flex flex-wrap items-end justify-between gap-2">
@@ -82,7 +82,7 @@ export default async function BoardDealsSection({ deals = null, page = "deals", 
           <BoardDealCard key={d.id} deal={d} page={page} />
         ))}
       </ul>
-      {total > items.length ? (
+      {showSeeAll && total > items.length ? (
         <p className="mt-4">
           {/* the unfiltered link keeps its literal href for the source pin (BD-13) */}
           {seeAll === "/more-deals" ? (

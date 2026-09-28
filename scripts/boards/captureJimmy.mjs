@@ -37,6 +37,7 @@ if (existsSync(".env.local")) loadDotenv({ path: ".env.local", quiet: true });
 const require = createRequire(import.meta.url);
 const jimmy = require("../../lib/jimmyFeed.js");
 const bd = require("../../lib/boardDeals.js");
+const bcm = require("../../lib/boardCardMatch.js");
 
 const args = new Set(process.argv.slice(2));
 const MODE = args.has("--backfill") ? "backfill" : args.has("--sealed") ? "sealed" : args.has("--full") ? "full" : "quick";
@@ -113,6 +114,25 @@ for (const spec of specs) {
     }
   }
   console.error(`  ${summary.specsDone}/${specs.length} ${spec.slug}/${spec.format}/${spec.window} ${spec.label}: pages ${got.pages}/${got.maxPage} rows ${got.listings.length} (${got.stoppedBecause})`);
+}
+
+// 28 Sep 2026: tie every never-attempted record to a catalogue printing
+// (lib/boardCardMatch) so the card pages can show it. In-memory; the
+// catalogue read is one paginated select per run; only stamped records are
+// saved. Runs before expiry so an expiring record is stamped too (harmless).
+if (!DRY) {
+  try {
+    const stamp = await bcm.stampCatalogMatches(db, records, { overlay: changedAll, now: runNow });
+    summary.cardMatch = { attempted: stamp.attempted, matched: stamp.matched, catalog: stamp.catalog };
+    if (stamp.changed.length) {
+      const { written, errors } = await withLock(() => bd.saveBoardDealRecords(db, stamp.changed));
+      summary.saved += written;
+      summary.saveErrors.push(...errors);
+      for (const r of stamp.changed) changedAll.set(bd.boardDealKind(r.marketplace, r.itemId), r);
+    }
+  } catch (e) {
+    summary.saveErrors.push(`cardMatch: ${e?.message ?? String(e)}`);
+  }
 }
 
 // expiry of records absent from every board (only a full or quick pass says

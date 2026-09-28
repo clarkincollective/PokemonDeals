@@ -38,6 +38,7 @@ import { emailEnabled } from "@/lib/email";
 import RecordCardView from "@/components/RecordCardView";
 import DetailViewAnalytics from "@/components/analytics/DetailViewAnalytics";
 import ListingChecks from "@/components/ListingChecks";
+import BoardDealsSection from "@/components/BoardDealsSection";
 import RelatedCards from "@/components/RelatedCards";
 import SiteFooter from "@/components/SiteFooter";
 
@@ -659,6 +660,15 @@ export default async function CardHubPage({ params }) {
             totalActive={allOffers.length}
             alertsEnabled={emailEnabled()}
           />
+        </div>
+
+        {/* 28 Sep 2026: listings of THIS printing published by external
+            deal boards (lib/boardCardMatch ties each row to one catalogue
+            id). Below our checked listings, never in the Offer schema, the
+            source never named; the row's own published saving is shown and
+            the reader is told to check the listing on eBay. */}
+        <div className="mt-8">
+          <BoardDealsSection page="card" card={hub.tcgplayerId} limit={8} heading="More listings of this card on eBay" id="more-card-listings" headingStyle="sub" showSeeAll={false} />
         </div>
 
         {chartPoints.length >= 2 && (

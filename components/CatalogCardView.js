@@ -13,6 +13,7 @@ import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import CardImagePlaceholder from "@/components/CardImagePlaceholder";
 import CardMarketPanel, { CardMarketSummary } from "@/components/CardMarketPanel";
+import BoardDealsSection from "@/components/BoardDealsSection";
 import CardPriceIntelligence from "@/components/CardPriceIntelligence";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import AffiliateLink from "@/components/AffiliateLink";
@@ -262,6 +263,14 @@ export default function CatalogCardView({
           alert={alertsEnabled ? { cardSlug: slug, cardName: card.name, suggestedPrice: isUsableUsdPrice(refPrice) ? Math.round(Number(refPrice) * 0.9 * 100) / 100 : null } : null}
           ebaySearchHref={ebaySearchHref}
         />
+
+        {/* 28 Sep 2026: listings of this printing published by external deal
+            boards (lib/boardCardMatch). A catalogue-only page stays without
+            Offer schema; this is a plain list with the row's own published
+            saving and "check the listing on eBay". */}
+        <div className="mt-8">
+          <BoardDealsSection page="card" card={card.tcgplayerId} limit={8} heading="Listings of this card on eBay" id="more-card-listings" headingStyle="sub" showSeeAll={false} />
+        </div>
 
         {chartPoints.length >= 2 && (
           <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-card dark:border-zinc-800 dark:bg-zinc-950">

@@ -36,13 +36,13 @@ test("BC-2 the cached index carries priceUsd (one FX read per build) and the pag
   const feed = read("lib/boardDealsFeed.js");
   assert.match(feed, /import \{ getUsdRates, toUsd \} from "@\/lib\/fx";/);
   assert.match(feed, /priceUsd: Number\.isFinite\(usd\) \? Math\.round\(usd \* 100\) \/ 100 : null/);
-  assert.match(feed, /\["board-deals-index-v2"\]/, "the index shape changed, so its cache key did");
-  assert.match(feed, /filterBoardDeals\(index, \{ market, kind, format, maxPriceUsd \}\)/);
+  assert.match(feed, /\["board-deals-index-v3"\]/, "the index shape changed, so its cache key did");
+  assert.match(feed, /filterBoardDeals\(index, \{ market, kind, format, maxPriceUsd, card \}\)/);
 });
 
 test("BC-3 the section takes the surface's filters and links to /more-deals with the same ones", () => {
   const section = read("components/BoardDealsSection.js");
-  assert.match(section, /kind = null, market = null, format = null, maxPriceUsd = null, id = "board-deals", headingStyle = "page" \}\)/);
+  assert.match(section, /kind = null, market = null, format = null, maxPriceUsd = null, card = null, id = "board-deals", headingStyle = "page", showSeeAll = true \}\)/);
   assert.match(section, /fetchBoardDealsPage\(\{ page: 1, pageSize: limit, \.\.\.filters \}\)/);
   assert.match(section, /href="\/more-deals"/, "the plain link keeps its literal href (BD-13)");
   assert.match(section, /href=\{seeAll\}/);
