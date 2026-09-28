@@ -83,7 +83,7 @@ test("AR1S2-6 verifier featured tier: a deal the premium lanes would show once v
   assert.equal(featuredCandidate(bin({ discount_pct: 0.8 }), NOW), false, "above the band");
   assert.equal(featuredCandidate(bin({ listing_type: "AUCTION" }), NOW), false);
   assert.equal(featuredCandidate(bin({ market_price: 150, discount_pct: 0.5, visual_authenticity_status: null }), NOW), false, "high-risk band without a visual match");
-  assert.equal(featuredCandidate(bin({ market_price: 150, discount_pct: 0.3, visual_authenticity_status: null }), NOW), true, "not in the high-risk band: no match needed");
+  assert.equal(featuredCandidate(bin({ market_price: 150, discount_pct: 0.25, visual_authenticity_status: null }), NOW), true, "not in the high-risk band (under 30% since 28 Sep 2026): no match needed");
   // allocation: general slots only (batch 3, no reserve headroom, no graded slots)
   const pool = [
     bin({ id: 1, market_price: 800, discount_pct: 0.8 }), // highValue, outside the band

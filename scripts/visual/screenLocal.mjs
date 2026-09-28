@@ -247,9 +247,12 @@ async function recordSuspect(row, verdict) {
     discountPct: row.discount_pct,
     images: [row.image_url, ...((Array.isArray(row.image_urls) ? row.image_urls : []).filter((u) => u !== row.image_url))].slice(0, 4),
     page: `https://pokemondealfinder.com/deals/${row.id}`,
-    evidence: verdict.suspect?.evidence ?? null,
-    materials: verdict.suspect?.materials ?? null,
-    materialAgrees: Boolean(verdict.suspect?.agrees),
+    // screenDeal rebuilds the verdict as { status, reason } (the `suspect`
+    // field never survives), so read the evidence back out of the reason:
+    //   suspected_counterfeit(local,material_agrees): <evidence> | material:<a/b>
+    evidence: verdict.suspect?.evidence ?? (/\): (.*?) \| material:/.exec(verdict.reason ?? "")?.[1] ?? null),
+    materials: verdict.suspect?.materials ?? (/\| material:([a-z/]+)/.exec(verdict.reason ?? "")?.[1] ?? null),
+    materialAgrees: Boolean(verdict.suspect?.agrees) || /material_agrees/.test(verdict.reason ?? ""),
   };
   try {
     const { appendFileSync, mkdirSync } = await import("node:fs");

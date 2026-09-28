@@ -117,6 +117,25 @@ try {
 } catch {
   /* best effort */
 }
+// A Windows toast when something is stale (once per hour at most: this runs
+// hourly). Plain WinRT, no module to install. Owner asked to hear about a
+// stuck job rather than discover it.
+if (!report.ok || process.argv.includes("--test-toast")) {
+  try {
+    const { spawnSync } = await import("node:child_process");
+    const what = process.argv.includes("--test-toast") ? "test notification" : [...report.staleJobs, ...report.staleExtras].slice(0, 4).join(", ");
+    const ps = [
+      "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null",
+      "$t = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)",
+      "$n = $t.GetElementsByTagName('text'); $n.Item(0).AppendChild($t.CreateTextNode('Pokemon Deal Finder: jobs need attention')) | Out-Null",
+      `$n.Item(1).AppendChild($t.CreateTextNode('Stale: ${what.replace(/'/g, "")}')) | Out-Null`,
+      "[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Pokemon Deal Finder').Show([Windows.UI.Notifications.ToastNotification]::new($t))",
+    ].join("; ");
+    spawnSync("powershell", ["-NoProfile", "-Command", ps], { stdio: "ignore", windowsHide: true, timeout: 20000 });
+  } catch {
+    /* the file and the heartbeat still carry it */
+  }
+}
 try {
   if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });

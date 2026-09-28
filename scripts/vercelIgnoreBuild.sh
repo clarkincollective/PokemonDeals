@@ -16,15 +16,9 @@
 # the range touched build input, the build runs.
 set -u
 
-# 28 Sep 2026: deployments are built on the owner's PC and uploaded prebuilt
-# (scripts/deploy/deployFromPc.mjs, every 5 minutes), so Vercel bills no
-# build minutes. While the marker file exists, Vercel's own Git-triggered
-# build is always skipped. Delete `.pc-deploys` (and commit) to go back to
-# Vercel building each push.
-if [ -f ".pc-deploys" ]; then
-  echo "ignoreCommand: deployments are built on the owner's PC (.pc-deploys present) - skipping Vercel build"
-  exit 0
-fi
+# (28 Sep 2026: a short-lived ".pc-deploys" marker that skipped every Vercel build
+# in favour of prebuilt uploads from the owner's PC was removed the same day - the
+# Windows-built bundle did not run on Vercel. Vercel builds each push again.)
 
 base="${VERCEL_GIT_PREVIOUS_SHA:-}"
 if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then

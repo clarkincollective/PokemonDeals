@@ -17,7 +17,7 @@ import { createRequire } from "node:module";
 const { premiumBandLacksSellerTrust, PREMIUM_TRUST_MIN_FEEDBACK, isDisplayableDeal } =
   createRequire(import.meta.url)("../../lib/dealQuality.js");
 
-// In the band ($100+ reference, 40 %+ off) with both adverse signals.
+// In the band ($100+ reference, 30 %+ off (40 % before 28 Sep 2026)) with both adverse signals.
 const banded = (over = {}) => ({
   market_price: 764.12,
   discount_pct: 0.57,
@@ -52,10 +52,10 @@ test("outside the band the rule never fires, however weak the seller", () => {
   // Expensive card, ordinary discount.
   assert.equal(premiumBandLacksSellerTrust(banded({ discount_pct: 0.2 })), false);
   // Exactly on both thresholds is inside the band (>=, not >).
-  assert.equal(premiumBandLacksSellerTrust(banded({ market_price: 100, discount_pct: 0.4 })), true);
+  assert.equal(premiumBandLacksSellerTrust(banded({ market_price: 100, discount_pct: 0.3 })), true); // 28 Sep 2026: band floor 40% -> 30%
   // A hair under either bound is outside it.
   assert.equal(premiumBandLacksSellerTrust(banded({ market_price: 99.99 })), false);
-  assert.equal(premiumBandLacksSellerTrust(banded({ discount_pct: 0.399 })), false);
+  assert.equal(premiumBandLacksSellerTrust(banded({ discount_pct: 0.299 })), false);
 });
 
 test("an established seller in the band is untouched", () => {

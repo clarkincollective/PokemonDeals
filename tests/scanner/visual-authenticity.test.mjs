@@ -399,7 +399,9 @@ test("regression 12766 + 12750: the screening queue is a bounded widening, not '
   const hv = { ...escapeRow, seller_feedback_score: null };
   // a genuine expensive card at a NORMAL discount is still not screened
   assert.equal(isVisualScreeningCandidate({ ...hv, discount_pct: 0.2 }), false);
-  assert.equal(isVisualScreeningCandidate({ ...hv, discount_pct: 0.39 }), false);
+  assert.equal(isVisualScreeningCandidate({ ...hv, discount_pct: 0.29 }), false);
+  // 28 Sep 2026: the premium band moved to 30% (deal 42912), so a $300+ card at 39% off now enters via the premium gate
+  assert.equal(isVisualScreeningCandidate({ ...hv, discount_pct: 0.39 }), true);
   // exactly at the 40% threshold, $100+ -> screened (premium band)
   assert.equal(isVisualScreeningCandidate({ ...hv, discount_pct: 0.4 }), true);
   assert.equal(isVisualScreeningCandidate({ ...hv, market_price: 120, discount_pct: 0.5485 }), true);
@@ -408,9 +410,9 @@ test("regression 12766 + 12750: the screening queue is a bounded widening, not '
   // screened, no matter how steep the discount
   assert.equal(isVisualScreeningCandidate({ ...hv, market_price: 90, discount_pct: 0.5 }), false);
   assert.equal(isVisualScreeningCandidate({ ...hv, market_price: 90, discount_pct: 0.7 }), false);
-  // and a $100+ card short of BOTH the 40% premium floor and the 55%
+  // and a $100+ card short of BOTH the 30% premium floor (28 Sep 2026) and the 55%
   // steep gate is still not screened
-  assert.equal(isVisualScreeningCandidate({ ...hv, market_price: 250, discount_pct: 0.35 }), false);
+  assert.equal(isVisualScreeningCandidate({ ...hv, market_price: 250, discount_pct: 0.25 }), false);
   // no card at all -> can't screen (no canonical reference)
   assert.equal(isVisualScreeningCandidate({ ...hv, card_tcgplayer_id: null, discount_pct: 0.6 }), false);
 });

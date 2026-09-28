@@ -116,11 +116,12 @@ test("7. a high-risk MATCH deal CAN qualify for premium", () => {
 test("8. a lower-risk deal (below the value/discount band) still qualifies with no visual verdict", () => {
   assert.equal(premiumNeedsVisualMatch(deal({ market_price: 90, discount_pct: 0.6 })), false); // < $100
   assert.equal(isPremiumDealEligible(deal({ market_price: 90, discount_pct: 0.6, visual_authenticity_status: null })), true);
-  assert.equal(premiumNeedsVisualMatch(deal({ market_price: 400, discount_pct: 0.3 })), false); // < 40% off
-  assert.equal(isPremiumDealEligible(deal({ market_price: 400, discount_pct: 0.3, visual_authenticity_status: null })), true);
+  assert.equal(premiumNeedsVisualMatch(deal({ market_price: 400, discount_pct: 0.25 })), false); // < 30% off
+  assert.equal(premiumNeedsVisualMatch(deal({ market_price: 400, discount_pct: 0.35 })), true); // deal 42912 shape (35% off, $461) now needs a MATCH
+  assert.equal(isPremiumDealEligible(deal({ market_price: 400, discount_pct: 0.25, visual_authenticity_status: null })), true);
   // the band constants are the expected value/discount shape
   assert.equal(PREMIUM_HIGH_RISK_MARKET_USD, 100);
-  assert.equal(PREMIUM_HIGH_RISK_DISCOUNT, 0.4);
+  assert.equal(PREMIUM_HIGH_RISK_DISCOUNT, 0.3);
 });
 
 // --- 9: genuine gold/foil card not rejected by appearance -----
