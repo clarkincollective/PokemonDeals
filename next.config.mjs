@@ -5,6 +5,15 @@
 // kept out of the index at the server, not only by nofollow links:
 // X-Robots-Tag noindex,follow whenever one of these params is present.
 // Header rules keep the page static (no per-request render, no proxy).
+// 28 Sep 2026 (page speed): the category landing pages are served by the
+// static route app/deal-categories/[slug] behind their unchanged /deals/<slug>
+// URLs - see that file. The slug list is the category module's own, so a new
+// category is cached the day it is added; the two redirect slugs (japanese,
+// sealed) are excluded and stay on /deals/[id].
+import { DEAL_CATEGORIES, DEAL_CATEGORY_SLUGS } from "./lib/dealCategories.js";
+const STATIC_CATEGORY_SLUGS = DEAL_CATEGORY_SLUGS.filter((slug) => !DEAL_CATEGORIES[slug]?.redirect);
+const STATIC_CATEGORY_PATTERN = `:slug(${STATIC_CATEGORY_SLUGS.join("|")})`;
+
 const ALL_DEALS_VARIANT_PARAMS = ["country", "type", "grader", "grade", "listing", "minPrice", "maxPrice", "q", "sort", "page"];
 
 // Homepage-caching r1: "/" follows the same static-page-plus-client-filter
@@ -40,6 +49,17 @@ const DEALS_SUBPATH_VARIANT_PARAMS = [...ALL_DEALS_VARIANT_PARAMS, "from"];
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async rewrites() {
+    return {
+      // before the filesystem: /deals/graded is answered by the static
+      // category route, never by the on-demand /deals/[id] render
+      beforeFiles: [{ source: `/deals/${STATIC_CATEGORY_PATTERN}`, destination: "/deal-categories/:slug" }],
+    };
+  },
+  async redirects() {
+    // the internal path is never a second public URL
+    return [{ source: `/deal-categories/${STATIC_CATEGORY_PATTERN}`, destination: "/deals/:slug", permanent: true }];
+  },
   async headers() {
     return [
       ...ALL_DEALS_VARIANT_PARAMS.map((key) => ({
