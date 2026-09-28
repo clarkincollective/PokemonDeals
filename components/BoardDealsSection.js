@@ -46,7 +46,7 @@ function moreDealsHref({ kind, market, format, maxPriceUsd }) {
   return s ? `/more-deals?${s}` : "/more-deals";
 }
 
-export default async function BoardDealsSection({ deals = null, page = "deals", heading = "More deals", limit = 12, kind = null, market = null, format = null, maxPriceUsd = null }) {
+export default async function BoardDealsSection({ deals = null, page = "deals", heading = "More deals", limit = 12, kind = null, market = null, format = null, maxPriceUsd = null, id = "board-deals", headingStyle = "page" }) {
   const filters = { kind: kind || null, market: market || null, format: format || null, maxPriceUsd: maxPriceUsd || null };
   let rows = deals;
   let total = 0;
@@ -61,9 +61,16 @@ export default async function BoardDealsSection({ deals = null, page = "deals", 
   if (items.length === 0) return null;
   const seeAll = moreDealsHref(filters);
   return (
-    <section aria-labelledby="board-deals" className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6">
+    <section id={id} aria-labelledby={`${id}-heading`} className={headingStyle === "sub" ? "scroll-mt-6" : "mx-auto w-full max-w-7xl px-4 py-10 sm:px-6"}>
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <h2 id="board-deals" className="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl dark:text-zinc-50">
+        <h2
+          id={`${id}-heading`}
+          className={
+            headingStyle === "sub"
+              ? "text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400"
+              : "text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl dark:text-zinc-50"
+          }
+        >
           {heading}
         </h2>
         <p className="text-xs text-zinc-500 dark:text-zinc-400">

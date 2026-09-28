@@ -2,7 +2,10 @@ import SkipToContent from "@/components/SkipToContent";
 import { fetchSealedDealsPool, fetchSealedCatalog, fetchLastScanTime, slimSealedProduct } from "@/lib/deals";
 
 // the sets SealedProductBrowser opens by default; only these ship products
-const INITIAL_OPEN_SETS = 6;
+// 28 Sep 2026 (owner: "a big scroll and doesn't look very organised"): 6 open
+// sets put ~300 product tiles on first paint. One (the newest) opens; every
+// other set is a one-line header that loads on click.
+const INITIAL_OPEN_SETS = 1;
 import { dealScore } from "@/lib/dealScore";
 import { timeAgo } from "@/lib/time";
 import { SEALED_PRODUCT_TYPES } from "@/lib/sealedCatalog";
@@ -128,9 +131,26 @@ export default async function SealedDealsPage() {
             arrives with an exact product selected, SealedProductBrowser
             hides this strip for the duration, so the selected product's own
             offer is never read as part of an unrelated featured feed. */}
+        {/* 28 Sep 2026: a jump bar so the page reads as three short parts -
+            our checked deals, the imported sealed listings, the catalogue by
+            set - instead of one long scroll. Plain anchors; no script. */}
+        <nav aria-label="On this page" className="mb-6 flex flex-wrap gap-2 text-sm">
+          {featuredDeals.length > 0 && (
+            <a href="#live-sealed-deals" className="rounded-full border border-zinc-300 px-3 py-1 font-medium text-zinc-700 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-300">
+              Live deals
+            </a>
+          )}
+          <a href="#more-sealed-deals" className="rounded-full border border-zinc-300 px-3 py-1 font-medium text-zinc-700 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-300">
+            More sealed deals
+          </a>
+          <a href="#browse-sealed" className="rounded-full border border-zinc-300 px-3 py-1 font-medium text-zinc-700 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-300">
+            Browse by set{catalogTotals.products ? ` (${catalogTotals.products.toLocaleString()} products)` : ""}
+          </a>
+        </nav>
+
         {featuredDeals.length > 0 && (
-          <section className="mb-12" data-featured-sealed-strip>
-            <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-500">
+          <section id="live-sealed-deals" className="mb-10 scroll-mt-6" data-featured-sealed-strip>
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-500">
               Live sealed deals right now
             </h2>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -144,11 +164,11 @@ export default async function SealedDealsPage() {
         {/* 28 Sep 2026 (owner: "Sealed doesn't have many"): the sealed rows the
             external boards publish, below our own live strip and above the
             catalogue browser. Same separate surface as /deals; only sealed. */}
-        <div className="-mx-4 mb-8 sm:-mx-6">
-          <BoardDealsSection page="sealed" kind="sealed" limit={24} heading="More sealed deals" />
+        <div className="mb-10">
+          <BoardDealsSection page="sealed" kind="sealed" limit={8} heading="More sealed deals" id="more-sealed-deals" headingStyle="sub" />
         </div>
 
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+        <h2 id="browse-sealed" className="mb-3 scroll-mt-6 text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
           Browse every sealed product
         </h2>
         <p className="mb-4 max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">

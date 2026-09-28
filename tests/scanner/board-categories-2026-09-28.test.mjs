@@ -42,7 +42,7 @@ test("BC-2 the cached index carries priceUsd (one FX read per build) and the pag
 
 test("BC-3 the section takes the surface's filters and links to /more-deals with the same ones", () => {
   const section = read("components/BoardDealsSection.js");
-  assert.match(section, /kind = null, market = null, format = null, maxPriceUsd = null \}\)/);
+  assert.match(section, /kind = null, market = null, format = null, maxPriceUsd = null, id = "board-deals", headingStyle = "page" \}\)/);
   assert.match(section, /fetchBoardDealsPage\(\{ page: 1, pageSize: limit, \.\.\.filters \}\)/);
   assert.match(section, /href="\/more-deals"/, "the plain link keeps its literal href (BD-13)");
   assert.match(section, /href=\{seeAll\}/);
@@ -77,7 +77,7 @@ test("BC-4 category pages: the mapping from a category's filter to the board sel
 
 test("BC-5 /sealed-deals shows the boards' sealed rows; /more-deals has the price band", () => {
   const sealed = read("app/sealed-deals/page.js");
-  assert.match(sealed, /<BoardDealsSection page="sealed" kind="sealed" limit=\{24\} heading="More sealed deals" \/>/);
+  assert.match(sealed, /<BoardDealsSection page="sealed" kind="sealed" limit=\{8\} heading="More sealed deals" id="more-sealed-deals" headingStyle="sub" \/>/);
   const more = read("app/more-deals/page.js");
   assert.match(more, /\["50", "Under \$50"\]/);
   assert.match(more, /maxPrice: pick\(one\(sp\.maxPrice\), PRICES\)/);
@@ -95,4 +95,17 @@ test("BC-6 the daily sealed capture: sealed searches only, all-time window, boun
   assert.ok(jimmy.jimmyListSpecs({ mode: "quick" }).every((s) => s.maxPages === 3 && s.label === "quick"));
   assert.equal(jimmy.jimmyListSpecs({ mode: "full" }).length, lists * 2);
   assert.match(read("scripts/boards/captureJimmy.mjs"), /args\.has\("--sealed"\) \? "sealed"/);
+});
+
+test("BC-7 /sealed-deals reads as three short parts (owner: 'a big scroll and doesn't look very organised')", () => {
+  const sealed = read("app/sealed-deals/page.js");
+  assert.match(sealed, /const INITIAL_OPEN_SETS = 1;/, "one set open on first paint, not six");
+  assert.match(sealed, /<nav aria-label="On this page"/, "a jump bar");
+  for (const id of ["#live-sealed-deals", "#more-sealed-deals", "#browse-sealed"]) assert.match(sealed, new RegExp(`href="${id}"`));
+  assert.match(sealed, /<section id="live-sealed-deals" className="mb-10 scroll-mt-6" data-featured-sealed-strip>/, "the featured strip keeps its data attribute (sealed-product-selection test)");
+  assert.match(sealed, /<h2 id="browse-sealed"/);
+  // a single card with a card number is never filed as sealed, whatever else its title says
+  const feed = read("lib/jimmyFeed.js");
+  assert.match(feed, /const CARD_NUMBER_RE = /);
+  assert.match(feed, /SEALED_TITLE_RE\.test\(title\) && !CARD_NUMBER_RE\.test\(title\) \? "sealed" : "single"/);
 });
