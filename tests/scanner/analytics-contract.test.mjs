@@ -16,7 +16,6 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 import { EVENTS, ALLOWED_EVENTS, QUALIFIED_ACTION_EVENTS, SECTION_CLICK_EVENT } from "../../lib/analytics/events.js";
-import { buildPostHogConfig, getPosthogHost, POSTHOG_EU_API_HOST, ANALYTICS_VERSION } from "../../lib/analytics/config.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
@@ -92,40 +91,14 @@ test("every homepage lane has a click event mapping", () => {
   }
 });
 
-// === 2. PostHog configuration posture ============================
+// === 2. PostHog removed 2 Oct 2026 - no rogue usage ==============
 
-test("PostHog config is cookieless / EU / no-profile", () => {
-  const cfg = buildPostHogConfig({ beforeSend: [] });
-  assert.equal(cfg.cookieless_mode, "always");
-  assert.equal(cfg.person_profiles, "never");
-  assert.equal(cfg.persistence, "memory");
-  assert.equal(cfg.autocapture, false);
-  assert.equal(cfg.capture_pageview, false);
-  assert.equal(cfg.capture_pageleave, false);
-  assert.equal(cfg.disable_session_recording, true);
-  assert.equal(cfg.disable_surveys, true);
-  assert.equal(cfg.respect_dnt, true);
-  assert.equal(cfg.disable_external_dependency_loading, true);
-  assert.ok(Array.isArray(cfg.before_send));
+test("analyticsEnabled() is permanently false and config.js builds no SDK config", async () => {
+  const { analyticsEnabled } = await import("../../lib/analytics/config.js");
+  assert.equal(analyticsEnabled(), false);
+  const src = stripComments(read("lib/analytics/config.js"));
+  assert.doesNotMatch(src, /posthog/i);
 });
-
-test("PostHog host is always an EU endpoint", () => {
-  assert.equal(getPosthogHost(), POSTHOG_EU_API_HOST); // no env override in tests
-  const cfg = buildPostHogConfig({});
-  assert.match(cfg.api_host, /eu\.i\.posthog\.com/);
-  assert.match(cfg.ui_host, /eu\.posthog\.com/);
-});
-
-test("config source never mentions localStorage/cookie persistence", () => {
-  const src = read("lib/analytics/config.js");
-  assert.doesNotMatch(src, /persistence:\s*["'](localStorage|cookie|localStorage\+cookie|sessionStorage)["']/);
-});
-
-test("analytics_version is set and stable-looking", () => {
-  assert.match(ANALYTICS_VERSION, /^13A\./);
-});
-
-// === 3. no rogue PostHog usage ==================================
 
 test("posthog-js is imported only by the analytics client singleton", () => {
   const offenders = [];

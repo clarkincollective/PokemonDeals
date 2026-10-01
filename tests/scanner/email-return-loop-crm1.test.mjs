@@ -220,11 +220,6 @@ test("CRM1-17 the capture component never puts the email in an analytics prop", 
   assert.doesNotMatch(src, /posthog/i);
 });
 
-test("CRM1-18 email is a forbidden analytics prop key (defence in depth)", () => {
-  const san = read("lib/analytics/sanitize.js");
-  assert.match(san, /"email"/);
-});
-
 // ============================ route wiring ============================
 
 const SUB = () => read("app/api/newsletter/subscribe/route.js");

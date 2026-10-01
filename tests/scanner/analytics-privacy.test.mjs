@@ -92,13 +92,10 @@ test("AffiliateLink does not mutate href or affiliate params, and does not block
   assert.doesNotMatch(src, /preventDefault\(\)|router\.push|window\.location\s*=/);
 });
 
-test("analytics client hard-no-ops without a key and respects Do Not Track", () => {
-  const src = read("lib/analytics/client.js");
-  assert.match(src, /analyticsEnabled\(\)/);
-  assert.match(src, /isDoNotTrackEnabled\(\)/);
-  // dynamic import so posthog-js is off the critical path
-  assert.match(src, /import\(\s*["']posthog-js["']\s*\)/);
-  assert.match(src, /requestIdleCallback|setTimeout\(start/);
+test("analytics client is a permanent no-op (PostHog removed 2 Oct 2026) and loads no SDK", () => {
+  const src = stripComments(read("lib/analytics/client.js"));
+  assert.doesNotMatch(src, /posthog/i);
+  assert.doesNotMatch(src, /import\(/, "no dynamic SDK import of any kind");
 });
 
 test("session helper references no pdf:* storage key at all", () => {
@@ -106,10 +103,8 @@ test("session helper references no pdf:* storage key at all", () => {
   assert.equal([...src.matchAll(/["']pdf:[a-zA-Z]+["']/g)].length, 0, "session.js still names a pdf:* storage key");
 });
 
-test("privacy page discloses PostHog + cookieless + DNT and NO LONGER lists the removed analytics storage", () => {
+test("privacy page no longer mentions PostHog (removed 2 Oct 2026) or the removed analytics storage", () => {
   const src = read("app/privacy/page.js");
-  assert.match(src, /PostHog/);
-  assert.match(src, /cookieless/i);
-  assert.match(src, /Global Privacy Control|Do Not Track/i);
+  assert.doesNotMatch(src, /PostHog/);
   assert.doesNotMatch(src, /pdf:firstSeen|pdf:attribution|first seen/i);
 });

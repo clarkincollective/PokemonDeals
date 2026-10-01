@@ -13,8 +13,6 @@ import { dirname, join } from "node:path";
 import { createPageViewTracker, ATTRIBUTION_SCOPES, NAV_TYPES } from "../../lib/analytics/pageview.js";
 import { EVENTS, ALLOWED_EVENTS } from "../../lib/analytics/events.js";
 import { classifyTrafficSource, sanitizeUtmValue, geoCountryProp, viewerCountryFromMarketplace, isAiAssistantUtm } from "../../lib/analytics/props.js";
-import { sanitizeProps, buildBeforeSend, CLICK_ID_KEYS } from "../../lib/analytics/sanitize.js";
-import { buildPostHogConfig } from "../../lib/analytics/config.js";
 import { buildHomepageQuery, buildEventTotalsQuery, lastGroupKey, REPORT_PAGE_SIZE } from "../../scripts/reporting/query.mjs";
 import { fetchCompleteReport, checkCompleteness, eventTotalsFromResponse, withoutSuspectedTestDays, IncompleteReportError } from "../../scripts/reporting/fetch.mjs";
 import { aggregateRows, buildReport, headlineCounts } from "../../scripts/reporting/aggregate.mjs";
@@ -83,7 +81,6 @@ test("5. page_view payload is structural only and survives the sanitiser unchang
   assert.equal(last.props.page_index, 50, "capped - no unbounded counter");
   const p = createPageViewTracker().next("/sets/base-set", { trafficSource: "direct" }).props;
   assert.deepEqual(Object.keys(p).sort(), ["attribution_scope", "landing_page_type", "nav_type", "page_index", "page_type"]);
-  assert.deepEqual(sanitizeProps(p), p);
   for (const bad of [undefined, null, "", "cards/x", 42]) assert.equal(createPageViewTracker().next(bad, {}), null);
 });
 
@@ -291,9 +288,6 @@ test("18. suspected test traffic is a SENSITIVITY comparison, never an automatic
 });
 
 test("19. continuity is labelled from VERIFIED behaviour: server-side sessions span full page loads, the site's in-memory context does not, and cross-day continuity is not measurable", () => {
-  const cfg = code("lib/analytics/config.js");
-  assert.match(cfg, /cookieless_mode: "always"/);
-  assert.match(cfg, /persistence: "memory"/);
   const notes = CONTINUITY_NOTES.join(" ");
   assert.match(notes, /INCLUDING across full page loads \(verified on production data\)/);
   assert.doesNotMatch(notes, /Sessions reset on every FULL page load/, "the earlier audit claim was disproved and must not reappear");
@@ -308,71 +302,8 @@ test("19. continuity is labelled from VERIFIED behaviour: server-side sessions s
   }
 });
 
-// ===================================================================
-// 6. final pre-send checks (17C.0 closeout)
-// ===================================================================
-
-const runBeforeSend = (event) => buildBeforeSend().reduce((e, fn) => (e == null ? e : fn(e)), event);
-
-test("20. the SDK no longer copies landing-URL campaign params onto events (save_campaign_params off)", () => {
-  const cfg = buildPostHogConfig({ beforeSend: [] });
-  assert.equal(cfg.save_campaign_params, false);
-  // the rest of the privacy posture is unchanged
-  assert.equal(cfg.cookieless_mode, "always");
-  assert.equal(cfg.persistence, "memory");
-});
-
-test("21. the FINAL payload keeps only approved attribution: click IDs, utm_term, bad utm values, null campaign keys, search keywords and their $initial_ copies are removed", () => {
-  const sdkShaped = {
-    event: EVENTS.SEARCH_RESULT_CLICKED,
-    properties: {
-      token: "phc_x",
-      distinct_id: "$posthog_cookieless",
-      $lib: "web",
-      $current_url: "https://pokemondealfinder.com/cards/charizard-base-set?gclid=Cj0&utm_term=psa",
-      // what posthog-js attaches from the landing URL when campaign capture is on
-      utm_source: "chatgpt.com",
-      utm_medium: "social",
-      utm_campaign: "reach-me@example.com",
-      utm_content: null,
-      utm_term: "psa 10 charizard",
-      ph_keyword: "charizard psa 10",
-      $search_keyword: "charizard",
-      $initial_gclid: "Cj0",
-      $initial_utm_source: "chatgpt.com",
-      $initial_utm_term: "psa",
-      ...Object.fromEntries(CLICK_ID_KEYS.map((k) => [k, "abc123"])),
-      // our structural props, which must survive
-      card_slug: "charizard-base-set",
-      result_type: "card",
-      surface: "catalog",
-      rank: 3,
-      traffic_source: "ai_assistant",
-      geo_country: "BR",
-    },
-  };
-  const out = runBeforeSend(sdkShaped);
-  assert.ok(out, "the event itself is kept");
-  const p = out.properties;
-  for (const k of [...CLICK_ID_KEYS, "utm_term", "ph_keyword", "$search_keyword", "$initial_gclid", "$initial_utm_term", "utm_campaign", "utm_content"]) {
-    assert.ok(!(k in p), `${k} must not leave the browser`);
-  }
-  assert.equal(p.utm_source, "chatgpt.com", "an approved AI-assistant source is kept");
-  assert.equal(p.utm_medium, "social");
-  assert.equal(p.$initial_utm_source, "chatgpt.com");
-  assert.equal(p.$current_url, "https://pokemondealfinder.com/cards/charizard-base-set", "querystring (with click ids) stripped");
-  assert.equal(p.card_slug, "charizard-base-set", "valid card slug preserved");
-  assert.equal(p.result_type, "card", "result_type preserved");
-  assert.equal(p.token, "phc_x", "ingestion token untouched");
-  assert.equal(p.distinct_id, "$posthog_cookieless");
-  assert.equal(p.geo_country, "BR");
-  // an unapproved utm value is removed, an approved one is kept verbatim
-  assert.equal(runBeforeSend({ event: EVENTS.PAGE_VIEW, properties: { utm_source: "https://evil.example/x" } }).properties.utm_source, undefined);
-  assert.equal(runBeforeSend({ event: EVENTS.PAGE_VIEW, properties: { utm_campaign: "spring_sale" } }).properties.utm_campaign, "spring_sale");
-  // the step runs LAST, on the fully assembled event
-  const src = code("lib/analytics/sanitize.js");
-  assert.match(src, /return \[dropDisallowedEvents, scrubProperties, enforceAttributionAllowlist\];/);
-});
+// 2 Oct 2026: tests 20-21 (PostHog before_send / SDK config contract)
+// removed with PostHog itself - see lib/analytics/client.js.
 
 test("22. /api/rates can never be shared between visitors: dynamic, private, no shared-cache directives; the FX rate cache is unchanged and holds no visitor data", () => {
   const route = code("app/api/rates/route.js");
