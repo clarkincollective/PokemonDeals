@@ -10,6 +10,13 @@
 // scripts/crons/run-job.cmd "<path>" (see runJob.mjs). Settings: 30-minute
 // execution limit, no overlapping instances, run when available, network
 // required.
+//
+// 2 Oct 2026 bug: Register-ScheduledTask -Force with no -Principal resets
+// an ALREADY-S4U task's LogonType back to Interactive (silently undid the
+// 28 Sep elevated conversion for all 26 existing tasks the next time this
+// generator ran). Fixed: for a task that already exists, use Set-ScheduledTask
+// instead, which only touches the properties it is given and leaves the
+// existing Principal (and therefore LogonType) alone.
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -47,8 +54,14 @@ for (const job of cfg.crons.filter((c) => c.host === "pc")) {
   }
   lines.push(`$action = New-ScheduledTaskAction -Execute $cmd -Argument '"${job.path.replace(/'/g, "")}"'`);
   lines.push(`$triggers = @(${triggers.join(", ")})`);
-  lines.push(`Register-ScheduledTask -TaskName '${name}' -Action $action -Trigger $triggers -Settings $settings -Description '${job.schedule} UTC -> ${job.path} (crons.json, runs on this PC)' -Force | Out-Null`);
-  lines.push(`Write-Output 'registered ${name}'`);
+  lines.push(`$desc = '${job.schedule} UTC -> ${job.path} (crons.json, runs on this PC)'`);
+  lines.push(`if (Get-ScheduledTask -TaskName '${name}' -ErrorAction SilentlyContinue) {`);
+  lines.push(`  Set-ScheduledTask -TaskName '${name}' -Action $action -Trigger $triggers -Settings $settings | Out-Null`);
+  lines.push(`  Write-Output 'updated ${name}'`);
+  lines.push(`} else {`);
+  lines.push(`  Register-ScheduledTask -TaskName '${name}' -Action $action -Trigger $triggers -Settings $settings -Description $desc | Out-Null`);
+  lines.push(`  Write-Output 'registered ${name}'`);
+  lines.push(`}`);
   summary.push(`${name}  ${job.schedule} UTC  fires/day=${fires.length}${fires.length <= 2 ? " at " + fires.map(hhmm).join(",") : ""}`);
 }
 mkdirSync(join(REPO, ".local", "cron"), { recursive: true });

@@ -86,6 +86,11 @@
       "host": "pc"
     },
     {
+      "path": "/api/mine-graded-prices",
+      "schedule": "15 */4 * * *",
+      "host": "pc"
+    },
+    {
       "path": "/api/ingest-feed",
       "schedule": "*/30 * * * *",
       "host": "pc"

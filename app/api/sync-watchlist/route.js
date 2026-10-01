@@ -6,6 +6,7 @@ import {
   pickMarketReference,
   isSentinelPrice,
 } from "@/lib/pokemonPriceTracker";
+import { fetchTcgcsvCatalogue } from "@/lib/tcgcsv";
 import { upsertWithProvenance } from "@/lib/referenceProvenanceDb";
 import { setPptConsumer } from "@/lib/pptTelemetry";
 import { debugLog, logRunSummary } from "@/lib/runtimeLog";
@@ -261,8 +262,113 @@ async function syncViaExport(db, manualKeys) {
   };
 }
 
-// The proven, slower path: one request per set (218 total). Kept as the
-// default until syncViaExport is verified against real data.
+// The default path (2026-09-28, owner: "I'm not upgrading pokemon price
+// tracker... find ways we can keep the market data updated. using free
+// sources"). Same shape and the same card-by-card logic as syncViaExport
+// above - tcgcsv.com's per-printing rows ARE PokemonPriceTracker's export
+// row shape (lib/tcgcsv's whole point) - just sourced from the free, daily,
+// keyless mirror instead of a PPT export the free tier does not include.
+// Multiple printings still collapse to the highest-value one per card, for
+// the same reason: a cheap printing should never make a chase card look
+// like a $2 "extended"-tier auto-add.
+async function syncViaTcgcsv(db, manualKeys, { groupLimit = null, language = "english" } = {}) {
+  const got = await fetchTcgcsvCatalogue({ language, groupLimit });
+
+  const byCard = new Map();
+  let skipped = 0;
+  for (const row of got.rows) {
+    if (NON_SINGLE_PATTERN.test(row.name ?? "")) {
+      skipped++;
+      continue;
+    }
+    const price = Number(row.marketNearMint ?? row.marketPrice);
+    if (!Number.isFinite(price) || price <= 0) {
+      skipped++;
+      continue;
+    }
+    const reference_condition = row.marketPriceCondition ?? null;
+    const existing = byCard.get(row.tcgPlayerId);
+    if (!existing || price > existing.price) {
+      byCard.set(row.tcgPlayerId, { name: row.name, set: row.setName, price, reference_condition, reference_printing: row.printing ?? null });
+    }
+  }
+
+  const seenKeys = new Set();
+  const upsertRows = [];
+  const historyRecords = [];
+
+  for (const [tcgPlayerId, card] of byCard) {
+    const tier = classifyTier(card.price);
+    if (!tier) {
+      skipped++;
+      continue;
+    }
+
+    seenKeys.add(`${card.name}|${card.set}`);
+    historyRecords.push({
+      tcgplayer_id: String(tcgPlayerId),
+      name: card.name,
+      set: card.set,
+      language,
+      price: card.price,
+      reference_condition: card.reference_condition ?? null,
+      reference_printing: card.reference_printing ?? null,
+    });
+
+    if (manualKeys.has(`${card.name}|${card.set}`)) {
+      skipped++;
+      continue;
+    }
+
+    upsertRows.push({
+      name: card.name,
+      set: card.set,
+      justtcg_tcgplayer_id: String(tcgPlayerId),
+      justtcg_condition: "Near Mint",
+      active: true,
+      source: "auto",
+      tier,
+      last_known_price: card.price,
+      language,
+    });
+  }
+
+  const { priorityCount, extendedCount, errors } = await chunkedUpsert(db, upsertRows);
+  const retired = groupLimit ? 0 : await retireStaleAutoRows(db, seenKeys, language);
+  const priceHistory = await logPriceHistory(db, historyRecords);
+
+  logRunSummary("sync_watchlist_complete", {
+    language,
+    method: "tcgcsv",
+    tcgcsvGroups: got.stats.groups,
+    tcgcsvRequests: got.stats.requests,
+    priorityCount,
+    extendedCount,
+    skipped,
+    retired,
+    priceHistoryRows: priceHistory.written,
+    priceHistoryError: priceHistory.error ? String(priceHistory.error).slice(0, 200) : null,
+    errors: errors.length,
+  });
+
+  return {
+    method: "tcgcsv",
+    rowsFromTcgcsv: got.rows.length,
+    uniqueCards: byCard.size,
+    priorityCount,
+    extendedCount,
+    skipped,
+    retired,
+    priceHistoryRows: priceHistory.written,
+    priceHistoryError: priceHistory.error,
+    errors,
+    tcgcsv: { groups: got.stats.groups, groupsPriced: got.stats.groupsPriced, requests: got.stats.requests, failures: got.stats.failures },
+  };
+}
+
+// Kept for parity/debugging only (?method=ppt-crawl): one PokemonPriceTracker
+// request per set (218 total). Not the default since 28 Sep 2026 - see
+// syncViaTcgcsv above.
 async function syncViaSetCrawl(db, manualKeys, maxSets, language) {
   const allSets = await listSets(language);
   const sets = maxSets ? allSets.slice(0, maxSets) : allSets;
@@ -429,14 +535,21 @@ export async function GET(request) {
   }
 
   const url = new URL(request.url);
-  const useExport = url.searchParams.get("useExport") === "true";
-  // ?maxSets=5 for a quick, safe test pass of the set-crawl path instead
-  // of the full catalog (218 English sets / 442 Japanese sets).
+  // 2026-09-28: "tcgcsv" (default) is the free, keyless path - see
+  // syncViaTcgcsv. "ppt-export" / "ppt-crawl" are PokemonPriceTracker's two
+  // retired paths, kept only as an explicit opt-in (?method=) for parity
+  // with sync-card-catalog / sync-sealed-catalog; with PPT_SAVED_DATA_MODE
+  // on they throw immediately without a request, same as every other door.
+  const methodParam = url.searchParams.get("method");
+  const method = methodParam === "ppt-export" || url.searchParams.get("useExport") === "true" ? "ppt-export" : methodParam === "ppt-crawl" ? "ppt-crawl" : "tcgcsv";
+  // ?maxSets=5 for a quick, safe test pass of the ppt-crawl path instead
+  // of the full catalog (218 English sets / 442 Japanese sets); ?groupLimit=
+  // is tcgcsv's equivalent, a bounded number of TCGCSV groups.
   const maxSets = Number(url.searchParams.get("maxSets")) || null;
-  // ?language=japanese - PokemonPriceTracker's other real catalog (see
-  // supabase/watchlist_language_migration.sql). useExport's CSV path is
-  // English-only (untested even for that - see syncViaExport above), so
-  // language only applies to the set-crawl path.
+  const groupLimit = Number(url.searchParams.get("groupLimit")) || maxSets || null;
+  // ?language=japanese - the site's other real catalog (see
+  // supabase/watchlist_language_migration.sql). ppt-export's CSV path is
+  // English-only, so language only applies to tcgcsv / ppt-crawl.
   const languageParam = url.searchParams.get("language");
   const language = languageParam === "japanese" ? "japanese" : "english";
 
@@ -448,9 +561,12 @@ export async function GET(request) {
   const { data: manualRows } = await db.from("watchlist").select("name, set").eq("source", "manual");
   const manualKeys = new Set((manualRows ?? []).map((row) => `${row.name}|${row.set}`));
 
-  const result = useExport
-    ? await syncViaExport(db, manualKeys)
-    : await syncViaSetCrawl(db, manualKeys, maxSets, language);
+  const result =
+    method === "ppt-export"
+      ? await syncViaExport(db, manualKeys)
+      : method === "ppt-crawl"
+        ? await syncViaSetCrawl(db, manualKeys, maxSets, language)
+        : await syncViaTcgcsv(db, manualKeys, { groupLimit, language });
 
   return Response.json({
     ...result,

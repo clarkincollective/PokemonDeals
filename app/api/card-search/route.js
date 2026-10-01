@@ -52,6 +52,11 @@ async function cardDetail(url, tcgplayerId) {
   const minDiscount = url.searchParams.get("minDiscount");
   const maxPrice = url.searchParams.get("maxPrice");
 
+  // 2026-09-28: this branch has no caller anywhere in the site today (the
+  // ppt-pause-plan found that by grepping every fetch of this route), so a
+  // hard 500 here has never been visitor-facing - but leaving a 500 branch
+  // alive is how it becomes someone else's bug later. Same posture as
+  // every other PPT door: degrade to no price / no history, never throw.
   let marketPrice = null;
   let history = [];
   try {
@@ -62,7 +67,7 @@ async function cardDetail(url, tcgplayerId) {
     marketPrice = raw?.price ?? null;
     history = hist;
   } catch (err) {
-    return Response.json({ error: err.message }, { status: 500 });
+    console.error("card-search tcgplayerId lookup failed:", err.message);
   }
 
   const db = supabaseAdmin();
