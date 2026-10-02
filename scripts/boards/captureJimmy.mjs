@@ -28,6 +28,7 @@
 // PACE. 2.5 s between requests (the host rate-limited a faster pass).
 // Scheduled on this machine (Task Scheduler): quick every 30 minutes, --full
 // daily. --backfill is a one-off for graded and sealed depth.
+import "../crons/dnsFix.mjs";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { config as loadDotenv } from "dotenv";

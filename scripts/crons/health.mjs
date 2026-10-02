@@ -12,6 +12,7 @@
 // .local/cron/health.json and to catalog_snapshot kind "pc_health" (so it
 // can be read from anywhere with the service key). Also trims any
 // .local/cron log over 5 MB to its last 1 MB. Never throws.
+import "./dnsFix.mjs";
 import { existsSync, readFileSync, writeFileSync, readdirSync, statSync, truncateSync, openSync, readSync, closeSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

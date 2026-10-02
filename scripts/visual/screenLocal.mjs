@@ -28,6 +28,7 @@
 // and for a COUNTERFEIT verdict the row's own hold plus the copy hold on
 // other marketplaces - exactly the route's rules - and the affected cache tags
 // are queued for the next sweep-stale-deals run. Nothing is ever released here.
+import "../crons/dnsFix.mjs";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
