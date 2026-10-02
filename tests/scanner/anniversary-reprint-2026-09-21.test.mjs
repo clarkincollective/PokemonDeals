@@ -137,6 +137,30 @@ test('"30th" must be a whole word, not a fragment', () => {
   assert.equal(titleClaimsAnniversaryReprint(priced({ title: "Metagross 130th of a set 11/113" })), false);
 });
 
+// 3 Oct 2026, owner-reported: a live EBAY_IT listing of this exact
+// ambiguity (SV02 Paldea Evolved Magikarp 203/193 vs the Classic
+// Collection's own Magikarp 203/193) kept its savings claim because the
+// seller wrote the Italian ordinal "30°" rather than the English "30th" -
+// 6 live, active listings found with the marker, none caught before this.
+test("the Italian ordinal \"30°\" is the same marker as \"30th\"", () => {
+  const magikarp = (title) =>
+    priced({ title, card_name: "Magikarp", card_set: "SV02: Paldea Evolved", reference_amount: 365.41, market_price: 365.41 });
+  assert.equal(titleClaimsAnniversaryReprint(magikarp("2026 Pokemon 30° Anniversario Magikarp 203/193 Sv02: Paldea Evolved Holo")), true);
+  assert.equal(titleClaimsAnniversaryReprint(magikarp("Pokemon TCG Magikarp 203/193 Sv02 Paldea Evolved IR EN Holo/ 30° Celebrazione🔥")), true);
+  // matched TO the reprint set: title and match agree, claim stands
+  assert.equal(
+    titleClaimsAnniversaryReprint({ ...magikarp("Magikarp 203/193 30° Celebrazione"), card_set: "ME: 30th Celebration Classic Collection" }),
+    false
+  );
+  // the Celebrations/25th family gets the same ordinal form
+  assert.equal(
+    titleClaimsAnniversaryReprint(
+      priced({ title: "Mewtwo-EX 54/99 Next Destinies Holo 25° Celebrations", card_name: "Mewtwo EX", card_set: "Next Destinies" })
+    ),
+    true
+  );
+});
+
 test("the savings claim is withdrawn, and only the savings claim", () => {
   const plain = priced();
   const ambiguous = priced({ title: "Metagross Delta Species 11/113 English 30th Anniversary" });
